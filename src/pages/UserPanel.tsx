@@ -183,13 +183,12 @@ export default function UserPanel() {
                   }
                 }}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-3 ${
-                  selectedFile
+                className={`border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-3 ${selectedFile
                     ? 'border-blue-500 bg-blue-50/50'
                     : dragActive
-                    ? 'border-blue-600 bg-blue-100/40 scale-[0.99]'
-                    : 'border-gray-200 hover:border-blue-400 hover:bg-white bg-white/60'
-                }`}
+                      ? 'border-blue-600 bg-blue-100/40 scale-[0.99]'
+                      : 'border-gray-200 hover:border-blue-400 hover:bg-white bg-white/60'
+                  }`}
               >
                 <input
                   type="file"
@@ -276,11 +275,10 @@ export default function UserPanel() {
             <button
               onClick={onSend}
               disabled={!selectedFile || isUploading}
-              className={`w-full py-3.5 px-5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 ${
-                selectedFile && !isUploading
+              className={`w-full py-3.5 px-5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 ${selectedFile && !isUploading
                   ? 'bg-[#1967d2] hover:bg-blue-700 text-white shadow-blue-500/25'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
+                }`}
             >
               <Send className="w-4 h-4" />
               <span>ارسال فایل به گیرنده</span>

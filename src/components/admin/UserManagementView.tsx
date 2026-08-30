@@ -193,9 +193,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${
-                              percent > 85 ? 'bg-red-500' : percent > 60 ? 'bg-amber-500' : 'bg-blue-600'
-                            }`}
+                            className={`h-full rounded-full transition-all ${percent > 85 ? 'bg-red-500' : percent > 60 ? 'bg-amber-500' : 'bg-blue-600'
+                              }`}
                             style={{ width: `${percent}%` }}
                           />
                         </div>
@@ -227,11 +226,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         </button>
                         <button
                           onClick={() => onUpdateUser(user.id, { isActive: !user.isActive })}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            user.isActive
-                              ? 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
-                              : 'text-emerald-600 hover:bg-emerald-50'
-                          }`}
+                          className={`p-1.5 rounded-lg transition-colors ${user.isActive
+                            ? 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                            : 'text-emerald-600 hover:bg-emerald-50'
+                            }`}
                           title={user.isActive ? 'مسدود کردن' : 'فعال‌سازی'}
                         >
                           {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
