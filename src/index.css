@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary-blue: #1a73e8;
+    --dark-blue: #1557b0;
+    --sidebar-blue: #185abc;
+    --card-gray: #f1f3f4;
+  }
+
+  * {
+    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  background-color: #195de6;
+  color: #202124;
+  direction: rtl;
+  text-align: right;
+}
+
+input, button, select, textarea {
+  font-family: 'Vazirmatn', sans-serif !important;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Custom Folder Tab Cutout */
+.folder-tab-card {
+  position: relative;
+  border-radius: 16px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.folder-tab-notch {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 55%;
+  height: 18px;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+}
+
+/* Overlapping avatar stacks */
+.avatar-stack {
+  display: flex;
+  align-items: center;
+}
+.avatar-stack > * {
+  margin-right: -8px;
+  margin-left: 0;
+  transition: transform 0.15s ease;
+}
+.avatar-stack > *:first-child {
+  margin-right: 0;
+}
+.avatar-stack > *:hover {
+  transform: translateY(-2px) scale(1.08);
+  z-index: 10;
+}
+
+/* Smooth micro-animations */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
