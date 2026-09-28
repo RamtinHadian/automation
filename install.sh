@@ -64,6 +64,18 @@ fi
 echo "==> Building and starting"
 docker compose up -d --build
 
+# Auto-update: check GitHub every 5 minutes and redeploy when the branch changed.
+# Disable with AUTO_UPDATE=0.
+if [ "${AUTO_UPDATE:-1}" = 1 ] && [ -d .git ]; then
+  if [ -d /etc/cron.d ] && { command -v cron >/dev/null 2>&1 || command -v crond >/dev/null 2>&1; }; then
+    chmod +x auto-update.sh
+    echo "*/5 * * * * root BRANCH=$BRANCH flock -n /var/lock/automation-update.lock $INSTALL_DIR/auto-update.sh >> /var/log/automation-update.log 2>&1" > /etc/cron.d/automation-update
+    echo "==> Auto-update enabled (every 5 min, log: /var/log/automation-update.log)"
+  else
+    echo "==> cron not found; auto-update not enabled (install cron, or run ./auto-update.sh yourself)"
+  fi
+fi
+
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 PORT="$(grep -E '^PORT=' .env | cut -d= -f2)"
 echo
