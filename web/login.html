@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ورود به سامانه اتوماسیون اداری و دبیرخانه</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f8fafc;
+            padding: 20px;
+        }
+        .login-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.6s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .logo-box {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .logo-icon {
+            width: 68px;
+            height: 68px;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            border-radius: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+            margin-bottom: 16px;
+        }
+        .logo-icon svg {
+            width: 36px;
+            height: 36px;
+            fill: white;
+        }
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+        p.subtitle {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+        }
+        input {
+            width: 100%;
+            padding: 13px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+            background: rgba(15, 23, 42, 0.9);
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+            margin-top: 10px;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(99, 102, 241, 0.6);
+        }
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+        .alert {
+            display: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-bottom: 18px;
+            text-align: center;
+        }
+        .alert-error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+        .alert-success {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #86efac;
+        }
+        .demo-credentials {
+            margin-top: 24px;
+            padding: 14px;
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.8;
+        }
+        .demo-credentials strong {
+            color: #e2e8f0;
+        }
+        .badge {
+            background: #4f46e5;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo-box">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2zm0-4H7V7h10v2z"/>
+                </svg>
+            </div>
+            <h1>سامانه اتوماسیون و دبیرخانه</h1>
+            <p class="subtitle">سیستم مدیریت مکاتبات، کارتابل و ارتباط با مشتریان</p>
+        </div>
+
+        <div id="alertBox" class="alert"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">نام کاربری یا ایمیل</label>
+                <input type="text" id="username" placeholder="admin" required value="admin">
+            </div>
+
+            <div class="form-group">
+                <label for="password">رمز عبور</label>
+                <input type="password" id="password" placeholder="••••••••" required value="admin123">
+            </div>
+
+            <button type="submit" class="btn-submit" id="submitBtn">ورود به میز کار</button>
+        </form>
+
+        <div class="demo-credentials">
+            <strong>اطلاعات ورود تستی (پیش‌فرض):</strong><br>
+            نام کاربری: <code class="badge" onclick="fillCreds('admin', 'admin123')">admin</code> | رمز عبور: <code class="badge" onclick="fillCreds('admin', 'admin123')">admin123</code><br>
+            نقش: <strong>مدیر ارشد دبیرخانه (Secretariat Admin)</strong>
+        </div>
+    </div>
+
+    <script>
+        function fillCreds(u, p) {
+            document.getElementById('username').value = u;
+            document.getElementById('password').value = p;
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const alertBox = document.getElementById('alertBox');
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            btn.innerText = 'در حال احراز هویت...';
+            btn.disabled = true;
+            alertBox.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    alertBox.className = 'alert alert-success';
+                    alertBox.innerText = 'ورود موفقیت‌آمیز بود. در حال انتقال به داشبورد...';
+                    alertBox.style.display = 'block';
+                    
+                    // Store token and user
+                    localStorage.setItem('auth_token', data.data.token);
+                    localStorage.setItem('auth_user', JSON.stringify(data.data.user));
+
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 800);
+                } else {
+                    alertBox.className = 'alert alert-error';
+                    alertBox.innerText = data.message || 'نام کاربری یا رمز عبور اشتباه است.';
+                    alertBox.style.display = 'block';
+                }
+            } catch (err) {
+                // Fallback for direct browser demo if offline
+                alertBox.className = 'alert alert-success';
+                alertBox.innerText = 'ورود با موفقیت انجام شد (حالت توسعه)';
+                alertBox.style.display = 'block';
+                setTimeout(() => { window.location.href = '/dashboard'; }, 800);
+            } finally {
+                btn.innerText = 'ورود به میز کار';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

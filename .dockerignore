@@ -1,0 +1,9 @@
+.git
+.gitignore
+*.db
+*.db-journal
+uploads/
+.env
+.env.*
+!.env.example
+README.md
