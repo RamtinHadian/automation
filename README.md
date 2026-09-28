@@ -77,3 +77,40 @@ A production-grade, Clean Architecture backend built with **Go 1.22+**, **Gin-Go
 ### CRM Bridge (`/api/v1/crm`)
 - `GET /api/v1/crm/accounts/:id/letters` - Get correspondence history for a customer account.
 - `GET /api/v1/crm/deals/:id/letters` - Get correspondence history for a sales pipeline deal.
+
+---
+
+## 🚀 Deploying to a Linux server
+
+The repo ships a `Dockerfile`, a `docker-compose.yml` (app + PostgreSQL), and an `install.sh`
+that turns a GitHub repo URL into a running install with one command.
+
+On any fresh Ubuntu/Debian or Fedora/RHEL server (as root or via `sudo`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/<your-org>/<your-repo>/main/install.sh -o install.sh
+sudo bash install.sh https://github.com/<your-org>/<your-repo>.git
+```
+
+What it does:
+1. Installs `git`, `curl`, `openssl`, and Docker Engine (via `get.docker.com`) if they're missing.
+2. Clones the given repo into `/opt/enterprise-automation` (override with a 2nd argument).
+3. On first run, copies `.env.example` to `.env` and fills in randomly generated
+   `JWT_SECRET`, `DB_PASSWORD`, and `PGADMIN_PASSWORD` — nothing is committed to git.
+4. Builds the app image and starts it together with PostgreSQL via `docker compose up -d --build`,
+   waiting for `/health` to respond.
+
+Re-running the same command later (e.g. after a `git push`) pulls the latest code and rebuilds
+the containers without touching your existing `.env` or database volume — that's the standard
+way to deploy updates.
+
+Useful follow-ups on the server:
+```bash
+cd /opt/enterprise-automation
+docker compose logs -f app          # tail app logs
+docker compose --profile tools up -d  # optional pgAdmin UI on 127.0.0.1:5050
+```
+
+By default only the app's own port (`PORT` in `.env`, default `8090`) is exposed to the network;
+PostgreSQL and pgAdmin are bound to `127.0.0.1` only. Put a reverse proxy (Caddy/Nginx) with TLS
+in front of the app port for a public-facing deployment.

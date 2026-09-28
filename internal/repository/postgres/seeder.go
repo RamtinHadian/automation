@@ -5,10 +5,21 @@ import (
 	"time"
 
 	"ladani/enterprise-automation/internal/domain"
+	authpkg "ladani/enterprise-automation/internal/pkg/auth"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+// demoPasswordHash hashes the given demo password with bcrypt, panicking on failure
+// since this only runs against hardcoded, known-good input during seeding.
+func demoPasswordHash(password string) string {
+	hash, err := authpkg.HashPassword(password)
+	if err != nil {
+		log.Fatalf("Fatal: failed to hash seed password: %v", err)
+	}
+	return hash
+}
 
 // SeedInitialData creates standard initial enterprise structure, users, CRM accounts, and sample letters.
 func SeedInitialData(db *gorm.DB) error {
@@ -17,7 +28,28 @@ func SeedInitialData(db *gorm.DB) error {
 		return err
 	}
 
+	deptExecID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	userCeoID := uuid.MustParse("00000000-0000-0000-0000-000000000010")
+
 	if count > 0 {
+		// Ensure CEO user exists
+		var ceoCount int64
+		_ = db.Model(&domain.User{}).Where("id = ?", userCeoID).Count(&ceoCount)
+		if ceoCount == 0 {
+			ceoUser := domain.User{
+				BaseEntity:   domain.BaseEntity{ID: userCeoID},
+				Username:     "ceo",
+				Email:        "ceo@enterprise.local",
+				PasswordHash: demoPasswordHash("ceo123456"),
+				FullName:     "دکتر مهدی علوی (مدیرعامل و رئیس هیئت مدیره)",
+				JobTitle:     "مدیرعامل و رئیس هیئت مدیره",
+				Role:         domain.RoleSuperAdmin,
+				DepartmentID: deptExecID,
+				IsActive:     true,
+			}
+			_ = db.Create(&ceoUser)
+			log.Println("👑 CEO User created and synchronized.")
+		}
 		log.Println("Database already seeded. Skipping initial data creation.")
 		return nil
 	}
@@ -25,7 +57,6 @@ func SeedInitialData(db *gorm.DB) error {
 	log.Println("🌱 Seeding database keys, relationships, departments, users, and CRM bridge entities...")
 
 	// Fixed UUIDs for predictable reference across tests and dev environment
-	deptExecID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	deptSecID := uuid.MustParse("00000000-0000-0000-0000-000000000002")
 	deptITID := uuid.MustParse("00000000-0000-0000-0000-000000000003")
 	deptCRMID := uuid.MustParse("00000000-0000-0000-0000-000000000004")
@@ -83,11 +114,26 @@ func SeedInitialData(db *gorm.DB) error {
 		}
 
 		// 2. Users & Roles
+		ceoUser := domain.User{
+			BaseEntity:   domain.BaseEntity{ID: userCeoID},
+			Username:     "ceo",
+			Email:        "ceo@enterprise.local",
+			PasswordHash: demoPasswordHash("ceo123456"),
+			FullName:     "دکتر مهدی علوی (مدیرعامل و عضو هیئت مدیره)",
+			JobTitle:     "مدیرعامل و رئیس هیئت مدیره",
+			Role:         domain.RoleSuperAdmin,
+			DepartmentID: deptExecID,
+			IsActive:     true,
+		}
+		if err := tx.Create(&ceoUser).Error; err != nil {
+			return err
+		}
+
 		adminUser := domain.User{
 			BaseEntity:   domain.BaseEntity{ID: userAdminID},
 			Username:     "admin",
 			Email:        "admin@enterprise.local",
-			PasswordHash: "$2a$10$e7Z...mock", // password: admin123
+			PasswordHash: demoPasswordHash("admin123"),
 			FullName:     "علی رضایی (مدیر دبیرخانه)",
 			JobTitle:     "مدیر کل دبیرخانه و اتوماسیون",
 			Role:         domain.RoleSecretariatAdmin,
@@ -102,7 +148,7 @@ func SeedInitialData(db *gorm.DB) error {
 			BaseEntity:   domain.BaseEntity{ID: userITMgrID},
 			Username:     "it_manager",
 			Email:        "it@enterprise.local",
-			PasswordHash: "$2a$10$e7Z...mock",
+			PasswordHash: demoPasswordHash("itmanager123"),
 			FullName:     "محمد حسینی (مدیر فناوری اطلاعات)",
 			JobTitle:     "مدیر فنی زیرساخت",
 			Role:         domain.RoleUnitManager,
@@ -117,7 +163,7 @@ func SeedInitialData(db *gorm.DB) error {
 			BaseEntity:   domain.BaseEntity{ID: userSalesID},
 			Username:     "sales_agent",
 			Email:        "sales@enterprise.local",
-			PasswordHash: "$2a$10$e7Z...mock",
+			PasswordHash: demoPasswordHash("salesagent123"),
 			FullName:     "سارا احمدی (کارشناس فروش CRM)",
 			JobTitle:     "مدیر حساب مشتریان B2B",
 			Role:         domain.RoleCRMSalesAgent,
@@ -186,18 +232,18 @@ func SeedInitialData(db *gorm.DB) error {
 
 		// 5. Initial Letter (با اندیکاتور)
 		letter1 := domain.Letter{
-			IndicatorNumber: "SEC-202608-00001",
-			Subject:         "ارسال پیش‌نویس قرارداد همکاری و استعلام فنی",
-			Body:            "احتراماً پیرو مذاکرات صورت گرفته، پیش‌نویس قرارداد به پیوست جهت بررسی ارائه‌ می‌گردد.",
-			Type:            domain.LetterTypeOutgoing,
-			Priority:        domain.PriorityImmediate,
-			Confidentiality: domain.ConfidentialityNormal,
-			Status:          domain.LetterStatusRegistered,
+			IndicatorNumber:  "SEC-202608-00001",
+			Subject:          "ارسال پیش‌نویس قرارداد همکاری و استعلام فنی",
+			Body:             "احتراماً پیرو مذاکرات صورت گرفته، پیش‌نویس قرارداد به پیوست جهت بررسی ارائه‌ می‌گردد.",
+			Type:             domain.LetterTypeOutgoing,
+			Priority:         domain.PriorityImmediate,
+			Confidentiality:  domain.ConfidentialityNormal,
+			Status:           domain.LetterStatusRegistered,
 			ExternalReceiver: "شرکت صنایع پتروشیمی خلیج فارس",
-			CreatedByID:     userSalesID,
-			DepartmentID:    deptCRMID,
-			CRMAccountID:    &crmAccountID,
-			CRMDealID:       &crmDealID,
+			CreatedByID:      userSalesID,
+			DepartmentID:     deptCRMID,
+			CRMAccountID:     &crmAccountID,
+			CRMDealID:        &crmDealID,
 		}
 		if err := tx.Create(&letter1).Error; err != nil {
 			return err

@@ -9,16 +9,18 @@ import (
 )
 
 type RouterConfig struct {
-	AuthHandler     *handler.AuthHandler
-	LetterHandler   *handler.LetterHandler
-	WorkflowHandler *handler.WorkflowHandler
-	CRMHandler      *handler.CRMHandler
-	SystemHandler   *handler.SystemHandler
+	AuthHandler        *handler.AuthHandler
+	LetterHandler      *handler.LetterHandler
+	WorkflowHandler    *handler.WorkflowHandler
+	CRMHandler         *handler.CRMHandler
+	SystemHandler      *handler.SystemHandler
+	JWTSecret          string
+	CORSAllowedOrigins []string
 }
 
 // SetupRoutes registers all HTTP endpoints, middleware, and route groups.
 func SetupRoutes(r *gin.Engine, cfg RouterConfig) {
-	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
 
@@ -44,11 +46,14 @@ func SetupRoutes(r *gin.Engine, cfg RouterConfig) {
 	}
 
 	apiV1 := r.Group("/api/v1")
-	apiV1.Use(middleware.AuthMiddleware())
+	apiV1.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 	{
-		// Database & System Inspector
+		// Database & Organization Inspector - admin only
 		if cfg.SystemHandler != nil {
-			apiV1.GET("/system/db-status", cfg.SystemHandler.GetDatabaseStatus)
+			systemAdmin := middleware.RequireRoles(domain.RoleSecretariatAdmin)
+			apiV1.GET("/system/db-status", systemAdmin, cfg.SystemHandler.GetDatabaseStatus)
+			apiV1.GET("/system/users", systemAdmin, cfg.SystemHandler.GetOrganizationUsers)
+			apiV1.GET("/system/departments", systemAdmin, cfg.SystemHandler.GetDepartments)
 		}
 		// 1. Letters & Secretariat (دبیرخانه و نامه‌نگاری)
 		letters := apiV1.Group("/letters")

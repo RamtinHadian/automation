@@ -36,10 +36,14 @@ func (r *IndicatorRepository) GetNextIndicatorNumber(ctx context.Context, tx *go
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// First entry for this year-month partition, create with initial count 1
+			// Find existing count in this partition to prevent collision with seed data
+			var existingCount int64
+			prefix := fmt.Sprintf("SEC-%s-%%", yearMonth)
+			_ = tx.WithContext(ctx).Model(&domain.Letter{}).Where("indicator_number LIKE ?", prefix).Count(&existingCount)
+
 			seq = domain.IndicatorSequence{
 				YearMonth:  yearMonth,
-				LastNumber: 1,
+				LastNumber: existingCount + 1,
 				UpdatedAt:  time.Now().UTC(),
 			}
 			if err := tx.WithContext(ctx).Create(&seq).Error; err != nil {

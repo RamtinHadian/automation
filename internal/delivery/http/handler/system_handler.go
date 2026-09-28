@@ -48,10 +48,30 @@ func (h *SystemHandler) GetDatabaseStatus(c *gin.Context) {
 	}
 
 	response.JSON(c, http.StatusOK, "Database status retrieved successfully", gin.H{
-		"dialect":    dialect,
-		"status":     "ACTIVE_CONNECTED",
-		"tables":     tables,
-		"db_file":    "enterprise_dev.db / postgres",
-		"auto_sync":  true,
+		"dialect":   dialect,
+		"status":    "ACTIVE_CONNECTED",
+		"tables":    tables,
+		"db_file":   "enterprise_dev.db / postgres",
+		"auto_sync": true,
 	})
+}
+
+// GetOrganizationUsers returns list of users with their departments for routing.
+func (h *SystemHandler) GetOrganizationUsers(c *gin.Context) {
+	var users []domain.User
+	if err := h.db.Preload("Department").Find(&users).Error; err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.JSON(c, http.StatusOK, "Organization users retrieved", users)
+}
+
+// GetDepartments returns the full department hierarchy.
+func (h *SystemHandler) GetDepartments(c *gin.Context) {
+	var depts []domain.Department
+	if err := h.db.Preload("Users").Find(&depts).Error; err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.JSON(c, http.StatusOK, "Departments hierarchy retrieved", depts)
 }

@@ -58,13 +58,14 @@ func main() {
 	workflowRepo := postgres.NewWorkflowRepository(db)
 	indicatorRepo := postgres.NewIndicatorRepository()
 	crmRepo := postgres.NewCRMRepository(db)
+	userRepo := postgres.NewUserRepository(db)
 
 	// Services
 	secretariatService := service.NewSecretariatService(txManager, letterRepo, workflowRepo, indicatorRepo)
 	workflowService := service.NewWorkflowService(txManager, workflowRepo, letterRepo)
 
 	// HTTP Handlers
-	authHandler := handler.NewAuthHandler()
+	authHandler := handler.NewAuthHandler(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
 	letterHandler := handler.NewLetterHandler(secretariatService, cfg.UploadDir)
 	workflowHandler := handler.NewWorkflowHandler(workflowService)
 	crmHandler := handler.NewCRMHandler(crmRepo)
@@ -73,11 +74,13 @@ func main() {
 	// 5. Initialize Gin Engine & Routes
 	router := gin.New()
 	deliveryHTTP.SetupRoutes(router, deliveryHTTP.RouterConfig{
-		AuthHandler:     authHandler,
-		LetterHandler:   letterHandler,
-		WorkflowHandler: workflowHandler,
-		CRMHandler:      crmHandler,
-		SystemHandler:   systemHandler,
+		AuthHandler:        authHandler,
+		LetterHandler:      letterHandler,
+		WorkflowHandler:    workflowHandler,
+		CRMHandler:         crmHandler,
+		SystemHandler:      systemHandler,
+		JWTSecret:          cfg.JWTSecret,
+		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
 	})
 
 	// 6. HTTP Server Setup with Graceful Shutdown

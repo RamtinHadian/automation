@@ -1,19 +1,30 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
+	"time"
 
 	"ladani/enterprise-automation/internal/domain"
+	authpkg "ladani/enterprise-automation/internal/pkg/auth"
 	"ladani/enterprise-automation/internal/pkg/response"
+	"ladani/enterprise-automation/internal/repository/postgres"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
-type AuthHandler struct{}
+type AuthHandler struct {
+	userRepo  *postgres.UserRepository
+	jwtSecret string
+	jwtExpiry time.Duration
+}
 
-func NewAuthHandler() *AuthHandler {
-	return &AuthHandler{}
+func NewAuthHandler(userRepo *postgres.UserRepository, jwtSecret string, jwtExpiryHours int) *AuthHandler {
+	return &AuthHandler{
+		userRepo:  userRepo,
+		jwtSecret: jwtSecret,
+		jwtExpiry: time.Duration(jwtExpiryHours) * time.Hour,
+	}
 }
 
 type LoginRequest struct {
@@ -33,29 +44,29 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Validate credentials (supports demo admin or system users)
-	if (req.Username == "admin" && req.Password == "admin123") || req.Password != "" {
-		adminUser := domain.User{
-			BaseEntity: domain.BaseEntity{
-				ID: uuid.MustParse("00000000-0000-0000-0000-000000000001"),
-			},
-			Username:     req.Username,
-			FullName:     "مدیر ارشد سامانه و دبیرخانه",
-			Email:        "admin@enterprise.local",
-			Role:         domain.RoleSecretariatAdmin,
-			DepartmentID: uuid.MustParse("00000000-0000-0000-0000-000000000002"),
-			IsActive:     true,
+	user, err := h.userRepo.GetByUsername(c.Request.Context(), req.Username)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			response.Error(c, domain.ErrUnauthorized)
+			return
 		}
-
-		// Demo JWT token string
-		token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.enterprise.jwt.token"
-
-		response.JSON(c, http.StatusOK, "Login successful", LoginResponse{
-			Token: token,
-			User:  adminUser,
-		})
+		response.Error(c, err)
 		return
 	}
 
-	response.Error(c, domain.ErrUnauthorized)
+	if !user.IsActive || !authpkg.ComparePassword(user.PasswordHash, req.Password) {
+		response.Error(c, domain.ErrUnauthorized)
+		return
+	}
+
+	token, err := authpkg.GenerateToken(h.jwtSecret, user.ID, user.Role, user.DepartmentID, h.jwtExpiry)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.JSON(c, http.StatusOK, "Login successful", LoginResponse{
+		Token: token,
+		User:  *user,
+	})
 }

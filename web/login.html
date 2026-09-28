@@ -234,11 +234,9 @@
                     alertBox.style.display = 'block';
                 }
             } catch (err) {
-                // Fallback for direct browser demo if offline
-                alertBox.className = 'alert alert-success';
-                alertBox.innerText = 'ورود با موفقیت انجام شد (حالت توسعه)';
+                alertBox.className = 'alert alert-error';
+                alertBox.innerText = 'خطا در برقراری ارتباط با سرور.';
                 alertBox.style.display = 'block';
-                setTimeout(() => { window.location.href = '/dashboard'; }, 800);
             } finally {
                 btn.innerText = 'ورود به میز کار';
                 btn.disabled = false;

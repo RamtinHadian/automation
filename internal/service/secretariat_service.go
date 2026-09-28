@@ -161,13 +161,13 @@ func (s *SecretariatService) CreateLetter(ctx context.Context, params CreateLett
 		if params.InitialReferral != nil {
 			txWorkflowRepo := s.workflowRepo.WithTx(tx)
 			referral := &domain.LetterReferral{
-				LetterID:    letter.ID,
-				FromUserID:  params.CreatedByID,
-				ToUserID:    params.InitialReferral.ToUserID,
-				ActionType:  params.InitialReferral.ActionType,
-				Status:      domain.ReferralStatusPending,
-				ParaphText:  params.InitialReferral.ParaphText,
-				DeadlineAt:  params.InitialReferral.DeadlineAt,
+				LetterID:   letter.ID,
+				FromUserID: params.CreatedByID,
+				ToUserID:   params.InitialReferral.ToUserID,
+				ActionType: params.InitialReferral.ActionType,
+				Status:     domain.ReferralStatusPending,
+				ParaphText: params.InitialReferral.ParaphText,
+				DeadlineAt: params.InitialReferral.DeadlineAt,
 			}
 			if err := txWorkflowRepo.CreateReferral(ctx, referral); err != nil {
 				return err
@@ -201,11 +201,28 @@ func (s *SecretariatService) ListLetters(ctx context.Context, filter domain.Lett
 	return s.letterRepo.List(ctx, filter)
 }
 
-// SignLetter digitally stamps an approved letter.
+// SignLetter digitally stamps an approved letter. The signer must hold a pending
+// FOR_SIGNATURE referral addressed to them for this letter; otherwise signing is refused.
 func (s *SecretariatService) SignLetter(ctx context.Context, params DigitalSignParams) (*domain.LetterSignature, error) {
 	letter, err := s.letterRepo.GetByID(ctx, params.LetterID)
 	if err != nil {
 		return nil, err
+	}
+
+	chain, err := s.workflowRepo.GetLetterReferralChain(ctx, params.LetterID)
+	if err != nil {
+		return nil, err
+	}
+
+	authorized := false
+	for _, r := range chain {
+		if r.ToUserID == params.SignerID && r.ActionType == domain.ActionForSignature && r.Status == domain.ReferralStatusPending {
+			authorized = true
+			break
+		}
+	}
+	if !authorized {
+		return nil, domain.ErrForbidden
 	}
 
 	sig := &domain.LetterSignature{
