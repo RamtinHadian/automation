@@ -186,6 +186,33 @@ func (s *SecretariatService) CreateLetter(ctx context.Context, params CreateLett
 	return s.letterRepo.GetByID(ctx, createdLetter.ID)
 }
 
+// AddAttachment stores an already-uploaded file's metadata against an existing letter.
+func (s *SecretariatService) AddAttachment(ctx context.Context, letterID uuid.UUID, params AttachmentParams) (*domain.LetterAttachment, error) {
+	if _, err := s.letterRepo.GetByID(ctx, letterID); err != nil {
+		return nil, err
+	}
+
+	checksum := ""
+	if len(params.FileContent) > 0 {
+		hash := sha256.Sum256(params.FileContent)
+		checksum = hex.EncodeToString(hash[:])
+	}
+
+	attachment := &domain.LetterAttachment{
+		LetterID:       letterID,
+		FileName:       params.FileName,
+		StoragePath:    params.StoragePath,
+		MimeType:       params.MimeType,
+		FileSize:       params.FileSize,
+		ChecksumSHA256: checksum,
+	}
+	if err := s.letterRepo.AddAttachment(ctx, attachment); err != nil {
+		return nil, fmt.Errorf("failed to save attachment: %w", err)
+	}
+
+	return attachment, nil
+}
+
 // GetLetter retrieves a letter by UUID.
 func (s *SecretariatService) GetLetter(ctx context.Context, id uuid.UUID) (*domain.Letter, error) {
 	return s.letterRepo.GetByID(ctx, id)

@@ -219,7 +219,11 @@ func (h *LetterHandler) UploadAttachment(c *gin.Context) {
 		return
 	}
 
-	fileContent, _ := os.ReadFile(destPath)
+	fileContent, err := os.ReadFile(destPath)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
 
 	attParams := service.AttachmentParams{
 		FileName:    fileHeader.Filename,
@@ -229,18 +233,11 @@ func (h *LetterHandler) UploadAttachment(c *gin.Context) {
 		FileContent: fileContent,
 	}
 
-	// Read letter to ensure existence
-	letter, err := h.secretariatService.GetLetter(c.Request.Context(), letterID)
+	attachment, err := h.secretariatService.AddAttachment(c.Request.Context(), letterID, attParams)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
-	response.JSON(c, http.StatusCreated, "Attachment uploaded successfully", gin.H{
-		"letter_id":   letter.ID,
-		"file_name":   attParams.FileName,
-		"file_size":   attParams.FileSize,
-		"mime_type":   attParams.MimeType,
-		"upload_path": destPath,
-	})
+	response.JSON(c, http.StatusCreated, "Attachment uploaded successfully", attachment)
 }

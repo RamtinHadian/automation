@@ -564,6 +564,28 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz81Vj...ENTERPRISE-SIGN-KEY
         </div>
     </div>
 
+    <!-- Modal 4: Attachment Upload Modal -->
+    <div id="attachModal" class="modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>پیوست فایل به نامه</h3>
+                <button class="modal-close" onclick="closeModal('attachModal')">✕</button>
+            </div>
+            <div style="margin-bottom: 16px; line-height: 1.8; font-size: 13.5px; color: #cbd5e1;">
+                پیوست برای نامه‌ی شماره اندیکاتور <strong id="attachIndicatorLabel" style="color: #6366f1;">-</strong>
+            </div>
+            <input type="hidden" id="attachLetterId">
+            <div class="form-group">
+                <input type="file" id="attachFileInput">
+            </div>
+            <div id="attachStatus" style="font-size: 12.5px; color: #94a3b8; margin-bottom: 10px;"></div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('attachModal')">انصراف</button>
+                <button type="button" class="btn btn-success" id="attachSubmitBtn" onclick="executeUploadAttachment()">آپلود پیوست</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="toast"></div>
 
@@ -774,6 +796,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz81Vj...ENTERPRISE-SIGN-KEY
                                 <td><span class="badge badge-success">${l.status}</span></td>
                                 <td>
                                     <button class="btn btn-secondary btn-sm" onclick="openSignModal('${l.id}', '${l.indicator_number}')">امضا / تایید</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="openAttachModal('${l.id}', '${l.indicator_number}')">📎 پیوست</button>
                                 </td>
                             </tr>
                         `;
@@ -939,6 +962,66 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz81Vj...ENTERPRISE-SIGN-KEY
                 }
             } catch (err) {
                 showToast('خطا در برقراری ارتباط با سرور', true);
+            }
+        }
+
+        // Open Attachment Upload Modal
+        function openAttachModal(letterId, indicator) {
+            document.getElementById('attachLetterId').value = letterId;
+            document.getElementById('attachIndicatorLabel').innerText = indicator || 'SEC-XXX';
+            document.getElementById('attachFileInput').value = '';
+            document.getElementById('attachStatus').innerText = '';
+            openModal('attachModal');
+        }
+
+        // Upload a file as multipart/form-data (needs its own fetch: no JSON Content-Type header).
+        async function apiUploadFile(url, formData) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + authToken },
+                body: formData
+            });
+            if (res.status === 401) {
+                localStorage.clear();
+                window.location.href = '/login';
+                throw new Error('Unauthorized');
+            }
+            return res;
+        }
+
+        async function executeUploadAttachment() {
+            const letterId = document.getElementById('attachLetterId').value;
+            const fileInput = document.getElementById('attachFileInput');
+            const statusEl = document.getElementById('attachStatus');
+            const btn = document.getElementById('attachSubmitBtn');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                statusEl.innerText = 'لطفاً یک فایل انتخاب کنید.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            btn.innerText = 'در حال آپلود...';
+            btn.disabled = true;
+            statusEl.innerText = '';
+
+            try {
+                const res = await apiUploadFile(`/api/v1/letters/${letterId}/attachments`, formData);
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    showToast(`پیوست «${data.data.file_name}» با موفقیت ثبت شد.`);
+                    closeModal('attachModal');
+                } else {
+                    statusEl.innerText = data.message || 'خطا در آپلود پیوست.';
+                }
+            } catch (err) {
+                statusEl.innerText = 'خطا در برقراری ارتباط با سرور.';
+            } finally {
+                btn.innerText = 'آپلود پیوست';
+                btn.disabled = false;
             }
         }
 
