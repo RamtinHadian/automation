@@ -68,37 +68,4 @@ export const api = {
   remove: (collection: CollectionName, id: string) =>
     request<{ ok: true }>('DELETE', `/api/${collection}/${encodeURIComponent(id)}`),
 
-  uploadFile: (file: File, onProgress: (percent: number) => void) =>
-    new Promise<{ id: string }>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/api/files');
-      const token = getToken();
-      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress(Math.min(99, Math.round((e.loaded / e.total) * 100)));
-      };
-      xhr.onload = () => {
-        let json: any = {};
-        try {
-          json = JSON.parse(xhr.responseText);
-        } catch {
-          /* non-JSON error body */
-        }
-        if (xhr.status >= 200 && xhr.status < 300) resolve(json);
-        else reject(new ApiError(xhr.status, json.error || `HTTP ${xhr.status}`));
-      };
-      xhr.onerror = () => reject(new ApiError(0, 'خطای شبکه'));
-      const form = new FormData();
-      form.append('file', file);
-      xhr.send(form);
-    }),
-
-  downloadFile: async (fileId: string): Promise<Blob> => {
-    const token = getToken();
-    const res = await fetch(`/api/files/${encodeURIComponent(fileId)}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`);
-    return res.blob();
-  },
 };

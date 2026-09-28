@@ -1,6 +1,9 @@
 # Automation (سامانه اتوماسیون اداری و تبادل فایل)
 
-React frontend + Node/Express API + PostgreSQL. Everything (users, departments, letters/transfers, audit log, settings, uploaded files) is stored in the database and an uploads volume.
+React frontend + Node/Express API + PostgreSQL.
+
+- **Database:** users, departments, letters/transfers (text, numbers, signatures, referrals), audit log and settings.
+- **Files:** never stored on the server. Files and letter attachments stay on the sender's own computer (browser storage) and go **directly to the recipient's browser (WebRTC)** when they download. The server only relays connection setup. The sender must be signed in (browser open) for the recipient to download. For strict corporate NAT/firewalls set `ICE_SERVERS` in `.env` to a JSON list including a TURN server.
 
 ## Quick install on a fresh Linux server
 
@@ -24,7 +27,7 @@ docker compose up -d --build
 Open `http://<server>:8080` (change `PORT` in `.env`). Admin console: `/#/admin`.
 On first start the admin account `ADMIN_EMAIL` / `ADMIN_PASSWORD` is created; add other users from the admin console.
 
-Data lives in the Docker volumes `pgdata` (database) and `uploads` (files). Back them up, e.g.:
+Data lives in the Docker volume `pgdata` (database). Back it up, e.g.:
 
 ```bash
 docker compose exec db pg_dump -U automation automation > backup.sql

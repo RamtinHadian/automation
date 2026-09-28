@@ -15,7 +15,6 @@ COPY server/package.json server/package-lock.json* ./
 RUN npm install --omit=dev
 COPY server/ ./
 COPY --from=web /web/dist ./public
-ENV STATIC_DIR=/app/public UPLOAD_DIR=/app/uploads PORT=8080
-VOLUME /app/uploads
+ENV STATIC_DIR=/app/public PORT=8080
 EXPOSE 8080
 CMD ["node", "index.js"]

@@ -39,15 +39,6 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   data JSONB NOT NULL
 );
-CREATE TABLE IF NOT EXISTS files (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  mime TEXT,
-  size BIGINT NOT NULL,
-  path TEXT NOT NULL,
-  owner_id TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
 `;
 
 export async function initDb() {

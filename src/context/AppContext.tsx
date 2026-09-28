@@ -3,6 +3,8 @@ import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department,
 import { INITIAL_SETTINGS } from '../lib/mock-data';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
 import { useServerSync, hasPendingWrites } from '../lib/useServerSync';
+import { putLocalFile, getLocalFile, deleteLocalFile, dataUrlToBlob } from '../lib/localFiles';
+import { startP2P, stopP2P, requestFile } from '../lib/p2p';
 import { formatCurrentJalaliDateTime, formatJalaliFullTimestamp, toPersianDigits, convertNumbersInHtmlToPersian } from '../lib/jalali';
 import { formatBytes, getFileCategory } from '../lib/utils';
 import { applyTheme } from '../lib/theme';
@@ -193,6 +195,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ready, setReady] = useState(false);
   const [syncReady, setSyncReady] = useState(false);
   const lastStateJson = useRef('');
+  const sessionUserId = useRef('');
+  const transfersRef = useRef<FileTransfer[]>([]);
+  transfersRef.current = transfers;
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -218,6 +223,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const json = JSON.stringify(s);
       if (!force && json === lastStateJson.current) return;
       lastStateJson.current = json;
+      sessionUserId.current = s.me.id;
       const merged: SystemSettings = { ...INITIAL_SETTINGS, ...(s.settings || {}) };
       markSynced(s, merged);
       setStaffList(s.staff);
@@ -240,6 +246,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     } catch (e) {}
     lastStateJson.current = '';
+    sessionUserId.current = '';
     setSyncReady(false);
     setLoggedInUser(null);
     setCurrentUser(GUEST_USER);
@@ -274,6 +281,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .catch(() => clearSession())
       .finally(() => setReady(true));
   }, [applyServerState, clearSession]);
+
+  // Serve the files stored on this computer to the recipients of the letters/transfers I sent.
+  useEffect(() => {
+    if (!syncReady) return;
+    startP2P((requesterId, key) => {
+      const transferId = key.startsWith('att:') ? key.slice(4) : key;
+      const t = transfersRef.current.find((x) => x.id === transferId);
+      return !!t && t.sender.id === sessionUserId.current && t.recipients.some((r) => r.id === requesterId);
+    });
+    return () => stopP2P();
+  }, [syncReady]);
 
   // Pick up changes made by other users.
   useEffect(() => {
@@ -410,9 +428,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const recipient = staffList.find((u) => u.id === recipientId) || staffList[1];
       const transferId = 'tr-' + Math.random().toString(36).substring(2, 9);
 
-      api
-        .uploadFile(rawFile, onProgress)
-        .then(({ id: fileId }) => {
+      // The file itself stays on the sender's computer; only the letter/transfer record goes to the database.
+      const storeLocally = async () => {
+        onProgress(30);
+        await putLocalFile(transferId, rawFile);
+        if (attachmentFileDataUrl) {
+          await putLocalFile(`att:${transferId}`, await dataUrlToBlob(attachmentFileDataUrl));
+        }
+      };
+      storeLocally()
+        .then(() => {
           onProgress(100);
 
           const category: FileCategory = getFileCategory(rawFile.name);
@@ -426,7 +451,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           const newTransfer: FileTransfer = {
             id: transferId,
-            fileId: fileId,
+            fileId: transferId,
             fileName: rawFile.name,
             fileSize: formatBytes(rawFile.size),
             category,
@@ -464,7 +489,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             bodyPaddingX,
             attachmentFileName,
             attachmentFileSize,
-            attachmentFileDataUrl,
           };
 
           const newLog: AuditLog = {
@@ -484,7 +508,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           onDone();
         })
         .catch((err) => {
-          showToast(`ارسال فایل ناموفق بود: ${err instanceof Error ? err.message : 'خطای ناشناخته'}`);
+          showToast(`ذخیره فایل روی این سیستم ناموفق بود: ${err instanceof Error ? err.message : 'خطای ناشناخته'}`);
           onDone();
         });
     },
@@ -498,19 +522,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (t.isOfficialLetter) {
           openAndDownloadPdfLetter(t, settings, currentUser);
         } else {
-          let downloadBlob: Blob | null = null;
-          if (t.fileId) {
-            downloadBlob = await api.downloadFile(t.fileId);
-          } else if (t.fileDataUrl) {
-            const link = document.createElement('a');
-            link.href = t.fileDataUrl;
-            link.download = t.fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          } else {
-            const sampleContent = `سامانه اتوماسیون سازمانی\n====================\nنام فایل: ${t.fileName}\nحجم: ${t.fileSize}\nفرستنده: ${t.sender.fullName} (${t.sender.departmentName})\nگیرنده: ${t.recipients.map((r) => r.fullName).join(', ')}\nتاریخ ارسال: ${t.sentAt}\nتوضیحات: ${t.note || '---'}`;
-            downloadBlob = new Blob([sampleContent], { type: 'text/plain;charset=utf-8' });
+          let downloadBlob: Blob | null = await getLocalFile(t.id);
+          if (!downloadBlob) {
+            if (t.sender.id === sessionUserId.current) {
+              throw new Error('فایل روی این سیستم پیدا نشد (در مرورگر یا رایانهٔ دیگری ارسال شده است).');
+            }
+            showToast('در حال دریافت مستقیم فایل از سیستم فرستنده...');
+            const picker = (window as any).showSaveFilePicker as undefined | ((o: unknown) => Promise<any>);
+            if (picker) {
+              // Stream straight to disk so large files don't have to fit in memory
+              const handle = await picker({ suggestedName: t.fileName });
+              const writable = await handle.createWritable();
+              await requestFile(t.sender.id, t.id, {
+                sink: {
+                  write: (c) => writable.write(c),
+                  close: () => writable.close(),
+                  abort: () => writable.abort(),
+                },
+              });
+            } else {
+              downloadBlob = await requestFile(t.sender.id, t.id);
+            }
           }
 
           if (downloadBlob) {
@@ -547,7 +579,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast(`فایل "${t.fileName}" با موفقیت دانلود شد.`);
       } catch (err) {
         console.error('Download error:', err);
-        showToast(`خطا در دانلود فایل "${t.fileName}"`);
+        if (err instanceof DOMException && err.name === 'AbortError') return; // save dialog cancelled
+        showToast(err instanceof Error && err.message ? err.message : `خطا در دانلود فایل "${t.fileName}"`);
       }
     },
     [currentUser, settings, showToast]
@@ -561,6 +594,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
       setTransfers((prev) => prev.filter((t) => t.id !== id));
+      void deleteLocalFile(id).catch(() => {});
+      void deleteLocalFile(`att:${id}`).catch(() => {});
       showToast('فایل یا پیش‌نویس از لیست حذف شد.');
     },
     [transfers, showToast]

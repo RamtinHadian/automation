@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useAttachment } from '../../lib/useAttachment';
 import {
   X,
   Stamp,
@@ -440,6 +441,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const ceoTitle = settings?.ceoTitle || 'مدیرعامل';
   const signatureImg = letter?.signatureImageUrl || settings?.ceoSignatureUrl;
   const stampImg = letter?.companyStampImageUrl || settings?.companyStampUrl;
+
+  const attachment = useAttachment(isOpen ? letter : null, currentUser?.id);
 
   const [actionTab, setActionTab] = useState<'NONE' | 'SIGN' | 'REFER' | 'REJECT'>('NONE');
   const [signComment, setSignComment] = useState('تایید و امضا شد');
@@ -1399,7 +1402,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         )}
 
         {/* Prominent Attachment Banner for Reviewer / CEO before signing */}
-        {letter.attachmentFileDataUrl && (
+        {attachment.exists && (
           <div className="bg-amber-50/90 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between gap-3 text-xs shrink-0 flex-wrap">
             <div className="flex items-center gap-2 text-amber-950 font-bold">
               <span className="w-6 h-6 rounded-lg bg-amber-200 text-amber-800 flex items-center justify-center">
@@ -1411,8 +1414,18 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               </span>
             </div>
             <div className="flex items-center gap-2">
+              {!attachment.url && (
+                <span className="text-[11px] font-bold text-amber-800">
+                  {attachment.loading ? 'در حال دریافت مستقیم از سیستم فرستنده...' : attachment.error}
+                  {attachment.error && (
+                    <button type="button" onClick={attachment.retry} className="underline mr-2 cursor-pointer">
+                      تلاش مجدد
+                    </button>
+                  )}
+                </span>
+              )}
               <a
-                href={letter.attachmentFileDataUrl}
+                href={attachment.url ?? undefined}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer"
@@ -1421,7 +1434,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <span>مشاهده فایل پیوست / اسکن قبل از امضا</span>
               </a>
               <a
-                href={letter.attachmentFileDataUrl}
+                href={attachment.url ?? undefined}
                 download={letter.attachmentFileName || 'پیوست_نامه'}
                 className="flex items-center gap-1 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
               >
@@ -1691,7 +1704,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             </div>
 
               {/* Attached Document / Scan View & Download */}
-              {letter.attachmentFileDataUrl && (
+              {attachment.exists && (
                 <div className="my-4 p-4 bg-[#FAF5F1] rounded-2xl border border-amber-200 text-right space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -1711,8 +1724,18 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <a
-                        href={letter.attachmentFileDataUrl}
+                      {!attachment.url && (
+                <span className="text-[11px] font-bold text-amber-800">
+                  {attachment.loading ? 'در حال دریافت مستقیم از سیستم فرستنده...' : attachment.error}
+                  {attachment.error && (
+                    <button type="button" onClick={attachment.retry} className="underline mr-2 cursor-pointer">
+                      تلاش مجدد
+                    </button>
+                  )}
+                </span>
+              )}
+              <a
+                        href={attachment.url ?? undefined}
                         target="_blank"
                         rel="noreferrer"
                         className="px-3 py-1.5 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1"
@@ -1721,7 +1744,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         <span>مشاهده پیوست</span>
                       </a>
                       <a
-                        href={letter.attachmentFileDataUrl}
+                        href={attachment.url ?? undefined}
                         download={letter.attachmentFileName || 'پیوست_نامه'}
                         className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                       >
@@ -1731,10 +1754,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                     </div>
                   </div>
 
-                  {letter.attachmentFileDataUrl.startsWith('data:image/') && (
+                  {attachment.isImage && attachment.url && (
                     <div className="pt-2 border-t border-[#EBDBCE]/60 text-center">
                       <img
-                        src={letter.attachmentFileDataUrl}
+                        src={attachment.url ?? undefined}
                         alt="پیش‌نمایش پیوست"
                         className="max-h-[350px] mx-auto rounded-xl shadow-md border border-gray-200 object-contain"
                       />

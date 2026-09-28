@@ -1,23 +1,18 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import multer from 'multer';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pool, initDb } from './db.js';
 
 const PORT = Number(process.env.PORT || 8080);
 const JWT_SECRET = process.env.JWT_SECRET;
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.resolve('uploads');
-const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB || 5120);
 const STATIC_DIR = process.env.STATIC_DIR || path.resolve('public');
 
 if (!JWT_SECRET || JWT_SECRET.length < 16) {
   console.error('JWT_SECRET must be set to a random string of at least 16 characters');
   process.exit(1);
 }
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const app = express();
 app.set('trust proxy', true);
@@ -253,55 +248,52 @@ app.delete(
   })
 );
 
-// ---------- files ----------
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: UPLOAD_DIR,
-    filename: (_req, _file, cb) => cb(null, crypto.randomUUID()),
-  }),
-  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 },
+// ---------- P2P signalling ----------
+// Files never touch the server: browsers exchange them directly over WebRTC. The server only
+// relays the small connection-setup messages (SDP / ICE) between two signed-in users.
+const hubs = new Map(); // userId -> Set<response>
+
+app.get('/api/signal/stream', requireAuth, (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  res.write(': connected\n\n');
+  const id = req.user.id;
+  if (!hubs.has(id)) hubs.set(id, new Set());
+  hubs.get(id).add(res);
+  const keepAlive = setInterval(() => res.write(': ping\n\n'), 25000);
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    const set = hubs.get(id);
+    set?.delete(res);
+    if (set && set.size === 0) hubs.delete(id);
+  });
 });
 
-app.post(
-  '/api/files',
-  requireAuth,
-  upload.single('file'),
-  wrap(async (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'file required' });
-    const id = req.file.filename;
-    const name = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
-    await pool.query('INSERT INTO files (id, name, mime, size, path, owner_id) VALUES ($1,$2,$3,$4,$5,$6)', [
-      id,
-      name,
-      req.file.mimetype,
-      req.file.size,
-      req.file.path,
-      req.user.id,
-    ]);
-    res.json({ id, name, size: req.file.size });
-  })
-);
+app.post('/api/signal/send', requireAuth, (req, res) => {
+  const { to, msg } = req.body || {};
+  if (typeof to !== 'string' || !msg || typeof msg !== 'object') return res.status(400).json({ error: 'bad request' });
+  const payload = JSON.stringify({ ...msg, from: req.user.id });
+  if (payload.length > 64 * 1024) return res.status(413).json({ error: 'message too large' });
+  const conns = hubs.get(to);
+  if (!conns) return res.json({ delivered: 0 });
+  for (const c of conns) c.write(`data: ${payload}\n\n`);
+  res.json({ delivered: conns.size });
+});
 
-app.get(
-  '/api/files/:id',
-  requireAuth,
-  wrap(async (req, res) => {
-    const me = req.user;
-    const { rows } = await pool.query('SELECT * FROM files WHERE id = $1', [req.params.id]);
-    const file = rows[0];
-    if (!file) return res.status(404).json({ error: 'not found' });
-    if (!isAdmin(me) && file.owner_id !== me.id) {
-      const t = await pool.query(
-        `SELECT 1 FROM transfers WHERE data->>'fileId' = $1 AND (sender_id = $2 OR $2 = ANY(recipient_ids)) LIMIT 1`,
-        [file.id, me.id]
-      );
-      if (!t.rowCount) return forbidden(res);
-    }
-    res.setHeader('Content-Type', file.mime || 'application/octet-stream');
-    res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(file.name));
-    fs.createReadStream(file.path).pipe(res);
-  })
-);
+app.get('/api/config', (_req, res) => {
+  let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+  try {
+    if (process.env.ICE_SERVERS) iceServers = JSON.parse(process.env.ICE_SERVERS);
+  } catch {
+    console.warn('ICE_SERVERS is not valid JSON; using default STUN server');
+  }
+  res.json({ iceServers });
+});
 
 app.get(
   '/api/health',
