@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont } from '../types';
-import { STAFF_USERS, DEPARTMENTS, INITIAL_TRANSFERS, INITIAL_AUDIT_LOGS, INITIAL_SETTINGS } from '../lib/mock-data';
+import { INITIAL_SETTINGS } from '../lib/mock-data';
+import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
+import { useServerSync, hasPendingWrites } from '../lib/useServerSync';
 import { formatCurrentJalaliDateTime, formatJalaliFullTimestamp, toPersianDigits, convertNumbersInHtmlToPersian } from '../lib/jalali';
 import { formatBytes, getFileCategory } from '../lib/utils';
 import { applyTheme } from '../lib/theme';
@@ -11,7 +13,12 @@ import { formatLetterNumber, DEFAULT_LETTER_NUMBERING } from '../lib/letterNumbe
 interface AppContextType {
   // Auth
   loggedInUser: User | null;
-  login: (user: User) => void;
+  ready: boolean;
+  loginWithCredentials: (
+    identifier: string,
+    password: string,
+    adminOnly?: boolean
+  ) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   logout: () => void;
 
   // Users
@@ -120,7 +127,7 @@ interface AppContextType {
   ) => void;
   handleRejectLetter: (transferId: string, reason?: string) => void;
   handleReferLetter: (transferId: string, toUserId: string, referralComment: string) => void;
-  handleDownload: (t: FileTransfer) => void;
+  handleDownload: (t: FileTransfer) => Promise<void>;
   handleDeleteTransfer: (id: string) => void;
   handleArchiveTransfer: (transferId: string) => void;
   handleUnarchiveTransfer: (transferId: string) => void;
@@ -143,9 +150,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
-// In-memory file blob store for real instant downloads without localStorage quota issues
-const fileBlobStore = new Map<string, Blob | File>();
-
 export const getUserTheme = (user?: User | null): string => {
   if (!user || !user.id) return 'cherry';
   if (user.themeId) return user.themeId;
@@ -156,100 +160,130 @@ export const getUserTheme = (user?: User | null): string => {
   return 'cherry';
 };
 
+// Placeholder used only while nobody is signed in.
+const GUEST_USER: User = {
+  id: '',
+  fullName: '',
+  email: '',
+  avatarUrl: '',
+  avatarInitials: '',
+  role: 'STAFF',
+  departmentId: '',
+  departmentName: '',
+  storageQuotaGB: 0,
+  storageUsedGB: 0,
+  isActive: false,
+  lastLogin: '',
+};
+
+const SESSION_KEYS = ['admin_session_auth_v5'];
+const POLL_INTERVAL_MS = 15000;
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [staffList, setStaffList] = useState<User[]>(() => {
+  const [staffList, setStaffList] = useState<User[]>([]);
+  const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User>(GUEST_USER);
+  const [currentTheme, setCurrentThemeState] = useState<string>('cherry');
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [transfers, setTransfers] = useState<FileTransfer[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [settings, setSettings] = useState<SystemSettings>(INITIAL_SETTINGS);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // `ready`: initial session check finished. `syncReady`: a valid session exists and edits are mirrored to the server.
+  const [ready, setReady] = useState(false);
+  const [syncReady, setSyncReady] = useState(false);
+  const lastStateJson = useRef('');
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  }, []);
+
+  const reloadRef = useRef<() => void>(() => {});
+  const { markSynced } = useServerSync({
+    ready: syncReady,
+    staff: staffList,
+    departments,
+    transfers,
+    auditLogs,
+    settings,
+    onError: (e) => {
+      showToast(`ذخیره‌سازی روی سرور ناموفق بود: ${e instanceof Error ? e.message : 'خطای ناشناخته'}`);
+      reloadRef.current();
+    },
+  });
+
+  const applyServerState = useCallback(
+    (s: ServerState, force = false) => {
+      const json = JSON.stringify(s);
+      if (!force && json === lastStateJson.current) return;
+      lastStateJson.current = json;
+      const merged: SystemSettings = { ...INITIAL_SETTINGS, ...(s.settings || {}) };
+      markSynced(s, merged);
+      setStaffList(s.staff);
+      setDepartments(s.departments);
+      setTransfers(s.transfers);
+      setAuditLogs(s.auditLogs);
+      setSettings(merged);
+      // Keep an admin's "act as" selection across refreshes; otherwise follow the signed-in account.
+      setCurrentUser((prev) => (prev.id && prev.id !== s.me.id ? s.staff.find((u) => u.id === prev.id) || s.me : s.me));
+    },
+    [markSynced]
+  );
+
+  const clearSession = useCallback(() => {
+    setToken(null);
     try {
-      const saved = localStorage.getItem('app_staff_v5');
-      if (saved) {
-        const parsed = JSON.parse(saved) as User[];
-        return parsed.map((u) => ({
-          ...u,
-          password: u.password || '123456',
-          themeId: u.themeId || getUserTheme(u),
-        }));
-      }
-    } catch (e) {
-      console.warn('Failed to load staff list:', e);
+      SESSION_KEYS.forEach((k) => {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+      });
+    } catch (e) {}
+    lastStateJson.current = '';
+    setSyncReady(false);
+    setLoggedInUser(null);
+    setCurrentUser(GUEST_USER);
+    setStaffList([]);
+    setDepartments([]);
+    setTransfers([]);
+    setAuditLogs([]);
+    setSettings(INITIAL_SETTINGS);
+    setCurrentThemeState('cherry');
+    applyTheme('cherry');
+  }, []);
+
+  reloadRef.current = () => {
+    api.state().then((s) => applyServerState(s, true)).catch(() => {});
+  };
+
+  // Restore an existing session on page load.
+  useEffect(() => {
+    setUnauthorizedHandler(clearSession);
+    if (!getToken()) {
+      clearSession();
+      setReady(true);
+      return;
     }
-    return STAFF_USERS.map((u) => ({
-      ...u,
-      themeId: u.themeId || getUserTheme(u),
-    }));
-  });
+    api
+      .state()
+      .then((s) => {
+        applyServerState(s, true);
+        setLoggedInUser(s.me);
+        setSyncReady(true);
+      })
+      .catch(() => clearSession())
+      .finally(() => setReady(true));
+  }, [applyServerState, clearSession]);
 
-  const [loggedInUser, setLoggedInUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem('app_logged_in_user_v5') || sessionStorage.getItem('app_logged_in_user_v5');
-      if (saved) {
-        const user = JSON.parse(saved) as User;
-        const staffSaved = localStorage.getItem('app_staff_v5');
-        if (staffSaved) {
-          const staff = JSON.parse(staffSaved) as User[];
-          const found = staff.find((u) => u.id === user.id);
-          if (found) {
-            return {
-              ...found,
-              password: found.password || '123456',
-              themeId: found.themeId || getUserTheme(found),
-            };
-          }
-        }
-        return { ...user, themeId: user.themeId || getUserTheme(user) };
-      }
-    } catch (e) {
-      console.warn('Failed to load logged-in user session:', e);
-    }
-    return null;
-  });
-
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-    try {
-      const savedLogged = localStorage.getItem('app_logged_in_user_v5') || sessionStorage.getItem('app_logged_in_user_v5');
-      if (savedLogged) {
-        const user = JSON.parse(savedLogged) as User;
-        const staffSaved = localStorage.getItem('app_staff_v5');
-        if (staffSaved) {
-          const staff = JSON.parse(staffSaved) as User[];
-          const found = staff.find((u) => u.id === user.id);
-          if (found) {
-            return {
-              ...found,
-              password: found.password || '123456',
-              themeId: found.themeId || getUserTheme(found),
-            };
-          }
-        }
-        return { ...user, themeId: user.themeId || getUserTheme(user) };
-      }
-
-      const saved = localStorage.getItem('app_current_user_v5');
-      if (saved) {
-        const savedUser = JSON.parse(saved) as User;
-        const staffSaved = localStorage.getItem('app_staff_v5');
-        if (staffSaved) {
-          const staff = JSON.parse(staffSaved) as User[];
-          const found = staff.find((u) => u.id === savedUser.id);
-          if (found) {
-            return {
-              ...found,
-              password: found.password || '123456',
-              themeId: found.themeId || getUserTheme(found),
-            };
-          }
-        }
-        return { ...savedUser, themeId: savedUser.themeId || getUserTheme(savedUser) };
-      }
-    } catch (e) {
-      console.warn('Failed to load current user:', e);
-    }
-    const defaultUser = STAFF_USERS[0];
-    return { ...defaultUser, themeId: getUserTheme(defaultUser) };
-  });
-
-  const [currentTheme, setCurrentThemeState] = useState<string>(() => {
-    const active = loggedInUser || currentUser || STAFF_USERS[0];
-    return getUserTheme(active);
-  });
+  // Pick up changes made by other users.
+  useEffect(() => {
+    if (!syncReady) return;
+    const timer = setInterval(() => {
+      if (hasPendingWrites() || document.hidden) return;
+      api.state().then((s) => applyServerState(s)).catch(() => {});
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [syncReady, applyServerState]);
 
   // Whenever currentUser changes (e.g. user switch in AdminPanel or Login), apply that user's theme
   useEffect(() => {
@@ -282,138 +316,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [currentUser?.id]
   );
 
-  const login = useCallback(
-    (user: User) => {
-      const matchedUser = staffList.find((u) => u.id === user.id) || user;
-      const userTheme = getUserTheme(matchedUser);
-      const userWithTheme: User = { ...matchedUser, themeId: userTheme };
-
+  const loginWithCredentials = useCallback(
+    async (identifier: string, password: string, adminOnly = false) => {
       try {
-        localStorage.setItem('app_logged_in_user_v5', JSON.stringify(userWithTheme));
-        sessionStorage.setItem('app_logged_in_user_v5', JSON.stringify(userWithTheme));
+        const { token, user } = await api.login(identifier, password, adminOnly);
+        setToken(token);
+        const s = await api.state();
+        applyServerState(s, true);
+        if (!adminOnly) setLoggedInUser(s.me);
+        setCurrentUser(s.me);
+        setSyncReady(true);
+        return { ok: true as const, user };
       } catch (e) {
-        console.warn('Error saving logged-in user:', e);
+        setToken(null);
+        return { ok: false as const, error: e instanceof Error ? e.message : 'خطا در ورود' };
       }
-
-      setLoggedInUser(userWithTheme);
-      setCurrentUser(userWithTheme);
-      setCurrentThemeState(userTheme);
-      applyTheme(userTheme);
     },
-    [staffList]
+    [applyServerState]
   );
 
   const logout = useCallback(() => {
-    try {
-      localStorage.removeItem('app_logged_in_user_v5');
-      sessionStorage.removeItem('app_logged_in_user_v5');
-    } catch (e) {
-      console.warn('Error removing logged-in user:', e);
-    }
-    setLoggedInUser(null);
-    setCurrentThemeState('cherry');
-    applyTheme('cherry');
-  }, []);
-
-  const [departments, setDepartments] = useState<Department[]>(() => {
-    try {
-      const saved = localStorage.getItem('app_departments_v5');
-      return saved ? JSON.parse(saved) : DEPARTMENTS;
-    } catch (e) {
-      return DEPARTMENTS;
-    }
-  });
-
-  const [transfers, setTransfers] = useState<FileTransfer[]>(() => {
-    try {
-      const saved = localStorage.getItem('app_transfers_v5');
-      return saved ? JSON.parse(saved) : INITIAL_TRANSFERS;
-    } catch (e) {
-      return INITIAL_TRANSFERS;
-    }
-  });
-
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    try {
-      const saved = localStorage.getItem('app_audit_v5');
-      return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
-    } catch (e) {
-      return INITIAL_AUDIT_LOGS;
-    }
-  });
-
-  const [settings, setSettings] = useState<SystemSettings>(() => {
-    try {
-      const saved = localStorage.getItem('app_settings_v5');
-      return saved ? JSON.parse(saved) : INITIAL_SETTINGS;
-    } catch (e) {
-      return INITIAL_SETTINGS;
-    }
-  });
-
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Sync to LocalStorage with safe try/catch and payload sanitization
-  useEffect(() => {
-    try {
-      localStorage.setItem('app_staff_v5', JSON.stringify(staffList));
-    } catch (e) {
-      console.warn('Error saving staffList to localStorage:', e);
-    }
-  }, [staffList]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('app_departments_v5', JSON.stringify(departments));
-    } catch (e) {
-      console.warn('Error saving departments to localStorage:', e);
-    }
-  }, [departments]);
-
-  useEffect(() => {
-    try {
-      // Exclude heavy binary/dataUrls from localStorage to prevent QuotaExceededError
-      const sanitized = transfers.map(({ fileDataUrl, ...rest }) => rest);
-      localStorage.setItem('app_transfers_v5', JSON.stringify(sanitized));
-    } catch (e) {
-      console.warn('Error saving transfers to localStorage:', e);
-    }
-  }, [transfers]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('app_audit_v5', JSON.stringify(auditLogs));
-    } catch (e) {
-      console.warn('Error saving auditLogs to localStorage:', e);
-    }
-  }, [auditLogs]);
-
-  useEffect(() => {
-    if (settings.systemTitle) {
-      document.title = settings.systemTitle;
-    }
-  }, [settings.systemTitle]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('app_settings_v5', JSON.stringify(settings));
-    } catch (e) {
-      console.warn('Error saving settings to localStorage:', e);
-    }
-  }, [settings]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('app_current_user_v5', JSON.stringify(currentUser));
-    } catch (e) {
-      console.warn('Error saving currentUser to localStorage:', e);
-    }
-  }, [currentUser]);
-
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  }, []);
+    clearSession();
+  }, [clearSession]);
 
   const handleSendTransfer = useCallback(
     ({
@@ -485,18 +409,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }) => {
       const recipient = staffList.find((u) => u.id === recipientId) || staffList[1];
       const transferId = 'tr-' + Math.random().toString(36).substring(2, 9);
-      const fileId = 'f-' + Math.random().toString(36).substring(2, 9);
 
-      // Store the real File in memory for instant, reliable download
-      fileBlobStore.set(transferId, rawFile);
-      fileBlobStore.set(fileId, rawFile);
-
-      let progress = 0;
-      const timer = setInterval(() => {
-        progress += Math.floor(Math.random() * 25) + 20;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(timer);
+      api
+        .uploadFile(rawFile, onProgress)
+        .then(({ id: fileId }) => {
+          onProgress(100);
 
           const category: FileCategory = getFileCategory(rawFile.name);
 
@@ -565,36 +482,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setAuditLogs((prev) => [newLog, ...prev]);
           showToast(`فایل "${newTransfer.fileName}" با موفقیت برای ${recipient.fullName} ارسال شد.`);
           onDone();
-        } else {
-          onProgress(progress);
-        }
-      }, 100);
+        })
+        .catch((err) => {
+          showToast(`ارسال فایل ناموفق بود: ${err instanceof Error ? err.message : 'خطای ناشناخته'}`);
+          onDone();
+        });
     },
     [staffList, currentUser, showToast]
   );
 
   const handleDownload = useCallback(
-    (t: FileTransfer) => {
+    async (t: FileTransfer) => {
       try {
-        // 0. If it's an official letter, open and generate official PDF with embedded scanned signature & stamp
+        // Official letters are rendered to PDF client-side with the embedded signature & stamp
         if (t.isOfficialLetter) {
           openAndDownloadPdfLetter(t, settings, currentUser);
         } else {
-          // 1. Check in-memory store for actual uploaded file
-          let downloadBlob = fileBlobStore.get(t.id);
-
-          if (t.fileDataUrl && !downloadBlob) {
+          let downloadBlob: Blob | null = null;
+          if (t.fileId) {
+            downloadBlob = await api.downloadFile(t.fileId);
+          } else if (t.fileDataUrl) {
             const link = document.createElement('a');
             link.href = t.fileDataUrl;
             link.download = t.fileName;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-          }
-
-          // 2. Fallback for mock/seeded files so download never fails
-          if (!downloadBlob && !t.fileDataUrl) {
-            const sampleContent = `سامانه اتوماسیون سازمانی\n====================\nنام فایل: ${t.fileName}\nحجم: ${t.fileSize}\nفرستنده: ${t.sender.fullName} (${t.sender.departmentName})\nگیرنده: ${t.recipients.map((r) => r.fullName).join(', ')}\nتاریخ ارسال: ${t.sentAt}\nتوضیحات: ${t.note || '---'}\n\nوضعیت سند: تایید شده و رمزنگاری شده`;
+          } else {
+            const sampleContent = `سامانه اتوماسیون سازمانی\n====================\nنام فایل: ${t.fileName}\nحجم: ${t.fileSize}\nفرستنده: ${t.sender.fullName} (${t.sender.departmentName})\nگیرنده: ${t.recipients.map((r) => r.fullName).join(', ')}\nتاریخ ارسال: ${t.sentAt}\nتوضیحات: ${t.note || '---'}`;
             downloadBlob = new Blob([sampleContent], { type: 'text/plain;charset=utf-8' });
           }
 
@@ -625,7 +540,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userEmail: currentUser.email,
           action: 'FILE_DOWNLOAD',
           severity: 'INFO',
-          ipAddress: '192.168.1.104',
+          ipAddress: '',
           details: `دانلود فایل "${t.fileName}" توسط ${currentUser.fullName}.`,
         };
         setAuditLogs((prev) => [newLog, ...prev]);
@@ -635,7 +550,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast(`خطا در دانلود فایل "${t.fileName}"`);
       }
     },
-    [currentUser, showToast]
+    [currentUser, settings, showToast]
   );
 
   const handleDeleteTransfer = useCallback(
@@ -1112,7 +1027,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         loggedInUser,
-        login,
+        ready,
+        loginWithCredentials,
         logout,
         staffList,
         setStaffList,

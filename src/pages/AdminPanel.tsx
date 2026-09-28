@@ -61,6 +61,8 @@ export default function AdminPanel() {
     handleCreateDepartment,
     handleUpdateDepartment,
     handleDeleteDepartment,
+    loginWithCredentials,
+    logout,
   } = useAppContext();
 
   // Authentication State for Admin Portal (Persisted to survive page refreshes)
@@ -170,11 +172,11 @@ export default function AdminPanel() {
     }
   }, [captchaCode, isAdminAuthenticated]);
 
-  const handleAdminLoginSubmit = (e: React.FormEvent) => {
+  const handleAdminLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
 
-    const uQuery = adminUsername.trim().toLowerCase();
+    const uQuery = adminUsername.trim();
     if (!uQuery) {
       setAuthError('لطفاً نام کاربری یا ایمیل مدیر را وارد کنید.');
       return;
@@ -192,37 +194,23 @@ export default function AdminPanel() {
       return;
     }
 
-    // Find admin user
-    const targetUser = staffList.find(
-      (u) =>
-        (u.fullName.toLowerCase() === uQuery || u.email.toLowerCase() === uQuery) &&
-        (u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN')
-    );
-
-    if (!targetUser) {
-      setAuthError('حساب مدیریتی با این مشخصات یافت نشد یا دسترسی مدیر ندارد.');
+    const result = await loginWithCredentials(uQuery, adminPassword, true);
+    if (!result.ok) {
+      setAuthError(result.error);
       generateCaptcha();
       return;
     }
 
-    const validPassword = targetUser.password || 'admin';
-    if (adminPassword !== validPassword) {
-      setAuthError('رمز عبور مدیر نادرست است.');
-      generateCaptcha();
-      return;
-    }
-
-    // Success: save admin session to survive page refreshes
+    // Success: remember the admin session so it survives page refreshes
     try {
-      localStorage.setItem('admin_session_auth_v5', targetUser.id);
-      sessionStorage.setItem('admin_session_auth_v5', targetUser.id);
+      localStorage.setItem('admin_session_auth_v5', result.user.id);
+      sessionStorage.setItem('admin_session_auth_v5', result.user.id);
     } catch (err) {
       console.warn('Could not save admin session:', err);
     }
 
-    setCurrentUser(targetUser);
     setIsAdminAuthenticated(true);
-    showToast(`خوش آمدید، ${targetUser.fullName} (کنسول مدیریت)`);
+    showToast(`خوش آمدید، ${result.user.fullName} (کنسول مدیریت)`);
   };
 
   const handleAdminLogout = () => {
@@ -232,6 +220,7 @@ export default function AdminPanel() {
     } catch (err) {
       console.warn('Could not clear admin session:', err);
     }
+    logout();
     setIsAdminAuthenticated(false);
     setAdminPassword('');
     setCaptchaInput('');

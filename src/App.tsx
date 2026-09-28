@@ -7,12 +7,14 @@ import AdminPanel from './pages/AdminPanel';
 import { LoginPage } from './pages/LoginPage';
 
 function AppRoutes() {
-  const { loggedInUser, staffList, login } = useAppContext();
+  const { loggedInUser, staffList, ready, loginWithCredentials } = useAppContext();
 
   const handleAdminLogin = () => {
     // Navigate to admin panel directly via hash
     window.location.hash = '#/admin';
   };
+
+  if (!ready) return null;
 
   return (
     <Routes>
@@ -24,7 +26,10 @@ function AppRoutes() {
           ) : (
             <LoginPage
               staffList={staffList}
-              onLogin={login}
+              onLogin={async (identifier, password) => {
+                const result = await loginWithCredentials(identifier, password);
+                return result.ok ? null : result.error;
+              }}
               onAdminLogin={handleAdminLogin}
             />
           )

@@ -4,7 +4,8 @@ import { User } from '../types';
 
 interface LoginPageProps {
   staffList: User[];
-  onLogin: (user: User) => void;
+  /** Resolves to an error message, or null when the sign-in succeeded. */
+  onLogin: (identifier: string, password: string) => Promise<string | null>;
   onAdminLogin: () => void;
 }
 
@@ -15,6 +16,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const filtered = staffList.filter((u) =>
@@ -39,47 +41,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
     setError('');
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    if (submitting) return;
     setError('');
-    const query = usernameQuery.trim().toLowerCase();
+    const query = usernameQuery.trim();
     if (!query) {
       setError('لطفاً نام کاربری یا ایمیل را وارد کنید.');
       return;
     }
-
-    let targetUser = selectedUser;
-    if (!targetUser || targetUser.fullName.toLowerCase() !== query) {
-      targetUser =
-        staffList.find(
-          (u) =>
-            u.fullName.toLowerCase() === query ||
-            u.email.toLowerCase() === query ||
-            u.id.toLowerCase() === query
-        ) || null;
-    }
-
-    if (!targetUser) {
-      setError('کاربری با این مشخصات یافت نشد.');
-      return;
-    }
-
-    if (!targetUser.isActive) {
-      setError('حساب کاربری شما غیرفعال شده است.');
-      return;
-    }
-
     if (!password) {
       setError('لطفاً رمز عبور را وارد کنید.');
       return;
     }
 
-    const validPassword = targetUser.password || '123456';
-    if (password !== validPassword) {
-      setError('رمز عبور نادرست است.');
-      return;
-    }
-
-    onLogin(targetUser);
+    setSubmitting(true);
+    const failure = await onLogin(selectedUser?.email || query, password);
+    setSubmitting(false);
+    if (failure) setError(failure);
   };
 
   return (
@@ -189,7 +167,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
           <button
             type="button"
             onClick={handleLogin}
-            className="w-full py-3.5 bg-[#6E1B1B] hover:bg-[#D34A32] text-white font-black text-sm rounded-2xl shadow-md shadow-[#6E1B1B]/20 transition-all active:scale-[0.98] mt-2 cursor-pointer"
+            disabled={submitting}
+            className="w-full py-3.5 bg-[#6E1B1B] hover:bg-[#D34A32] text-white font-black text-sm rounded-2xl shadow-md shadow-[#6E1B1B]/20 transition-all active:scale-[0.98] mt-2 cursor-pointer disabled:opacity-60"
           >
             ورود
           </button>
