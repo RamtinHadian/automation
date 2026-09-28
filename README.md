@@ -2,7 +2,15 @@
 
 React frontend + Node/Express API + PostgreSQL. Everything (users, departments, letters/transfers, audit log, settings, uploaded files) is stored in the database and an uploads volume.
 
-## Install on any server (Docker)
+## Quick install on a fresh Linux server
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RamtinHadian/automation/frontend/install.sh | sudo bash
+```
+
+Installs Docker if needed, generates random secrets, starts everything on port 80 and prints the admin login. (If the repo is private, clone it first and run `sudo ./install.sh` inside.)
+
+## Manual install (Docker)
 
 Requires Docker with the Compose plugin.
 
