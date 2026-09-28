@@ -114,3 +114,4 @@ docker compose --profile tools up -d  # optional pgAdmin UI on 127.0.0.1:5050
 By default only the app's own port (`PORT` in `.env`, default `8090`) is exposed to the network;
 PostgreSQL and pgAdmin are bound to `127.0.0.1` only. Put a reverse proxy (Caddy/Nginx) with TLS
 in front of the app port for a public-facing deployment.
+test change for alias verification
