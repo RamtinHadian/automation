@@ -8,7 +8,7 @@ React frontend + Node/Express API + PostgreSQL. Everything (users, departments, 
 curl -fsSL https://raw.githubusercontent.com/RamtinHadian/automation/frontend/install.sh | sudo bash
 ```
 
-Installs Docker if needed, generates random secrets, starts everything on port 80 and prints the admin login. (If the repo is private, clone it first and run `sudo ./install.sh` inside.)
+Installs Docker if needed, generates random secrets, starts everything on port 8080 (override with `PORT=9000 sudo -E bash`) and prints the admin login. (If the repo is private, clone it first and run `sudo ./install.sh` inside.)
 
 ## Manual install (Docker)
 

@@ -53,7 +53,7 @@ DB_PASSWORD=$(rand 32)
 JWT_SECRET=$(rand 64)
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 ADMIN_EMAIL=admin@company.internal
-PORT=80
+PORT=${PORT:-8080}
 EOF
   chmod 600 .env
   FIRST_RUN=1
@@ -67,7 +67,7 @@ docker compose up -d --build
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 PORT="$(grep -E '^PORT=' .env | cut -d= -f2)"
 echo
-echo "Done. Open http://${IP:-<server-ip>}$([ "${PORT:-80}" = 80 ] || echo ":$PORT")"
+echo "Done. Open http://${IP:-<server-ip>}$([ "${PORT:-8080}" = 80 ] || echo ":$PORT")"
 echo "Admin console: /#/admin"
 if [ "$FIRST_RUN" = 1 ]; then
   echo "Admin login:   admin@company.internal / $ADMIN_PASSWORD   (saved in $INSTALL_DIR/.env)"
