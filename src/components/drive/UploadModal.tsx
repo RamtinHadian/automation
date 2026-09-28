@@ -123,17 +123,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-[#F6D9CD] text-[#6E1B1B] flex items-center justify-center">
               <UploadCloud className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-gray-900">بارگذاری فایل در گودل درایو</h3>
-              <p className="text-[11px] text-gray-500">پشتیبانی از اسناد اداری، فایل‌های فشرده، تصاویر و کدها</p>
+              <h3 className="font-bold text-sm text-[#3A241F]">بارگذاری فایل در سامانه سازمانی</h3>
+              <p className="text-[11px] text-[#8C6F66]">پشتیبانی از اسناد اداری، فایل‌های فشرده، تصاویر و کدها</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+            className="text-[#8C6F66] hover:text-[#3A241F] p-1.5 rounded-full hover:bg-[#FAF5F1] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -152,8 +152,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             onClick={() => fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-3 ${
               dragOver
-                ? 'border-blue-500 bg-blue-50/60 scale-[0.99]'
-                : 'border-gray-200 hover:border-blue-400 hover:bg-gray-50/60'
+                ? 'border-[#D34A32] bg-[#F6D9CD]/50 scale-[0.99]'
+                : 'border-[#EBDBCE] hover:border-[#D34A32] hover:bg-[#FAF5F1]'
             }`}
           >
             <input
@@ -167,14 +167,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 }
               }}
             />
-            <div className="w-12 h-12 rounded-full bg-blue-100/70 text-blue-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-[#F6D9CD] text-[#6E1B1B] flex items-center justify-center shadow-xs">
               <UploadCloud className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-gray-700">
-                <span className="text-blue-600 font-bold">برای انتخاب کلیک کنید</span> یا فایل‌ها را به این قسمت بکشید
+              <p className="text-xs font-semibold text-[#3A241F]">
+                <span className="text-[#D34A32] font-bold underline">برای انتخاب کلیک کنید</span> یا فایل‌ها را به این قسمت بکشید
               </p>
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-[#8C6F66]">
                 حداکثر حجم فایل ۵ گیگابایت • مجهز به پویش آنتی‌ویروس سازمانی
               </p>
             </div>
@@ -183,34 +183,34 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           {/* Upload Queue List */}
           {queue.length > 0 && (
             <div className="space-y-2.5 pt-2">
-              <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              <div className="text-[11px] font-bold text-[#8C6F66] uppercase tracking-wider">
                 پیشرفت بارگذاری ({queue.filter((q) => q.status === 'completed').length}/{queue.length})
               </div>
               <div className="space-y-2 max-h-48 overflow-y-auto pl-1">
                 {queue.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex flex-col gap-2 text-xs"
+                    className="p-3 bg-[#FAF5F1] rounded-xl border border-[#EBDBCE] flex flex-col gap-2 text-xs"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 truncate pl-2">
-                        <File className="w-4 h-4 text-blue-500 shrink-0" />
-                        <span className="font-bold text-gray-800 truncate">{item.name}</span>
-                        <span className="text-[10px] text-gray-400">({item.sizeFormatted})</span>
+                        <File className="w-4 h-4 text-[#D34A32] shrink-0" />
+                        <span className="font-bold text-[#3A241F] truncate">{item.name}</span>
+                        <span className="text-[10px] text-[#8C6F66]">({item.sizeFormatted})</span>
                       </div>
                       {item.status === 'completed' ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-[#6E1B1B] shrink-0" />
                       ) : item.status === 'uploading' ? (
-                        <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+                        <Loader2 className="w-4 h-4 text-[#D34A32] animate-spin shrink-0" />
                       ) : (
-                        <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                        <AlertCircle className="w-4 h-4 text-[#6E1B1B] shrink-0" />
                       )}
                     </div>
                     {/* Progress Bar */}
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                    <div className="w-full bg-[#FAF5F1] border border-[#EBDBCE] rounded-full h-1.5 overflow-hidden">
                       <div
                         className={`h-full transition-all duration-200 ${
-                          item.status === 'completed' ? 'bg-emerald-500' : 'bg-blue-600'
+                          item.status === 'completed' ? 'bg-[#6E1B1B]' : 'bg-[#D34A32]'
                         }`}
                         style={{ width: `${item.progress}%` }}
                       />
@@ -223,10 +223,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-[#FAF5F1] border-t border-[#EBDBCE]">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-200/60 transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-[#8C6F66] hover:text-[#3A241F] rounded-xl hover:bg-[#EBDBCE]/60 transition-colors"
           >
             انصراف
           </button>
@@ -235,8 +235,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             disabled={queue.length === 0 || queue.some((q) => q.status === 'uploading')}
             className={`px-5 py-2 text-xs font-bold rounded-xl transition-all shadow-sm ${
               queue.length > 0 && queue.every((q) => q.status === 'completed')
-                ? 'bg-[#1967d2] text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'bg-[#6E1B1B] text-white hover:bg-[#D34A32]'
+                : 'bg-[#EAE5E3] text-[#B8A39C] cursor-not-allowed'
             }`}
           >
             ذخیره در درایو ({queue.filter((q) => q.status === 'completed').length})

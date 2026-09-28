@@ -31,14 +31,14 @@ export const QuickAccess: React.FC<QuickAccessProps> = ({
               <div
                 key={item.id}
                 onClick={() => onSelectFolder(item.id)}
-                className="bg-[#f1f3f4] hover:bg-[#e8eaed] transition-all duration-200 rounded-2xl p-4.5 flex flex-col justify-between h-36 border border-gray-200/50 shadow-xs cursor-pointer group"
+                className="bg-[#FAF5F1] hover:bg-[#F6D9CD]/40 transition-all duration-200 rounded-2xl p-4.5 flex flex-col justify-between h-36 border border-[#EBDBCE] shadow-xs cursor-pointer group"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-2.5">
-                    <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg shrink-0">
-                      <FileText className="w-5 h-5 text-blue-600" />
+                    <div className="p-1.5 bg-[#F6D9CD] text-[#6E1B1B] rounded-lg shrink-0">
+                      <FileText className="w-5 h-5 text-[#6E1B1B]" />
                     </div>
-                    <div className="text-xs font-bold text-blue-800 group-hover:text-blue-900 line-clamp-2 pl-2">
+                    <div className="text-xs font-bold text-[#3A241F] group-hover:text-[#6E1B1B] line-clamp-2 pl-2">
                       {item.title}
                     </div>
                   </div>
@@ -51,12 +51,12 @@ export const QuickAccess: React.FC<QuickAccessProps> = ({
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-gray-200/60">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-800">
+                <div className="pt-2 border-t border-[#EBDBCE]">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#8C6F66]">
                     آخرین ویرایش
                   </div>
-                  <div className="text-[11px] font-medium text-gray-600">
-                    {item.lastModified || '۹ سپتامبر ۲۰۱۹ - ۴:۳۰ ق.ظ'}
+                  <div className="text-[11px] font-medium text-[#3A241F]">
+                    {item.lastModified || '۹ شهریور ۱۴۰۵ - ۴:۳۰'}
                   </div>
                 </div>
               </div>
@@ -69,14 +69,14 @@ export const QuickAccess: React.FC<QuickAccessProps> = ({
               onClick={() => onSelectFolder(item.id)}
               className={`relative rounded-2xl p-5 flex flex-col justify-between h-36 transition-all duration-200 cursor-pointer shadow-xs group ${
                 isActive
-                  ? 'bg-[#1a73e8] text-white shadow-md shadow-blue-500/20'
-                  : 'bg-[#f1f3f4] hover:bg-[#e8eaed] text-gray-800 border border-gray-200/50'
+                  ? 'bg-[#6E1B1B] text-white shadow-md shadow-[#6E1B1B]/20'
+                  : 'bg-[#FAF5F1] hover:bg-[#F6D9CD]/40 text-[#3A241F] border border-[#EBDBCE]'
               }`}
             >
               {/* Folder tab notch indicator */}
               <div
                 className={`absolute -top-1 right-4 w-12 h-2 rounded-t-md transition-colors ${
-                  isActive ? 'bg-[#1557b0]' : 'bg-[#e0e3e7]'
+                  isActive ? 'bg-[#581717]' : 'bg-[#EBDBCE]'
                 }`}
               />
 
@@ -84,7 +84,7 @@ export const QuickAccess: React.FC<QuickAccessProps> = ({
               <div className="space-y-2">
                 <div
                   className={`text-[10px] font-extrabold uppercase tracking-wider ${
-                    isActive ? 'text-blue-100' : 'text-gray-900 font-bold'
+                    isActive ? 'text-[#F6D9CD]' : 'text-[#8C6F66] font-bold'
                   }`}
                 >
                   اشتراک‌گذاری شده با
@@ -97,7 +97,7 @@ export const QuickAccess: React.FC<QuickAccessProps> = ({
                       alt={person.name}
                       title={person.name}
                       className={`w-7 h-7 rounded-full object-cover border-2 shadow-xs transition-transform ${
-                        isActive ? 'border-[#1a73e8]' : 'border-[#f1f3f4]'
+                        isActive ? 'border-[#6E1B1B]' : 'border-[#FAF5F1]'
                       }`}
                     />
                   ))}
@@ -108,14 +108,14 @@ export const QuickAccess: React.FC<QuickAccessProps> = ({
               <div className="pt-1">
                 <div
                   className={`text-[10px] font-bold uppercase tracking-wider ${
-                    isActive ? 'text-blue-200' : 'text-gray-800'
+                    isActive ? 'text-[#F6D9CD]' : 'text-[#8C6F66]'
                   }`}
                 >
                   {item.categoryLabel || 'پوشه'}
                 </div>
                 <div
                   className={`text-xs font-bold tracking-tight truncate ${
-                    isActive ? 'text-white' : 'text-blue-600 group-hover:text-blue-700'
+                    isActive ? 'text-white' : 'text-[#3A241F] group-hover:text-[#6E1B1B]'
                   }`}
                 >
                   {item.title}

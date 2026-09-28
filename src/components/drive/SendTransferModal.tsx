@@ -92,19 +92,19 @@ export const SendTransferModal: React.FC<SendTransferModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200 font-sans">
       <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full overflow-hidden border border-gray-100 flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#EBDBCE] bg-[#FAF5F1]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-[#F6D9CD] text-[#6E1B1B] flex items-center justify-center">
               <Send className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-gray-900">انتقال درون‌سازمانی فایل</h3>
-              <p className="text-[11px] text-gray-500">ارسال مستقیم، امن و دارای ردیابی ممیزی برای همکاران</p>
+              <h3 className="font-bold text-sm text-[#3A241F]">انتقال درون‌سازمانی فایل</h3>
+              <p className="text-[11px] text-[#8C6F66]">ارسال مستقیم، امن و دارای ردیابی ممیزی برای همکاران</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+            className="text-[#8C6F66] hover:text-[#3A241F] p-1.5 rounded-full hover:bg-[#EBDBCE]/50 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -114,13 +114,13 @@ export const SendTransferModal: React.FC<SendTransferModalProps> = ({
         <div className="p-6 space-y-5 overflow-y-auto flex-1 text-xs">
           {/* File Selector */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-bold text-[#3A241F] uppercase tracking-wider mb-1.5">
               انتخاب سند جهت ارسال
             </label>
             <select
-              value={currentFile?.id || ''}
+              value={selectedFileId}
               onChange={(e) => setSelectedFileId(e.target.value)}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-100 focus:border-blue-400 focus:outline-none"
+              className="w-full px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none cursor-pointer"
             >
               {allFiles.map((file) => (
                 <option key={file.id} value={file.id}>
@@ -130,73 +130,71 @@ export const SendTransferModal: React.FC<SendTransferModalProps> = ({
             </select>
           </div>
 
-          {/* Employee Directory Recipient Selector */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">
-                انتخاب گیرندگان ({toPersianDigits(recipientIds.length)} نفر انتخاب شده)
+          {/* Recipients Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold text-[#3A241F] uppercase tracking-wider">
+                انتخاب همکاران گیرنده ({toPersianDigits(recipientIds.length)} نفر انتخاب شده)
               </label>
-              <span className="text-[11px] text-blue-600 font-bold">
-                قابلیت انتخاب چندگانه
-              </span>
+              <div className="text-[10px] text-[#8C6F66]">چندانتخابی مجاز است</div>
             </div>
 
             {/* Department Filter & Search */}
-            <div className="flex gap-2 mb-2.5">
+            <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute right-3 top-2.5" />
+                <Search className="w-3.5 h-3.5 text-[#B8A39C] absolute right-3 top-2.5" />
                 <input
                   type="text"
                   value={searchStaff}
                   onChange={(e) => setSearchStaff(e.target.value)}
-                  placeholder="جستجو با نام، ایمیل یا واحد..."
-                  className="w-full pr-8 pl-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                  placeholder="جستجو در همکاران..."
+                  className="w-full pr-8 pl-3 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
                 />
               </div>
               <select
                 value={selectedDept}
                 onChange={(e) => setSelectedDept(e.target.value)}
-                className="px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                className="px-2.5 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-medium text-[#3A241F] focus:outline-none"
               >
                 <option value="ALL">همه واحدها</option>
-                {DEPARTMENTS.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
+                {DEPARTMENTS.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Staff List Checklist */}
-            <div className="border border-gray-200 rounded-2xl p-2 max-h-40 overflow-y-auto divide-y divide-gray-100">
+            {/* Staff list cards */}
+            <div className="max-h-40 overflow-y-auto space-y-1.5 p-1 bg-[#FAF5F1]/50 rounded-2xl border border-[#EBDBCE]">
               {availableStaff.map((staff) => {
                 const isSelected = recipientIds.includes(staff.id);
                 return (
                   <div
                     key={staff.id}
                     onClick={() => toggleRecipient(staff.id)}
-                    className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-colors ${
-                      isSelected ? 'bg-blue-50/80 font-bold text-blue-900' : 'hover:bg-gray-50'
+                    className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-[#F6D9CD] border border-[#C98B6A]/50 text-[#3A241F]'
+                        : 'bg-white hover:bg-[#FAF5F1] border border-transparent text-[#3A241F]'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
                       <img
                         src={staff.avatarUrl}
                         alt={staff.fullName}
-                        className="w-6 h-6 rounded-full object-cover ring-1 ring-gray-200"
+                        className="w-6 h-6 rounded-full object-cover"
                       />
                       <div>
-                        <div className="text-xs font-bold">{staff.fullName}</div>
-                        <div className="text-[10px] text-gray-400">
-                          {staff.departmentName} • {staff.email}
-                        </div>
+                        <div className="font-bold text-[11px]">{staff.fullName}</div>
+                        <div className="text-[10px] text-[#8C6F66]">{staff.departmentName}</div>
                       </div>
                     </div>
                     <div
-                      className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                      className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors ${
                         isSelected
-                          ? 'bg-blue-600 text-white'
-                          : 'border border-gray-300 bg-white'
+                          ? 'bg-[#6E1B1B] text-white'
+                          : 'border border-[#EBDBCE]'
                       }`}
                     >
                       {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
@@ -209,7 +207,7 @@ export const SendTransferModal: React.FC<SendTransferModalProps> = ({
 
           {/* Message / Note */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-bold text-[#3A241F] uppercase tracking-wider mb-1.5">
               یادداشت یا توضیحات ضمیمه
             </label>
             <textarea
@@ -217,20 +215,20 @@ export const SendTransferModal: React.FC<SendTransferModalProps> = ({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="مثال: لطفاً تا قبل از جلسه هیئت مدیره بخش‌های مالی را بررسی فرمایید..."
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:outline-none placeholder:text-gray-400"
+              className="w-full px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none placeholder:text-[#B8A39C]"
             />
           </div>
 
           {/* Security & Expiration Options */}
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
-              <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
+              <label className="block text-[10px] font-bold text-[#3A241F] uppercase mb-1">
                 مدت اعتبار لینک
               </label>
               <select
                 value={expiresInDays}
                 onChange={(e) => setExpiresInDays(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium"
+                className="w-full px-2.5 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-lg text-xs font-medium text-[#3A241F]"
               >
                 <option value="1">۱ روز</option>
                 <option value="3">۳ روز</option>
@@ -240,13 +238,13 @@ export const SendTransferModal: React.FC<SendTransferModalProps> = ({
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
+              <label className="block text-[10px] font-bold text-[#3A241F] uppercase mb-1">
                 سقف مجاز تعداد دانلود
               </label>
               <select
                 value={maxDownloads}
                 onChange={(e) => setMaxDownloads(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium"
+                className="w-full px-2.5 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-lg text-xs font-medium text-[#3A241F]"
               >
                 <option value="1">فقط ۱ بار دانلود</option>
                 <option value="5">حداکثر ۵ بار</option>
@@ -257,28 +255,28 @@ export const SendTransferModal: React.FC<SendTransferModalProps> = ({
           </div>
 
           {/* Encryption Toggle */}
-          <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+          <div className="flex items-center justify-between p-3 bg-[#FAF5F1] rounded-xl border border-[#EBDBCE]">
             <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-blue-600" />
+              <Lock className="w-4 h-4 text-[#6E1B1B]" />
               <div>
-                <div className="font-bold text-gray-800">رمزنگاری سرتاسری (E2EE)</div>
-                <div className="text-[10px] text-gray-500">رمزگذاری با کلیدهای اختصاصی سازمانی بر پایه AES-256</div>
+                <div className="font-bold text-[#3A241F]">رمزنگاری سرتاسری (E2EE)</div>
+                <div className="text-[10px] text-[#8C6F66]">رمزگذاری با کلیدهای اختصاصی سازمانی بر پایه AES-256</div>
               </div>
             </div>
             <input
               type="checkbox"
               checked={isEncrypted}
               onChange={(e) => setIsEncrypted(e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              className="w-4 h-4 accent-[#6E1B1B] rounded"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-[#FAF5F1] border-t border-[#EBDBCE]">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-200/60 transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-[#8C6F66] hover:text-[#3A241F] rounded-xl hover:bg-[#EBDBCE]/60 transition-colors"
           >
             انصراف
           </button>
@@ -287,8 +285,8 @@ export const SendTransferModal: React.FC<SendTransferModalProps> = ({
             disabled={recipientIds.length === 0 || !currentFile}
             className={`px-5 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-sm ${
               recipientIds.length > 0 && currentFile
-                ? 'bg-[#1967d2] text-white hover:bg-blue-700 shadow-blue-500/20'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'bg-[#6E1B1B] text-white hover:bg-[#D34A32] shadow-[#6E1B1B]/20'
+                : 'bg-[#EAE5E3] text-[#B8A39C] cursor-not-allowed'
             }`}
           >
             <Send className="w-3.5 h-3.5" />

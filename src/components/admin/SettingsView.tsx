@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Save,
   Shield,
@@ -8,94 +8,814 @@ import {
   CheckCircle2,
   AlertCircle,
   Plus,
-  X
+  X,
+  Stamp,
+  Award,
+  Upload,
+  Trash2,
+  Building,
+  Building2,
+  Image as ImageIcon,
+  Check,
+  Eye,
+  Hash,
+  FileText,
+  Sliders,
+  Sparkles,
+  Type,
+  Palette
 } from 'lucide-react';
-import { SystemSettings } from '../../types';
+import { SystemSettings, LetterNumberingSettings } from '../../types';
+import { FontManagementModal } from './FontManagementModal';
+import { ThemeManagementModal } from './ThemeManagementModal';
+import { COLOR_THEMES } from '../../lib/theme';
+import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
+import { formatLetterNumber, DEFAULT_LETTER_NUMBERING } from '../../lib/letterNumbering';
+import { useAppContext } from '../../context/AppContext';
 
 interface SettingsViewProps {
   settings: SystemSettings;
   onSaveSettings: (settings: SystemSettings) => void;
 }
 
+function parsePersianOrEnglishInt(str: string, fallback: number = 0): number {
+  const farsiToEnglish: Record<string, string> = {
+    '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+    '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+    '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+    '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+  };
+  const normalized = str.replace(/[۰-۹٠-٩]/g, (w) => farsiToEnglish[w] || w).replace(/[^0-9]/g, '');
+  const val = parseInt(normalized, 10);
+  return isNaN(val) ? fallback : val;
+}
+
+const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings => {
+  return {
+    ...s,
+    companyName: s.companyName ? toPersianDigits(s.companyName) : s.companyName,
+    companySubtitle: s.companySubtitle ? toPersianDigits(s.companySubtitle) : s.companySubtitle,
+    systemTitle: s.systemTitle ? toPersianDigits(s.systemTitle) : s.systemTitle,
+    ceoName: s.ceoName ? toPersianDigits(s.ceoName) : s.ceoName,
+    ceoTitle: s.ceoTitle ? toPersianDigits(s.ceoTitle) : s.ceoTitle,
+    letterNumbering: {
+      ...DEFAULT_LETTER_NUMBERING,
+      ...(s.letterNumbering || {}),
+      prefix: s.letterNumbering?.prefix ? toPersianDigits(s.letterNumbering.prefix) : DEFAULT_LETTER_NUMBERING.prefix,
+      year: s.letterNumbering?.year ? toPersianDigits(s.letterNumbering.year) : DEFAULT_LETTER_NUMBERING.year,
+      defaultFooterNote: s.letterNumbering?.defaultFooterNote ? toPersianDigits(s.letterNumbering.defaultFooterNote) : DEFAULT_LETTER_NUMBERING.defaultFooterNote,
+    },
+  };
+};
+
 export const SettingsView: React.FC<SettingsViewProps> = ({
   settings: initialSettings,
   onSaveSettings,
 }) => {
-  const [settings, setSettings] = useState<SystemSettings>(initialSettings);
+  const { fonts, currentTheme } = useAppContext();
+  const [settings, setSettings] = useState<SystemSettings>(() =>
+    sanitizeSettingsWithPersianDigits(initialSettings)
+  );
+  const [logoWidth, setLogoWidth] = useState<number>(initialSettings.companyLogoWidth || 70);
+  const [isResizingLogo, setIsResizingLogo] = useState(false);
+  const logoResizeStart = useRef<{ startX: number; startWidth: number }>({ startX: 0, startWidth: 70 });
+
+  useEffect(() => {
+    setLogoWidth(initialSettings.companyLogoWidth || 70);
+  }, [initialSettings.companyLogoWidth]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingLogo) return;
+      const diff = e.clientX - logoResizeStart.current.startX;
+      const newWidth = Math.max(35, Math.min(220, logoResizeStart.current.startWidth + diff));
+      setLogoWidth(newWidth);
+      setSettings((prev) => ({ ...prev, companyLogoWidth: newWidth }));
+    };
+
+    const handleMouseUp = () => {
+      if (isResizingLogo) setIsResizingLogo(false);
+    };
+
+    if (isResizingLogo) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingLogo]);
+
   const [newExt, setNewExt] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [showFontModal, setShowFontModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+
+  const sigInputRef = useRef<HTMLInputElement>(null);
+  const stampInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync internal form state whenever initialSettings changes
+  useEffect(() => {
+    setSettings(sanitizeSettingsWithPersianDigits(initialSettings));
+  }, [initialSettings]);
+
+  const handleLogoUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setSettings((prev) => ({
+          ...prev,
+          companyLogoUrl: e.target?.result as string,
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleAddExtension = () => {
     const clean = newExt.trim().toLowerCase().replace('.', '');
     if (clean && !settings.allowedFileTypes.includes(clean)) {
-      setSettings({
-        ...settings,
-        allowedFileTypes: [...settings.allowedFileTypes, clean],
-      });
+      setSettings((prev) => ({
+        ...prev,
+        allowedFileTypes: [...prev.allowedFileTypes, clean],
+      }));
       setNewExt('');
     }
   };
 
   const handleRemoveExtension = (ext: string) => {
-    setSettings({
-      ...settings,
-      allowedFileTypes: settings.allowedFileTypes.filter((e) => e !== ext),
-    });
+    setSettings((prev) => ({
+      ...prev,
+      allowedFileTypes: prev.allowedFileTypes.filter((e) => e !== ext),
+    }));
+  };
+
+  const handleSignatureUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setSettings((prev) => ({
+          ...prev,
+          ceoSignatureUrl: e.target?.result as string,
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleStampUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setSettings((prev) => ({
+          ...prev,
+          companyStampUrl: e.target?.result as string,
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleNumberingChange = (updates: Partial<LetterNumberingSettings>) => {
+    setSettings((prev) => ({
+      ...prev,
+      letterNumbering: {
+        ...DEFAULT_LETTER_NUMBERING,
+        ...(prev.letterNumbering || {}),
+        ...updates,
+      },
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveSettings(settings);
+    onSaveSettings({ ...settings, companyLogoWidth: logoWidth });
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setTimeout(() => setSavedSuccess(false), 3500);
   };
+
+  const currentNumbering = settings.letterNumbering || DEFAULT_LETTER_NUMBERING;
+  const sampleFormattedNumber = formatLetterNumber(currentNumbering);
+
+  // Active default font display name
+  const activeDefaultFont = fonts.find((f) => f.id === settings.defaultLetterFontId) || fonts[0] || { name: 'وزیرمتن' };
+  
+  // Active theme display name
+  const activeThemeObj = COLOR_THEMES.find((t) => t.id === currentTheme) || COLOR_THEMES[0];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 select-none max-w-4xl font-sans">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#EBDBCE]">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">
-              تنظیمات امنیتی و خط‌مشی‌های انتقال فایل
+            <h1 className="text-xl font-black text-[#3A241F] tracking-tight">
+              تنظیمات سیستم، هویت سازمانی و سربرگ نامه‌ها
             </h1>
-            <span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-              خط‌مشی سراسری
+            <span className="bg-[#F6D9CD] text-[#6E1B1B] text-[10px] font-black px-2.5 py-0.5 rounded-full border border-[#C98B6A]/30 uppercase">
+              پیکربندی کل سیستم
             </span>
           </div>
-          <p className="text-xs text-gray-500">
-            تعیین لیست پسوندهای مجاز، سقف حجم بارگذاری فایل و زمان انقضای نشست‌های کاری
+          <p className="text-xs text-[#8C6F66]">
+            تنظیم نام سامانه، نام شرکت و لوگو، شماره‌گذاری پلکانی، امضای مدیرعامل، مهر سازمان و خط‌مشی‌ها
           </p>
         </div>
 
         <button
           type="submit"
-          className="flex items-center gap-2 bg-[#1967d2] hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-blue-500/20 transition-all active:scale-95"
+          className="flex items-center gap-2 bg-[#6E1B1B] hover:bg-[#D34A32] text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-[#6E1B1B]/20 transition-all active:scale-95 cursor-pointer"
         >
           <Save className="w-4 h-4" />
-          <span>ذخیره خط‌مشی‌های سیستم</span>
+          <span>ذخیره کلیه تنظیمات</span>
         </button>
       </div>
 
+      {/* Success Alert */}
       {savedSuccess && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>خط‌مشی‌های امنیتی با موفقیت ذخیره و در کلیه گره‌های شبکه اعمال گردید.</span>
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-800 text-xs font-bold animate-in fade-in">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span>تنظیمات با موفقیت ذخیره شد و در سرتاسر سامانه و نامه‌های رسمی اعمال گردید.</span>
         </div>
       )}
 
-      {/* Settings Grid */}
+      {/* ========================================================================= */}
+      {/* SECTION 1: SYSTEM TITLE & COMPANY IDENTITY (نام سامانه و هویت سازمان) */}
+      {/* ========================================================================= */}
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#EBDBCE] shadow-sm space-y-6">
+        <div className="flex items-center justify-between border-b border-[#EBDBCE] pb-3.5">
+          <div className="flex items-center gap-2.5 text-[#3A241F]">
+            <div className="w-9 h-9 rounded-2xl bg-[#6E1B1B] text-white flex items-center justify-center shadow-xs">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-black text-sm text-[#3A241F]">نام سامانه، هویت و آرم رسمی شرکت / سازمان</h2>
+              <p className="text-[11px] text-[#8C6F66]">
+                نام شرکت و لوگو یکبار در اینجا تنظیم شده و در تمامی نامه‌ها، سربرگ‌ها و صفحات به صورت خودکار قرار می‌گیرد
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* System Title Input */}
+        <div>
+          <label className="block font-bold text-[#3A241F] mb-1.5 text-xs">
+            نام و عنوان سامانه (نمایش در بالای هدر و نوار عنوان مرورگر):
+          </label>
+          <input
+            type="text"
+            dir="rtl"
+            value={settings.systemTitle ? toPersianDigits(settings.systemTitle) : ''}
+            onChange={(e) => setSettings({ ...settings, systemTitle: toPersianDigits(e.target.value) })}
+            placeholder="مثال: سامانه جامع مدیریت اسناد و اتوماسیون اداری"
+            className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center pt-2 border-t border-[#EBDBCE]/60">
+          {/* Logo Box with Drag & Drop Resizing */}
+          <div className="md:col-span-4 flex flex-col items-center justify-center p-4 bg-[#FAF5F1] rounded-2xl border border-[#EBDBCE] space-y-3">
+            <input
+              type="file"
+              ref={logoInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) handleLogoUpload(e.target.files[0]);
+              }}
+            />
+            <div className="relative group/logo flex items-center justify-center p-2 min-h-[100px] min-w-[100px]">
+              {settings.companyLogoUrl ? (
+                <div
+                  style={{ width: `${logoWidth}px`, height: `${logoWidth}px` }}
+                  className="relative flex items-center justify-center transition-all"
+                >
+                  <img
+                    src={settings.companyLogoUrl}
+                    alt="آرم شرکت"
+                    className="max-w-full max-h-full object-contain pointer-events-none"
+                  />
+                  {/* Drag Resize Handle at Bottom-Left */}
+                  <div
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setIsResizingLogo(true);
+                      logoResizeStart.current = { startX: e.clientX, startWidth: logoWidth };
+                    }}
+                    className="absolute -bottom-2 -left-2 w-5 h-5 bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-full flex items-center justify-center shadow-md cursor-ew-resize active:scale-125 transition-transform"
+                    title="برای کوچک یا بزرگ کردن لوگو، این دستگیره را با ماوس بکشید (Drag)"
+                  >
+                    <Sliders className="w-2.5 h-2.5" />
+                  </div>
+                </div>
+              ) : (
+                <Building2 className="w-12 h-12 text-[#C98B6A]" />
+              )}
+            </div>
+
+            {settings.companyLogoUrl && (
+              <div className="w-full space-y-1.5 pt-1 text-center">
+                <div className="flex items-center justify-between text-[10px] font-bold text-[#8C6F66]">
+                  <span>سایز / عرض آرم:</span>
+                  <span className="font-mono text-[#6E1B1B] font-black">{toPersianDigits(logoWidth)}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="35"
+                  max="220"
+                  value={logoWidth}
+                  onChange={(e) => {
+                    const w = Number(e.target.value);
+                    setLogoWidth(w);
+                    setSettings((prev) => ({ ...prev, companyLogoWidth: w }));
+                  }}
+                  className="w-full accent-[#6E1B1B] cursor-pointer"
+                  title="تغییر سایز آرم با اسلایدر"
+                />
+                <div className="text-[9px] text-[#8C6F66] flex items-center justify-center gap-1">
+                  <span>🖐️ یا دستگیره گوشه لوگو را با ماوس بکشید</span>
+                </div>
+              </div>
+            )}
+
+            <div className="text-center space-y-1">
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                className="px-3.5 py-1.5 bg-[#6E1B1B] hover:bg-[#D34A32] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+              >
+                {settings.companyLogoUrl ? 'تغییر آرم / لوگو' : 'بارگذاری لوگوی شرکت'}
+              </button>
+              {settings.companyLogoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, companyLogoUrl: undefined })}
+                  className="block text-[10px] text-rose-600 hover:underline mx-auto font-bold cursor-pointer"
+                >
+                  حذف لوگو
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Company Name & Subtitle */}
+          <div className="md:col-span-8 space-y-4 text-xs">
+            <div>
+              <label className="block font-bold text-[#3A241F] mb-1.5">
+                نام رسمی شرکت / سازمان (درج خودکار در سربرگ کلیه نامه‌ها):
+              </label>
+              <input
+                type="text"
+                dir="rtl"
+                value={settings.companyName ? toPersianDigits(settings.companyName) : ''}
+                onChange={(e) => setSettings({ ...settings, companyName: toPersianDigits(e.target.value) })}
+                placeholder="مثال: شرکت مهندسی و فناوری داده‌پرداز نوین"
+                className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-[#3A241F] mb-1.5">
+                عنوان فرعی سربرگ اداری (مانند شماره ثبت یا واحد صادرکننده):
+              </label>
+              <input
+                type="text"
+                dir="rtl"
+                value={settings.companySubtitle ? toPersianDigits(settings.companySubtitle) : ''}
+                onChange={(e) => setSettings({ ...settings, companySubtitle: toPersianDigits(e.target.value) })}
+                placeholder="مثال: سامانه یکپارچه مکاتبات اداری و اسناد رسمی (شماره ثبت: ۱۲۳۴۵)"
+                className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 2: LETTER NUMBERING & STEP INCREMENT (تنظیمات شماره‌گذاری پلکانی نامه‌ها) */}
+      {/* ========================================================================= */}
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#EBDBCE] shadow-sm space-y-5">
+        <div className="flex items-center justify-between border-b border-[#EBDBCE] pb-3.5">
+          <div className="flex items-center gap-2.5 text-[#3A241F]">
+            <div className="w-9 h-9 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-xs">
+              <Hash className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-black text-sm text-[#3A241F]">تنظیمات شماره‌گذاری پلکانی و اندیکاتور نامه‌ها</h2>
+              <p className="text-[11px] text-[#8C6F66]">
+                تعیین فرمت، پیشوند، شماره شروع و گام افزایش خودکار شماره نامه هنگام صدور هر نامه جدید
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-[#FAF5F1] px-3.5 py-1.5 rounded-xl border border-[#EBDBCE] text-right" dir="rtl">
+            <span className="text-[10px] text-[#8C6F66] block">نمونه شماره نامه بعدی:</span>
+            <span className="font-bold text-xs text-[#6E1B1B]">{toPersianDigits(sampleFormattedNumber)}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">
+              پیشوند شماره نامه:
+            </label>
+            <input
+              type="text"
+              dir="rtl"
+              value={currentNumbering.prefix ? toPersianDigits(currentNumbering.prefix) : ''}
+              onChange={(e) => handleNumberingChange({ prefix: toPersianDigits(e.target.value) })}
+              placeholder="مثال: ۱۰ یا ات یا الف"
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">
+              شماره بعدی / شروع:
+            </label>
+            <input
+              type="text"
+              dir="rtl"
+              value={toPersianDigits(currentNumbering.nextNumber || 1001)}
+              onChange={(e) => {
+                const val = parsePersianOrEnglishInt(e.target.value, 1001);
+                handleNumberingChange({ nextNumber: val });
+              }}
+              placeholder="۱۰۰۱"
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">
+              گام افزایش پلکانی:
+            </label>
+            <select
+              value={currentNumbering.incrementStep || 1}
+              onChange={(e) => handleNumberingChange({ incrementStep: parseInt(e.target.value) || 1 })}
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
+            >
+              <option value={1}>+۱ (یک رقم افزایش در هر نامه)</option>
+              <option value={2}>+۲ (دو رقم افزایش)</option>
+              <option value={5}>+۵ (پنج رقم افزایش)</option>
+              <option value={10}>+۱۰ (ده رقم افزایش)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">
+              سال صدور:
+            </label>
+            <input
+              type="text"
+              dir="rtl"
+              value={toPersianDigits(currentNumbering.year || '1405')}
+              onChange={(e) => handleNumberingChange({ year: toPersianDigits(e.target.value) })}
+              placeholder="۱۴۰۵"
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-2 border-t border-[#EBDBCE]/60">
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">
+              الگوی ساخت ساختار شماره نامه:
+            </label>
+            <select
+              value={currentNumbering.formatPattern}
+              onChange={(e) =>
+                handleNumberingChange({
+                  formatPattern: e.target.value as LetterNumberingSettings['formatPattern'],
+                })
+              }
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
+            >
+              <option value="PREFIX_YEAR_NUM">پیشوند / سال / شماره (مثال: ۱۰/۱۴۰۵/۱۰۰۱)</option>
+              <option value="YEAR_NUM_PREFIX">سال / شماره / پیشوند (مثال: ۱۴۰۵/۱۰۰۱/۱۰)</option>
+              <option value="NUM_PREFIX_YEAR">شماره / پیشوند / سال (مثال: ۱۰۰۱/۱۰/۱۴۰۵)</option>
+              <option value="PREFIX_NUM">پیشوند / شماره (مثال: ۱۰/۱۰۰۱)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">
+              متن پیش‌فرض پاورقی نامه‌ها:
+            </label>
+            <input
+              type="text"
+              dir="rtl"
+              value={
+                currentNumbering.defaultFooterNote
+                  ? toPersianDigits(currentNumbering.defaultFooterNote)
+                  : settings.defaultFooterNote
+                  ? toPersianDigits(settings.defaultFooterNote)
+                  : ''
+              }
+              onChange={(e) => {
+                const val = toPersianDigits(e.target.value);
+                setSettings((prev) => ({
+                  ...prev,
+                  defaultFooterNote: val,
+                  letterNumbering: {
+                    ...DEFAULT_LETTER_NUMBERING,
+                    ...(prev.letterNumbering || {}),
+                    defaultFooterNote: val,
+                  },
+                }));
+              }}
+              placeholder="مثال: سامانه مکاتبات و اسناد رسمی اداری"
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
+            />
+          </div>
+
+          {/* Show / Hide Footer Note Toggle */}
+          <div className="md:col-span-2 pt-2 border-t border-[#EBDBCE]/60">
+            <label className="flex items-center gap-3 cursor-pointer select-none bg-[#FAF5F1] p-3 rounded-2xl border border-[#EBDBCE] hover:border-amber-400 transition-colors">
+              <input
+                type="checkbox"
+                checked={
+                  currentNumbering.showFooterNote !== undefined
+                    ? currentNumbering.showFooterNote
+                    : settings.showFooterNote !== false
+                }
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setSettings((prev) => ({
+                    ...prev,
+                    showFooterNote: checked,
+                    letterNumbering: {
+                      ...DEFAULT_LETTER_NUMBERING,
+                      ...(prev.letterNumbering || {}),
+                      showFooterNote: checked,
+                    },
+                  }));
+                }}
+                className="w-4 h-4 text-amber-600 rounded border-gray-300 focus:ring-amber-500 cursor-pointer"
+              />
+              <div className="text-right">
+                <span className="text-xs font-bold text-[#3A241F] block">
+                  نمایش متن پاورقی (فوتر) در انتهای نامه‌ها
+                </span>
+                <span className="text-[11px] text-[#8C6F66] block mt-0.5">
+                  با غیرفعال کردن این تیک، متن پاورقی سازمانی از انتهای برگه و خروجی چاپ حذف می‌گردد.
+                </span>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 3: CEO SIGNATURE & COMPANY STAMP UPLOAD SECTION */}
+      {/* ========================================================================= */}
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-amber-300 shadow-sm space-y-6">
+        <div className="flex items-center justify-between border-b border-[#EBDBCE] pb-3.5">
+          <div className="flex items-center gap-2.5 text-[#3A241F]">
+            <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-xs">
+              <Stamp className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-black text-sm text-[#3A241F]">اسکن امضای مدیرعامل و مهر رسمی سازمان</h2>
+              <p className="text-[11px] text-[#8C6F66]">
+                این امضا و مهر پس از تایید مدیرعامل به‌صورت خودکار روی نامه‌های رسمی درج می‌گردد
+              </p>
+            </div>
+          </div>
+          <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Award className="w-3 h-3 text-amber-700" />
+            <span>صاحب امضای مجاز</span>
+          </span>
+        </div>
+
+        {/* Info Fields: CEO Name & Title */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">
+              نام و نام خانوادگی مدیرعامل / صاحب امضا:
+            </label>
+            <input
+              type="text"
+              dir="rtl"
+              value={settings.ceoName ? toPersianDigits(settings.ceoName) : ''}
+              onChange={(e) => setSettings({ ...settings, ceoName: toPersianDigits(e.target.value) })}
+              placeholder="مثال: دکتر مهدی احمدی"
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">
+              سمت سازمانی:
+            </label>
+            <input
+              type="text"
+              dir="rtl"
+              value={settings.ceoTitle ? toPersianDigits(settings.ceoTitle) : ''}
+              onChange={(e) => setSettings({ ...settings, ceoTitle: toPersianDigits(e.target.value) })}
+              placeholder="مثال: مدیرعامل و عضو هیئت مدیره"
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Signature & Stamp Upload Containers */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2 border-t border-[#EBDBCE]/60">
+          {/* 1. CEO Signature Box */}
+          <div className="space-y-3 bg-[#FAF5F1] p-4 rounded-2xl border border-dashed border-[#C98B6A] flex flex-col items-center justify-between text-center">
+            <input
+              type="file"
+              ref={sigInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) handleSignatureUpload(e.target.files[0]);
+              }}
+            />
+            <div className="space-y-1">
+              <span className="font-black text-xs text-[#3A241F] block">تصویر اسکن امضای مدیرعامل (PNG شفاف)</span>
+              <p className="text-[10px] text-[#8C6F66]">
+                برای جلوه طبیعی، تصویر امضا با زمینه شفاف (Transparent PNG) بارگذاری شود
+              </p>
+            </div>
+
+            <div className="h-28 w-full bg-white rounded-xl border border-[#EBDBCE] flex items-center justify-center p-2 relative overflow-hidden shadow-2xs">
+              {settings.ceoSignatureUrl ? (
+                <img
+                  src={settings.ceoSignatureUrl}
+                  alt="امضای مدیرعامل"
+                  className="max-h-full max-w-full object-contain mix-blend-multiply"
+                />
+              ) : (
+                <span className="text-[11px] text-gray-400 font-bold">هنوز امضایی بارگذاری نشده است</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full justify-center">
+              <button
+                type="button"
+                onClick={() => sigInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#6E1B1B] hover:bg-[#D34A32] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>{settings.ceoSignatureUrl ? 'تغییر اسکن امضا' : 'بارگذاری اسکن امضا'}</span>
+              </button>
+              {settings.ceoSignatureUrl && (
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, ceoSignatureUrl: undefined })}
+                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                  title="حذف امضا"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Company Stamp Box */}
+          <div className="space-y-3 bg-[#FAF5F1] p-4 rounded-2xl border border-dashed border-[#C98B6A] flex flex-col items-center justify-between text-center">
+            <input
+              type="file"
+              ref={stampInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) handleStampUpload(e.target.files[0]);
+              }}
+            />
+            <div className="space-y-1">
+              <span className="font-black text-xs text-[#3A241F] block">تصویر مهر رسمی سازمان (PNG شفاف)</span>
+              <p className="text-[10px] text-[#8C6F66]">
+                مهر دایره‌ای یا بیضی با رنگ قرمز یا سرمه‌ای در کنار امضا درج خواهد شد
+              </p>
+            </div>
+
+            <div className="h-28 w-full bg-white rounded-xl border border-[#EBDBCE] flex items-center justify-center p-2 relative overflow-hidden shadow-2xs">
+              {settings.companyStampUrl ? (
+                <img
+                  src={settings.companyStampUrl}
+                  alt="مهر رسمی شرکت"
+                  className="max-h-full max-w-full object-contain mix-blend-multiply opacity-90"
+                />
+              ) : (
+                <span className="text-[11px] text-gray-400 font-bold">هنوز مهری بارگذاری نشده است</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full justify-center">
+              <button
+                type="button"
+                onClick={() => stampInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+              >
+                <Stamp className="w-3.5 h-3.5" />
+                <span>{settings.companyStampUrl ? 'تغییر اسکن مهر' : 'بارگذاری اسکن مهر'}</span>
+              </button>
+              {settings.companyStampUrl && (
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, companyStampUrl: undefined })}
+                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                  title="حذف مهر"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 4: COMPACT FONT SELECTION & MODAL TRIGGER (فونت‌های سازمانی) */}
+      {/* ========================================================================= */}
+      <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 text-right">
+          <div className="w-10 h-10 rounded-2xl bg-[#6E1B1B] text-white flex items-center justify-center shadow-xs shrink-0">
+            <Type className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-black text-sm text-[#3A241F]">فونت‌ها و قلم‌های سازمانی مکاتبات</h3>
+              <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                فعال: {activeDefaultFont.name}
+              </span>
+            </div>
+            <p className="text-[11px] text-[#8C6F66] mt-0.5">
+              مدیریت قلم‌های نگارش اداری، تنظیم قلم پیش‌فرض نامه‌ها و بارگذاری فونت‌های سفارشی
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowFontModal(true)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#FAF5F1] hover:bg-[#6E1B1B] text-[#3A241F] hover:text-white border border-[#EBDBCE] hover:border-[#6E1B1B] font-black text-xs rounded-2xl shadow-2xs transition-all cursor-pointer shrink-0 active:scale-95"
+        >
+          <Sliders className="w-4 h-4 text-[#C98B6A]" />
+          <span>مشاهده و مدیریت انواع فونت‌ها</span>
+        </button>
+      </div>
+
+      {/* Font Management Modal Dialog */}
+      <FontManagementModal
+        isOpen={showFontModal}
+        onClose={() => setShowFontModal(false)}
+      />
+
+      {/* ========================================================================= */}
+      {/* SECTION 5: COMPACT THEME SELECTION & MODAL TRIGGER (پالت‌های رنگی سامانه) */}
+      {/* ========================================================================= */}
+      <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 text-right">
+          <div className="w-10 h-10 rounded-2xl bg-[#6E1B1B] text-[#F6D9CD] flex items-center justify-center shadow-xs shrink-0">
+            <Palette className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-black text-sm text-[#3A241F]">پالت‌های رنگی و تم سامانه</h3>
+              <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                فعال: {activeThemeObj.name}
+              </span>
+            </div>
+            <p className="text-[11px] text-[#8C6F66] mt-0.5">
+              تغییر مدل رنگ‌بندی، دکمه‌ها، سربرگ‌ها و پوسته‌های رسمی سیستم
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowThemeModal(true)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#FAF5F1] hover:bg-[#6E1B1B] text-[#3A241F] hover:text-white border border-[#EBDBCE] hover:border-[#6E1B1B] font-black text-xs rounded-2xl shadow-2xs transition-all cursor-pointer shrink-0 active:scale-95"
+        >
+          <Palette className="w-4 h-4 text-[#C98B6A]" />
+          <span>مشاهده و مدیریت پالت‌های رنگی</span>
+        </button>
+      </div>
+
+      {/* Theme Management Modal Dialog */}
+      <ThemeManagementModal
+        isOpen={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+      />
+
+      {/* ========================================================================= */}
+      {/* SECTION 6: SYSTEM POLICIES & UPLOAD LIMITS */}
+      {/* ========================================================================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Upload Limits */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-4">
-          <div className="flex items-center gap-2.5 text-gray-900">
-            <HardDrive className="w-5 h-5 text-blue-600" />
+        <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-4">
+          <div className="flex items-center gap-2.5 text-[#3A241F]">
+            <HardDrive className="w-5 h-5 text-[#6E1B1B]" />
             <h3 className="font-bold text-sm">سقف حجم و سهمیه‌های فضا</h3>
           </div>
 
           <div className="space-y-4 text-xs">
             <div>
-              <label className="block font-bold text-gray-700 mb-1">
+              <label className="block font-bold text-[#3A241F] mb-1">
                 حداکثر سقف مجاز برای هر فایل بارگذاری
               </label>
               <select
@@ -103,130 +823,143 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 onChange={(e) =>
                   setSettings({ ...settings, maxUploadSizeBytes: parseInt(e.target.value) })
                 }
-                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
+                className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none focus:border-[#D34A32]"
               >
                 <option value={1073741824}>۱ گیگابایت (استاندارد)</option>
                 <option value={2147483648}>۲ گیگابایت (متوسط)</option>
-                <option value={5368709120}>۵ گیگابایت (پیش‌فرض پیشنهادی)</option>
-                <option value={10737418240}>۱۰ گیگابایت (مخصوص داده‌های حجیم)</option>
+                <option value={5368709120}>۵ گیگابایت (حرفه‌ای / پیش‌فرض)</option>
+                <option value={10737418240}>۱۰ گیگابایت (نامحدود اداری)</option>
               </select>
             </div>
 
             <div>
-              <label className="block font-bold text-gray-700 mb-1">
-                سهمیه پیش‌فرض فضای ابری هر کارمند جدید
+              <label className="block font-bold text-[#3A241F] mb-1">
+                سهمیه پیش‌فرض فضای هر کاربر (گیگابایت)
               </label>
-              <select
-                value={settings.defaultUserQuotaGB}
+              <input
+                type="text"
+                dir="rtl"
+                value={toPersianDigits(settings.defaultUserQuotaGB || 25)}
                 onChange={(e) =>
-                  setSettings({ ...settings, defaultUserQuotaGB: parseInt(e.target.value) })
+                  setSettings({
+                    ...settings,
+                    defaultUserQuotaGB: parsePersianOrEnglishInt(e.target.value, 25),
+                  })
                 }
-                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
-              >
-                <option value={10}>۱۰ گیگابایت به ازای هر کارمند</option>
-                <option value={25}>۲۵ گیگابایت به ازای هر کارمند</option>
-                <option value={50}>۵۰ گیگابایت به ازای هر کارمند</option>
-                <option value={100}>۱۰۰ گیگابایت به ازای هر کارمند</option>
-              </select>
+                placeholder="۲۵"
+                className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none focus:border-[#D34A32]"
+              />
             </div>
           </div>
         </div>
 
-        {/* Authentication & Security */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-4">
-          <div className="flex items-center gap-2.5 text-gray-900">
-            <Clock className="w-5 h-5 text-purple-600" />
-            <h3 className="font-bold text-sm">مدت نشست کاری و نگهداری فایل‌ها</h3>
+        {/* Security & Sessions */}
+        <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-4">
+          <div className="flex items-center gap-2.5 text-[#3A241F]">
+            <Shield className="w-5 h-5 text-[#6E1B1B]" />
+            <h3 className="font-bold text-sm">خط‌مشی‌های امنیتی و انقضای نشست</h3>
           </div>
 
           <div className="space-y-4 text-xs">
             <div>
-              <label className="block font-bold text-gray-700 mb-1">
-                مدت زمان انقضای نشست ورود (Session Timeout)
+              <label className="block font-bold text-[#3A241F] mb-1">
+                مدت زمان انقضای خودکار نشست کاربری (دقیقه عدم فعالیت)
               </label>
-              <select
-                value={settings.sessionTimeoutMinutes}
+              <input
+                type="text"
+                dir="rtl"
+                value={toPersianDigits(settings.sessionTimeoutMinutes || 60)}
                 onChange={(e) =>
-                  setSettings({ ...settings, sessionTimeoutMinutes: parseInt(e.target.value) })
+                  setSettings({
+                    ...settings,
+                    sessionTimeoutMinutes: parsePersianOrEnglishInt(e.target.value, 60),
+                  })
                 }
-                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
-              >
-                <option value={15}>۱۵ دقیقه (امنیت بالا)</option>
-                <option value={30}>۳۰ دقیقه</option>
-                <option value={60}>۶۰ دقیقه (۱ ساعت - پیش‌فرض)</option>
-                <option value={480}>۸ ساعت (شیفت کاری کامل)</option>
-              </select>
+                placeholder="۶۰"
+                className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none focus:border-[#D34A32]"
+              />
             </div>
 
             <div>
-              <label className="block font-bold text-gray-700 mb-1">
-                مدت پاکسازی خودکار فایل‌های سطل زباله و انتقالات منقضی
+              <label className="block font-bold text-[#3A241F] mb-1">
+                پاکسازی خودکار فایل‌های منقضی‌شده پس از (روز)
               </label>
-              <select
-                value={settings.autoPurgeDays}
+              <input
+                type="text"
+                dir="rtl"
+                value={toPersianDigits(settings.autoPurgeDays || 14)}
                 onChange={(e) =>
-                  setSettings({ ...settings, autoPurgeDays: parseInt(e.target.value) })
+                  setSettings({
+                    ...settings,
+                    autoPurgeDays: parsePersianOrEnglishInt(e.target.value, 14),
+                  })
                 }
-                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800"
-              >
-                <option value={7}>پاکسازی پس از ۷ روز</option>
-                <option value={14}>پاکسازی پس از ۱۴ روز</option>
-                <option value={30}>پاکسازی پس از ۳۰ روز</option>
-                <option value={90}>پاکسازی پس از ۹۰ روز</option>
-              </select>
+                placeholder="۱۴"
+                className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none focus:border-[#D34A32]"
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Allowed File Extensions Whitelist */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5 text-gray-900">
-            <FileCheck className="w-5 h-5 text-emerald-600" />
-            <h3 className="font-bold text-sm">لیست سفید پسوندهای مجاز فایل</h3>
+      {/* Allowed File Types */}
+      <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-4">
+        <div className="flex items-center gap-2.5 text-[#3A241F]">
+          <FileCheck className="w-5 h-5 text-[#6E1B1B]" />
+          <div>
+            <h3 className="font-bold text-sm">فرمت‌ها و پسوندهای مجاز تبادل فایل</h3>
+            <p className="text-[11px] text-[#8C6F66]">
+              کاربران تنها قادر به ارسال فایل‌هایی با این پسوندها خواهند بود
+            </p>
           </div>
-          <span className="text-xs text-gray-500 font-bold">
-            {settings.allowedFileTypes.length} پسوند مجاز
-          </span>
         </div>
 
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newExt}
-            onChange={(e) => setNewExt(e.target.value)}
-            placeholder="مثال: mp3, figma, sketch, sql..."
-            className="flex-1 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:outline-none"
-          />
-          <button
-            type="button"
-            onClick={handleAddExtension}
-            className="px-4 py-2 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1"
-          >
-            <Plus className="w-4 h-4" />
-            <span>افزودن پسوند</span>
-          </button>
-        </div>
-
-        {/* Extension Chips */}
         <div className="flex flex-wrap gap-2 pt-2">
           {settings.allowedFileTypes.map((ext) => (
             <span
               key={ext}
-              className="inline-flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] text-[#3A241F] rounded-xl text-xs font-mono font-bold"
             >
-              .{ext}
+              <span>.{ext}</span>
               <button
                 type="button"
                 onClick={() => handleRemoveExtension(ext)}
-                className="text-gray-400 hover:text-red-500"
+                className="text-[#8C6F66] hover:text-[#D34A32] transition-colors cursor-pointer"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </span>
           ))}
         </div>
+
+        <div className="flex gap-2 pt-2 max-w-sm">
+          <input
+            type="text"
+            value={newExt}
+            onChange={(e) => setNewExt(e.target.value)}
+            placeholder="افزودن پسوند جدید (مثال: dwg)"
+            className="flex-1 p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-mono font-bold text-[#3A241F] focus:outline-none focus:border-[#D34A32]"
+          />
+          <button
+            type="button"
+            onClick={handleAddExtension}
+            className="flex items-center gap-1 px-4 py-2.5 bg-[#6E1B1B] hover:bg-[#D34A32] text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>افزودن</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom Save Button */}
+      <div className="flex justify-end pt-4">
+        <button
+          type="submit"
+          className="flex items-center gap-2 bg-[#6E1B1B] hover:bg-[#D34A32] text-white font-bold text-xs px-6 py-3 rounded-2xl shadow-lg shadow-[#6E1B1B]/20 transition-all active:scale-95 cursor-pointer"
+        >
+          <Save className="w-4 h-4" />
+          <span>ذخیره و اعمال کلیه تغییرات</span>
+        </button>
       </div>
     </form>
   );

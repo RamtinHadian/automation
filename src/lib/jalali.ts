@@ -48,11 +48,12 @@ const PERSIAN_MONTHS = [
   'اسفند',
 ];
 
-export function toPersianDigits(n: number | string): string {
+export function toPersianDigits(n: number | string | undefined | null): string {
+  if (n === undefined || n === null) return '';
   const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
   return n
     .toString()
-    .replace(/\d/g, (x) => farsiDigits[parseInt(x)]);
+    .replace(/\d/g, (x) => farsiDigits[parseInt(x, 10)]);
 }
 
 export function formatCurrentJalaliDateTime(d: Date = new Date()): string {
@@ -75,4 +76,14 @@ export function formatJalaliFullTimestamp(d: Date = new Date()): string {
   const [jy, jm, jd] = gregorianToJalali(d.getFullYear(), d.getMonth() + 1, d.getDate());
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${toPersianDigits(jy)}/${toPersianDigits(pad(jm))}/${toPersianDigits(pad(jd))} - ${toPersianDigits(pad(d.getHours()))}:${toPersianDigits(pad(d.getMinutes()))}:${toPersianDigits(pad(d.getSeconds()))}`;
+}
+
+
+export function convertNumbersInHtmlToPersian(html: string): string {
+  if (!html) return '';
+  return html.replace(/(<[^>]+>)|([^<]+)/g, (match, tag, text) => {
+    if (tag) return tag;
+    if (text) return toPersianDigits(text);
+    return match;
+  });
 }

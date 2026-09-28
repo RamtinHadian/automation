@@ -1,13 +1,17 @@
 import { FileCategory } from '../types';
+import { toPersianDigits } from './jalali';
 
 export function formatBytes(bytes: number, decimals: number = 2): string {
-  if (bytes === 0) return '۰ بایت';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['بایت', 'کیلوبایت', 'مگابایت', 'گیگابایت', 'ترابایت'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const val = parseFloat((bytes / Math.pow(k, i)).toFixed(dm));
-  return val + ' ' + sizes[i];
+  if (!bytes || bytes === 0) return '۰ مگابایت';
+  const mb = bytes / (1024 * 1024);
+  if (mb < 0.01) {
+    return toPersianDigits((bytes / (1024 * 1024)).toFixed(3)) + ' مگابایت';
+  }
+  if (mb >= 1024) {
+    const gb = mb / 1024;
+    return toPersianDigits(parseFloat(gb.toFixed(decimals))) + ' گیگابایت';
+  }
+  return toPersianDigits(parseFloat(mb.toFixed(decimals))) + ' مگابایت';
 }
 
 export function getFileCategory(filename: string): FileCategory {
