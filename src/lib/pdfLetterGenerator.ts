@@ -307,9 +307,10 @@ export function generateOfficialLetterHtml(
       margin-bottom: 0;
     }
     .signature-section {
-      margin-top: ${isA5 ? '16px' : '28px'};
+      margin-top: ${isA5 ? '16px' : '32px'};
       margin-bottom: ${isA5 ? '16px' : '24px'};
-      padding-top: 4px;
+      padding-top: ${isA5 ? '4px' : '8px'};
+      min-height: ${isA5 ? '90px' : '140px'};
       display: flex;
       justify-content: flex-end;
       align-items: flex-end;
@@ -319,8 +320,9 @@ export function generateOfficialLetterHtml(
     }
     .ceo-signature-block {
       text-align: center;
-      width: ${isA5 ? '170px' : '220px'};
+      width: max-content;
       min-width: ${isA5 ? '170px' : '220px'};
+      max-width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -344,9 +346,10 @@ export function generateOfficialLetterHtml(
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
+      gap: ${isA5 ? '8px' : '12px'};
       margin-top: 4px;
-      min-height: 60px;
+      min-height: ${isA5 ? '60px' : '85px'};
+      width: 100%;
       position: relative;
     }
     .signature-img {
@@ -457,7 +460,7 @@ export function generateOfficialLetterHtml(
           ${signatureImg ? `<img src="${attr(signatureImg)}" alt="امضای مدیرعامل" class="signature-img" style="height: ${finalSigHeight}px;" />` : ''}
           ${stampImg ? `<img src="${attr(stampImg)}" alt="مهر شرکت" class="stamp-img" style="height: ${stampHeight}px; opacity: 0.9;" />` : ''}
           ${!isSigned ? `
-            <div style="position: absolute; background: #d97706; color: white; padding: 5px 14px; border-radius: 10px; font-weight: 900; font-size: 11px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 1.5px solid #fef3c7;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #d97706; color: white; padding: 5px 14px; border-radius: 10px; font-weight: 900; font-size: 11px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 1.5px solid #fef3c7;">
               ⚠️ این نامه هنوز امضا نشده است
             </div>
           ` : ''}
