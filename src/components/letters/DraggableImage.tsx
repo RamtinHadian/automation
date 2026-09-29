@@ -81,7 +81,7 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({
 
   return (
     <div
-      className={`group/img relative inline-block select-none mix-blend-multiply ${opacityClass}`}
+      className={`group/img relative inline-block shrink-0 select-none mix-blend-multiply ${opacityClass}`}
       style={{
         transform: `translate(${offset.x}px, ${offset.y}px)`,
         touchAction: editable ? 'none' : undefined,
@@ -100,7 +100,7 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({
         alt={alt}
         draggable={false}
         style={{ height: `${height}px` }}
-        className={`object-contain block ${editable ? '' : 'pointer-events-none'}`}
+        className={`object-contain block max-w-none ${editable ? '' : 'pointer-events-none'}`}
       />
       {editable && (
         <>

@@ -357,11 +357,15 @@ export function generateOfficialLetterHtml(
       position: relative;
     }
     .signature-img {
+      flex-shrink: 0;
+      max-width: none;
       object-fit: contain;
       mix-blend-mode: multiply;
       transition: transform 0.1s ease;
     }
     .stamp-img {
+      flex-shrink: 0;
+      max-width: none;
       object-fit: contain;
       mix-blend-mode: multiply;
       transition: transform 0.1s ease;
