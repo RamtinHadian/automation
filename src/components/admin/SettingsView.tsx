@@ -195,14 +195,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }));
   };
 
+  // Signature/stamp changes are saved immediately, so they reach every user without pressing the main save button.
+  const applyImage = (key: 'ceoSignatureUrl' | 'companyStampUrl', value: string | undefined) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    onSaveSettings({ ...initialSettings, [key]: value });
+  };
+
   const handleSignatureUpload = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result) {
-        setSettings((prev) => ({
-          ...prev,
-          ceoSignatureUrl: e.target?.result as string,
-        }));
+        applyImage('ceoSignatureUrl', e.target?.result as string);
       }
     };
     reader.readAsDataURL(file);
@@ -212,10 +215,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result) {
-        setSettings((prev) => ({
-          ...prev,
-          companyStampUrl: e.target?.result as string,
-        }));
+        applyImage('companyStampUrl', e.target?.result as string);
       }
     };
     reader.readAsDataURL(file);
@@ -702,7 +702,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {settings.ceoSignatureUrl && (
                 <button
                   type="button"
-                  onClick={() => setSettings({ ...settings, ceoSignatureUrl: undefined })}
+                  onClick={() => applyImage('ceoSignatureUrl', undefined)}
                   className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                   title="حذف امضا"
                 >
@@ -754,7 +754,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {settings.companyStampUrl && (
                 <button
                   type="button"
-                  onClick={() => setSettings({ ...settings, companyStampUrl: undefined })}
+                  onClick={() => applyImage('companyStampUrl', undefined)}
                   className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                   title="حذف مهر"
                 >
