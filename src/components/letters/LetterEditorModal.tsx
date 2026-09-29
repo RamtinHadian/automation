@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { DraggableImage } from './DraggableImage';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
 import {
   X,
@@ -66,6 +67,11 @@ interface LetterEditorModalProps {
     signatureOffsetX?: number;
     signatureOffsetY?: number;
     signatureHeight?: number;
+    signatureImgOffsetX?: number;
+    signatureImgOffsetY?: number;
+    stampHeight?: number;
+    stampOffsetX?: number;
+    stampOffsetY?: number;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyPaddingX?: number;
@@ -170,6 +176,12 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   // Draggable Elements State (Signature, Center Title, Subject)
   const [signatureAlign, setSignatureAlign] = useState<'left' | 'center' | 'right'>('left');
   const [signatureOffset, setSignatureOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Signature image and stamp are positioned and sized independently (drag / corner handle)
+  const [sigImgOffset, setSigImgOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [stampOffset, setStampOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(null);
+  const effectiveStampHeight =
+    stampHeightOverride ?? (pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05));
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -357,6 +369,11 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       signatureOffsetY: signatureOffset.y,
       // Only store a size the author actually changed; otherwise the letter follows the admin default.
       signatureHeight: signatureHeight === (settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT) ? undefined : signatureHeight,
+      signatureImgOffsetX: sigImgOffset.x,
+      signatureImgOffsetY: sigImgOffset.y,
+      stampHeight: stampHeightOverride ?? undefined,
+      stampOffsetX: stampOffset.x,
+      stampOffsetY: stampOffset.y,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
       bodyOffsetX,
       bodyPaddingX,
@@ -719,6 +736,32 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               />
               <span className="font-mono text-[10px] font-bold text-amber-800 w-8">{toPersianDigits(signatureHeight)}px</span>
             </div>
+
+            <div className="flex items-center gap-1.5 border-r border-amber-300/80 pr-2 mr-1">
+              <span className="text-[10px] font-bold text-amber-950">سایز مهر:</span>
+              <input
+                type="range"
+                min="20"
+                max="600"
+                value={effectiveStampHeight}
+                onChange={(e) => setStampHeightOverride(Number(e.target.value))}
+                className="w-20 accent-amber-700 cursor-pointer"
+                title="تنظیم اندازهٔ مهر"
+              />
+              <span className="font-mono text-[10px] font-bold text-amber-800 w-8">{toPersianDigits(effectiveStampHeight)}px</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSigImgOffset({ x: 0, y: 0 });
+                  setStampOffset({ x: 0, y: 0 });
+                  setStampHeightOverride(null);
+                }}
+                className="text-[10px] font-bold text-amber-800 hover:underline cursor-pointer"
+                title="بازگرداندن جای امضا و مهر به حالت اولیه"
+              >
+                بازنشانی
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1068,19 +1111,27 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                   {/* Signature & Stamp Preview inside Square / Block */}
                   <div className="w-full flex items-center justify-center gap-2 py-1 min-h-[50px] relative">
                     {settings.ceoSignatureUrl ? (
-                      <img
+                      <DraggableImage
                         src={settings.ceoSignatureUrl}
                         alt="امضا"
-                        style={{ height: `${pageSize === 'A5' ? Math.min(signatureHeight, 100) : Math.min(signatureHeight, 130)}px` }}
-                        className="object-contain mix-blend-multiply pointer-events-none opacity-90"
+                        height={pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight}
+                        offset={sigImgOffset}
+                        editable
+                        onOffsetChange={setSigImgOffset}
+                        onHeightChange={setSignatureHeight}
+                        opacityClass="opacity-90"
                       />
                     ) : null}
                     {settings.companyStampUrl ? (
-                      <img
+                      <DraggableImage
                         src={settings.companyStampUrl}
                         alt="مهر"
-                        style={{ height: `${pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.7), 60) : Math.min(Math.round(signatureHeight * 0.75), 80)}px` }}
-                        className="object-contain mix-blend-multiply pointer-events-none opacity-85"
+                        height={effectiveStampHeight}
+                        offset={stampOffset}
+                        editable
+                        onOffsetChange={setStampOffset}
+                        onHeightChange={setStampHeightOverride}
+                        opacityClass="opacity-85"
                       />
                     ) : null}
                     {!settings.ceoSignatureUrl && !settings.companyStampUrl && (

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { DraggableImage } from './DraggableImage';
 import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight, defaultSignatureHeight } from '../../lib/letterDefaults';
 import { useAttachment } from '../../lib/useAttachment';
 import {
@@ -496,7 +497,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [customSignerName, setCustomSignerName] = useState<string>('');
   const [customSignerTitle, setCustomSignerTitle] = useState<string>('');
   const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [activeDragItem, setActiveDragItem] = useState<'NONE' | 'SIGNATURE' | 'SIG_IMG' | 'STAMP' | 'CENTER_TITLE' | 'SUBJECT' | 'META'>('NONE');
+  const [activeDragItem, setActiveDragItem] = useState<'NONE' | 'SIGNATURE' | 'CENTER_TITLE' | 'SUBJECT' | 'META'>('NONE');
   const [isDraggingSig, setIsDraggingSig] = useState(false);
   const dragStartRef = useRef<{ startX: number; startY: number; initX: number; initY: number }>({
     startX: 0,
@@ -615,16 +616,6 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         const newX = Math.max(-250, Math.min(250, dragStartRef.current.initX + dx));
         const newY = Math.max(-120, Math.min(120, dragStartRef.current.initY + dy));
         setSignatureOffset({ x: newX, y: newY });
-      } else if (activeDragItem === 'SIG_IMG') {
-        setSigImgOffset({
-          x: Math.max(-350, Math.min(350, dragStartRef.current.initX + dx)),
-          y: Math.max(-250, Math.min(250, dragStartRef.current.initY + dy)),
-        });
-      } else if (activeDragItem === 'STAMP') {
-        setStampOffset({
-          x: Math.max(-350, Math.min(350, dragStartRef.current.initX + dx)),
-          y: Math.max(-250, Math.min(250, dragStartRef.current.initY + dy)),
-        });
       } else if (activeDragItem === 'CENTER_TITLE') {
         const newY = Math.max(-30, Math.min(80, dragStartRef.current.initY + dy));
         setHeaderCenterOffset({ x: 0, y: newY });
@@ -666,14 +657,6 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       initX: signatureOffset.x,
       initY: signatureOffset.y,
     };
-  };
-
-  const startImageDrag = (item: 'SIG_IMG' | 'STAMP', offset: { x: number; y: number }) => (e: React.MouseEvent) => {
-    if (!isEditable) return;
-    e.preventDefault();
-    e.stopPropagation(); // do not drag the whole name/title block
-    setActiveDragItem(item);
-    dragStartRef.current = { startX: e.clientX, startY: e.clientY, initX: offset.x, initY: offset.y };
   };
 
   const handleMouseDownOnCenterTitle = (e: React.MouseEvent) => {
@@ -1967,38 +1950,28 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   {(signatureImg || stampImg) && (
                     <div className="relative select-none flex items-center justify-center gap-3">
                       {signatureImg && (
-                        <img
+                        <DraggableImage
                           src={signatureImg}
                           alt="امضای مدیرعامل"
-                          draggable={false}
-                          onMouseDown={startImageDrag('SIG_IMG', sigImgOffset)}
-                          title={isEditable ? 'برای جابه‌جایی امضا به‌تنهایی بکشید' : undefined}
-                          style={{
-                            height: `${pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight}px`,
-                            transform: `translate(${sigImgOffset.x}px, ${sigImgOffset.y}px)`,
-                            cursor: isEditable ? (activeDragItem === 'SIG_IMG' ? 'grabbing' : 'grab') : 'default',
-                          }}
-                          className={`object-contain mix-blend-multiply ${isEditable ? 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-amber-500' : 'pointer-events-none'} ${
-                            !isSigned ? 'opacity-90 drop-shadow-xs' : ''
-                          }`}
+                          height={pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight}
+                          offset={sigImgOffset}
+                          editable={isEditable}
+                          onOffsetChange={setSigImgOffset}
+                          onHeightChange={setSignatureHeight}
+                          opacityClass={!isSigned ? 'opacity-90' : ''}
                         />
                       )}
 
                       {stampImg && (
-                        <img
+                        <DraggableImage
                           src={stampImg}
                           alt="مهر رسمی سازمان"
-                          draggable={false}
-                          onMouseDown={startImageDrag('STAMP', stampOffset)}
-                          title={isEditable ? 'برای جابه‌جایی مهر به‌تنهایی بکشید' : undefined}
-                          style={{
-                            height: `${effectiveStampHeight}px`,
-                            transform: `translate(${stampOffset.x}px, ${stampOffset.y}px)`,
-                            cursor: isEditable ? (activeDragItem === 'STAMP' ? 'grabbing' : 'grab') : 'default',
-                          }}
-                          className={`object-contain mix-blend-multiply ${isEditable ? 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-amber-500' : 'pointer-events-none'} ${
-                            !isSigned ? 'opacity-85' : 'opacity-95'
-                          }`}
+                          height={effectiveStampHeight}
+                          offset={stampOffset}
+                          editable={isEditable}
+                          onOffsetChange={setStampOffset}
+                          onHeightChange={setStampHeightOverride}
+                          opacityClass={!isSigned ? 'opacity-85' : 'opacity-95'}
                         />
                       )}
 

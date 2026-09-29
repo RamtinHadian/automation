@@ -303,6 +303,11 @@ export default function UserPanel() {
     signatureOffsetX?: number;
     signatureOffsetY?: number;
     signatureHeight?: number;
+    signatureImgOffsetX?: number;
+    signatureImgOffsetY?: number;
+    stampHeight?: number;
+    stampOffsetX?: number;
+    stampOffsetY?: number;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyPaddingX?: number;
@@ -382,6 +387,11 @@ export default function UserPanel() {
       signatureOffsetX: letterData.signatureOffsetX,
       signatureOffsetY: letterData.signatureOffsetY,
       signatureHeight: letterData.signatureHeight,
+      signatureImgOffsetX: letterData.signatureImgOffsetX,
+      signatureImgOffsetY: letterData.signatureImgOffsetY,
+      stampHeight: letterData.stampHeight,
+      stampOffsetX: letterData.stampOffsetX,
+      stampOffsetY: letterData.stampOffsetY,
       customFooterNote: letterData.customFooterNote,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyPaddingX: letterData.bodyPaddingX,

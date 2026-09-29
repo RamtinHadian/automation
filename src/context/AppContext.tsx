@@ -89,6 +89,11 @@ interface AppContextType {
     signatureOffsetX?: number;
     signatureOffsetY?: number;
     signatureHeight?: number;
+    signatureImgOffsetX?: number;
+    signatureImgOffsetY?: number;
+    stampHeight?: number;
+    stampOffsetX?: number;
+    stampOffsetY?: number;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyPaddingX?: number;
@@ -392,6 +397,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       signatureOffsetX,
       signatureOffsetY,
       signatureHeight,
+      signatureImgOffsetX,
+      signatureImgOffsetY,
+      stampHeight,
+      stampOffsetX,
+      stampOffsetY,
       customFooterNote,
       bodyOffsetX,
       bodyPaddingX,
@@ -425,6 +435,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       signatureOffsetX?: number;
       signatureOffsetY?: number;
       signatureHeight?: number;
+      signatureImgOffsetX?: number;
+      signatureImgOffsetY?: number;
+      stampHeight?: number;
+      stampOffsetX?: number;
+      stampOffsetY?: number;
       customFooterNote?: string;
       bodyOffsetX?: number;
       bodyPaddingX?: number;
@@ -498,6 +513,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             signatureOffsetX,
             signatureOffsetY,
             signatureHeight,
+            signatureImgOffsetX,
+            signatureImgOffsetY,
+            stampHeight,
+            stampOffsetX,
+            stampOffsetY,
             customFooterNote,
             bodyOffsetX,
             bodyPaddingX,
