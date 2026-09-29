@@ -226,11 +226,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sessionUserId.current = s.me.id;
       const merged: SystemSettings = { ...INITIAL_SETTINGS, ...(s.settings || {}) };
       markSynced(s, merged);
-      setStaffList(s.staff);
-      setDepartments(s.departments);
-      setTransfers(s.transfers);
-      setAuditLogs(s.auditLogs);
-      setSettings(merged);
+      // Keep the existing reference when nothing changed, so open forms (e.g. the settings draft)
+      // are not reset by a background refresh caused by an unrelated change.
+      const keep = <T,>(prev: T, next: T): T => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
+      setStaffList((prev) => keep(prev, s.staff));
+      setDepartments((prev) => keep(prev, s.departments));
+      setTransfers((prev) => keep(prev, s.transfers));
+      setAuditLogs((prev) => keep(prev, s.auditLogs));
+      setSettings((prev) => keep(prev, merged));
       // Keep an admin's "act as" selection across refreshes; otherwise follow the signed-in account.
       setCurrentUser((prev) => (prev.id && prev.id !== s.me.id ? s.staff.find((u) => u.id === prev.id) || s.me : s.me));
     },
@@ -425,6 +428,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       onProgress: (p: number) => void;
       onDone: () => void;
     }) => {
+      if (settings.maxUploadSizeBytes && rawFile.size > settings.maxUploadSizeBytes) {
+        showToast(`حجم فایل (${formatBytes(rawFile.size)}) بیش از سقف مجاز ارسال (${formatBytes(settings.maxUploadSizeBytes)}) است.`);
+        onDone();
+        return;
+      }
       const recipient = staffList.find((u) => u.id === recipientId) || staffList[1];
       const transferId = 'tr-' + Math.random().toString(36).substring(2, 9);
 
@@ -512,7 +520,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           onDone();
         });
     },
-    [staffList, currentUser, showToast]
+    [staffList, currentUser, settings, showToast]
   );
 
   const handleDownload = useCallback(

@@ -50,6 +50,46 @@ function parsePersianOrEnglishInt(str: string, fallback: number = 0): number {
   return isNaN(val) ? fallback : val;
 }
 
+/**
+ * Whole-number input that lets you clear and retype freely. The value is committed as you type
+ * (when it is valid); an empty/too-small entry is only reset to the last good value on blur.
+ */
+const NumberField: React.FC<{
+  value: number;
+  onCommit: (n: number) => void;
+  min?: number;
+  placeholder?: string;
+  className?: string;
+}> = ({ value, onCommit, min = 1, placeholder, className }) => {
+  const [text, setText] = React.useState(toPersianDigits(value));
+  const [focused, setFocused] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!focused) setText(toPersianDigits(value));
+  }, [value, focused]);
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      dir="rtl"
+      value={text}
+      placeholder={placeholder}
+      className={className}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        setText(toPersianDigits(value));
+      }}
+      onChange={(e) => {
+        const n = parsePersianOrEnglishInt(e.target.value, NaN);
+        setText(isNaN(n) ? '' : toPersianDigits(n));
+        if (!isNaN(n) && n >= min) onCommit(n);
+      }}
+    />
+  );
+};
+
 const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings => {
   return {
     ...s,
@@ -117,9 +157,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Sync internal form state whenever initialSettings changes
+  const initialSettingsKey = JSON.stringify(initialSettings);
   useEffect(() => {
     setSettings(sanitizeSettingsWithPersianDigits(initialSettings));
-  }, [initialSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSettingsKey]);
 
   const handleLogoUpload = (file: File) => {
     const reader = new FileReader();
@@ -434,14 +476,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <label className="block font-bold text-[#3A241F] mb-1.5">
               شماره بعدی / شروع:
             </label>
-            <input
-              type="text"
-              dir="rtl"
-              value={toPersianDigits(currentNumbering.nextNumber || 1001)}
-              onChange={(e) => {
-                const val = parsePersianOrEnglishInt(e.target.value, 1001);
-                handleNumberingChange({ nextNumber: val });
-              }}
+            <NumberField
+              value={currentNumbering.nextNumber || 1001}
+              onCommit={(val) => handleNumberingChange({ nextNumber: val })}
               placeholder="۱۰۰۱"
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
             />
@@ -818,34 +855,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-[#3A241F] mb-1">
                 حداکثر سقف مجاز برای هر فایل بارگذاری
               </label>
-              <select
-                value={settings.maxUploadSizeBytes}
-                onChange={(e) =>
-                  setSettings({ ...settings, maxUploadSizeBytes: parseInt(e.target.value) })
-                }
+              <NumberField
+                value={Math.max(1, Math.round((settings.maxUploadSizeBytes || 5368709120) / 1073741824))}
+                onCommit={(n) => setSettings({ ...settings, maxUploadSizeBytes: n * 1073741824 })}
+                placeholder="۵"
                 className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none focus:border-[#D34A32]"
-              >
-                <option value={1073741824}>۱ گیگابایت (استاندارد)</option>
-                <option value={2147483648}>۲ گیگابایت (متوسط)</option>
-                <option value={5368709120}>۵ گیگابایت (حرفه‌ای / پیش‌فرض)</option>
-                <option value={10737418240}>۱۰ گیگابایت (نامحدود اداری)</option>
-              </select>
+              />
+              <p className="mt-1 text-[11px] text-[#8C6F66]">حجم به گیگابایت؛ ارسال فایل بزرگ‌تر از این سقف رد می‌شود.</p>
             </div>
 
             <div>
               <label className="block font-bold text-[#3A241F] mb-1">
                 سهمیه پیش‌فرض فضای هر کاربر (گیگابایت)
               </label>
-              <input
-                type="text"
-                dir="rtl"
-                value={toPersianDigits(settings.defaultUserQuotaGB || 25)}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    defaultUserQuotaGB: parsePersianOrEnglishInt(e.target.value, 25),
-                  })
-                }
+              <NumberField
+                value={settings.defaultUserQuotaGB || 25}
+                onCommit={(n) => setSettings({ ...settings, defaultUserQuotaGB: n })}
                 placeholder="۲۵"
                 className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none focus:border-[#D34A32]"
               />
