@@ -4,8 +4,9 @@ export const DEFAULT_SIGNATURE_HEIGHT_A5 = 75;
 export const MIN_SIGNATURE_HEIGHT = 30;
 export const MAX_SIGNATURE_HEIGHT = 380;
 
-// Earlier versions stored these as automatic defaults, which made signatures far too large.
-const LEGACY_DEFAULTS = new Set([200, 130]);
+// Values that earlier versions stored automatically (200/130 were the old oversized defaults, 100/75 the
+// built-in defaults). They count as "not customised", so a changed default size also applies to those letters.
+const LEGACY_DEFAULTS = new Set([200, 130, 100, 75]);
 
 /** Default height for a new letter: the admin-configured size (settings) or the built-in default. */
 export const defaultSignatureHeight = (isA5: boolean, custom?: number | null): number => {

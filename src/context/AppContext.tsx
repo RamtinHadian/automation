@@ -492,7 +492,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             customSignerTitle,
             signatureOffsetX,
             signatureOffsetY,
-            signatureHeight: signatureHeight || settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT,
+            signatureHeight,
             customFooterNote,
             bodyOffsetX,
             bodyPaddingX,

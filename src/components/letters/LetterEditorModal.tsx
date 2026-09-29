@@ -355,7 +355,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       metaFontFamily,
       signatureOffsetX: signatureOffset.x,
       signatureOffsetY: signatureOffset.y,
-      signatureHeight: signatureHeight,
+      // Only store a size the author actually changed; otherwise the letter follows the admin default.
+      signatureHeight: signatureHeight === (settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT) ? undefined : signatureHeight,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
       bodyOffsetX,
       bodyPaddingX,
