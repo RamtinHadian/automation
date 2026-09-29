@@ -121,8 +121,8 @@ export function generateOfficialLetterHtml(
   const bodyOffsetX = overrides?.bodyOffsetX !== undefined ? overrides.bodyOffsetX : (transfer.bodyOffsetX || 0);
   const bodyPaddingX = overrides?.bodyPaddingX !== undefined ? overrides.bodyPaddingX : (transfer.bodyPaddingX || 0);
 
-  const finalSigHeight = isA5 ? Math.min(signatureHeight, 140) : signatureHeight;
-  const stampHeight = overrides?.stampHeight || (isA5 ? Math.min(Math.round(finalSigHeight * 0.95), 100) : Math.round(finalSigHeight * 1.05));
+  const finalSigHeight = isA5 ? Math.min(signatureHeight, 300) : signatureHeight;
+  const stampHeight = overrides?.stampHeight || transfer.stampHeight || (isA5 ? Math.min(Math.round(finalSigHeight * 0.95), 100) : Math.round(finalSigHeight * 1.05));
   const stampOffsetX = overrides?.stampOffsetX !== undefined ? overrides.stampOffsetX : (transfer.stampOffsetX || 0);
   const stampOffsetY = overrides?.stampOffsetY !== undefined ? overrides.stampOffsetY : (transfer.stampOffsetY || 0);
   const sigImgOffsetX = overrides?.signatureImgOffsetX !== undefined ? overrides.signatureImgOffsetX : (transfer.signatureImgOffsetX || 0);

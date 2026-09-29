@@ -395,6 +395,7 @@ interface LetterPreviewModalProps {
       signatureOffsetY?: number;
       signatureImgOffsetX?: number;
       signatureImgOffsetY?: number;
+      stampHeight?: number;
       stampOffsetX?: number;
       stampOffsetY?: number;
       pageSize?: string;
@@ -482,6 +483,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   // The signature image and the stamp can each be dragged separately from the name/title block
   const [sigImgOffset, setSigImgOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [stampOffset, setStampOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // null = the stamp follows the signature size; a number = size chosen for the stamp on its own
+  const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(null);
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [headerCenterFontFamily, setHeaderCenterFontFamily] = useState<string>('');
@@ -524,6 +527,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setSignatureOffset({ x: letter.signatureOffsetX || 0, y: letter.signatureOffsetY || 0 });
       setSigImgOffset({ x: letter.signatureImgOffsetX || 0, y: letter.signatureImgOffsetY || 0 });
       setStampOffset({ x: letter.stampOffsetX || 0, y: letter.stampOffsetY || 0 });
+      setStampHeightOverride(letter.stampHeight ?? null);
       setHeaderCenterOffset({ x: letter.headerCenterOffsetX || 0, y: letter.headerCenterOffsetY || 0 });
       setSubjectOffset({ x: letter.subjectOffsetX || 0, y: letter.subjectOffsetY || 0 });
       setMetaOffset({ x: letter.metaOffsetX || 0, y: letter.metaOffsetY || 0 });
@@ -590,6 +594,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   };
 
   if (!isOpen || !letter) return null;
+
+  const derivedStampHeight =
+    pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05);
+  const effectiveStampHeight = stampHeightOverride ?? derivedStampHeight;
 
   const isSigned = letter.signatureStatus === 'SIGNED';
   const isRejected = letter.signatureStatus === 'REJECTED';
@@ -714,6 +722,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       signatureOffsetY: signatureOffset.y,
       signatureImgOffsetX: sigImgOffset.x,
       signatureImgOffsetY: sigImgOffset.y,
+      stampHeight: stampHeightOverride ?? undefined,
       stampOffsetX: stampOffset.x,
       stampOffsetY: stampOffset.y,
       customBody: convertNumbersInHtmlToPersian(customBody),
@@ -797,6 +806,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       signatureOffsetY: signatureOffset.y,
       signatureImgOffsetX: sigImgOffset.x,
       signatureImgOffsetY: sigImgOffset.y,
+      stampHeight: stampHeightOverride ?? undefined,
       stampOffsetX: stampOffset.x,
       stampOffsetY: stampOffset.y,
     });
@@ -1237,10 +1247,25 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 </div>
                 <input
                   type="range"
-                  min="50"
-                  max="380"
+                  min="20"
+                  max="600"
                   value={signatureHeight}
                   onChange={(e) => setSignatureHeight(Number(e.target.value))}
+                  className="w-full accent-[#6E1B1B] cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-1 pt-1">
+                <div className="flex items-center justify-between font-bold text-[#8C6F66]">
+                  <span>سایز مهر:</span>
+                  <span className="font-mono text-[#6E1B1B]">{toPersianDigits(effectiveStampHeight)}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="600"
+                  value={effectiveStampHeight}
+                  onChange={(e) => setStampHeightOverride(Number(e.target.value))}
                   className="w-full accent-[#6E1B1B] cursor-pointer"
                 />
               </div>
@@ -1253,6 +1278,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 setSignatureOffset({ x: 0, y: 0 });
                 setSigImgOffset({ x: 0, y: 0 });
                 setStampOffset({ x: 0, y: 0 });
+                setStampHeightOverride(null);
                 setSignatureHeight(defaultSignatureHeight(pageSize === 'A5', settings?.ceoSignatureHeight));
                 setBodyOffsetX(0);
                 setBodyPaddingX(0);
@@ -1294,14 +1320,30 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <span>سایز امضا:</span>
                 <input
                   type="range"
-                  min="50"
-                  max="380"
+                  min="20"
+                  max="600"
                   value={signatureHeight}
                   onChange={(e) => setSignatureHeight(Number(e.target.value))}
                   className="w-24 accent-emerald-600 cursor-pointer"
                   title="تغییر ابعاد و سایز امضا قبل از ثبت"
                 />
                 <span className="font-mono text-[10px] text-emerald-700 w-10 text-center">{toPersianDigits(signatureHeight)}px</span>
+              </div>
+
+              {/* Stamp Size in Sign Banner */}
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold shrink-0 shadow-2xs">
+                <Sliders className="w-3.5 h-3.5 text-emerald-700" />
+                <span>سایز مهر:</span>
+                <input
+                  type="range"
+                  min="20"
+                  max="600"
+                  value={effectiveStampHeight}
+                  onChange={(e) => setStampHeightOverride(Number(e.target.value))}
+                  className="w-24 accent-emerald-600 cursor-pointer"
+                  title="تغییر اندازهٔ مهر قبل از ثبت"
+                />
+                <span className="font-mono text-[10px] text-emerald-700 w-10 text-center">{toPersianDigits(effectiveStampHeight)}px</span>
               </div>
 
               <div className="flex items-center gap-2 shrink-0 self-end lg:self-auto">
@@ -1336,6 +1378,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   setSignatureOffset({ x: 0, y: 0 });
                   setSigImgOffset({ x: 0, y: 0 });
                   setStampOffset({ x: 0, y: 0 });
+                  setStampHeightOverride(null);
                   setSignatureHeight(defaultSignatureHeight(pageSize === 'A5', settings?.ceoSignatureHeight));
                 }}
                 className="text-[10px] text-emerald-800 hover:underline font-bold cursor-pointer"
@@ -1931,7 +1974,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                           onMouseDown={startImageDrag('SIG_IMG', sigImgOffset)}
                           title={isEditable ? 'برای جابه‌جایی امضا به‌تنهایی بکشید' : undefined}
                           style={{
-                            height: `${pageSize === 'A5' ? Math.min(signatureHeight, 140) : signatureHeight}px`,
+                            height: `${pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight}px`,
                             transform: `translate(${sigImgOffset.x}px, ${sigImgOffset.y}px)`,
                             cursor: isEditable ? (activeDragItem === 'SIG_IMG' ? 'grabbing' : 'grab') : 'default',
                           }}
@@ -1949,7 +1992,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                           onMouseDown={startImageDrag('STAMP', stampOffset)}
                           title={isEditable ? 'برای جابه‌جایی مهر به‌تنهایی بکشید' : undefined}
                           style={{
-                            height: `${pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05)}px`,
+                            height: `${effectiveStampHeight}px`,
                             transform: `translate(${stampOffset.x}px, ${stampOffset.y}px)`,
                             cursor: isEditable ? (activeDragItem === 'STAMP' ? 'grabbing' : 'grab') : 'default',
                           }}

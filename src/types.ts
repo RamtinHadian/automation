@@ -108,6 +108,7 @@ export interface FileTransfer {
   // Signature image and stamp can each be moved independently of the name/title block (px)
   signatureImgOffsetX?: number;
   signatureImgOffsetY?: number;
+  stampHeight?: number; // اندازهٔ مهر (اگر خالی باشد متناسب با امضا)
   stampOffsetX?: number;
   stampOffsetY?: number;
   headerCenterOffsetX?: number;

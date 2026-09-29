@@ -107,6 +107,7 @@ interface AppContextType {
       signatureOffsetY?: number;
       signatureImgOffsetX?: number;
       signatureImgOffsetY?: number;
+      stampHeight?: number;
       stampOffsetX?: number;
       stampOffsetY?: number;
       pageSize?: string;
@@ -658,6 +659,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         signatureOffsetY?: number;
         signatureImgOffsetX?: number;
         signatureImgOffsetY?: number;
+        stampHeight?: number;
         stampOffsetX?: number;
         stampOffsetY?: number;
         pageSize?: string;
@@ -699,6 +701,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               signatureOffsetY: signatureOptions?.signatureOffsetY ?? t.signatureOffsetY ?? 0,
               signatureImgOffsetX: signatureOptions?.signatureImgOffsetX ?? t.signatureImgOffsetX ?? 0,
               signatureImgOffsetY: signatureOptions?.signatureImgOffsetY ?? t.signatureImgOffsetY ?? 0,
+              stampHeight: signatureOptions?.stampHeight ?? t.stampHeight,
               stampOffsetX: signatureOptions?.stampOffsetX ?? t.stampOffsetX ?? 0,
               stampOffsetY: signatureOptions?.stampOffsetY ?? t.stampOffsetY ?? 0,
               pageSize: signatureOptions?.pageSize || t.pageSize,

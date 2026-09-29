@@ -710,8 +710,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               <span className="text-[10px] font-bold text-amber-950">سایز امضا:</span>
               <input
                 type="range"
-                min="50"
-                max="380"
+                min="20"
+                max="600"
                 value={signatureHeight}
                 onChange={(e) => setSignatureHeight(Number(e.target.value))}
                 className="w-20 accent-amber-700 cursor-pointer"
