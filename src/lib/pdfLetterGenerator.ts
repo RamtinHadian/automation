@@ -456,9 +456,11 @@ export function generateOfficialLetterHtml(
 
     <!-- Signature Section: BORDERLESS & CLEAN -->
     <div class="signature-section">
-      <div class="ceo-signature-block" style="transform: translate(${signatureOffsetX}px, ${signatureOffsetY}px);">
-        <div class="ceo-name">${finalCeoName}</div>
-        <div class="ceo-title">${finalCeoTitle}</div>
+      <div class="ceo-signature-block">
+        <div style="transform: translate(${signatureOffsetX}px, ${signatureOffsetY}px); text-align: center;">
+          <div class="ceo-name">${finalCeoName}</div>
+          <div class="ceo-title">${finalCeoTitle}</div>
+        </div>
         
         <div class="stamp-container">
           ${signatureImg ? `<img src="${attr(signatureImg)}" alt="امضای مدیرعامل" class="signature-img" style="height: ${finalSigHeight}px; transform: translate(${sigImgOffsetX}px, ${sigImgOffsetY}px);" />` : ''}

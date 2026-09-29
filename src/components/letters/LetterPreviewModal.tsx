@@ -1867,14 +1867,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
             {/* Signature & Official Seal Section (Draggable before signing) */}
             <div className={`${pageSize === 'A5' ? 'mt-4 pt-1 min-h-[90px]' : 'mt-8 pt-2 min-h-[140px]'} flex justify-end items-end relative`}>
-              {/* CEO Official Seal & Signature Staging — Whole box draggable */}
+              <div className={`text-center ${pageSize === 'A5' ? 'min-w-[170px]' : 'min-w-[220px]'} flex flex-col items-center relative select-none`}>
+              {/* CEO name & title — draggable on its own; the signature image and stamp below are independent objects */}
               <div
                 onMouseDown={handleMouseDownOnSignature}
                 style={{
                   transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)`,
                   cursor: isEditable ? (isDraggingSig ? 'grabbing' : 'grab') : 'default',
                 }}
-                className={`text-center ${pageSize === 'A5' ? 'min-w-[170px]' : 'min-w-[220px]'} space-y-0.5 flex flex-col items-center relative select-none transition-all ${
+                className={`text-center w-full space-y-0.5 flex flex-col items-center relative select-none transition-all ${
                   isEditable
                     ? isDraggingSig
                       ? 'opacity-90 scale-102 z-30 ring-2 ring-amber-500 rounded-2xl p-2 bg-amber-50/60 shadow-lg'
@@ -1883,7 +1884,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 }`}
                 title={
                   isEditable
-                    ? 'نام، سمت و امضای مدیرعامل (برای جابه‌جایی با ماوس درگ کنید)'
+                    ? 'نام و سمت مدیرعامل (برای جابه‌جایی با ماوس درگ کنید)'
                     : 'امضای رسمی تایید شده'
                 }
               >
@@ -1891,7 +1892,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 {isEditable && (
                   <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover/sig:opacity-100 transition-opacity bg-[#3A241F] text-white text-[9px] font-bold px-2.5 py-0.5 rounded-md shadow-md whitespace-nowrap pointer-events-none flex items-center gap-1 z-40">
                     <Move className="w-2.5 h-2.5 text-amber-400" />
-                    <span>کل کادر نام و امضا را بکشید و جابه‌جا کنید (Drag)</span>
+                    <span>نام و سمت را بکشید و جابه‌جا کنید (Drag)</span>
                   </div>
                 )}
 
@@ -1944,6 +1945,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                     </div>
                   </>
                 )}
+
+              </div>
 
                 <div className={`${pageSize === 'A5' ? 'min-h-[60px] gap-2 my-0.5' : 'min-h-[85px] gap-3 my-1'} flex items-center justify-center relative w-full`}>
                   {/* Signature & Stamp Images */}

@@ -1019,75 +1019,14 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               />
             </div>
 
-            {/* DRAGGABLE CEO SIGNATURE BLOCK & EDITABLE NAME / TITLE */}
+            {/* CEO NAME / TITLE (font + size beside the text). Signature image and stamp are independent objects. */}
             <div className={`${pageSize === 'A5' ? 'mt-4 pt-1 min-h-[90px]' : 'mt-8 pt-2 min-h-[140px]'} flex justify-end items-end relative`}>
               <div
-                style={{
-                  transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)`,
-                }}
-                className={`text-center ${pageSize === 'A5' ? 'w-[170px] min-w-[170px]' : 'w-[220px] min-w-[220px]'} space-y-0.5 flex flex-col items-center relative select-none transition-all`}
+                className={`text-center ${pageSize === 'A5' ? 'w-[170px] min-w-[170px]' : 'w-[220px] min-w-[220px]'} flex flex-col items-center relative select-none`}
               >
-                {/* Draft Staging Box with Drag Handle & Font Customization (Compact, Square-Shaped) */}
-                <div
-                  className={`group relative p-2 rounded-2xl border-2 border-dashed transition-all select-none flex flex-col justify-between items-center text-center w-full ${
-                    activeDragItem === 'SIGNATURE'
-                      ? 'border-amber-600 bg-amber-50/90 shadow-md scale-102 ring-2 ring-amber-500/30'
-                      : 'border-amber-400/80 bg-[#FAF5F1]/80 hover:border-amber-600 hover:bg-amber-50/50'
-                  }`}
-                  style={{ minHeight: '140px' }}
-                >
-                  {/* Top Drag & Typography Toolbar: Font + Size + Drag in compact header (Hidden on mobile) */}
-                  <div className="hidden sm:flex w-full items-center justify-between text-[9px] font-bold text-amber-800 pb-1 border-b border-dashed border-amber-200/80 gap-1">
-                    <div
-                      onMouseDown={handleSignatureMouseDown}
-                      className="flex items-center gap-0.5 cursor-grab active:cursor-grabbing hover:text-[#6E1B1B] text-[9px]"
-                      title="برای جابه‌جایی، با ماوس بکشید (Drag)"
-                    >
-                      <Move className="w-3 h-3 text-amber-600 shrink-0" />
-                      <span>حرکت</span>
-                    </div>
-
-                    {/* Font & Size Controls for Signer Block */}
-                    <div className="flex items-center gap-0.5">
-                      <select
-                        value={signerFontFamily}
-                        onChange={(e) => setSignerFontFamily(e.target.value)}
-                        className="bg-white border border-amber-300 text-[9px] text-amber-900 rounded px-1 py-0.2 focus:outline-none cursor-pointer shadow-2xs font-sans max-w-[65px] truncate"
-                        title="انتخاب فونت"
-                      >
-                        {fonts.map((f) => (
-                          <option key={f.id} value={f.fontFamily}>
-                            {f.name}
-                          </option>
-                        ))}
-                      </select>
-
-                      <div className="flex items-center bg-white border border-amber-300 rounded px-0.5 py-0.2" title="سایز فونت">
-                        <button
-                          type="button"
-                          onClick={() => setSignerFontSize(Math.max(10, signerFontSize - 1))}
-                          className="text-amber-800 hover:text-black px-0.5 font-bold cursor-pointer text-[10px] leading-none"
-                          title="کوچک‌تر"
-                        >
-                          -
-                        </button>
-                        <span className="text-[9px] font-bold text-amber-900 min-w-[12px] text-center font-mono">
-                          {toPersianDigits(signerFontSize)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setSignerFontSize(Math.min(36, signerFontSize + 1))}
-                          className="text-amber-800 hover:text-black px-0.5 font-bold cursor-pointer text-[10px] leading-none"
-                          title="بزرگ‌تر"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Clean Editable Signer Name & Title Centered in Square */}
-                  <div className="flex-1 flex flex-col justify-center items-center w-full px-0.5 py-1 space-y-1">
+                {/* Name & title with only font and size controls */}
+                <div className="w-full flex items-start gap-1.5" style={{ transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)` }}>
+                  <div className="flex-1 min-w-0 space-y-0.5">
                     <input
                       type="text"
                       value={signerName}
@@ -1108,38 +1047,74 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                     />
                   </div>
 
-                  {/* Signature & Stamp Preview inside Square / Block */}
-                  <div className="w-full flex items-center justify-center gap-2 py-1 min-h-[50px] relative">
-                    {settings.ceoSignatureUrl ? (
-                      <DraggableImage
-                        src={settings.ceoSignatureUrl}
-                        alt="امضا"
-                        height={pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight}
-                        offset={sigImgOffset}
-                        editable
-                        onOffsetChange={setSigImgOffset}
-                        onHeightChange={setSignatureHeight}
-                        opacityClass="opacity-90"
-                      />
-                    ) : null}
-                    {settings.companyStampUrl ? (
-                      <DraggableImage
-                        src={settings.companyStampUrl}
-                        alt="مهر"
-                        height={effectiveStampHeight}
-                        offset={stampOffset}
-                        editable
-                        onOffsetChange={setStampOffset}
-                        onHeightChange={setStampHeightOverride}
-                        opacityClass="opacity-85"
-                      />
-                    ) : null}
-                    {!settings.ceoSignatureUrl && !settings.companyStampUrl && (
-                      <div className="text-[8px] text-amber-700/60 font-bold border-t border-dashed border-amber-200/60 pt-0.5 w-full text-center">
-                        محل درج امضا و مهر رسمی
-                      </div>
-                    )}
+                  <div className="flex flex-col items-stretch gap-0.5 shrink-0">
+                    <select
+                      value={signerFontFamily}
+                      onChange={(e) => setSignerFontFamily(e.target.value)}
+                      className="bg-white border border-amber-300 text-[9px] text-amber-900 rounded px-1 py-0.5 focus:outline-none cursor-pointer font-sans max-w-[70px] truncate"
+                      title="انتخاب فونت"
+                    >
+                      {fonts.map((f) => (
+                        <option key={f.id} value={f.fontFamily}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex items-center justify-between bg-white border border-amber-300 rounded px-1 py-0.5" title="سایز فونت">
+                      <button
+                        type="button"
+                        onClick={() => setSignerFontSize(Math.max(10, signerFontSize - 1))}
+                        className="text-amber-800 hover:text-black px-0.5 font-bold cursor-pointer text-[10px] leading-none"
+                        title="کوچک‌تر"
+                      >
+                        -
+                      </button>
+                      <span className="text-[9px] font-bold text-amber-900 min-w-[12px] text-center font-mono">
+                        {toPersianDigits(signerFontSize)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSignerFontSize(Math.min(36, signerFontSize + 1))}
+                        className="text-amber-800 hover:text-black px-0.5 font-bold cursor-pointer text-[10px] leading-none"
+                        title="بزرگ‌تر"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
+                </div>
+
+                {/* Signature image & stamp: free objects, independent of the name/title and of each other */}
+                <div className="w-full flex items-center justify-center gap-2 py-1 min-h-[85px] relative">
+                  {settings.ceoSignatureUrl ? (
+                    <DraggableImage
+                      src={settings.ceoSignatureUrl}
+                      alt="امضا"
+                      height={pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight}
+                      offset={sigImgOffset}
+                      editable
+                      onOffsetChange={setSigImgOffset}
+                      onHeightChange={setSignatureHeight}
+                      opacityClass="opacity-90"
+                    />
+                  ) : null}
+                  {settings.companyStampUrl ? (
+                    <DraggableImage
+                      src={settings.companyStampUrl}
+                      alt="مهر"
+                      height={effectiveStampHeight}
+                      offset={stampOffset}
+                      editable
+                      onOffsetChange={setStampOffset}
+                      onHeightChange={setStampHeightOverride}
+                      opacityClass="opacity-85"
+                    />
+                  ) : null}
+                  {!settings.ceoSignatureUrl && !settings.companyStampUrl && (
+                    <div className="text-[8px] text-amber-700/60 font-bold border-t border-dashed border-amber-200/60 pt-0.5 w-full text-center">
+                      محل درج امضا و مهر رسمی
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
