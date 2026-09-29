@@ -623,8 +623,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const handleDeleteTransfer = useCallback(
     (id: string) => {
       const target = transfers.find((t) => t.id === id);
-      if (target && target.isOfficialLetter && target.signatureStatus === 'SIGNED' && !target.isArchived) {
-        showToast('⚠️ نامهٔ رسمی امضاشده را ابتدا بایگانی کنید؛ سپس از بایگانی می‌توانید آن را حذف کنید.');
+      if (target && target.isOfficialLetter && target.signatureStatus === 'SIGNED') {
+        showToast('⚠️ امکان حذف نامه‌های رسمی امضاشده وجود ندارد. این سند حقوقی است و تنها می‌توانید آن را بایگانی کنید.');
         return;
       }
       setTransfers((prev) => prev.filter((t) => t.id !== id));
