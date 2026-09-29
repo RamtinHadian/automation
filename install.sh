@@ -18,7 +18,11 @@ rand() { head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c "$1"; }
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "==> Installing Docker"
-  curl -fsSL https://get.docker.com | sh
+  # get.docker.com is unreachable from some networks (403); fall back to the distro packages.
+  if ! curl -fsSL https://get.docker.com | sh; then
+    echo "==> get.docker.com failed, installing Docker from the distribution repositories"
+    apt-get update && apt-get install -y docker.io docker-compose-v2       || { echo "Could not install Docker automatically." >&2; exit 1; }
+  fi
 fi
 systemctl enable --now docker >/dev/null 2>&1 || true
 
