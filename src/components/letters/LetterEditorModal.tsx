@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
+import { SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT, signatureAreaHeight } from '../../lib/letterDefaults';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
 import {
   X,
@@ -1025,15 +1026,15 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 className={`text-center ${pageSize === 'A5' ? 'w-[170px] min-w-[170px]' : 'w-[220px] min-w-[220px]'} flex flex-col items-center relative select-none`}
               >
                 {/* Name & title with only font and size controls */}
-                <div className="w-full flex items-start gap-1.5" style={{ transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)` }}>
-                  <div className="flex-1 min-w-0 space-y-0.5">
+                <div className="relative w-fit max-w-full" style={{ transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)` }}>
+                  <div className="min-w-0 space-y-0.5 flex flex-col items-center">
                     <input
                       type="text"
                       value={signerName}
                       onChange={(e) => setSignerName(e.target.value)}
                       placeholder="نام مدیرعامل"
-                      style={{ fontFamily: signerFontFamily, fontSize: `${signerFontSize}px` }}
-                      className="font-black text-center text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full px-0.5 leading-tight"
+                      style={{ fontFamily: signerFontFamily, fontSize: `${signerFontSize}px`, lineHeight: pageSize === 'A5' ? 1.5 : 1.6, fieldSizing: 'content', minWidth: '4ch' } as React.CSSProperties}
+                      className="font-black text-center text-[#1a1a1a] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none max-w-full px-1"
                       title="نام مدیرعامل / امضاکننده (قابل ویرایش مستقیم)"
                     />
                     <input
@@ -1041,13 +1042,13 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       value={signerTitle}
                       onChange={(e) => setSignerTitle(e.target.value)}
                       placeholder="سمت سازمانی"
-                      style={{ fontFamily: signerFontFamily, fontSize: `${Math.max(12, signerFontSize - 3)}px` }}
-                      className="text-center text-[#8C6F66] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full px-0.5 font-medium leading-tight"
+                      style={{ fontFamily: signerFontFamily, fontSize: `${Math.max(14, signerFontSize - 2)}px`, lineHeight: pageSize === 'A5' ? 1.5 : 1.6, fieldSizing: 'content', minWidth: '4ch' } as React.CSSProperties}
+                      className="text-center text-[#71554C] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none max-w-full px-1 font-medium"
                       title="سمت سازمانی امضاکننده (قابل ویرایش مستقیم)"
                     />
                   </div>
 
-                  <div className="flex flex-col items-stretch gap-0.5 shrink-0">
+                  <div className="absolute top-0 left-full ml-1.5 flex flex-col items-stretch gap-0.5">
                     <select
                       value={signerFontFamily}
                       onChange={(e) => setSignerFontFamily(e.target.value)}
@@ -1085,7 +1086,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 </div>
 
                 {/* Signature image & stamp: free objects, independent of the name/title and of each other */}
-                <div className="w-full flex items-center justify-center gap-2 py-1 min-h-[85px] relative">
+                <div
+                  className="w-full relative my-1"
+                  style={{ height: `${signatureAreaHeight(pageSize === 'A5', pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight, effectiveStampHeight)}px` }}
+                >
                   {settings.ceoSignatureUrl ? (
                     <DraggableImage
                       src={settings.ceoSignatureUrl}
@@ -1095,6 +1099,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       editable
                       onOffsetChange={setSigImgOffset}
                       onHeightChange={setSignatureHeight}
+                      anchorLeft={SIGNATURE_ANCHOR_LEFT}
                       opacityClass="opacity-90"
                     />
                   ) : null}
@@ -1107,6 +1112,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       editable
                       onOffsetChange={setStampOffset}
                       onHeightChange={setStampHeightOverride}
+                      anchorLeft={STAMP_ANCHOR_LEFT}
                       opacityClass="opacity-85"
                     />
                   ) : null}

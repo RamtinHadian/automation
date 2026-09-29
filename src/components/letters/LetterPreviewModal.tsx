@@ -1,6 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DraggableImage } from './DraggableImage';
-import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight, defaultSignatureHeight } from '../../lib/letterDefaults';
+import {
+  DEFAULT_SIGNATURE_HEIGHT,
+  resolveSignatureHeight,
+  defaultSignatureHeight,
+  SIGNATURE_ANCHOR_LEFT,
+  STAMP_ANCHOR_LEFT,
+  signatureAreaHeight,
+} from '../../lib/letterDefaults';
 import { useAttachment } from '../../lib/useAttachment';
 import {
   X,
@@ -1875,11 +1882,11 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)`,
                   cursor: isEditable ? (isDraggingSig ? 'grabbing' : 'grab') : 'default',
                 }}
-                className={`text-center w-full space-y-0.5 flex flex-col items-center relative select-none transition-all ${
+                className={`text-center w-fit max-w-full space-y-0.5 flex flex-col items-center relative select-none transition-all ${
                   isEditable
                     ? isDraggingSig
-                      ? 'opacity-90 scale-102 z-30 ring-2 ring-amber-500 rounded-2xl p-2 bg-amber-50/60 shadow-lg'
-                      : 'z-10 hover:ring-2 hover:ring-amber-400/60 rounded-2xl p-2 group/sig cursor-grab hover:bg-amber-50/30'
+                      ? 'opacity-90 scale-102 z-30 ring-2 ring-amber-500 rounded-lg px-1 bg-amber-50/60 shadow-lg'
+                      : 'z-10 hover:ring-2 hover:ring-amber-400/60 rounded-lg px-1 group/sig cursor-grab hover:bg-amber-50/30'
                     : 'z-10'
                 }`}
                 title={
@@ -1897,7 +1904,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 )}
 
                 {isEditable ? (
-                  <div className="w-full space-y-0.5">
+                  <div className="w-fit max-w-full space-y-0.5 flex flex-col items-center">
                     <input
                       type="text"
                       value={customSignerName || ceoName}
@@ -1906,8 +1913,11 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       style={{
                         fontFamily: signerFontFamily || chosenFont.fontFamily,
                         fontSize: `${signerFontSize || 18}px`,
-                      }}
-                      className="font-black text-center text-[#1a1a1a] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full px-1 cursor-text"
+                        lineHeight: pageSize === 'A5' ? 1.5 : 1.6,
+                        fieldSizing: 'content',
+                        minWidth: '4ch',
+                      } as React.CSSProperties}
+                      className="font-black text-center text-[#1a1a1a] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none max-w-full px-1 cursor-text"
                       title="نام مدیرعامل (قابل ویرایش قبل از امضا)"
                     />
                     <input
@@ -1918,8 +1928,11 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       style={{
                         fontFamily: signerFontFamily || chosenFont.fontFamily,
                         fontSize: `${Math.max(14, (signerFontSize || 18) - 2)}px`,
-                      }}
-                      className="text-center text-[#71554C] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full px-1 font-medium cursor-text"
+                        lineHeight: pageSize === 'A5' ? 1.5 : 1.6,
+                        fieldSizing: 'content',
+                        minWidth: '4ch',
+                      } as React.CSSProperties}
+                      className="text-center text-[#71554C] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none max-w-full px-1 font-medium cursor-text"
                       title="سمت سازمانی (قابل ویرایش قبل از امضا)"
                     />
                   </div>
@@ -1929,6 +1942,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       style={{
                         fontFamily: signerFontFamily || chosenFont.fontFamily,
                         fontSize: `${signerFontSize || 18}px`,
+                        lineHeight: pageSize === 'A5' ? 1.5 : 1.6,
                       }}
                       className="font-black text-[#1a1a1a]"
                     >
@@ -1938,6 +1952,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       style={{
                         fontFamily: signerFontFamily || chosenFont.fontFamily,
                         fontSize: `${Math.max(14, (signerFontSize || 18) - 2)}px`,
+                        lineHeight: pageSize === 'A5' ? 1.5 : 1.6,
                       }}
                       className="text-[#71554C] font-medium"
                     >
@@ -1948,10 +1963,13 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
               </div>
 
-                <div className={`${pageSize === 'A5' ? 'min-h-[60px] gap-2 my-0.5' : 'min-h-[85px] gap-3 my-1'} flex items-center justify-center relative w-full`}>
+                <div
+                  style={{ height: `${signatureAreaHeight(pageSize === 'A5', pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight, effectiveStampHeight)}px` }}
+                  className={`${pageSize === 'A5' ? 'my-0.5' : 'my-1'} relative w-full`}
+                >
                   {/* Signature & Stamp Images */}
                   {(signatureImg || stampImg) && (
-                    <div className="relative select-none flex items-center justify-center gap-3">
+                    <div className="absolute inset-0 select-none">
                       {signatureImg && (
                         <DraggableImage
                           src={signatureImg}
@@ -1961,6 +1979,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                           editable={isEditable}
                           onOffsetChange={setSigImgOffset}
                           onHeightChange={setSignatureHeight}
+                          anchorLeft={SIGNATURE_ANCHOR_LEFT}
                           opacityClass={!isSigned ? 'opacity-90' : ''}
                         />
                       )}
@@ -1974,6 +1993,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                           editable={isEditable}
                           onOffsetChange={setStampOffset}
                           onHeightChange={setStampHeightOverride}
+                          anchorLeft={STAMP_ANCHOR_LEFT}
                           opacityClass={!isSigned ? 'opacity-85' : 'opacity-95'}
                         />
                       )}

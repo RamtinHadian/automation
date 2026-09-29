@@ -13,6 +13,8 @@ interface DraggableImageProps {
   minHeight?: number;
   maxHeight?: number;
   opacityClass?: string;
+  /** When set, the image is absolutely positioned at this left position (e.g. '60%'), vertically centred. */
+  anchorLeft?: string;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -32,6 +34,7 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({
   minHeight = 20,
   maxHeight = 600,
   opacityClass = '',
+  anchorLeft,
 }) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const drag = useRef<{
@@ -81,9 +84,10 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({
 
   return (
     <div
-      className={`group/img relative inline-block shrink-0 select-none mix-blend-multiply ${opacityClass}`}
+      className={`group/img ${anchorLeft ? 'absolute' : 'relative inline-block'} shrink-0 select-none mix-blend-multiply ${opacityClass}`}
       style={{
-        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        ...(anchorLeft ? { left: anchorLeft, top: '50%' } : {}),
+        transform: `${anchorLeft ? 'translate(-50%, -50%) ' : ''}translate(${offset.x}px, ${offset.y}px)`,
         touchAction: editable ? 'none' : undefined,
         cursor: editable ? 'grab' : 'default',
       }}

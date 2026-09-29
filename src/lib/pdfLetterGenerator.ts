@@ -1,5 +1,5 @@
 import { FileTransfer, SystemSettings, User } from '../types';
-import { resolveSignatureHeight } from './letterDefaults';
+import { resolveSignatureHeight, signatureAreaHeight, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
 
@@ -127,6 +127,8 @@ export function generateOfficialLetterHtml(
   const stampOffsetY = overrides?.stampOffsetY !== undefined ? overrides.stampOffsetY : (transfer.stampOffsetY || 0);
   const sigImgOffsetX = overrides?.signatureImgOffsetX !== undefined ? overrides.signatureImgOffsetX : (transfer.signatureImgOffsetX || 0);
   const sigImgOffsetY = overrides?.signatureImgOffsetY !== undefined ? overrides.signatureImgOffsetY : (transfer.signatureImgOffsetY || 0);
+
+  const areaHeight = signatureAreaHeight(isA5, finalSigHeight, stampHeight);
 
   const signedDateTime = toPersianDigits(transfer.signedAt || formatCurrentJalaliDateTime());
 
@@ -339,24 +341,25 @@ export function generateOfficialLetterHtml(
       font-size: ${signerSize}px;
       font-weight: 900;
       color: #1a1a1a;
+      line-height: ${isA5 ? '1.5' : '1.6'};
     }
     .ceo-title {
       font-family: '${signerFont}', 'B Nazanin', 'Vazirmatn', Tahoma, sans-serif !important;
       font-size: ${Math.max(14, signerSize - 2)}px;
       color: #555;
-      margin-top: 1px;
+      margin-top: 2px;
+      line-height: ${isA5 ? '1.5' : '1.6'};
     }
     .stamp-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: ${isA5 ? '8px' : '12px'};
       margin-top: 4px;
-      min-height: ${isA5 ? '60px' : '85px'};
+      height: ${areaHeight}px;
       width: 100%;
       position: relative;
     }
     .signature-img {
+      position: absolute;
+      top: 50%;
+      left: ${SIGNATURE_ANCHOR_LEFT};
       flex-shrink: 0;
       max-width: none;
       object-fit: contain;
@@ -364,6 +367,9 @@ export function generateOfficialLetterHtml(
       transition: transform 0.1s ease;
     }
     .stamp-img {
+      position: absolute;
+      top: 50%;
+      left: ${STAMP_ANCHOR_LEFT};
       flex-shrink: 0;
       max-width: none;
       object-fit: contain;
@@ -467,8 +473,8 @@ export function generateOfficialLetterHtml(
         </div>
         
         <div class="stamp-container">
-          ${signatureImg ? `<img src="${attr(signatureImg)}" alt="امضای مدیرعامل" class="signature-img" style="height: ${finalSigHeight}px; transform: translate(${sigImgOffsetX}px, ${sigImgOffsetY}px);" />` : ''}
-          ${stampImg ? `<img src="${attr(stampImg)}" alt="مهر شرکت" class="stamp-img" style="height: ${stampHeight}px; opacity: 0.9; transform: translate(${stampOffsetX}px, ${stampOffsetY}px);" />` : ''}
+          ${signatureImg ? `<img src="${attr(signatureImg)}" alt="امضای مدیرعامل" class="signature-img" style="height: ${finalSigHeight}px; transform: translate(-50%, -50%) translate(${sigImgOffsetX}px, ${sigImgOffsetY}px);" />` : ''}
+          ${stampImg ? `<img src="${attr(stampImg)}" alt="مهر شرکت" class="stamp-img" style="height: ${stampHeight}px; opacity: 0.9; transform: translate(-50%, -50%) translate(${stampOffsetX}px, ${stampOffsetY}px);" />` : ''}
           ${!isSigned ? `
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #d97706; color: white; padding: 5px 14px; border-radius: 10px; font-weight: 900; font-size: 11px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 1.5px solid #fef3c7;">
               ⚠️ این نامه هنوز امضا نشده است

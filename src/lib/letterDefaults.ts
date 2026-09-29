@@ -20,3 +20,12 @@ export const resolveSignatureHeight = (
   isA5: boolean,
   custom?: number | null
 ): number => (!stored || LEGACY_DEFAULTS.has(stored) ? defaultSignatureHeight(isA5, custom) : stored);
+
+// The signature image and the stamp are absolutely positioned inside a fixed-width area, each at its own
+// anchor (percent of the width, vertically centred). Resizing one therefore never moves or squeezes the other.
+export const SIGNATURE_ANCHOR_LEFT = '62%';
+export const STAMP_ANCHOR_LEFT = '30%';
+
+/** Height reserved for the signature/stamp area so large images do not overlap the text below. */
+export const signatureAreaHeight = (isA5: boolean, signatureHeight: number, stampHeight: number): number =>
+  Math.max(isA5 ? 60 : 85, signatureHeight, stampHeight);
