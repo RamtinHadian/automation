@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { DEFAULT_SIGNATURE_HEIGHT } from '../lib/letterDefaults';
 import {
   Archive,
   Hash,
@@ -380,7 +381,7 @@ export default function UserPanel() {
       customSignerTitle: letterData.customSignerTitle,
       signatureOffsetX: letterData.signatureOffsetX,
       signatureOffsetY: letterData.signatureOffsetY,
-      signatureHeight: letterData.signatureHeight || 200,
+      signatureHeight: letterData.signatureHeight || DEFAULT_SIGNATURE_HEIGHT,
       customFooterNote: letterData.customFooterNote,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyPaddingX: letterData.bodyPaddingX,

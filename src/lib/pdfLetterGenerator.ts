@@ -1,4 +1,5 @@
 import { FileTransfer, SystemSettings, User } from '../types';
+import { resolveSignatureHeight } from './letterDefaults';
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
 
@@ -95,8 +96,7 @@ export function generateOfficialLetterHtml(
       ? transfer.showFooterNote
       : (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false);
 
-  const defaultSigHeight = isA5 ? 130 : 200;
-  const signatureHeight = overrides?.signatureHeight || transfer.signatureHeight || defaultSigHeight;
+  const signatureHeight = overrides?.signatureHeight || resolveSignatureHeight(transfer.signatureHeight, isA5);
   const signatureOffsetX = overrides?.signatureOffsetX !== undefined ? overrides.signatureOffsetX : (transfer.signatureOffsetX || 0);
   const signatureOffsetY = overrides?.signatureOffsetY !== undefined ? overrides.signatureOffsetY : (transfer.signatureOffsetY || 0);
 

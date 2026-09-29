@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../../lib/letterDefaults';
 import { useAttachment } from '../../lib/useAttachment';
 import {
   X,
@@ -472,7 +473,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [customBody, setCustomBody] = useState('');
 
   // Signature Sizing & Drag/Drop Positioning (Default 200px, Up to 360px)
-  const [signatureHeight, setSignatureHeight] = useState<number>(200);
+  const [signatureHeight, setSignatureHeight] = useState<number>(DEFAULT_SIGNATURE_HEIGHT);
   const [signatureOffset, setSignatureOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -525,7 +526,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setSignerFontSize(letter.signerFontSize || 18);
       setCustomSignerName(letter.customSignerName || letter.signedBy || settings.ceoName || 'مدیریت سازمان');
       setCustomSignerTitle(letter.customSignerTitle || settings.ceoTitle || 'مدیرعامل');
-      setSignatureHeight(letter.signatureHeight || (letter.pageSize === 'A5' ? 130 : 200));
+      setSignatureHeight(resolveSignatureHeight(letter.signatureHeight, letter.pageSize === 'A5'));
       setBodyOffsetX(letter.bodyOffsetX || 0);
       setBodyPaddingX(letter.bodyPaddingX || 0);
       setIsEditingBody(false);

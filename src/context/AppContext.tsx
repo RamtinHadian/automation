@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../lib/letterDefaults';
 import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont } from '../types';
 import { INITIAL_SETTINGS } from '../lib/mock-data';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
@@ -491,7 +492,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             customSignerTitle,
             signatureOffsetX,
             signatureOffsetY,
-            signatureHeight: signatureHeight || 200,
+            signatureHeight: signatureHeight || DEFAULT_SIGNATURE_HEIGHT,
             customFooterNote,
             bodyOffsetX,
             bodyPaddingX,
@@ -685,7 +686,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               signatureComment: comment || 'تایید و امضا شد',
               signatureImageUrl: settings.ceoSignatureUrl,
               companyStampImageUrl: settings.companyStampUrl,
-              signatureHeight: signatureOptions?.signatureHeight ?? t.signatureHeight ?? 200,
+              signatureHeight: signatureOptions?.signatureHeight ?? resolveSignatureHeight(t.signatureHeight, t.pageSize === 'A5'),
               signatureOffsetX: signatureOptions?.signatureOffsetX ?? t.signatureOffsetX ?? 0,
               signatureOffsetY: signatureOptions?.signatureOffsetY ?? t.signatureOffsetY ?? 0,
               pageSize: signatureOptions?.pageSize || t.pageSize,
