@@ -96,7 +96,7 @@ export function generateOfficialLetterHtml(
       ? transfer.showFooterNote
       : (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false);
 
-  const signatureHeight = overrides?.signatureHeight || resolveSignatureHeight(transfer.signatureHeight, isA5);
+  const signatureHeight = overrides?.signatureHeight || resolveSignatureHeight(transfer.signatureHeight, isA5, settings.ceoSignatureHeight);
   const signatureOffsetX = overrides?.signatureOffsetX !== undefined ? overrides.signatureOffsetX : (transfer.signatureOffsetX || 0);
   const signatureOffsetY = overrides?.signatureOffsetY !== undefined ? overrides.signatureOffsetY : (transfer.signatureOffsetY || 0);
 

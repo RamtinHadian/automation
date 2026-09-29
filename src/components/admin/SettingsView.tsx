@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { DEFAULT_SIGNATURE_HEIGHT, MIN_SIGNATURE_HEIGHT, MAX_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
 import {
   Save,
   Shield,
@@ -762,6 +763,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Default signature size on letters */}
+        <div className="pt-4 border-t border-[#EBDBCE]/60 space-y-2 text-xs">
+          <label className="block font-bold text-[#3A241F]">
+            اندازهٔ پیش‌فرض امضای مدیرعامل روی نامه‌ها (پیکسل)
+          </label>
+          <div className="flex items-center gap-3 flex-wrap">
+            <NumberField
+              value={settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT}
+              min={MIN_SIGNATURE_HEIGHT}
+              onCommit={(n) => setSettings({ ...settings, ceoSignatureHeight: Math.min(n, MAX_SIGNATURE_HEIGHT) })}
+              placeholder="۱۰۰"
+              className="w-28 p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none focus:border-[#D34A32]"
+            />
+            <input
+              type="range"
+              min={MIN_SIGNATURE_HEIGHT}
+              max={MAX_SIGNATURE_HEIGHT}
+              value={settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT}
+              onChange={(e) => setSettings({ ...settings, ceoSignatureHeight: Number(e.target.value) })}
+              className="flex-1 min-w-[160px] accent-[#6E1B1B] cursor-pointer"
+            />
+            <button
+              type="button"
+              onClick={() => setSettings({ ...settings, ceoSignatureHeight: undefined })}
+              className="px-3 py-2 text-[11px] font-bold text-[#8C6F66] hover:bg-[#FAF5F1] rounded-xl cursor-pointer"
+            >
+              بازگشت به پیش‌فرض
+            </button>
+          </div>
+          <p className="text-[11px] text-[#8C6F66]">
+            مهر خودکار کمی بزرگ‌تر از امضا نمایش داده می‌شود. مدیرعامل هنگام امضا هم می‌تواند اندازه را برای همان نامه تغییر دهد.
+          </p>
         </div>
       </div>
 

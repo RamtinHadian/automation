@@ -381,7 +381,7 @@ export default function UserPanel() {
       customSignerTitle: letterData.customSignerTitle,
       signatureOffsetX: letterData.signatureOffsetX,
       signatureOffsetY: letterData.signatureOffsetY,
-      signatureHeight: letterData.signatureHeight || DEFAULT_SIGNATURE_HEIGHT,
+      signatureHeight: letterData.signatureHeight || settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT,
       customFooterNote: letterData.customFooterNote,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyPaddingX: letterData.bodyPaddingX,

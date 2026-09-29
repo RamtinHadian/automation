@@ -151,7 +151,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [headerCenterTitle, setHeaderCenterTitle] = useState('« به نام خدا »');
   const [bodyPaddingX, setBodyPaddingX] = useState<number>(32);
   const [bodyOffsetX, setBodyOffsetX] = useState<number>(0);
-  const [signatureHeight, setSignatureHeight] = useState<number>(DEFAULT_SIGNATURE_HEIGHT);
+  const [signatureHeight, setSignatureHeight] = useState<number>(settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT);
 
   const [pageSize, setPageSize] = useState<PaperSize>('A4');
   const [subject, setSubject] = useState('درخواست بررسی و تایید رسمی');

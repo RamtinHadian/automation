@@ -194,6 +194,7 @@ export interface SystemSettings {
   autoPurgeDays: number;
   defaultUserQuotaGB: number;
   ceoSignatureUrl?: string;
+  ceoSignatureHeight?: number; // اندازهٔ پیش‌فرض امضای مدیرعامل روی نامه‌ها (پیکسل)
   companyStampUrl?: string;
   ceoName?: string;
   ceoTitle?: string;
