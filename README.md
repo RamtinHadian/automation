@@ -45,4 +45,4 @@ npm install && npm run dev                                                      
 
 ## Updates
 
-`install.sh` sets up a cron job (every 5 minutes) that runs `auto-update.sh`: it fetches the `frontend` branch and, only if there are new commits, pulls and rebuilds. Push to GitHub and the server follows within ~5 minutes. Log: `/var/log/automation-update.log`. Disable with `AUTO_UPDATE=0` at install time or by deleting `/etc/cron.d/automation-update`. Data volumes are never touched by updates.
+`install.sh` sets up a cron job (every minute) that runs `auto-update.sh`: it fetches the `frontend` branch and, only if there are new commits, pulls and rebuilds. Push to GitHub and the server follows within ~1 minute. Log: `/var/log/automation-update.log`. Disable with `AUTO_UPDATE=0` at install time or by deleting `/etc/cron.d/automation-update`. Data volumes are never touched by updates.
