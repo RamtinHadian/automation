@@ -68,7 +68,7 @@ fi
 echo "==> Building and starting"
 docker compose up -d --build
 
-# Auto-update: check GitHub every minuteutes and redeploy when the branch changed.
+# Auto-update: check GitHub every minute and redeploy when the branch changed.
 # Disable with AUTO_UPDATE=0.
 if [ "${AUTO_UPDATE:-1}" = 1 ] && [ -d .git ]; then
   if [ -d /etc/cron.d ] && { command -v cron >/dev/null 2>&1 || command -v crond >/dev/null 2>&1; }; then
