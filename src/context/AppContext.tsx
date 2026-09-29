@@ -594,7 +594,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
       setTransfers((prev) => prev.filter((t) => t.id !== id));
-      void deleteLocalFile(id).catch(() => {});
+      // Only the sender owns the original file; recipients merely drop their own list entry.
+      if (!target || target.sender.id === sessionUserId.current) void deleteLocalFile(id).catch(() => {});
       void deleteLocalFile(`att:${id}`).catch(() => {});
       showToast('فایل یا پیش‌نویس از لیست حذف شد.');
     },

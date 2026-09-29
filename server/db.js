@@ -29,6 +29,12 @@ CREATE TABLE IF NOT EXISTS transfers (
 );
 CREATE INDEX IF NOT EXISTS transfers_sender_idx ON transfers (sender_id);
 CREATE INDEX IF NOT EXISTS transfers_recipients_idx ON transfers USING GIN (recipient_ids);
+-- A recipient "deleting" a received item only hides it from their own list.
+CREATE TABLE IF NOT EXISTS transfer_hidden (
+  transfer_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  PRIMARY KEY (transfer_id, user_id)
+);
 CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY,
   data JSONB NOT NULL,

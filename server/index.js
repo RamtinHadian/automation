@@ -123,7 +123,10 @@ app.get(
     const transfers = admin
       ? await pool.query('SELECT data FROM transfers ORDER BY created_at DESC')
       : await pool.query(
-          'SELECT data FROM transfers WHERE sender_id = $1 OR $1 = ANY(recipient_ids) ORDER BY created_at DESC',
+          `SELECT data FROM transfers t
+           WHERE (t.sender_id = $1 OR $1 = ANY(t.recipient_ids))
+             AND NOT EXISTS (SELECT 1 FROM transfer_hidden h WHERE h.transfer_id = t.id AND h.user_id = $1)
+           ORDER BY t.created_at DESC`,
           [me.id]
         );
     const audit = admin
@@ -260,9 +263,17 @@ app.delete(
       return res.json({ ok: true });
     }
     if (collection === 'transfers') {
-      const { rows } = await pool.query('SELECT sender_id FROM transfers WHERE id = $1', [id]);
-      if (rows[0] && !(isAdmin(me) || rows[0].sender_id === me.id)) return forbidden(res);
-      await pool.query('DELETE FROM transfers WHERE id = $1', [id]);
+      const { rows } = await pool.query('SELECT sender_id, recipient_ids FROM transfers WHERE id = $1', [id]);
+      const row = rows[0];
+      if (!row) return res.json({ ok: true });
+      if (isAdmin(me) || row.sender_id === me.id) {
+        await pool.query('DELETE FROM transfers WHERE id = $1', [id]);
+        await pool.query('DELETE FROM transfer_hidden WHERE transfer_id = $1', [id]);
+        return res.json({ ok: true });
+      }
+      if (!row.recipient_ids.includes(me.id)) return forbidden(res);
+      // A recipient removing a received item only hides it from their own list.
+      await pool.query('INSERT INTO transfer_hidden (transfer_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [id, me.id]);
       return res.json({ ok: true });
     }
     return forbidden(res);
