@@ -105,6 +105,11 @@ export interface FileTransfer {
   signatureHeight?: number;
   signatureOffsetX?: number;
   signatureOffsetY?: number;
+  // Signature image and stamp can each be moved independently of the name/title block (px)
+  signatureImgOffsetX?: number;
+  signatureImgOffsetY?: number;
+  stampOffsetX?: number;
+  stampOffsetY?: number;
   headerCenterOffsetX?: number;
   headerCenterOffsetY?: number;
   subjectOffsetX?: number;

@@ -37,6 +37,8 @@ export interface LetterPrintOverrides {
   stampHeight?: number;
   stampOffsetX?: number;
   stampOffsetY?: number;
+  signatureImgOffsetX?: number;
+  signatureImgOffsetY?: number;
 }
 
 export function generateOfficialLetterHtml(
@@ -121,8 +123,10 @@ export function generateOfficialLetterHtml(
 
   const finalSigHeight = isA5 ? Math.min(signatureHeight, 140) : signatureHeight;
   const stampHeight = overrides?.stampHeight || (isA5 ? Math.min(Math.round(finalSigHeight * 0.95), 100) : Math.round(finalSigHeight * 1.05));
-  const stampOffsetX = overrides?.stampOffsetX || 0;
-  const stampOffsetY = overrides?.stampOffsetY || 0;
+  const stampOffsetX = overrides?.stampOffsetX !== undefined ? overrides.stampOffsetX : (transfer.stampOffsetX || 0);
+  const stampOffsetY = overrides?.stampOffsetY !== undefined ? overrides.stampOffsetY : (transfer.stampOffsetY || 0);
+  const sigImgOffsetX = overrides?.signatureImgOffsetX !== undefined ? overrides.signatureImgOffsetX : (transfer.signatureImgOffsetX || 0);
+  const sigImgOffsetY = overrides?.signatureImgOffsetY !== undefined ? overrides.signatureImgOffsetY : (transfer.signatureImgOffsetY || 0);
 
   const signedDateTime = toPersianDigits(transfer.signedAt || formatCurrentJalaliDateTime());
 
@@ -457,8 +461,8 @@ export function generateOfficialLetterHtml(
         <div class="ceo-title">${finalCeoTitle}</div>
         
         <div class="stamp-container">
-          ${signatureImg ? `<img src="${attr(signatureImg)}" alt="امضای مدیرعامل" class="signature-img" style="height: ${finalSigHeight}px;" />` : ''}
-          ${stampImg ? `<img src="${attr(stampImg)}" alt="مهر شرکت" class="stamp-img" style="height: ${stampHeight}px; opacity: 0.9;" />` : ''}
+          ${signatureImg ? `<img src="${attr(signatureImg)}" alt="امضای مدیرعامل" class="signature-img" style="height: ${finalSigHeight}px; transform: translate(${sigImgOffsetX}px, ${sigImgOffsetY}px);" />` : ''}
+          ${stampImg ? `<img src="${attr(stampImg)}" alt="مهر شرکت" class="stamp-img" style="height: ${stampHeight}px; opacity: 0.9; transform: translate(${stampOffsetX}px, ${stampOffsetY}px);" />` : ''}
           ${!isSigned ? `
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #d97706; color: white; padding: 5px 14px; border-radius: 10px; font-weight: 900; font-size: 11px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 1.5px solid #fef3c7;">
               ⚠️ این نامه هنوز امضا نشده است

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../../lib/letterDefaults';
+import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight, defaultSignatureHeight } from '../../lib/letterDefaults';
 import { useAttachment } from '../../lib/useAttachment';
 import {
   X,
@@ -393,6 +393,10 @@ interface LetterPreviewModalProps {
       signatureHeight?: number;
       signatureOffsetX?: number;
       signatureOffsetY?: number;
+      signatureImgOffsetX?: number;
+      signatureImgOffsetY?: number;
+      stampOffsetX?: number;
+      stampOffsetY?: number;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -475,6 +479,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   // Signature Sizing & Drag/Drop Positioning (Default 200px, Up to 360px)
   const [signatureHeight, setSignatureHeight] = useState<number>(settings?.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT);
   const [signatureOffset, setSignatureOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // The signature image and the stamp can each be dragged separately from the name/title block
+  const [sigImgOffset, setSigImgOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [stampOffset, setStampOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [headerCenterFontFamily, setHeaderCenterFontFamily] = useState<string>('');
@@ -486,7 +493,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [customSignerName, setCustomSignerName] = useState<string>('');
   const [customSignerTitle, setCustomSignerTitle] = useState<string>('');
   const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [activeDragItem, setActiveDragItem] = useState<'NONE' | 'SIGNATURE' | 'CENTER_TITLE' | 'SUBJECT' | 'META'>('NONE');
+  const [activeDragItem, setActiveDragItem] = useState<'NONE' | 'SIGNATURE' | 'SIG_IMG' | 'STAMP' | 'CENTER_TITLE' | 'SUBJECT' | 'META'>('NONE');
   const [isDraggingSig, setIsDraggingSig] = useState(false);
   const dragStartRef = useRef<{ startX: number; startY: number; initX: number; initY: number }>({
     startX: 0,
@@ -515,6 +522,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         )
       );
       setSignatureOffset({ x: letter.signatureOffsetX || 0, y: letter.signatureOffsetY || 0 });
+      setSigImgOffset({ x: letter.signatureImgOffsetX || 0, y: letter.signatureImgOffsetY || 0 });
+      setStampOffset({ x: letter.stampOffsetX || 0, y: letter.stampOffsetY || 0 });
       setHeaderCenterOffset({ x: letter.headerCenterOffsetX || 0, y: letter.headerCenterOffsetY || 0 });
       setSubjectOffset({ x: letter.subjectOffsetX || 0, y: letter.subjectOffsetY || 0 });
       setMetaOffset({ x: letter.metaOffsetX || 0, y: letter.metaOffsetY || 0 });
@@ -598,6 +607,16 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         const newX = Math.max(-250, Math.min(250, dragStartRef.current.initX + dx));
         const newY = Math.max(-120, Math.min(120, dragStartRef.current.initY + dy));
         setSignatureOffset({ x: newX, y: newY });
+      } else if (activeDragItem === 'SIG_IMG') {
+        setSigImgOffset({
+          x: Math.max(-350, Math.min(350, dragStartRef.current.initX + dx)),
+          y: Math.max(-250, Math.min(250, dragStartRef.current.initY + dy)),
+        });
+      } else if (activeDragItem === 'STAMP') {
+        setStampOffset({
+          x: Math.max(-350, Math.min(350, dragStartRef.current.initX + dx)),
+          y: Math.max(-250, Math.min(250, dragStartRef.current.initY + dy)),
+        });
       } else if (activeDragItem === 'CENTER_TITLE') {
         const newY = Math.max(-30, Math.min(80, dragStartRef.current.initY + dy));
         setHeaderCenterOffset({ x: 0, y: newY });
@@ -639,6 +658,14 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       initX: signatureOffset.x,
       initY: signatureOffset.y,
     };
+  };
+
+  const startImageDrag = (item: 'SIG_IMG' | 'STAMP', offset: { x: number; y: number }) => (e: React.MouseEvent) => {
+    if (!isEditable) return;
+    e.preventDefault();
+    e.stopPropagation(); // do not drag the whole name/title block
+    setActiveDragItem(item);
+    dragStartRef.current = { startX: e.clientX, startY: e.clientY, initX: offset.x, initY: offset.y };
   };
 
   const handleMouseDownOnCenterTitle = (e: React.MouseEvent) => {
@@ -685,6 +712,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       signatureHeight,
       signatureOffsetX: signatureOffset.x,
       signatureOffsetY: signatureOffset.y,
+      signatureImgOffsetX: sigImgOffset.x,
+      signatureImgOffsetY: sigImgOffset.y,
+      stampOffsetX: stampOffset.x,
+      stampOffsetY: stampOffset.y,
       customBody: convertNumbersInHtmlToPersian(customBody),
       customHeaderNumber: headerNumber,
       customHeaderDate: headerDate,
@@ -764,6 +795,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       signatureHeight: signatureHeight,
       signatureOffsetX: signatureOffset.x,
       signatureOffsetY: signatureOffset.y,
+      signatureImgOffsetX: sigImgOffset.x,
+      signatureImgOffsetY: sigImgOffset.y,
+      stampOffsetX: stampOffset.x,
+      stampOffsetY: stampOffset.y,
     });
   };
 
@@ -1216,7 +1251,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               type="button"
               onClick={() => {
                 setSignatureOffset({ x: 0, y: 0 });
-                setSignatureHeight(pageSize === 'A5' ? 130 : 200);
+                setSigImgOffset({ x: 0, y: 0 });
+                setStampOffset({ x: 0, y: 0 });
+                setSignatureHeight(defaultSignatureHeight(pageSize === 'A5', settings?.ceoSignatureHeight));
                 setBodyOffsetX(0);
                 setBodyPaddingX(0);
               }}
@@ -1297,7 +1334,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 type="button"
                 onClick={() => {
                   setSignatureOffset({ x: 0, y: 0 });
-                  setSignatureHeight(200);
+                  setSigImgOffset({ x: 0, y: 0 });
+                  setStampOffset({ x: 0, y: 0 });
+                  setSignatureHeight(defaultSignatureHeight(pageSize === 'A5', settings?.ceoSignatureHeight));
                 }}
                 className="text-[10px] text-emerald-800 hover:underline font-bold cursor-pointer"
               >
@@ -1888,8 +1927,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         <img
                           src={signatureImg}
                           alt="امضای مدیرعامل"
-                          style={{ height: `${pageSize === 'A5' ? Math.min(signatureHeight, 140) : signatureHeight}px` }}
-                          className={`object-contain mix-blend-multiply pointer-events-none transition-all ${
+                          draggable={false}
+                          onMouseDown={startImageDrag('SIG_IMG', sigImgOffset)}
+                          title={isEditable ? 'برای جابه‌جایی امضا به‌تنهایی بکشید' : undefined}
+                          style={{
+                            height: `${pageSize === 'A5' ? Math.min(signatureHeight, 140) : signatureHeight}px`,
+                            transform: `translate(${sigImgOffset.x}px, ${sigImgOffset.y}px)`,
+                            cursor: isEditable ? (activeDragItem === 'SIG_IMG' ? 'grabbing' : 'grab') : 'default',
+                          }}
+                          className={`object-contain mix-blend-multiply ${isEditable ? 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-amber-500' : 'pointer-events-none'} ${
                             !isSigned ? 'opacity-90 drop-shadow-xs' : ''
                           }`}
                         />
@@ -1899,8 +1945,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         <img
                           src={stampImg}
                           alt="مهر رسمی سازمان"
-                          style={{ height: `${pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05)}px` }}
-                          className={`object-contain mix-blend-multiply pointer-events-none transition-transform ${
+                          draggable={false}
+                          onMouseDown={startImageDrag('STAMP', stampOffset)}
+                          title={isEditable ? 'برای جابه‌جایی مهر به‌تنهایی بکشید' : undefined}
+                          style={{
+                            height: `${pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05)}px`,
+                            transform: `translate(${stampOffset.x}px, ${stampOffset.y}px)`,
+                            cursor: isEditable ? (activeDragItem === 'STAMP' ? 'grabbing' : 'grab') : 'default',
+                          }}
+                          className={`object-contain mix-blend-multiply ${isEditable ? 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-amber-500' : 'pointer-events-none'} ${
                             !isSigned ? 'opacity-85' : 'opacity-95'
                           }`}
                         />

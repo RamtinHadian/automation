@@ -105,6 +105,10 @@ interface AppContextType {
       signatureHeight?: number;
       signatureOffsetX?: number;
       signatureOffsetY?: number;
+      signatureImgOffsetX?: number;
+      signatureImgOffsetY?: number;
+      stampOffsetX?: number;
+      stampOffsetY?: number;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -652,6 +656,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         signatureHeight?: number;
         signatureOffsetX?: number;
         signatureOffsetY?: number;
+        signatureImgOffsetX?: number;
+        signatureImgOffsetY?: number;
+        stampOffsetX?: number;
+        stampOffsetY?: number;
         pageSize?: string;
         customBody?: string;
         customHeaderNumber?: string;
@@ -689,6 +697,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               signatureHeight: signatureOptions?.signatureHeight ?? resolveSignatureHeight(t.signatureHeight, t.pageSize === 'A5', settings.ceoSignatureHeight),
               signatureOffsetX: signatureOptions?.signatureOffsetX ?? t.signatureOffsetX ?? 0,
               signatureOffsetY: signatureOptions?.signatureOffsetY ?? t.signatureOffsetY ?? 0,
+              signatureImgOffsetX: signatureOptions?.signatureImgOffsetX ?? t.signatureImgOffsetX ?? 0,
+              signatureImgOffsetY: signatureOptions?.signatureImgOffsetY ?? t.signatureImgOffsetY ?? 0,
+              stampOffsetX: signatureOptions?.stampOffsetX ?? t.stampOffsetX ?? 0,
+              stampOffsetY: signatureOptions?.stampOffsetY ?? t.stampOffsetY ?? 0,
               pageSize: signatureOptions?.pageSize || t.pageSize,
               letterContentHtml: convertNumbersInHtmlToPersian(signatureOptions?.customBody || t.letterContentHtml || ''),
               customHeaderNumber: signatureOptions?.customHeaderNumber || t.customHeaderNumber,
