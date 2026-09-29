@@ -47,6 +47,7 @@ import { FileCategory, FileTransfer, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../lib/jalali';
 import { useAppContext } from '../context/AppContext';
+import { api } from '../lib/api';
 import { ThemeSelector } from '../components/common/ThemeSelector';
 import { LetterEditorModal } from '../components/letters/LetterEditorModal';
 import { LetterThumbnail } from '../components/letters/LetterThumbnail';
@@ -93,6 +94,7 @@ export default function UserPanel() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -404,23 +406,33 @@ export default function UserPanel() {
     setReferralComment('جهت بررسی و اقدام مقتضی');
   };
 
-  const handleChangePasswordSubmit = (e: React.FormEvent) => {
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword.trim()) {
+    if (!currentPassword) {
+      setPasswordError('لطفاً کلمه عبور فعلی را وارد نمایید.');
+      return;
+    }
+    if (!newPassword) {
       setPasswordError('لطفاً کلمه عبور جدید را وارد نمایید.');
       return;
     }
-    if (newPassword.trim().length < 4) {
-      setPasswordError('کلمه عبور باید حداقل ۴ کاراکتر باشد.');
+    if (newPassword.length < 8) {
+      setPasswordError('کلمه عبور جدید باید حداقل ۸ کاراکتر باشد.');
       return;
     }
-    if (newPassword.trim() !== confirmPassword.trim()) {
+    if (newPassword !== confirmPassword) {
       setPasswordError('تکرار کلمه عبور با کلمه عبور جدید مطابقت ندارد.');
       return;
     }
-    handleUpdateUser(currentUser.id, { password: newPassword.trim() });
+    try {
+      await api.changePassword(currentPassword, newPassword);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'تغییر کلمه عبور ناموفق بود.');
+      return;
+    }
     showToast('کلمه عبور شما با موفقیت تغییر یافت.');
     setShowPasswordModal(false);
+    setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
     setPasswordError('');
@@ -496,6 +508,7 @@ export default function UserPanel() {
                 type="button"
                 onClick={() => {
                   setPasswordError('');
+                  setCurrentPassword('');
                   setNewPassword('');
                   setConfirmPassword('');
                   setShowPasswordModal(true);
@@ -1731,6 +1744,7 @@ export default function UserPanel() {
                 onClick={() => {
                   setShowMobileMenu(false);
                   setPasswordError('');
+                  setCurrentPassword('');
                   setNewPassword('');
                   setConfirmPassword('');
                   setShowPasswordModal(true);
@@ -1810,6 +1824,23 @@ export default function UserPanel() {
 
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-[#3A241F]">
+                  کلمه عبور فعلی:
+                </label>
+                <input
+                  type="password"
+                  dir="ltr"
+                  value={currentPassword}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    setPasswordError('');
+                  }}
+                  className="w-full p-3 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl text-sm font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#3A241F]">
                   کلمه عبور جدید:
                 </label>
                 <input
@@ -1820,9 +1851,8 @@ export default function UserPanel() {
                     setNewPassword(e.target.value);
                     setPasswordError('');
                   }}
-                  placeholder="حداقل ۴ کاراکتر..."
+                  placeholder="حداقل ۸ کاراکتر..."
                   className="w-full p-3 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl text-sm font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
-                  autoFocus
                 />
               </div>
 

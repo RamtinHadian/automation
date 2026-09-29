@@ -87,6 +87,27 @@ const requireAuth = wrap(async (req, res, next) => {
   next();
 });
 
+app.post(
+  '/api/auth/change-password',
+  requireAuth,
+  wrap(async (req, res) => {
+    const ip = req.ip;
+    if (loginBlocked(ip)) {
+      return res.status(429).json({ error: 'تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره امتحان کنید.' });
+    }
+    const currentPassword = String(req.body?.currentPassword || '');
+    const newPassword = String(req.body?.newPassword || '');
+    if (newPassword.length < 8) return res.status(400).json({ error: 'کلمه عبور جدید باید حداقل ۸ کاراکتر باشد.' });
+    const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (!rows[0] || !(await bcrypt.compare(currentPassword, rows[0].password_hash))) {
+      noteFailure(ip);
+      return res.status(403).json({ error: 'کلمه عبور فعلی نادرست است.' });
+    }
+    await pool.query('UPDATE users SET password_hash = $2 WHERE id = $1', [req.user.id, await bcrypt.hash(newPassword, 10)]);
+    res.json({ ok: true });
+  })
+);
+
 // ---------- state ----------
 app.get(
   '/api/state',

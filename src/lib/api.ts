@@ -62,6 +62,8 @@ export interface ServerState {
 export const api = {
   login: (identifier: string, password: string, adminOnly = false) =>
     request<{ token: string; user: User }>('POST', '/api/auth/login', { identifier, password, adminOnly }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: true }>('POST', '/api/auth/change-password', { currentPassword, newPassword }),
   state: () => request<ServerState>('GET', '/api/state'),
   upsert: (collection: CollectionName, id: string, data: unknown) =>
     request<{ ok: true }>('PUT', `/api/${collection}/${encodeURIComponent(id)}`, { data }),
