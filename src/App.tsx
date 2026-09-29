@@ -11,7 +11,7 @@ function AppRoutes() {
 
   const handleAdminLogin = () => {
     // Navigate to admin panel directly via hash
-    window.location.hash = '#/admin';
+    window.location.href = '/admin';
   };
 
   if (!ready) return null;

@@ -24,7 +24,7 @@ cp .env.example .env      # then edit DB_PASSWORD, JWT_SECRET, ADMIN_PASSWORD
 docker compose up -d --build
 ```
 
-Open `http://<server>:8080` (change `PORT` in `.env`). Admin console: `/#/admin`.
+Open `http://<server>:8080` (change `PORT` in `.env`). Admin console: `/admin`.
 On first start the admin account `ADMIN_EMAIL` / `ADMIN_PASSWORD` is created; add other users from the admin console.
 
 Data lives in the Docker volume `pgdata` (database). Back it up, e.g.:

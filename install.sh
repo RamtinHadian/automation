@@ -84,7 +84,7 @@ IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 PORT="$(grep -E '^PORT=' .env | cut -d= -f2)"
 echo
 echo "Done. Open http://${IP:-<server-ip>}$([ "${PORT:-8080}" = 80 ] || echo ":$PORT")"
-echo "Admin console: /#/admin"
+echo "Admin console: /admin"
 if [ "$FIRST_RUN" = 1 ]; then
   echo "Admin login:   admin@company.internal / $ADMIN_PASSWORD   (saved in $INSTALL_DIR/.env)"
 fi

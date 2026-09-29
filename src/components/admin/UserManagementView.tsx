@@ -231,7 +231,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     <td className="py-3.5 px-4">
                       <div className="inline-flex items-center gap-1.5 bg-[#FAF5F1] px-2.5 py-1 rounded-lg border border-[#EBDBCE] font-mono text-[11px] font-bold text-[#3A241F]">
                         <Lock className="w-3 h-3 text-[#C98B6A]" />
-                        <span>{user.password || '123456'}</span>
+                        <span>••••••••</span>
                       </div>
                     </td>
 
@@ -355,15 +355,14 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
               <div>
                 <label className="block text-[11px] font-bold text-[#3A241F] uppercase mb-1">
-                  رمز عبور ورود به سامانه
+                  رمز عبور جدید (خالی بگذارید تا تغییر نکند)
                 </label>
                 <div className="relative">
                   <input
                     type="text"
-                    required
                     value={editingUser.password || ''}
                     onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
-                    placeholder="رمز عبور کاربر"
+                    placeholder="برای تغییر رمز، رمز جدید را بنویسید"
                     className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl font-mono text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
                   />
                   <Lock className="w-3.5 h-3.5 text-[#8C6F66] absolute left-3 top-1/2 -translate-y-1/2" />

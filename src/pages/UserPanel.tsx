@@ -488,7 +488,7 @@ export default function UserPanel() {
 
             {(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && (
               <button
-                onClick={() => { window.location.hash = '#/admin'; }}
+                onClick={() => { window.location.href = '/admin'; }}
                 className="flex items-center gap-1.5 px-3 py-2 bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-2xl text-xs font-bold shadow-xs transition-all cursor-pointer"
                 title="رفتن به کنسول مدیریت"
               >
@@ -1729,7 +1729,7 @@ export default function UserPanel() {
             {(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && (
               <button
                 type="button"
-                onClick={() => { setShowMobileMenu(false); window.location.hash = '#/admin'; }}
+                onClick={() => { setShowMobileMenu(false); window.location.href = '/admin'; }}
                 className="w-full min-h-[48px] py-3 px-4 bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-2xl text-xs font-black shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
               >
                 <span>ورود به کنسول مدیریت و ادمین</span>

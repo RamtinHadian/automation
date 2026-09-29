@@ -349,7 +349,7 @@ export default function AdminPanel() {
             {/* Back button */}
             <button
               type="button"
-              onClick={() => { window.location.hash = '#/'; }}
+              onClick={() => { window.location.href = '/'; }}
               className="w-full py-2.5 text-xs font-bold text-[#8C6F66] hover:text-[#3A241F] transition-colors flex items-center justify-center gap-1.5"
             >
               <ArrowRight className="w-3.5 h-3.5" />
