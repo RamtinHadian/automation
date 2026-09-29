@@ -159,9 +159,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     return formatLetterNumber(settings.letterNumbering || letterNumbering);
   });
   const [attachment, setAttachment] = useState('دارد (پیوست الکترونیک)');
-  const [recipientId, setRecipientId] = useState(
-    staffList.find((u) => u.canSignOfficialLetters || u.role === 'SUPER_ADMIN')?.id || staffList[0]?.id || ''
-  );
+  // Official letters can only be sent for signature to the CEO / authorised signatories.
+  const signers = staffList.filter((u) => u.canSignOfficialLetters);
+  const [recipientId, setRecipientId] = useState(signers[0]?.id || '');
   const [extraNote, setExtraNote] = useState('');
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: string; dataUrl: string } | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -1118,12 +1118,15 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 onChange={(e) => setRecipientId(e.target.value)}
                 className="px-3 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer"
               >
-                {staffList.map((u) => (
+                {signers.map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.fullName} ({u.canSignOfficialLetters ? '★ مدیرعامل / صاحب امضا' : u.role === 'SUPER_ADMIN' ? 'مدیر ارشد' : u.departmentName})
+                    {u.fullName} (★ مدیرعامل / صاحب امضا)
                   </option>
                 ))}
               </select>
+              {signers.length === 0 && (
+                <span className="text-[11px] font-bold text-rose-600">صاحب امضایی تعریف نشده است.</span>
+              )}
             </div>
 
             <input
@@ -1145,7 +1148,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             </button>
             <button
               type="submit"
-              className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+              disabled={!signers.some((u) => u.id === recipientId)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
             >
               <Stamp className="w-4 h-4" />
               <span>ثبت و ارسال نامه رسمی جهت امضای مدیر</span>
