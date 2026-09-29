@@ -1233,6 +1233,7 @@ export default function UserPanel() {
                           <div className="flex items-center gap-2">
                             {t.signatureStatus === 'SIGNED' ? (
                               t.isArchived ? (
+                                <>
                                 <button
                                   type="button"
                                   onClick={() => handleUnarchiveTransfer(t.id)}
@@ -1242,6 +1243,17 @@ export default function UserPanel() {
                                   <ArchiveRestore className="w-3.5 h-3.5 text-[#C98B6A]" />
                                   <span>خروج از بایگانی</span>
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm('این نامه برای همیشه حذف شود؟ این کار قابل بازگشت نیست.')) handleDeleteTransfer(t.id);
+                                  }}
+                                  className="p-2 text-[#8C6F66] hover:text-[#D34A32] hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                                  title="حذف نامه از بایگانی"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                </>
                               ) : (
                                 <button
                                   type="button"
