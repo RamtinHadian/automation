@@ -249,6 +249,13 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		httpx.Forbidden(w)
 		return
 	}
+	// A signed letter is final: its text and number can no longer change.
+	if exists && jsonx.Str(before, "signatureStatus") == "SIGNED" && jsonx.Bool(before, "isOfficialLetter") &&
+		(jsonx.Str(data, "letterContentHtml") != jsonx.Str(before, "letterContentHtml") || jsonx.Str(data, "letterNumber") != jsonx.Str(before, "letterNumber")) {
+		httpx.Error(w, http.StatusForbidden, "نامهٔ امضاشده قابل ویرایش نیست.")
+		return
+	}
+
 	senderID := sender
 	if !exists {
 		senderID = dataSender
@@ -294,6 +301,10 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 	}
 
 	by := " — توسط " + me.Name()
+	if isLetter && me.ID() == sender && jsonx.Str(data, "signatureStatus") != "SIGNED" &&
+		(jsonx.Str(data, "letterContentHtml") != jsonx.Str(before, "letterContentHtml") || jsonx.Str(data, "fileName") != jsonx.Str(before, "fileName")) {
+		notify.Notify(ctx, recipients, notify.Note{Kind: "letter", Label: "ویرایش نامه", Title: "نامه ویرایش شد", Body: name + by, Ref: rf, Repeat: true}, me.ID())
+	}
 	if jsonx.Str(data, "signatureStatus") != jsonx.Str(before, "signatureStatus") {
 		switch jsonx.Str(data, "signatureStatus") {
 		case "SIGNED":
@@ -323,15 +334,13 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 	httpx.OK(w)
 }
 
-// A file or letter that was sent can never be deleted by its sender or recipients. The one exception is an admin
-// removing a single item from the admin panel's transfer monitoring. Signed official letters stay protected even then.
+// A file or letter that was sent can never be deleted by its recipients, and a sent file not even by its sender.
+// Allowed: (1) the author of an official letter deletes it while it is not signed yet; (2) an admin removes a single
+// item from the admin panel's transfer monitoring. A signed official letter stays protected in every case.
 func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string) {
-	if !me.IsAdmin() {
-		httpx.Forbidden(w)
-		return
-	}
+	var sender string
 	var raw []byte
-	err := store.Pool.QueryRow(r.Context(), `SELECT data FROM transfers WHERE id = $1`, id).Scan(&raw)
+	err := store.Pool.QueryRow(r.Context(), `SELECT COALESCE(sender_id, ''), data FROM transfers WHERE id = $1`, id).Scan(&sender, &raw)
 	if err == pgx.ErrNoRows {
 		httpx.OK(w)
 		return
@@ -341,8 +350,14 @@ func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id str
 		return
 	}
 	doc := jsonx.Decode(raw)
-	if jsonx.Bool(doc, "isOfficialLetter") && jsonx.Str(doc, "signatureStatus") == "SIGNED" {
+	isLetter := jsonx.Bool(doc, "isOfficialLetter")
+	if isLetter && jsonx.Str(doc, "signatureStatus") == "SIGNED" {
 		httpx.Error(w, http.StatusForbidden, "نامهٔ رسمی امضاشده قابل حذف نیست.")
+		return
+	}
+	authorOfUnsignedLetter := isLetter && sender == me.ID()
+	if !me.IsAdmin() && !authorOfUnsignedLetter {
+		httpx.Forbidden(w)
 		return
 	}
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM transfers WHERE id = $1`, id)

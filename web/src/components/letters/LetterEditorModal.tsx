@@ -33,12 +33,14 @@ import {
   Award,
   Type
 } from 'lucide-react';
-import { User, LetterNumberingSettings } from '../../types';
+import { FileTransfer, User, LetterNumberingSettings } from '../../types';
 import { formatCurrentJalaliDateTime, toPersianDigits, convertNumbersInHtmlToPersian } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 import { formatLetterNumber } from '../../lib/letterNumbering';
 
 interface LetterEditorModalProps {
+  /** Edit mode: the author's own unsigned letter to change. */
+  editTransfer?: FileTransfer | null;
   isOpen: boolean;
   onClose: () => void;
   staffList: User[];
@@ -136,7 +138,52 @@ const TEMPLATES: LetterTemplate[] = [
   },
 ];
 
+/**
+ * Reads a stored letter back into editor values: the body (without the wrapper the editor adds when sending),
+ * its font/size/margins, the subject and the layout positions that were saved with the letter.
+ */
+function parseLetterForEdit(t: FileTransfer) {
+  const layout: Record<string, unknown> = {};
+  let bodyHtml = t.letterContentHtml || '';
+  try {
+    const doc = new DOMParser().parseFromString(`<div id="r">${bodyHtml}</div>`, 'text/html');
+    const root = doc.getElementById('r');
+    const wrap = root && root.children.length === 1 ? (root.children[0] as HTMLElement) : null;
+    if (wrap && wrap.tagName === 'DIV' && /line-height/.test(wrap.getAttribute('style') || '')) {
+      const first = (wrap.style.fontFamily || '').split(',')[0].replace(/["']/g, '').trim();
+      if (first) layout.selectedFontFamily = first;
+      if (wrap.style.fontSize) layout.selectedFontSize = wrap.style.fontSize;
+      const pad = parseInt(wrap.style.paddingLeft || '', 10);
+      if (!isNaN(pad)) layout.bodyPaddingX = pad;
+      const tx = /translateX\((-?[0-9.]+)px\)/.exec(wrap.style.transform || '');
+      if (tx) layout.bodyOffsetX = parseFloat(tx[1]);
+      bodyHtml = wrap.innerHTML;
+    }
+  } catch {
+    /* keep the stored html as it is */
+  }
+  const pt = (x?: number, y?: number) => ({ x: x || 0, y: y || 0 });
+  if (t.pageSize) layout.pageSize = t.pageSize;
+  if (t.customHeaderCenterTitle !== undefined) layout.headerCenterTitle = t.customHeaderCenterTitle;
+  layout.headerCenterOffset = pt(t.headerCenterOffsetX, t.headerCenterOffsetY);
+  layout.subjectOffset = pt(t.subjectOffsetX, t.subjectOffsetY);
+  layout.metaOffset = pt(t.metaOffsetX, t.metaOffsetY);
+  if (t.headerCenterFontFamily) layout.headerCenterFontFamily = t.headerCenterFontFamily;
+  if (t.subjectFontFamily) layout.subjectFontFamily = t.subjectFontFamily;
+  if (t.metaFontFamily) layout.metaFontFamily = t.metaFontFamily;
+  if (t.signerFontFamily) layout.signerFontFamily = t.signerFontFamily;
+  if (t.signerFontSize) layout.signerFontSize = t.signerFontSize;
+  layout.signatureOffset = pt(t.signatureOffsetX, t.signatureOffsetY);
+  if (t.signatureHeight) layout.signatureHeight = t.signatureHeight;
+  layout.sigImgOffset = pt(t.signatureImgOffsetX, t.signatureImgOffsetY);
+  if (t.stampHeight) layout.stampHeightOverride = t.stampHeight;
+  layout.stampOffset = pt(t.stampOffsetX, t.stampOffsetY);
+  const subject = (t.fileName || '').replace(/^نامه_/, '').replace(/_(A4|A5|Letter|Letterhead)\.html$/, '').replace(/_/g, ' ');
+  return { bodyHtml, layout, subject, signerName: t.customSignerName, signerTitle: t.customSignerTitle };
+}
+
 export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
+  editTransfer,
   isOpen,
   onClose,
   staffList,
@@ -149,11 +196,15 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const orgTpl = settings.letterTemplate;
   const defaultFont = fonts.find((f) => f.id === settings.defaultLetterFontId) || fonts[0] || { fontFamily: 'Vazirmatn', name: 'وزیرمتن' };
   // The user's saved letter settings (restored every time the editor opens).
+  // Edit mode: rebuild the editor state from the stored letter.
+  const [editInit] = useState(() => (editTransfer ? parseLetterForEdit(editTransfer) : null));
+  const isEditing = !!editTransfer;
   // Priority: the organisation template when it is locked (or when the person has no settings of their own yet), else the person's own settings.
   const personalPrefs = (currentUser.letterPrefs || {}) as Record<string, any>;
   const hasPersonal = Object.keys(personalPrefs).length > 0;
-  const prefs = (orgTpl?.layout && (orgTpl.locked || !hasPersonal) ? orgTpl.layout : personalPrefs) as Record<string, any>;
-  const [initialBody] = useState<string>(() => orgTpl?.bodyHtml || TEMPLATES[0].content);
+  const basePrefs = (orgTpl?.layout && (orgTpl.locked || !hasPersonal) ? orgTpl.layout : personalPrefs) as Record<string, any>;
+  const prefs = (editInit ? { ...basePrefs, ...editInit.layout } : basePrefs) as Record<string, any>;
+  const [initialBody] = useState<string>(() => editInit?.bodyHtml || orgTpl?.bodyHtml || TEMPLATES[0].content);
   const fontPref = (v: unknown) => (typeof v === 'string' && fonts.some((f) => f.fontFamily === v) ? v : defaultFont.fontFamily);
   const numPref = (v: unknown, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
   const ptPref = (v: any) => ({ x: numPref(v?.x, 0), y: numPref(v?.y, 0) });
@@ -163,8 +214,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [metaFontFamily, setMetaFontFamily] = useState<string>(() => fontPref(prefs.metaFontFamily));
   const [signerFontFamily, setSignerFontFamily] = useState<string>(() => fontPref(prefs.signerFontFamily));
   const [signerFontSize, setSignerFontSize] = useState<number>(() => numPref(prefs.signerFontSize, 18));
-  const [signerName, setSignerName] = useState<string>(() => settings.ceoName || 'مدیریت سازمان');
-  const [signerTitle, setSignerTitle] = useState<string>(() => settings.ceoTitle || 'مدیرعامل');
+  const [signerName, setSignerName] = useState<string>(() => editInit?.signerName || settings.ceoName || 'مدیریت سازمان');
+  const [signerTitle, setSignerTitle] = useState<string>(() => editInit?.signerTitle || settings.ceoTitle || 'مدیرعامل');
   const [selectedFontSize, setSelectedFontSize] = useState<string>(() => (typeof prefs.selectedFontSize === 'string' ? prefs.selectedFontSize : '13px'));
   const [headerCenterTitle, setHeaderCenterTitle] = useState<string>(() => (typeof prefs.headerCenterTitle === 'string' ? prefs.headerCenterTitle : '« به نام خدا »'));
   const [bodyPaddingX, setBodyPaddingX] = useState<number>(() => numPref(prefs.bodyPaddingX, 32));
@@ -181,15 +232,16 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
   }, []);
-  const [subject, setSubject] = useState('درخواست بررسی و تایید رسمی');
+  const [subject, setSubject] = useState(() => editInit?.subject || 'درخواست بررسی و تایید رسمی');
   const [customDate, setCustomDate] = useState(() => formatCurrentJalaliDateTime().split(' - ')[0]);
   const [letterNumber, setLetterNumber] = useState(() => {
+    if (editTransfer?.letterNumber) return editTransfer.letterNumber;
     return formatLetterNumber(settings.letterNumbering || letterNumbering);
   });
   const [attachment, setAttachment] = useState('دارد (پیوست الکترونیک)');
   // Official letters can only be sent for signature to the CEO / authorised signatories.
   const signers = staffList.filter((u) => u.canSignOfficialLetters);
-  const [recipientId, setRecipientId] = useState(signers[0]?.id || '');
+  const [recipientId, setRecipientId] = useState(editTransfer?.recipients[0]?.id || signers[0]?.id || '');
   const [extraNote, setExtraNote] = useState('');
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: string; dataUrl: string } | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -222,7 +274,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       savedPrefs.current = json;
       return;
     }
-    if (orgTpl?.locked || json === savedPrefs.current) return;
+    if (isEditing || orgTpl?.locked || json === savedPrefs.current) return;
     const t = setTimeout(() => {
       savedPrefs.current = json;
       setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: next } : u)));
@@ -481,7 +533,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="font-black text-xs sm:text-sm text-white truncate">ویرایشگر و نگارش نامه‌های رسمی اداری</h2>
+                <h2 className="font-black text-xs sm:text-sm text-white truncate">{isEditing ? 'ویرایش نامه (قبل از امضا)' : 'ویرایشگر و نگارش نامه‌های رسمی اداری'}</h2>
               </div>
               <p className="text-[10px] sm:text-[11px] text-[#EBDBCE] truncate">
                 تایپ متن نامه، تنظیم فونت و سایز نام مدیر، و ارسال به کارتابل مدیرعامل
@@ -1282,8 +1334,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black sm:font-bold rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
             >
               <Stamp className="w-4 h-4" />
-              <span className="sm:hidden">ثبت و ارسال جهت امضا</span>
-              <span className="hidden sm:inline">ثبت و ارسال نامه رسمی جهت امضای مدیر</span>
+              <span className="sm:hidden">{isEditing ? 'ذخیرهٔ ویرایش' : 'ثبت و ارسال جهت امضا'}</span>
+              <span className="hidden sm:inline">{isEditing ? 'ذخیرهٔ ویرایش نامه (قبل از امضا)' : 'ثبت و ارسال نامه رسمی جهت امضای مدیر'}</span>
             </button>
           </div>
         </form>

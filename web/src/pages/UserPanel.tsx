@@ -90,6 +90,7 @@ export default function UserPanel() {
     handleSendTransfer,
     handleDownload,
     handleDeleteTransfer,
+    handleDeleteOwnLetter,
     handleArchiveTransfer,
     handleUnarchiveTransfer,
     handleSignLetter,
@@ -109,6 +110,8 @@ export default function UserPanel() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isLetterEditorOpen, setIsLetterEditorOpen] = useState(false);
+  // Letter being edited by its author (only while it is not signed yet)
+  const [editingLetter, setEditingLetter] = useState<FileTransfer | null>(null);
   const [previewingLetter, setPreviewingLetter] = useState<FileTransfer | null>(null);
 
   const [activeBoxTab, setActiveBoxTab] = useState<'received' | 'sent'>('received');
@@ -405,6 +408,7 @@ export default function UserPanel() {
     const letterFile = new File([blob], fileName, { type: 'text/html' });
 
     handleSendTransfer({
+      replaceId: editingLetter?.id,
       rawFile: letterFile,
       recipientId: letterData.recipientId,
       note: letterData.contentHtml,
@@ -1306,6 +1310,29 @@ export default function UserPanel() {
                           </div>
 
                           <div className="flex items-center gap-2">
+                            {t.sender.id === currentUser.id && t.signatureStatus !== 'SIGNED' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingLetter(t)}
+                                  className="flex items-center gap-1 px-3 py-2 bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                                  title="ویرایش نامه تا قبل از امضا"
+                                >
+                                  <PenTool className="w-3.5 h-3.5" />
+                                  <span>ویرایش</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm(`نامهٔ «${t.fileName}» حذف شود؟ این کار قابل بازگشت نیست.`)) handleDeleteOwnLetter(t.id);
+                                  }}
+                                  className="p-2 text-[#8C6F66] hover:text-[#D34A32] hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                                  title="حذف نامه تا قبل از امضا"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                             {t.signatureStatus === 'SIGNED' ? (
                               t.isArchived ? (
                                 <button
@@ -1439,10 +1466,14 @@ export default function UserPanel() {
       />
 
       {/* Rich Word-Like Letter Editor Modal */}
-      {isLetterEditorOpen && (
+      {(isLetterEditorOpen || editingLetter) && (
         <LetterEditorModal
-          isOpen={isLetterEditorOpen}
-          onClose={() => setIsLetterEditorOpen(false)}
+          isOpen
+          editTransfer={editingLetter}
+          onClose={() => {
+            setIsLetterEditorOpen(false);
+            setEditingLetter(null);
+          }}
           staffList={staffList}
           currentUser={currentUser}
           letterNumbering={settings.letterNumbering}

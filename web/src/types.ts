@@ -239,6 +239,8 @@ export interface FileTransfer {
   referrals?: LetterReferral[];
   isArchived?: boolean;
   archivedAt?: string;
+  /** Set when the author edited the letter before it was signed. */
+  editedAt?: string;
   signatureHeight?: number;
   signatureOffsetX?: number;
   signatureOffsetY?: number;

@@ -86,6 +86,8 @@ interface AppContextType {
 
   // Actions
   handleSendTransfer: (params: {
+    /** Edit mode: replaces this existing (unsigned) letter instead of creating a new one. */
+    replaceId?: string;
     rawFile: globalThis.File;
     recipientId: string;
     note: string;
@@ -163,6 +165,8 @@ interface AppContextType {
   handleReferLetter: (transferId: string, toUserId: string, referralComment: string) => void;
   handleDownload: (t: FileTransfer) => Promise<void>;
   handleDeleteTransfer: (id: string) => void;
+  /** The author deletes their own letter while it is not signed yet. */
+  handleDeleteOwnLetter: (id: string) => void;
   /** Admin panel only: permanently removes one transferred file (signed official letters are refused). */
   handleAdminDeleteTransfer: (id: string) => void;
   handleArchiveTransfer: (transferId: string) => void;
@@ -591,6 +595,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const handleSendTransfer = useCallback(
     ({
+      replaceId,
       rawFile,
       recipientId,
       note,
@@ -629,6 +634,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       onProgress,
       onDone,
     }: {
+      replaceId?: string;
       rawFile: globalThis.File;
       recipientId: string;
       note: string;
@@ -673,7 +679,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
       const recipient = staffList.find((u) => u.id === recipientId) || staffList[1];
-      const transferId = 'tr-' + Math.random().toString(36).substring(2, 9);
+      const transferId = replaceId || 'tr-' + Math.random().toString(36).substring(2, 9);
 
       // The file itself stays on the sender's computer; only the letter/transfer record goes to the database.
       const storeLocally = async () => {
@@ -754,6 +760,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             details: `ارسال فایل "${newTransfer.fileName}" (${newTransfer.fileSize}) برای ${recipient.fullName}.`,
           };
 
+          if (replaceId) {
+            // Editing an unsigned letter: keep its identity, number, sender and history; the letter goes (back) to the signer.
+            setTransfers((prev) =>
+              prev.map((t) =>
+                t.id === replaceId
+                  ? {
+                      ...newTransfer,
+                      id: replaceId,
+                      fileId: replaceId,
+                      sender: t.sender,
+                      sentAt: t.sentAt,
+                      status: t.status,
+                      downloadsCount: t.downloadsCount,
+                      letterNumber: t.letterNumber || newTransfer.letterNumber,
+                      signatureStatus: 'PENDING_SIGNATURE',
+                      attachmentFileName: newTransfer.attachmentFileName ?? t.attachmentFileName,
+                      attachmentFileSize: newTransfer.attachmentFileSize ?? t.attachmentFileSize,
+                      editedAt: formatCurrentJalaliDateTime(),
+                    }
+                  : t
+              )
+            );
+            setAuditLogs((prev) => [{ ...newLog, details: `ویرایش نامه "${newTransfer.fileName}" قبل از امضا.` }, ...prev]);
+            showToast('نامه ویرایش شد.');
+            onDone();
+            return;
+          }
           setTransfers((prev) => [newTransfer, ...prev]);
           setAuditLogs((prev) => [newLog, ...prev]);
           showToast(`فایل "${newTransfer.fileName}" با موفقیت برای ${recipient.fullName} ارسال شد.`);
@@ -844,6 +877,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('فایل یا نامهٔ ارسال‌شده قابل حذف نیست.');
     },
     [showToast]
+  );
+
+  const handleDeleteOwnLetter = useCallback(
+    (id: string) => {
+      const target = transfers.find((t) => t.id === id);
+      if (!target || !target.isOfficialLetter || target.sender.id !== currentUser.id) return;
+      if (target.signatureStatus === 'SIGNED') {
+        showToast('نامهٔ امضاشده قابل حذف نیست.');
+        return;
+      }
+      const log: AuditLog = {
+        id: 'log-' + Math.random().toString(36).substring(2, 9),
+        timestamp: formatJalaliFullTimestamp(),
+        userName: currentUser.fullName,
+        userEmail: currentUser.email,
+        action: 'FILE_TRANSFER',
+        severity: 'WARNING',
+        ipAddress: '',
+        details: `حذف نامهٔ امضانشدهٔ "${target.fileName}" توسط تهیه‌کننده.`,
+      };
+      setTransfers((prev) => prev.filter((t) => t.id !== id));
+      setAuditLogs((prev) => [log, ...prev]);
+      void deleteLocalFile(id).catch(() => {});
+      void deleteLocalFile(`att:${id}`).catch(() => {});
+      showToast('نامه حذف شد.');
+    },
+    [transfers, currentUser, showToast]
   );
 
   const handleAdminDeleteTransfer = useCallback(
@@ -1385,6 +1445,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         handleSendTransfer,
         handleDownload,
         handleDeleteTransfer,
+        handleDeleteOwnLetter,
         handleAdminDeleteTransfer,
         handleArchiveTransfer,
         handleUnarchiveTransfer,
