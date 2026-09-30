@@ -7,6 +7,8 @@ export interface AppNotification {
   id: string;
   userId: string;
   kind: NotificationKind;
+  /** Short status shown as a badge, e.g. «فایل جدید», «جهت امضا», «در حال انجام». */
+  label?: string;
   title: string;
   body: string;
   ref: { type: 'file' | 'letter' | 'task'; id: string } | null;
@@ -46,21 +48,28 @@ const getCtx = () => {
   return ctx;
 };
 
-/** Browsers only allow sound after a user gesture; the first click/keypress unlocks it for the whole session. */
+/**
+ * Browsers only allow sound after a user gesture; the first tap/click/keypress unlocks it for the whole session.
+ * Phones do not count `pointerdown` as a gesture, so touchend / click / pointerup are listened to as well, and the
+ * audio is resumed again whenever the window comes back to the front.
+ */
+const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'] as const;
+
 export function installAudioUnlock() {
   const unlock = () => {
     const c = getCtx();
-    if (c && c.state === 'suspended') void c.resume().catch(() => {});
-    if (c && c.state === 'running') {
-      window.removeEventListener('pointerdown', unlock, true);
-      window.removeEventListener('keydown', unlock, true);
-    }
+    if (c && c.state !== 'running') void c.resume().catch(() => {});
   };
-  window.addEventListener('pointerdown', unlock, true);
-  window.addEventListener('keydown', unlock, true);
+  const onVisible = () => {
+    if (!document.hidden && ctx && ctx.state !== 'running') void ctx.resume().catch(() => {});
+  };
+  UNLOCK_EVENTS.forEach((e) => window.addEventListener(e, unlock, true));
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', onVisible);
   return () => {
-    window.removeEventListener('pointerdown', unlock, true);
-    window.removeEventListener('keydown', unlock, true);
+    UNLOCK_EVENTS.forEach((e) => window.removeEventListener(e, unlock, true));
+    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('focus', onVisible);
   };
 }
 
@@ -73,12 +82,13 @@ const NOTES: Record<NotificationKind, number[]> = {
   alert: [987.77, 739.99, 987.77], // B5 F#5 B5 – attention
 };
 
-export function playChime(kind: NotificationKind = 'file') {
-  if (!isSoundEnabled()) return;
+/** Returns false when the sound could not be played (muted, or the browser has not unlocked audio yet). */
+export function playChime(kind: NotificationKind = 'file'): boolean {
+  if (!isSoundEnabled()) return false;
   const c = getCtx();
-  if (!c) return;
-  if (c.state === 'suspended') void c.resume().catch(() => {});
-  if (c.state !== 'running') return;
+  if (!c) return false;
+  if (c.state !== 'running') void c.resume().catch(() => {});
+  if (c.state !== 'running') return false;
 
   const t0 = c.currentTime + 0.02;
   const master = c.createGain();
@@ -123,6 +133,7 @@ export function playChime(kind: NotificationKind = 'file') {
     });
   });
   setTimeout(() => master.disconnect(), 4000);
+  return true;
 }
 
 // ---------- system (OS level) notifications ----------

@@ -5,6 +5,7 @@ import { useAppContext } from './context/AppContext';
 import UserPanel from './pages/UserPanel';
 import AdminPanel from './pages/AdminPanel';
 import { LoginPage } from './pages/LoginPage';
+import { NotificationPopups } from './components/common/NotificationPopups';
 
 function AppRoutes() {
   const { loggedInUser, staffList, ready, loginWithCredentials } = useAppContext();
@@ -17,6 +18,8 @@ function AppRoutes() {
   if (!ready) return null;
 
   return (
+    <>
+    {loggedInUser && <NotificationPopups />}
     <Routes>
       <Route
         path="/"
@@ -38,6 +41,7 @@ function AppRoutes() {
       <Route path="/admin" element={<AdminPanel />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
 

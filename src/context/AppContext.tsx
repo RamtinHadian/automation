@@ -181,6 +181,10 @@ interface AppContextType {
   setSoundEnabled: (on: boolean) => void;
   /** Set by the panel: where to go when a notification is opened. */
   setNotificationHandler: (fn: ((n: AppNotification) => void) | null) => void;
+  /** Pop-up cards shown from the corner of the screen for new notifications. */
+  popups: AppNotification[];
+  dismissPopup: (id: string) => void;
+  openNotification: (n: AppNotification) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -346,6 +350,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ---------- notifications: live stream + stored history ----------
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [soundEnabled, setSoundEnabledState] = useState<boolean>(() => isSoundEnabled());
+  const [popups, setPopups] = useState<AppNotification[]>([]);
+  const dismissPopup = useCallback((id: string) => setPopups((prev) => prev.filter((p) => p.id !== id)), []);
   const notificationHandler = useRef<((n: AppNotification) => void) | null>(null);
   const setNotificationHandler = useCallback((fn: ((n: AppNotification) => void) | null) => {
     notificationHandler.current = fn;
@@ -405,7 +411,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const fresh = list.filter((n) => !n.read && n.createdAt > seen);
           if (fresh.length) {
             playChime(fresh[0].kind);
-            showToast(fresh.length === 1 ? fresh[0].title : `${fresh.length} اعلان جدید دارید`);
+            setPopups((prev) => [...fresh.slice(0, 3), ...prev].slice(0, 4));
           }
           if (list[0]) setSeen(list[0].createdAt);
         })
@@ -417,7 +423,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setNotifications((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 100)));
         setSeen(n.createdAt);
         playChime(n.kind);
-        showToast(n.title);
+        setPopups((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 4)));
         flashTitle(n.title);
         showOsNotification(n, () => notificationHandler.current?.(n));
         // Bring the new file / letter / task into the lists right away.
@@ -448,6 +454,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSoundEnabledState(on);
     if (on) playChime('file');
   }, []);
+
+  const openNotification = useCallback(
+    (n: AppNotification) => {
+      markNotificationsRead([n.id]);
+      dismissPopup(n.id);
+      notificationHandler.current?.(n);
+    },
+    [markNotificationsRead, dismissPopup]
+  );
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
@@ -1290,6 +1305,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         soundEnabled,
         setSoundEnabled,
         setNotificationHandler,
+        popups,
+        dismissPopup,
+        openNotification,
       }}
     >
       {children}
