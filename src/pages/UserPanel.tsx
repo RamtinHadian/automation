@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TasksView } from '../components/tasks/TasksView';
+import { LoginDashboard } from '../components/dashboard/LoginDashboard';
 import { NotificationBell } from '../components/common/NotificationBell';
 import type { AppNotification } from '../lib/notifications';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../lib/letterDefaults';
@@ -1408,6 +1409,12 @@ export default function UserPanel() {
           }}
         />
       )}
+
+      <LoginDashboard
+        canUseTasks={canAccessTasksMenu}
+        onOpenFiles={(box) => { setMainMenuTab('files'); setActiveBoxTab(box); }}
+        onOpenTasks={() => setMainMenuTab('tasks')}
+      />
 
       {/* Rich Word-Like Letter Editor Modal */}
       {isLetterEditorOpen && (
