@@ -967,13 +967,15 @@ export default function UserPanel() {
                                 <Download className="w-3.5 h-3.5" />
                                 <span>دانلود</span>
                               </button>
-                              <button
-                                onClick={() => handleDeleteTransfer(t.id)}
-                                className="p-2 text-[#8C6F66] hover:text-[#D34A32] hover:bg-[#F6D9CD]/30 rounded-xl transition-colors cursor-pointer"
-                                title="حذف از تاریخچه"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {t.recipients.some((r) => r.id === currentUser.id) && (
+                                <button
+                                  onClick={() => handleDeleteTransfer(t.id)}
+                                  className="p-2 text-[#8C6F66] hover:text-[#D34A32] hover:bg-[#F6D9CD]/30 rounded-xl transition-colors cursor-pointer"
+                                  title="برداشتن از فهرست من"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1308,12 +1310,12 @@ export default function UserPanel() {
                                 </button>
                               )
                             ) : (
-                              (t.sender.id === currentUser.id || canSignOfficial) && (
+                              t.recipients.some((r) => r.id === currentUser.id) && (
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteTransfer(t.id)}
                                   className="p-2 text-[#8C6F66] hover:text-[#D34A32] hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                                  title="حذف پیش‌نویس"
+                                  title="برداشتن از فهرست من"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>

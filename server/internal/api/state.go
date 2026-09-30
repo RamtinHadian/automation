@@ -48,7 +48,11 @@ func state(w http.ResponseWriter, r *http.Request) {
 
 	var transfers, auditLogs, tasks, reports = empty(), empty(), empty(), empty()
 	if admin {
-		transfers, err = store.RawList(ctx, `SELECT data FROM transfers ORDER BY created_at DESC`)
+		// Admins see everything, except what they themselves removed from their own list.
+		transfers, err = store.RawList(ctx,
+			`SELECT data FROM transfers t
+			 WHERE NOT EXISTS (SELECT 1 FROM transfer_hidden h WHERE h.transfer_id = t.id AND h.user_id = $1)
+			 ORDER BY t.created_at DESC`, id)
 	} else {
 		transfers, err = store.RawList(ctx,
 			`SELECT data FROM transfers t
