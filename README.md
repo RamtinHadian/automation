@@ -49,7 +49,7 @@ npm install && npm run dev                                                      
 
 ## HTTPS (needed for phone notifications while the app is closed)
 
-Browsers only allow push notifications and installing the app on HTTPS. The easiest way without opening ports is a Cloudflare Tunnel:
+Browsers only allow push notifications and installing the app on HTTPS. The easiest way without opening ports is a Cloudflare Tunnel (`cloudflared` is downloaded from GitHub and runs as a system service):
 
 ```bash
 cd /opt/automation
@@ -58,4 +58,4 @@ sudo ./tunnel.sh <TOKEN>    # your own domain: named-tunnel token from Cloudflar
 sudo ./tunnel.sh off        # stop
 ```
 
-The temporary address changes on restart and Cloudflare does not stream live events through it (in-app live notifications and direct file transfer do not work there; phone push does). Use a named tunnel with your own domain for real use: in Cloudflare Zero Trust create a tunnel, copy its token, and point the public hostname to `http://app:8080`.
+The temporary address changes on restart and Cloudflare does not stream live events through it (in-app live notifications and direct file transfer do not work there; phone push does). Use a named tunnel with your own domain for real use: in Cloudflare Zero Trust create a tunnel, copy its token, and point the public hostname to `http://localhost:8080`.

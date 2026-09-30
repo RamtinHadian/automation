@@ -30,25 +30,5 @@ services:
     ports:
       - "${PORT:-8080}:8080"
 
-  # HTTPS through a Cloudflare Tunnel (no open ports needed). Enabled by ./tunnel.sh, which sets COMPOSE_PROFILES.
-  # "quick": free temporary https://xxxx.trycloudflare.com address (changes on restart; no live streaming support).
-  tunnel-quick:
-    image: cloudflare/cloudflared:latest
-    profiles: ["quick"]
-    restart: unless-stopped
-    command: tunnel --no-autoupdate --url http://app:8080
-    depends_on:
-      - app
-  # "tunnel": your own domain through a named tunnel (token from the Cloudflare Zero Trust dashboard).
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    profiles: ["tunnel"]
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:-}
-    depends_on:
-      - app
-
 volumes:
   pgdata:
