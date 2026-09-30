@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "pack": "electron-packager . AutomationDesktop --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.ico --asar"
+    "pack": "electron-packager . AutomationDesktop --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.ico --asar --ignore=^/dist --ignore=\\.zip$ --ignore=\\.log$"
   },
   "devDependencies": {
     "@electron/packager": "^18.3.6",
