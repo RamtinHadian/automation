@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, BellRing, CheckCheck, ClipboardList, FileText, Send, Stamp, Trash2, Volume2, VolumeX, AlertTriangle } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { AppNotification, isAudioReady, osPermission, playChime, requestOsPermission } from '../../lib/notifications';
@@ -34,6 +35,32 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
   const [perm, setPerm] = useState(osPermission());
   const [audioReady, setAudioReady] = useState(isAudioReady());
   const box = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
+
+  // The sheet is rendered in <body> and placed from the bell's real position, so no parent (rounded card,
+  // overflow, transform...) can clip it or push it outside the screen, on any phone width.
+  const place = () => {
+    const btn = box.current?.getBoundingClientRect();
+    if (!btn) return;
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const margin = 12;
+    const width = Math.min(380, vw - margin * 2);
+    const left = Math.max(margin, Math.min(btn.left + btn.width / 2 - width / 2, vw - width - margin));
+    const top = Math.min(btn.bottom + 8, vh - 200);
+    setPos({ top, left, width, maxH: vh - top - margin });
+  };
+  useLayoutEffect(() => {
+    if (!open) return;
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
 
   // Clicking a system notification opens the same target as clicking it in the list.
   useEffect(() => {
@@ -45,7 +72,8 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
     if (!open) return;
     setAudioReady(isAudioReady());
     const close = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (box.current && !box.current.contains(t) && !panel.current?.contains(t)) setOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -73,8 +101,13 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
         )}
       </button>
 
-      {open && (
-        <div className="fixed inset-x-3 top-[72px] sm:absolute sm:inset-x-auto sm:left-0 sm:top-11 z-[110] sm:w-[360px] bg-white rounded-3xl border border-[#EBDBCE] shadow-2xl text-right overflow-hidden">
+      {open && pos && createPortal(
+        <div
+          ref={panel}
+          dir="rtl"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxH }}
+          className="z-[110] bg-white rounded-3xl border border-[#EBDBCE] shadow-2xl text-right overflow-hidden flex flex-col"
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#EBDBCE] bg-[#FAF5F1]">
             <span className="font-black text-xs text-[#3A241F]">
               اعلان‌ها {unreadCount > 0 && <span className="text-rose-600">({toPersianDigits(unreadCount)} خوانده‌نشده)</span>}
@@ -130,7 +163,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
             </div>
           )}
 
-          <div className="max-h-[62vh] sm:max-h-[60vh] overflow-y-auto divide-y divide-[#EBDBCE]/60">
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#EBDBCE]/60">
             {notifications.length === 0 ? (
               <div className="py-10 text-center text-xs font-bold text-gray-400">اعلانی وجود ندارد.</div>
             ) : (
@@ -159,7 +192,8 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
