@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import webpush from 'web-push';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pool, initDb } from './db.js';
@@ -159,6 +160,39 @@ app.get(
 const notifyHubs = new Map(); // userId -> Set<response>
 const uidn = () => 'n-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
+// ---------- web push (notifications while the app is closed) ----------
+// VAPID keys are generated once and kept in the database, so no configuration is needed.
+let vapidPublicKey = '';
+async function initPush() {
+  const { rows } = await pool.query(`SELECT data FROM settings WHERE key = 'vapid'`);
+  let keys = rows[0]?.data;
+  if (!keys) {
+    keys = webpush.generateVAPIDKeys();
+    await pool.query(`INSERT INTO settings (key, data) VALUES ('vapid', $1)`, [keys]);
+  }
+  vapidPublicKey = keys.publicKey;
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:admin@company.internal', keys.publicKey, keys.privateKey);
+}
+
+async function sendPush(userId, n) {
+  let subs;
+  try {
+    subs = (await pool.query('SELECT endpoint, data FROM push_subscriptions WHERE user_id = $1', [userId])).rows;
+  } catch {
+    return;
+  }
+  const payload = JSON.stringify({ id: n.id, title: n.title, body: n.body, kind: n.kind, ref: n.ref });
+  await Promise.all(
+    subs.map((s) =>
+      webpush.sendNotification(s.data, payload, { TTL: 86400, urgency: 'high' }).catch(async (err) => {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [s.endpoint]).catch(() => {});
+        }
+      })
+    )
+  );
+}
+
 async function notify(userIds, { kind, title, body, ref }, exceptId) {
   const targets = [...new Set(userIds)].filter((id) => id && id !== exceptId);
   for (const userId of targets) {
@@ -175,6 +209,7 @@ async function notify(userIds, { kind, title, body, ref }, exceptId) {
       continue;
     }
     for (const c of notifyHubs.get(userId) || []) c.write(`data: ${JSON.stringify(n)}\n\n`);
+    void sendPush(userId, n);
   }
 }
 
@@ -198,6 +233,33 @@ app.get('/api/notify/stream', requireAuth, (req, res) => {
     if (set && set.size === 0) notifyHubs.delete(id);
   });
 });
+
+app.get('/api/push/key', requireAuth, (_req, res) => res.json({ publicKey: vapidPublicKey }));
+
+app.post(
+  '/api/push/subscribe',
+  requireAuth,
+  wrap(async (req, res) => {
+    const sub = req.body?.subscription;
+    if (!sub || typeof sub.endpoint !== 'string' || !sub.keys) return res.status(400).json({ error: 'bad subscription' });
+    await pool.query(
+      `INSERT INTO push_subscriptions (endpoint, user_id, data) VALUES ($1, $2, $3)
+       ON CONFLICT (endpoint) DO UPDATE SET user_id = $2, data = $3`,
+      [sub.endpoint, req.user.id, sub]
+    );
+    res.json({ ok: true });
+  })
+);
+
+app.post(
+  '/api/push/unsubscribe',
+  requireAuth,
+  wrap(async (req, res) => {
+    const endpoint = String(req.body?.endpoint || '');
+    await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2', [endpoint, req.user.id]);
+    res.json({ ok: true });
+  })
+);
 
 app.get(
   '/api/notifications',
@@ -531,4 +593,5 @@ app.use((err, _req, res, _next) => {
 });
 
 await initDb();
+await initPush();
 app.listen(PORT, () => console.log(`Server listening on :${PORT}`));

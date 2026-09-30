@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../lib/letterDefaults';
+import { disablePush, registerServiceWorker, syncPushIfAllowed } from '../lib/push';
 import {
   AppNotification,
   flashTitle,
@@ -351,6 +352,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   useEffect(() => installAudioUnlock(), []);
+  useEffect(() => {
+    void registerServiceWorker();
+  }, []);
+  useEffect(() => {
+    if (syncReady) void syncPushIfAllowed();
+  }, [syncReady]);
+  // A tap on a system notification while the app is open in the background: open its target.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === 'open-notification' && e.data.data) notificationHandler.current?.(e.data.data as AppNotification);
+    };
+    navigator.serviceWorker.addEventListener('message', onMsg);
+    return () => navigator.serviceWorker.removeEventListener('message', onMsg);
+  }, []);
 
   useEffect(() => {
     if (!syncReady) {
@@ -481,7 +497,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const logout = useCallback(() => {
-    clearSession();
+    // Stop pushing this user's notifications to this device before the session token is dropped.
+    void Promise.race([disablePush(), new Promise((r) => setTimeout(r, 1500))]).finally(clearSession);
   }, [clearSession]);
 
   const handleSendTransfer = useCallback(

@@ -4,6 +4,7 @@ import { Bell, BellRing, CheckCheck, ClipboardList, FileText, Send, Stamp, Trash
 import { useAppContext } from '../../context/AppContext';
 import { AppNotification, isAudioReady, osPermission, playChime, requestOsPermission } from '../../lib/notifications';
 import { toPersianDigits } from '../../lib/jalali';
+import { currentSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from '../../lib/push';
 
 const KIND_ICON = {
   file: Send,
@@ -34,6 +35,8 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
   const [open, setOpen] = useState(false);
   const [perm, setPerm] = useState(osPermission());
   const [audioReady, setAudioReady] = useState(isAudioReady());
+  const [pushState, setPushState] = useState<'checking' | 'unsupported' | 'off' | 'on' | 'denied'>('checking');
+  const [pushBusy, setPushBusy] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
@@ -71,6 +74,9 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
   useEffect(() => {
     if (!open) return;
     setAudioReady(isAudioReady());
+    if (!pushSupported()) setPushState('unsupported');
+    else if (Notification.permission === 'denied') setPushState('denied');
+    else void currentSubscription().then((sub) => setPushState(sub && Notification.permission === 'granted' ? 'on' : 'off'));
     const close = (e: MouseEvent) => {
       const t = e.target as Node;
       if (box.current && !box.current.contains(t) && !panel.current?.contains(t)) setOpen(false);
@@ -160,6 +166,45 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
               >
                 فعال‌سازی و آزمایش صدا
               </button>
+            </div>
+          )}
+
+          {pushState !== 'checking' && (
+            <div className={`px-4 py-2.5 border-b flex items-center justify-between gap-2 ${pushState === 'on' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50/70 border-amber-100'}`}>
+              <span className={`text-[10px] font-bold leading-5 ${pushState === 'on' ? 'text-emerald-900' : 'text-amber-900'}`}>
+                {pushState === 'on' && 'اعلان موبایل فعال است؛ حتی وقتی برنامه بسته است اعلان می‌رسد.'}
+                {pushState === 'off' && 'برای دریافت اعلان وقتی برنامه بسته است (مثل سایر برنامه‌ها)، فعال کنید.'}
+                {pushState === 'denied' && 'اعلان برای این مرورگر مسدود شده است؛ از تنظیمات مرورگر (قفل کنار آدرس) اجازه دهید.'}
+                {pushState === 'unsupported' &&
+                  (window.isSecureContext
+                    ? isIos() && !isStandalone()
+                      ? 'در آیفون ابتدا از منوی اشتراک‌گذاری «افزودن به صفحهٔ اصلی» را بزنید و برنامه را از همان‌جا باز کنید.'
+                      : 'این مرورگر از اعلان در حالت بسته پشتیبانی نمی‌کند.'
+                    : 'اعلان در حالت بسته فقط روی نشانی امن (HTTPS) کار می‌کند؛ سامانه باید با https باز شود.')}
+              </span>
+              {(pushState === 'off' || pushState === 'on') && (
+                <button
+                  type="button"
+                  disabled={pushBusy}
+                  onClick={async () => {
+                    setPushBusy(true);
+                    try {
+                      if (pushState === 'on') {
+                        await disablePush();
+                        setPushState('off');
+                      } else {
+                        const res = await enablePush();
+                        setPushState(res === 'ok' ? 'on' : res === 'denied' ? 'denied' : 'unsupported');
+                      }
+                    } finally {
+                      setPushBusy(false);
+                    }
+                  }}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black cursor-pointer disabled:opacity-60 ${pushState === 'on' ? 'bg-white text-emerald-700 border border-emerald-200' : 'bg-amber-600 text-white'}`}
+                >
+                  {pushState === 'on' ? 'غیرفعال' : 'فعال‌سازی'}
+                </button>
+              )}
             </div>
           )}
 

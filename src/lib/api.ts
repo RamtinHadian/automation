@@ -69,6 +69,9 @@ export const api = {
   state: () => request<ServerState>('GET', '/api/state'),
   upsert: (collection: CollectionName, id: string, data: unknown) =>
     request<{ ok: true }>('PUT', `/api/${collection}/${encodeURIComponent(id)}`, { data }),
+  pushKey: () => request<{ publicKey: string }>('GET', '/api/push/key'),
+  pushSubscribe: (subscription: unknown) => request<{ ok: true }>('POST', '/api/push/subscribe', { subscription }),
+  pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('POST', '/api/push/unsubscribe', { endpoint }),
   notifications: () => request<{ notifications: AppNotification[] }>('GET', '/api/notifications'),
   markNotificationsRead: (ids?: string[]) => request<{ ok: true }>('POST', '/api/notifications/read', { ids }),
   clearNotifications: () => request<{ ok: true }>('DELETE', '/api/notifications'),
