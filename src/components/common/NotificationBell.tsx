@@ -74,7 +74,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
       </button>
 
       {open && (
-        <div className="absolute left-0 sm:left-0 top-11 z-50 w-[min(92vw,360px)] bg-white rounded-3xl border border-[#EBDBCE] shadow-2xl text-right overflow-hidden">
+        <div className="fixed inset-x-3 top-[72px] sm:absolute sm:inset-x-auto sm:left-0 sm:top-11 z-[110] sm:w-[360px] bg-white rounded-3xl border border-[#EBDBCE] shadow-2xl text-right overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#EBDBCE] bg-[#FAF5F1]">
             <span className="font-black text-xs text-[#3A241F]">
               اعلان‌ها {unreadCount > 0 && <span className="text-rose-600">({toPersianDigits(unreadCount)} خوانده‌نشده)</span>}
@@ -130,7 +130,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
             </div>
           )}
 
-          <div className="max-h-[60vh] overflow-y-auto divide-y divide-[#EBDBCE]/60">
+          <div className="max-h-[62vh] sm:max-h-[60vh] overflow-y-auto divide-y divide-[#EBDBCE]/60">
             {notifications.length === 0 ? (
               <div className="py-10 text-center text-xs font-bold text-gray-400">اعلانی وجود ندارد.</div>
             ) : (

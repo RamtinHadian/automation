@@ -187,7 +187,7 @@ export const LoginDashboard: React.FC<Props> = ({ canUseTasks, onOpenFiles, onOp
 
   const limit = prefs.layout === 'compact' ? 4 : 6;
   const Section: React.FC<{ title: string; icon: React.ReactNode; count: number; onMore: () => void; children: React.ReactNode }> = ({ title, icon, count, onMore, children }) => (
-    <section className="bg-white border border-[#EBDBCE] rounded-3xl p-4 flex flex-col gap-3 min-w-0">
+    <section className="bg-white border border-[#EBDBCE] rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 flex flex-col gap-2.5 sm:gap-3 min-w-0">
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-black text-sm text-[#3A241F]">
           {icon}
@@ -198,19 +198,19 @@ export const LoginDashboard: React.FC<Props> = ({ canUseTasks, onOpenFiles, onOp
           مشاهدهٔ همه
         </button>
       </div>
-      <div className={prefs.layout === 'cards' ? 'space-y-3' : prefs.layout === 'list' ? 'divide-y divide-[#EBDBCE]/60 [&>*]:py-2.5' : 'space-y-2'}>{children}</div>
+      <div className={prefs.layout === 'cards' ? 'space-y-2.5 sm:space-y-3' : prefs.layout === 'list' ? 'divide-y divide-[#EBDBCE]/60 [&>*]:py-2.5' : 'space-y-2'}>{children}</div>
       {count === 0 && <div className="text-center text-[11px] font-bold text-gray-400 py-4">موردی وجود ندارد.</div>}
     </section>
   );
 
   const stat = (label: string, value: number, cls: string, Icon: React.ElementType) => (
-    <div className="bg-white border border-[#EBDBCE] rounded-2xl px-4 py-3 flex items-center gap-3">
-      <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${cls}`}>
+    <div className="bg-white border border-[#EBDBCE] rounded-2xl px-2 sm:px-4 py-2.5 sm:py-3 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3 text-center sm:text-right min-w-0">
+      <span className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${cls}`}>
         <Icon className="w-4 h-4" />
       </span>
-      <div>
-        <div className="text-lg font-black text-[#3A241F] leading-none">{toPersianDigits(value)}</div>
-        <div className="text-[10px] font-bold text-[#8C6F66] mt-1">{label}</div>
+      <div className="min-w-0">
+        <div className="text-base sm:text-lg font-black text-[#3A241F] leading-none">{toPersianDigits(value)}</div>
+        <div className="text-[9px] sm:text-[10px] font-bold text-[#8C6F66] mt-1 truncate">{label}</div>
       </div>
     </div>
   );
@@ -223,11 +223,11 @@ export const LoginDashboard: React.FC<Props> = ({ canUseTasks, onOpenFiles, onOp
       <div className="absolute inset-0 bg-black/50 backdrop-blur-xs animate-in fade-in" onClick={() => setOpen(false)} />
       <div
         className={`relative w-full bg-[#FAF5F1] shadow-2xl border-[#EBDBCE] animate-in slide-in-from-top duration-300 flex flex-col ${
-          full ? 'h-full' : 'max-h-[82vh] rounded-b-[32px] border-b-2'
+          full ? 'h-full' : 'max-h-[88vh] sm:max-h-[82vh] rounded-b-[28px] sm:rounded-b-[32px] border-b-2'
         }`}
       >
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-8 py-3.5 border-b border-[#EBDBCE] bg-white/70">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5 px-3.5 sm:px-8 py-3 sm:py-3.5 border-b border-[#EBDBCE] bg-white/70">
           <div className="flex items-center gap-3 min-w-0">
             {logo ? (
               <img src={logo} alt="" className="w-9 h-9 object-contain shrink-0" />
@@ -241,7 +241,7 @@ export const LoginDashboard: React.FC<Props> = ({ canUseTasks, onOpenFiles, onOp
               <div className="text-[11px] text-[#8C6F66] font-medium">خلاصهٔ فایل‌های دریافتی و ارسالی و وظایف شما</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-between sm:justify-end">
             <div className="flex bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl p-0.5" title="مدل نمایش">
               <button type="button" onClick={() => update({ layout: 'cards' })} className={segBtn(prefs.layout === 'cards')} title="کارتی"><LayoutGrid className="w-4 h-4" /></button>
               <button type="button" onClick={() => update({ layout: 'list' })} className={segBtn(prefs.layout === 'list')} title="لیستی"><List className="w-4 h-4" /></button>
@@ -255,30 +255,30 @@ export const LoginDashboard: React.FC<Props> = ({ canUseTasks, onOpenFiles, onOp
             >
               {full ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
-            <label className="flex items-center gap-1.5 text-[11px] font-bold text-[#3A241F] cursor-pointer select-none">
-              <input type="checkbox" checked={!prefs.autoOpen} onChange={(e) => update({ autoOpen: !e.target.checked })} className="accent-[#6E1B1B] w-4 h-4" />
-              پس از ورود فقط به‌شکل لوگو باشد
+            <label className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-[#3A241F] cursor-pointer select-none min-w-0 flex-1 sm:flex-initial justify-center">
+              <input type="checkbox" checked={!prefs.autoOpen} onChange={(e) => update({ autoOpen: !e.target.checked })} className="accent-[#6E1B1B] w-4 h-4 shrink-0" />
+              <span className="truncate"><span className="sm:hidden">فقط لوگو</span><span className="hidden sm:inline">پس از ورود فقط به‌شکل لوگو باشد</span></span>
             </label>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#6E1B1B] text-white text-xs font-black hover:bg-[#D34A32] cursor-pointer"
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-[#6E1B1B] text-white text-xs font-black hover:bg-[#D34A32] cursor-pointer shrink-0"
             >
               <Minus className="w-4 h-4" />
-              بستن (تبدیل به لوگو)
+              <span className="sm:hidden">بستن</span><span className="hidden sm:inline">بستن (تبدیل به لوگو)</span>
             </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5">
-          <div className={`grid gap-3 ${canUseTasks ? 'grid-cols-2 lg:grid-cols-6' : 'grid-cols-2 lg:grid-cols-4'}`}>
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-8 pb-6 space-y-4 sm:space-y-5">
+          <div className={`grid gap-2 sm:gap-3 grid-cols-3 ${canUseTasks ? 'lg:grid-cols-6' : 'sm:grid-cols-4 lg:grid-cols-4'}`}>
             {stat('فایل دریافتی', received.length, 'bg-[#F6D9CD] text-[#6E1B1B]', Inbox)}
             {stat('دریافت‌نشده', waitingDownload, 'bg-amber-100 text-amber-700', Clock)}
             {stat('فایل ارسالی', sent.length, 'bg-sky-100 text-sky-700', Send)}
-            {stat('تحویل‌شده به گیرنده', sentDownloaded, 'bg-emerald-100 text-emerald-700', CheckCircle2)}
-            {canUseTasks && stat('وظایف باز من', openTasks.length, 'bg-sky-100 text-sky-700', ClipboardList)}
-            {canUseTasks && stat('وظایف دارای تأخیر', overdue, 'bg-rose-100 text-rose-700', AlertTriangle)}
+            {stat('تحویل‌شده', sentDownloaded, 'bg-emerald-100 text-emerald-700', CheckCircle2)}
+            {canUseTasks && stat('وظایف باز', openTasks.length, 'bg-sky-100 text-sky-700', ClipboardList)}
+            {canUseTasks && stat('دارای تأخیر', overdue, 'bg-rose-100 text-rose-700', AlertTriangle)}
           </div>
 
           <div className={`grid gap-4 ${canUseTasks ? 'grid-cols-1 xl:grid-cols-3' : 'grid-cols-1 lg:grid-cols-2'}`}>

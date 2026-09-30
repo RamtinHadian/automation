@@ -571,7 +571,7 @@ export default function UserPanel() {
             {/* Menu 1: ارسال فایل */}
             <button
               onClick={() => { setMainMenuTab('files'); setSearchQuery(''); }}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                 mainMenuTab === 'files'
                   ? 'bg-[#6E1B1B] text-white shadow-md shadow-[#6E1B1B]/25 scale-[1.02]'
                   : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/40 border border-[#EBDBCE]'
@@ -585,7 +585,7 @@ export default function UserPanel() {
             {canAccessLettersMenu && (
               <button
                 onClick={() => { setMainMenuTab('letters'); setSearchQuery(''); }}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'letters'
                     ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-amber-50 border border-[#EBDBCE]'
@@ -605,7 +605,7 @@ export default function UserPanel() {
             {canAccessTasksMenu && (
               <button
                 onClick={() => { setMainMenuTab('tasks'); setSearchQuery(''); }}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'tasks'
                     ? 'bg-sky-600 text-white shadow-md shadow-sky-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-sky-50 border border-[#EBDBCE]'
@@ -1969,102 +1969,6 @@ export default function UserPanel() {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* MOBILE-FIRST FLOATING BOTTOM NAVIGATION BAR WITH PROMINENT FAB */}
-      {/* ========================================================================= */}
-      <nav className="sm:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-white/90 backdrop-blur-md rounded-full shadow-2xl border border-[#C98B6A]/30 z-40 px-3 py-1.5 flex items-center justify-around">
-        {/* Tab 1: Files */}
-        <button
-          type="button"
-          onClick={() => { setMainMenuTab('files'); setActiveBoxTab('received'); }}
-          className={`flex flex-col items-center justify-center p-1.5 rounded-full transition-all cursor-pointer ${
-            mainMenuTab === 'files' && activeBoxTab === 'received'
-              ? 'text-[#6E1B1B] font-black scale-105'
-              : 'text-[#8C6F66] hover:text-[#3A241F]'
-          }`}
-        >
-          <FolderOpen className="w-5 h-5" />
-          <span className="text-[10px] font-bold mt-0.5">فایل‌ها</span>
-        </button>
-
-        {/* Tab 2: Letters */}
-        {canAccessLettersMenu && (
-          <button
-            type="button"
-            onClick={() => { setMainMenuTab('letters'); }}
-            className={`flex flex-col items-center justify-center p-1.5 rounded-full transition-all cursor-pointer relative ${
-              mainMenuTab === 'letters'
-                ? 'text-amber-700 font-black scale-105'
-                : 'text-[#8C6F66] hover:text-[#3A241F]'
-            }`}
-          >
-            <Stamp className="w-5 h-5" />
-            {pendingLettersCount > 0 && canSignOfficial && (
-              <span className="absolute top-0 right-1 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
-            )}
-            <span className="text-[10px] font-bold mt-0.5">نامه‌ها</span>
-          </button>
-        )}
-
-        {/* Tab: Tasks */}
-        {canAccessTasksMenu && (
-          <button
-            type="button"
-            onClick={() => { setMainMenuTab('tasks'); }}
-            className={`flex flex-col items-center justify-center p-1.5 rounded-full transition-all cursor-pointer ${
-              mainMenuTab === 'tasks' ? 'text-sky-700 font-black scale-105' : 'text-[#8C6F66] hover:text-[#3A241F]'
-            }`}
-          >
-            <ClipboardList className="w-5 h-5" />
-            <span className="text-[10px] font-bold mt-0.5">وظایف</span>
-          </button>
-        )}
-
-        {/* Core Action: PROMINENT FLOATING ACTION BUTTON (FAB) */}
-        <button
-          type="button"
-          onClick={() => {
-            if (mainMenuTab === 'letters' && canSendOfficial) {
-              setIsLetterEditorOpen(true);
-            } else {
-              fileInputRef.current?.click();
-            }
-          }}
-          className="relative -top-5 w-14 h-14 rounded-full bg-gradient-to-tr from-[#6E1B1B] to-[#D34A32] text-white shadow-xl shadow-[#6E1B1B]/40 flex items-center justify-center border-4 border-white hover:scale-105 active:scale-95 transition-all cursor-pointer"
-          title={mainMenuTab === 'letters' ? 'نگارش نامه اداری جدید' : 'ارسال فایل جدید به همکار'}
-        >
-          {mainMenuTab === 'letters' ? (
-            <PenTool className="w-6 h-6" />
-          ) : (
-            <Send className="w-6 h-6" />
-          )}
-        </button>
-
-        {/* Tab 3: Sent Box */}
-        <button
-          type="button"
-          onClick={() => { setActiveBoxTab('sent'); }}
-          className={`flex flex-col items-center justify-center p-1.5 rounded-full transition-all cursor-pointer ${
-            activeBoxTab === 'sent'
-              ? 'text-[#6E1B1B] font-black scale-105'
-              : 'text-[#8C6F66] hover:text-[#3A241F]'
-          }`}
-        >
-          <SendHorizonal className="w-5 h-5" />
-          <span className="text-[10px] font-bold mt-0.5">ارسالی</span>
-        </button>
-
-        {/* Tab 4: User Profile & Settings Modal */}
-        <button
-          type="button"
-          onClick={() => setShowMobileMenu(true)}
-          className="flex flex-col items-center justify-center p-1.5 rounded-full text-[#8C6F66] hover:text-[#3A241F] transition-all cursor-pointer"
-          title="تنظیمات، تم و خروج"
-        >
-          <UserCheck2 className="w-5 h-5" />
-          <span className="text-[10px] font-bold mt-0.5">پروفایل</span>
-        </button>
-      </nav>
     </div>
   );
 }

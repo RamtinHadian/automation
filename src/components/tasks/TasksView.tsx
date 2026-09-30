@@ -125,6 +125,7 @@ export const TasksView: React.FC = () => {
   const [editing, setEditing] = useState<{ task: Task; isNew: boolean } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<TaskStatus | null>(null);
+  const [mobileCol, setMobileCol] = useState<TaskStatus>('TODO');
 
   const userById = useMemo(() => new Map(staffList.map((u) => [u.id, u])), [staffList]);
 
@@ -246,7 +247,7 @@ export const TasksView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-8 space-y-5 pb-28 sm:pb-8 select-none">
+    <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-32 sm:pb-8 select-none overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -263,20 +264,20 @@ export const TasksView: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
         {[
-          { label: 'کل وظایف', value: stats.total, icon: ListChecks, cls: 'text-[#6E1B1B] bg-[#F6D9CD]/50' },
-          { label: 'در حال انجام', value: stats.active, icon: Clock, cls: 'text-sky-700 bg-sky-50' },
-          { label: 'دارای تأخیر', value: stats.overdue, icon: AlertTriangle, cls: 'text-rose-700 bg-rose-50' },
-          { label: 'انجام شده', value: stats.done, icon: CheckCircle2, cls: 'text-emerald-700 bg-emerald-50' },
+          { label: 'کل', value: stats.total, icon: ListChecks, cls: 'text-[#6E1B1B] bg-[#F6D9CD]/50' },
+          { label: 'در جریان', value: stats.active, icon: Clock, cls: 'text-sky-700 bg-sky-50' },
+          { label: 'تأخیر', value: stats.overdue, icon: AlertTriangle, cls: 'text-rose-700 bg-rose-50' },
+          { label: 'انجام‌شده', value: stats.done, icon: CheckCircle2, cls: 'text-emerald-700 bg-emerald-50' },
         ].map((s) => (
-          <div key={s.label} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 flex items-center gap-3">
-            <span className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.cls}`}>
-              <s.icon className="w-5 h-5" />
+          <div key={s.label} className="bg-white border border-[#EBDBCE] rounded-2xl p-2 sm:p-3.5 flex flex-col sm:flex-row items-center gap-1 sm:gap-3 text-center sm:text-right min-w-0">
+            <span className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${s.cls}`}>
+              <s.icon className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
-            <div>
-              <div className="text-lg font-black text-[#3A241F] leading-none">{toPersianDigits(s.value)}</div>
-              <div className="text-[11px] font-bold text-[#8C6F66] mt-1">{s.label}</div>
+            <div className="min-w-0">
+              <div className="text-base sm:text-lg font-black text-[#3A241F] leading-none">{toPersianDigits(s.value)}</div>
+              <div className="text-[9px] sm:text-[11px] font-bold text-[#8C6F66] mt-1 truncate">{s.label}</div>
             </div>
           </div>
         ))}
@@ -294,7 +295,7 @@ export const TasksView: React.FC = () => {
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
+          <div className="flex bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 w-full sm:w-auto overflow-x-auto">
             {([
               ['ALL', isAdmin ? 'همه' : 'همهٔ من'],
               ['MINE', 'واگذار شده به من'],
@@ -303,7 +304,7 @@ export const TasksView: React.FC = () => {
               <button
                 key={id}
                 onClick={() => setScope(id)}
-                className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial whitespace-nowrap px-3 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer ${
                   scope === id ? 'bg-white text-sky-700 shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
                 }`}
               >
@@ -314,7 +315,7 @@ export const TasksView: React.FC = () => {
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value as 'ALL' | TaskPriority)}
-            className="px-3 py-2 bg-white border border-[#EBDBCE] rounded-2xl text-[11px] font-black text-[#3A241F] outline-hidden cursor-pointer"
+            className="flex-1 sm:flex-initial min-w-0 px-3 py-2 bg-white border border-[#EBDBCE] rounded-2xl text-[11px] font-black text-[#3A241F] outline-hidden cursor-pointer"
           >
             <option value="ALL">همهٔ اولویت‌ها</option>
             {PRIORITIES.map((p) => (
@@ -341,6 +342,28 @@ export const TasksView: React.FC = () => {
       </div>
 
       {/* Board */}
+      {view === 'board' && (
+        <div className="md:hidden flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
+          {STATUSES.map((c) => {
+            const n = visible.filter((t) => t.status === c.id).length;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setMobileCol(c.id)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[11px] font-black border transition-all cursor-pointer ${
+                  mobileCol === c.id ? 'bg-white border-sky-300 text-sky-700 shadow-2xs' : 'bg-[#FAF5F1] border-[#EBDBCE] text-[#8C6F66]'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${c.dot}`} />
+                {c.label}
+                <span className="bg-[#EBDBCE]/70 rounded-full px-1.5 text-[10px]">{toPersianDigits(n)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {view === 'board' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
           {STATUSES.map((col) => {
@@ -358,7 +381,7 @@ export const TasksView: React.FC = () => {
                   setDragId(null);
                   setDragOver(null);
                 }}
-                className={`rounded-3xl p-3 space-y-3 border transition-colors min-h-[120px] ${
+                className={`${col.id === mobileCol ? '' : 'hidden'} md:block rounded-3xl p-3 space-y-3 border transition-colors min-h-[120px] ${
                   dragOver === col.id ? 'bg-sky-50 border-sky-300' : 'bg-[#FAF5F1]/70 border-[#EBDBCE]/70'
                 }`}
               >
