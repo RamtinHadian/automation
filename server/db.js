@@ -65,6 +65,17 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions (user_id);
+CREATE TABLE IF NOT EXISTS daily_reports (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  report_date TEXT NOT NULL,
+  recipient_ids TEXT[] NOT NULL DEFAULT '{}',
+  data JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS daily_reports_user_idx ON daily_reports (user_id, report_date DESC);
+CREATE INDEX IF NOT EXISTS daily_reports_date_idx ON daily_reports (report_date DESC);
+CREATE INDEX IF NOT EXISTS daily_reports_recipients_idx ON daily_reports USING GIN (recipient_ids);
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   data JSONB NOT NULL

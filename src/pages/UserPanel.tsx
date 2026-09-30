@@ -170,7 +170,15 @@ export default function UserPanel() {
   const openNotification = (n: AppNotification) => {
     const type = n.ref?.type;
     setSearchQuery('');
-    if (type === 'task' && canAccessTasksMenu) setMainMenuTab('tasks');
+    if (type === 'report' && canAccessTasksMenu) {
+      try {
+        sessionStorage.setItem('tasks_subtab', 'reports');
+      } catch {
+        /* storage unavailable */
+      }
+      window.dispatchEvent(new Event('open-reports-tab'));
+      setMainMenuTab('tasks');
+    } else if (type === 'task' && canAccessTasksMenu) setMainMenuTab('tasks');
     else if (type === 'letter' && canAccessLettersMenu) setMainMenuTab('letters');
     else setMainMenuTab('files');
   };

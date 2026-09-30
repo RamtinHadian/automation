@@ -11,7 +11,7 @@ import {
   showOsNotification,
   startNotifyStream,
 } from '../lib/notifications';
-import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task, DailyReport } from '../types';
 import { INITIAL_SETTINGS } from '../lib/mock-data';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
 import { useServerSync, hasPendingWrites } from '../lib/useServerSync';
@@ -47,6 +47,8 @@ interface AppContextType {
 
   // Transfers
   transfers: FileTransfer[];
+  reports: DailyReport[];
+  setReports: React.Dispatch<React.SetStateAction<DailyReport[]>>;
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   setTransfers: React.Dispatch<React.SetStateAction<FileTransfer[]>>;
@@ -226,6 +228,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [transfers, setTransfers] = useState<FileTransfer[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [reports, setReports] = useState<DailyReport[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(INITIAL_SETTINGS);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -249,6 +252,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     departments,
     transfers,
     tasks,
+    reports,
     auditLogs,
     settings,
     onError: (e) => {
@@ -272,6 +276,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDepartments((prev) => keep(prev, s.departments));
       setTransfers((prev) => keep(prev, s.transfers));
       setTasks((prev) => keep(prev, s.tasks || []));
+      setReports((prev) => keep(prev, s.reports || []));
       setAuditLogs((prev) => keep(prev, s.auditLogs));
       setSettings((prev) => keep(prev, merged));
       // Keep an admin's "act as" selection across refreshes; otherwise follow the signed-in account.
@@ -297,6 +302,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDepartments([]);
     setTransfers([]);
     setTasks([]);
+    setReports([]);
     setAuditLogs([]);
     setSettings(INITIAL_SETTINGS);
     setCurrentThemeState('cherry');
@@ -1307,6 +1313,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTransfers,
         tasks,
         setTasks,
+        reports,
+        setReports,
         auditLogs,
         setAuditLogs,
         settings,

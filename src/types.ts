@@ -46,6 +46,32 @@ export interface TaskComment {
   createdAt: string;
 }
 
+export type ReportItemStatus = 'DONE' | 'IN_PROGRESS' | 'BLOCKED';
+
+export interface DailyReportItem {
+  id: string;
+  text: string;
+  taskId?: string;
+  /** Time spent, in hours. */
+  hours?: number;
+  status: ReportItemStatus;
+}
+
+export interface DailyReport {
+  id: string;
+  userId: string;
+  authorName: string;
+  /** Report day as yyyy-mm-dd. */
+  date: string;
+  summary: string;
+  items: DailyReportItem[];
+  blockers: string;
+  tomorrow: string;
+  recipientIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Plus,
   Search,
@@ -14,8 +14,10 @@ import {
   CheckCircle2,
   ListChecks,
   User as UserIcon,
+  FileText,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { DailyReportsView } from './DailyReportsView';
 import { Task, TaskPriority, TaskStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import {
@@ -45,7 +47,7 @@ const prio = (p: TaskPriority) => PRIORITIES.find((x) => x.id === p) || PRIORITI
 const uid = (p: string) => p + '-' + Math.random().toString(36).substring(2, 10);
 const nowIso = () => new Date().toISOString();
 
-const Avatar: React.FC<{ user?: User; size?: number }> = ({ user, size = 24 }) => (
+export const Avatar: React.FC<{ user?: User; size?: number }> = ({ user, size = 24 }) => (
   <span
     title={user?.fullName}
     style={{ width: size, height: size, fontSize: size * 0.42 }}
@@ -60,7 +62,7 @@ const Avatar: React.FC<{ user?: User; size?: number }> = ({ user, size = 24 }) =
 );
 
 /** Jalali date picker (day / month / year selects) that stores a Gregorian yyyy-mm-dd string. */
-const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string | undefined) => void; disabled?: boolean }> = ({
+export const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string | undefined) => void; disabled?: boolean }> = ({
   value,
   onChange,
   disabled,
@@ -114,7 +116,7 @@ const emptyTask = (me: User): Task => ({
   updatedAt: nowIso(),
 });
 
-export const TasksView: React.FC = () => {
+const TasksBoard: React.FC = () => {
   const { tasks, setTasks, staffList, currentUser, showToast } = useAppContext();
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
@@ -703,6 +705,56 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
           </div>
         </div>
       </form>
+    </div>
+  );
+};
+
+/** Tasks area: the task board and the daily report system, switched by tabs. */
+export const TasksView: React.FC = () => {
+  const [tab, setTab] = useState<'tasks' | 'reports'>(() => {
+    try {
+      return sessionStorage.getItem('tasks_subtab') === 'reports' ? 'reports' : 'tasks';
+    } catch {
+      return 'tasks';
+    }
+  });
+
+  useEffect(() => {
+    const open = () => setTab('reports');
+    window.addEventListener('open-reports-tab', open);
+    return () => window.removeEventListener('open-reports-tab', open);
+  }, []);
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('tasks_subtab');
+    } catch {
+      /* storage unavailable */
+    }
+  }, [tab]);
+
+  return (
+    <div className="flex-1 flex flex-col min-w-0">
+      <div className="px-3.5 sm:px-8 pt-4 sm:pt-6">
+        <div className="inline-flex bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
+          {([
+            ['tasks', 'وظایف', ListChecks],
+            ['reports', 'گزارش روزانه', FileText],
+          ] as const).map(([id, label, Icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                tab === id ? 'bg-white text-sky-700 shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === 'tasks' ? <TasksBoard /> : <DailyReportsView />}
     </div>
   );
 };

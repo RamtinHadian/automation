@@ -11,7 +11,7 @@ export interface AppNotification {
   label?: string;
   title: string;
   body: string;
-  ref: { type: 'file' | 'letter' | 'task'; id: string } | null;
+  ref: { type: 'file' | 'letter' | 'task' | 'report'; id: string } | null;
   createdAt: string;
   read: boolean;
 }

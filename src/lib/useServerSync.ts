@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { api, CollectionName, ServerState } from './api';
-import { User, FileTransfer, AuditLog, SystemSettings, Department, Task } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport } from '../types';
 
 // Writes are serialised so that e.g. a transfer is always stored before its audit log entry.
 const queue: { chain: Promise<unknown>; pending: number } = { chain: Promise.resolve(), pending: 0 };
@@ -25,6 +25,7 @@ interface SyncInput {
   departments: Department[];
   transfers: FileTransfer[];
   tasks: Task[];
+  reports: DailyReport[];
   auditLogs: AuditLog[];
   settings: SystemSettings;
   onError: (e: unknown) => void;
@@ -35,7 +36,7 @@ interface SyncInput {
  * before; this hook diffs each collection against what the server last acknowledged and sends the
  * upserts/deletes. `markSynced` records a freshly loaded server state so it is not echoed back.
  */
-export function useServerSync({ ready, staff, departments, transfers, tasks, auditLogs, settings, onError }: SyncInput) {
+export function useServerSync({ ready, staff, departments, transfers, tasks, reports, auditLogs, settings, onError }: SyncInput) {
   const snaps = useRef<Record<CollectionName, Snapshot>>({
     staff: new Map(),
     departments: new Map(),
@@ -43,6 +44,7 @@ export function useServerSync({ ready, staff, departments, transfers, tasks, aud
     audit: new Map(),
     settings: new Map(),
     tasks: new Map(),
+    reports: new Map(),
   });
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
@@ -56,6 +58,7 @@ export function useServerSync({ ready, staff, departments, transfers, tasks, aud
       transfers: toMap(s.transfers),
       audit: toMap(s.auditLogs),
       tasks: toMap(s.tasks || []),
+      reports: toMap(s.reports || []),
       settings: new Map([['main', JSON.stringify(mergedSettings)]]),
     };
   }, []);
@@ -92,6 +95,9 @@ export function useServerSync({ ready, staff, departments, transfers, tasks, aud
   useEffect(() => {
     if (ready) diff('tasks', tasks, true);
   }, [ready, tasks, diff]);
+  useEffect(() => {
+    if (ready) diff('reports', reports, true);
+  }, [ready, reports, diff]);
   useEffect(() => {
     // The audit trail is append-only: entries are never deleted server-side.
     if (ready) diff('audit', auditLogs, false);

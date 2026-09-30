@@ -141,9 +141,18 @@ app.get(
             'SELECT data FROM tasks WHERE creator_id = $1 OR $1 = ANY(assignee_ids) ORDER BY created_at DESC',
             [me.id]
           );
+    const reports = !canUseTasks(me)
+      ? { rows: [] }
+      : admin
+        ? await pool.query('SELECT data FROM daily_reports ORDER BY report_date DESC LIMIT 1500')
+        : await pool.query(
+            'SELECT data FROM daily_reports WHERE user_id = $1 OR $1 = ANY(recipient_ids) ORDER BY report_date DESC LIMIT 600',
+            [me.id]
+          );
     res.json({
       me,
       tasks: tasks.rows.map((r) => r.data),
+      reports: reports.rows.map((r) => r.data),
       staff: users.rows.map(rowToUser),
       departments: depts.rows.map((r) => r.data),
       transfers: transfers.rows.map((r) => r.data),
@@ -294,7 +303,7 @@ app.delete(
 );
 
 // ---------- collection writes ----------
-const COLLECTIONS = new Set(['staff', 'departments', 'transfers', 'audit', 'settings', 'tasks']);
+const COLLECTIONS = new Set(['staff', 'departments', 'transfers', 'audit', 'settings', 'tasks', 'reports']);
 const canUseTasks = (u) => isAdmin(u) || u.canUseTasks === true;
 
 app.put(
@@ -369,6 +378,27 @@ app.put(
         `INSERT INTO settings (key, data) VALUES ('main', $1) ON CONFLICT (key) DO UPDATE SET data = $1`,
         [merged]
       );
+      return res.json({ ok: true });
+    }
+
+    if (collection === 'reports') {
+      if (!canUseTasks(me)) return forbidden(res);
+      const date = String(data.date || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'bad date' });
+      // One report per person per day; only its author can write it.
+      if (id !== `${me.id}_${date}`) return forbidden(res);
+      const recipients = (Array.isArray(data.recipientIds) ? data.recipientIds : []).map(String).filter((r) => r !== me.id);
+      const { rows } = await pool.query('SELECT 1 FROM daily_reports WHERE id = $1', [id]);
+      const doc = { ...data, id, userId: me.id, authorName: me.fullName, date, recipientIds: recipients, updatedAt: new Date().toISOString() };
+      await pool.query(
+        `INSERT INTO daily_reports (id, user_id, report_date, recipient_ids, data) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET recipient_ids = $4, data = $5, updated_at = now()`,
+        [id, me.id, date, recipients, doc]
+      );
+      const summary = String(doc.summary || '').trim().slice(0, 90);
+      if (!rows[0]) {
+        await notify(recipients, { kind: 'task', label: 'گزارش روزانه', title: `گزارش روزانه از ${me.fullName}`, body: summary || 'گزارش جدید ثبت شد', ref: { type: 'report', id } }, me.id);
+      }
       return res.json({ ok: true });
     }
 
@@ -499,6 +529,13 @@ app.delete(
     if (collection === 'departments') {
       if (!isAdmin(me)) return forbidden(res);
       await pool.query('DELETE FROM departments WHERE id = $1', [id]);
+      return res.json({ ok: true });
+    }
+    if (collection === 'reports') {
+      const { rows } = await pool.query('SELECT user_id FROM daily_reports WHERE id = $1', [id]);
+      if (!rows[0]) return res.json({ ok: true });
+      if (!isAdmin(me) && rows[0].user_id !== me.id) return forbidden(res);
+      await pool.query('DELETE FROM daily_reports WHERE id = $1', [id]);
       return res.json({ ok: true });
     }
     if (collection === 'tasks') {
