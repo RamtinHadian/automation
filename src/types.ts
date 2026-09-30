@@ -228,6 +228,9 @@ export interface SystemSettings {
   companyName?: string; // نام رسمی شرکت / سازمان
   companySubtitle?: string; // عنوان فرعی سربرگ اداری
   companyLogoUrl?: string; // لوگو و آرم رسمی سازمان
+  /** PNG icons (data URLs) generated from the logo for the home screen / favicon. */
+  appIcon192?: string;
+  appIcon512?: string;
   systemTitle?: string; // نام و عنوان سامانه
   maxUploadSizeBytes: number;
   allowedFileTypes: string[];

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../lib/letterDefaults';
+import { makeAppIcons } from '../lib/appIcon';
 import { disablePush, registerServiceWorker, syncPushIfAllowed } from '../lib/push';
 import {
   AppNotification,
@@ -352,6 +353,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   useEffect(() => installAudioUnlock(), []);
+
+  // Home-screen icon: build it from the company logo (admins only, since only they can save settings).
+  useEffect(() => {
+    const isAdminRole = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+    if (!syncReady || !isAdminRole || !settings.companyLogoUrl || settings.appIcon512) return;
+    const logo = settings.companyLogoUrl;
+    makeAppIcons(logo)
+      .then((icons) => setSettings((prev) => (prev.companyLogoUrl === logo && !prev.appIcon512 ? { ...prev, ...icons } : prev)))
+      .catch(() => {});
+  }, [syncReady, currentUser.role, settings.companyLogoUrl, settings.appIcon512]);
+
+  // Browser tab icon follows the company logo too.
+  useEffect(() => {
+    if (!settings.appIcon192) return;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.type = 'image/png';
+    link.href = settings.appIcon192;
+  }, [settings.appIcon192]);
   useEffect(() => {
     void registerServiceWorker();
   }, []);
