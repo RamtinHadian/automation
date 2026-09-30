@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
+import { ZoomBar } from './ZoomBar';
+import { useFitZoom } from '../../lib/useFitZoom';
 import { SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT, signatureAreaHeight } from '../../lib/letterDefaults';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
 import {
@@ -223,6 +225,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [signatureHeight, setSignatureHeight] = useState<number>(() => numPref(prefs.signatureHeight, settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT));
 
   const [pageSize, setPageSize] = useState<PaperSize>(() => (['A4', 'A5', 'Letter', 'Letterhead'].includes(prefs.pageSize) ? prefs.pageSize : 'A4'));
+  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720);
+  const zoom = fitZ.zoom;
   const [showNote, setShowNote] = useState(false);
   // On phones the paper is narrow, so the centre title flows above the header instead of overlapping the company name.
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
@@ -387,40 +391,40 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   };
 
   // Unified Drag handlers for all draggable elements
-  const handleSignatureMouseDown = (e: React.MouseEvent) => {
+  const handleSignatureMouseDown = (e: React.PointerEvent) => {
     setActiveDragItem('SIGNATURE');
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     dragStartOffset.current = { ...signatureOffset };
   };
 
-  const handleCenterTitleMouseDown = (e: React.MouseEvent) => {
+  const handleCenterTitleMouseDown = (e: React.PointerEvent) => {
     setActiveDragItem('CENTER_TITLE');
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     dragStartOffset.current = { ...headerCenterOffset };
   };
 
-  const handleSubjectMouseDown = (e: React.MouseEvent) => {
+  const handleSubjectMouseDown = (e: React.PointerEvent) => {
     setActiveDragItem('SUBJECT');
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     dragStartOffset.current = { ...subjectOffset };
   };
 
-  const handleBodyMouseDown = (e: React.MouseEvent) => {
+  const handleBodyMouseDown = (e: React.PointerEvent) => {
     setActiveDragItem('BODY');
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     dragStartOffset.current = { x: bodyOffsetX, y: 0 };
   };
 
-  const handleMetaMouseDown = (e: React.MouseEvent) => {
+  const handleMetaMouseDown = (e: React.PointerEvent) => {
     setActiveDragItem('META');
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     dragStartOffset.current = { ...metaOffset };
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: React.PointerEvent) => {
     if (activeDragItem === 'NONE') return;
-    const dx = e.clientX - dragStartPos.current.x;
-    const dy = e.clientY - dragStartPos.current.y;
+    const dx = (e.clientX - dragStartPos.current.x) / zoom;
+    const dy = (e.clientY - dragStartPos.current.y) / zoom;
 
     if (activeDragItem === 'SIGNATURE') {
       setSignatureOffset({
@@ -504,6 +508,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   };
 
   const getPageDimensions = () => {
+    // Phones: fixed design width (set in style) and the computer paddings; the whole sheet is zoomed to fit.
+    if (fitZ.isPhone) return pageSize === 'A5' ? 'min-h-[600px] p-7 shrink-0' : pageSize === 'Letter' ? 'min-h-[720px] p-9 shrink-0' : 'min-h-[760px] p-10 shrink-0';
     switch (pageSize) {
       case 'A5':
         return 'max-w-[580px] min-h-[600px] p-4 sm:p-7';
@@ -519,8 +525,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
   return (
     <div
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      onPointerMove={handleMouseMove}
+      onPointerUp={handleMouseUp}
+      onPointerCancel={handleMouseUp}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-1.5 sm:p-4 overflow-y-auto animate-in fade-in select-none font-sans"
     >
       <div className="bg-[#EFE8E1] rounded-2xl sm:rounded-[28px] shadow-2xl w-full max-w-6xl border border-[#C98B6A]/40 flex flex-col h-[96vh] sm:h-[94vh] overflow-hidden">
@@ -910,17 +917,18 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         </div>
 
         {/* Main Document Workspace Canvas */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center bg-[#E5DCD2]/60">
+        {fitZ.isPhone && <ZoomBar zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} />}
+        <div className={`flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
           {/* Virtual Paper Sheet */}
           <div
             ref={paperSheetRef}
-            style={{ fontFamily: selectedFontFamily }}
-            className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 w-full transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
+            style={{ fontFamily: selectedFontFamily, ...(fitZ.isPhone ? { zoom, width: ({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720 } : {}) }}
+            className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 ${fitZ.isPhone ? '' : 'w-full'} transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
           >
             {/* Header Component */}
             <div className="pb-2 mb-4 space-y-3 shrink-0">
-              <div className={`relative flex items-start justify-between ${isMobile ? 'flex-col-reverse gap-2' : ''}`}>
+              <div className="relative flex items-start justify-between">
                 {/* Right: Company Info & Dynamic Logo */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-2.5">
@@ -959,8 +967,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
                 {/* Center: Official Title (Strictly Centered & Vertically Draggable Only) */}
                 <div
-                  className={isMobile ? 'flex items-center justify-center z-10 w-full' : 'absolute left-1/2 flex items-center justify-center z-10'}
-                  style={isMobile ? undefined : { top: '8px', transform: `translate(-50%, ${headerCenterOffset.y}px)` }}
+                  className="absolute left-1/2 flex items-center justify-center z-10"
+                  style={{ top: '8px', transform: `translate(-50%, ${headerCenterOffset.y}px)` }}
                 >
                   <div
                     className={`group/title relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition-all ${
@@ -968,7 +976,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                     }`}
                   >
                     <div
-                      onMouseDown={handleCenterTitleMouseDown}
+                      onPointerDown={handleCenterTitleMouseDown} data-drag-handle
                       className="cursor-ns-resize active:cursor-ns-resize p-1 text-[#8C6F66] hover:text-[#6E1B1B] transition-colors shrink-0 select-none"
                       title="برای جابه‌جایی عمودی «به نام خدا»، با ماوس به بالا یا پایین بکشید (Drag Up/Down)"
                     >
@@ -1013,7 +1021,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 >
                   <div className="flex items-center gap-1 absolute -top-5 left-0 opacity-0 group-hover/meta:opacity-100 transition-opacity z-10">
                     <div
-                      onMouseDown={handleMetaMouseDown}
+                      onPointerDown={handleMetaMouseDown} data-drag-handle
                       className="bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing shadow-2xs"
                       title="برای جابه‌جایی کادر شماره، تاریخ و پیوست با ماوس بکشید (Drag)"
                     >
@@ -1099,7 +1107,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 }}
               >
                 <div
-                  onMouseDown={handleSubjectMouseDown}
+                  onPointerDown={handleSubjectMouseDown} data-drag-handle
                   className="cursor-grab active:cursor-grabbing p-1 text-[#8C6F66] hover:text-[#6E1B1B] transition-colors shrink-0 select-none flex items-center gap-1"
                   title="برای جابه‌جایی خط موضوع نامه، با ماوس بکشید (Drag)"
                 >
@@ -1136,7 +1144,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             {/* Editable Letter Body (Word contentEditable) with Drag & Margin */}
             <div className="relative flex flex-col group/body">
               <div
-                onMouseDown={handleBodyMouseDown}
+                onPointerDown={handleBodyMouseDown} data-drag-handle
                 className="opacity-0 group-hover/body:opacity-100 transition-opacity absolute -top-3 left-2 bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing select-none z-10 shadow-xs"
                 title="برای جابه‌جایی کل متن نامه به چپ یا راست، بکشید (Drag)"
               >
@@ -1241,6 +1249,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       onOffsetChange={setSigImgOffset}
                       onHeightChange={setSignatureHeight}
                       anchorLeft={SIGNATURE_ANCHOR_LEFT}
+                      scale={zoom}
                       opacityClass="opacity-90"
                     />
                   ) : null}
@@ -1254,6 +1263,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       onOffsetChange={setStampOffset}
                       onHeightChange={setStampHeightOverride}
                       anchorLeft={STAMP_ANCHOR_LEFT}
+                      scale={zoom}
                       opacityClass="opacity-85"
                     />
                   ) : null}

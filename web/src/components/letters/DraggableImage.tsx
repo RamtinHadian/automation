@@ -15,6 +15,8 @@ interface DraggableImageProps {
   opacityClass?: string;
   /** When set, the image is absolutely positioned at this left position (e.g. '60%'), vertically centred. */
   anchorLeft?: string;
+  /** The paper is shown zoomed (phones): pointer movement is divided by this to get paper pixels. */
+  scale?: number;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -35,6 +37,7 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({
   maxHeight = 600,
   opacityClass = '',
   anchorLeft,
+  scale = 1,
 }) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const drag = useRef<{
@@ -67,8 +70,8 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({
   const move = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
-    const dx = e.clientX - d.startX;
-    const dy = e.clientY - d.startY;
+    const dx = (e.clientX - d.startX) / scale;
+    const dy = (e.clientY - d.startY) / scale;
     if (d.mode === 'move') {
       onOffsetChange({ x: clamp(d.initX + dx, -400, 400), y: clamp(d.initY + dy, -300, 300) });
     } else {

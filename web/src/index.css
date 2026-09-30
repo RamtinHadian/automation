@@ -202,3 +202,6 @@ input, button, select, textarea {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
 }
+
+/* Drag handles on the letter paper must not scroll the page when dragged with a finger */
+[data-drag-handle] { touch-action: none; }

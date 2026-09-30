@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DraggableImage } from './DraggableImage';
+import { ZoomBar } from './ZoomBar';
+import { useFitZoom } from '../../lib/useFitZoom';
 import {
   DEFAULT_SIGNATURE_HEIGHT,
   resolveSignatureHeight,
@@ -494,14 +496,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   // null = the stamp follows the signature size; a number = size chosen for the stamp on its own
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(null);
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  // On phones the paper is narrow: the centre title flows above the header instead of overlapping the company name.
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 639px)');
-    const on = () => setIsMobile(mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, []);
+  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720);
+  const zoom = fitZ.zoom;
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [headerCenterFontFamily, setHeaderCenterFontFamily] = useState<string>('');
   const [subjectFontFamily, setSubjectFontFamily] = useState<string>('');
@@ -622,10 +620,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
   // Unified Drag listeners for signature, center title, and subject
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: PointerEvent) => {
       if (activeDragItem === 'NONE' || !isEditable) return;
-      const dx = e.clientX - dragStartRef.current.startX;
-      const dy = e.clientY - dragStartRef.current.startY;
+      const dx = (e.clientX - dragStartRef.current.startX) / zoomRef.current;
+      const dy = (e.clientY - dragStartRef.current.startY) / zoomRef.current;
 
       if (activeDragItem === 'SIGNATURE') {
         const newX = Math.max(-250, Math.min(250, dragStartRef.current.initX + dx));
@@ -652,17 +650,19 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
     };
 
     if (activeDragItem !== 'NONE' && isEditable) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('pointermove', handleMouseMove);
+      window.addEventListener('pointerup', handleMouseUp);
+      window.addEventListener('pointercancel', handleMouseUp);
     }
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handleMouseMove);
+      window.removeEventListener('pointercancel', handleMouseUp);
+      window.removeEventListener('pointerup', handleMouseUp);
     };
   }, [activeDragItem, isEditable]);
 
-  const handleMouseDownOnSignature = (e: React.MouseEvent) => {
+  const handleMouseDownOnSignature = (e: React.PointerEvent) => {
     if (!isEditable) return;
     e.preventDefault();
     setActiveDragItem('SIGNATURE');
@@ -674,7 +674,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
     };
   };
 
-  const handleMouseDownOnCenterTitle = (e: React.MouseEvent) => {
+  const handleMouseDownOnCenterTitle = (e: React.PointerEvent) => {
     if (!isEditable) return;
     e.preventDefault();
     setActiveDragItem('CENTER_TITLE');
@@ -686,7 +686,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
     };
   };
 
-  const handleMouseDownOnSubject = (e: React.MouseEvent) => {
+  const handleMouseDownOnSubject = (e: React.PointerEvent) => {
     if (!isEditable) return;
     e.preventDefault();
     setActiveDragItem('SUBJECT');
@@ -698,7 +698,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
     };
   };
 
-  const handleMouseDownOnMeta = (e: React.MouseEvent) => {
+  const handleMouseDownOnMeta = (e: React.PointerEvent) => {
     if (!isEditable) return;
     e.preventDefault();
     setActiveDragItem('META');
@@ -1527,24 +1527,25 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         )}
 
         {/* Paper Document Canvas Container */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center bg-[#E5DCD2]/60">
+        {fitZ.isPhone && <ZoomBar zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} />}
+        <div className={`flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
           {/* Virtual Official Paper Sheet */}
           <div
-            style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily }}
-            className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 w-full text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
+            style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily, ...(fitZ.isPhone ? { zoom, width: ({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720 } : {}) }}
+            className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 ${fitZ.isPhone ? 'shrink-0 mx-auto' : 'w-full'} text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
               pageSize === 'A5'
-                ? 'max-w-[580px] min-h-[600px] p-4 sm:p-7 text-xs'
+                ? `${fitZ.isPhone ? '' : 'max-w-[580px]'} min-h-[600px] ${fitZ.isPhone ? 'p-7' : 'p-4 sm:p-7'} text-xs`
                 : pageSize === 'Letter'
-                ? 'max-w-[700px] min-h-[720px] p-5 sm:p-9 text-xs'
-                : 'max-w-[720px] min-h-[760px] p-6 sm:p-10 text-xs'
+                ? `${fitZ.isPhone ? '' : 'max-w-[700px]'} min-h-[720px] ${fitZ.isPhone ? 'p-9' : 'p-5 sm:p-9'} text-xs`
+                : `${fitZ.isPhone ? '' : 'max-w-[720px]'} min-h-[760px] ${fitZ.isPhone ? 'p-10' : 'p-6 sm:p-10'} text-xs`
             }`}
           >
             {/* Header Component */}
             <div className={`pb-2 ${pageSize === 'A5' ? 'mb-2 space-y-2' : 'mb-4 space-y-3'} shrink-0`}>
-              <div className={`relative flex items-start justify-between min-h-[50px] ${isMobile ? 'flex-col-reverse gap-2' : ''}`}>
+              <div className="relative flex items-start justify-between min-h-[50px]">
                 {/* Right: Company Info & Emblem */}
-                <div className={`space-y-0.5 min-w-0 ${isMobile ? 'max-w-full' : pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
+                <div className={`space-y-0.5 min-w-0 ${pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
                   <div className="flex items-center gap-2">
                     {settings.companyLogoUrl ? (
                       <div
@@ -1602,15 +1603,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
                 {/* Center: Title Field («به نام خدا» - Always Mathematically Centered & Vertically Draggable) */}
                 <div
-                  className={isMobile ? 'flex items-center justify-center z-10 select-none pointer-events-auto w-full' : 'absolute left-1/2 flex items-center justify-center z-10 select-none pointer-events-auto'}
-                  style={isMobile ? undefined : {
+                  className="absolute left-1/2 flex items-center justify-center z-10 select-none pointer-events-auto"
+                  style={{
                     top: `${pageSize === 'A5' ? 2 : 6}px`,
                     transform: `translate(calc(-50% + ${headerCenterOffset.x}px), ${headerCenterOffset.y}px)`,
                   }}
                 >
                   {isEditable && (
                     <div
-                      onMouseDown={handleMouseDownOnCenterTitle}
+                      onPointerDown={handleMouseDownOnCenterTitle} data-drag-handle
                       className="cursor-grab active:cursor-grabbing p-1 text-[#8C6F66] hover:text-[#6E1B1B] select-none"
                       title="برای جابه‌جایی «به نام خدا»، با ماوس بکشید (Drag)"
                     >
@@ -1650,7 +1651,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 >
                   {isEditable && (
                     <div
-                      onMouseDown={handleMouseDownOnMeta}
+                      onPointerDown={handleMouseDownOnMeta} data-drag-handle
                       className="opacity-0 group-hover/meta:opacity-100 transition-opacity absolute -top-5 left-0 bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing z-10 shadow-2xs"
                       title="برای جابه‌جایی کادر شماره، تاریخ و پیوست با ماوس بکشید (Drag)"
                     >
@@ -1721,7 +1722,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               >
                 {isEditable && (
                   <div
-                    onMouseDown={handleMouseDownOnSubject}
+                    onPointerDown={handleMouseDownOnSubject} data-drag-handle
                     className="cursor-grab active:cursor-grabbing p-1 text-[#8C6F66] hover:text-[#6E1B1B] select-none flex items-center gap-1"
                     title="برای جابه‌جایی خط موضوع نامه، با ماوس بکشید (Drag)"
                   >
@@ -1887,7 +1888,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               <div className={`text-center ${pageSize === 'A5' ? 'min-w-[170px]' : 'min-w-[220px]'} flex flex-col items-center relative select-none`}>
               {/* CEO name & title — draggable on its own; the signature image and stamp below are independent objects */}
               <div
-                onMouseDown={handleMouseDownOnSignature}
+                onPointerDown={handleMouseDownOnSignature} data-drag-handle
                 style={{
                   transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)`,
                   cursor: isEditable ? (isDraggingSig ? 'grabbing' : 'grab') : 'default',
@@ -1990,6 +1991,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                           onOffsetChange={setSigImgOffset}
                           onHeightChange={setSignatureHeight}
                           anchorLeft={SIGNATURE_ANCHOR_LEFT}
+                          scale={zoom}
                           opacityClass={!isSigned ? 'opacity-90' : ''}
                         />
                       )}
@@ -2004,6 +2006,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                           onOffsetChange={setStampOffset}
                           onHeightChange={setStampHeightOverride}
                           anchorLeft={STAMP_ANCHOR_LEFT}
+                          scale={zoom}
                           opacityClass={!isSigned ? 'opacity-85' : 'opacity-95'}
                         />
                       )}
