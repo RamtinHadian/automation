@@ -25,7 +25,7 @@ import { AnalyticsView } from '../components/admin/AnalyticsView';
 import { AuditLogsView } from '../components/admin/AuditLogsView';
 import { SettingsView } from '../components/admin/SettingsView';
 import { LetterManagementAdminView } from '../components/admin/LetterManagementAdminView';
-import { Stamp } from 'lucide-react';
+import { Stamp, Trash2 } from 'lucide-react';
 import { DepartmentManagementView } from '../components/admin/DepartmentManagementView';
 import { ThemeSelector } from '../components/common/ThemeSelector';
 import { toPersianDigits } from '../lib/jalali';
@@ -58,6 +58,7 @@ export default function AdminPanel() {
     handleCreateUser,
     handleUpdateUser,
     handleDeleteUser,
+    handleAdminDeleteTransfer,
     handleCreateDepartment,
     handleUpdateDepartment,
     handleDeleteDepartment,
@@ -571,12 +572,13 @@ export default function AdminPanel() {
                       <th className="py-3 px-4">تاریخ ارسال</th>
                       <th className="py-3 px-4">دانلودها</th>
                       <th className="py-3 px-4">وضعیت</th>
+                      <th className="py-3 px-4">حذف</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EBDBCE]/60 font-medium text-[#3A241F]">
                     {filteredTransfers.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-[#8C6F66]">
+                        <td colSpan={8} className="py-12 text-center text-[#8C6F66]">
                           هیچ رکوردی برای تبادل فایل یافت نشد.
                         </td>
                       </tr>
@@ -628,6 +630,22 @@ export default function AdminPanel() {
                               <span className="bg-[#F6D9CD] text-[#6E1B1B] border border-[#C98B6A]/30 px-2.5 py-0.5 rounded-full text-[10px] font-black">
                                 تحویل داده شده
                               </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            {t.isOfficialLetter && t.signatureStatus === 'SIGNED' ? (
+                              <span className="text-[10px] font-bold text-[#8C6F66]" title="نامهٔ امضاشده قابل حذف نیست">محافظت‌شده</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm(`«${t.fileName}» برای همیشه حذف شود؟ این کار قابل بازگشت نیست.`)) handleAdminDeleteTransfer(t.id);
+                                }}
+                                className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                                title="حذف این فایل"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             )}
                           </td>
                         </tr>

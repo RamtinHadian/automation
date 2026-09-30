@@ -323,8 +323,29 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 	httpx.OK(w)
 }
 
-// A file or letter that was sent can never be deleted or hidden: not by the sender, not by a recipient, not by an admin.
-// The record stays for everyone concerned and for the audit trail.
-func removeTransfer(w http.ResponseWriter, _ *http.Request, _ auth.User, _ string) {
-	httpx.Forbidden(w)
+// A file or letter that was sent can never be deleted by its sender or recipients. The one exception is an admin
+// removing a single item from the admin panel's transfer monitoring. Signed official letters stay protected even then.
+func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string) {
+	if !me.IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	var raw []byte
+	err := store.Pool.QueryRow(r.Context(), `SELECT data FROM transfers WHERE id = $1`, id).Scan(&raw)
+	if err == pgx.ErrNoRows {
+		httpx.OK(w)
+		return
+	}
+	if err != nil {
+		internalError(w)
+		return
+	}
+	doc := jsonx.Decode(raw)
+	if jsonx.Bool(doc, "isOfficialLetter") && jsonx.Str(doc, "signatureStatus") == "SIGNED" {
+		httpx.Error(w, http.StatusForbidden, "نامهٔ رسمی امضاشده قابل حذف نیست.")
+		return
+	}
+	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM transfers WHERE id = $1`, id)
+	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM transfer_hidden WHERE transfer_id = $1`, id)
+	httpx.OK(w)
 }

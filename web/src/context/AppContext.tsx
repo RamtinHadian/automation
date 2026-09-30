@@ -157,6 +157,8 @@ interface AppContextType {
   handleReferLetter: (transferId: string, toUserId: string, referralComment: string) => void;
   handleDownload: (t: FileTransfer) => Promise<void>;
   handleDeleteTransfer: (id: string) => void;
+  /** Admin panel only: permanently removes one transferred file (signed official letters are refused). */
+  handleAdminDeleteTransfer: (id: string) => void;
   handleArchiveTransfer: (transferId: string) => void;
   handleUnarchiveTransfer: (transferId: string) => void;
   handleCreateUser: (data: {
@@ -825,6 +827,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [showToast]
   );
 
+  const handleAdminDeleteTransfer = useCallback(
+    (id: string) => {
+      const target = transfers.find((t) => t.id === id);
+      if (!target || !(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN')) return;
+      if (target.isOfficialLetter && target.signatureStatus === 'SIGNED') {
+        showToast('نامهٔ رسمی امضاشده قابل حذف نیست.');
+        return;
+      }
+      const log: AuditLog = {
+        id: 'log-' + Math.random().toString(36).substring(2, 9),
+        timestamp: formatJalaliFullTimestamp(),
+        userName: currentUser.fullName,
+        userEmail: currentUser.email,
+        action: 'FILE_TRANSFER',
+        severity: 'WARNING',
+        ipAddress: '',
+        details: `حذف «${target.fileName}» (ارسال‌شده توسط ${target.sender.fullName}) از مانیتورینگ انتقالات توسط مدیر.`,
+      };
+      setTransfers((prev) => prev.filter((t) => t.id !== id));
+      setAuditLogs((prev) => [log, ...prev]);
+      void deleteLocalFile(id).catch(() => {});
+      showToast('فایل حذف شد.');
+    },
+    [transfers, currentUser, showToast]
+  );
+
   const handleArchiveTransfer = useCallback(
     (id: string) => {
       setTransfers((prev) =>
@@ -1330,6 +1358,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         handleSendTransfer,
         handleDownload,
         handleDeleteTransfer,
+        handleAdminDeleteTransfer,
         handleArchiveTransfer,
         handleUnarchiveTransfer,
         handleSignLetter,
