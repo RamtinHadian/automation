@@ -218,15 +218,95 @@ ipcMain.handle('desktop:set', (_e, patch) => {
   update(clean);
   return publicSettings();
 });
+// ---------- notification pop-ups: small always-on-top windows in the corner of the screen ----------
+// They appear above every other program (even when the app window is minimised or hidden in the tray).
+const POP_W = 400;
+const POP_H = 138;
+const POP_GAP = 4;
+const POP_SHOW_MS = 9000;
+const MAX_POPUPS = 4;
+const popups = []; // newest first: { win, n, timer, left, startedAt }
+
+function layoutPopups() {
+  const wa = screen.getPrimaryDisplay().workArea;
+  let y = wa.y + wa.height - 8;
+  for (const p of popups) {
+    y -= POP_H;
+    if (!p.win.isDestroyed()) p.win.setBounds({ x: wa.x + wa.width - POP_W - 4, y, width: POP_W, height: POP_H });
+    y -= POP_GAP;
+  }
+}
+
+function closePopup(p) {
+  clearTimeout(p.timer);
+  const i = popups.indexOf(p);
+  if (i >= 0) popups.splice(i, 1);
+  if (!p.win.isDestroyed()) p.win.destroy();
+  layoutPopups();
+}
+
+function armPopup(p) {
+  clearTimeout(p.timer);
+  p.startedAt = Date.now();
+  p.timer = setTimeout(() => closePopup(p), p.left);
+}
+
+function showPopup(n) {
+  while (popups.length >= MAX_POPUPS) closePopup(popups[popups.length - 1]);
+  const pw = new BrowserWindow({
+    width: POP_W,
+    height: POP_H,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    skipTaskbar: true,
+    focusable: false,
+    show: false,
+    hasShadow: false,
+    alwaysOnTop: true,
+    webPreferences: { preload: path.join(__dirname, 'popup-preload.js'), contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
+  });
+  pw.setAlwaysOnTop(true, 'screen-saver');
+  const p = { win: pw, n, timer: null, left: POP_SHOW_MS, startedAt: Date.now() };
+  popups.unshift(p);
+  layoutPopups();
+  pw.webContents.once('did-finish-load', () => {
+    if (pw.isDestroyed()) return;
+    pw.webContents.send('popup:data', n);
+    pw.showInactive();
+    armPopup(p);
+  });
+  pw.loadFile(path.join(__dirname, 'popup.html'));
+}
+
+const popupOf = (e) => popups.find((x) => !x.win.isDestroyed() && x.win.webContents === e.sender);
+ipcMain.on('popup:open', (e) => {
+  const p = popupOf(e);
+  if (!p) return;
+  const n = p.n;
+  closePopup(p);
+  showWindow();
+  if (win) win.webContents.send('desktop:open-notification', n);
+});
+ipcMain.on('popup:close', (e) => {
+  const p = popupOf(e);
+  if (p) closePopup(p);
+});
+ipcMain.on('popup:hover', (e, on) => {
+  const p = popupOf(e);
+  if (!p) return;
+  if (on) {
+    clearTimeout(p.timer);
+    p.left = Math.max(2000, p.left - (Date.now() - p.startedAt));
+  } else {
+    armPopup(p);
+  }
+});
+
 ipcMain.on('desktop:notify', (_e, n) => {
   if (!n || !n.title) return;
-  const note = new Notification({ title: String(n.title), body: String(n.body || ''), icon: icon(), silent: false });
-  note.on('click', () => {
-    showWindow();
-    win && win.webContents.send('desktop:open-notification', n);
-  });
-  note.show();
-  if (win && !win.isFocused()) win.flashFrame(true);
+  showPopup({ kind: n.kind, label: n.label, title: String(n.title), body: String(n.body || ''), id: n.id, ref: n.ref || null, userId: n.userId, createdAt: n.createdAt });
 });
 ipcMain.on('desktop:focus', () => showWindow());
 

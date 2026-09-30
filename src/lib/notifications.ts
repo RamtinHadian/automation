@@ -155,7 +155,8 @@ export async function requestOsPermission() {
 export function showOsNotification(n: AppNotification, onClick: () => void) {
   // The Windows app shows its own native notification (works on any address, with the system sound).
   if (window.desktop) {
-    window.desktop.notify(n);
+    // In front: the in-app card is shown. Behind other windows, hidden or minimised: a pop-up window above everything.
+    if (document.hidden || !document.hasFocus()) window.desktop.notify(n);
     return;
   }
   if (osPermission() !== 'granted') return;
