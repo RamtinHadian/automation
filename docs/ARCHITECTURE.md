@@ -17,17 +17,19 @@ automation/
 │   │   ├── context/         AppContext: the app's data, server sync and notifications
 │   │   └── lib/             Plain helpers (API client, P2P files, dates, digits, PDF, push...)
 │   └── public/              Service worker, manifest, icons (copied as-is to the build)
-├── server/                  Backend (Node.js + Express + PostgreSQL)
-│   ├── index.js             Entry point only
-│   └── src/
-│       ├── app.js           Builds the Express app (middleware, routes, static frontend)
-│       ├── config.js        Environment settings
-│       ├── db.js            Database schema and first-start seed
-│       ├── util.js          Shared helpers (roles, async wrapper)
-│       ├── auth/            Login, password change, session check
-│       ├── routes/          HTTP endpoints: state, notifications + push, collections, P2P signalling, health
-│       ├── collections/     Rules for each stored collection: who may write or delete what
-│       └── services/        Notification delivery and web push
+├── server/                  Backend (Go + PostgreSQL)
+│   ├── cmd/server/          Entry point (main.go)
+│   ├── internal/
+│   │   ├── config/          Environment settings
+│   │   ├── store/           Database connection, schema, first-start seed
+│   │   ├── auth/            Login, password change, session check, brute-force protection
+│   │   ├── api/             HTTP endpoints: state, collections (who may write what), notifications, P2P signalling
+│   │   ├── notify/          Stores and delivers notifications (live stream + web push)
+│   │   ├── push/            Web push (VAPID keys kept in the database)
+│   │   ├── sse/             Server-sent-event connections per user
+│   │   ├── jsonx/, httpx/   Small JSON / HTTP helpers
+│   │   └── jalali/          Persian-calendar timestamp for "last login"
+│   └── vendor/              Go dependencies, vendored so building needs no network for them
 ├── desktop/                 Windows app (Electron): always on top, tray, pop-up windows
 ├── docs/                    Documentation
 ├── Dockerfile               Builds web/ and server/ into one image
@@ -47,18 +49,18 @@ its path, so moving it would stop automatic updates.
 2. `AppContext` keeps it in memory. Screens change it through handlers; `lib/useServerSync.ts` compares
    each collection with what the server last confirmed and sends only the differences
    (`PUT` / `DELETE /api/<collection>/<id>`).
-3. The server checks permissions in `server/src/collections/<collection>.js`, stores the document in
+3. The server checks permissions in `server/internal/api/collections_*.go`, stores the document in
    PostgreSQL (JSONB) and, where relevant, creates notifications.
 4. New notifications travel over a live stream (`/api/notify/stream`), and to closed phones as web push.
    The receiving browser plays the sound, shows a pop-up and refreshes its data immediately.
 5. File contents never reach the server: sender and receiver exchange them directly (WebRTC);
-   the server only relays the connection set-up messages (`routes/signal.js`).
+   the server only relays the connection set-up messages (`api/system.go`).
 
 ## Adding a new kind of stored data
 
-1. Table in `server/src/db.js` (`SCHEMA`).
-2. A module in `server/src/collections/` exporting `put` (and `remove` when deletion is allowed), registered in
-   `server/src/routes/collections.js`; add it to `routes/state.js` if the client should receive it.
+1. Table in `server/internal/store/store.go` (`schema`).
+2. `put` (and `remove` when deletion is allowed) functions in `server/internal/api/collections_*.go`, registered in the
+   `collections` map in `api/api.go`; add the query to `api/state.go` if the client should receive it.
 3. Type in `web/src/types.ts`, the collection name in `web/src/lib/api.ts` and `useServerSync.ts`, and state in
    `AppContext`.
 

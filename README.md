@@ -38,7 +38,7 @@ Put a reverse proxy (nginx/Caddy) with HTTPS in front for production.
 ## Development
 
 ```bash
-cd server && npm install && DATABASE_URL=postgres://... JWT_SECRET=... ADMIN_PASSWORD=... npm start   # API on :8080
+cd server && DATABASE_URL=postgres://... JWT_SECRET=... ADMIN_PASSWORD=... go run ./cmd/server          # API on :8080 (Go 1.23+)
 cd web && npm install && npm run dev                                                                 # UI on :3000
 ```
 

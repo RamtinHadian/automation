@@ -1,0 +1,93 @@
+// Package api wires every HTTP endpoint of the server.
+package api
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"automation/server/internal/auth"
+	"automation/server/internal/config"
+	"automation/server/internal/httpx"
+	"automation/server/internal/jsonx"
+)
+
+func empty() []json.RawMessage { return []json.RawMessage{} }
+
+func jsonRaw(b []byte) json.RawMessage { return json.RawMessage(b) }
+
+// collectionHandler decides who may write or delete what in one stored collection.
+// A collection without a delete function (settings, audit) cannot be deleted from.
+type collectionHandler struct {
+	put    func(w http.ResponseWriter, r *http.Request, me auth.User, id string, data jsonx.M)
+	remove func(w http.ResponseWriter, r *http.Request, me auth.User, id string)
+}
+
+var collections = map[string]collectionHandler{
+	"staff":       {put: putStaff, remove: removeStaff},
+	"departments": {put: putDepartment, remove: removeDepartment},
+	"settings":    {put: putSettings},
+	"audit":       {put: putAudit},
+	"reports":     {put: putReport, remove: removeReport},
+	"tasks":       {put: putTask, remove: removeTask},
+	"transfers":   {put: putTransfer, remove: removeTransfer},
+}
+
+// Router returns the HTTP handler for the whole server: the API and the built frontend.
+func Router(cfg config.Config) http.Handler {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("POST /api/auth/login", auth.Login)
+	mux.HandleFunc("POST /api/auth/change-password", auth.Require(auth.ChangePassword))
+	mux.HandleFunc("GET /api/state", auth.Require(state))
+
+	mux.HandleFunc("GET /api/notify/stream", auth.Require(notifyStream))
+	mux.HandleFunc("GET /api/notifications", auth.Require(listNotifications))
+	mux.HandleFunc("POST /api/notifications/read", auth.Require(markNotificationsRead))
+	mux.HandleFunc("DELETE /api/notifications", auth.Require(clearNotifications))
+	mux.HandleFunc("GET /api/push/key", auth.Require(pushKey))
+	mux.HandleFunc("POST /api/push/subscribe", auth.Require(pushSubscribe))
+	mux.HandleFunc("POST /api/push/unsubscribe", auth.Require(pushUnsubscribe))
+
+	mux.HandleFunc("GET /api/signal/stream", auth.Require(signalStream))
+	mux.HandleFunc("POST /api/signal/send", auth.Require(signalSend))
+
+	mux.HandleFunc("GET /api/config", iceConfig(cfg))
+	mux.HandleFunc("GET /api/health", health)
+
+	// Generic collection routes: PUT saves a document, DELETE removes it.
+	mux.HandleFunc("PUT /api/{collection}/{id}", auth.Require(func(w http.ResponseWriter, r *http.Request) {
+		h, ok := collections[r.PathValue("collection")]
+		if !ok {
+			httpx.Error(w, http.StatusNotFound, "not found")
+			return
+		}
+		body, ok := httpx.ReadBody(w, r)
+		if !ok {
+			return
+		}
+		data, isObject := body["data"].(map[string]any)
+		if !isObject {
+			httpx.Error(w, http.StatusBadRequest, "data required")
+			return
+		}
+		h.put(w, r, auth.Current(r), r.PathValue("id"), data)
+	}))
+	mux.HandleFunc("DELETE /api/{collection}/{id}", auth.Require(func(w http.ResponseWriter, r *http.Request) {
+		h, ok := collections[r.PathValue("collection")]
+		if !ok {
+			httpx.Error(w, http.StatusNotFound, "not found")
+			return
+		}
+		if h.remove == nil {
+			httpx.Forbidden(w)
+			return
+		}
+		h.remove(w, r, auth.Current(r), r.PathValue("id"))
+	}))
+
+	mux.Handle("/api/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpx.Error(w, http.StatusNotFound, "not found")
+	}))
+	mux.Handle("/", frontend(cfg.StaticDir))
+	return mux
+}
