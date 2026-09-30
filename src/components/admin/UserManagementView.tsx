@@ -400,25 +400,6 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 />
               </div>
 
-              {/* Permission Checkbox: Task management */}
-              <div className="p-3 bg-sky-50/70 rounded-2xl border border-sky-200 flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-1.5 font-black text-xs text-sky-900">
-                    <ClipboardList className="w-4 h-4 text-sky-600" />
-                    <span>دسترسی به سیستم مدیریت وظایف</span>
-                  </div>
-                  <p className="text-[10px] text-[#8C6F66] leading-relaxed">
-                    منوی «وظایف» برای این کاربر فعال می‌شود تا وظیفه تعریف کند، به همکاران واگذار کند و پیگیری کند.
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={newCanUseTasks}
-                  onChange={(e) => setNewCanUseTasks(e.target.checked)}
-                  className="w-5 h-5 accent-sky-600 rounded cursor-pointer shrink-0"
-                />
-              </div>
-
               {/* CEO / Authorized Signatory Permission Checkbox */}
               <div className="p-3 bg-amber-50/70 rounded-2xl border border-amber-200 flex items-center justify-between gap-3 shadow-2xs">
                 <div className="space-y-0.5">
@@ -591,6 +572,25 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   <option value="DEPT_ADMIN">مدیر واحد (Dept Admin)</option>
                   <option value="SUPER_ADMIN">مدیر ارشد سامانه (Super Admin)</option>
                 </select>
+              </div>
+
+              {/* Permission Checkbox: Task management */}
+              <div className="p-3 bg-sky-50/70 rounded-2xl border border-sky-200 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-black text-xs text-sky-900">
+                    <ClipboardList className="w-4 h-4 text-sky-600" />
+                    <span>دسترسی به سیستم مدیریت وظایف</span>
+                  </div>
+                  <p className="text-[10px] text-[#8C6F66] leading-relaxed">
+                    منوی «وظایف» برای این کاربر فعال می‌شود تا وظیفه تعریف کند، به همکاران واگذار کند و پیگیری کند.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={newCanUseTasks}
+                  onChange={(e) => setNewCanUseTasks(e.target.checked)}
+                  className="w-5 h-5 accent-sky-600 rounded cursor-pointer shrink-0"
+                />
               </div>
 
               {/* CEO / Authorized Signatory Permission Checkbox */}
