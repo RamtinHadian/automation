@@ -152,6 +152,85 @@ app.get(
   })
 );
 
+// ---------- notifications ----------
+// Every relevant change (new file, letter, task, signature...) creates a stored notification for the
+// people concerned and pushes it live over a separate SSE stream, so a browser window in the
+// background or minimised still hears it immediately.
+const notifyHubs = new Map(); // userId -> Set<response>
+const uidn = () => 'n-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+async function notify(userIds, { kind, title, body, ref }, exceptId) {
+  const targets = [...new Set(userIds)].filter((id) => id && id !== exceptId);
+  for (const userId of targets) {
+    const n = { id: uidn(), userId, kind, title, body: body || '', ref: ref || null, createdAt: new Date().toISOString(), read: false };
+    try {
+      await pool.query('INSERT INTO notifications (id, user_id, data) VALUES ($1, $2, $3)', [n.id, userId, n]);
+      await pool.query(
+        `DELETE FROM notifications WHERE user_id = $1 AND id NOT IN
+           (SELECT id FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 200)`,
+        [userId]
+      );
+    } catch (e) {
+      console.error('notify failed', e);
+      continue;
+    }
+    for (const c of notifyHubs.get(userId) || []) c.write(`data: ${JSON.stringify(n)}\n\n`);
+  }
+}
+
+app.get('/api/notify/stream', requireAuth, (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  res.write(': connected\n\n');
+  const id = req.user.id;
+  if (!notifyHubs.has(id)) notifyHubs.set(id, new Set());
+  notifyHubs.get(id).add(res);
+  const keepAlive = setInterval(() => res.write(': ping\n\n'), 20000);
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    const set = notifyHubs.get(id);
+    set?.delete(res);
+    if (set && set.size === 0) notifyHubs.delete(id);
+  });
+});
+
+app.get(
+  '/api/notifications',
+  requireAuth,
+  wrap(async (req, res) => {
+    const { rows } = await pool.query(
+      'SELECT data, read FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100',
+      [req.user.id]
+    );
+    res.json({ notifications: rows.map((r) => ({ ...r.data, read: r.read })) });
+  })
+);
+
+app.post(
+  '/api/notifications/read',
+  requireAuth,
+  wrap(async (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : null;
+    if (ids) await pool.query('UPDATE notifications SET read = true WHERE user_id = $1 AND id = ANY($2)', [req.user.id, ids]);
+    else await pool.query('UPDATE notifications SET read = true WHERE user_id = $1', [req.user.id]);
+    res.json({ ok: true });
+  })
+);
+
+app.delete(
+  '/api/notifications',
+  requireAuth,
+  wrap(async (req, res) => {
+    await pool.query('DELETE FROM notifications WHERE user_id = $1', [req.user.id]);
+    res.json({ ok: true });
+  })
+);
+
 // ---------- collection writes ----------
 const COLLECTIONS = new Set(['staff', 'departments', 'transfers', 'audit', 'settings', 'tasks']);
 const canUseTasks = (u) => isAdmin(u) || u.canUseTasks === true;
@@ -259,11 +338,32 @@ app.put(
          ON CONFLICT (id) DO UPDATE SET assignee_ids = $3, data = $4`,
         [id, doc.creatorId, assignees, doc]
       );
+      const ref = { type: 'task', id };
+      const involved = [doc.creatorId, ...assignees];
+      const STATUS_FA = { TODO: 'انجام نشده', IN_PROGRESS: 'در حال انجام', REVIEW: 'در انتظار بررسی', DONE: 'انجام شده' };
+      if (!existing) {
+        await notify(assignees, { kind: 'task', title: `وظیفه جدید از ${me.fullName}`, body: doc.title, ref }, me.id);
+      } else {
+        const before = existing.data;
+        const added = assignees.filter((a) => !existing.assignee_ids.includes(a));
+        await notify(added, { kind: 'task', title: `وظیفه‌ای به شما واگذار شد (${me.fullName})`, body: doc.title, ref }, me.id);
+        if (before.status !== doc.status) {
+          await notify(
+            involved.filter((u) => !added.includes(u)),
+            { kind: 'task', title: `وضعیت وظیفه تغییر کرد: ${STATUS_FA[doc.status] || doc.status}`, body: `${doc.title} — توسط ${me.fullName}`, ref },
+            me.id
+          );
+        }
+        const newOnes = (doc.comments || []).slice((before.comments || []).length);
+        for (const c of newOnes) {
+          await notify(involved, { kind: 'task', title: `نظر جدید در وظیفه «${doc.title}»`, body: `${c.userName}: ${c.text}`, ref }, me.id);
+        }
+      }
       return res.json({ ok: true });
     }
 
     if (collection === 'transfers') {
-      const { rows } = await pool.query('SELECT sender_id, recipient_ids FROM transfers WHERE id = $1', [id]);
+      const { rows } = await pool.query('SELECT sender_id, recipient_ids, data FROM transfers WHERE id = $1', [id]);
       const existing = rows[0];
       const participant = existing && (existing.sender_id === me.id || existing.recipient_ids.includes(me.id));
       const allowed = existing ? isAdmin(me) || participant : isAdmin(me) || data.sender?.id === me.id;
@@ -275,6 +375,41 @@ app.put(
          ON CONFLICT (id) DO UPDATE SET recipient_ids = $3, data = $4, updated_at = now()`,
         [id, senderId, recipientIds, { ...data, id }]
       );
+      const ref = { type: data.isOfficialLetter ? 'letter' : 'file', id };
+      const name = data.fileName || 'بدون عنوان';
+      if (!existing) {
+        if (data.isOfficialLetter) {
+          await notify(
+            recipientIds,
+            {
+              kind: 'letter',
+              title: data.signatureStatus === 'PENDING_SIGNATURE' ? `نامه جدید جهت امضا از ${me.fullName}` : `نامه جدید از ${me.fullName}`,
+              body: name,
+              ref,
+            },
+            me.id
+          );
+        } else {
+          await notify(recipientIds, { kind: 'file', title: `فایل جدید از ${me.fullName}`, body: name, ref }, me.id);
+        }
+      } else {
+        const before = existing.data;
+        if (data.signatureStatus !== before.signatureStatus) {
+          if (data.signatureStatus === 'SIGNED') {
+            await notify([existing.sender_id, ...recipientIds], { kind: 'letter', title: 'نامه امضا شد', body: `${name} — توسط ${me.fullName}`, ref }, me.id);
+          } else if (data.signatureStatus === 'REJECTED') {
+            await notify([existing.sender_id], { kind: 'alert', title: 'نامه رد شد', body: `${name} — توسط ${me.fullName}`, ref }, me.id);
+          }
+        }
+        const added = recipientIds.filter((r) => !existing.recipient_ids.includes(r));
+        if (added.length) {
+          const last = (data.referrals || []).slice(-1)[0];
+          await notify(added, { kind: 'letter', title: `ارجاع نامه از ${me.fullName}`, body: last?.comment ? `${name} — ${last.comment}` : name, ref }, me.id);
+        }
+        if ((data.downloadsCount || 0) > (before.downloadsCount || 0) && me.id !== existing.sender_id) {
+          await notify([existing.sender_id], { kind: 'file', title: `${me.fullName} فایل را دریافت کرد`, body: name, ref }, me.id);
+        }
+      }
       return res.json({ ok: true });
     }
 

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TasksView } from '../components/tasks/TasksView';
+import { NotificationBell } from '../components/common/NotificationBell';
+import type { AppNotification } from '../lib/notifications';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../lib/letterDefaults';
 import {
   ClipboardList,
@@ -163,6 +165,13 @@ export default function UserPanel() {
       setMainMenuTab('files');
     }
   }, [canAccessLettersMenu, mainMenuTab]);
+  const openNotification = (n: AppNotification) => {
+    const type = n.ref?.type;
+    setSearchQuery('');
+    if (type === 'task' && canAccessTasksMenu) setMainMenuTab('tasks');
+    else if (type === 'letter' && canAccessLettersMenu) setMainMenuTab('letters');
+    else setMainMenuTab('files');
+  };
   useEffect(() => {
     if (!canAccessTasksMenu && mainMenuTab === 'tasks') setMainMenuTab('files');
   }, [canAccessTasksMenu, mainMenuTab]);
@@ -495,6 +504,8 @@ export default function UserPanel() {
 
           {/* Right actions */}
           <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+            <NotificationBell onOpenNotification={openNotification} />
+
             {/* Quick Theme Switcher Button */}
             <button
               onClick={() => setShowThemeModal(true)}

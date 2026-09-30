@@ -1,3 +1,4 @@
+import type { AppNotification } from './notifications';
 import { User, FileTransfer, AuditLog, SystemSettings, Department, Task } from '../types';
 
 const TOKEN_KEY = 'app_token_v6';
@@ -68,6 +69,9 @@ export const api = {
   state: () => request<ServerState>('GET', '/api/state'),
   upsert: (collection: CollectionName, id: string, data: unknown) =>
     request<{ ok: true }>('PUT', `/api/${collection}/${encodeURIComponent(id)}`, { data }),
+  notifications: () => request<{ notifications: AppNotification[] }>('GET', '/api/notifications'),
+  markNotificationsRead: (ids?: string[]) => request<{ ok: true }>('POST', '/api/notifications/read', { ids }),
+  clearNotifications: () => request<{ ok: true }>('DELETE', '/api/notifications'),
   remove: (collection: CollectionName, id: string) =>
     request<{ ok: true }>('DELETE', `/api/${collection}/${encodeURIComponent(id)}`),
 

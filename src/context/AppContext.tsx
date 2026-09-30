@@ -1,5 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../lib/letterDefaults';
+import {
+  AppNotification,
+  flashTitle,
+  installAudioUnlock,
+  isSoundEnabled,
+  playChime,
+  setSoundEnabled as persistSoundEnabled,
+  showOsNotification,
+  startNotifyStream,
+} from '../lib/notifications';
 import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task } from '../types';
 import { INITIAL_SETTINGS } from '../lib/mock-data';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
@@ -162,6 +172,14 @@ interface AppContextType {
   handleCreateDepartment: (data: Omit<Department, 'id'>) => void;
   handleUpdateDepartment: (deptId: string, updates: Partial<Department>) => void;
   handleDeleteDepartment: (deptId: string) => void;
+  notifications: AppNotification[];
+  unreadCount: number;
+  markNotificationsRead: (ids?: string[]) => void;
+  clearNotifications: () => void;
+  soundEnabled: boolean;
+  setSoundEnabled: (on: boolean) => void;
+  /** Set by the panel: where to go when a notification is opened. */
+  setNotificationHandler: (fn: ((n: AppNotification) => void) | null) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -323,6 +341,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [syncReady, applyServerState]);
+
+  // ---------- notifications: live stream + stored history ----------
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [soundEnabled, setSoundEnabledState] = useState<boolean>(() => isSoundEnabled());
+  const notificationHandler = useRef<((n: AppNotification) => void) | null>(null);
+  const setNotificationHandler = useCallback((fn: ((n: AppNotification) => void) | null) => {
+    notificationHandler.current = fn;
+  }, []);
+
+  useEffect(() => installAudioUnlock(), []);
+
+  useEffect(() => {
+    if (!syncReady) {
+      setNotifications([]);
+      return;
+    }
+    const me = sessionUserId.current;
+    const seenKey = `notif_seen_${me}`;
+    const getSeen = () => {
+      try {
+        return localStorage.getItem(seenKey) || '';
+      } catch {
+        return '';
+      }
+    };
+    const setSeen = (iso: string) => {
+      try {
+        if (iso > getSeen()) localStorage.setItem(seenKey, iso);
+      } catch {
+        /* storage unavailable */
+      }
+    };
+
+    const loadHistory = (announce: boolean) =>
+      api
+        .notifications()
+        .then(({ notifications: list }) => {
+          setNotifications(list);
+          if (!announce) return;
+          const seen = getSeen();
+          const fresh = list.filter((n) => !n.read && n.createdAt > seen);
+          if (fresh.length) {
+            playChime(fresh[0].kind);
+            showToast(fresh.length === 1 ? fresh[0].title : `${fresh.length} اعلان جدید دارید`);
+          }
+          if (list[0]) setSeen(list[0].createdAt);
+        })
+        .catch(() => {});
+
+    let first = true;
+    const stop = startNotifyStream(
+      (n) => {
+        setNotifications((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 100)));
+        setSeen(n.createdAt);
+        playChime(n.kind);
+        showToast(n.title);
+        flashTitle(n.title);
+        showOsNotification(n, () => notificationHandler.current?.(n));
+        // Bring the new file / letter / task into the lists right away.
+        reloadRef.current();
+      },
+      () => {
+        // (Re)connected: catch up on anything missed while offline; only the first load announces.
+        void loadHistory(first);
+        if (!first) reloadRef.current();
+        first = false;
+      }
+    );
+    return stop;
+  }, [syncReady, showToast]);
+
+  const markNotificationsRead = useCallback((ids?: string[]) => {
+    setNotifications((prev) => prev.map((n) => (!ids || ids.includes(n.id) ? { ...n, read: true } : n)));
+    void api.markNotificationsRead(ids).catch(() => {});
+  }, []);
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
+    void api.clearNotifications().catch(() => {});
+  }, []);
+
+  const setSoundEnabled = useCallback((on: boolean) => {
+    persistSoundEnabled(on);
+    setSoundEnabledState(on);
+    if (on) playChime('file');
+  }, []);
+
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
   // Whenever currentUser changes (e.g. user switch in AdminPanel or Login), apply that user's theme
   useEffect(() => {
@@ -1155,6 +1261,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         handleCreateDepartment,
         handleUpdateDepartment,
         handleDeleteDepartment,
+        notifications,
+        unreadCount,
+        markNotificationsRead,
+        clearNotifications,
+        soundEnabled,
+        setSoundEnabled,
+        setNotificationHandler,
       }}
     >
       {children}
