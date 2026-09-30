@@ -74,6 +74,10 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 		}
 		if _, err := store.Pool.Exec(ctx, `UPDATE users SET email = $2, password_hash = $3, data = $4::jsonb WHERE id = $1`,
 			id, email, hash, jsonx.Encode(merged)); err != nil {
+			if pe, ok := err.(*pgconn.PgError); ok && pe.Code == "23505" {
+				httpx.Error(w, http.StatusConflict, "این نام کاربری قبلاً برای کاربر دیگری ثبت شده است.")
+				return
+			}
 			internalError(w)
 			return
 		}

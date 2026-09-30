@@ -333,6 +333,29 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
             <div className="space-y-3 text-xs">
               <div>
+                <label className="block text-[11px] font-bold text-[#3A241F] mb-1">نام و نام خانوادگی</label>
+                <input
+                  type="text"
+                  value={editingUser.fullName}
+                  onChange={(e) => setEditingUser({ ...editingUser, fullName: e.target.value })}
+                  className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl font-semibold text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#3A241F] mb-1">نام کاربری (برای ورود)</label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={editingUser.email}
+                  onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value.trim() })}
+                  placeholder="مثلاً ali@company.ir"
+                  className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl font-mono text-[#3A241F] text-right focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
+                />
+                <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">کاربر با همین نام (یا نام کامل) وارد می‌شود. بعد از تغییر، نام کاربری جدید را به او اطلاع دهید.</p>
+              </div>
+
+              <div>
                 <label className="block text-[11px] font-bold text-[#3A241F] uppercase mb-1">
                   واحد سازمانی
                 </label>
@@ -500,7 +523,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </button>
               <button
                 onClick={() => {
-                  onUpdateUser(editingUser.id, editingUser);
+                  const name = editingUser.fullName.trim();
+                  const login = editingUser.email.trim();
+                  if (!name || !login) {
+                    window.alert('نام و نام کاربری نمی‌تواند خالی باشد.');
+                    return;
+                  }
+                  if (users.some((u) => u.id !== editingUser.id && u.email.trim().toLowerCase() === login.toLowerCase())) {
+                    window.alert('این نام کاربری قبلاً برای کاربر دیگری ثبت شده است.');
+                    return;
+                  }
+                  if (editingUser.password && editingUser.password.length < 6) {
+                    window.alert('رمز عبور باید حداقل ۶ کاراکتر باشد.');
+                    return;
+                  }
+                  onUpdateUser(editingUser.id, { ...editingUser, fullName: name, email: login });
                   setEditingUser(null);
                 }}
                 className="px-5 py-2 text-xs font-bold bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-xl shadow-xs cursor-pointer"
