@@ -94,7 +94,7 @@ export const NotificationPopups: React.FC = () => {
         @keyframes np-in { from { transform: translateY(130%) scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
         @keyframes np-bar { from { width: 100% } to { width: 0 } }
       `}</style>
-      <div className="fixed z-[130] bottom-24 inset-x-3 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[380px] flex flex-col-reverse gap-2.5 pointer-events-none">
+      <div className="fixed z-[2147483000] bottom-24 inset-x-3 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[380px] flex flex-col-reverse gap-2.5 pointer-events-none">
         {popups.map((n) => (
           <div key={n.id} className="pointer-events-auto">
             <Card n={n} onOpen={() => openNotification(n)} onClose={() => dismissPopup(n.id)} />

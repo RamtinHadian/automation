@@ -71,6 +71,20 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
     return () => setNotificationHandler(null);
   }, [onOpenNotification, setNotificationHandler]);
 
+  // A notification opened from another page (e.g. the admin panel) lands here and opens its target.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('pending_notification');
+      if (raw) {
+        sessionStorage.removeItem('pending_notification');
+        onOpenNotification(JSON.parse(raw));
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     setAudioReady(isAudioReady());

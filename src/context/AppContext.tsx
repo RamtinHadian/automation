@@ -459,7 +459,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     (n: AppNotification) => {
       markNotificationsRead([n.id]);
       dismissPopup(n.id);
-      notificationHandler.current?.(n);
+      if (notificationHandler.current) {
+        notificationHandler.current(n);
+        return;
+      }
+      // Not on the main panel (e.g. the admin panel): go there and open the target.
+      try {
+        sessionStorage.setItem('pending_notification', JSON.stringify(n));
+      } catch {
+        /* storage unavailable */
+      }
+      window.location.href = '/';
     },
     [markNotificationsRead, dismissPopup]
   );
