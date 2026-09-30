@@ -378,6 +378,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [soundEnabled, setSoundEnabledState] = useState<boolean>(() => isSoundEnabled());
   const [popups, setPopups] = useState<AppNotification[]>([]);
   const dismissPopup = useCallback((id: string) => setPopups((prev) => prev.filter((p) => p.id !== id)), []);
+  const recentAnnounced = useRef<{ key: string; at: number }[]>([]);
   const notificationHandler = useRef<((n: AppNotification) => void) | null>(null);
   const setNotificationHandler = useCallback((fn: ((n: AppNotification) => void) | null) => {
     notificationHandler.current = fn;
@@ -446,6 +447,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let first = true;
     const stop = startNotifyStream(
       (n) => {
+        // Ignore an identical message that was already announced a moment ago.
+        const recent = Date.now() - 120000;
+        if (recentAnnounced.current.some((r) => r.key === n.title + '|' + n.body && r.at > recent)) return;
+        recentAnnounced.current = [...recentAnnounced.current.filter((r) => r.at > recent), { key: n.title + '|' + n.body, at: Date.now() }];
         setNotifications((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 100)));
         setSeen(n.createdAt);
         playChime(n.kind);

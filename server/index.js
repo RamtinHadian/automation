@@ -207,6 +207,13 @@ async function notify(userIds, { kind, title, body, ref, label }, exceptId) {
   for (const userId of targets) {
     const n = { id: uidn(), userId, kind, label: label || '', title, body: body || '', ref: ref || null, createdAt: new Date().toISOString(), read: false };
     try {
+      // Never repeat the very same notification (same text) within two minutes, whatever caused the repeat.
+      const dup = await pool.query(
+        `SELECT 1 FROM notifications WHERE user_id = $1 AND data->>'title' = $2 AND data->>'body' = $3
+           AND created_at > now() - interval '2 minutes' LIMIT 1`,
+        [userId, n.title, n.body]
+      );
+      if (dup.rows[0]) continue;
       await pool.query('INSERT INTO notifications (id, user_id, data) VALUES ($1, $2, $3)', [n.id, userId, n]);
       await pool.query(
         `DELETE FROM notifications WHERE user_id = $1 AND id NOT IN
