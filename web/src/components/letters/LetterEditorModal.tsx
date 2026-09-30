@@ -144,10 +144,16 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   letterNumbering,
   onSendLetter,
 }) => {
-  const { fonts, settings, setStaffList, setCurrentUser } = useAppContext();
+  const { fonts, settings, setSettings, setStaffList, setCurrentUser, showToast } = useAppContext();
+  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const orgTpl = settings.letterTemplate;
   const defaultFont = fonts.find((f) => f.id === settings.defaultLetterFontId) || fonts[0] || { fontFamily: 'Vazirmatn', name: 'وزیرمتن' };
   // The user's saved letter settings (restored every time the editor opens).
-  const prefs = (currentUser.letterPrefs || {}) as Record<string, any>;
+  // Priority: the organisation template when it is locked (or when the person has no settings of their own yet), else the person's own settings.
+  const personalPrefs = (currentUser.letterPrefs || {}) as Record<string, any>;
+  const hasPersonal = Object.keys(personalPrefs).length > 0;
+  const prefs = (orgTpl?.layout && (orgTpl.locked || !hasPersonal) ? orgTpl.layout : personalPrefs) as Record<string, any>;
+  const [initialBody] = useState<string>(() => orgTpl?.bodyHtml || TEMPLATES[0].content);
   const fontPref = (v: unknown) => (typeof v === 'string' && fonts.some((f) => f.fontFamily === v) ? v : defaultFont.fontFamily);
   const numPref = (v: unknown, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
   const ptPref = (v: any) => ({ x: numPref(v?.x, 0), y: numPref(v?.y, 0) });
@@ -201,16 +207,22 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.subjectOffset));
   const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.metaOffset));
 
-  // Save the settings a moment after each change so the next letter starts exactly the same way.
-  const savedPrefs = useRef<string>(JSON.stringify(currentUser.letterPrefs || {}));
+  const collectLayout = () => ({
+    selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
+    selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
+    signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
+  });
+
+  // Save the person's settings a moment after each change (never on opening, and not when the organisation template is locked).
+  const savedPrefs = useRef<string | null>(null);
   useEffect(() => {
-    const next = {
-      selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
-      selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
-      signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
-    };
+    const next = collectLayout();
     const json = JSON.stringify(next);
-    if (json === savedPrefs.current) return;
+    if (savedPrefs.current === null) {
+      savedPrefs.current = json;
+      return;
+    }
+    if (orgTpl?.locked || json === savedPrefs.current) return;
     const t = setTimeout(() => {
       savedPrefs.current = json;
       setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: next } : u)));
@@ -219,6 +231,27 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize, selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign, signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset]);
+
+  // Admin: make the current layout (and opening text) the organisation's standard letter template.
+  const saveOrgTemplate = (locked: boolean) => {
+    setSettings({
+      ...settings,
+      letterTemplate: {
+        layout: collectLayout(),
+        bodyHtml: editorRef.current?.innerHTML || undefined,
+        locked,
+        savedBy: currentUser.fullName,
+        savedAt: new Date().toISOString(),
+      },
+    });
+    showToast(locked ? 'قالب کلی ثبت شد و برای همهٔ نامه‌ها اجباری است.' : 'قالب کلی سازمان ثبت شد؛ هر نامهٔ جدید از روی آن شروع می‌شود.');
+  };
+  const removeOrgTemplate = () => {
+    const { letterTemplate: _removed, ...rest } = settings;
+    setSettings(rest as typeof settings);
+    showToast('قالب کلی سازمان برداشته شد.');
+  };
+
 
   const [activeDragItem, setActiveDragItem] = useState<'NONE' | 'SIGNATURE' | 'CENTER_TITLE' | 'SUBJECT' | 'BODY' | 'META'>('NONE');
   const dragStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -535,6 +568,31 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               ))}
             </select>
           </div>
+
+          {/* Organisation letter template: set once by an admin, used by everyone afterwards */}
+          {isAdmin ? (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-2.5 py-1 shrink-0">
+              <span className="text-[11px] font-black text-emerald-900">
+                قالب کلی سازمان: {orgTpl ? (orgTpl.locked ? 'فعال (اجباری)' : 'فعال') : 'ندارد'}
+              </span>
+              <button type="button" onClick={() => saveOrgTemplate(!!orgTpl?.locked)} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black cursor-pointer" title="چیدمان و متن فعلی به‌عنوان قالب همهٔ نامه‌ها ذخیره شود">
+                ثبت وضعیت فعلی به‌عنوان قالب
+              </button>
+              <label className="flex items-center gap-1 text-[11px] font-bold text-emerald-900 cursor-pointer" title="اگر فعال باشد، هر نامه همیشه از روی قالب شروع می‌شود و تنظیمات شخصی کاربران نادیده گرفته می‌شود">
+                <input type="checkbox" checked={!!orgTpl?.locked} disabled={!orgTpl} onChange={(e) => saveOrgTemplate(e.target.checked)} className="accent-emerald-600" />
+                اجباری
+              </label>
+              {orgTpl && (
+                <button type="button" onClick={removeOrgTemplate} className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer">
+                  برداشتن
+                </button>
+              )}
+            </div>
+          ) : orgTpl ? (
+            <span className="text-[11px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-2.5 py-1 shrink-0">
+              قالب سازمان اعمال شده است{orgTpl.locked ? ' (اجباری)' : ''}
+            </span>
+          ) : null}
         </div>
 
         {/* Word Styling Toolbar: one horizontally scrollable row on phones */}
@@ -1047,7 +1105,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                   transform: `translateX(${bodyOffsetX}px)`,
                 }}
                 className="focus:outline-none min-h-[160px] leading-relaxed space-y-3 transition-transform"
-                dangerouslySetInnerHTML={{ __html: TEMPLATES[0].content }}
+                dangerouslySetInnerHTML={{ __html: initialBody }}
               />
             </div>
 

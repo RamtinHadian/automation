@@ -76,6 +76,17 @@ export interface DailyReport {
   updatedAt: string;
 }
 
+export interface OrgLetterTemplate {
+  /** Fonts, sizes, page size, header title, margins and the positions of signature / stamp. */
+  layout: Record<string, unknown>;
+  /** Standard opening text of a new letter (optional). */
+  bodyHtml?: string;
+  /** When true every letter starts from this template and personal editor settings are ignored. */
+  locked?: boolean;
+  savedBy?: string;
+  savedAt?: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -257,6 +268,8 @@ export interface CustomFont {
 export interface SystemSettings {
   companyName?: string; // نام رسمی شرکت / سازمان
   companySubtitle?: string; // عنوان فرعی سربرگ اداری
+  /** The organisation's standard letter layout, set once by an admin in the letter editor. */
+  letterTemplate?: OrgLetterTemplate;
   companyLogoUrl?: string; // لوگو و آرم رسمی سازمان
   systemTitle?: string; // نام و عنوان سامانه
   maxUploadSizeBytes: number;
