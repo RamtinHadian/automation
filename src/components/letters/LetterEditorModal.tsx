@@ -144,23 +144,28 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   letterNumbering,
   onSendLetter,
 }) => {
-  const { fonts, settings } = useAppContext();
+  const { fonts, settings, setStaffList, setCurrentUser } = useAppContext();
   const defaultFont = fonts.find((f) => f.id === settings.defaultLetterFontId) || fonts[0] || { fontFamily: 'Vazirmatn', name: 'وزیرمتن' };
-  const [selectedFontFamily, setSelectedFontFamily] = useState<string>(defaultFont.fontFamily);
-  const [headerCenterFontFamily, setHeaderCenterFontFamily] = useState<string>(defaultFont.fontFamily);
-  const [subjectFontFamily, setSubjectFontFamily] = useState<string>(defaultFont.fontFamily);
-  const [metaFontFamily, setMetaFontFamily] = useState<string>(defaultFont.fontFamily);
-  const [signerFontFamily, setSignerFontFamily] = useState<string>(defaultFont.fontFamily);
-  const [signerFontSize, setSignerFontSize] = useState<number>(18);
+  // The user's saved letter settings (restored every time the editor opens).
+  const prefs = (currentUser.letterPrefs || {}) as Record<string, any>;
+  const fontPref = (v: unknown) => (typeof v === 'string' && fonts.some((f) => f.fontFamily === v) ? v : defaultFont.fontFamily);
+  const numPref = (v: unknown, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
+  const ptPref = (v: any) => ({ x: numPref(v?.x, 0), y: numPref(v?.y, 0) });
+  const [selectedFontFamily, setSelectedFontFamily] = useState<string>(() => fontPref(prefs.selectedFontFamily));
+  const [headerCenterFontFamily, setHeaderCenterFontFamily] = useState<string>(() => fontPref(prefs.headerCenterFontFamily));
+  const [subjectFontFamily, setSubjectFontFamily] = useState<string>(() => fontPref(prefs.subjectFontFamily));
+  const [metaFontFamily, setMetaFontFamily] = useState<string>(() => fontPref(prefs.metaFontFamily));
+  const [signerFontFamily, setSignerFontFamily] = useState<string>(() => fontPref(prefs.signerFontFamily));
+  const [signerFontSize, setSignerFontSize] = useState<number>(() => numPref(prefs.signerFontSize, 18));
   const [signerName, setSignerName] = useState<string>(() => settings.ceoName || 'مدیریت سازمان');
   const [signerTitle, setSignerTitle] = useState<string>(() => settings.ceoTitle || 'مدیرعامل');
-  const [selectedFontSize, setSelectedFontSize] = useState<string>('13px');
-  const [headerCenterTitle, setHeaderCenterTitle] = useState('« به نام خدا »');
-  const [bodyPaddingX, setBodyPaddingX] = useState<number>(32);
-  const [bodyOffsetX, setBodyOffsetX] = useState<number>(0);
-  const [signatureHeight, setSignatureHeight] = useState<number>(settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT);
+  const [selectedFontSize, setSelectedFontSize] = useState<string>(() => (typeof prefs.selectedFontSize === 'string' ? prefs.selectedFontSize : '13px'));
+  const [headerCenterTitle, setHeaderCenterTitle] = useState<string>(() => (typeof prefs.headerCenterTitle === 'string' ? prefs.headerCenterTitle : '« به نام خدا »'));
+  const [bodyPaddingX, setBodyPaddingX] = useState<number>(() => numPref(prefs.bodyPaddingX, 32));
+  const [bodyOffsetX, setBodyOffsetX] = useState<number>(() => numPref(prefs.bodyOffsetX, 0));
+  const [signatureHeight, setSignatureHeight] = useState<number>(() => numPref(prefs.signatureHeight, settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT));
 
-  const [pageSize, setPageSize] = useState<PaperSize>('A4');
+  const [pageSize, setPageSize] = useState<PaperSize>(() => (['A4', 'A5', 'Letter', 'Letterhead'].includes(prefs.pageSize) ? prefs.pageSize : 'A4'));
   const [showNote, setShowNote] = useState(false);
   // On phones the paper is narrow, so the centre title flows above the header instead of overlapping the company name.
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
@@ -184,17 +189,36 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
   // Draggable Elements State (Signature, Center Title, Subject)
-  const [signatureAlign, setSignatureAlign] = useState<'left' | 'center' | 'right'>('left');
-  const [signatureOffset, setSignatureOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [signatureAlign, setSignatureAlign] = useState<'left' | 'center' | 'right'>(() => (['left', 'center', 'right'].includes(prefs.signatureAlign) ? prefs.signatureAlign : 'left'));
+  const [signatureOffset, setSignatureOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.signatureOffset));
   // Signature image and stamp are positioned and sized independently (drag / corner handle)
-  const [sigImgOffset, setSigImgOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [stampOffset, setStampOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(null);
+  const [sigImgOffset, setSigImgOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.sigImgOffset));
+  const [stampOffset, setStampOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.stampOffset));
+  const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(() => (typeof prefs.stampHeightOverride === 'number' ? prefs.stampHeightOverride : null));
   const effectiveStampHeight =
     stampHeightOverride ?? (pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05));
-  const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.headerCenterOffset));
+  const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.subjectOffset));
+  const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.metaOffset));
+
+  // Save the settings a moment after each change so the next letter starts exactly the same way.
+  const savedPrefs = useRef<string>(JSON.stringify(currentUser.letterPrefs || {}));
+  useEffect(() => {
+    const next = {
+      selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
+      selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
+      signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
+    };
+    const json = JSON.stringify(next);
+    if (json === savedPrefs.current) return;
+    const t = setTimeout(() => {
+      savedPrefs.current = json;
+      setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: next } : u)));
+      setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: next } : u));
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize, selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign, signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset]);
 
   const [activeDragItem, setActiveDragItem] = useState<'NONE' | 'SIGNATURE' | 'CENTER_TITLE' | 'SUBJECT' | 'BODY' | 'META'>('NONE');
   const dragStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -1017,6 +1041,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                   fontFamily: selectedFontFamily,
                   fontSize: selectedFontSize,
                   lineHeight: 2.2,
+                  textAlign: 'justify',
                   paddingLeft: `${bodyPaddingX}px`,
                   paddingRight: `${bodyPaddingX}px`,
                   transform: `translateX(${bodyOffsetX}px)`,

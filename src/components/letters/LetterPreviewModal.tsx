@@ -1768,6 +1768,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                     fontFamily: bodyFontFamily || chosenFont.fontFamily,
                     fontSize: selectedFontSize,
                     lineHeight: 2.2,
+                    textAlign: 'justify',
                   }}
                   title="متن نامه (مستقیماً کلیک کرده و ویرایش کنید)"
                 />
@@ -1779,6 +1780,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                     fontFamily: bodyFontFamily || chosenFont.fontFamily,
                     fontSize: selectedFontSize,
                     lineHeight: 2.2,
+                    textAlign: 'justify',
                   }}
                 />
               )}

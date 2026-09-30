@@ -334,6 +334,7 @@ app.put(
         merged = {
           ...existing.data,
           themeId: rest.themeId ?? existing.data.themeId,
+          letterPrefs: rest.letterPrefs ?? existing.data.letterPrefs,
           avatarUrl: rest.avatarUrl ?? existing.data.avatarUrl,
         };
       } else {

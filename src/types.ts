@@ -26,6 +26,8 @@ export interface User {
   canSignOfficialLetters?: boolean;
   /** Access to the task-management menu (super/department admins always have it). */
   canUseTasks?: boolean;
+  /** The user's own letter-editor settings (fonts, sizes, positions...), restored every time the editor opens. */
+  letterPrefs?: Record<string, unknown>;
   themeId?: string;
 }
 
