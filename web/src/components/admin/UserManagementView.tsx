@@ -15,7 +15,8 @@ import {
   FileCheck,
   Award,
   Stamp,
-  ClipboardList
+  ClipboardList,
+  Users
 } from 'lucide-react';
 import { User, UserRole, Department } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
@@ -33,6 +34,7 @@ interface UserManagementViewProps {
     canSendOfficialLetters?: boolean;
     canSignOfficialLetters?: boolean;
     canUseTasks?: boolean;
+    canUseCrm?: boolean;
     extension?: string;
   }) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
@@ -61,6 +63,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [newCanSendOfficialLetters, setNewCanSendOfficialLetters] = useState(false);
   const [newCanSignOfficialLetters, setNewCanSignOfficialLetters] = useState(false);
   const [newCanUseTasks, setNewCanUseTasks] = useState(false);
+  const [newCanUseCrm, setNewCanUseCrm] = useState(false);
   const [newExtension, setNewExtension] = useState('');
 
   const filteredUsers = users.filter((u) => {
@@ -87,6 +90,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       canSendOfficialLetters: newCanSendOfficialLetters,
       canSignOfficialLetters: newCanSignOfficialLetters,
       canUseTasks: newCanUseTasks,
+      canUseCrm: newCanUseCrm,
       extension: newExtension.trim(),
     });
 
@@ -97,6 +101,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     setNewCanSendOfficialLetters(false);
     setNewCanSignOfficialLetters(false);
     setNewCanUseTasks(false);
+    setNewCanUseCrm(false);
     setNewExtension('');
   };
 
@@ -406,6 +411,30 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   />
                   <Lock className="w-3.5 h-3.5 text-[#8C6F66] absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
+              </div>
+
+              {/* Permission: customers (CRM) */}
+              <div className="p-3 bg-violet-50/70 rounded-2xl border border-violet-200 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-black text-xs text-violet-900">
+                    <Users className="w-4 h-4 text-violet-600" />
+                    <span>دسترسی به مشتریان و فروش (CRM)</span>
+                  </div>
+                  <p className="text-[10px] text-[#8C6F66] leading-relaxed">منوی «مشتریان» برای این کاربر فعال می‌شود: مشتری، فرصت فروش و پیگیری.</p>
+                </div>
+                <input type="checkbox" checked={!!editingUser.canUseCrm} onChange={(e) => setEditingUser({ ...editingUser, canUseCrm: e.target.checked })} className="w-5 h-5 accent-violet-600 rounded cursor-pointer shrink-0" />
+              </div>
+
+              {/* Permission: customers (CRM) */}
+              <div className="p-3 bg-violet-50/70 rounded-2xl border border-violet-200 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-black text-xs text-violet-900">
+                    <Users className="w-4 h-4 text-violet-600" />
+                    <span>دسترسی به مشتریان و فروش (CRM)</span>
+                  </div>
+                  <p className="text-[10px] text-[#8C6F66] leading-relaxed">منوی «مشتریان» برای این کاربر فعال می‌شود: مشتری، فرصت فروش و پیگیری.</p>
+                </div>
+                <input type="checkbox" checked={newCanUseCrm} onChange={(e) => setNewCanUseCrm(e.target.checked)} className="w-5 h-5 accent-violet-600 rounded cursor-pointer shrink-0" />
               </div>
 
               {/* Permission Checkbox: Task management */}

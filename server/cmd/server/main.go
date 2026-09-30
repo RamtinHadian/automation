@@ -10,6 +10,7 @@ import (
 	"automation/server/internal/api"
 	"automation/server/internal/auth"
 	"automation/server/internal/config"
+	"automation/server/internal/crm"
 	"automation/server/internal/push"
 	"automation/server/internal/store"
 	"automation/server/internal/voip"
@@ -45,6 +46,7 @@ func main() {
 	phone := voip.NewClient(voip.Config{Host: cfg.AMIHost, Port: cfg.AMIPort, User: cfg.AMIUser, Secret: cfg.AMISecret})
 	voip.WatchCalls(phone)
 	go phone.Run(ctx)
+	go crm.RunReminders(ctx)
 	api.SetPhone(phone)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: api.Router(cfg)}

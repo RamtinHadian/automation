@@ -86,6 +86,19 @@ func state(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	customers, deals, activities := empty(), empty(), empty()
+	if me.CanUseCrm() {
+		if customers, err = store.RawList(ctx, `SELECT data FROM crm_customers ORDER BY (data->>'name')`); fail(err) {
+			return
+		}
+		if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals ORDER BY id`); fail(err) {
+			return
+		}
+		if activities, err = store.RawList(ctx, `SELECT data FROM crm_activities ORDER BY created_at DESC LIMIT 2000`); fail(err) {
+			return
+		}
+	}
+
 	var settings any
 	var raw []byte
 	if err := store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw); err == nil {
@@ -96,6 +109,9 @@ func state(w http.ResponseWriter, r *http.Request) {
 		"me":          me.M,
 		"tasks":       tasks,
 		"reports":     reports,
+		"customers":   customers,
+		"deals":       deals,
+		"activities":  activities,
 		"staff":       staff,
 		"departments": departments,
 		"transfers":   transfers,

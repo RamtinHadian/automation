@@ -26,6 +26,8 @@ export interface User {
   canSignOfficialLetters?: boolean;
   /** Access to the task-management menu (super/department admins always have it). */
   canUseTasks?: boolean;
+  /** Access to the customer (CRM) menu; admins always have it. */
+  canUseCrm?: boolean;
   /** Phone extension on the company phone system (for incoming-call pop-ups and click-to-call). */
   extension?: string;
   /** The user's own letter-editor settings (fonts, sizes, positions...), restored every time the editor opens. */
@@ -74,6 +76,63 @@ export interface DailyReport {
   recipientIds: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE';
+export type DealStage = 'NEW' | 'CONTACTED' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST';
+export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP';
+
+export interface Customer {
+  id: string;
+  name: string;
+  company?: string;
+  phones: string[];
+  email?: string;
+  address?: string;
+  status: CustomerStatus;
+  source?: string;
+  tags: string[];
+  ownerId: string;
+  ownerName: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Deal {
+  id: string;
+  title: string;
+  customerId: string;
+  customerName: string;
+  /** Amount in Toman. */
+  amount: number;
+  stage: DealStage;
+  ownerId: string;
+  ownerName: string;
+  /** Expected closing day, yyyy-mm-dd. */
+  expectedClose?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  closedAt?: string;
+}
+
+export interface CrmActivity {
+  id: string;
+  customerId: string;
+  dealId?: string;
+  type: ActivityType;
+  text: string;
+  /** Follow-ups: the day it is due, yyyy-mm-dd. */
+  dueDate?: string;
+  done?: boolean;
+  doneAt?: string;
+  /** Whose follow-up it is. */
+  ownerId: string;
+  ownerName: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
 }
 
 export interface OrgLetterTemplate {

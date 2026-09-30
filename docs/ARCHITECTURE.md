@@ -9,6 +9,7 @@ automation/
 │   │   │   ├── admin/       Users, departments, settings, analytics, audit log
 │   │   │   ├── letters/     Letter editor, preview/sign, draggable signature and stamp
 │   │   │   ├── tasks/       Task board and daily reports
+│   │   ├── crm/         Customers, sales pipeline and follow-ups
 │   │   │   ├── dashboard/   Panel shown after login
 │   │   │   ├── common/      Notification bell and pop-ups, desktop display settings
 │   │   │   ├── drive/       File sending
@@ -27,6 +28,7 @@ automation/
 │   │   ├── notify/          Stores and delivers notifications (live stream + web push)
 │   │   ├── push/            Web push (VAPID keys kept in the database)
 │   │   ├── sse/             Server-sent-event connections per user
+│   │   ├── crm/             Background job: reminds people of customer follow-ups that are due
 │   │   ├── voip/            Connection to the company phone system (Issabel/Asterisk AMI): incoming-call pop-ups, click-to-call
 │   │   ├── jsonx/, httpx/   Small JSON / HTTP helpers
 │   │   └── jalali/          Persian-calendar timestamp for "last login"

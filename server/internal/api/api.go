@@ -28,6 +28,9 @@ var collections = map[string]collectionHandler{
 	"settings":    {put: putSettings},
 	"audit":       {put: putAudit},
 	"reports":     {put: putReport, remove: removeReport},
+	"customers":   {put: putCustomer, remove: removeCustomer},
+	"deals":       {put: putDeal, remove: removeDeal},
+	"activities":  {put: putActivity, remove: removeActivity},
 	"tasks":       {put: putTask, remove: removeTask},
 	"transfers":   {put: putTransfer, remove: removeTransfer},
 }

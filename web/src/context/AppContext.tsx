@@ -11,7 +11,7 @@ import {
   showOsNotification,
   startNotifyStream,
 } from '../lib/notifications';
-import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task, DailyReport } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task, DailyReport, Customer, Deal, CrmActivity } from '../types';
 import { INITIAL_SETTINGS } from '../lib/mock-data';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
 import { useServerSync, hasPendingWrites } from '../lib/useServerSync';
@@ -47,6 +47,12 @@ interface AppContextType {
 
   // Transfers
   transfers: FileTransfer[];
+  customers: Customer[];
+  setCustomers: React.Dispatch<React.SetStateAction<Customer[]>>;
+  deals: Deal[];
+  setDeals: React.Dispatch<React.SetStateAction<Deal[]>>;
+  activities: CrmActivity[];
+  setActivities: React.Dispatch<React.SetStateAction<CrmActivity[]>>;
   reports: DailyReport[];
   setReports: React.Dispatch<React.SetStateAction<DailyReport[]>>;
   tasks: Task[];
@@ -171,6 +177,7 @@ interface AppContextType {
     canSendOfficialLetters?: boolean;
     canSignOfficialLetters?: boolean;
     canUseTasks?: boolean;
+    canUseCrm?: boolean;
     extension?: string;
   }) => void;
   handleUpdateUser: (userId: string, updates: Partial<User>) => void;
@@ -232,6 +239,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [transfers, setTransfers] = useState<FileTransfer[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [reports, setReports] = useState<DailyReport[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [activities, setActivities] = useState<CrmActivity[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(INITIAL_SETTINGS);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -256,6 +266,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     transfers,
     tasks,
     reports,
+    customers,
+    deals,
+    activities,
     auditLogs,
     settings,
     onError: (e) => {
@@ -280,6 +293,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransfers((prev) => keep(prev, s.transfers));
       setTasks((prev) => keep(prev, s.tasks || []));
       setReports((prev) => keep(prev, s.reports || []));
+      setCustomers((prev) => keep(prev, s.customers || []));
+      setDeals((prev) => keep(prev, s.deals || []));
+      setActivities((prev) => keep(prev, s.activities || []));
       setAuditLogs((prev) => keep(prev, s.auditLogs));
       setSettings((prev) => keep(prev, merged));
       // Keep an admin's "act as" selection across refreshes; otherwise follow the signed-in account.
@@ -306,6 +322,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTransfers([]);
     setTasks([]);
     setReports([]);
+    setCustomers([]);
+    setDeals([]);
+    setActivities([]);
     setAuditLogs([]);
     setSettings(INITIAL_SETTINGS);
     setCurrentThemeState('cherry');
@@ -1089,6 +1108,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       canSendOfficialLetters?: boolean;
       canSignOfficialLetters?: boolean;
       canUseTasks?: boolean;
+      canUseCrm?: boolean;
       extension?: string;
     }) => {
       const dept = departments.find((d) => d.id === data.departmentId) || departments[0];
@@ -1110,6 +1130,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         canSendOfficialLetters: !!data.canSendOfficialLetters,
         canSignOfficialLetters: !!data.canSignOfficialLetters,
         canUseTasks: !!data.canUseTasks,
+        canUseCrm: !!data.canUseCrm,
         ...(data.extension ? { extension: data.extension } : {}),
       };
 
@@ -1343,6 +1364,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTasks,
         reports,
         setReports,
+        customers,
+        setCustomers,
+        deals,
+        setDeals,
+        activities,
+        setActivities,
         auditLogs,
         setAuditLogs,
         settings,

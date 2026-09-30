@@ -27,6 +27,7 @@ func (u User) Name() string     { return jsonx.Str(u.M, "fullName") }
 func (u User) Role() string     { return jsonx.Str(u.M, "role") }
 func (u User) IsAdmin() bool    { return u.Role() == "SUPER_ADMIN" || u.Role() == "DEPT_ADMIN" }
 func (u User) CanUseTasks() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canUseTasks") }
+func (u User) CanUseCrm() bool   { return u.IsAdmin() || jsonx.Bool(u.M, "canUseCrm") }
 
 // FromRow builds the public user document from a users row.
 func FromRow(id, email string, data []byte) jsonx.M {

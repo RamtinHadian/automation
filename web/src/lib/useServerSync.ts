@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { api, CollectionName, ServerState } from './api';
-import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport, Customer, Deal, CrmActivity } from '../types';
 
 // Writes are serialised so that e.g. a transfer is always stored before its audit log entry.
 const queue: { chain: Promise<unknown>; pending: number } = { chain: Promise.resolve(), pending: 0 };
@@ -26,6 +26,9 @@ interface SyncInput {
   transfers: FileTransfer[];
   tasks: Task[];
   reports: DailyReport[];
+  customers: Customer[];
+  deals: Deal[];
+  activities: CrmActivity[];
   auditLogs: AuditLog[];
   settings: SystemSettings;
   onError: (e: unknown) => void;
@@ -36,7 +39,7 @@ interface SyncInput {
  * before; this hook diffs each collection against what the server last acknowledged and sends the
  * upserts/deletes. `markSynced` records a freshly loaded server state so it is not echoed back.
  */
-export function useServerSync({ ready, staff, departments, transfers, tasks, reports, auditLogs, settings, onError }: SyncInput) {
+export function useServerSync({ ready, staff, departments, transfers, tasks, reports, customers, deals, activities, auditLogs, settings, onError }: SyncInput) {
   const snaps = useRef<Record<CollectionName, Snapshot>>({
     staff: new Map(),
     departments: new Map(),
@@ -45,6 +48,9 @@ export function useServerSync({ ready, staff, departments, transfers, tasks, rep
     settings: new Map(),
     tasks: new Map(),
     reports: new Map(),
+    customers: new Map(),
+    deals: new Map(),
+    activities: new Map(),
   });
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
@@ -59,6 +65,9 @@ export function useServerSync({ ready, staff, departments, transfers, tasks, rep
       audit: toMap(s.auditLogs),
       tasks: toMap(s.tasks || []),
       reports: toMap(s.reports || []),
+      customers: toMap(s.customers || []),
+      deals: toMap(s.deals || []),
+      activities: toMap(s.activities || []),
       settings: new Map([['main', JSON.stringify(mergedSettings)]]),
     };
   }, []);
@@ -98,6 +107,15 @@ export function useServerSync({ ready, staff, departments, transfers, tasks, rep
   useEffect(() => {
     if (ready) diff('reports', reports, true);
   }, [ready, reports, diff]);
+  useEffect(() => {
+    if (ready) diff('customers', customers, true);
+  }, [ready, customers, diff]);
+  useEffect(() => {
+    if (ready) diff('deals', deals, true);
+  }, [ready, deals, diff]);
+  useEffect(() => {
+    if (ready) diff('activities', activities, true);
+  }, [ready, activities, diff]);
   useEffect(() => {
     // The audit trail is append-only: entries are never deleted server-side.
     if (ready) diff('audit', auditLogs, false);

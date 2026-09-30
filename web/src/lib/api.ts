@@ -1,5 +1,5 @@
 import type { AppNotification } from './notifications';
-import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport, Customer, Deal, CrmActivity } from '../types';
 
 const TOKEN_KEY = 'app_token_v6';
 
@@ -49,7 +49,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   return json as T;
 }
 
-export type CollectionName = 'staff' | 'departments' | 'transfers' | 'audit' | 'settings' | 'tasks' | 'reports';
+export type CollectionName = 'staff' | 'departments' | 'transfers' | 'audit' | 'settings' | 'tasks' | 'reports' | 'customers' | 'deals' | 'activities';
 
 export interface ServerState {
   me: User;
@@ -58,6 +58,9 @@ export interface ServerState {
   transfers: FileTransfer[];
   tasks: Task[];
   reports: DailyReport[];
+  customers: Customer[];
+  deals: Deal[];
+  activities: CrmActivity[];
   auditLogs: AuditLog[];
   settings: SystemSettings | null;
 }

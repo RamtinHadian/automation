@@ -3,6 +3,7 @@ package voip
 import (
 	"context"
 	"log"
+	"strings"
 	"regexp"
 	"sync"
 	"time"
@@ -56,6 +57,29 @@ func userByExtension(ctx context.Context, ext string) (id, name string, ok bool)
 	return id, name, err == nil
 }
 
+// customerByPhone finds a CRM customer whose phone ends with the same last 10 digits as the caller's number.
+func customerByPhone(ctx context.Context, number string) (id, name string, ok bool) {
+	var d strings.Builder
+	for _, r := range number {
+		if r >= '0' && r <= '9' {
+			d.WriteRune(r)
+		}
+	}
+	digits := d.String()
+	if len(digits) < 7 {
+		return "", "", false
+	}
+	if len(digits) > 10 {
+		digits = digits[len(digits)-10:]
+	}
+	err := store.Pool.QueryRow(ctx,
+		`SELECT id, COALESCE(NULLIF(data->>'company', ''), '') || CASE WHEN COALESCE(data->>'company','') <> '' THEN ' - ' ELSE '' END || COALESCE(data->>'name', '')
+		 FROM crm_customers
+		 WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(data->'phones', '[]'::jsonb)) p
+		               WHERE right(regexp_replace(p, '\D', '', 'g'), $2) = $1) LIMIT 1`, digits, len(digits)).Scan(&id, &name)
+	return id, name, err == nil
+}
+
 // WatchCalls turns "a phone is ringing" events into a pop-up for the owner of that extension.
 func WatchCalls(c *Client) {
 	c.OnEvent = func(ev Event) {
@@ -88,9 +112,13 @@ func WatchCalls(c *Client) {
 			} else if cn := pick(ev, "CallerIDName"); cn != "" && cn != number {
 				who = cn + " (" + number + ")"
 			}
-			notify.Notify(ctx, []string{uid}, notify.Note{
-				Kind: "call", Label: "تماس ورودی", Title: "تماس ورودی از " + who, Body: "داخلی " + ext, Repeat: true,
-			}, "")
+			note := notify.Note{Kind: "call", Label: "تماس ورودی", Title: "تماس ورودی از " + who, Body: "داخلی " + ext, Repeat: true}
+			if cid, cname, found := customerByPhone(ctx, number); found {
+				note.Title = "تماس ورودی از مشتری: " + cname
+				note.Body = number + " · داخلی " + ext
+				note.Ref = map[string]any{"type": "customer", "id": cid}
+			}
+			notify.Notify(ctx, []string{uid}, note, "")
 		}(m[1])
 	}
 }

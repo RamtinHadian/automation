@@ -89,6 +89,27 @@ var schema = []string{
 	`CREATE INDEX IF NOT EXISTS daily_reports_user_idx ON daily_reports (user_id, report_date DESC)`,
 	`CREATE INDEX IF NOT EXISTS daily_reports_date_idx ON daily_reports (report_date DESC)`,
 	`CREATE INDEX IF NOT EXISTS daily_reports_recipients_idx ON daily_reports USING GIN (recipient_ids)`,
+	`CREATE TABLE IF NOT EXISTS crm_customers (
+	  id TEXT PRIMARY KEY,
+	  owner_id TEXT,
+	  data JSONB NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS crm_customers_owner_idx ON crm_customers (owner_id)`,
+	`CREATE TABLE IF NOT EXISTS crm_deals (
+	  id TEXT PRIMARY KEY,
+	  customer_id TEXT,
+	  owner_id TEXT,
+	  data JSONB NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS crm_deals_customer_idx ON crm_deals (customer_id)`,
+	`CREATE TABLE IF NOT EXISTS crm_activities (
+	  id TEXT PRIMARY KEY,
+	  customer_id TEXT,
+	  owner_id TEXT,
+	  data JSONB NOT NULL,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
+	`CREATE INDEX IF NOT EXISTS crm_activities_customer_idx ON crm_activities (customer_id, created_at DESC)`,
 	`CREATE TABLE IF NOT EXISTS settings (
 	  key TEXT PRIMARY KEY,
 	  data JSONB NOT NULL

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { CrmView } from '../components/crm/CrmView';
 import { TasksView } from '../components/tasks/TasksView';
 import { LoginDashboard } from '../components/dashboard/LoginDashboard';
 import { CallMenu } from '../components/common/CallMenu';
@@ -7,6 +8,7 @@ import { NotificationBell } from '../components/common/NotificationBell';
 import type { AppNotification } from '../lib/notifications';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../lib/letterDefaults';
 import {
+  Users,
   ClipboardList,
   Archive,
   Hash,
@@ -97,7 +99,7 @@ export default function UserPanel() {
   } = useAppContext();
 
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
-  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks'>('files');
+  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm'>('files');
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -171,7 +173,15 @@ export default function UserPanel() {
   const openNotification = (n: AppNotification) => {
     const type = n.ref?.type;
     setSearchQuery('');
-    if (type === 'report' && canAccessTasksMenu) {
+    if ((type === 'customer' || type === 'deal') && canAccessCrmMenu) {
+      try {
+        sessionStorage.setItem('crm_open', JSON.stringify({ type, id: n.ref?.id }));
+      } catch {
+        /* storage unavailable */
+      }
+      window.dispatchEvent(new Event('open-crm-item'));
+      setMainMenuTab('crm');
+    } else if (type === 'report' && canAccessTasksMenu) {
       try {
         sessionStorage.setItem('tasks_subtab', 'reports');
       } catch {
@@ -183,6 +193,10 @@ export default function UserPanel() {
     else if (type === 'letter' && canAccessLettersMenu) setMainMenuTab('letters');
     else setMainMenuTab('files');
   };
+  const canAccessCrmMenu = Boolean(currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
+  useEffect(() => {
+    if (!canAccessCrmMenu && mainMenuTab === 'crm') setMainMenuTab('files');
+  }, [canAccessCrmMenu, mainMenuTab]);
   useEffect(() => {
     if (!canAccessTasksMenu && mainMenuTab === 'tasks') setMainMenuTab('files');
   }, [canAccessTasksMenu, mainMenuTab]);
@@ -613,6 +627,21 @@ export default function UserPanel() {
               </button>
             )}
 
+            {/* Menu 4: مشتریان (CRM) */}
+            {canAccessCrmMenu && (
+              <button
+                onClick={() => { setMainMenuTab('crm'); setSearchQuery(''); }}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                  mainMenuTab === 'crm'
+                    ? 'bg-violet-600 text-white shadow-md shadow-violet-600/25 scale-[1.02]'
+                    : 'bg-white text-[#3A241F] hover:bg-violet-50 border border-[#EBDBCE]'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>مشتریان</span>
+              </button>
+            )}
+
             {/* Menu 3: وظایف (فقط برای کاربرانی که مجوز دارند) */}
             {canAccessTasksMenu && (
               <button
@@ -634,6 +663,11 @@ export default function UserPanel() {
               <span className="flex items-center gap-1">
                 <FolderOpen className="w-4 h-4 text-[#6E1B1B]" />
                 تبادل سریع فایل میان همکاران و واحدهای سازمان
+              </span>
+            ) : mainMenuTab === 'crm' ? (
+              <span className="flex items-center gap-1 text-violet-800">
+                <Users className="w-4 h-4 text-violet-600" />
+                مشتریان، فرصت‌های فروش و پیگیری‌ها
               </span>
             ) : mainMenuTab === 'tasks' ? (
               <span className="flex items-center gap-1 text-sky-800">
@@ -983,6 +1017,7 @@ export default function UserPanel() {
         {/* VIEW 2: OFFICIAL LETTERS MODE (نامه) */}
         {/* ========================================================================= */}
         {mainMenuTab === 'tasks' && canAccessTasksMenu && <TasksView />}
+        {mainMenuTab === 'crm' && canAccessCrmMenu && <CrmView />}
 
         {mainMenuTab === 'letters' && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-[#EBDBCE]/60">
@@ -1679,6 +1714,22 @@ export default function UserPanel() {
           >
             <ClipboardList className="w-4 h-4" />
             <span className="text-[10px] font-black">وظایف</span>
+          </button>
+        )}
+
+        {/* Tab: مشتریان */}
+        {canAccessCrmMenu && (
+          <button
+            type="button"
+            onClick={() => { setMainMenuTab('crm'); setSearchQuery(''); }}
+            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer ${
+              mainMenuTab === 'crm'
+                ? 'bg-violet-600 text-white shadow-md'
+                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span className="text-[10px] font-black">مشتریان</span>
           </button>
         )}
 
