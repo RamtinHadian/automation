@@ -59,3 +59,16 @@ sudo ./tunnel.sh off        # stop
 ```
 
 The temporary address changes on restart and Cloudflare does not stream live events through it (in-app live notifications and direct file transfer do not work there; phone push does). Use a named tunnel with your own domain for real use: in Cloudflare Zero Trust create a tunnel, copy its token, and point the public hostname to `http://localhost:8080`.
+
+### HTTPS with your own domain (free Let's Encrypt certificate, no Cloudflare)
+
+1. DNS: an `A` record (e.g. `office.example.ir`) pointing to the public IP.
+2. Router: public port `80` -> server `:80` (certificate check) and the public HTTPS port (443, or e.g. 8443 if 443 is used elsewhere) -> server `:443`.
+3. On the server:
+
+```bash
+cd /opt/automation
+sudo bash https.sh office.example.ir 8443   # the second argument is the public HTTPS port (omit for 443)
+```
+
+Caddy is downloaded from GitHub and runs as the `automation-https` service; the certificate renews itself. Stop it with `sudo bash https.sh off`.
