@@ -338,8 +338,8 @@ func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id str
 	}
 	// A sent file or letter can never be deleted, not by the sender and not by an admin. The only thing allowed is
 	// that a recipient hides an item from their own list (the record itself stays for the sender and the audit trail).
-	_ = sender
-	if !jsonx.Contains(recipients, me.ID()) {
+	// Even when someone sent an item to themselves, as the sender they cannot remove it.
+	if sender == me.ID() || !jsonx.Contains(recipients, me.ID()) {
 		httpx.Forbidden(w)
 		return
 	}

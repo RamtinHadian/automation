@@ -897,13 +897,15 @@ export default function UserPanel() {
                                 <Download className="w-3.5 h-3.5" />
                                 <span>دانلود</span>
                               </button>
-                              <button
-                                onClick={() => handleDeleteTransfer(t.id)}
-                                className="p-2 text-[#8C6F66] hover:text-[#D34A32] hover:bg-[#F6D9CD]/30 rounded-xl transition-colors cursor-pointer"
-                                title="حذف"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {t.sender.id !== currentUser.id && (
+                                <button
+                                  onClick={() => handleDeleteTransfer(t.id)}
+                                  className="p-2 text-[#8C6F66] hover:text-[#D34A32] hover:bg-[#F6D9CD]/30 rounded-xl transition-colors cursor-pointer"
+                                  title="برداشتن از فهرست من"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -967,7 +969,7 @@ export default function UserPanel() {
                                 <Download className="w-3.5 h-3.5" />
                                 <span>دانلود</span>
                               </button>
-                              {t.recipients.some((r) => r.id === currentUser.id) && (
+                              {t.sender.id !== currentUser.id && t.recipients.some((r) => r.id === currentUser.id) && (
                                 <button
                                   onClick={() => handleDeleteTransfer(t.id)}
                                   className="p-2 text-[#8C6F66] hover:text-[#D34A32] hover:bg-[#F6D9CD]/30 rounded-xl transition-colors cursor-pointer"
@@ -1310,7 +1312,7 @@ export default function UserPanel() {
                                 </button>
                               )
                             ) : (
-                              t.recipients.some((r) => r.id === currentUser.id) && (
+                              t.sender.id !== currentUser.id && t.recipients.some((r) => r.id === currentUser.id) && (
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteTransfer(t.id)}

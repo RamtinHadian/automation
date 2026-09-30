@@ -825,7 +825,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
       // A sent file or letter can never be deleted (not even by its sender). A recipient may only remove it from their own list.
-      if (!target || !target.recipients.some((r) => r.id === sessionUserId.current)) {
+      if (!target || target.sender.id === sessionUserId.current || !target.recipients.some((r) => r.id === sessionUserId.current)) {
         showToast('فایل یا نامهٔ ارسال‌شده قابل حذف نیست؛ فقط گیرنده می‌تواند آن را از فهرست خودش بردارد.');
         return;
       }
