@@ -358,6 +358,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (syncReady) void syncPushIfAllowed();
   }, [syncReady]);
+  // Windows app: clicking a native notification opens its target.
+  useEffect(() => {
+    if (!window.desktop) return;
+    return window.desktop.onOpenNotification((n) => notificationHandler.current?.(n as AppNotification));
+  }, []);
   // A tap on a system notification while the app is open in the background: open its target.
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;

@@ -3,3 +3,9 @@ dist
 vite.log
 .env
 server/uploads
+
+# Windows desktop shell build output
+desktop/node_modules/
+desktop/dist/
+desktop/*.zip
+desktop/*.log

@@ -1,4 +1,5 @@
 import { getToken } from './api';
+import './desktop';
 
 export type NotificationKind = 'file' | 'letter' | 'task' | 'alert';
 
@@ -141,6 +142,11 @@ export async function requestOsPermission() {
 }
 
 export function showOsNotification(n: AppNotification, onClick: () => void) {
+  // The Windows app shows its own native notification (works on any address, with the system sound).
+  if (window.desktop) {
+    window.desktop.notify(n);
+    return;
+  }
   if (osPermission() !== 'granted') return;
   try {
     const os = new Notification(n.title, { body: n.body, tag: n.id, lang: 'fa', dir: 'rtl', requireInteraction: false });
