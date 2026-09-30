@@ -27,6 +27,7 @@ automation/
 │   │   ├── notify/          Stores and delivers notifications (live stream + web push)
 │   │   ├── push/            Web push (VAPID keys kept in the database)
 │   │   ├── sse/             Server-sent-event connections per user
+│   │   ├── voip/            Connection to the company phone system (Issabel/Asterisk AMI): incoming-call pop-ups, click-to-call
 │   │   ├── jsonx/, httpx/   Small JSON / HTTP helpers
 │   │   └── jalali/          Persian-calendar timestamp for "last login"
 │   └── vendor/              Go dependencies, vendored so building needs no network for them

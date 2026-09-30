@@ -27,6 +27,10 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@company.internal}
       ICE_SERVERS: ${ICE_SERVERS:-}
+      AMI_HOST: ${AMI_HOST:-}
+      AMI_PORT: ${AMI_PORT:-5038}
+      AMI_USER: ${AMI_USER:-}
+      AMI_SECRET: ${AMI_SECRET:-}
     ports:
       - "${PORT:-8080}:8080"
 

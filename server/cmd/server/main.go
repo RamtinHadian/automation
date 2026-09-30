@@ -12,6 +12,7 @@ import (
 	"automation/server/internal/config"
 	"automation/server/internal/push"
 	"automation/server/internal/store"
+	"automation/server/internal/voip"
 )
 
 func main() {
@@ -40,6 +41,11 @@ func main() {
 	if err := push.Init(ctx, cfg); err != nil {
 		log.Fatalf("push keys: %v", err)
 	}
+
+	phone := voip.NewClient(voip.Config{Host: cfg.AMIHost, Port: cfg.AMIPort, User: cfg.AMIUser, Secret: cfg.AMISecret})
+	voip.WatchCalls(phone)
+	go phone.Run(ctx)
+	api.SetPhone(phone)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: api.Router(cfg)}
 	log.Printf("Server listening on :%s", cfg.Port)

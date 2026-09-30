@@ -18,6 +18,11 @@ type Config struct {
 	AdminName     string
 	IceServers    string
 	VapidSubject  string
+	// Phone system (Issabel/Asterisk AMI). Leave AMIHost empty to switch the integration off.
+	AMIHost   string
+	AMIPort   string
+	AMIUser   string
+	AMISecret string
 }
 
 func env(key, def string) string {
@@ -47,6 +52,10 @@ func Load() Config {
 		AdminName:     env("ADMIN_FULL_NAME", "مدیر کل سیستم"),
 		IceServers:    os.Getenv("ICE_SERVERS"),
 		VapidSubject:  env("VAPID_SUBJECT", "mailto:admin@company.internal"),
+		AMIHost:       os.Getenv("AMI_HOST"),
+		AMIPort:       env("AMI_PORT", "5038"),
+		AMIUser:       os.Getenv("AMI_USER"),
+		AMISecret:     os.Getenv("AMI_SECRET"),
 	}
 	if len(c.JWTSecret) < 16 {
 		log.Fatal("JWT_SECRET must be set to a random string of at least 16 characters")

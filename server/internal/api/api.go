@@ -51,6 +51,9 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/signal/stream", auth.Require(signalStream))
 	mux.HandleFunc("POST /api/signal/send", auth.Require(signalSend))
 
+	mux.HandleFunc("GET /api/voip/status", auth.Require(voipStatus))
+	mux.HandleFunc("POST /api/voip/call", auth.Require(voipCall))
+
 	mux.HandleFunc("GET /api/config", iceConfig(cfg))
 	mux.HandleFunc("GET /api/health", health)
 

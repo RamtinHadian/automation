@@ -28,6 +28,8 @@ type Note struct {
 	Title string
 	Body  string
 	Ref   jsonx.M // what to open when clicked: {type, id}
+	// Repeat turns off the two-minute duplicate filter (phone calls from the same number are separate events).
+	Repeat bool
 }
 
 func newID() string {
@@ -52,16 +54,18 @@ func Notify(ctx context.Context, userIDs []string, n Note, exceptID string) {
 		if n.Ref != nil {
 			doc["ref"] = n.Ref
 		}
-		var dup int
-		err := store.Pool.QueryRow(ctx,
-			`SELECT count(*) FROM notifications WHERE user_id = $1 AND data->>'title' = $2 AND data->>'body' = $3
-			   AND created_at > now() - interval '2 minutes'`, uid, n.Title, n.Body).Scan(&dup)
-		if err != nil {
-			log.Printf("notify failed: %v", err)
-			continue
-		}
-		if dup > 0 {
-			continue
+		if !n.Repeat {
+			var dup int
+			err := store.Pool.QueryRow(ctx,
+				`SELECT count(*) FROM notifications WHERE user_id = $1 AND data->>'title' = $2 AND data->>'body' = $3
+				   AND created_at > now() - interval '2 minutes'`, uid, n.Title, n.Body).Scan(&dup)
+			if err != nil {
+				log.Printf("notify failed: %v", err)
+				continue
+			}
+			if dup > 0 {
+				continue
+			}
 		}
 		if _, err := store.Pool.Exec(ctx, `INSERT INTO notifications (id, user_id, data) VALUES ($1, $2, $3::jsonb)`,
 			doc["id"], uid, jsonx.Encode(doc)); err != nil {

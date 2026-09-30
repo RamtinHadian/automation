@@ -33,6 +33,7 @@ interface UserManagementViewProps {
     canSendOfficialLetters?: boolean;
     canSignOfficialLetters?: boolean;
     canUseTasks?: boolean;
+    extension?: string;
   }) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
   onDeleteUser: (userId: string) => void;
@@ -60,6 +61,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [newCanSendOfficialLetters, setNewCanSendOfficialLetters] = useState(false);
   const [newCanSignOfficialLetters, setNewCanSignOfficialLetters] = useState(false);
   const [newCanUseTasks, setNewCanUseTasks] = useState(false);
+  const [newExtension, setNewExtension] = useState('');
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
@@ -85,6 +87,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       canSendOfficialLetters: newCanSendOfficialLetters,
       canSignOfficialLetters: newCanSignOfficialLetters,
       canUseTasks: newCanUseTasks,
+      extension: newExtension.trim(),
     });
 
     setIsAddModalOpen(false);
@@ -94,6 +97,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     setNewCanSendOfficialLetters(false);
     setNewCanSignOfficialLetters(false);
     setNewCanUseTasks(false);
+    setNewExtension('');
   };
 
   return (
@@ -440,6 +444,32 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   }
                   className="w-5 h-5 accent-[#6E1B1B] rounded cursor-pointer shrink-0"
                 />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-[#3A241F] mb-1">شمارهٔ داخلی تلفن (اختیاری)</label>
+                <input
+                  dir="ltr"
+                  inputMode="numeric"
+                  value={editingUser.extension || ''}
+                  onChange={(e) => setEditingUser({ ...editingUser, extension: e.target.value.replace(/[^0-9]/g, '') })}
+                  placeholder="مثلاً ۵۰۱"
+                  className="w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-mono text-[#3A241F] outline-hidden text-right"
+                />
+                <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">برای نمایش پاپ‌آپ تماس ورودی و تماس با یک کلیک از تلفن سازمان.</p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-[#3A241F] mb-1">شمارهٔ داخلی تلفن (اختیاری)</label>
+                <input
+                  dir="ltr"
+                  inputMode="numeric"
+                  value={newExtension}
+                  onChange={(e) => setNewExtension(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="مثلاً ۵۰۱"
+                  className="w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-mono text-[#3A241F] outline-hidden text-right"
+                />
+                <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">برای نمایش پاپ‌آپ تماس ورودی و تماس با یک کلیک از تلفن سازمان.</p>
               </div>
 
               <div>

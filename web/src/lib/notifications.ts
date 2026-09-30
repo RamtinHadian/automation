@@ -1,7 +1,7 @@
 import { getToken } from './api';
 import './desktop';
 
-export type NotificationKind = 'file' | 'letter' | 'task' | 'alert';
+export type NotificationKind = 'file' | 'letter' | 'task' | 'alert' | 'call';
 
 export interface AppNotification {
   id: string;
@@ -80,6 +80,7 @@ const NOTES: Record<NotificationKind, number[]> = {
   letter: [659.25, 830.61, 987.77, 1318.51], // E5 G#5 B5 E6 – warm and formal
   task: [880, 1108.73, 1318.51], // A5 C#6 E6 – cheerful
   alert: [987.77, 739.99, 987.77], // B5 F#5 B5 – attention
+  call: [880, 659.25, 880, 659.25], // A5 E5 A5 E5 – like a phone ringing
 };
 
 /** Returns false when the sound could not be played (muted, or the browser has not unlocked audio yet). */

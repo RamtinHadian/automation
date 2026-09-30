@@ -169,6 +169,7 @@ interface AppContextType {
     canSendOfficialLetters?: boolean;
     canSignOfficialLetters?: boolean;
     canUseTasks?: boolean;
+    extension?: string;
   }) => void;
   handleUpdateUser: (userId: string, updates: Partial<User>) => void;
   handleDeleteUser: (userId: string) => void;
@@ -1068,6 +1069,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       canSendOfficialLetters?: boolean;
       canSignOfficialLetters?: boolean;
       canUseTasks?: boolean;
+      extension?: string;
     }) => {
       const dept = departments.find((d) => d.id === data.departmentId) || departments[0];
       const newUser: User = {
@@ -1088,6 +1090,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         canSendOfficialLetters: !!data.canSendOfficialLetters,
         canSignOfficialLetters: !!data.canSignOfficialLetters,
         canUseTasks: !!data.canUseTasks,
+        ...(data.extension ? { extension: data.extension } : {}),
       };
 
       const newLog: AuditLog = {
