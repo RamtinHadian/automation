@@ -1,4 +1,3 @@
-import { makeAppIcons } from '../../lib/appIcon';
 import React, { useState, useRef, useEffect } from 'react';
 import { DEFAULT_SIGNATURE_HEIGHT, MIN_SIGNATURE_HEIGHT, MAX_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
 import {
@@ -169,12 +168,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result) {
-        const url = e.target?.result as string;
-        setSettings((prev) => ({ ...prev, companyLogoUrl: url }));
-        // Also build the phone home-screen icon from this logo.
-        makeAppIcons(url)
-          .then((icons) => setSettings((prev) => (prev.companyLogoUrl === url ? { ...prev, ...icons } : prev)))
-          .catch(() => {});
+        setSettings((prev) => ({
+          ...prev,
+          companyLogoUrl: e.target?.result as string,
+        }));
       }
     };
     reader.readAsDataURL(file);
@@ -396,7 +393,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {settings.companyLogoUrl && (
                 <button
                   type="button"
-                  onClick={() => setSettings({ ...settings, companyLogoUrl: undefined, appIcon192: undefined, appIcon512: undefined })}
+                  onClick={() => setSettings({ ...settings, companyLogoUrl: undefined })}
                   className="block text-[10px] text-rose-600 hover:underline mx-auto font-bold cursor-pointer"
                 >
                   حذف لوگو

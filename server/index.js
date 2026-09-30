@@ -580,47 +580,6 @@ app.get(
   })
 );
 
-// ---------- app icons & manifest built from the company logo (settings) ----------
-const mainSettings = async () => (await pool.query(`SELECT data FROM settings WHERE key = 'main'`)).rows[0]?.data || {};
-const sendIcon = (field) =>
-  wrap(async (_req, res, next) => {
-    const m = /^data:image\/png;base64,(.+)$/.exec((await mainSettings())[field] || '');
-    if (!m) return next(); // no custom logo: the bundled default icon is served instead
-    res.set({ 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' });
-    res.send(Buffer.from(m[1], 'base64'));
-  });
-app.get('/icon-192.png', sendIcon('appIcon192'));
-app.get('/icon-512.png', sendIcon('appIcon512'));
-app.get('/apple-touch-icon.png', sendIcon('appIcon192'));
-app.get('/favicon.png', sendIcon('appIcon192'));
-
-app.get(
-  '/manifest.webmanifest',
-  wrap(async (_req, res) => {
-    const s = await mainSettings();
-    const v = String((s.appIcon512 || '').length);
-    res.set('Cache-Control', 'no-cache');
-    res.type('application/manifest+json').json({
-      name: s.systemTitle || 'سامانه اتوماسیون اداری و تبادل فایل',
-      short_name: (s.companyName || 'اتوماسیون').slice(0, 14),
-      description: 'تبادل فایل، نامه‌های اداری و مدیریت وظایف',
-      start_url: '/',
-      scope: '/',
-      display: 'standalone',
-      orientation: 'portrait',
-      dir: 'rtl',
-      lang: 'fa',
-      background_color: '#FAF5F1',
-      theme_color: '#6E1B1B',
-      icons: [
-        { src: `/icon-192.png?v=${v}`, sizes: '192x192', type: 'image/png', purpose: 'any' },
-        { src: `/icon-512.png?v=${v}`, sizes: '512x512', type: 'image/png', purpose: 'any' },
-        { src: `/icon-512.png?v=${v}`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-      ],
-    });
-  })
-);
-
 // ---------- static frontend ----------
 if (fs.existsSync(STATIC_DIR)) {
   app.use(express.static(STATIC_DIR));
