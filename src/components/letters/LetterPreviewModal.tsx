@@ -494,6 +494,14 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   // null = the stamp follows the signature size; a number = size chosen for the stamp on its own
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(null);
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // On phones the paper is narrow: the centre title flows above the header instead of overlapping the company name.
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const on = () => setIsMobile(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [headerCenterFontFamily, setHeaderCenterFontFamily] = useState<string>('');
   const [subjectFontFamily, setSubjectFontFamily] = useState<string>('');
@@ -1534,9 +1542,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           >
             {/* Header Component */}
             <div className={`pb-2 ${pageSize === 'A5' ? 'mb-2 space-y-2' : 'mb-4 space-y-3'} shrink-0`}>
-              <div className="relative flex items-start justify-between min-h-[50px]">
+              <div className={`relative flex items-start justify-between min-h-[50px] ${isMobile ? 'flex-col-reverse gap-2' : ''}`}>
                 {/* Right: Company Info & Emblem */}
-                <div className={`space-y-0.5 min-w-0 ${pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
+                <div className={`space-y-0.5 min-w-0 ${isMobile ? 'max-w-full' : pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
                   <div className="flex items-center gap-2">
                     {settings.companyLogoUrl ? (
                       <div
@@ -1594,8 +1602,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
                 {/* Center: Title Field («به نام خدا» - Always Mathematically Centered & Vertically Draggable) */}
                 <div
-                  className="absolute left-1/2 flex items-center justify-center z-10 select-none pointer-events-auto"
-                  style={{
+                  className={isMobile ? 'flex items-center justify-center z-10 select-none pointer-events-auto w-full' : 'absolute left-1/2 flex items-center justify-center z-10 select-none pointer-events-auto'}
+                  style={isMobile ? undefined : {
                     top: `${pageSize === 'A5' ? 2 : 6}px`,
                     transform: `translate(calc(-50% + ${headerCenterOffset.x}px), ${headerCenterOffset.y}px)`,
                   }}

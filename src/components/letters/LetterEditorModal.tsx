@@ -161,6 +161,15 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [signatureHeight, setSignatureHeight] = useState<number>(settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT);
 
   const [pageSize, setPageSize] = useState<PaperSize>('A4');
+  const [showNote, setShowNote] = useState(false);
+  // On phones the paper is narrow, so the centre title flows above the header instead of overlapping the company name.
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const on = () => setIsMobile(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   const [subject, setSubject] = useState('درخواست بررسی و تایید رسمی');
   const [customDate, setCustomDate] = useState(() => formatCurrentJalaliDateTime().split(' - ')[0]);
   const [letterNumber, setLetterNumber] = useState(() => {
@@ -504,10 +513,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           </div>
         </div>
 
-        {/* Word Styling Toolbar (Hidden on Mobile) */}
-        <div className="hidden sm:flex bg-[#FAF5F1] px-6 py-2 border-b border-[#EBDBCE] flex-wrap items-center justify-between gap-2 shrink-0 text-xs">
+        {/* Word Styling Toolbar: one horizontally scrollable row on phones */}
+        <div className="flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-visible no-scrollbar whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0">
           
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-nowrap sm:flex-wrap">
             {/* Font Family Selector */}
             <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
               <Type className="w-3.5 h-3.5 text-[#6E1B1B] mr-1 ml-0.5 shrink-0" />
@@ -777,7 +786,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           >
             {/* Header Component */}
             <div className="pb-2 mb-4 space-y-3 shrink-0">
-              <div className="relative flex items-start justify-between">
+              <div className={`relative flex items-start justify-between ${isMobile ? 'flex-col-reverse gap-2' : ''}`}>
                 {/* Right: Company Info & Dynamic Logo */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-2.5">
@@ -816,11 +825,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
                 {/* Center: Official Title (Strictly Centered & Vertically Draggable Only) */}
                 <div
-                  className="absolute left-1/2 flex items-center justify-center z-10"
-                  style={{
-                    top: '8px',
-                    transform: `translate(-50%, ${headerCenterOffset.y}px)`,
-                  }}
+                  className={isMobile ? 'flex items-center justify-center z-10 w-full' : 'absolute left-1/2 flex items-center justify-center z-10'}
+                  style={isMobile ? undefined : { top: '8px', transform: `translate(-50%, ${headerCenterOffset.y}px)` }}
                 >
                   <div
                     className={`group/title relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition-all ${
@@ -1142,22 +1148,29 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         {/* Bottom Submission Bar */}
         <form
           onSubmit={handleSubmit}
-          className="bg-white px-6 py-3 border-t border-[#EBDBCE] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0"
+          className="bg-white px-3 sm:px-6 py-2.5 sm:py-3 border-t border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 shrink-0"
         >
-          <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-[#3A241F] shrink-0">ارسال جهت امضا به:</label>
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto flex-wrap min-w-0">
+            <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+              <label className="text-xs font-bold text-[#3A241F] shrink-0">ارسال به:</label>
               <select
                 value={recipientId}
                 onChange={(e) => setRecipientId(e.target.value)}
-                className="px-3 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer"
+                className="flex-1 sm:flex-initial min-w-0 px-3 py-2 sm:py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer"
               >
                 {signers.map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.fullName} (★ مدیرعامل / صاحب امضا)
+                    ★ {u.fullName}
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => setShowNote((v) => !v)}
+                className="sm:hidden shrink-0 px-2.5 py-2 rounded-xl border border-[#EBDBCE] bg-white text-[11px] font-black text-[#3A241F] cursor-pointer"
+              >
+                {showNote ? 'بستن توضیح' : '+ توضیح'}
+              </button>
               {signers.length === 0 && (
                 <span className="text-[11px] font-bold text-rose-600">صاحب امضایی تعریف نشده است.</span>
               )}
@@ -1168,25 +1181,26 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               value={extraNote}
               onChange={(e) => setExtraNote(e.target.value)}
               placeholder="توضیحات اختیاری ضمیمه جهت استحضار مدیر..."
-              className="px-3 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs text-[#3A241F] focus:outline-none flex-1 min-w-[260px]"
+              className={`${showNote ? 'block' : 'hidden'} sm:block px-3 py-2 sm:py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs text-[#3A241F] focus:outline-none flex-1 min-w-0 sm:min-w-[260px] w-full sm:w-auto`}
             />
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          <div className="flex items-center gap-2 sm:self-auto">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-[#8C6F66] hover:bg-[#FAF5F1] rounded-xl transition-all cursor-pointer"
+              className="px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold text-[#8C6F66] hover:bg-[#FAF5F1] rounded-xl transition-all cursor-pointer shrink-0"
             >
               انصراف
             </button>
             <button
               type="submit"
               disabled={!signers.some((u) => u.id === recipientId)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black sm:font-bold rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
             >
               <Stamp className="w-4 h-4" />
-              <span>ثبت و ارسال نامه رسمی جهت امضای مدیر</span>
+              <span className="sm:hidden">ثبت و ارسال جهت امضا</span>
+              <span className="hidden sm:inline">ثبت و ارسال نامه رسمی جهت امضای مدیر</span>
             </button>
           </div>
         </form>

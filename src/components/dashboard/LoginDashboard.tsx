@@ -126,7 +126,7 @@ export const LoginDashboard: React.FC<Props> = ({ canUseTasks, onOpenFiles, onOp
         type="button"
         onClick={() => setOpen(true)}
         title="نمای کلی: فایل‌ها و وظایف"
-        className="fixed bottom-24 sm:bottom-24 left-4 z-[90] w-14 h-14 rounded-full bg-white border-2 border-[#EBDBCE] shadow-xl shadow-[#3A241F]/25 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+        className="fixed bottom-24 sm:bottom-24 left-4 z-[45] w-14 h-14 rounded-full bg-white border-2 border-[#EBDBCE] shadow-xl shadow-[#3A241F]/25 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer"
       >
         {logo ? (
           <img src={logo} alt="" className="w-9 h-9 object-contain" />
