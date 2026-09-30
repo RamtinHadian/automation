@@ -1,11 +1,11 @@
 # Stage 1: build the React frontend
 FROM node:22-alpine AS web
 WORKDIR /web
-COPY package.json package-lock.json ./
+COPY web/package.json web/package-lock.json ./
 RUN npm ci
-COPY index.html vite.config.ts tsconfig.json tailwind.config.js postcss.config.js ./
-COPY public ./public
-COPY src ./src
+COPY web/index.html web/vite.config.ts web/tsconfig.json web/tailwind.config.js web/postcss.config.js ./
+COPY web/public ./public
+COPY web/src ./src
 RUN npx vite build
 
 # Stage 2: API server that also serves the built frontend

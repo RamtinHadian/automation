@@ -39,8 +39,10 @@ Put a reverse proxy (nginx/Caddy) with HTTPS in front for production.
 
 ```bash
 cd server && npm install && DATABASE_URL=postgres://... JWT_SECRET=... ADMIN_PASSWORD=... npm start   # API on :8080
-npm install && npm run dev                                                                           # UI on :3000
+cd web && npm install && npm run dev                                                                 # UI on :3000
 ```
+
+The project layout is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 
 ## Updates
