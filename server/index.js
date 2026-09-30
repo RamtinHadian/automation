@@ -132,8 +132,17 @@ app.get(
     const audit = admin
       ? await pool.query('SELECT data FROM audit_logs ORDER BY created_at DESC LIMIT 2000')
       : { rows: [] };
+    const tasks = !canUseTasks(me)
+      ? { rows: [] }
+      : admin
+        ? await pool.query('SELECT data FROM tasks ORDER BY created_at DESC')
+        : await pool.query(
+            'SELECT data FROM tasks WHERE creator_id = $1 OR $1 = ANY(assignee_ids) ORDER BY created_at DESC',
+            [me.id]
+          );
     res.json({
       me,
+      tasks: tasks.rows.map((r) => r.data),
       staff: users.rows.map(rowToUser),
       departments: depts.rows.map((r) => r.data),
       transfers: transfers.rows.map((r) => r.data),
@@ -144,7 +153,8 @@ app.get(
 );
 
 // ---------- collection writes ----------
-const COLLECTIONS = new Set(['staff', 'departments', 'transfers', 'audit', 'settings']);
+const COLLECTIONS = new Set(['staff', 'departments', 'transfers', 'audit', 'settings', 'tasks']);
+const canUseTasks = (u) => isAdmin(u) || u.canUseTasks === true;
 
 app.put(
   '/api/:collection/:id',
@@ -221,6 +231,37 @@ app.put(
       return res.json({ ok: true });
     }
 
+    if (collection === 'tasks') {
+      if (!canUseTasks(me)) return forbidden(res);
+      const { rows } = await pool.query('SELECT creator_id, assignee_ids, data FROM tasks WHERE id = $1', [id]);
+      const existing = rows[0];
+      let doc;
+      if (!existing) {
+        doc = { ...data, id, creatorId: me.id, creatorName: me.fullName };
+      } else if (isAdmin(me) || existing.creator_id === me.id) {
+        doc = { ...data, id, creatorId: existing.creator_id, creatorName: existing.data.creatorName };
+      } else if (existing.assignee_ids.includes(me.id)) {
+        // Assignees may move the task along, tick the checklist and comment; nothing else.
+        doc = {
+          ...existing.data,
+          status: data.status ?? existing.data.status,
+          checklist: data.checklist ?? existing.data.checklist,
+          comments: data.comments ?? existing.data.comments,
+          completedAt: data.completedAt,
+          updatedAt: data.updatedAt ?? existing.data.updatedAt,
+        };
+      } else {
+        return forbidden(res);
+      }
+      const assignees = Array.isArray(doc.assigneeIds) ? doc.assigneeIds.map(String) : [];
+      await pool.query(
+        `INSERT INTO tasks (id, creator_id, assignee_ids, data) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (id) DO UPDATE SET assignee_ids = $3, data = $4`,
+        [id, doc.creatorId, assignees, doc]
+      );
+      return res.json({ ok: true });
+    }
+
     if (collection === 'transfers') {
       const { rows } = await pool.query('SELECT sender_id, recipient_ids FROM transfers WHERE id = $1', [id]);
       const existing = rows[0];
@@ -260,6 +301,13 @@ app.delete(
     if (collection === 'departments') {
       if (!isAdmin(me)) return forbidden(res);
       await pool.query('DELETE FROM departments WHERE id = $1', [id]);
+      return res.json({ ok: true });
+    }
+    if (collection === 'tasks') {
+      const { rows } = await pool.query('SELECT creator_id FROM tasks WHERE id = $1', [id]);
+      if (!rows[0]) return res.json({ ok: true });
+      if (!isAdmin(me) && rows[0].creator_id !== me.id) return forbidden(res);
+      await pool.query('DELETE FROM tasks WHERE id = $1', [id]);
       return res.json({ ok: true });
     }
     if (collection === 'transfers') {

@@ -41,6 +41,15 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS audit_logs_created_idx ON audit_logs (created_at DESC);
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  creator_id TEXT,
+  assignee_ids TEXT[] NOT NULL DEFAULT '{}',
+  data JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS tasks_creator_idx ON tasks (creator_id);
+CREATE INDEX IF NOT EXISTS tasks_assignees_idx ON tasks USING GIN (assignee_ids);
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   data JSONB NOT NULL

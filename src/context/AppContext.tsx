@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../lib/letterDefaults';
-import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task } from '../types';
 import { INITIAL_SETTINGS } from '../lib/mock-data';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
 import { useServerSync, hasPendingWrites } from '../lib/useServerSync';
@@ -36,6 +36,8 @@ interface AppContextType {
 
   // Transfers
   transfers: FileTransfer[];
+  tasks: Task[];
+  setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   setTransfers: React.Dispatch<React.SetStateAction<FileTransfer[]>>;
 
   // Audit Logs
@@ -153,6 +155,7 @@ interface AppContextType {
     quotaGB: number;
     canSendOfficialLetters?: boolean;
     canSignOfficialLetters?: boolean;
+    canUseTasks?: boolean;
   }) => void;
   handleUpdateUser: (userId: string, updates: Partial<User>) => void;
   handleDeleteUser: (userId: string) => void;
@@ -199,6 +202,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentTheme, setCurrentThemeState] = useState<string>('cherry');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [transfers, setTransfers] = useState<FileTransfer[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(INITIAL_SETTINGS);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -221,6 +225,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     staff: staffList,
     departments,
     transfers,
+    tasks,
     auditLogs,
     settings,
     onError: (e) => {
@@ -243,6 +248,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStaffList((prev) => keep(prev, s.staff));
       setDepartments((prev) => keep(prev, s.departments));
       setTransfers((prev) => keep(prev, s.transfers));
+      setTasks((prev) => keep(prev, s.tasks || []));
       setAuditLogs((prev) => keep(prev, s.auditLogs));
       setSettings((prev) => keep(prev, merged));
       // Keep an admin's "act as" selection across refreshes; otherwise follow the signed-in account.
@@ -267,6 +273,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStaffList([]);
     setDepartments([]);
     setTransfers([]);
+    setTasks([]);
     setAuditLogs([]);
     setSettings(INITIAL_SETTINGS);
     setCurrentThemeState('cherry');
@@ -871,6 +878,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       quotaGB: number;
       canSendOfficialLetters?: boolean;
       canSignOfficialLetters?: boolean;
+      canUseTasks?: boolean;
     }) => {
       const dept = departments.find((d) => d.id === data.departmentId) || departments[0];
       const newUser: User = {
@@ -890,6 +898,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         avatarInitials: data.fullName.substring(0, 2),
         canSendOfficialLetters: !!data.canSendOfficialLetters,
         canSignOfficialLetters: !!data.canSignOfficialLetters,
+        canUseTasks: !!data.canUseTasks,
       };
 
       const newLog: AuditLog = {
@@ -1118,6 +1127,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setDepartments,
         transfers,
         setTransfers,
+        tasks,
+        setTasks,
         auditLogs,
         setAuditLogs,
         settings,

@@ -1,4 +1,4 @@
-import { User, FileTransfer, AuditLog, SystemSettings, Department } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, Department, Task } from '../types';
 
 const TOKEN_KEY = 'app_token_v6';
 
@@ -48,13 +48,14 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   return json as T;
 }
 
-export type CollectionName = 'staff' | 'departments' | 'transfers' | 'audit' | 'settings';
+export type CollectionName = 'staff' | 'departments' | 'transfers' | 'audit' | 'settings' | 'tasks';
 
 export interface ServerState {
   me: User;
   staff: User[];
   departments: Department[];
   transfers: FileTransfer[];
+  tasks: Task[];
   auditLogs: AuditLog[];
   settings: SystemSettings | null;
 }

@@ -14,7 +14,8 @@ import {
   UserX,
   FileCheck,
   Award,
-  Stamp
+  Stamp,
+  ClipboardList
 } from 'lucide-react';
 import { User, UserRole, Department } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
@@ -31,6 +32,7 @@ interface UserManagementViewProps {
     quotaGB: number;
     canSendOfficialLetters?: boolean;
     canSignOfficialLetters?: boolean;
+    canUseTasks?: boolean;
   }) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
   onDeleteUser: (userId: string) => void;
@@ -57,6 +59,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [newQuotaGB, setNewQuotaGB] = useState(50);
   const [newCanSendOfficialLetters, setNewCanSendOfficialLetters] = useState(false);
   const [newCanSignOfficialLetters, setNewCanSignOfficialLetters] = useState(false);
+  const [newCanUseTasks, setNewCanUseTasks] = useState(false);
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
@@ -81,6 +84,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       quotaGB: newQuotaGB,
       canSendOfficialLetters: newCanSendOfficialLetters,
       canSignOfficialLetters: newCanSignOfficialLetters,
+      canUseTasks: newCanUseTasks,
     });
 
     setIsAddModalOpen(false);
@@ -89,6 +93,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     setNewPassword('123456');
     setNewCanSendOfficialLetters(false);
     setNewCanSignOfficialLetters(false);
+    setNewCanUseTasks(false);
   };
 
   return (
@@ -221,7 +226,14 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           </span>
                         ) : null}
 
-                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && (
+                        {user.canUseTasks ? (
+                          <span className="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-lg text-[10px] font-bold">
+                            <ClipboardList className="w-3 h-3 text-sky-600" />
+                            <span>مدیریت وظایف</span>
+                          </span>
+                        ) : null}
+
+                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && !user.canUseTasks && (
                           <span className="text-[10px] text-gray-400">عادی</span>
                         )}
                       </div>
@@ -367,6 +379,44 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   />
                   <Lock className="w-3.5 h-3.5 text-[#8C6F66] absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
+              </div>
+
+              {/* Permission Checkbox: Task management */}
+              <div className="p-3 bg-sky-50/70 rounded-2xl border border-sky-200 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-black text-xs text-sky-900">
+                    <ClipboardList className="w-4 h-4 text-sky-600" />
+                    <span>دسترسی به سیستم مدیریت وظایف</span>
+                  </div>
+                  <p className="text-[10px] text-[#8C6F66] leading-relaxed">
+                    منوی «وظایف» برای این کاربر فعال می‌شود تا وظیفه تعریف کند، به همکاران واگذار کند و پیگیری کند.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={!!editingUser.canUseTasks}
+                  onChange={(e) => setEditingUser({ ...editingUser, canUseTasks: e.target.checked })}
+                  className="w-5 h-5 accent-sky-600 rounded cursor-pointer shrink-0"
+                />
+              </div>
+
+              {/* Permission Checkbox: Task management */}
+              <div className="p-3 bg-sky-50/70 rounded-2xl border border-sky-200 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-black text-xs text-sky-900">
+                    <ClipboardList className="w-4 h-4 text-sky-600" />
+                    <span>دسترسی به سیستم مدیریت وظایف</span>
+                  </div>
+                  <p className="text-[10px] text-[#8C6F66] leading-relaxed">
+                    منوی «وظایف» برای این کاربر فعال می‌شود تا وظیفه تعریف کند، به همکاران واگذار کند و پیگیری کند.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={newCanUseTasks}
+                  onChange={(e) => setNewCanUseTasks(e.target.checked)}
+                  className="w-5 h-5 accent-sky-600 rounded cursor-pointer shrink-0"
+                />
               </div>
 
               {/* CEO / Authorized Signatory Permission Checkbox */}

@@ -24,7 +24,44 @@ export interface User {
   lastLogin: string;
   canSendOfficialLetters?: boolean;
   canSignOfficialLetters?: boolean;
+  /** Access to the task-management menu (super/department admins always have it). */
+  canUseTasks?: boolean;
   themeId?: string;
+}
+
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export interface TaskChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  creatorId: string;
+  creatorName: string;
+  assigneeIds: string[];
+  /** Due date as yyyy-mm-dd. */
+  dueDate?: string;
+  checklist: TaskChecklistItem[];
+  comments: TaskComment[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
 }
 
 export interface LetterReferral {

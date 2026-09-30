@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { TasksView } from '../components/tasks/TasksView';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../lib/letterDefaults';
 import {
+  ClipboardList,
   Archive,
   Hash,
   ArchiveRestore,
@@ -90,7 +92,7 @@ export default function UserPanel() {
   } = useAppContext();
 
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
-  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters'>('files');
+  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks'>('files');
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -151,6 +153,9 @@ export default function UserPanel() {
   const canSignOfficial = Boolean(currentUser.canSignOfficialLetters === true || currentUser.role === 'SUPER_ADMIN');
   const canSendOfficial = Boolean(currentUser.canSendOfficialLetters === true || canSignOfficial);
   const canAccessLettersMenu = canSendOfficial || canSignOfficial;
+  const canAccessTasksMenu = Boolean(
+    currentUser.canUseTasks === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN'
+  );
 
   // Ensure user cannot stay on letters tab if permission is revoked
   useEffect(() => {
@@ -158,6 +163,9 @@ export default function UserPanel() {
       setMainMenuTab('files');
     }
   }, [canAccessLettersMenu, mainMenuTab]);
+  useEffect(() => {
+    if (!canAccessTasksMenu && mainMenuTab === 'tasks') setMainMenuTab('files');
+  }, [canAccessTasksMenu, mainMenuTab]);
   const activeRecipientId = recipientId || otherStaff[0]?.id || staffList[0]?.id || '';
   const activeLetterRecipientId = letterRecipientId || signatoriesList[0]?.id || otherStaff[0]?.id || '';
 
@@ -580,6 +588,21 @@ export default function UserPanel() {
                 )}
               </button>
             )}
+
+            {/* Menu 3: وظایف (فقط برای کاربرانی که مجوز دارند) */}
+            {canAccessTasksMenu && (
+              <button
+                onClick={() => { setMainMenuTab('tasks'); setSearchQuery(''); }}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+                  mainMenuTab === 'tasks'
+                    ? 'bg-sky-600 text-white shadow-md shadow-sky-600/25 scale-[1.02]'
+                    : 'bg-white text-[#3A241F] hover:bg-sky-50 border border-[#EBDBCE]'
+                }`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span>وظایف</span>
+              </button>
+            )}
           </div>
 
           <div className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-[#8C6F66]">
@@ -587,6 +610,11 @@ export default function UserPanel() {
               <span className="flex items-center gap-1">
                 <FolderOpen className="w-4 h-4 text-[#6E1B1B]" />
                 تبادل سریع فایل میان همکاران و واحدهای سازمان
+              </span>
+            ) : mainMenuTab === 'tasks' ? (
+              <span className="flex items-center gap-1 text-sky-800">
+                <ClipboardList className="w-4 h-4 text-sky-600" />
+                تعریف، واگذاری و پیگیری وظایف سازمانی
               </span>
             ) : (
               <span className="flex items-center gap-1 text-amber-800">
@@ -944,6 +972,8 @@ export default function UserPanel() {
         {/* ========================================================================= */}
         {/* VIEW 2: OFFICIAL LETTERS MODE (نامه) */}
         {/* ========================================================================= */}
+        {mainMenuTab === 'tasks' && canAccessTasksMenu && <TasksView />}
+
         {mainMenuTab === 'letters' && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-[#EBDBCE]/60">
 
@@ -1631,6 +1661,22 @@ export default function UserPanel() {
           </button>
         )}
 
+        {/* Tab: وظایف */}
+        {canAccessTasksMenu && (
+          <button
+            type="button"
+            onClick={() => { setMainMenuTab('tasks'); setSearchQuery(''); }}
+            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer ${
+              mainMenuTab === 'tasks'
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4" />
+            <span className="text-[10px] font-black">وظایف</span>
+          </button>
+        )}
+
         {/* Center Floating Action Button (FAB) for Draft / Quick Action */}
         {canSendOfficial && (
           <button
@@ -1939,6 +1985,20 @@ export default function UserPanel() {
               <span className="absolute top-0 right-1 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
             )}
             <span className="text-[10px] font-bold mt-0.5">نامه‌ها</span>
+          </button>
+        )}
+
+        {/* Tab: Tasks */}
+        {canAccessTasksMenu && (
+          <button
+            type="button"
+            onClick={() => { setMainMenuTab('tasks'); }}
+            className={`flex flex-col items-center justify-center p-1.5 rounded-full transition-all cursor-pointer ${
+              mainMenuTab === 'tasks' ? 'text-sky-700 font-black scale-105' : 'text-[#8C6F66] hover:text-[#3A241F]'
+            }`}
+          >
+            <ClipboardList className="w-5 h-5" />
+            <span className="text-[10px] font-bold mt-0.5">وظایف</span>
           </button>
         )}
 
