@@ -46,3 +46,16 @@ npm install && npm run dev                                                      
 ## Updates
 
 `install.sh` sets up a cron job (every minute) that runs `auto-update.sh`: it fetches the `frontend` branch and, only if there are new commits, pulls and rebuilds. Push to GitHub and the server follows within ~1 minute. Log: `/var/log/automation-update.log`. Disable with `AUTO_UPDATE=0` at install time or by deleting `/etc/cron.d/automation-update`. Data volumes are never touched by updates.
+
+## HTTPS (needed for phone notifications while the app is closed)
+
+Browsers only allow push notifications and installing the app on HTTPS. The easiest way without opening ports is a Cloudflare Tunnel:
+
+```bash
+cd /opt/automation
+sudo ./tunnel.sh            # free temporary address https://xxxx.trycloudflare.com (testing only)
+sudo ./tunnel.sh <TOKEN>    # your own domain: named-tunnel token from Cloudflare Zero Trust
+sudo ./tunnel.sh off        # stop
+```
+
+The temporary address changes on restart and Cloudflare does not stream live events through it (in-app live notifications and direct file transfer do not work there; phone push does). Use a named tunnel with your own domain for real use: in Cloudflare Zero Trust create a tunnel, copy its token, and point the public hostname to `http://app:8080`.
