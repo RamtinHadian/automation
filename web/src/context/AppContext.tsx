@@ -817,22 +817,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [currentUser, settings, showToast]
   );
 
+  // Files and letters that were sent can never be deleted, neither by the sender nor by the recipient.
   const handleDeleteTransfer = useCallback(
-    (id: string) => {
-      const target = transfers.find((t) => t.id === id);
-      if (target && target.isOfficialLetter && target.signatureStatus === 'SIGNED') {
-        showToast('⚠️ امکان حذف نامه‌های رسمی امضاشده وجود ندارد. این سند حقوقی است و تنها می‌توانید آن را بایگانی کنید.');
-        return;
-      }
-      // A sent file or letter can never be deleted (not even by its sender). A recipient may only remove it from their own list.
-      if (!target || target.sender.id === sessionUserId.current || !target.recipients.some((r) => r.id === sessionUserId.current)) {
-        showToast('فایل یا نامهٔ ارسال‌شده قابل حذف نیست؛ فقط گیرنده می‌تواند آن را از فهرست خودش بردارد.');
-        return;
-      }
-      setTransfers((prev) => prev.filter((t) => t.id !== id));
-      showToast('از فهرست شما برداشته شد.');
+    (_id: string) => {
+      showToast('فایل یا نامهٔ ارسال‌شده قابل حذف نیست.');
     },
-    [transfers, showToast]
+    [showToast]
   );
 
   const handleArchiveTransfer = useCallback(

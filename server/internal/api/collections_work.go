@@ -323,26 +323,8 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 	httpx.OK(w)
 }
 
-func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string) {
-	ctx := r.Context()
-	var sender string
-	var recipients []string
-	err := store.Pool.QueryRow(ctx, `SELECT COALESCE(sender_id, ''), recipient_ids FROM transfers WHERE id = $1`, id).Scan(&sender, &recipients)
-	if err == pgx.ErrNoRows {
-		httpx.OK(w)
-		return
-	}
-	if err != nil {
-		internalError(w)
-		return
-	}
-	// A sent file or letter can never be deleted, not by the sender and not by an admin. The only thing allowed is
-	// that a recipient hides an item from their own list (the record itself stays for the sender and the audit trail).
-	// Even when someone sent an item to themselves, as the sender they cannot remove it.
-	if sender == me.ID() || !jsonx.Contains(recipients, me.ID()) {
-		httpx.Forbidden(w)
-		return
-	}
-	_, _ = store.Pool.Exec(ctx, `INSERT INTO transfer_hidden (transfer_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, id, me.ID())
-	httpx.OK(w)
+// A file or letter that was sent can never be deleted or hidden: not by the sender, not by a recipient, not by an admin.
+// The record stays for everyone concerned and for the audit trail.
+func removeTransfer(w http.ResponseWriter, _ *http.Request, _ auth.User, _ string) {
+	httpx.Forbidden(w)
 }
