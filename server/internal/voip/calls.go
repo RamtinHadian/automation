@@ -2,6 +2,7 @@ package voip
 
 import (
 	"context"
+	"log"
 	"regexp"
 	"sync"
 	"time"
@@ -73,8 +74,10 @@ func WatchCalls(c *Client) {
 			defer cancel()
 			uid, _, ok := userByExtension(ctx, ext)
 			if !ok {
+				log.Printf("voip: extension %s is ringing but no user has this extension (set it in the admin panel)", ext)
 				return
 			}
+			log.Printf("voip: extension %s is ringing for user %s", ext, uid)
 			number := pick(ev, "CallerIDNum", "ConnectedLineNum")
 			who := number
 			if who == "" {
