@@ -79,12 +79,13 @@ fi
 
 echo "Waiting for the address..."
 for _ in $(seq 1 30); do
-  addr="$(journalctl -u "$SERVICE" --no-pager 2>/dev/null | grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' | tail -1 || true)"
+  addr="$(journalctl -u "$SERVICE" --no-pager 2>/dev/null | grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' | grep -v '^https://api\.' | tail -1 || true)"
   if [ -n "$addr" ]; then
     echo "Open this address on your phone:  $addr"
     exit 0
   fi
   sleep 2
 done
-echo "No address yet. Check:  journalctl -u $SERVICE --no-pager | tail -20" >&2
+echo "No tunnel address was created. Last log lines:" >&2
+journalctl -u "$SERVICE" --no-pager 2>/dev/null | tail -12 >&2
 exit 1
