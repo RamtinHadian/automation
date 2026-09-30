@@ -338,13 +338,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [syncReady]);
 
   // Pick up changes made by other users.
+  // While the live stream is healthy a slow poll is enough; if the stream is silent (some proxies buffer it) poll fast.
+  const lastBeat = useRef(0);
   useEffect(() => {
     if (!syncReady) return;
-    const timer = setInterval(() => {
-      if (hasPendingWrites() || document.hidden) return;
+    let lastPoll = Date.now();
+    const poll = () => {
+      lastPoll = Date.now();
+      if (hasPendingWrites()) return;
       api.state().then((s) => applyServerState(s)).catch(() => {});
-    }, POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
+    };
+    const timer = setInterval(() => {
+      if (document.hidden) return;
+      const healthy = Date.now() - lastBeat.current < 40000;
+      if (!healthy || Date.now() - lastPoll >= POLL_INTERVAL_MS) poll();
+    }, 3000);
+    const onWake = () => {
+      if (!document.hidden) poll();
+    };
+    document.addEventListener('visibilitychange', onWake);
+    window.addEventListener('focus', onWake);
+    window.addEventListener('online', onWake);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onWake);
+      window.removeEventListener('focus', onWake);
+      window.removeEventListener('online', onWake);
+    };
   }, [syncReady, applyServerState]);
 
   // ---------- notifications: live stream + stored history ----------
@@ -426,14 +446,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPopups((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 4)));
         flashTitle(n.title);
         showOsNotification(n, () => notificationHandler.current?.(n));
-        // Bring the new file / letter / task into the lists right away.
+        // Bring the new file / letter / task into the lists right away (and once more shortly after, in case
+        // another change of the same action was still being written).
         reloadRef.current();
+        setTimeout(() => reloadRef.current(), 1500);
       },
       () => {
         // (Re)connected: catch up on anything missed while offline; only the first load announces.
         void loadHistory(first);
         if (!first) reloadRef.current();
         first = false;
+      },
+      () => {
+        lastBeat.current = Date.now();
       }
     );
     return stop;

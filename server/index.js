@@ -225,7 +225,7 @@ app.get('/api/notify/stream', requireAuth, (req, res) => {
   const id = req.user.id;
   if (!notifyHubs.has(id)) notifyHubs.set(id, new Set());
   notifyHubs.get(id).add(res);
-  const keepAlive = setInterval(() => res.write(': ping\n\n'), 20000);
+  const keepAlive = setInterval(() => res.write('data: {"ping":1}\n\n'), 15000);
   req.on('close', () => {
     clearInterval(keepAlive);
     const set = notifyHubs.get(id);

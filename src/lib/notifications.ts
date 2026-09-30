@@ -199,7 +199,7 @@ export function flashTitle(text: string) {
 
 // ---------- live stream from the server ----------
 
-export function startNotifyStream(onNotification: (n: AppNotification) => void, onConnected: () => void) {
+export function startNotifyStream(onNotification: (n: AppNotification) => void, onConnected: () => void, onBeat?: () => void) {
   const controller = new AbortController();
   const { signal } = controller;
   void (async () => {
@@ -212,6 +212,7 @@ export function startNotifyStream(onNotification: (n: AppNotification) => void, 
         if (res.status === 401) return;
         if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
         backoff = 1000;
+        onBeat?.();
         onConnected();
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -227,7 +228,9 @@ export function startNotifyStream(onNotification: (n: AppNotification) => void, 
             const line = block.split('\n').find((l) => l.startsWith('data: '));
             if (line) {
               try {
-                onNotification(JSON.parse(line.slice(6)));
+                const msg = JSON.parse(line.slice(6));
+                onBeat?.();
+                if (msg && msg.id) onNotification(msg);
               } catch {
                 /* ignore malformed message */
               }
