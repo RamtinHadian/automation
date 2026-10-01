@@ -60,7 +60,7 @@ export function openProformaPdf(deal: Deal, customer: Customer | undefined, sett
   const t = proformaTotals(items, deal.discountPercent || 0, deal.taxPercent ?? 0);
   const date = deal.proformaAt || todayIso();
   const valid = deal.validUntil || addDaysIso(date, settings.proformaValidDays || 7);
-  const company = settings.companyName || 'شرکت';
+  const company = settings.proformaCompanyName?.trim() || settings.companyName || 'شرکت';
   const logo = settings.companyLogoUrl;
   const terms = (deal.terms ?? settings.proformaTerms ?? DEFAULT_PROFORMA_TERMS).trim();
   const contact = [settings.companyAddress, settings.companyPhone && `تلفن: ${settings.companyPhone}`, settings.companyWebsite, settings.companyEconomicCode && `کد اقتصادی: ${settings.companyEconomicCode}`]
@@ -130,7 +130,8 @@ export function openProformaPdf(deal: Deal, customer: Customer | undefined, sett
   .bank { margin-top: 8px; font-size: 10.5px; color: #4a3b36; }
   .sign { margin-top: auto; padding-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .sign .s { height: 30mm; border: 1px solid #EBDBCE; border-radius: 10px; padding: 6px 12px; font-size: 10.5px; color: #8C6F66; position: relative; text-align: center; }
-  .sign .s img { position: absolute; max-height: 24mm; max-width: 40mm; left: 50%; top: 50%; transform: translate(-50%, -40%); mix-blend-mode: multiply; opacity: .92; }
+  .sign .s .who { position: absolute; bottom: 4px; right: 0; left: 0; font-size: 9.5px; color: #4a3b36; }
+  .sign .s img { position: absolute; max-height: 22mm; max-width: 40mm; left: 62%; top: 50%; transform: translate(-50%, -45%); mix-blend-mode: multiply; opacity: .92; }
   footer { margin-top: 8px; padding-top: 6px; border-top: 1px solid #EBDBCE; display: flex; justify-content: space-between; font-size: 9.5px; color: #8C6F66; }
   .toolbar { position: fixed; top: 10px; left: 10px; display: flex; gap: 8px; }
   .toolbar button { font-family: inherit; font-weight: 800; border: 0; border-radius: 10px; padding: 9px 16px; cursor: pointer; background: #6E1B1B; color: #fff; }
@@ -200,7 +201,7 @@ export function openProformaPdf(deal: Deal, customer: Customer | undefined, sett
   </div>
 
   <div class="sign">
-    <div class="s">مهر و امضای فروشنده${settings.companyStampUrl ? `<img src="${esc(settings.companyStampUrl)}" alt="" />` : ''}${settings.ceoSignatureUrl ? `<img src="${esc(settings.ceoSignatureUrl)}" alt="" style="transform: translate(-10%, -40%)" />` : ''}</div>
+    <div class="s"><b>مهر و امضای فروشنده</b>${settings.ceoName ? `<div class="who">${esc(settings.ceoName)}${settings.ceoTitle ? ' — ' + esc(settings.ceoTitle) : ''}</div>` : ''}${settings.companyStampUrl ? `<img src="${esc(settings.companyStampUrl)}" alt="" />` : ''}${settings.ceoSignatureUrl ? `<img src="${esc(settings.ceoSignatureUrl)}" alt="" style="left: 36%" />` : ''}</div>
     <div class="s">تأیید و امضای خریدار</div>
   </div>
 

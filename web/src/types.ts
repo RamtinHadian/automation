@@ -349,6 +349,8 @@ export interface CustomFont {
 export interface SystemSettings {
   companyName?: string; // نام رسمی شرکت / سازمان
   companySubtitle?: string; // عنوان فرعی سربرگ اداری
+  /** Name printed on proforma invoices (falls back to companyName). */
+  proformaCompanyName?: string;
   companyAddress?: string;
   companyPhone?: string;
   companyEconomicCode?: string;

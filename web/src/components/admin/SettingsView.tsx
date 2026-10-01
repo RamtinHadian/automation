@@ -441,6 +441,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <p className="text-[#8C6F66]">این اطلاعات در پیش‌فاکتور PDF فرصت‌های فروش چاپ می‌شود.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {([
+            ['proformaCompanyName', 'نام شرکت روی پیش‌فاکتور (خالی = نام رسمی شرکت)'],
             ['companyAddress', 'نشانی شرکت'],
             ['companyPhone', 'تلفن'],
             ['companyEconomicCode', 'کد اقتصادی / شناسهٔ ملی'],
