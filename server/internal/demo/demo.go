@@ -40,6 +40,8 @@ var departments = []jsonx.M{
 	{"id": "dept-general", "name": "مدیریت", "code": "HQ", "color": "#6E1B1B", "defaultQuotaGB": 100},
 	{"id": "dept-sales", "name": "فروش و بازاریابی", "code": "SALES", "color": "#1D4ED8", "defaultQuotaGB": 50},
 	{"id": "dept-fin", "name": "مالی و اداری", "code": "FIN", "color": "#166534", "defaultQuotaGB": 50},
+	{"id": "dept-it", "name": "فناوری اطلاعات", "code": "IT", "color": "#7C3AED", "defaultQuotaGB": 80},
+	{"id": "dept-hr", "name": "منابع انسانی", "code": "HR", "color": "#B45309", "defaultQuotaGB": 40},
 }
 
 var tehran = func() *time.Location {
@@ -178,7 +180,7 @@ func iso(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z")
 func day(t time.Time) string { return t.In(tehran).Format("2006-01-02") }
 
 func userDoc(a account) jsonx.M {
-	deptName := map[string]string{"dept-general": "مدیریت", "dept-sales": "فروش و بازاریابی", "dept-fin": "مالی و اداری"}[a.Dept]
+	deptName := map[string]string{"dept-general": "مدیریت", "dept-sales": "فروش و بازاریابی", "dept-fin": "مالی و اداری", "dept-it": "فناوری اطلاعات", "dept-hr": "منابع انسانی"}[a.Dept]
 	return jsonx.M{
 		"id": a.ID, "fullName": a.Name, "email": a.Email, "avatarUrl": "", "avatarInitials": a.Initials, "role": a.Role,
 		"departmentId": a.Dept, "departmentName": deptName, "storageQuotaGB": 50, "storageUsedGB": 3, "isActive": true,
@@ -384,5 +386,5 @@ func Reset(ctx context.Context) error {
 			return err
 		}
 	}
-	return nil
+	return addBulk(ctx, now, string(hash), by)
 }
