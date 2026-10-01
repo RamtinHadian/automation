@@ -4,7 +4,7 @@ import { Phone, Bell, BellRing, CheckCheck, ClipboardList, FileText, Send, Stamp
 import { useAppContext } from '../../context/AppContext';
 import { AppNotification, isAudioReady, osPermission, playChime, requestOsPermission } from '../../lib/notifications';
 import { toPersianDigits } from '../../lib/jalali';
-import { currentSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from '../../lib/push';
+import { currentSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported, setNotifyOptOut } from '../../lib/push';
 
 const KIND_ICON = {
   file: Send,
@@ -206,9 +206,11 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
                     setPushBusy(true);
                     try {
                       if (pushState === 'on') {
+                        setNotifyOptOut(true);
                         await disablePush();
                         setPushState('off');
                       } else {
+                        setNotifyOptOut(false);
                         const res = await enablePush();
                         setPushState(res === 'ok' ? 'on' : res === 'denied' ? 'denied' : 'unsupported');
                       }

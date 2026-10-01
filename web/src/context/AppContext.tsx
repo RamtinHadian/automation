@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../lib/letterDefaults';
-import { disablePush, registerServiceWorker, syncPushIfAllowed } from '../lib/push';
+import { disablePush, installAutoNotifyOptIn, registerServiceWorker, syncPushIfAllowed } from '../lib/push';
 import {
   AppNotification,
   flashTitle,
@@ -415,7 +415,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     void registerServiceWorker();
   }, []);
   useEffect(() => {
-    if (syncReady) void syncPushIfAllowed();
+    if (!syncReady) return;
+    void syncPushIfAllowed();
+    return installAutoNotifyOptIn();
   }, [syncReady]);
   // Windows app: clicking a native notification opens its target.
   useEffect(() => {

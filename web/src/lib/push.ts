@@ -80,3 +80,43 @@ export async function disablePush() {
     /* best effort */
   }
 }
+
+// ---------- automatic opt-in ----------
+// Browsers only show the permission question after a tap or key press, so the first interaction after login asks for it
+// once (and registers push when the browser supports it). Someone who switched notifications off in the bell is not asked again.
+
+const OPTOUT_KEY = 'notify_optout_v1';
+export const setNotifyOptOut = (on: boolean) => {
+  try {
+    if (on) localStorage.setItem(OPTOUT_KEY, '1');
+    else localStorage.removeItem(OPTOUT_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+};
+const optedOut = () => {
+  try {
+    return localStorage.getItem(OPTOUT_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+export function installAutoNotifyOptIn() {
+  // The Windows app has its own native notifications, and plain HTTP cannot show system ones.
+  if ((window as unknown as { desktop?: unknown }).desktop || typeof Notification === 'undefined' || !window.isSecureContext) return () => {};
+  const events = ['pointerup', 'click', 'keydown', 'touchend'] as const;
+  const off = () => events.forEach((e) => window.removeEventListener(e, onGesture, true));
+  async function onGesture() {
+    off();
+    if (optedOut() || Notification.permission !== 'default') return;
+    try {
+      if (pushSupported()) await enablePush();
+      else await Notification.requestPermission();
+    } catch {
+      /* the person can still switch it on in the bell */
+    }
+  }
+  events.forEach((e) => window.addEventListener(e, onGesture, true));
+  return off;
+}
