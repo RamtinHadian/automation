@@ -31,6 +31,8 @@ services:
       AMI_PORT: ${AMI_PORT:-5038}
       AMI_USER: ${AMI_USER:-}
       AMI_SECRET: ${AMI_SECRET:-}
+      DEMO: ${DEMO:-}
+      DEMO_RESET_HOURS: ${DEMO_RESET_HOURS:-6}
     ports:
       - "${PORT:-8080}:8080"
 

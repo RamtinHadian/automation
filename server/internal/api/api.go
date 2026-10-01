@@ -7,6 +7,7 @@ import (
 
 	"automation/server/internal/auth"
 	"automation/server/internal/config"
+	"automation/server/internal/demo"
 	"automation/server/internal/httpx"
 	"automation/server/internal/jsonx"
 )
@@ -61,6 +62,7 @@ func Router(cfg config.Config) http.Handler {
 
 	mux.HandleFunc("GET /api/config", iceConfig(cfg))
 	mux.HandleFunc("GET /api/health", health)
+	mux.HandleFunc("GET /api/demo/info", demo.Info(cfg.Demo, cfg.DemoResetHours))
 
 	// Generic collection routes: PUT saves a document, DELETE removes it.
 	mux.HandleFunc("PUT /api/{collection}/{id}", auth.Require(func(w http.ResponseWriter, r *http.Request) {
@@ -97,5 +99,8 @@ func Router(cfg config.Config) http.Handler {
 		httpx.Error(w, http.StatusNotFound, "not found")
 	}))
 	mux.Handle("/", frontend(cfg.StaticDir))
+	if cfg.Demo {
+		return demo.Guard(mux)
+	}
 	return mux
 }

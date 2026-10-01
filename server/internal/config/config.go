@@ -23,6 +23,9 @@ type Config struct {
 	AMIPort   string
 	AMIUser   string
 	AMISecret string
+	// Public showcase: fills the database with sample data and resets it (see package demo). Use a separate server.
+	Demo           bool
+	DemoResetHours int
 }
 
 func env(key, def string) string {
@@ -56,6 +59,11 @@ func Load() Config {
 		AMIPort:       env("AMI_PORT", "5038"),
 		AMIUser:       os.Getenv("AMI_USER"),
 		AMISecret:     os.Getenv("AMI_SECRET"),
+		Demo:          os.Getenv("DEMO") == "1",
+	}
+	c.DemoResetHours = 6
+	if h, err := strconv.Atoi(os.Getenv("DEMO_RESET_HOURS")); err == nil && h > 0 {
+		c.DemoResetHours = h
 	}
 	if len(c.JWTSecret) < 16 {
 		log.Fatal("JWT_SECRET must be set to a random string of at least 16 characters")

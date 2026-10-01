@@ -13,6 +13,7 @@ import (
 	"automation/server/internal/crm"
 	"automation/server/internal/push"
 	"automation/server/internal/store"
+	"automation/server/internal/demo"
 	"automation/server/internal/voip"
 	"automation/server/internal/work"
 )
@@ -47,6 +48,9 @@ func main() {
 	phone := voip.NewClient(voip.Config{Host: cfg.AMIHost, Port: cfg.AMIPort, User: cfg.AMIUser, Secret: cfg.AMISecret})
 	voip.WatchCalls(phone)
 	go phone.Run(ctx)
+	if cfg.Demo {
+		go demo.Run(ctx, cfg.DemoResetHours)
+	}
 	go crm.RunReminders(ctx)
 	go work.RunTaskReminders(ctx)
 	api.SetPhone(phone)

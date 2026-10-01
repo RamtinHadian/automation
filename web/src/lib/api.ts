@@ -31,6 +31,12 @@ export const setUnauthorizedHandler = (fn: () => void) => {
   onUnauthorized = fn;
 };
 
+export interface DemoInfo {
+  demo: boolean;
+  resetHours?: number;
+  accounts?: { name: string; title: string; identifier: string; password: string }[];
+}
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const token = getToken();
   const res = await fetch(url, {
@@ -77,6 +83,7 @@ export const api = {
   pushSubscribe: (subscription: unknown) => request<{ ok: true }>('POST', '/api/push/subscribe', { subscription }),
   pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('POST', '/api/push/unsubscribe', { endpoint }),
   voipStatus: () => request<{ enabled: boolean; connected: boolean; extension: string }>('GET', '/api/voip/status'),
+  demoInfo: () => request<DemoInfo>('GET', '/api/demo/info'),
   voipLog: () => request<{ enabled: boolean; connected: boolean; eventCount: number; lastEvent: string | null; entries: { at: string; text: string }[] }>('GET', '/api/voip/log'),
   voipTestPopup: () => request<{ ok: true }>('POST', '/api/voip/test-popup'),
   voipCall: (to: string) => request<{ ok: true }>('POST', '/api/voip/call', { to }),

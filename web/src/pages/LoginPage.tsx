@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, Lock, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
+import { DemoAccounts } from '../components/common/DemoBanner';
 
 interface LoginPageProps {
   staffList: User[];
@@ -76,6 +77,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
             برای ورود به حساب کاربری اطلاعات خود را وارد کنید
           </p>
         </div>
+
+        <DemoAccounts
+          busy={submitting}
+          onPick={async (identifier, pass) => {
+            setSubmitting(true);
+            const failure = await onLogin(identifier, pass);
+            setSubmitting(false);
+            if (failure) setError(failure);
+          }}
+        />
 
         {/* Login Card */}
         <div className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">

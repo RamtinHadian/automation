@@ -1,3 +1,4 @@
+import { DemoAdminHint } from '../components/common/DemoBanner';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
@@ -258,6 +259,8 @@ export default function AdminPanel() {
               دسترسی امن مدیران ارشد با احراز هویت دوعاملی و کد کپچا
             </p>
           </div>
+
+          <DemoAdminHint />
 
           {/* Form */}
           <form onSubmit={handleAdminLoginSubmit} className="space-y-4">

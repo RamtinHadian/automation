@@ -6,6 +6,7 @@ import UserPanel from './pages/UserPanel';
 import AdminPanel from './pages/AdminPanel';
 import { LoginPage } from './pages/LoginPage';
 import { NotificationPopups } from './components/common/NotificationPopups';
+import { DemoBanner } from './components/common/DemoBanner';
 
 function AppRoutes() {
   const { loggedInUser, staffList, ready, loginWithCredentials } = useAppContext();
@@ -19,6 +20,7 @@ function AppRoutes() {
 
   return (
     <>
+    <DemoBanner />
     {loggedInUser && <NotificationPopups />}
     <Routes>
       <Route
