@@ -473,9 +473,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let first = true;
     const stop = startNotifyStream(
       (n) => {
-        // Only a true duplicate burst (same text within a few seconds) is ignored; sending the same thing again later
+        // Only a double delivery of the same message (same text within a fraction of a second) is ignored; sending the same thing again later
         // is a new event and must be announced.
-        const recent = Date.now() - 4000;
+        const recent = Date.now() - 700;
         if (recentAnnounced.current.some((r) => r.key === n.title + '|' + n.body && r.at > recent)) return;
         recentAnnounced.current = [...recentAnnounced.current.filter((r) => r.at > recent), { key: n.title + '|' + n.body, at: Date.now() }];
         setNotifications((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 100)));
