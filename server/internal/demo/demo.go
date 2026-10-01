@@ -31,7 +31,7 @@ type account struct {
 }
 
 var accounts = []account{
-	{"demo-ceo", "دکتر احمد کریمی", "ceo@demo.local", "مدیرعامل", "SUPER_ADMIN", "dept-general", "ک", true, true, true, true, "501"},
+	{"demo-ceo", "رامتین هادیان", "ceo@demo.local", "مدیرعامل", "SUPER_ADMIN", "dept-general", "ر", true, true, true, true, "501"},
 	{"demo-secretary", "سارا محمدی", "secretary@demo.local", "منشی مدیرعامل", "STAFF", "dept-general", "م", true, false, true, false, "502"},
 	{"demo-sales", "علی رضایی", "sales@demo.local", "کارشناس فروش", "STAFF", "dept-sales", "ر", false, false, true, true, "503"},
 	{"demo-staff", "مریم احمدی", "staff@demo.local", "کارشناس مالی", "STAFF", "dept-fin", "ا", false, false, true, false, "504"},
