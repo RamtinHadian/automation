@@ -24,7 +24,8 @@ import {
   Sliders,
   Sparkles,
   Type,
-  Palette
+  Palette,
+  PhoneCall
 } from 'lucide-react';
 import { SystemSettings, LetterNumberingSettings } from '../../types';
 import { FontManagementModal } from './FontManagementModal';
@@ -111,6 +112,19 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
+type SettingsSection = 'identity' | 'phone' | 'proforma' | 'letters' | 'signature' | 'look' | 'policies';
+
+/** Each group of settings has its own tab under the page title. */
+const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'identity', label: 'نام و هویت سازمان', Icon: Building2 },
+  { id: 'letters', label: 'نامه‌نگاری و شماره‌گذاری', Icon: Hash },
+  { id: 'signature', label: 'مهر و امضا', Icon: Stamp },
+  { id: 'proforma', label: 'پیش‌فاکتور', Icon: FileText },
+  { id: 'look', label: 'فونت و رنگ', Icon: Palette },
+  { id: 'policies', label: 'فایل‌ها و محدودیت‌ها', Icon: HardDrive },
+  { id: 'phone', label: 'تلفن شرکت (ویپ)', Icon: PhoneCall },
+];
+
 export const SettingsView: React.FC<SettingsViewProps> = ({
   settings: initialSettings,
   onSaveSettings,
@@ -153,6 +167,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const [newExt, setNewExt] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [section, setSectionState] = useState<SettingsSection>(() => {
+    try {
+      const v = localStorage.getItem('admin_settings_section_v1') as SettingsSection | null;
+      return v && SETTINGS_SECTIONS.some((x) => x.id === v) ? v : 'identity';
+    } catch {
+      return 'identity';
+    }
+  });
+  const setSection = (id: SettingsSection) => {
+    setSectionState(id);
+    try {
+      localStorage.setItem('admin_settings_section_v1', id);
+    } catch {
+      /* remembering the tab is optional */
+    }
+  };
   const [showFontModal, setShowFontModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
 
@@ -286,6 +316,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
+      {/* Tabs: every group of settings is under its own menu */}
+      <nav className="flex flex-wrap items-center gap-2 -mt-2">
+        {SETTINGS_SECTIONS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSection(id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              section === id ? 'bg-[#6E1B1B] text-white shadow-sm' : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/30 border border-[#EBDBCE]'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {section === 'identity' && (
+      <>
       {/* ========================================================================= */}
       {/* SECTION 1: SYSTEM TITLE & COMPANY IDENTITY (نام سامانه و هویت سازمان) */}
       {/* ========================================================================= */}
@@ -438,6 +487,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      </>
+      )}
+
       {designerOpen && (
         <ProformaDesigner
           settings={settings}
@@ -449,8 +501,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         />
       )}
 
+      {section === 'phone' && (
+      <>
       <VoipStatusCard />
+      </>
+      )}
 
+
+      {section === 'proforma' && (
+      <>
       {/* Company contact details and proforma defaults */}
       <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#EBDBCE] shadow-sm space-y-4 text-xs">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -522,6 +581,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      </>
+      )}
+
+      {section === 'letters' && (
+      <>
       {/* ========================================================================= */}
       {/* SECTION 2: LETTER NUMBERING & STEP INCREMENT (تنظیمات شماره‌گذاری پلکانی نامه‌ها) */}
       {/* ========================================================================= */}
@@ -692,6 +756,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      </>
+      )}
+
+      {section === 'signature' && (
+      <>
       {/* ========================================================================= */}
       {/* SECTION 3: CEO SIGNATURE & COMPANY STAMP UPLOAD SECTION */}
       {/* ========================================================================= */}
@@ -887,6 +956,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      </>
+      )}
+
+      {section === 'look' && (
+      <>
       {/* ========================================================================= */}
       {/* SECTION 4: COMPACT FONT SELECTION & MODAL TRIGGER (فونت‌های سازمانی) */}
       {/* ========================================================================= */}
@@ -961,6 +1035,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         onClose={() => setShowThemeModal(false)}
       />
 
+      </>
+      )}
+
+      {section === 'policies' && (
+      <>
       {/* ========================================================================= */}
       {/* SECTION 6: SYSTEM POLICIES & UPLOAD LIMITS */}
       {/* ========================================================================= */}
@@ -1097,6 +1176,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
       </div>
+
+      </>
+      )}
 
       {/* Bottom Save Button */}
       <div className="flex justify-end pt-4">
