@@ -95,7 +95,7 @@ export const ProformaDesigner: React.FC<{
 }> = ({ settings, onSave, onClose }) => {
   const [tpl, setTpl] = useState<ProformaTemplate>(() => normalizeTemplate(settings.proformaTemplate));
   const [co, setCo] = useState<CompanyPatch>({
-    proformaCompanyName: settings.proformaCompanyName || '',
+    proformaCompanyName: settings.proformaCompanyName !== undefined ? settings.proformaCompanyName : settings.companyName || '',
     companySubtitle: settings.companySubtitle || '',
     companyAddress: settings.companyAddress || '',
     companyPhone: settings.companyPhone || '',

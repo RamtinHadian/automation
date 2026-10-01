@@ -463,7 +463,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <p className="text-[#8C6F66]">این اطلاعات در پیش‌فاکتور PDF فرصت‌های فروش چاپ می‌شود.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {([
-            ['proformaCompanyName', 'نام شرکت روی پیش‌فاکتور (خالی = نام رسمی شرکت)'],
+            ['proformaCompanyName', 'نام شرکت روی پیش‌فاکتور (اگر پاک کنید چاپ نمی‌شود)'],
             ['companyAddress', 'نشانی شرکت'],
             ['companyPhone', 'تلفن'],
             ['companyEconomicCode', 'کد اقتصادی / شناسهٔ ملی'],
@@ -474,7 +474,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <input
                 type="text"
                 dir="rtl"
-                value={settings[key] || ''}
+                value={key === 'proformaCompanyName' && settings.proformaCompanyName === undefined ? settings.companyName || '' : settings[key] || ''}
                 onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
                 className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
               />

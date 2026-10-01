@@ -43,7 +43,7 @@ export const ProformaModal: React.FC<{
     return {
       title: o.title ?? tpl.title,
       subject: o.subject ?? deal.title,
-      sellerName: o.sellerName ?? (settings.proformaCompanyName?.trim() || settings.companyName || ''),
+      sellerName: o.sellerName ?? (settings.proformaCompanyName !== undefined ? settings.proformaCompanyName : settings.companyName || ''),
       sellerAddress: o.sellerAddress ?? settings.companyAddress ?? '',
       sellerPhone: o.sellerPhone ?? settings.companyPhone ?? '',
       sellerEconomicCode: o.sellerEconomicCode ?? settings.companyEconomicCode ?? '',

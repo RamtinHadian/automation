@@ -97,7 +97,8 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
   const date = deal.proformaAt || todayIso();
   const valid = deal.validUntil || addDaysIso(date, settings.proformaValidDays || 7);
   const f = deal.proformaFields || {};
-  const company = f.sellerName ?? (settings.proformaCompanyName?.trim() || settings.companyName || 'شرکت');
+  // A name that was cleared on purpose stays blank; only a name that was never set falls back to the company name.
+  const company = f.sellerName ?? (settings.proformaCompanyName !== undefined ? settings.proformaCompanyName : settings.companyName || '');
   const sellerAddress = f.sellerAddress ?? settings.companyAddress ?? '';
   const sellerPhone = f.sellerPhone ?? settings.companyPhone ?? '';
   const sellerEco = f.sellerEconomicCode ?? settings.companyEconomicCode ?? '';
@@ -132,7 +133,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       return '';
     }
     if (id === 'company') {
-      return `<div class="h-company" ${attr}><h1>${esc(company)}</h1>${settings.companySubtitle ? `<div class="sub0">${esc(settings.companySubtitle)}</div>` : ''}${contactLines.length ? `<div class="contact">${contactLines.map((l) => toPersianDigits(esc(l))).join('<br>')}</div>` : ''}</div>`;
+      return `<div class="h-company" ${attr}>${company.trim() ? `<h1>${esc(company)}</h1>` : ''}${settings.companySubtitle ? `<div class="sub0">${esc(settings.companySubtitle)}</div>` : ''}${contactLines.length ? `<div class="contact">${contactLines.map((l) => toPersianDigits(esc(l))).join('<br>')}</div>` : ''}</div>`;
     }
     const align = idx === last ? 'left' : idx === 0 ? 'right' : 'center';
     return `<div class="h-title" ${attr} style="text-align:${align}"><div class="t">${esc(titleText)}</div>${tpl.titleEn ? `<div class="en">${esc(tpl.titleEn)}</div>` : ''}</div>`;
@@ -162,7 +163,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
     </div>`,
     parties: `<div class="parties">
       <div class="box"><h3>فروشنده</h3><div class="in">
-        <div><b>${esc(company)}</b></div>
+        ${company.trim() ? `<div><b>${esc(company)}</b></div>` : ''}
         ${sellerAddress ? `<div><span class="lbl">نشانی:</span> ${toPersianDigits(esc(sellerAddress))}</div>` : ''}
         ${sellerPhone ? `<div><span class="lbl">تلفن:</span> ${toPersianDigits(esc(sellerPhone))}</div>` : ''}
         ${sellerEco ? `<div><span class="lbl">کد اقتصادی:</span> ${toPersianDigits(esc(sellerEco))}</div>` : ''}
