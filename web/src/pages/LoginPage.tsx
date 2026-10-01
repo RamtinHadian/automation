@@ -71,7 +71,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
         {/* Heading */}
         <div className="text-center space-y-1.5">
           <h1>
-            <img src="/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-64 sm:w-72 mx-auto" draggable={false} />
+            <img src="/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-44 sm:w-52 mx-auto" draggable={false} />
           </h1>
           <div className="text-sm font-black text-[#3A241F]">خوش آمدید</div>
           <p className="text-xs text-[#8C6F66] font-medium">

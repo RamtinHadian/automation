@@ -505,13 +505,13 @@ export default function UserPanel() {
         {/* Top Header */}
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
-<div className="w-10 h-10 rounded-2xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1.5">
+<div className="w-7 h-7 rounded-xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1">
               <img src="/mark.png" alt="" className="w-full h-full object-contain" draggable={false} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="leading-none">
-                  <img src="/brand-name.png" alt="هورمند" className="h-9 sm:h-11 w-auto" draggable={false} />
+                  <img src="/brand-name.png" alt="هورمند" className="h-6 sm:h-8 w-auto" draggable={false} />
                 </h1>
                 {canSignOfficial && (
                   <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 shadow-2xs shrink-0">
