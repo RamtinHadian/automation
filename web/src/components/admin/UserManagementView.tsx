@@ -181,11 +181,6 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     {/* User Info */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={user.avatarUrl}
-                          alt={user.fullName}
-                          className="w-8 h-8 rounded-full object-cover ring-2 ring-[#EBDBCE]"
-                        />
                         <div>
                           <div className="font-bold text-[#3A241F]">{user.fullName}</div>
                           <div className="text-[11px] text-[#8C6F66]">{user.email}</div>
