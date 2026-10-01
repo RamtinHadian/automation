@@ -35,6 +35,8 @@ const BASE: ProformaTemplate = {
   totalsAlign: 'start',
   footerText: '',
   showFooterContact: true,
+  numberFormat: 'PF-{YYYY}-{NNNN}',
+  numberStart: 1,
 };
 
 type Look = Partial<Omit<ProformaTemplate, 'colors'>> & { colors?: Partial<ProformaTemplate['colors']> };
@@ -91,3 +93,26 @@ export function normalizeTemplate(t?: Partial<ProformaTemplate> | null): Proform
     headerOrder,
   };
 }
+
+export interface ProformaPalette {
+  id: string;
+  name: string;
+  colors: ProformaTemplate['colors'];
+}
+
+const pal = (id: string, name: string, primary: string, accent: string, tableHead: string, soft: string, text: string, paper = '#FFFFFF'): ProformaPalette => ({
+  id,
+  name,
+  colors: { primary, accent, tableHead, tableHeadText: '#FFFFFF', paper, soft, text },
+});
+
+/** Colour palettes for the designer: the colours of the six ready-made samples plus six more. */
+export const PROFORMA_PALETTES: ProformaPalette[] = [
+  ...PROFORMA_PRESETS.map((p) => ({ id: p.id, name: p.name, colors: { ...presetTemplate(p.id).colors } })),
+  pal('teal', 'فیروزه‌ای', '#0F766E', '#14B8A6', '#134E4A', '#F0FDFA', '#0B2B29'),
+  pal('rose', 'گل‌بهی', '#BE185D', '#F472B6', '#4A0D2B', '#FDF2F8', '#3B0A21'),
+  pal('sunset', 'نارنجی غروب', '#C2410C', '#FB923C', '#431407', '#FFF7ED', '#2B1208'),
+  pal('olive', 'زیتونی', '#4D7C0F', '#A3E635', '#1A2E05', '#F7FEE7', '#17260A'),
+  pal('indigo', 'نیلی', '#4338CA', '#818CF8', '#1E1B4B', '#EEF2FF', '#14123A'),
+  pal('mocha', 'موکا و قهوه‌ای', '#7C4A2D', '#C9A07A', '#2B1A10', '#FAF4EE', '#2A1A10'),
+];

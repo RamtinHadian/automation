@@ -122,8 +122,26 @@ export interface Deal {
   proformaNumber?: string;
   /** Issue day and last valid day, yyyy-mm-dd. */
   proformaAt?: string;
+  /** Texts typed in by hand when the proforma was made (override the defaults from settings and the customer). */
+  proformaFields?: ProformaFields;
   validUntil?: string;
   terms?: string;
+}
+
+export interface ProformaFields {
+  title?: string;
+  subject?: string;
+  sellerName?: string;
+  sellerAddress?: string;
+  sellerPhone?: string;
+  sellerEconomicCode?: string;
+  buyerName?: string;
+  buyerCompany?: string;
+  buyerPhones?: string;
+  buyerAddress?: string;
+  buyerEmail?: string;
+  bankInfo?: string;
+  footerText?: string;
 }
 
 export interface ProformaItem {
@@ -162,6 +180,10 @@ export interface ProformaTemplate {
   totalsAlign: 'start' | 'end';
   footerText: string;
   showFooterContact: boolean;
+  /** Invoice number pattern: {YYYY} Jalali year, {YY} two digits, {NNNN} running number (as many N as digits). */
+  numberFormat: string;
+  /** The running number of the first invoice. */
+  numberStart: number;
 }
 
 export interface CrmActivity {

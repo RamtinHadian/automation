@@ -29,15 +29,39 @@ const fmt = (n: number) => new Intl.NumberFormat('fa-IR').format(Math.round(n));
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 const nl = (s: string) => esc(s).replace(/\n/g, '<br>');
 
-/** Next number of the form PF-1405-0007 (the sequence restarts every Jalali year). */
-export function nextProformaNumber(deals: Deal[]): string {
-  const year = isoToJalaliParts(todayIso())?.[0] || 1400;
-  const prefix = `PF-${year}-`;
-  const max = deals.reduce((m, d) => {
-    const n = d.proformaNumber && d.proformaNumber.startsWith(prefix) ? parseInt(d.proformaNumber.slice(prefix.length), 10) : 0;
-    return isNaN(n) ? m : Math.max(m, n);
-  }, 0);
-  return prefix + String(max + 1).padStart(4, '0');
+export const DEFAULT_NUMBER_FORMAT = 'PF-{YYYY}-{NNNN}';
+
+const jalaliYear = () => isoToJalaliParts(todayIso())?.[0] || 1400;
+const escapeRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Fills a number pattern: {YYYY}/{YY} the Jalali year, {NNNN} the running number padded to as many digits as N's. */
+export function formatProformaNumber(format: string, seq: number, year = jalaliYear()): string {
+  const y = String(year);
+  return (format || DEFAULT_NUMBER_FORMAT)
+    .replace(/\{(YYYY|YY)\}/g, (_m, t) => (t === 'YY' ? y.slice(-2) : y))
+    .replace(/\{(N+)\}/g, (_m, n: string) => String(seq).padStart(n.length, '0'));
+}
+
+/** The next free number for the pattern: the highest running number already used this year + 1 (never below the start). */
+export function nextProformaNumber(deals: Deal[], tpl?: { numberFormat?: string; numberStart?: number }): string {
+  let format = tpl?.numberFormat?.trim() || DEFAULT_NUMBER_FORMAT;
+  if (!/\{N+\}/.test(format)) format += '-{NNNN}'; // a number without a running part could never be unique
+  const start = Math.max(0, Math.floor(tpl?.numberStart ?? 1));
+  const year = String(jalaliYear());
+  let pattern = '';
+  let last = 0;
+  for (const m of format.matchAll(/\{(YYYY|YY|N+)\}/g)) {
+    pattern += escapeRe(format.slice(last, m.index));
+    pattern += m[1] === 'YYYY' ? year : m[1] === 'YY' ? year.slice(-2) : '(\\d+)';
+    last = (m.index ?? 0) + m[0].length;
+  }
+  pattern += escapeRe(format.slice(last));
+  const re = new RegExp('^' + pattern + '$');
+  const max = deals.reduce((mx, d) => {
+    const m = d.proformaNumber ? re.exec(d.proformaNumber) : null;
+    return m ? Math.max(mx, parseInt(m[1], 10) || 0) : mx;
+  }, -1);
+  return formatProformaNumber(format, max < 0 ? start : Math.max(max + 1, start));
 }
 
 export function addDaysIso(iso: string, days: number) {
@@ -72,18 +96,31 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
   const t = proformaTotals(items, deal.discountPercent || 0, deal.taxPercent ?? 0);
   const date = deal.proformaAt || todayIso();
   const valid = deal.validUntil || addDaysIso(date, settings.proformaValidDays || 7);
-  const company = settings.proformaCompanyName?.trim() || settings.companyName || 'شرکت';
+  const f = deal.proformaFields || {};
+  const company = f.sellerName ?? (settings.proformaCompanyName?.trim() || settings.companyName || 'شرکت');
+  const sellerAddress = f.sellerAddress ?? settings.companyAddress ?? '';
+  const sellerPhone = f.sellerPhone ?? settings.companyPhone ?? '';
+  const sellerEco = f.sellerEconomicCode ?? settings.companyEconomicCode ?? '';
+  const buyerName = f.buyerName ?? (customer?.name || deal.customerName);
+  const buyerCompany = f.buyerCompany ?? customer?.company ?? '';
+  const buyerPhones = f.buyerPhones ?? (customer?.phones || []).join('، ');
+  const buyerAddress = f.buyerAddress ?? customer?.address ?? '';
+  const buyerEmail = f.buyerEmail ?? customer?.email ?? '';
+  const subject = f.subject ?? deal.title;
+  const bankInfo = f.bankInfo ?? settings.proformaBankInfo ?? '';
+  const titleText = f.title ?? tpl.title;
+  const footerText = f.footerText ?? tpl.footerText;
   const logo = tpl.logoUrl || settings.companyLogoUrl;
   const terms = (deal.terms ?? settings.proformaTerms ?? DEFAULT_PROFORMA_TERMS).trim();
   const design = mode === 'design';
 
   const contactLines = [
-    tpl.contact.address && settings.companyAddress,
-    tpl.contact.phone && settings.companyPhone && `تلفن: ${settings.companyPhone}`,
-    tpl.contact.economicCode && settings.companyEconomicCode && `کد اقتصادی: ${settings.companyEconomicCode}`,
+    tpl.contact.address && sellerAddress,
+    tpl.contact.phone && sellerPhone && `تلفن: ${sellerPhone}`,
+    tpl.contact.economicCode && sellerEco && `کد اقتصادی: ${sellerEco}`,
     tpl.contact.website && settings.companyWebsite,
   ].filter(Boolean) as string[];
-  const allContact = [settings.companyAddress, settings.companyPhone && `تلفن: ${settings.companyPhone}`, settings.companyEconomicCode && `کد اقتصادی: ${settings.companyEconomicCode}`, settings.companyWebsite].filter(Boolean) as string[];
+  const allContact = [sellerAddress, sellerPhone && `تلفن: ${sellerPhone}`, sellerEco && `کد اقتصادی: ${sellerEco}`, settings.companyWebsite].filter(Boolean) as string[];
 
   // ---- header ----
   const last = tpl.headerOrder.length - 1;
@@ -98,7 +135,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       return `<div class="h-company" ${attr}><h1>${esc(company)}</h1>${settings.companySubtitle ? `<div class="sub0">${esc(settings.companySubtitle)}</div>` : ''}${contactLines.length ? `<div class="contact">${contactLines.map((l) => toPersianDigits(esc(l))).join('<br>')}</div>` : ''}</div>`;
     }
     const align = idx === last ? 'left' : idx === 0 ? 'right' : 'center';
-    return `<div class="h-title" ${attr} style="text-align:${align}"><div class="t">${esc(tpl.title)}</div>${tpl.titleEn ? `<div class="en">${esc(tpl.titleEn)}</div>` : ''}</div>`;
+    return `<div class="h-title" ${attr} style="text-align:${align}"><div class="t">${esc(titleText)}</div>${tpl.titleEn ? `<div class="en">${esc(tpl.titleEn)}</div>` : ''}</div>`;
   };
   const header = `<header class="hd-${tpl.headerStyle}">${tpl.headerOrder.map(headerItem).join('')}</header>`;
 
@@ -126,18 +163,18 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
     parties: `<div class="parties">
       <div class="box"><h3>فروشنده</h3><div class="in">
         <div><b>${esc(company)}</b></div>
-        ${settings.companyAddress ? `<div><span class="lbl">نشانی:</span> ${toPersianDigits(esc(settings.companyAddress))}</div>` : ''}
-        ${settings.companyPhone ? `<div><span class="lbl">تلفن:</span> ${toPersianDigits(esc(settings.companyPhone))}</div>` : ''}
-        ${settings.companyEconomicCode ? `<div><span class="lbl">کد اقتصادی:</span> ${toPersianDigits(esc(settings.companyEconomicCode))}</div>` : ''}
+        ${sellerAddress ? `<div><span class="lbl">نشانی:</span> ${toPersianDigits(esc(sellerAddress))}</div>` : ''}
+        ${sellerPhone ? `<div><span class="lbl">تلفن:</span> ${toPersianDigits(esc(sellerPhone))}</div>` : ''}
+        ${sellerEco ? `<div><span class="lbl">کد اقتصادی:</span> ${toPersianDigits(esc(sellerEco))}</div>` : ''}
         <div><span class="lbl">تنظیم‌کننده:</span> ${esc(issuerName)}</div>
       </div></div>
       <div class="box"><h3>خریدار</h3><div class="in">
-        <div><b>${esc(customer?.name || deal.customerName)}</b></div>
-        ${customer?.company ? `<div><span class="lbl">شرکت:</span> ${esc(customer.company)}</div>` : ''}
-        ${customer?.phones?.length ? `<div><span class="lbl">تلفن:</span> ${customer.phones.map((p) => toPersianDigits(esc(p))).join('، ')}</div>` : ''}
-        ${customer?.address ? `<div><span class="lbl">نشانی:</span> ${esc(customer.address)}</div>` : ''}
-        ${customer?.email ? `<div><span class="lbl">ایمیل:</span> <span dir="ltr">${esc(customer.email)}</span></div>` : ''}
-        <div><span class="lbl">موضوع:</span> ${esc(deal.title)}</div>
+        <div><b>${esc(buyerName)}</b></div>
+        ${buyerCompany ? `<div><span class="lbl">شرکت:</span> ${esc(buyerCompany)}</div>` : ''}
+        ${buyerPhones ? `<div><span class="lbl">تلفن:</span> ${toPersianDigits(esc(buyerPhones))}</div>` : ''}
+        ${buyerAddress ? `<div><span class="lbl">نشانی:</span> ${esc(buyerAddress)}</div>` : ''}
+        ${buyerEmail ? `<div><span class="lbl">ایمیل:</span> <span dir="ltr">${esc(buyerEmail)}</span></div>` : ''}
+        <div><span class="lbl">موضوع:</span> ${esc(subject)}</div>
       </div></div>
     </div>`,
     items: `<table class="ts-${tpl.tableStyle}">
@@ -157,7 +194,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       <h4>شرایط و توضیحات</h4>
       <ol>${terms.split('\n').filter(Boolean).map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
       ${deal.notes ? `<div style="margin-top:6px;font-size:10.5px"><b>توضیح:</b> ${nl(deal.notes)}</div>` : ''}
-      ${settings.proformaBankInfo ? `<div class="bank"><h4>اطلاعات پرداخت</h4>${nl(settings.proformaBankInfo)}</div>` : ''}
+      ${bankInfo ? `<div class="bank"><h4>اطلاعات پرداخت</h4>${nl(bankInfo)}</div>` : ''}
     </div>`,
     signatures: `<div class="sign">
       <div class="s"><b>مهر و امضای فروشنده</b>${settings.ceoName ? `<div class="who">${esc(settings.ceoName)}${settings.ceoTitle ? ' — ' + esc(settings.ceoTitle) : ''}</div>` : ''}${settings.companyStampUrl ? `<img src="${esc(settings.companyStampUrl)}" alt="" style="left:62%" />` : ''}${settings.ceoSignatureUrl ? `<img src="${esc(settings.ceoSignatureUrl)}" alt="" style="left:36%" />` : ''}</div>
@@ -170,7 +207,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
     .join('');
 
   const footerContact = tpl.showFooterContact ? allContact.map((l) => toPersianDigits(esc(l))).join(' &nbsp;|&nbsp; ') : '';
-  const footer = `<footer><span>${[tpl.footerText && esc(tpl.footerText), footerContact].filter(Boolean).join(' &nbsp;—&nbsp; ') || esc(company)}</span><span>${toPersianDigits(deal.proformaNumber || '')}</span></footer>`;
+  const footer = `<footer><span>${[footerText && esc(footerText), footerContact].filter(Boolean).join(' &nbsp;—&nbsp; ') || esc(company)}</span><span>${toPersianDigits(deal.proformaNumber || '')}</span></footer>`;
 
   const dragScript = design
     ? `<script>(function(){var drag=null;document.querySelectorAll('[data-sec],[data-hdr]').forEach(function(el){el.setAttribute('draggable','true');

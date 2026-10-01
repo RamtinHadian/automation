@@ -34,10 +34,13 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 	password := jsonx.Str(data, "password")
 	rest := jsonx.Copy(data)
 	delete(rest, "password")
+	if DemoMode {
+		password = "" // the public demo never changes anyone's password
+	}
 
 	var merged jsonx.M
-	if !me.IsAdmin() {
-		// Regular users may only change cosmetic fields on their own record.
+	if !me.IsAdmin() || DemoMode {
+		// Regular users (and everybody in the public demo) may only change cosmetic fields on their own record.
 		if !exists || exID != me.ID() {
 			httpx.Forbidden(w)
 			return

@@ -108,7 +108,7 @@ func Guard(next http.Handler) http.Handler {
 			case p == "/api/auth/change-password" || p == "/api/push/subscribe":
 				httpx.Error(w, http.StatusForbidden, blockedMsg)
 				return
-			case strings.HasPrefix(p, "/api/staff/"):
+			case strings.HasPrefix(p, "/api/staff/") && r.Method != http.MethodPut: // own cosmetic changes (theme...) are allowed, see putStaff
 				httpx.Error(w, http.StatusForbidden, blockedUsers)
 				return
 			}

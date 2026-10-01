@@ -36,8 +36,12 @@ var collections = map[string]collectionHandler{
 	"transfers":   {put: putTransfer, remove: removeTransfer},
 }
 
+// DemoMode limits what may change about users (set from the DEMO environment variable).
+var DemoMode bool
+
 // Router returns the HTTP handler for the whole server: the API and the built frontend.
 func Router(cfg config.Config) http.Handler {
+	DemoMode = cfg.Demo
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /api/auth/login", auth.Login)

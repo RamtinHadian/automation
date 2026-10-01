@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Save, Trash2, Upload, X } from 'lucide-react';
-import { buildProformaHtml, sampleProforma } from '../../lib/proformaPdf';
-import { HEADER_LABELS, normalizeTemplate, presetTemplate, PROFORMA_PRESETS, SECTION_LABELS } from '../../lib/proformaTemplates';
+import { buildProformaHtml, formatProformaNumber, sampleProforma } from '../../lib/proformaPdf';
+import { HEADER_LABELS, normalizeTemplate, presetTemplate, PROFORMA_PALETTES, PROFORMA_PRESETS, SECTION_LABELS } from '../../lib/proformaTemplates';
 import { ProformaHeaderItem, ProformaSectionId, ProformaTemplate, SystemSettings } from '../../types';
 
 type CompanyPatch = Pick<SystemSettings, 'proformaCompanyName' | 'companySubtitle' | 'companyAddress' | 'companyPhone' | 'companyEconomicCode' | 'companyWebsite'>;
@@ -121,7 +121,9 @@ export const ProformaDesigner: React.FC<{
 
   const html = useMemo(() => {
     const preview: SystemSettings = { ...settings, ...co, proformaTemplate: tpl };
-    return buildProformaHtml({ ...sampleProforma(preview), template: tpl }, 'design');
+    const sample = sampleProforma(preview);
+    sample.deal.proformaNumber = formatProformaNumber(tpl.numberFormat, tpl.numberStart);
+    return buildProformaHtml({ ...sample, template: tpl }, 'design');
   }, [settings, co, tpl]);
 
   // Dragging a section or header item directly on the preview.
@@ -292,6 +294,28 @@ export const ProformaDesigner: React.FC<{
           </Group>
 
           <Group title="رنگ‌بندی">
+            <p className="text-[10px] text-[#8C6F66]">یک پالت آماده را بزنید، بعد اگر خواستید هر رنگ را جدا تغییر بدهید.</p>
+            <div className="grid grid-cols-3 gap-2">
+              {PROFORMA_PALETTES.map((pl) => {
+                const on = (['primary', 'accent', 'tableHead', 'soft'] as const).every((k) => pl.colors[k].toLowerCase() === tpl.colors[k].toLowerCase());
+                return (
+                  <button
+                    key={pl.id}
+                    type="button"
+                    onClick={() => setTpl((p) => ({ ...p, colors: { ...pl.colors } }))}
+                    className={`rounded-xl border p-1.5 text-[10px] font-black text-[#3A241F] cursor-pointer ${on ? 'border-[#6E1B1B] ring-2 ring-[#6E1B1B]/20 bg-[#F6D9CD]/40' : 'border-[#EBDBCE] bg-white hover:bg-[#FAF5F1]'}`}
+                  >
+                    <div className="flex h-5 rounded-md overflow-hidden mb-1 border border-black/5">
+                      <span className="flex-1" style={{ background: pl.colors.primary }} />
+                      <span className="flex-1" style={{ background: pl.colors.accent }} />
+                      <span className="flex-1" style={{ background: pl.colors.tableHead }} />
+                      <span className="flex-1" style={{ background: pl.colors.soft }} />
+                    </div>
+                    {pl.name}
+                  </button>
+                );
+              })}
+            </div>
             <ColorField label="رنگ اصلی (عنوان‌ها و کادرها)" value={tpl.colors.primary} onChange={(v) => setColor('primary', v)} />
             <ColorField label="رنگ مکمل (خط‌ها و تأکید)" value={tpl.colors.accent} onChange={(v) => setColor('accent', v)} />
             <ColorField label="سرستون جدول" value={tpl.colors.tableHead} onChange={(v) => setColor('tableHead', v)} />
@@ -326,6 +350,23 @@ export const ProformaDesigner: React.FC<{
                   <option value="end">سمت چپ</option>
                 </select>
               </div>
+            </div>
+          </Group>
+
+          <Group title="شمارهٔ پیش‌فاکتور">
+            <div>
+              <label className={lab}>قالب شماره</label>
+              <input className={input} dir="ltr" value={tpl.numberFormat} onChange={(e) => patch({ numberFormat: e.target.value })} placeholder="PF-{YYYY}-{NNNN}" />
+              <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">
+                {'{YYYY}'} سال شمسی چهاررقمی، {'{YY}'} دورقمی، {'{NNNN}'} شمارهٔ ترتیبی (هر N یک رقم). مثلاً INV-{'{YY}'}-{'{NNN}'}
+              </p>
+            </div>
+            <div>
+              <label className={lab}>شمارهٔ ترتیبی اولین پیش‌فاکتور</label>
+              <input className={input} type="number" min={0} value={tpl.numberStart} onChange={(e) => patch({ numberStart: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
+            </div>
+            <div className="text-[11px] font-bold text-[#3A241F]">
+              نمونه: <span dir="ltr" className="font-mono bg-[#FAF5F1] border border-[#EBDBCE] rounded-lg px-2 py-0.5">{formatProformaNumber(tpl.numberFormat, tpl.numberStart)}</span>
             </div>
           </Group>
 
