@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, Lock, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
-import { DemoAccounts } from '../components/common/DemoBanner';
+import { DemoAccounts, useDemoInfo } from '../components/common/DemoBanner';
 
 interface LoginPageProps {
   staffList: User[];
@@ -11,6 +11,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdminLogin }) => {
+  const demo = useDemoInfo();
   const [usernameQuery, setUsernameQuery] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -74,9 +75,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
             <img src="/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-44 sm:w-52 mx-auto" draggable={false} />
           </h1>
           <div className="text-sm font-black text-[#3A241F]">خوش آمدید</div>
+          {!demo && (
           <p className="text-xs text-[#8C6F66] font-medium">
-            برای ورود به حساب کاربری اطلاعات خود را وارد کنید
-          </p>
+              برای ورود به حساب کاربری اطلاعات خود را وارد کنید
+            </p>
+          )}
         </div>
 
         <DemoAccounts
@@ -89,8 +92,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
           }}
         />
 
-        {/* Login Card */}
-        <div className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
+        {/* Login Card (the demo has only the one-field sign-in above) */}
+        <div hidden={!!demo} className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
 
           {/* Username / User Select Field */}
           <div className="relative" ref={dropdownRef}>

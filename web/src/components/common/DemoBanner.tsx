@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { PlayCircle } from 'lucide-react';
 import { api, DemoInfo } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 
@@ -32,34 +31,37 @@ export const DemoBanner: React.FC = () => {
   );
 };
 
-/** One-tap sign-in buttons for the demo accounts, shown on the login page. */
+/** The demo sign-in: one field (the role) and one button. */
 export const DemoAccounts: React.FC<{ onPick: (identifier: string, password: string) => void; busy?: boolean }> = ({ onPick, busy }) => {
   const info = useDemoInfo();
+  const [who, setWho] = useState(0);
   if (!info?.accounts?.length) return null;
+  const acc = info.accounts[who] || info.accounts[0];
   return (
-    <div className="w-full bg-white rounded-3xl p-5 border border-[#C98B6A]/40 shadow-lg shadow-[#3A241F]/5 space-y-3">
-      <div className="flex items-center gap-2 text-[#6E1B1B]">
-        <PlayCircle className="w-5 h-5" />
-        <h2 className="font-black text-sm">نسخهٔ نمایشی؛ با یک کلیک وارد شوید</h2>
+    <div className="w-full bg-white rounded-3xl p-5 sm:p-6 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
+      <div className="space-y-1 text-center">
+        <h2 className="font-black text-sm text-[#6E1B1B]">ورود به نسخهٔ نمایشی</h2>
+        <p className="text-[11px] text-[#8C6F66] leading-5">نقش را انتخاب کنید و وارد شوید. اطلاعات ساختگی است و هر چند ساعت یک بار بازنشانی می‌شود.</p>
       </div>
-      <p className="text-[11px] text-[#8C6F66] leading-5">یکی از نقش‌ها را انتخاب کنید و سامانه را امتحان کنید. اطلاعات این نسخه ساختگی است و هر چند ساعت یک بار بازنشانی می‌شود.</p>
-      <div className="grid grid-cols-1 gap-2">
-        {info.accounts.map((a) => (
-          <button
-            key={a.identifier}
-            type="button"
-            disabled={busy}
-            onClick={() => onPick(a.identifier, a.password)}
-            className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl border border-[#EBDBCE] bg-[#FAF5F1] hover:bg-[#F6D9CD]/60 disabled:opacity-60 cursor-pointer text-right"
-          >
-            <span className="min-w-0">
-              <span className="block text-xs font-black text-[#3A241F] truncate">{a.name}</span>
-              <span className="block text-[10px] text-[#8C6F66]">{a.title}</span>
-            </span>
-            <span className="text-[10px] font-black text-[#6E1B1B] shrink-0">ورود ←</span>
-          </button>
+      <select
+        value={who}
+        onChange={(e) => setWho(Number(e.target.value))}
+        className="w-full px-3.5 py-3 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl text-sm font-bold text-[#3A241F] focus:outline-none focus:border-[#6E1B1B] cursor-pointer"
+      >
+        {info.accounts.map((a, i) => (
+          <option key={a.identifier} value={i}>
+            {a.name} — {a.title}
+          </option>
         ))}
-      </div>
+      </select>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onPick(acc.identifier, acc.password)}
+        className="w-full py-3.5 bg-[#6E1B1B] hover:bg-[#581717] disabled:opacity-60 text-white font-black text-sm rounded-2xl shadow-md shadow-[#6E1B1B]/25 transition-all active:scale-[0.98] cursor-pointer"
+      >
+        ورود
+      </button>
     </div>
   );
 };
