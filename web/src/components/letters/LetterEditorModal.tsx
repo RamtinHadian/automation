@@ -967,7 +967,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             <div className="pb-2 mb-4 space-y-3 shrink-0">
               <div className="relative flex items-start justify-between">
                 {/* Right: Company Info & Dynamic Logo */}
-                <div className="space-y-1">
+                <div className={`space-y-1 min-w-0 ${pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
                   <div className="flex items-center gap-2.5">
                     {settings.companyLogoUrl ? (
                       <div
