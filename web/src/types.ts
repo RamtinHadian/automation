@@ -115,6 +115,26 @@ export interface Deal {
   createdAt: string;
   updatedAt: string;
   closedAt?: string;
+  /** Proforma invoice (created when the deal reaches «پیشنهاد ارسال شد»). */
+  items?: ProformaItem[];
+  discountPercent?: number;
+  taxPercent?: number;
+  proformaNumber?: string;
+  /** Issue day and last valid day, yyyy-mm-dd. */
+  proformaAt?: string;
+  validUntil?: string;
+  terms?: string;
+}
+
+export interface ProformaItem {
+  title: string;
+  description?: string;
+  qty: number;
+  unit?: string;
+  /** Toman. */
+  unitPrice: number;
+  /** Fixed discount on this row, Toman. */
+  discount?: number;
 }
 
 export interface CrmActivity {
@@ -329,6 +349,15 @@ export interface CustomFont {
 export interface SystemSettings {
   companyName?: string; // نام رسمی شرکت / سازمان
   companySubtitle?: string; // عنوان فرعی سربرگ اداری
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEconomicCode?: string;
+  companyWebsite?: string;
+  /** Proforma defaults. */
+  proformaTerms?: string;
+  proformaBankInfo?: string;
+  proformaTaxPercent?: number;
+  proformaValidDays?: number;
   /** The organisation's standard letter layout, set once by an admin in the letter editor. */
   letterTemplate?: OrgLetterTemplate;
   companyLogoUrl?: string; // لوگو و آرم رسمی سازمان

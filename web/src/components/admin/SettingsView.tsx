@@ -435,6 +435,70 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      {/* Company contact details and proforma defaults */}
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#EBDBCE] shadow-sm space-y-4 text-xs">
+        <h3 className="font-black text-sm text-[#3A241F]">اطلاعات تماس شرکت و پیش‌فاکتور</h3>
+        <p className="text-[#8C6F66]">این اطلاعات در پیش‌فاکتور PDF فرصت‌های فروش چاپ می‌شود.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {([
+            ['companyAddress', 'نشانی شرکت'],
+            ['companyPhone', 'تلفن'],
+            ['companyEconomicCode', 'کد اقتصادی / شناسهٔ ملی'],
+            ['companyWebsite', 'وب‌سایت'],
+          ] as const).map(([key, title]) => (
+            <div key={key}>
+              <label className="block font-bold text-[#3A241F] mb-1.5">{title}:</label>
+              <input
+                type="text"
+                dir="rtl"
+                value={settings[key] || ''}
+                onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+                className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+              />
+            </div>
+          ))}
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">مالیات بر ارزش افزودهٔ پیش‌فرض (٪):</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={settings.proformaTaxPercent ?? 10}
+              onChange={(e) => setSettings({ ...settings, proformaTaxPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">مدت اعتبار پیش‌فاکتور (روز):</label>
+            <input
+              type="number"
+              min={1}
+              value={settings.proformaValidDays ?? 7}
+              onChange={(e) => setSettings({ ...settings, proformaValidDays: Math.max(1, Number(e.target.value) || 7) })}
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block font-bold text-[#3A241F] mb-1.5">اطلاعات پرداخت (شماره حساب / شبا):</label>
+          <textarea
+            dir="rtl"
+            value={settings.proformaBankInfo || ''}
+            onChange={(e) => setSettings({ ...settings, proformaBankInfo: e.target.value })}
+            className="w-full p-2.5 min-h-[64px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="block font-bold text-[#3A241F] mb-1.5">شرایط پیش‌فرض پیش‌فاکتور (هر خط یک مورد؛ خالی = متن استاندارد):</label>
+          <textarea
+            dir="rtl"
+            value={settings.proformaTerms || ''}
+            onChange={(e) => setSettings({ ...settings, proformaTerms: e.target.value })}
+            className="w-full p-2.5 min-h-[80px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+          />
+        </div>
+      </div>
+
       {/* ========================================================================= */}
       {/* SECTION 2: LETTER NUMBERING & STEP INCREMENT (تنظیمات شماره‌گذاری پلکانی نامه‌ها) */}
       {/* ========================================================================= */}

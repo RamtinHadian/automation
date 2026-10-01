@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
+  FileText,
   Clock,
   LayoutGrid,
   ListChecks,
@@ -26,6 +27,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, isOverdue, todayIso } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerStatus, Deal, DealStage, User } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
+import { ProformaModal } from './ProformaModal';
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -67,7 +69,7 @@ const field =
 const label = 'block text-[11px] font-black text-[#3A241F] mb-1.5';
 
 export const CrmView: React.FC = () => {
-  const { customers, setCustomers, deals, setDeals, activities, setActivities, staffList, currentUser, showToast } = useAppContext();
+  const { customers, setCustomers, deals, setDeals, activities, setActivities, staffList, currentUser, showToast, settings } = useAppContext();
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
@@ -79,6 +81,7 @@ export const CrmView: React.FC = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingDeal, setEditingDeal] = useState<{ deal: Deal; isNew: boolean } | null>(null);
   const [voip, setVoip] = useState<{ enabled: boolean; connected: boolean; extension: string } | null>(null);
+  const [proformaFor, setProformaFor] = useState<Deal | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [mobileStage, setMobileStage] = useState<DealStage>('NEW');
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
@@ -171,7 +174,10 @@ export const CrmView: React.FC = () => {
   };
   const moveDeal = (id: string, stage: DealStage) => {
     const d = deals.find((x) => x.id === id);
-    if (d && d.stage !== stage) saveDeal({ ...d, stage });
+    if (d && d.stage !== stage) {
+      saveDeal({ ...d, stage });
+      if (stage === 'PROPOSAL' && !d.proformaNumber) setProformaFor({ ...d, stage });
+    }
   };
   const removeDeal = (d: Deal) => {
     if (!window.confirm(`فرصت «${d.title}» حذف شود؟`)) return;
@@ -554,12 +560,33 @@ export const CrmView: React.FC = () => {
           staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))}
           canDelete={!editingDeal.isNew && canDelete(editingDeal.deal.ownerId)}
           onClose={() => setEditingDeal(null)}
+          onProforma={(d) => {
+            saveDeal(d);
+            setEditingDeal(null);
+            setProformaFor(d);
+          }}
           onSave={(d) => {
             saveDeal(d);
             setEditingDeal(null);
+            if (d.stage === 'PROPOSAL' && editingDeal.deal.stage !== 'PROPOSAL' && !d.proformaNumber) setProformaFor(d);
             showToast(editingDeal.isNew ? 'فرصت فروش ثبت شد.' : 'فرصت ذخیره شد.');
           }}
           onDelete={() => removeDeal(editingDeal.deal)}
+        />
+      )}
+
+      {proformaFor && (
+        <ProformaModal
+          deal={proformaFor}
+          allDeals={deals}
+          customer={customerById.get(proformaFor.customerId)}
+          settings={settings}
+          issuerName={currentUser.fullName}
+          onClose={() => setProformaFor(null)}
+          onSave={(d) => {
+            setDeals((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...d, updatedAt: nowIso() } : x)));
+            showToast('پیش‌فاکتور ذخیره شد.');
+          }}
         />
       )}
 
@@ -783,8 +810,9 @@ const DealForm: React.FC<{
   canDelete: boolean;
   onClose: () => void;
   onSave: (d: Deal) => void;
+  onProforma: (d: Deal) => void;
   onDelete: () => void;
-}> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onDelete }) => {
+}> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onProforma, onDelete }) => {
   const [d, setD] = useState<Deal>(initial);
   const [amountText, setAmountText] = useState(initial.amount ? toman(initial.amount) : '');
   const patch = (u: Partial<Deal>) => setD((p) => ({ ...p, ...u }));
@@ -810,8 +838,14 @@ const DealForm: React.FC<{
                 </button>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">انصراف</button>
+              {valid && (
+                <button type="button" onClick={() => onProforma({ ...d, ownerName: staff.find((u) => u.id === d.ownerId)?.fullName || d.ownerName })} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer">
+                  <FileText className="w-4 h-4" />
+                  پیش‌فاکتور
+                </button>
+              )}
               <button type="submit" disabled={!valid} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">{isNew ? 'ثبت فرصت' : 'ذخیره'}</button>
             </div>
           </>

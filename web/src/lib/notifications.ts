@@ -88,9 +88,16 @@ export function playChime(kind: NotificationKind = 'file'): boolean {
   if (!isSoundEnabled()) return false;
   const c = getCtx();
   if (!c) return false;
-  if (c.state !== 'running') void c.resume().catch(() => {});
-  if (c.state !== 'running') return false;
+  if (c.state !== 'running') {
+    // The browser may have suspended the audio after a while; wake it and play as soon as it is running.
+    void c.resume().then(() => { if (c.state === 'running') schedule(c, kind); }).catch(() => {});
+    return false;
+  }
+  schedule(c, kind);
+  return true;
+}
 
+function schedule(c: AudioContext, kind: NotificationKind) {
   const t0 = c.currentTime + 0.02;
   const master = c.createGain();
   master.gain.value = 0.55;
@@ -134,7 +141,6 @@ export function playChime(kind: NotificationKind = 'file'): boolean {
     });
   });
   setTimeout(() => master.disconnect(), 4000);
-  return true;
 }
 
 // ---------- system (OS level) notifications ----------
