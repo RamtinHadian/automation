@@ -94,7 +94,7 @@ function showWindow() {
 function buildTray() {
   if (!tray) {
     tray = new Tray(icon().resize({ width: 16, height: 16 }));
-    tray.setToolTip('اتوماسیون اداری');
+    tray.setToolTip('هورمند');
     tray.on('click', showWindow);
   }
   const corners = [
@@ -164,7 +164,7 @@ function createWindow() {
     ...b,
     minWidth: 360,
     minHeight: 520,
-    title: 'اتوماسیون اداری',
+    title: 'هورمند',
     icon: icon(),
     backgroundColor: '#FAF5F1',
     autoHideMenuBar: true,

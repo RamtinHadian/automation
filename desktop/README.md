@@ -7,8 +7,8 @@ Build (on a Windows PC with Node):
 ```
 cd desktop
 npm install
-npm run pack        # -> dist/AutomationDesktop-win32-x64/AutomationDesktop.exe
+npm run pack        # -> dist/Hoormand-win32-x64/Hoormand.exe
 ```
 
-Zip that folder and copy it to the users' PCs; no installation needed, just run `AutomationDesktop.exe`.
+Zip that folder and copy it to the users' PCs; no installation needed, just run `Hoormand.exe`.
 The server address defaults to `http://5.202.174.91:9090` and can be changed inside the app (monitor icon in the header) or from the tray menu.

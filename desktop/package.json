@@ -1,13 +1,13 @@
 {
-  "name": "automation-desktop",
-  "productName": "اتوماسیون اداری",
+  "name": "hoormand-desktop",
+  "productName": "هورمند",
   "version": "1.0.0",
   "description": "Windows desktop shell for the office automation app (always on top, tray, notifications)",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "pack": "electron-packager . AutomationDesktop --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.ico --asar --ignore=^/dist --ignore=\\.zip$ --ignore=\\.log$"
+    "pack": "electron-packager . Hoormand --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.ico --asar --ignore=^/dist --ignore=\\.zip$ --ignore=\\.log$"
   },
   "devDependencies": {
     "@electron/packager": "^18.3.6",
