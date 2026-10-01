@@ -37,7 +37,7 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
 export const INITIAL_AUDIT_LOGS: AuditLog[] = [];
 
 export const INITIAL_SETTINGS: SystemSettings = {
-  companyName: 'شرکت مهندسی و فناوری داده‌پرداز',
+  companyName: 'هورمند',
   companySubtitle: 'سامانه یکپارچه مکاتبات اداری و اسناد رسمی',
   systemTitle: 'سامانه اتوماسیون اداری و تبادل فایل',
   maxUploadSizeBytes: 5368709120, // 5 GB

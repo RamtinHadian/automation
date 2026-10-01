@@ -416,7 +416,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 dir="rtl"
                 value={settings.companyName ? toPersianDigits(settings.companyName) : ''}
                 onChange={(e) => setSettings({ ...settings, companyName: toPersianDigits(e.target.value) })}
-                placeholder="مثال: شرکت مهندسی و فناوری داده‌پرداز نوین"
+                placeholder="مثال: هورمند"
                 className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
               />
             </div>

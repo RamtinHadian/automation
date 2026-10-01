@@ -6,6 +6,7 @@ package demo
 
 import (
 	"context"
+	_ "embed"
 	"encoding/base64"
 	"log"
 	"net/http"
@@ -166,13 +167,22 @@ func Run(ctx context.Context, resetHours int) {
 	}
 }
 
+//go:embed Lalezar-arabic.woff2
+var lalezar []byte
+
+// brandLogo is the product logo: the name «هورمند» in the Lalezar font (embedded in the image, so it looks the same everywhere).
+func brandLogo() string {
+	font := base64.StdEncoding.EncodeToString(lalezar)
+	return svg(`<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><defs><style>@font-face{font-family:'L';src:url(data:font/woff2;base64,` + font + `) format('woff2');}</style><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B2323"/><stop offset="1" stop-color="#5A1313"/></linearGradient></defs><rect width="160" height="160" rx="36" fill="url(#g)"/><text x="80" y="98" font-size="46" text-anchor="middle" fill="#fff" font-family="L,Tahoma">هورمند</text><circle cx="120" cy="36" r="9" fill="#D34A32"/></svg>`)
+}
+
 func svg(s string) string {
 	return "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(s))
 }
 
 var (
-	logoSVG  = svg(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" rx="28" fill="#6E1B1B"/><path d="M30 78 L52 38 L68 62 L80 46 L92 78 Z" fill="#fff"/><circle cx="84" cy="34" r="8" fill="#D34A32"/></svg>`)
-	stampSVG = svg(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><circle cx="100" cy="100" r="88" fill="none" stroke="#1D4ED8" stroke-width="6"/><circle cx="100" cy="100" r="70" fill="none" stroke="#1D4ED8" stroke-width="2"/><text x="100" y="95" font-size="22" text-anchor="middle" fill="#1D4ED8" font-family="Tahoma">شرکت نمونه</text><text x="100" y="125" font-size="16" text-anchor="middle" fill="#1D4ED8" font-family="Tahoma">پارسیان</text></svg>`)
+	logoSVG  = brandLogo()
+	stampSVG = svg(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><circle cx="100" cy="100" r="88" fill="none" stroke="#1D4ED8" stroke-width="6"/><circle cx="100" cy="100" r="70" fill="none" stroke="#1D4ED8" stroke-width="2"/><text x="100" y="95" font-size="22" text-anchor="middle" fill="#1D4ED8" font-family="Tahoma">هورمند</text><text x="100" y="125" font-size="16" text-anchor="middle" fill="#1D4ED8" font-family="Tahoma">مهر رسمی</text></svg>`)
 	signSVG  = svg(`<svg xmlns="http://www.w3.org/2000/svg" width="260" height="110" viewBox="0 0 260 110"><path d="M10 80 C40 10 70 110 100 50 S150 20 170 70 S220 90 250 30" fill="none" stroke="#0B2A6F" stroke-width="4" stroke-linecap="round"/><path d="M30 95 L230 88" stroke="#0B2A6F" stroke-width="2.5" stroke-linecap="round"/></svg>`)
 )
 
@@ -221,11 +231,11 @@ func Reset(ctx context.Context) error {
 		}
 	}
 	settings := jsonx.M{
-		"companyName": "شرکت نمونه پارسیان", "companySubtitle": "سامانه اتوماسیون اداری — نسخهٔ نمایشی",
+		"companyName": "هورمند", "companySubtitle": "سامانه اتوماسیون اداری و بازرگانی",
 		"systemTitle": "سامانه اتوماسیون اداری", "companyLogoUrl": logoSVG, "companyStampUrl": stampSVG, "ceoSignatureUrl": signSVG,
 		"ceoName": by["demo-ceo"].Name, "ceoTitle": "مدیرعامل",
 		"companyAddress": "تهران، خیابان ولیعصر، پلاک ۱۲۳", "companyPhone": "۰۲۱-۱۲۳۴۵۶۷۸", "companyWebsite": "www.example.ir",
-		"proformaCompanyName": "شرکت نمونه پارسیان", "proformaBankInfo": "شمارهٔ شبا: IR000000000000000000000000",
+		"proformaCompanyName": "هورمند", "proformaBankInfo": "شمارهٔ شبا: IR000000000000000000000000",
 	}
 	if err := exec(ctx, `INSERT INTO settings (key, data) VALUES ('main', $1::jsonb)`, jsonx.Encode(settings)); err != nil {
 		return err
