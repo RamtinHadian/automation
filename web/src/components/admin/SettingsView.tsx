@@ -33,6 +33,7 @@ import { COLOR_THEMES } from '../../lib/theme';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { formatLetterNumber, DEFAULT_LETTER_NUMBERING } from '../../lib/letterNumbering';
 import { useAppContext } from '../../context/AppContext';
+import { ProformaDesigner } from './ProformaDesigner';
 
 interface SettingsViewProps {
   settings: SystemSettings;
@@ -117,6 +118,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [settings, setSettings] = useState<SystemSettings>(() =>
     sanitizeSettingsWithPersianDigits(initialSettings)
   );
+  const [designerOpen, setDesignerOpen] = useState(false);
   const [logoWidth, setLogoWidth] = useState<number>(initialSettings.companyLogoWidth || 70);
   const [isResizingLogo, setIsResizingLogo] = useState(false);
   const logoResizeStart = useRef<{ startX: number; startWidth: number }>({ startX: 0, startWidth: 70 });
@@ -435,9 +437,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      {designerOpen && (
+        <ProformaDesigner
+          settings={settings}
+          onClose={() => setDesignerOpen(false)}
+          onSave={(patch) => {
+            setSettings((prev) => ({ ...prev, ...patch }));
+            onSaveSettings({ ...initialSettings, ...patch });
+          }}
+        />
+      )}
+
       {/* Company contact details and proforma defaults */}
       <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#EBDBCE] shadow-sm space-y-4 text-xs">
-        <h3 className="font-black text-sm text-[#3A241F]">اطلاعات تماس شرکت و پیش‌فاکتور</h3>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="font-black text-sm text-[#3A241F]">اطلاعات تماس شرکت و پیش‌فاکتور</h3>
+          <button type="button" onClick={() => setDesignerOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] cursor-pointer">
+            <Palette className="w-4 h-4" />
+            طراحی قالب پیش‌فاکتور (کشیدن و رها کردن)
+          </button>
+        </div>
         <p className="text-[#8C6F66]">این اطلاعات در پیش‌فاکتور PDF فرصت‌های فروش چاپ می‌شود.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {([

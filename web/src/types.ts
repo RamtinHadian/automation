@@ -137,6 +137,33 @@ export interface ProformaItem {
   discount?: number;
 }
 
+export type ProformaSectionId = 'meta' | 'parties' | 'items' | 'totals' | 'terms' | 'signatures';
+export type ProformaHeaderItem = 'logo' | 'company' | 'title';
+
+/** How proforma invoices look; designed by an admin with drag and drop. */
+export interface ProformaTemplate {
+  presetId: string;
+  colors: { primary: string; accent: string; tableHead: string; tableHeadText: string; paper: string; soft: string; text: string };
+  headerStyle: 'band' | 'plain' | 'boxed';
+  /** Left-to-right order in the RTL header: the first item is at the right edge. */
+  headerOrder: ProformaHeaderItem[];
+  /** Logo for proformas only; empty = the organisation logo. */
+  logoUrl?: string;
+  /** Logo height in mm. */
+  logoSize: number;
+  showLogo: boolean;
+  contact: { address: boolean; phone: boolean; economicCode: boolean; website: boolean };
+  title: string;
+  titleEn: string;
+  sections: { id: ProformaSectionId; visible: boolean }[];
+  tableStyle: 'striped' | 'lined' | 'grid';
+  radius: number;
+  fontSize: number;
+  totalsAlign: 'start' | 'end';
+  footerText: string;
+  showFooterContact: boolean;
+}
+
 export interface CrmActivity {
   id: string;
   customerId: string;
@@ -351,6 +378,7 @@ export interface SystemSettings {
   companySubtitle?: string; // عنوان فرعی سربرگ اداری
   /** Name printed on proforma invoices (falls back to companyName). */
   proformaCompanyName?: string;
+  proformaTemplate?: ProformaTemplate;
   companyAddress?: string;
   companyPhone?: string;
   companyEconomicCode?: string;
