@@ -167,14 +167,11 @@ func Run(ctx context.Context, resetHours int) {
 	}
 }
 
-//go:embed Lalezar-arabic.woff2
-var lalezar []byte
+//go:embed logo-small.png
+var logoPNG []byte
 
-// brandLogo is the product logo: the name «هورمند» in the Lalezar font (embedded in the image, so it looks the same everywhere).
-func brandLogo() string {
-	font := base64.StdEncoding.EncodeToString(lalezar)
-	return svg(`<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><defs><style>@font-face{font-family:'L';src:url(data:font/woff2;base64,` + font + `) format('woff2');}</style><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B2323"/><stop offset="1" stop-color="#5A1313"/></linearGradient></defs><rect width="160" height="160" rx="36" fill="url(#g)"/><text x="80" y="98" font-size="46" text-anchor="middle" fill="#fff" font-family="L,Tahoma">هورمند</text><circle cx="120" cy="36" r="9" fill="#D34A32"/></svg>`)
-}
+// brandLogo is the product logo (the picture shipped with the app).
+func brandLogo() string { return "data:image/png;base64," + base64.StdEncoding.EncodeToString(logoPNG) }
 
 func svg(s string) string {
 	return "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(s))

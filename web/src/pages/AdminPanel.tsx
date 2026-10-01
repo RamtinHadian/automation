@@ -374,8 +374,8 @@ export default function AdminPanel() {
         {/* Top Admin Header */}
         <header className="px-6 sm:px-8 py-4 bg-[#3A241F] text-white flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-[#563D34]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#6E1B1B] flex items-center justify-center shadow-lg shadow-[#6E1B1B]/40 text-[#F6D9CD]">
-              <ShieldCheck className="w-6 h-6" />
+<div className="w-10 h-10 rounded-2xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1.5">
+              <img src="/mark.png" alt="" className="w-full h-full object-contain" draggable={false} />
             </div>
             <div>
               <div className="flex items-center gap-2">
