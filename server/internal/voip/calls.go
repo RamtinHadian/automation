@@ -2,7 +2,6 @@ package voip
 
 import (
 	"context"
-	"log"
 	"strings"
 	"regexp"
 	"sync"
@@ -98,11 +97,15 @@ func WatchCalls(c *Client) {
 			defer cancel()
 			uid, _, ok := userByExtension(ctx, ext)
 			if !ok {
-				log.Printf("voip: extension %s is ringing but no user has this extension (set it in the admin panel)", ext)
+				Logf("داخلی %s زنگ می‌خورد اما هیچ کاربری این شمارهٔ داخلی را ندارد (در پنل مدیریت، فرم کاربر، داخلی را وارد کنید).", ext)
 				return
 			}
-			log.Printf("voip: extension %s is ringing for user %s", ext, uid)
+			Logf("داخلی %s برای کاربر %s زنگ می‌خورد.", ext, uid)
 			number := pick(ev, "CallerIDNum", "ConnectedLineNum")
+			if number == ext { // the first leg of a call the person started from the app rings their own phone
+				Logf("داخلی %s برای تماسی که خودش از برنامه شروع کرده زنگ می‌خورد؛ پاپ‌آپ لازم نیست.", ext)
+				return
+			}
 			who := number
 			if who == "" {
 				who = "شمارهٔ ناشناس"
@@ -119,6 +122,7 @@ func WatchCalls(c *Client) {
 				note.Ref = map[string]any{"type": "customer", "id": cid}
 			}
 			notify.Notify(ctx, []string{uid}, note, "")
+			Logf("پاپ‌آپ برای کاربر %s فرستاده شد: %s", uid, note.Title)
 		}(m[1])
 	}
 }

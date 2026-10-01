@@ -34,6 +34,7 @@ import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { formatLetterNumber, DEFAULT_LETTER_NUMBERING } from '../../lib/letterNumbering';
 import { useAppContext } from '../../context/AppContext';
 import { ProformaDesigner } from './ProformaDesigner';
+import { VoipStatusCard } from './VoipStatusCard';
 
 interface SettingsViewProps {
   settings: SystemSettings;
@@ -447,6 +448,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }}
         />
       )}
+
+      <VoipStatusCard />
 
       {/* Company contact details and proforma defaults */}
       <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#EBDBCE] shadow-sm space-y-4 text-xs">

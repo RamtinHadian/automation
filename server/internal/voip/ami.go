@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"regexp"
 	"strings"
@@ -55,7 +54,7 @@ func (c *Client) Connected() bool { return c.connected.Load() }
 // Run connects and stays connected until ctx ends.
 func (c *Client) Run(ctx context.Context) {
 	if !c.cfg.Enabled() {
-		log.Println("voip: AMI is not configured, phone integration is off")
+		Logf("اتصال به تلفن تنظیم نشده است؛ ارتباط با ویپ خاموش است.")
 		return
 	}
 	backoff := 2 * time.Second
@@ -65,7 +64,7 @@ func (c *Client) Run(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		log.Printf("voip: connection to the phone system lost (%v); retrying in %s", err, backoff)
+		Logf("ارتباط با صندوق تلفن قطع شد (%v)؛ %s دیگر دوباره تلاش می‌شود.", err, backoff)
 		select {
 		case <-ctx.Done():
 			return
@@ -105,12 +104,12 @@ func (c *Client) session(ctx context.Context) error {
 	go func() {
 		resp, err := c.wait(loginID, 8*time.Second)
 		if err != nil || resp["Response"] != "Success" {
-			log.Printf("voip: login to the phone system failed: %v %s", err, resp["Message"])
+			Logf("ورود به صندوق تلفن رد شد (نام کاربری یا رمز AMI را بررسی کنید): %v %s", err, resp["Message"])
 			conn.Close()
 			return
 		}
 		c.connected.Store(true)
-		log.Println("voip: connected to the phone system")
+		Logf("به صندوق تلفن وصل شد؛ منتظر تماس هستم.")
 	}()
 
 	for {
@@ -121,6 +120,9 @@ func (c *Client) session(ctx context.Context) error {
 		if id := ev["ActionID"]; id != "" && ev["Response"] != "" {
 			c.deliver(id, ev)
 			continue
+		}
+		if ev["Event"] != "" {
+			noteEvent()
 		}
 		if ev["Event"] != "" && c.OnEvent != nil {
 			c.OnEvent(ev)

@@ -9,6 +9,7 @@ import (
 	"automation/server/internal/auth"
 	"automation/server/internal/httpx"
 	"automation/server/internal/jsonx"
+	"automation/server/internal/notify"
 	"automation/server/internal/store"
 	"automation/server/internal/voip"
 )
@@ -28,6 +29,34 @@ func voipStatus(w http.ResponseWriter, r *http.Request) {
 		"connected": phone != nil && phone.Connected(),
 		"extension": jsonx.Str(me.M, "extension"),
 	})
+}
+
+// voipLog is the phone-system diary for admins: connection state, how many events arrived and what was done with the calls.
+func voipLog(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).IsAdmin() {
+		httpx.Error(w, http.StatusForbidden, "این بخش فقط برای مدیر است.")
+		return
+	}
+	count, last := voip.Stats()
+	var lastAt any
+	if !last.IsZero() {
+		lastAt = last
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"enabled":    phone != nil && phone.Enabled(),
+		"connected":  phone != nil && phone.Connected(),
+		"eventCount": count,
+		"lastEvent":  lastAt,
+		"entries":    voip.Recent(),
+	})
+}
+
+// voipTestPopup sends the user an example incoming-call notification, to check the pop-up, sound and desktop window without a real call.
+func voipTestPopup(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	note := notify.Note{Kind: "call", Label: "تماس ورودی", Title: "تماس ورودی آزمایشی", Body: "این یک آزمایش است؛ تماس واقعی نیست.", Repeat: true}
+	notify.Notify(r.Context(), []string{me.ID()}, note, "")
+	httpx.OK(w)
 }
 
 // voipCall rings the user's own extension and then dials the target (a number or a colleague's user id).
