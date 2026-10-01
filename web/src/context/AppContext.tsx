@@ -541,6 +541,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
+  // Number of unread notifications on the app icon (installed app on a phone or desktop; ignored where unsupported).
+  useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    try {
+      if (unreadCount > 0) void nav.setAppBadge?.(unreadCount)?.catch(() => {});
+      else void nav.clearAppBadge?.()?.catch(() => {});
+    } catch {
+      /* the badge is optional */
+    }
+  }, [unreadCount]);
+
   // Whenever currentUser changes (e.g. user switch in AdminPanel or Login), apply that user's theme
   useEffect(() => {
     if (currentUser?.id) {

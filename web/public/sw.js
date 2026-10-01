@@ -14,6 +14,12 @@ self.addEventListener('push', (event) => {
       // When the app is open and in front, it already plays its own sound and toast.
       const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       if (wins.some((c) => c.visibilityState === 'visible' && c.focused)) return;
+      // Unread count on the app icon (the server sends it with the push).
+      try {
+        if (typeof d.unread === 'number' && self.navigator && 'setAppBadge' in self.navigator) await self.navigator.setAppBadge(d.unread);
+      } catch (e) {
+        /* the badge is optional */
+      }
       await self.registration.showNotification(d.title || 'اعلان جدید', {
         body: d.body || '',
         tag: d.id,

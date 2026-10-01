@@ -71,7 +71,7 @@ func Send(userID string, n jsonx.M) {
 	if len(subs) == 0 {
 		return
 	}
-	payload, _ := json.Marshal(jsonx.M{"id": n["id"], "title": n["title"], "body": n["body"], "kind": n["kind"], "ref": n["ref"]})
+	payload, _ := json.Marshal(Payload(n))
 	for _, s := range subs {
 		d := jsonx.Decode(s.data)
 		keys := jsonx.Sub(d, "keys")
@@ -94,4 +94,13 @@ func Send(userID string, n jsonx.M) {
 			_, _ = store.Pool.Exec(ctx, `DELETE FROM push_subscriptions WHERE endpoint = $1`, s.endpoint)
 		}
 	}
+}
+
+// Payload is what the phone receives. Only who it is from is shown (short); notifications without a sender keep their own text.
+func Payload(n jsonx.M) jsonx.M {
+	title, body := n["title"], n["body"]
+	if from := jsonx.Str(n, "from"); from != "" {
+		title, body = "از طرف "+from, ""
+	}
+	return jsonx.M{"id": n["id"], "title": title, "body": body, "kind": n["kind"], "ref": n["ref"], "unread": n["unread"]}
 }

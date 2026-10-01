@@ -28,6 +28,8 @@ type Note struct {
 	Title string
 	Body  string
 	Ref   jsonx.M // what to open when clicked: {type, id}
+	// From is who caused it; when empty it is looked up from exceptID. Phone notifications show only this name.
+	From string
 	// Repeat turns off the two-minute duplicate filter (phone calls from the same number are separate events).
 	Repeat bool
 }
@@ -41,6 +43,10 @@ func newID() string {
 // Notify delivers the note to each user except exceptID (normally the person who caused it).
 // The very same text is never sent to a user twice within two minutes.
 func Notify(ctx context.Context, userIDs []string, n Note, exceptID string) {
+	from := n.From
+	if from == "" && exceptID != "" {
+		_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'fullName', '') FROM users WHERE id = $1`, exceptID).Scan(&from)
+	}
 	seen := map[string]bool{}
 	for _, uid := range userIDs {
 		if uid == "" || uid == exceptID || seen[uid] {
@@ -49,7 +55,7 @@ func Notify(ctx context.Context, userIDs []string, n Note, exceptID string) {
 		seen[uid] = true
 		doc := jsonx.M{
 			"id": newID(), "userId": uid, "kind": n.Kind, "label": n.Label, "title": n.Title, "body": n.Body,
-			"ref": nil, "createdAt": time.Now().UTC().Format("2006-01-02T15:04:05.000Z"), "read": false,
+			"ref": nil, "from": from, "createdAt": time.Now().UTC().Format("2006-01-02T15:04:05.000Z"), "read": false,
 		}
 		if n.Ref != nil {
 			doc["ref"] = n.Ref
@@ -76,6 +82,9 @@ func Notify(ctx context.Context, userIDs []string, n Note, exceptID string) {
 			`DELETE FROM notifications WHERE user_id = $1 AND id NOT IN
 			   (SELECT id FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 200)`, uid)
 		Hub.Publish(uid, []byte(jsonx.Encode(doc)))
+		var unread int
+		_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM notifications WHERE user_id = $1 AND NOT read`, uid).Scan(&unread)
+		doc["unread"] = unread
 		go push.Send(uid, doc)
 	}
 }
