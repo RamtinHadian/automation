@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
 import { ZoomBar } from './ZoomBar';
+import { ScaledPaper } from './ScaledPaper';
 import { useFitZoom } from '../../lib/useFitZoom';
 import { SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT, signatureAreaHeight } from '../../lib/letterDefaults';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
@@ -288,6 +289,36 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize, selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign, signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset]);
 
+  // Back to the standard layout (organisation template when there is one, else the built-in defaults) and forget the
+  // person's own saved settings, for when earlier adjustments left the letter out of shape.
+  const resetLayout = () => {
+    const base = (orgTpl?.layout || {}) as Record<string, any>;
+    const fam = (v: unknown) => fontPref(v);
+    const pt = (v: any) => ptPref(v);
+    setSelectedFontFamily(fam(base.selectedFontFamily));
+    setHeaderCenterFontFamily(fam(base.headerCenterFontFamily));
+    setSubjectFontFamily(fam(base.subjectFontFamily));
+    setMetaFontFamily(fam(base.metaFontFamily));
+    setSignerFontFamily(fam(base.signerFontFamily));
+    setSignerFontSize(numPref(base.signerFontSize, 18));
+    setSelectedFontSize(typeof base.selectedFontSize === 'string' ? base.selectedFontSize : '13px');
+    setHeaderCenterTitle(typeof base.headerCenterTitle === 'string' ? base.headerCenterTitle : '« به نام خدا »');
+    setBodyPaddingX(numPref(base.bodyPaddingX, 32));
+    setBodyOffsetX(numPref(base.bodyOffsetX, 0));
+    setSignatureHeight(numPref(base.signatureHeight, settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT));
+    setSignatureAlign('left');
+    setSignatureOffset(pt(base.signatureOffset));
+    setSigImgOffset(pt(base.sigImgOffset));
+    setStampOffset(pt(base.stampOffset));
+    setStampHeightOverride(typeof base.stampHeightOverride === 'number' ? base.stampHeightOverride : null);
+    setHeaderCenterOffset(pt(base.headerCenterOffset));
+    setSubjectOffset(pt(base.subjectOffset));
+    setMetaOffset(pt(base.metaOffset));
+    setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: undefined } : u)));
+    setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: undefined } : u));
+    showToast('چیدمان نامه به حالت استاندارد برگشت.');
+  };
+
   // Admin: make the current layout (and opening text) the organisation's standard letter template.
   const saveOrgTemplate = (locked: boolean) => {
     setSettings({
@@ -509,7 +540,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
   const getPageDimensions = () => {
     // Phones: fixed design width (set in style) and the computer paddings; the whole sheet is zoomed to fit.
-    if (fitZ.isPhone) return pageSize === 'A5' ? 'min-h-[600px] p-7 shrink-0' : pageSize === 'Letter' ? 'min-h-[720px] p-9 shrink-0' : 'min-h-[760px] p-10 shrink-0';
+    if (fitZ.isPhone) return pageSize === 'A5' ? 'min-h-[600px] p-7' : pageSize === 'Letter' ? 'min-h-[720px] p-9' : 'min-h-[760px] p-10';
     switch (pageSize) {
       case 'A5':
         return 'max-w-[580px] min-h-[600px] p-4 sm:p-7';
@@ -563,6 +594,11 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         {/* Action / Settings Toolbar Bar */}
         <div className="bg-white px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center justify-between gap-2 shrink-0 overflow-x-auto no-scrollbar text-xs whitespace-nowrap">
           
+          {/* Reset the layout to the standard one */}
+          <button type="button" onClick={resetLayout} className="px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] bg-white text-[11px] font-black text-[#3A241F] hover:bg-[#FAF5F1] cursor-pointer shrink-0" title="برگرداندن قلم، اندازه و جای همه‌چیز به حالت استاندارد">
+            بازنشانی چیدمان
+          </button>
+
           {/* Format / Paper Size Selector */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-[#3A241F]">قطع کاغذ:</span>
@@ -921,10 +957,11 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         <div className={`flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
           {/* Virtual Paper Sheet */}
+          <ScaledPaper enabled={fitZ.isPhone} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
             ref={paperSheetRef}
-            style={{ fontFamily: selectedFontFamily, ...(fitZ.isPhone ? { zoom, width: ({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720 } : {}) }}
-            className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 ${fitZ.isPhone ? '' : 'w-full'} transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
+            style={{ fontFamily: selectedFontFamily }}
+            className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 w-full transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
           >
             {/* Header Component */}
             <div className="pb-2 mb-4 space-y-3 shrink-0">
@@ -1288,6 +1325,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </div>
             )}
           </div>
+          </ScaledPaper>
         </div>
 
         {/* Bottom Submission Bar */}

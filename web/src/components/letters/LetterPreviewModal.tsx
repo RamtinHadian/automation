@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DraggableImage } from './DraggableImage';
 import { ZoomBar } from './ZoomBar';
+import { ScaledPaper } from './ScaledPaper';
 import { useFitZoom } from '../../lib/useFitZoom';
 import {
   DEFAULT_SIGNATURE_HEIGHT,
@@ -1531,9 +1532,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         <div className={`flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
           {/* Virtual Official Paper Sheet */}
+          <ScaledPaper enabled={fitZ.isPhone} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
-            style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily, ...(fitZ.isPhone ? { zoom, width: ({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720 } : {}) }}
-            className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 ${fitZ.isPhone ? 'shrink-0 mx-auto' : 'w-full'} text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
+            style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily }}
+            className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 w-full text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
               pageSize === 'A5'
                 ? `${fitZ.isPhone ? '' : 'max-w-[580px]'} min-h-[600px] ${fitZ.isPhone ? 'p-7' : 'p-4 sm:p-7'} text-xs`
                 : pageSize === 'Letter'
@@ -2062,6 +2064,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               </div>
             )}
           </div>
+          </ScaledPaper>
         </div>
 
         {/* Bottom Bar Outside Canvas */}
