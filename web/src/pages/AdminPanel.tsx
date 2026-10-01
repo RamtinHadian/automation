@@ -238,10 +238,6 @@ export default function AdminPanel() {
     showToast('از پنل مدیریت خارج شدید.');
   };
 
-  const adminUsers = staffList.filter(
-    (u) => u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'
-  );
-
   const filteredTransfers = transfers.filter((t) => {
     const s = transfersSearch.toLowerCase();
     return (
@@ -400,7 +396,7 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          {/* Admin Profile Selector & Logout */}
+          {/* The admin who signed in, and logout (no switching to other people) */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-[#2E1A16] px-3 py-1.5 rounded-2xl border border-[#563D34]">
               <div className="text-right">
@@ -409,25 +405,6 @@ export default function AdminPanel() {
                   {currentUser.role === 'SUPER_ADMIN' ? 'مدیر ارشد کل سیستم' : 'مدیر واحد سازمانی'}
                 </div>
               </div>
-              {adminUsers.length > 1 && (
-                <select
-                  value={currentUser.id}
-                  onChange={(e) => {
-                    const u = adminUsers.find((user) => user.id === e.target.value);
-                    if (u) {
-                      setCurrentUser(u);
-                      showToast(`حساب مدیر: ${u.fullName}`);
-                    }
-                  }}
-                  className="bg-[#3A241F] text-xs font-bold text-[#F6D9CD] py-1.5 px-2 rounded-xl border border-[#563D34] focus:outline-none cursor-pointer mr-2"
-                >
-                  {adminUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName} ({u.role === 'SUPER_ADMIN' ? 'مدیر ارشد' : u.departmentName})
-                    </option>
-                  ))}
-                </select>
-              )}
             </div>
 
             <button
