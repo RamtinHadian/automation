@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, Lock, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
-import { DemoAccounts, useDemoInfo } from '../components/common/DemoBanner';
+import { DemoAdminHint, useDemoInfo } from '../components/common/DemoBanner';
 
 interface LoginPageProps {
   staffList: User[];
@@ -17,6 +17,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
   const [showPassword, setShowPassword] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  // On the public demo the public account is filled in, the visitor only presses «ورود».
+  const demoAccount = demo?.accounts?.[0];
+  useEffect(() => {
+    if (demoAccount) {
+      setUsernameQuery(demoAccount.identifier);
+      setPassword(demoAccount.password);
+    }
+  }, [demoAccount?.identifier, demoAccount?.password]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -75,25 +83,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
             <img src="/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-44 sm:w-52 mx-auto" draggable={false} />
           </h1>
           <div className="text-sm font-black text-[#3A241F]">خوش آمدید</div>
-          {!demo && (
           <p className="text-xs text-[#8C6F66] font-medium">
               برای ورود به حساب کاربری اطلاعات خود را وارد کنید
             </p>
-          )}
         </div>
 
-        <DemoAccounts
-          busy={submitting}
-          onPick={async (identifier, pass) => {
-            setSubmitting(true);
-            const failure = await onLogin(identifier, pass);
-            setSubmitting(false);
-            if (failure) setError(failure);
-          }}
-        />
+        {demo && <DemoAdminHint />}
 
-        {/* Login Card (the demo has only the one-field sign-in above) */}
-        <div hidden={!!demo} className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
+        {/* Login Card */}
+        <div className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
 
           {/* Username / User Select Field */}
           <div className="relative" ref={dropdownRef}>

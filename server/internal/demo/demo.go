@@ -22,7 +22,7 @@ import (
 )
 
 // Password is shown on the login page on purpose; every demo account uses it.
-const Password = "demo1234"
+const Password = "demo"
 
 type account struct {
 	ID, Name, Email, Title, Role, Dept, Initials string
@@ -31,7 +31,7 @@ type account struct {
 }
 
 var accounts = []account{
-	{"demo-ceo", "رامتین هادیان", "ceo@demo.local", "مدیرعامل", "SUPER_ADMIN", "dept-general", "ر", true, true, true, true, "501"},
+	{"demo-ceo", "رامتین هادیان", "demo", "مدیرعامل", "SUPER_ADMIN", "dept-general", "ر", true, true, true, true, "501"},
 	{"demo-secretary", "سارا محمدی", "secretary@demo.local", "منشی مدیرعامل", "STAFF", "dept-general", "م", true, false, true, false, "502"},
 	{"demo-sales", "علی رضایی", "sales@demo.local", "کارشناس فروش", "STAFF", "dept-sales", "ر", false, false, true, true, "503"},
 	{"demo-staff", "مریم احمدی", "staff@demo.local", "کارشناس مالی", "STAFF", "dept-fin", "ا", false, false, true, false, "504"},
@@ -53,17 +53,15 @@ var tehran = func() *time.Location {
 	return loc
 }()
 
-// Info is what the login page needs to show the demo accounts (public, no secrets: the demo password is public).
+// Info is what the login pages need to show the one public demo account (no secrets: the demo password is public).
 func Info(enabled bool, resetHours int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enabled {
 			httpx.JSON(w, http.StatusOK, map[string]any{"demo": false})
 			return
 		}
-		list := make([]map[string]string, 0, len(accounts))
-		for _, a := range accounts {
-			list = append(list, map[string]string{"name": a.Name, "title": a.Title, "identifier": a.Email, "password": Password})
-		}
+		ceo := accounts[0]
+		list := []map[string]string{{"name": ceo.Name, "title": ceo.Title, "identifier": ceo.Email, "password": Password}}
 		httpx.JSON(w, http.StatusOK, map[string]any{"demo": true, "resetHours": resetHours, "accounts": list})
 	}
 }

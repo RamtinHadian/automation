@@ -1,4 +1,4 @@
-import { DemoAdminHint } from '../components/common/DemoBanner';
+import { DemoAdminHint, useDemoInfo } from '../components/common/DemoBanner';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
@@ -80,6 +80,14 @@ export default function AdminPanel() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const demoInfo = useDemoInfo();
+  useEffect(() => {
+    const d = demoInfo?.accounts?.[0];
+    if (d) {
+      setAdminUsername(d.identifier);
+      setAdminPassword(d.password);
+    }
+  }, [demoInfo]);
   const [captchaInput, setCaptchaInput] = useState('');
   const [captchaCode, setCaptchaCode] = useState('');
   const [showAdminPassword, setShowAdminPassword] = useState(false);

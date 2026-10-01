@@ -31,42 +31,7 @@ export const DemoBanner: React.FC = () => {
   );
 };
 
-/** The demo sign-in: one field (the role) and one button. */
-export const DemoAccounts: React.FC<{ onPick: (identifier: string, password: string) => void; busy?: boolean }> = ({ onPick, busy }) => {
-  const info = useDemoInfo();
-  const [who, setWho] = useState(0);
-  if (!info?.accounts?.length) return null;
-  const acc = info.accounts[who] || info.accounts[0];
-  return (
-    <div className="w-full bg-white rounded-3xl p-5 sm:p-6 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
-      <div className="space-y-1 text-center">
-        <h2 className="font-black text-sm text-[#6E1B1B]">ورود به نسخهٔ نمایشی</h2>
-        <p className="text-[11px] text-[#8C6F66] leading-5">نقش را انتخاب کنید و وارد شوید. اطلاعات ساختگی است و هر چند ساعت یک بار بازنشانی می‌شود.</p>
-      </div>
-      <select
-        value={who}
-        onChange={(e) => setWho(Number(e.target.value))}
-        className="w-full px-3.5 py-3 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl text-sm font-bold text-[#3A241F] focus:outline-none focus:border-[#6E1B1B] cursor-pointer"
-      >
-        {info.accounts.map((a, i) => (
-          <option key={a.identifier} value={i}>
-            {a.name} — {a.title}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => onPick(acc.identifier, acc.password)}
-        className="w-full py-3.5 bg-[#6E1B1B] hover:bg-[#581717] disabled:opacity-60 text-white font-black text-sm rounded-2xl shadow-md shadow-[#6E1B1B]/25 transition-all active:scale-[0.98] cursor-pointer"
-      >
-        ورود
-      </button>
-    </div>
-  );
-};
-
-/** Hint under the admin-panel sign-in: the demo manager account. */
+/** The demo's public account, shown under the sign-in forms. */
 export const DemoAdminHint: React.FC = () => {
   const info = useDemoInfo();
   const ceo = info?.accounts?.[0];
