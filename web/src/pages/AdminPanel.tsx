@@ -1,3 +1,4 @@
+import { BrandName } from '../components/common/BrandName';
 import { DemoAdminHint } from '../components/common/DemoBanner';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -378,8 +379,8 @@ export default function AdminPanel() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-black text-lg text-white leading-tight">
-                  {settings.systemTitle ? `${settings.systemTitle} - کنسول مدیریت` : 'کنسول مدیریت و ممیزی سیستم'}
+                <h1 className="text-xl text-white leading-tight">
+                  <BrandName /> <span className="font-black text-base">- کنسول مدیریت</span>
                 </h1>
                 <span className="bg-[#D34A32]/20 border border-[#D34A32]/50 text-[#F6D9CD] text-[10px] font-black px-2.5 py-0.5 rounded-full">
                   ADMIN CONSOLE

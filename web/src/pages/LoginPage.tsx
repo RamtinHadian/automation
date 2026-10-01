@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, Lock, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
 import { DemoAccounts } from '../components/common/DemoBanner';
+import { BrandName } from '../components/common/BrandName';
 
 interface LoginPageProps {
   staffList: User[];
@@ -70,9 +71,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
 
         {/* Heading */}
         <div className="text-center space-y-1.5">
-          <h1 className="text-2xl font-black text-[#3A241F] tracking-tight">
-            خوش آمدید
+          <h1 className="text-[#6E1B1B] leading-tight text-6xl">
+            <BrandName />
           </h1>
+          <div className="text-sm font-black text-[#3A241F]">خوش آمدید</div>
           <p className="text-xs text-[#8C6F66] font-medium">
             برای ورود به حساب کاربری اطلاعات خود را وارد کنید
           </p>

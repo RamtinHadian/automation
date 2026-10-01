@@ -1,3 +1,4 @@
+import { BrandName } from '../components/common/BrandName';
 import React, { useState, useEffect, useRef } from 'react';
 import { CrmView } from '../components/crm/CrmView';
 import { TasksView } from '../components/tasks/TasksView';
@@ -510,8 +511,8 @@ export default function UserPanel() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-black text-base sm:text-lg text-[#3A241F] leading-tight truncate">
-                  {settings.systemTitle || 'سامانه مدیریت اسناد و مکاتبات سازمانی'}
+                <h1 className="text-2xl sm:text-3xl text-[#6E1B1B] leading-tight truncate">
+                  <BrandName />
                 </h1>
                 {canSignOfficial && (
                   <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 shadow-2xs shrink-0">

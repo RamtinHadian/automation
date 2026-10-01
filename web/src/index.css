@@ -3,6 +3,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The product name is written in Lalezar (open font licence). */
+@font-face {
+  font-family: 'Lalezar';
+  src: url('./fonts/Lalezar-arabic.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC;
+}
+
 @layer base {
   :root {
     --theme-primary: #6E1B1B;
