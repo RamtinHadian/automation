@@ -202,7 +202,9 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 
 func removeTask(w http.ResponseWriter, r *http.Request, me auth.User, id string) {
 	var creator string
-	err := store.Pool.QueryRow(r.Context(), `SELECT COALESCE(creator_id, '') FROM tasks WHERE id = $1`, id).Scan(&creator)
+	var assignees []string
+	var traw []byte
+	err := store.Pool.QueryRow(r.Context(), `SELECT COALESCE(creator_id, ''), assignee_ids, data FROM tasks WHERE id = $1`, id).Scan(&creator, &assignees, &traw)
 	if err == pgx.ErrNoRows {
 		httpx.OK(w)
 		return
@@ -219,6 +221,9 @@ func removeTask(w http.ResponseWriter, r *http.Request, me auth.User, id string)
 		internalError(w)
 		return
 	}
+	notify.Notify(r.Context(), append([]string{creator}, assignees...), notify.Note{
+		Kind: "alert", Label: "وظیفه حذف شد", Title: "وظیفه حذف شد: " + jsonx.Str(jsonx.Decode(traw), "title"), Repeat: true,
+	}, me.ID())
 	httpx.OK(w)
 }
 
@@ -339,8 +344,9 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 // item from the admin panel's transfer monitoring. A signed official letter stays protected in every case.
 func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string) {
 	var sender string
+	var rcpts []string
 	var raw []byte
-	err := store.Pool.QueryRow(r.Context(), `SELECT COALESCE(sender_id, ''), data FROM transfers WHERE id = $1`, id).Scan(&sender, &raw)
+	err := store.Pool.QueryRow(r.Context(), `SELECT COALESCE(sender_id, ''), recipient_ids, data FROM transfers WHERE id = $1`, id).Scan(&sender, &rcpts, &raw)
 	if err == pgx.ErrNoRows {
 		httpx.OK(w)
 		return
@@ -362,5 +368,12 @@ func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id str
 	}
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM transfers WHERE id = $1`, id)
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM transfer_hidden WHERE transfer_id = $1`, id)
+	what, label := "فایل", "فایل حذف شد"
+	if isLetter {
+		what, label = "نامه", "نامه حذف شد"
+	}
+	notify.Notify(r.Context(), append([]string{sender}, rcpts...), notify.Note{
+		Kind: "alert", Label: label, Title: what + " حذف شد: " + jsonx.Str(doc, "fileName"), Body: "توسط " + me.Name(), Repeat: true,
+	}, me.ID())
 	httpx.OK(w)
 }

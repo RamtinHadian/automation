@@ -11,6 +11,7 @@ import (
 	"automation/server/internal/auth"
 	"automation/server/internal/httpx"
 	"automation/server/internal/jsonx"
+	"automation/server/internal/notify"
 	"automation/server/internal/store"
 )
 
@@ -80,6 +81,30 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 			}
 			internalError(w)
 			return
+		}
+		// Tell the person when an admin changed their account (access, department, login or password).
+		if me.IsAdmin() && id != me.ID() {
+			var changes []string
+			if password != "" {
+				changes = append(changes, "رمز عبور")
+			}
+			if email != exEmail {
+				changes = append(changes, "نام کاربری")
+			}
+			for _, c := range []struct{ key, label string }{
+				{"role", "نقش"}, {"canUseTasks", "دسترسی وظایف"}, {"canUseCrm", "دسترسی مشتریان"},
+				{"extension", "شمارهٔ داخلی"}, {"isActive", "فعال‌بودن حساب"}, {"departmentId", "واحد سازمانی"},
+			} {
+				if jsonx.Str(existing, c.key) != jsonx.Str(merged, c.key) || jsonx.Bool(existing, c.key) != jsonx.Bool(merged, c.key) {
+					changes = append(changes, c.label)
+				}
+			}
+			if len(changes) > 0 {
+				notify.Notify(ctx, []string{id}, notify.Note{
+					Kind: "alert", Label: "تغییر حساب", Title: "مدیر اطلاعات حساب شما را تغییر داد",
+					Body: strings.Join(changes, "، "), Repeat: true,
+				}, me.ID())
+			}
 		}
 		httpx.OK(w)
 		return

@@ -151,6 +151,20 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		return
 	}
 	notifyNewOwner(r, me, owner, oldOwner, "deal", "فرصت فروش", "فرصت «"+jsonx.Str(doc, "title")+"» به شما سپرده شد", id)
+	if exists && owner != "" && owner != me.ID() && owner == oldOwner {
+		if jsonx.Str(before, "stage") != stage {
+			notify.Notify(r.Context(), []string{owner}, notify.Note{
+				Kind: "task", Label: "تغییر مرحله", Title: "مرحلهٔ فرصت «" + jsonx.Str(doc, "title") + "» تغییر کرد",
+				Body: dealStage(jsonx.Str(before, "stage")) + " ← " + dealStage(stage), Ref: ref("deal", id), Repeat: true,
+			}, me.ID())
+		}
+		if jsonx.Str(before, "proformaNumber") == "" && jsonx.Str(doc, "proformaNumber") != "" {
+			notify.Notify(r.Context(), []string{owner}, notify.Note{
+				Kind: "task", Label: "پیش‌فاکتور", Title: "برای فرصت «" + jsonx.Str(doc, "title") + "» پیش‌فاکتور صادر شد",
+				Body: jsonx.Str(doc, "proformaNumber"), Ref: ref("deal", id), Repeat: true,
+			}, me.ID())
+		}
+	}
 	if exists && stage == "WON" && jsonx.Str(before, "stage") != "WON" {
 		// Good news goes to the admins.
 		rows, err := store.Pool.Query(r.Context(), `SELECT id FROM users WHERE data->>'role' IN ('SUPER_ADMIN','DEPT_ADMIN')`)
@@ -170,6 +184,24 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		}
 	}
 	httpx.OK(w)
+}
+
+func dealStage(s string) string {
+	switch s {
+	case "NEW":
+		return "جدید"
+	case "CONTACTED":
+		return "تماس گرفته شد"
+	case "PROPOSAL":
+		return "پیشنهاد ارسال شد"
+	case "NEGOTIATION":
+		return "مذاکره"
+	case "WON":
+		return "فروش موفق"
+	case "LOST":
+		return "از دست رفت"
+	}
+	return s
 }
 
 func removeDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string) {
@@ -241,6 +273,17 @@ func putActivity(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		id, jsonx.Str(doc, "customerId"), jsonx.Str(doc, "ownerId"), jsonx.Encode(doc)); err != nil {
 		internalError(w)
 		return
+	}
+	// A note, call or meeting added to a customer that belongs to someone else tells its owner.
+	if !exists && jsonx.Str(doc, "type") != "FOLLOWUP" {
+		var custOwner, custName string
+		_ = store.Pool.QueryRow(r.Context(), `SELECT COALESCE(owner_id, ''), COALESCE(data->>'name', '') FROM crm_customers WHERE id = $1`, jsonx.Str(doc, "customerId")).Scan(&custOwner, &custName)
+		if custOwner != "" && custOwner != me.ID() {
+			notify.Notify(r.Context(), []string{custOwner}, notify.Note{
+				Kind: "task", Label: "سابقهٔ جدید", Title: "سابقهٔ جدید برای مشتری «" + custName + "»",
+				Body: strings.TrimSpace(jsonx.Str(doc, "text")), Ref: ref("customer", jsonx.Str(doc, "customerId")), Repeat: true,
+			}, me.ID())
+		}
 	}
 	// A follow-up given to someone else tells them right away.
 	if !exists && jsonx.Str(doc, "type") == "FOLLOWUP" {

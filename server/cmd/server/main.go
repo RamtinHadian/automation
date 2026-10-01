@@ -14,6 +14,7 @@ import (
 	"automation/server/internal/push"
 	"automation/server/internal/store"
 	"automation/server/internal/voip"
+	"automation/server/internal/work"
 )
 
 func main() {
@@ -47,6 +48,7 @@ func main() {
 	voip.WatchCalls(phone)
 	go phone.Run(ctx)
 	go crm.RunReminders(ctx)
+	go work.RunTaskReminders(ctx)
 	api.SetPhone(phone)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: api.Router(cfg)}
