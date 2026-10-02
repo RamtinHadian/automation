@@ -23,3 +23,6 @@ Created once with `licensetool keygen`. **Keep it secret and back it up outside 
 
 ## Honest limits
 A licence stops copying, casual sharing and expired use. Someone with full control of a server and the skill to patch the program can still remove the check; for that the contract and the update/support subscription are the protection. Deliver the compiled image, not the source.
+
+## The vendor portal (a web page on your own computer)
+Double-click `open-license-portal.cmd` (next to the private key; built with `go build -o <dir>/hoormand-license-portal.exe ./cmd/licensetool`). It opens http://127.0.0.1:8765 in the browser: fill the customer name and the install code, pick the duration and the user limit, press the button, copy the code. It lists everything issued (searchable, with a Renew shortcut) and can check a code. The history is kept next to the key (`issued-licenses.json`). It listens on 127.0.0.1 only and refuses other hosts and pages; the private key never leaves the computer.

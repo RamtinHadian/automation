@@ -2,6 +2,7 @@
 //
 //	licensetool keygen  -out <dir>                                   make the signing key pair (do this once, keep the private key safe)
 //	licensetool issue   -key <private.key> -customer "<name>" -fp <install code> -days 365 -users 50
+//	licensetool serve   -key <private.key>                           open the vendor portal on this computer (a web page to make codes)
 //	licensetool show    <code>                                       print what a code says
 package main
 
@@ -32,6 +33,8 @@ func asciiDigits(s string) string {
 	}, s)
 }
 
+func flagSet(name string) *flag.FlagSet { return flag.NewFlagSet(name, flag.ExitOnError) }
+
 func die(msg string) {
 	fmt.Fprintln(os.Stderr, msg)
 	os.Exit(1)
@@ -39,7 +42,7 @@ func die(msg string) {
 
 func main() {
 	if len(os.Args) < 2 {
-		die("usage: licensetool keygen|issue|show")
+		die("usage: licensetool keygen|issue|serve|show")
 	}
 	switch os.Args[1] {
 	case "keygen":
@@ -86,6 +89,8 @@ func main() {
 		}
 		l := license.License{Serial: *serial, Customer: *customer, FP: asciiDigits(strings.ToUpper(strings.TrimSpace(*fp))), Issued: now.Unix(), Expires: now.Add(time.Duration(*days * 24 * float64(time.Hour))).Unix(), MaxUsers: *users}
 		fmt.Println(license.Encode(ed25519.PrivateKey(b), l))
+	case "serve":
+		serve(os.Args[2:])
 	case "show":
 		if len(os.Args) < 3 {
 			die("usage: licensetool show <code>")
@@ -96,6 +101,6 @@ func main() {
 		}
 		fmt.Printf("customer: %s\nserial: %s\ninstall code: %s\nissued: %s\nexpires: %s\nmax users: %d\n", l.Customer, l.Serial, l.FP, time.Unix(l.Issued, 0).Format(time.RFC3339), time.Unix(l.Expires, 0).Format(time.RFC3339), l.MaxUsers)
 	default:
-		die("usage: licensetool keygen|issue|show")
+		die("usage: licensetool keygen|issue|serve|show")
 	}
 }

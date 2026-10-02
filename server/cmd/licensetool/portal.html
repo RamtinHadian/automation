@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>پورتال صدور مجوز هورمند</title>
+<style>
+  :root { --ink:#3A241F; --muted:#8C6F66; --line:#EBDBCE; --bg:#FAF7F2; --card:#fff; --brand:#6E1B1B; --accent:#D34A32; --soft:#FAF5F1; --ok:#0E8F5B; --bad:#c0392b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: "Segoe UI", Tahoma, "Vazirmatn", sans-serif; font-size:14px; }
+  header { background: linear-gradient(to left, var(--brand), var(--accent)); color:#fff; padding:18px 24px; display:flex; align-items:center; gap:12px; }
+  header h1 { margin:0; font-size:18px; font-weight:800; }
+  header p { margin:2px 0 0; font-size:12px; opacity:.85; }
+  main { max-width:1100px; margin:0 auto; padding:20px; display:grid; gap:18px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { main { grid-template-columns: 380px 1fr; align-items:start; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:20px; box-shadow:0 2px 10px rgba(58,36,31,.05); }
+  h2 { margin:0 0 14px; font-size:14px; font-weight:800; color:var(--brand); }
+  label { display:block; font-size:12px; font-weight:800; margin:12px 0 6px; }
+  input, textarea, select { width:100%; padding:11px 12px; border:1px solid var(--line); background:var(--soft); border-radius:14px; font:inherit; color:var(--ink); }
+  input:focus, textarea:focus { outline:none; border-color:var(--brand); }
+  .ltr { direction:ltr; text-align:left; font-family: Consolas, monospace; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { padding:8px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; cursor:pointer; font:inherit; font-size:12px; font-weight:800; color:var(--ink); }
+  .chip.on { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .btn { width:100%; margin-top:16px; padding:13px; border:0; border-radius:16px; background:var(--brand); color:#fff; font:inherit; font-weight:800; cursor:pointer; font-size:14px; }
+  .btn:hover { background:var(--accent); }
+  .small { padding:7px 11px; border-radius:11px; border:1px solid var(--line); background:var(--soft); cursor:pointer; font:inherit; font-size:12px; font-weight:800; color:var(--brand); }
+  .small:hover { background:#EBDBCE; }
+  .err { background:#fdecea; border:1px solid #f5c2bd; color:var(--bad); padding:10px 12px; border-radius:12px; margin-top:12px; font-weight:700; font-size:12px; }
+  .result { margin-top:16px; background:#EAF7F0; border:1px solid #b9e3cc; border-radius:16px; padding:14px; }
+  .result textarea { background:#fff; height:96px; resize:none; font-size:11px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:right; color:var(--muted); font-weight:800; padding:8px 10px; background:var(--soft); }
+  td { padding:10px; border-top:1px solid var(--line); vertical-align:middle; }
+  .tag { display:inline-block; padding:2px 9px; border-radius:99px; font-weight:800; font-size:11px; }
+  .tag.ok { background:#d8f3e5; color:#0b6b43; } .tag.bad { background:#fde1de; color:#a02a1f; }
+  .empty { text-align:center; color:var(--muted); padding:30px; font-weight:700; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:14px; font-weight:800; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .tabs { display:flex; gap:6px; margin-bottom:14px; }
+</style>
+</head>
+<body>
+<header>
+  <div style="font-size:26px">🔑</div>
+  <div><h1>پورتال صدور مجوز هورمند</h1><p>فقط روی کامپیوتر شما اجرا می‌شود؛ کلید خصوصی هیچ‌جا ارسال نمی‌شود.</p></div>
+</header>
+<main>
+  <section class="card">
+    <h2>ساخت کد فعال‌سازی</h2>
+    <label>نام مشتری / شرکت</label>
+    <input id="customer" placeholder="مثال: شرکت پیلادانی" />
+    <label>کد نصب (همان که مشتری می‌فرستد)</label>
+    <input id="fp" class="ltr" placeholder="1A2B-3C4D-5E6F-7A8B-9C0D" dir="ltr" />
+    <label>مدت اعتبار</label>
+    <div class="chips" id="presets"></div>
+    <input id="days" type="number" min="1" step="1" style="margin-top:8px" />
+    <label>حداکثر تعداد کاربر (۰ = نامحدود)</label>
+    <input id="users" type="number" min="0" step="1" value="0" />
+    <label>یادداشت (اختیاری، فقط برای خودتان)</label>
+    <input id="note" placeholder="مثال: اشتراک سالانه، نصب روی سرور خودشان" />
+    <button class="btn" id="go">ساخت کد فعال‌سازی</button>
+    <div id="error"></div>
+    <div id="result"></div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0">مجوزهای صادرشده</h2>
+      <input id="search" placeholder="جستجوی مشتری یا کد نصب…" style="max-width:260px" />
+    </div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>مشتری</th><th>کد نصب</th><th>پایان اعتبار</th><th>کاربر</th><th>وضعیت</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <h2 style="margin-top:22px">بررسی یک کد</h2>
+    <div class="row"><input id="check" class="ltr" placeholder="HM1-…" dir="ltr" style="flex:1" /><button class="small" id="checkBtn">بررسی</button></div>
+    <div id="checkOut" style="margin-top:10px;font-size:12px;line-height:1.9"></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const TOKEN = "{{TOKEN}}";
+const $ = (id) => document.getElementById(id);
+const fa = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const api = async (path, body) => {
+  const r = await fetch(path, { method: body ? 'POST' : 'GET', headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'خطا');
+  return j;
+};
+const toast = (t) => { const e = $('toast'); e.textContent = t; e.classList.add('show'); setTimeout(() => e.classList.remove('show'), 1800); };
+
+// Gregorian -> Jalali
+function jalali(date) {
+  const g = [date.getFullYear(), date.getMonth() + 1, date.getDate()];
+  const gdm = [0,31,59,90,120,151,181,212,243,273,304,334];
+  let gy = g[0] > 1600 ? g[0] - 1600 : g[0] - 621, jy = g[0] > 1600 ? 979 : 0;
+  const gy2 = g[1] > 2 ? g[0] + 1 : g[0];
+  let days = 365 * gy + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) - 80 + g[2] + gdm[g[1] - 1];
+  jy += 33 * Math.floor(days / 12053); days %= 12053;
+  jy += 4 * Math.floor(days / 1461); days %= 1461;
+  if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+  const jm = days < 186 ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  const jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
+  return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`;
+}
+const fmtDate = (unix) => fa(jalali(new Date(unix * 1000)));
+
+const PRESETS = [['۱ ماه', 30], ['۳ ماه', 90], ['۶ ماه', 180], ['۱ سال', 365], ['۲ سال', 730]];
+let days = 365;
+function drawPresets() {
+  $('presets').innerHTML = '';
+  PRESETS.forEach(([t, d]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip' + (days === d ? ' on' : ''); b.textContent = t;
+    b.onclick = () => { days = d; $('days').value = d; drawPresets(); };
+    $('presets').appendChild(b);
+  });
+}
+$('days').value = days; drawPresets();
+$('days').oninput = () => { days = parseInt($('days').value) || 0; drawPresets(); };
+
+let list = [];
+function drawList() {
+  const q = $('search').value.trim().toLowerCase();
+  const now = Date.now() / 1000;
+  const rows = list.filter((r) => !q || r.customer.toLowerCase().includes(q) || r.fp.toLowerCase().includes(q) || (r.note || '').toLowerCase().includes(q));
+  $('rows').innerHTML = rows.length ? '' : '<tr><td colspan="6" class="empty">هنوز مجوزی صادر نشده است.</td></tr>';
+  rows.forEach((r) => {
+    const tr = document.createElement('tr');
+    const live = r.expires > now;
+    tr.innerHTML = `<td><b>${esc(r.customer)}</b>${r.note ? `<div style="color:#8C6F66;font-size:11px">${esc(r.note)}</div>` : ''}<div style="color:#8C6F66;font-size:11px">صدور: ${fmtDate(r.issued)}</div></td>
+      <td class="ltr" style="font-size:11px">${esc(r.fp)}</td><td>${fmtDate(r.expires)}</td><td>${r.users ? fa(r.users) : 'نامحدود'}</td>
+      <td><span class="tag ${live ? 'ok' : 'bad'}">${live ? 'معتبر' : 'منقضی'}</span></td>
+      <td style="white-space:nowrap"><button class="small">کپی کد</button> <button class="small">تمدید</button></td>`;
+    const [copyB, renewB] = tr.querySelectorAll('button');
+    copyB.onclick = () => copy(r.code);
+    renewB.onclick = () => { $('customer').value = r.customer; $('fp').value = r.fp; $('users').value = r.users; $('note').value = r.note || ''; window.scrollTo({ top: 0, behavior: 'smooth' }); toast('مشخصات پر شد؛ مدت را انتخاب و «ساخت» را بزنید'); };
+    $('rows').appendChild(tr);
+  });
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const copy = async (t) => { try { await navigator.clipboard.writeText(t); toast('کپی شد'); } catch { toast('کپی نشد؛ کد را انتخاب کنید'); } };
+async function reload() { list = await api('/api/list'); drawList(); }
+$('search').oninput = drawList;
+
+$('go').onclick = async () => {
+  $('error').innerHTML = ''; $('result').innerHTML = '';
+  try {
+    const r = await api('/api/issue', { customer: $('customer').value, fp: $('fp').value, days: days, users: parseInt($('users').value) || 0, note: $('note').value });
+    $('result').innerHTML = `<div class="result"><div style="font-weight:800;margin-bottom:8px">✓ کد ساخته شد — برای «${esc(r.customer)}» تا ${fmtDate(r.expires)}</div><textarea class="ltr" readonly id="codeOut">${esc(r.code)}</textarea><div class="row" style="margin-top:8px"><button class="small" id="copyOut">کپی کد</button><span style="font-size:11px;color:#0b6b43">این کد را برای مشتری بفرستید.</span></div></div>`;
+    $('copyOut').onclick = () => copy(r.code); $('codeOut').onclick = (e) => e.target.select();
+    reload();
+  } catch (e) { $('error').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+};
+$('checkBtn').onclick = async () => {
+  try {
+    const r = await api('/api/show', { code: $('check').value });
+    const live = r.expires > Date.now() / 1000;
+    $('checkOut').innerHTML = `مشتری: <b>${esc(r.customer)}</b><br>کد نصب: <span class="ltr">${esc(r.fp)}</span><br>صدور: ${fmtDate(r.issued)} — پایان: ${fmtDate(r.expires)} <span class="tag ${live ? 'ok' : 'bad'}">${live ? 'معتبر' : 'منقضی'}</span><br>حداکثر کاربر: ${r.users ? fa(r.users) : 'نامحدود'}`;
+  } catch (e) { $('checkOut').innerHTML = `<span style="color:#c0392b;font-weight:800">${esc(e.message)}</span>`; }
+};
+reload();
+</script>
+</body>
+</html>
