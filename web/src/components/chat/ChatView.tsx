@@ -52,7 +52,7 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY;
       const reserve = window.innerWidth < 768 ? 88 : 0; // the phone has a bottom menu bar
-      setHeight(Math.max(380, window.innerHeight - (top - window.scrollY) - reserve));
+      setHeight(Math.max(300, window.innerHeight - (top - window.scrollY) - reserve));
     };
     // the typing bar floats at the very bottom of the window, exactly under the conversation column
     const place = () => {
@@ -62,8 +62,11 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
       setDock({ left: r.left, width: r.width, bottom: window.innerWidth < 768 ? 88 : 0 });
     };
     const all = () => { fit(); place(); };
+    // the page itself does not scroll while the chat is open (so the chat, the typing bar and the window bottom always line up)
+    window.scrollTo(0, 0);
+    const prevOverflow = document.documentElement.style.overflowY;
+    document.documentElement.style.overflowY = 'hidden';
     all();
-    box.current?.scrollIntoView({ block: 'nearest' });
     const ro = new ResizeObserver(all);
     if (box.current) ro.observe(box.current);
     window.addEventListener('resize', all);
@@ -72,6 +75,7 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
       ro.disconnect();
       window.removeEventListener('resize', all);
       window.removeEventListener('scroll', place);
+      document.documentElement.style.overflowY = prevOverflow;
     };
   }, [peer]);
   const lastCount = useRef(0);
