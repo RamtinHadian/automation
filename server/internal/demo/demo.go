@@ -166,7 +166,7 @@ func Run(ctx context.Context, resetHours int) {
 	}
 }
 
-//go:embed logo-small.png
+//go:embed assets/logo-small.png
 var logoPNG []byte
 
 // brandLogo is the product logo (the picture shipped with the app).

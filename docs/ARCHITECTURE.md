@@ -17,7 +17,7 @@ automation/
 │   │   │   └── layout/      Shared layout pieces
 │   │   ├── context/         AppContext: the app's data, server sync and notifications
 │   │   └── lib/             Plain helpers (API client, P2P files, dates, digits, PDF, push...)
-│   └── public/              Service worker, manifest, icons (copied as-is to the build)
+│   └── public/              Service worker, manifest; all pictures live in public/images/ (copied as-is to the build)
 ├── server/                  Backend (Go + PostgreSQL)
 │   ├── cmd/server/          Entry point (main.go)
 │   ├── internal/

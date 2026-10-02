@@ -280,7 +280,7 @@ export default function AdminPanel() {
           
           {/* Header */}
           <div className="text-center space-y-2">
-            <img src="/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-40 mx-auto" draggable={false} />
+            <img src="/images/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-40 mx-auto" draggable={false} />
             <h2 className="text-xl font-black text-[#3A241F] tracking-tight">ورود به پنل مدیریت سامانه</h2>
             <p className="text-xs text-[#8C6F66]">
               دسترسی امن مدیران ارشد با احراز هویت دوعاملی و کد کپچا
@@ -401,13 +401,13 @@ export default function AdminPanel() {
         <header className="px-6 sm:px-8 py-4 bg-[#3A241F] text-white flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-[#563D34]">
           <div className="flex items-center gap-3">
 <div className="w-7 h-7 rounded-xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1">
-              <img src="/mark.png" alt="" className="w-full h-full object-contain" draggable={false} />
+              <img src="/images/mark.png" alt="" className="w-full h-full object-contain" draggable={false} />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="flex items-center gap-2.5 text-white leading-tight">
                   <span className="bg-white rounded-lg px-2 py-0.5 flex items-center">
-                    <img src="/brand-name.png" alt="هورمند" className="h-5 w-auto" draggable={false} />
+                    <img src="/images/brand-name.png" alt="هورمند" className="h-5 w-auto" draggable={false} />
                   </span>
                   <span className="font-black text-base">کنسول مدیریت</span>
                 </h1>
