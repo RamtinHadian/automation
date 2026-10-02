@@ -85,6 +85,13 @@ export interface MsgrSettings {
   proxy: string;
 }
 
+export interface UploadedSound {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
 export interface DemoInfo {
   demo: boolean;
   resetHours?: number;
@@ -162,6 +169,18 @@ export const api = {
     if (!res.ok) throw new Error(j.error || 'ارسال نشد.');
     return j as { ok: true };
   },
+  sounds: () => request<{ sounds: UploadedSound[] }>('GET', '/api/sounds'),
+  soundUpload: async (file: File, name: string) => {
+    const fd = new FormData();
+    fd.set('file', file, file.name);
+    fd.set('name', name);
+    const res = await fetch('/api/sounds', { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || 'آپلود نشد.');
+    return j as UploadedSound;
+  },
+  soundDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/sounds/${encodeURIComponent(id)}`),
+  notifyTest: (kind: string, label: string) => request<{ ok: true }>('POST', '/api/notify/test', { kind, label }),
   smsStatus: () => request<{ enabled: boolean }>('GET', '/api/sms/status'),
   smsSettings: () => request<SmsSettings>('GET', '/api/sms/settings'),
   smsSave: (b: { provider: string; sender: string; enabled: boolean; labels: string[]; apiKey: string }) => request<SmsSettings>('PUT', '/api/sms/settings', b),

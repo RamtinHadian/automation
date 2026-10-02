@@ -7,6 +7,10 @@ import {
   installAudioUnlock,
   isSoundEnabled,
   playChime,
+  playForNotification,
+  ruleFor,
+  setNotifyConfig,
+  preloadSounds,
   setSoundEnabled as persistSoundEnabled,
   showOsNotification,
   startNotifyStream,
@@ -465,8 +469,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const seen = getSeen();
           const fresh = list.filter((n) => !n.read && n.createdAt > seen);
           if (fresh.length) {
-            playChime(fresh[0].kind);
-            setPopups((prev) => [...fresh.slice(0, 3), ...prev].slice(0, 4));
+            playForNotification(fresh[0]);
+            const shown = fresh.filter((x) => ruleFor(x).enabled && ruleFor(x).popup);
+            if (shown.length) setPopups((prev) => [...shown.slice(0, 3), ...prev].slice(0, 4));
           }
           if (list[0]) setSeen(list[0].createdAt);
         })
@@ -482,9 +487,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recentAnnounced.current = [...recentAnnounced.current.filter((r) => r.at > recent), { key: n.title + '|' + n.body, at: Date.now() }];
         setNotifications((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 100)));
         setSeen(n.createdAt);
-        playChime(n.kind);
-        setPopups((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 4)));
-        flashTitle(n.title);
+        const rule = ruleFor(n);
+        playForNotification(n);
+        if (rule.enabled && rule.popup) setPopups((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 4)));
+        if (rule.enabled) flashTitle(n.title);
         showOsNotification(n, () => notificationHandler.current?.(n));
         // Bring the new file / letter / task into the lists right away (and once more shortly after, in case
         // another change of the same action was still being written).
@@ -540,6 +546,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+
+  // The organisation's notification settings (sounds, volume, quiet hours...) apply as soon as they are known or changed.
+  useEffect(() => {
+    setNotifyConfig(settings.notifySettings);
+    const ids = [...Object.values(settings.notifySettings?.kinds || {}), ...Object.values(settings.notifySettings?.events || {})].map((r) => r?.sound || '').filter(Boolean);
+    preloadSounds(ids);
+  }, [settings.notifySettings]);
 
   // Number of unread notifications on the app icon (installed app on a phone or desktop; ignored where unsupported).
   useEffect(() => {

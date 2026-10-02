@@ -27,7 +27,8 @@ import {
   Palette,
   PhoneCall,
   MessageSquare,
-  Send
+  Send,
+  Bell
 } from 'lucide-react';
 import { SystemSettings, LetterNumberingSettings } from '../../types';
 import { FontManagementModal } from './FontManagementModal';
@@ -40,6 +41,7 @@ import { ProformaDesigner } from './ProformaDesigner';
 import { VoipStatusCard } from './VoipStatusCard';
 import { SmsSettingsCard } from './SmsSettingsCard';
 import { MessengerSettingsCard } from './MessengerSettingsCard';
+import { NotificationSettingsCard } from './NotificationSettingsCard';
 import { IconTab } from '../common/IconTab';
 
 interface SettingsViewProps {
@@ -117,7 +119,7 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
-type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'proforma' | 'letters' | 'signature' | 'look' | 'policies';
+type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'notify' | 'proforma' | 'letters' | 'signature' | 'look' | 'policies';
 
 /** Each group of settings has its own tab under the page title. */
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -127,6 +129,7 @@ const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.Compo
   { id: 'proforma', label: 'پیش‌فاکتور', Icon: FileText },
   { id: 'look', label: 'فونت و رنگ', Icon: Palette },
   { id: 'policies', label: 'فایل‌ها و محدودیت‌ها', Icon: HardDrive },
+  { id: 'notify', label: 'ناتیفیکیشن و صدا', Icon: Bell },
   { id: 'phone', label: 'تلفن شرکت (ویپ)', Icon: PhoneCall },
   { id: 'sms', label: 'پیامک', Icon: MessageSquare },
   { id: 'msgr', label: 'تلگرام و بله', Icon: Send },
@@ -502,6 +505,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <>
       <VoipStatusCard />
       </>
+      )}
+
+      {section === 'notify' && (
+        <NotificationSettingsCard
+          settings={settings}
+          onSave={(notifySettings) => {
+            setSettings((prev) => ({ ...prev, notifySettings }));
+            onSaveSettings({ ...initialSettings, notifySettings });
+          }}
+        />
       )}
 
       {section === 'sms' && <SmsSettingsCard />}

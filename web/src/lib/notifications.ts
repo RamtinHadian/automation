@@ -1,5 +1,8 @@
 import { getToken } from './api';
 import './desktop';
+import { NotifySettings } from '../types';
+import { DEFAULT_NOTIFY, inQuietHours, resolveRule } from './notifyConfig';
+import { isCustom, loadCustomSound, NO_SOUND, playCustom, playPreset } from './sounds';
 
 export type NotificationKind = 'file' | 'letter' | 'task' | 'alert' | 'call';
 
@@ -75,72 +78,53 @@ export function installAudioUnlock() {
 
 export const isAudioReady = () => !!ctx && ctx.state === 'running';
 
-const NOTES: Record<NotificationKind, number[]> = {
-  file: [783.99, 1046.5, 1318.51], // G5 C6 E6 – bright rising
-  letter: [659.25, 830.61, 987.77, 1318.51], // E5 G#5 B5 E6 – warm and formal
-  task: [880, 1108.73, 1318.51], // A5 C#6 E6 – cheerful
-  alert: [987.77, 739.99, 987.77], // B5 F#5 B5 – attention
-  call: [880, 659.25, 880, 659.25], // A5 E5 A5 E5 – like a phone ringing
-};
+// The organisation's choices (sounds, volume, quiet hours...) come from the admin settings.
+let cfg: NotifySettings | undefined;
 
-/** Returns false when the sound could not be played (muted, or the browser has not unlocked audio yet). */
-export function playChime(kind: NotificationKind = 'file'): boolean {
-  if (!isSoundEnabled()) return false;
+export function setNotifyConfig(c: NotifySettings | undefined) {
+  cfg = c;
+}
+export const getNotifyConfig = () => cfg;
+
+/** The rule that applies to one notification. */
+export const ruleFor = (n: Pick<AppNotification, 'kind' | 'label'>) => resolveRule(cfg, n.kind, n.label);
+
+/** Plays one sound by id (a built-in melody, an uploaded one or silence). Returns false when nothing could be played. */
+export function playSound(soundId: string, volume?: number): boolean {
+  if (!isSoundEnabled() || soundId === NO_SOUND) return false;
   const c = getCtx();
   if (!c) return false;
+  const vol = volume ?? cfg?.volume ?? DEFAULT_NOTIFY.volume;
+  const run = () => {
+    if (isCustom(soundId)) void playCustom(c, soundId, vol);
+    else playPreset(c, soundId, vol);
+  };
   if (c.state !== 'running') {
     // The browser may have suspended the audio after a while; wake it and play as soon as it is running.
-    void c.resume().then(() => { if (c.state === 'running') schedule(c, kind); }).catch(() => {});
+    void c.resume().then(() => { if (c.state === 'running') run(); }).catch(() => {});
     return false;
   }
-  schedule(c, kind);
+  run();
   return true;
 }
 
-function schedule(c: AudioContext, kind: NotificationKind) {
-  const t0 = c.currentTime + 0.02;
-  const master = c.createGain();
-  master.gain.value = 0.55;
-  // A little echo makes the bell sound soft and spacious.
-  const delay = c.createDelay();
-  delay.delayTime.value = 0.18;
-  const feedback = c.createGain();
-  feedback.gain.value = 0.3;
-  const wet = c.createGain();
-  wet.gain.value = 0.35;
-  master.connect(c.destination);
-  master.connect(delay);
-  delay.connect(feedback);
-  feedback.connect(delay);
-  delay.connect(wet);
-  wet.connect(c.destination);
+/** Makes uploaded sounds ready before they are needed (the first play would otherwise wait for the download). */
+export function preloadSounds(ids: string[]) {
+  const c = getCtx();
+  if (!c) return;
+  ids.filter(isCustom).forEach((id) => void loadCustomSound(c, id));
+}
 
-  NOTES[kind].forEach((freq, i) => {
-    const start = t0 + i * 0.13;
-    const end = start + 1.3;
-    const gain = c.createGain();
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.5, start + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, end);
-    gain.connect(master);
-    // Fundamental + soft octave and a tiny inharmonic partial give a glassy bell timbre.
-    [
-      { f: freq, type: 'sine' as OscillatorType, g: 1 },
-      { f: freq * 2, type: 'sine' as OscillatorType, g: 0.22 },
-      { f: freq * 2.76, type: 'triangle' as OscillatorType, g: 0.06 },
-    ].forEach(({ f, type, g }) => {
-      const osc = c.createOscillator();
-      const og = c.createGain();
-      osc.type = type;
-      osc.frequency.value = f;
-      og.gain.value = g;
-      osc.connect(og);
-      og.connect(gain);
-      osc.start(start);
-      osc.stop(end + 0.05);
-    });
-  });
-  setTimeout(() => master.disconnect(), 4000);
+/** The sound of a notification, honouring the organisation's rule and quiet hours. */
+export function playForNotification(n: Pick<AppNotification, 'kind' | 'label'>): boolean {
+  const r = ruleFor(n);
+  if (!r.enabled || inQuietHours(cfg)) return false;
+  return playSound(r.sound);
+}
+
+/** Returns false when the sound could not be played (muted, or the browser has not unlocked audio yet). */
+export function playChime(kind: NotificationKind = 'file'): boolean {
+  return playSound(resolveRule(cfg, kind).sound);
 }
 
 // ---------- system (OS level) notifications ----------
@@ -160,6 +144,8 @@ export async function requestOsPermission() {
 }
 
 export function showOsNotification(n: AppNotification, onClick: () => void) {
+  const rule = ruleFor(n);
+  if (!rule.enabled || !rule.os) return;
   // The Windows app shows its own native notification (works on any address, with the system sound).
   if (window.desktop) {
     // In front: the in-app card is shown. Behind other windows, hidden or minimised: a pop-up window above everything.

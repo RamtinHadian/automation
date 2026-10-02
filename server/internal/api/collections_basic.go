@@ -194,6 +194,7 @@ func putSettings(w http.ResponseWriter, r *http.Request, me auth.User, _ string,
 		}
 		merged = cur
 	}
+	notify.ForgetRules()
 	if _, err := store.Pool.Exec(r.Context(),
 		`INSERT INTO settings (key, data) VALUES ('main', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`,
 		jsonx.Encode(merged)); err != nil {

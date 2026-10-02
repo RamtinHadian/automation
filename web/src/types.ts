@@ -133,6 +133,28 @@ export interface Deal {
   terms?: string;
 }
 
+export interface NotifyRule {
+  /** Off = this event (or kind) never shows or sounds. */
+  enabled?: boolean;
+  /** A built-in sound id, «custom:<id>» for an uploaded one, «none» for silence, or «inherit» (events only). */
+  sound?: string;
+  popup?: boolean;
+  /** System (OS) notification while the window is behind others. */
+  os?: boolean;
+  /** Push to phones when the app is closed. */
+  push?: boolean;
+}
+
+/** How notifications look and sound in the whole organisation (set by an admin). */
+export interface NotifySettings {
+  enabled?: boolean;
+  volume?: number;
+  popupSeconds?: number;
+  quiet?: { enabled: boolean; from: string; to: string };
+  kinds?: Partial<Record<'file' | 'letter' | 'task' | 'alert' | 'call', NotifyRule>>;
+  events?: Record<string, NotifyRule>;
+}
+
 export interface ProformaFields {
   title?: string;
   subject?: string;
@@ -405,6 +427,7 @@ export interface SystemSettings {
   companySubtitle?: string; // عنوان فرعی سربرگ اداری
   /** Name printed on proforma invoices (falls back to companyName). */
   proformaCompanyName?: string;
+  notifySettings?: NotifySettings;
   proformaTemplate?: ProformaTemplate;
   companyAddress?: string;
   companyPhone?: string;

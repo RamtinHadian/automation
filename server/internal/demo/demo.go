@@ -105,7 +105,7 @@ func Guard(next http.Handler) http.Handler {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions {
 			p := r.URL.Path
 			switch {
-			case p == "/api/auth/change-password" || p == "/api/push/subscribe" || strings.HasPrefix(p, "/api/sms/") || strings.HasPrefix(p, "/api/msgr/"):
+			case p == "/api/auth/change-password" || p == "/api/push/subscribe" || strings.HasPrefix(p, "/api/sms/") || strings.HasPrefix(p, "/api/msgr/") || strings.HasPrefix(p, "/api/sounds"):
 				httpx.Error(w, http.StatusForbidden, blockedMsg)
 				return
 			case strings.HasPrefix(p, "/api/staff/") && r.Method != http.MethodPut: // own cosmetic changes (theme...) are allowed, see putStaff

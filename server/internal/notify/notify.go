@@ -86,7 +86,9 @@ func Notify(ctx context.Context, userIDs []string, n Note, exceptID string) {
 		var unread int
 		_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM notifications WHERE user_id = $1 AND NOT read`, uid).Scan(&unread)
 		doc["unread"] = unread
-		go push.Send(uid, doc)
+		if AllowedPush(ctx, n.Kind, n.Label) {
+			go push.Send(uid, doc)
+		}
 		sms.ForNotification(uid, n.Label, n.Title, n.Body)
 	}
 }

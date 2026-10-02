@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Phone, AlertTriangle, ClipboardList, FileText, Send, Stamp, VolumeX, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
-import { AppNotification, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
+import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
 
-const SHOW_MS = 9000;
+const showMs = () => Math.min(60, Math.max(3, getNotifyConfig()?.popupSeconds ?? 9)) * 1000;
 
 const KIND = {
   file: { icon: Send, bar: 'bg-[#6E1B1B]', badge: 'bg-[#F6D9CD] text-[#6E1B1B]', ring: 'border-[#C98B6A]/50', fallback: 'فایل' },
@@ -19,7 +19,8 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const Icon = k.icon || FileText;
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(() => !isAudioReady() && isSoundEnabled());
-  const left = useRef(SHOW_MS);
+  const total = useRef(showMs());
+  const left = useRef(total.current);
   const startedAt = useRef(Date.now());
 
   // Auto-close, paused while the pointer is over the card.
@@ -78,7 +79,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
 
       <span
         className={`absolute bottom-0 right-0 h-1 ${k.bar}`}
-        style={{ animation: `np-bar ${SHOW_MS}ms linear both`, animationPlayState: paused ? 'paused' : 'running' }}
+        style={{ animation: `np-bar ${total.current}ms linear both`, animationPlayState: paused ? 'paused' : 'running' }}
       />
     </div>
   );

@@ -130,6 +130,13 @@ var schema = []string{
 	  status TEXT NOT NULL DEFAULT '',
 	  detail TEXT NOT NULL DEFAULT ''
 	)`,
+	`CREATE TABLE IF NOT EXISTS notify_sounds (
+	  id TEXT PRIMARY KEY,
+	  name TEXT NOT NULL,
+	  mime TEXT NOT NULL,
+	  data BYTEA NOT NULL,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
 	`CREATE TABLE IF NOT EXISTS voip_calls (
 	  id TEXT PRIMARY KEY,
 	  started_at TIMESTAMPTZ NOT NULL,
