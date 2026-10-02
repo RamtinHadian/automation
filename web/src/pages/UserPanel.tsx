@@ -136,6 +136,10 @@ export default function UserPanel() {
   } | null>(null);
 
   const otherStaff = staffList.filter((u) => u.id !== currentUser.id);
+  // A letter can only be referred to active people who may write, send or sign official letters.
+  const referralStaff = otherStaff.filter(
+    (u) => u.isActive !== false && (u.canSendOfficialLetters === true || u.canSignOfficialLetters === true || u.role === 'SUPER_ADMIN')
+  );
   const signatoriesList = staffList.filter((u) => u.canSignOfficialLetters || u.role === 'SUPER_ADMIN');
 
   const [recipientId, setRecipientId] = useState<string>('');
@@ -483,7 +487,7 @@ export default function UserPanel() {
   const handleReferSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!referringTransfer) return;
-    const targetId = referralTargetUserId || otherStaff[0]?.id;
+    const targetId = referralTargetUserId || referralStaff[0]?.id;
     if (!targetId) return;
 
     handleReferLetter(referringTransfer.id, targetId, referralComment);
@@ -1653,7 +1657,8 @@ export default function UserPanel() {
                 onChange={(e) => setReferralTargetUserId(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none cursor-pointer"
               >
-                {otherStaff.map((u) => (
+                {referralStaff.length === 0 && <option value="">کسی با مجوز نامه‌نگاری پیدا نشد</option>}
+                {referralStaff.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.fullName} — {u.departmentName} ({u.role === 'SUPER_ADMIN' ? 'مدیر ارشد' : u.role === 'DEPT_ADMIN' ? 'مدیر واحد' : 'پرسنل'})
                   </option>
