@@ -3,7 +3,6 @@ import { CrmView } from '../components/crm/CrmView';
 import { TasksView } from '../components/tasks/TasksView';
 import { LoginDashboard } from '../components/dashboard/LoginDashboard';
 import { CallMenu } from '../components/common/CallMenu';
-import { DesktopSettings } from '../components/common/DesktopSettings';
 import { NotificationBell } from '../components/common/NotificationBell';
 import type { AppNotification } from '../lib/notifications';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../lib/letterDefaults';
@@ -566,7 +565,6 @@ export default function UserPanel() {
           {/* Right actions */}
           <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
             <CallMenu />
-            <DesktopSettings />
             <NotificationBell onOpenNotification={openNotification} />
 
             {/* Quick Theme Switcher Button */}

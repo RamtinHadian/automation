@@ -1,5 +1,4 @@
 import { getToken } from './api';
-import './desktop';
 import { NotifySettings } from '../types';
 import { DEFAULT_NOTIFY, inQuietHours, resolveRule } from './notifyConfig';
 import { isCustom, loadCustomSound, NO_SOUND, playCustom, playPreset } from './sounds';
@@ -146,12 +145,6 @@ export async function requestOsPermission() {
 export function showOsNotification(n: AppNotification, onClick: () => void) {
   const rule = ruleFor(n);
   if (!rule.enabled || !rule.os) return;
-  // The Windows app shows its own native notification (works on any address, with the system sound).
-  if (window.desktop) {
-    // In front: the in-app card is shown. Behind other windows, hidden or minimised: a pop-up window above everything.
-    if (document.hidden || !document.hasFocus()) window.desktop.notify(n);
-    return;
-  }
   if (osPermission() !== 'granted') return;
   try {
     const os = new Notification(n.title, { body: n.body, tag: n.id, lang: 'fa', dir: 'rtl', requireInteraction: false });

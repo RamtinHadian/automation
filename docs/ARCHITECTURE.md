@@ -11,7 +11,7 @@ automation/
 │   │   │   ├── tasks/       Task board and daily reports
 │   │   ├── crm/         Customers, sales pipeline and follow-ups
 │   │   │   ├── dashboard/   Panel shown after login
-│   │   │   ├── common/      Notification bell and pop-ups, desktop display settings
+│   │   │   ├── common/      Notification bell and pop-ups
 │   │   │   ├── drive/       File sending
 │   │   │   ├── transfers/   Sent / received lists
 │   │   │   └── layout/      Shared layout pieces
@@ -33,7 +33,6 @@ automation/
 │   │   ├── jsonx/, httpx/   Small JSON / HTTP helpers
 │   │   └── jalali/          Persian-calendar timestamp for "last login"
 │   └── vendor/              Go dependencies, vendored so building needs no network for them
-├── desktop/                 Windows app (Electron): always on top, tray, pop-up windows
 ├── docs/                    Documentation
 ├── Dockerfile               Builds web/ and server/ into one image
 ├── docker-compose.yml       App + PostgreSQL

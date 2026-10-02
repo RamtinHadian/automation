@@ -103,8 +103,8 @@ const optedOut = () => {
 };
 
 export function installAutoNotifyOptIn() {
-  // The Windows app has its own native notifications, and plain HTTP cannot show system ones.
-  if ((window as unknown as { desktop?: unknown }).desktop || typeof Notification === 'undefined' || !window.isSecureContext) return () => {};
+  // Plain HTTP cannot show system notifications.
+  if (typeof Notification === 'undefined' || !window.isSecureContext) return () => {};
   const events = ['pointerup', 'click', 'keydown', 'touchend'] as const;
   const off = () => events.forEach((e) => window.removeEventListener(e, onGesture, true));
   async function onGesture() {
