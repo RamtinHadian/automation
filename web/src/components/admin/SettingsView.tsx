@@ -321,7 +321,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {/* Tabs: every group of settings is under its own menu */}
-      <nav className="flex items-center gap-2 -mt-2 pt-6 flex-wrap">
+      <nav className="flex items-center gap-2 -mt-2 flex-wrap">
         {SETTINGS_SECTIONS.map(({ id, label, Icon }) => (
           <IconTab key={id} active={section === id} onClick={() => setSection(id)} label={label} icon={<Icon className="w-[18px] h-[18px]" />} />
         ))}
