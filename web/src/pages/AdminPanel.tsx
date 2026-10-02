@@ -1,5 +1,6 @@
 import { DemoAdminHint, useDemoInfo } from '../components/common/DemoBanner';
 import { IconTab } from '../components/common/IconTab';
+import { ManagementReports } from '../components/admin/ManagementReports';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
@@ -8,6 +9,7 @@ import {
   Settings,
   Shield,
   FileSearch,
+  BarChart3,
   ShieldCheck,
   Lock,
   Search,
@@ -113,7 +115,7 @@ export default function AdminPanel() {
     }
   }, [isAdminAuthenticated, staffList, currentUser.id, setCurrentUser]);
 
-  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'letters' | 'transfers' | 'audit' | 'analytics' | 'settings'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'letters' | 'transfers' | 'audit' | 'analytics' | 'stats' | 'settings'>('users');
   const [transfersSearch, setTransfersSearch] = useState('');
 
   // Generate random 4-digit/character Captcha
@@ -436,6 +438,7 @@ export default function AdminPanel() {
             <IconTab active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} label="واحدهای سازمانی" count={toPersianDigits(departments.length)} icon={<Shield className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'transfers'} onClick={() => setActiveTab('transfers')} label="مانیتورینگ انتقالات" count={toPersianDigits(transfers.length)} icon={<Activity className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} label="گزارشات ممیزی" count={toPersianDigits(auditLogs.length)} icon={<FileSearch className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} label="گزارشات آماری مدیریتی" icon={<BarChart3 className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} label="آمار و مصرف حافظه" icon={<PieChartIcon className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} label="تنظیمات سیستم" icon={<Settings className="w-[18px] h-[18px]" />} />
           </nav>
@@ -592,6 +595,8 @@ export default function AdminPanel() {
           {activeTab === 'audit' && (
             <AuditLogsView logs={auditLogs} />
           )}
+
+          {activeTab === 'stats' && <ManagementReports />}
 
           {activeTab === 'analytics' && (
             <AnalyticsView
