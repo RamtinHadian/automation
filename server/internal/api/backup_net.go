@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -264,4 +265,57 @@ func restoreGuard(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// ---------- browse the network: list the shares of a server and the folders inside a share ----------
+
+var rePath = regexp.MustCompile(`^[^"';\\\r\n]{0,250}$`)
+
+func backupBrowse(w http.ResponseWriter, r *http.Request) {
+	if auth.Current(r).Role() != "SUPER_ADMIN" {
+		httpx.Forbidden(w)
+		return
+	}
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	host := strings.TrimSpace(jsonx.Str(body, "host"))
+	path := strings.Trim(strings.TrimSpace(jsonx.Str(body, "path")), "/")
+	user := strings.TrimSpace(jsonx.Str(body, "user"))
+	domain := strings.TrimSpace(jsonx.Str(body, "domain"))
+	pass := jsonx.Str(body, "password")
+	if pass == "" {
+		pass = jsonx.Str(loadBackupSettings(r), "netPassword") // the saved one
+	}
+	if !reHost.MatchString(host) || !rePath.MatchString(path) || strings.Contains(path, "..") || !reUser.MatchString(user) || !reUser.MatchString(domain) || strings.ContainsAny(pass, "\r\n") {
+		httpx.Error(w, http.StatusBadRequest, "مشخصات واردشده معتبر نیست.")
+		return
+	}
+	dir := backupDir()
+	if _, err := os.Stat(filepath.Join(dir, ".browse-request")); err == nil {
+		httpx.Error(w, http.StatusConflict, "یک درخواست دیگر در حال انجام است؛ چند ثانیه صبر کنید.")
+		return
+	}
+	id := strconv.FormatInt(time.Now().UnixNano(), 36)
+	_ = os.Remove(filepath.Join(dir, ".browse.json"))
+	lines := strings.Join([]string{id, host, path, user, domain, pass}, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(dir, ".browse-request"), []byte(lines), 0o600); err != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, "سرویس پشتیبان‌گیری در دسترس نیست.")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"id": id})
+}
+
+func backupBrowseResult(w http.ResponseWriter, r *http.Request) {
+	if auth.Current(r).Role() != "SUPER_ADMIN" {
+		httpx.Forbidden(w)
+		return
+	}
+	raw, err := os.ReadFile(filepath.Join(backupDir(), ".browse.json"))
+	if err != nil {
+		httpx.JSON(w, http.StatusOK, map[string]any{"pending": true})
+		return
+	}
+	httpx.JSON(w, http.StatusOK, jsonRaw(raw))
 }

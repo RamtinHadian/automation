@@ -56,6 +56,35 @@ net_test() {
   printf '{"result":"%s","at":"%s","text":"%s"}\n' "$r" "$(date -Iseconds)" "$(json "$t")" > "$BACKUPS/.nettest.json"
 }
 
+# ---------- browse the network (lets the admin pick the share and folder instead of typing them) ----------
+browse() {
+  f="$BACKUPS/.browse-request"
+  id=$(sed -n 1p "$f"); host=$(sed -n 2p "$f"); bpath=$(sed -n 3p "$f"); user=$(sed -n 4p "$f"); dom=$(sed -n 5p "$f"); pass=$(sed -n 6p "$f")
+  rm -f "$f"
+  auth=$(mktemp)
+  printf 'username = %s\npassword = %s\n' "$user" "$pass" > "$auth"
+  [ -n "$dom" ] && printf 'domain = %s\n' "$dom" >> "$auth"
+  if [ -z "$bpath" ]; then
+    raw=$(smbclient -L "//$host" -A "$auth" -g 2>&1); rc=$?
+    items=$(printf '%s\n' "$raw" | sed -n 's/^Disk|\([^|]*\)|.*/\1/p' | grep -v '\$$')
+  else
+    share=${bpath%%/*}; rest=""
+    case "$bpath" in */*) rest=${bpath#*/} ;; esac
+    raw=$(smbclient "//$host/$share" -A "$auth" ${rest:+-D "$rest"} -c ls 2>&1); rc=$?
+    items=$(printf '%s\n' "$raw" | sed -n 's/^  \(.*[^ ]\)  *\([A-Z]*D[A-Z]*\)  *[0-9][0-9]*  [A-Z][a-z][a-z] .*$/\1/p' | grep -v '^\.\.\?$')
+  fi
+  rm -f "$auth"
+  res=ok; text=""
+  case "$raw" in *NT_STATUS*|*"Connection to"*) res=error; text="$raw" ;; esac
+  [ $rc -ne 0 ] && [ -z "$items" ] && { res=error; [ -n "$text" ] || text="$raw"; }
+  list=""
+  if [ "$res" = ok ]; then
+    list=$(printf '%s\n' "$items" | sed '/^$/d' | while read -r line; do printf '"%s",' "$(json "$line")"; done)
+    list=${list%,}
+  fi
+  printf '{"id":"%s","result":"%s","path":"%s","text":"%s","items":[%s]}\n' "$(json "$id")" "$res" "$(json "$bpath")" "$(json "$text")" "$list" > "$BACKUPS/.browse.json"
+}
+
 # ---------- backup ----------
 status() { # $1 ok|error, $2 text, $3 net result, $4 net text
   printf '{"result":"%s","at":"%s","text":"%s","net":"%s","netText":"%s"}\n' "$1" "$(date -Iseconds)" "$(json "$2")" "${3:-off}" "$(json "$4")" > "$BACKUPS/.status.json"
@@ -129,11 +158,12 @@ tick=0
 while true; do
   [ -f "$BACKUPS/.restore-request" ] && restore
   [ -f "$BACKUPS/.request" ] && { rm -f "$BACKUPS/.request"; take manual; }
+  [ -f "$BACKUPS/.browse-request" ] && browse
   [ -f "$BACKUPS/.nettest-request" ] && { rm -f "$BACKUPS/.nettest-request"; net_test; }
-  if [ $((tick % 6)) -eq 0 ] && due; then
+  if [ $((tick % 30)) -eq 0 ] && due; then
     date +%Y%m%d > "$BACKUPS/.last-auto-date"; date +%s > "$BACKUPS/.last-auto-epoch"
     take auto
   fi
   tick=$((tick + 1))
-  sleep 5
+  sleep 1
 done

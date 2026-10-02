@@ -12,3 +12,6 @@ Everything the app stores lives in one PostgreSQL database, so one dump is a com
 - Settings -> Backup: schedule (a time on chosen weekdays, or every N hours; or off), an optional network folder (Windows/NAS share: server address, share name, sub-folder, user, password; copies are sent after every backup, the password stays on the server) with a connection test, and a Restore button per backup.
 - Restore always asks "are you sure" (and a tick), takes a safety copy of the current data first, shows a waiting screen, restarts the app by itself and writes a permanent audit line. Everything entered after that backup is lost. If the restore fails the current data stays untouched.
 - In the public demo the network-folder settings are blocked; restore works.
+
+- The network folder is chosen with a file-explorer style dialog (drives = shares of the server, then folders); the server asks the backup container to list them with smbclient.
+- "Restore from a file on the computer" uploads a .dump into the backups folder (checked for the PGDMP header) and then goes through the same confirmation. Restoring runs the file as SQL, so only use files made by this system. Both are blocked in the public demo.

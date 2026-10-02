@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,7 +28,7 @@ func backupDir() string {
 	return "/backups"
 }
 
-var backupName = regexp.MustCompile(`^hoormand-\d{8}-\d{6}-(auto|manual|prerestore)\.dump$`)
+var backupName = regexp.MustCompile(`^hoormand-\d{8}-\d{6}-(auto|manual|prerestore|uploaded)\.dump$`)
 
 type backupItem struct {
 	Name string `json:"name"`
@@ -68,6 +69,8 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 			kind = "manual"
 		} else if strings.HasSuffix(e.Name(), "-prerestore.dump") {
 			kind = "prerestore"
+		} else if strings.HasSuffix(e.Name(), "-uploaded.dump") {
+			kind = "uploaded"
 		}
 		items = append(items, backupItem{Name: e.Name(), Size: info.Size(), At: info.ModTime().UTC().Format(time.RFC3339), Kind: kind})
 	}
@@ -123,4 +126,51 @@ func downloadBackup(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
 	w.Header().Set("Content-Type", "application/octet-stream")
 	http.ServeFile(w, r, filepath.Join(backupDir(), name))
+}
+
+// uploadBackup takes a backup file from the admin's own computer (raw request body) and keeps it with the others, ready to restore.
+// Only the chief admin may do this, and restoring runs the file's contents as SQL, so only files made by this system should be used.
+func uploadBackup(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if me.Role() != "SUPER_ADMIN" {
+		httpx.Forbidden(w)
+		return
+	}
+	dir := backupDir()
+	if _, err := os.Stat(dir); err != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, "سرویس پشتیبان‌گیری در دسترس نیست.")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<30)
+	name := "hoormand-" + time.Now().Format("20060102-150405") + "-uploaded.dump"
+	tmp := filepath.Join(dir, ".upload-"+name)
+	f, err := os.Create(tmp)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	n, err := io.Copy(f, r.Body)
+	f.Close()
+	if err != nil || n < 16 {
+		os.Remove(tmp)
+		httpx.Error(w, http.StatusBadRequest, "فایل کامل دریافت نشد.")
+		return
+	}
+	head := make([]byte, 5)
+	if rf, err := os.Open(tmp); err == nil {
+		_, _ = io.ReadFull(rf, head)
+		rf.Close()
+	}
+	if string(head) != "PGDMP" {
+		os.Remove(tmp)
+		httpx.Error(w, http.StatusBadRequest, "این فایل، پشتیبانی از این سامانه نیست (باید فایل .dump باشد).")
+		return
+	}
+	if err := os.Rename(tmp, filepath.Join(dir, name)); err != nil {
+		os.Remove(tmp)
+		internalError(w)
+		return
+	}
+	auditLine(r, me, "WARNING", "فایل پشتیبان از روی کامپیوتر بارگذاری شد ("+strconv.FormatInt(n/1024, 10)+" کیلوبایت).")
+	httpx.JSON(w, http.StatusOK, map[string]any{"name": name, "at": time.Now().UTC().Format(time.RFC3339)})
 }

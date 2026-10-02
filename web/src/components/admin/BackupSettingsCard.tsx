@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CalendarClock, CheckCircle2, DatabaseBackup, Download, HardDriveDownload, Loader2, Network, RotateCcw, Save, ShieldCheck, Wifi } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CheckCircle2, DatabaseBackup, Download, FolderOpen, HardDriveDownload, Loader2, Network, RotateCcw, Save, ShieldCheck, Upload, Wifi } from 'lucide-react';
 import { api, BackupInfo, BackupSettings } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { formatJalaliFullTimestamp, toPersianDigits } from '../../lib/jalali';
+import { smbHelp } from '../../lib/smbHelp';
+import { BackupFolderPicker } from './BackupFolderPicker';
 
 const size = (n: number) => (n >= 1048576 ? `${toPersianDigits((n / 1048576).toFixed(1))} مگابایت` : `${toPersianDigits(Math.max(1, Math.round(n / 1024)))} کیلوبایت`);
 const when = (iso: string) => toPersianDigits(formatJalaliFullTimestamp(new Date(iso)));
@@ -10,6 +12,7 @@ const KIND: Record<string, { label: string; cls: string }> = {
   auto: { label: 'خودکار', cls: 'bg-sky-100 text-sky-800' },
   manual: { label: 'دستی', cls: 'bg-amber-100 text-amber-800' },
   prerestore: { label: 'ایمنی قبل از بازگردانی', cls: 'bg-violet-100 text-violet-800' },
+  uploaded: { label: 'بارگذاری‌شده از کامپیوتر', cls: 'bg-emerald-100 text-emerald-800' },
 };
 // stored like JS getDay(): 0 = Sunday ... 6 = Saturday; shown starting from Saturday
 const DAYS: { n: number; label: string }[] = [
@@ -21,17 +24,6 @@ const DAYS: { n: number; label: string }[] = [
   { n: 4, label: 'پنجشنبه' },
   { n: 5, label: 'جمعه' },
 ];
-/** Plain-Persian explanation of the usual network-folder errors (the raw text stays visible after it). */
-const smbHelp = (t?: string) => {
-  const x = t || '';
-  if (x.includes('PASSWORD_MUST_CHANGE') || x.includes('PASSWORD_EXPIRED')) return 'رمز این کاربر در ویندوز/NAS منقضی شده یا تیک «کاربر باید در ورود بعدی رمز را عوض کند» دارد. یک‌بار با همین کاربر وارد آن کامپیوتر شوید و رمز تازه بگذارید (یا تیک را بردارید و «رمز هرگز منقضی نشود» را بزنید)، سپس رمز تازه را اینجا بنویسید.';
-  if (x.includes('LOGON_FAILURE')) return 'نام کاربری یا رمز اشتباه است.';
-  if (x.includes('ACCOUNT_DISABLED') || x.includes('ACCOUNT_LOCKED')) return 'این کاربر در ویندوز/NAS غیرفعال یا قفل شده است.';
-  if (x.includes('BAD_NETWORK_NAME')) return 'نام پوشهٔ اشتراکی (Share) روی آن سرور پیدا نشد؛ نامش را دقیق بنویسید.';
-  if (x.includes('ACCESS_DENIED')) return 'این کاربر اجازهٔ نوشتن در این پوشه را ندارد؛ در تنظیمات اشتراک، دسترسی «تغییر / Write» به او بدهید.';
-  if (x.includes('UNREACHABLE') || x.includes('CONNECTION_REFUSED') || x.includes('Connection to') || x.includes('timed out')) return 'به آن سرور دسترسی نیست؛ آدرس را بررسی کنید و مطمئن شوید روشن است و فایروال پورت ۴۴۵ را نبسته است.';
-  return '';
-};
 const input = 'w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none';
 const lab = 'block text-[11px] font-black text-[#3A241F] mb-1.5';
 const card = 'bg-white rounded-3xl border border-[#EBDBCE] shadow-sm p-5 sm:p-6 space-y-4';
@@ -53,9 +45,12 @@ export const BackupSettingsCard: React.FC = () => {
   const [pass, setPass] = useState('');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [askRestore, setAskRestore] = useState<{ name: string; at: string } | null>(null);
+  const [askRestore, setAskRestore] = useState<{ name: string; at: string; fromComputer?: boolean } | null>(null);
   const [understood, setUnderstood] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
     api.backups().then((r) => { setInfo(r); setFailed(false); }).catch(() => setFailed(true));
@@ -119,6 +114,22 @@ export const BackupSettingsCard: React.FC = () => {
     } catch {
       setTesting(false);
       showToast('درخواست آزمایش ارسال نشد.');
+    }
+  };
+  const pickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setUploading(true);
+    try {
+      const r = await api.backupUpload(f);
+      load();
+      setUnderstood(false);
+      setAskRestore({ name: r.name, at: r.at, fromComputer: true });
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'بارگذاری فایل ممکن نشد.');
+    } finally {
+      setUploading(false);
     }
   };
   const startRestore = async () => {
@@ -188,6 +199,7 @@ export const BackupSettingsCard: React.FC = () => {
             <p className="text-[13px] leading-7 text-[#3A241F]">
               اطلاعات کل سامانه به نسخهٔ پشتیبان <b>{when(askRestore.at)}</b> برمی‌گردد. <b>هرچه بعد از آن زمان ثبت شده</b> (نامه، فایل، وظیفه، مشتری، کاربر و…) از بین می‌رود.
             </p>
+            {askRestore.fromComputer && <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-[11px] leading-6 text-amber-900 font-bold">این فایل را شما از روی کامپیوتر بارگذاری کردید. فقط فایلی را بازگردانی کنید که خودتان از همین سامانه گرفته‌اید؛ اگر فایل خراب باشد، بازگردانی انجام نمی‌شود و اطلاعات فعلی دست‌نخورده می‌ماند.</div>}
             <div className="rounded-2xl bg-violet-50 border border-violet-200 p-3 text-[11px] leading-6 text-violet-900 font-bold">قبل از شروع، از وضعیت فعلی یک نسخهٔ ایمنی گرفته می‌شود تا در صورت پشیمانی بتوانید به همین الان برگردید. این کار در گزارش رویدادها ثبت می‌شود.</div>
             <label className="flex items-start gap-2 text-[12px] font-bold text-[#3A241F] cursor-pointer">
               <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} className="mt-1 w-4 h-4 accent-rose-700" />
@@ -318,6 +330,15 @@ export const BackupSettingsCard: React.FC = () => {
           </div>
         )}
         {cfg.netEnabled && (
+          <div className="flex items-center gap-3 flex-wrap rounded-2xl bg-[#FAF5F1] border border-[#EBDBCE] p-3">
+            <button type="button" onClick={() => (cfg.netHost && cfg.netUser ? setPicking(true) : showToast('اول آدرس سرور و نام کاربری و رمز را بنویسید، بعد پوشه را انتخاب کنید.'))} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6E1B1B] hover:bg-[#D34A32] text-white text-xs font-black cursor-pointer">
+              <FolderOpen className="w-4 h-4" />
+              باز کردن و انتخاب درایو / پوشه از شبکه
+            </button>
+            <span className="text-[11px] font-bold text-[#503730]" dir="ltr">{cfg.netShare ? `\\\\${cfg.netHost}\\${cfg.netShare}${cfg.netFolder ? '\\' + cfg.netFolder.split('/').join('\\') : ''}` : 'هنوز پوشه‌ای انتخاب نشده'}</span>
+          </div>
+        )}
+        {cfg.netEnabled && (
           <div className="flex items-center gap-3 flex-wrap">
             <button type="button" onClick={testNet} disabled={testing || saving} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FAF5F1] hover:bg-[#EBDBCE] border border-[#EBDBCE] text-[#6E1B1B] text-xs font-black cursor-pointer disabled:opacity-60">
               {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wifi className="w-4 h-4" />}
@@ -339,11 +360,33 @@ export const BackupSettingsCard: React.FC = () => {
         </button>
       </div>
 
+      {picking && (
+        <BackupFolderPicker
+          host={cfg.netHost || ''}
+          user={cfg.netUser || ''}
+          domain={cfg.netDomain || ''}
+          password={pass}
+          onClose={() => setPicking(false)}
+          onPick={(share, folder) => {
+            set({ netShare: share, netFolder: folder });
+            setPicking(false);
+          }}
+        />
+      )}
+
+      <input ref={fileInput} type="file" accept=".dump" className="hidden" onChange={pickFile} />
       {/* list */}
-      {info.items.length > 0 && (
+      {info.enabled && (
         <div className={card}>
-          <div className="font-black text-sm text-[#3A241F]">نسخه‌های ذخیره‌شده روی سرور</div>
-          <div className="overflow-x-auto rounded-2xl border border-[#EBDBCE]">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="font-black text-sm text-[#3A241F]">نسخه‌های ذخیره‌شده روی سرور</div>
+            <button type="button" onClick={() => fileInput.current?.click()} disabled={uploading} className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-black cursor-pointer disabled:opacity-60">
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              بازگردانی از فایل روی کامپیوتر…
+            </button>
+          </div>
+          {info.items.length === 0 && <div className="rounded-2xl bg-[#FAF5F1] border border-[#EBDBCE] p-4 text-center text-[12px] font-bold text-[#8C6F66]">هنوز نسخه‌ای روی این سرور نیست. اگر فایل پشتیبانی دارید (مثلاً بعد از نصب دوبارهٔ سرور)، با دکمهٔ بالا از روی کامپیوتر بازگردانی کنید.</div>}
+          {info.items.length > 0 && <div className="overflow-x-auto rounded-2xl border border-[#EBDBCE]">
             <table className="w-full text-[11px] min-w-[420px]">
               <thead className="bg-[#FAF5F1] text-[#8C6F66]">
                 <tr>
@@ -368,7 +411,7 @@ export const BackupSettingsCard: React.FC = () => {
               </tbody>
             </table>
             {info.items.length > 20 && <div className="p-2 text-center text-[10px] text-[#8C6F66] bg-[#FAF5F1]">{toPersianDigits(info.items.length - 20)} نسخهٔ قدیمی‌تر در پوشهٔ backups روی سرور هست.</div>}
-          </div>
+          </div>}
         </div>
       )}
 

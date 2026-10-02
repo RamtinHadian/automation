@@ -49,7 +49,7 @@ export interface VoipCall {
 export interface BackupInfo {
   enabled: boolean;
   pending: boolean;
-  items: { name: string; size: number; at: string; kind: 'auto' | 'manual' | 'prerestore' }[];
+  items: { name: string; size: number; at: string; kind: 'auto' | 'manual' | 'prerestore' | 'uploaded' }[];
   status: { result: 'ok' | 'error'; at: string; text: string; net?: 'ok' | 'error' | 'off'; netText?: string } | null;
   nettest: { result: 'ok' | 'error'; at: string; text: string } | null;
   nettestPending: boolean;
@@ -220,6 +220,14 @@ export const api = {
   backupNetTest: () => request<{ ok: true }>('POST', '/api/backups/net-test'),
   backupRestore: (file: string) => request<{ ok: true }>('POST', '/api/backups/restore', { file, confirm: true }),
   restoreStatus: async () => (await (await fetch('/api/backups/restore-status')).json()) as { restoring: boolean; result?: 'ok' | 'error'; text?: string },
+  backupBrowse: (b: { host: string; path: string; user: string; domain: string; password: string }) => request<{ id: string }>('POST', '/api/backups/browse', b),
+  backupBrowseResult: () => request<{ pending?: boolean; id?: string; result?: 'ok' | 'error'; text?: string; items?: string[] }>('GET', '/api/backups/browse'),
+  backupUpload: async (file: File) => {
+    const res = await fetch('/api/backups/upload', { method: 'POST', headers: { Authorization: `Bearer ${getToken() || ''}`, 'Content-Type': 'application/octet-stream' }, body: file });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, json.error || 'upload failed');
+    return json as { name: string; at: string };
+  },
   backupNow: () => request<{ ok: true }>('POST', '/api/backups'),
   backupDownload: async (name: string) => {
     const res = await fetch('/api/backups/' + encodeURIComponent(name), { headers: { Authorization: `Bearer ${getToken() || ''}` } });
