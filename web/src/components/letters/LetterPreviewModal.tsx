@@ -453,7 +453,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 }) => {
   const allFonts = [...DEFAULT_FONTS, ...(settings?.customFonts || [])];
   const chosenFont = allFonts.find((f) => f.id === settings?.defaultLetterFontId) || DEFAULT_FONTS[0] || { fontFamily: 'Vazirmatn', name: 'وزیرمتن' };
-  const canSign = currentUser?.canSignOfficialLetters === true || currentUser?.role === 'SUPER_ADMIN';
+  const canSign = currentUser?.canSignOfficialLetters === true;
   const ceoName = letter?.signedBy || settings?.ceoName || 'مدیریت محترم عامل';
   const ceoTitle = settings?.ceoTitle || 'مدیرعامل';
   const signatureImg = letter?.signatureImageUrl || settings?.ceoSignatureUrl;

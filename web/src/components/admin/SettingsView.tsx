@@ -807,10 +807,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               type="text"
               dir="rtl"
               value={settings.ceoName ? toPersianDigits(settings.ceoName) : ''}
-              onChange={(e) => setSettings({ ...settings, ceoName: toPersianDigits(e.target.value) })}
-              placeholder="مثال: دکتر مهدی احمدی"
-              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
+              readOnly
+              title="این نام خودکار از کاربری گرفته می‌شود که تیک مدیرعامل دارد"
+              placeholder="هنوز مدیرعاملی تعیین نشده"
+              className="w-full p-2.5 bg-[#F3EAE3] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] cursor-not-allowed focus:outline-none"
             />
+            <p className="text-[10px] text-[#8C6F66] mt-1">خودکار از «مدیریت کاربران» می‌آید: همان کسی که تیک مدیرعامل دارد.</p>
           </div>
 
           <div>

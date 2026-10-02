@@ -254,6 +254,12 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		httpx.Forbidden(w)
 		return
 	}
+	// Only the person who holds the CEO tick may sign a letter.
+	if jsonx.Bool(data, "isOfficialLetter") && jsonx.Str(data, "signatureStatus") == "SIGNED" &&
+		(!exists || jsonx.Str(before, "signatureStatus") != "SIGNED") && !jsonx.Bool(me.M, "canSignOfficialLetters") {
+		httpx.Error(w, http.StatusForbidden, "فقط مدیرعامل می‌تواند نامه را امضا کند.")
+		return
+	}
 	// A signed letter is final: its text and number can no longer change.
 	if exists && jsonx.Str(before, "signatureStatus") == "SIGNED" && jsonx.Bool(before, "isOfficialLetter") &&
 		(jsonx.Str(data, "letterContentHtml") != jsonx.Str(before, "letterContentHtml") || jsonx.Str(data, "letterNumber") != jsonx.Str(before, "letterNumber")) {

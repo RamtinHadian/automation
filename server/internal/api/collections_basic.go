@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -151,10 +152,11 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 // ceoChanged keeps «مدیرعامل» (the authorised signatory) to one person: giving it to someone takes it from whoever had it,
 // and every grant, hand-over or withdrawal is written to the audit log as a permanent CEO_CHANGE line.
 func ceoChanged(r *http.Request, me auth.User, id, name string, was, now bool) {
+	ctx := r.Context()
+	defer syncCeoName(ctx) // also covers a renamed CEO
 	if was == now || !me.IsAdmin() {
 		return
 	}
-	ctx := r.Context()
 	var details string
 	if now {
 		rows, err := store.Pool.Query(ctx, `SELECT id, data FROM users WHERE id <> $1 AND data->>'canSignOfficialLetters' = 'true'`, id)
@@ -188,6 +190,17 @@ func ceoChanged(r *http.Request, me auth.User, id, name string, was, now bool) {
 		"ipAddress": strings.TrimSpace(httpx.ClientIP(r)), "details": details,
 	}
 	_, _ = store.Pool.Exec(ctx, `INSERT INTO audit_logs (id, data) VALUES ($1, $2::jsonb)`, entry["id"], jsonx.Encode(entry))
+}
+
+// syncCeoName keeps the name printed as «مدیرعامل» (settings.ceoName) equal to the person who holds the CEO tick.
+func syncCeoName(ctx context.Context) {
+	var raw []byte
+	if err := store.Pool.QueryRow(ctx, `SELECT data FROM users WHERE data->>'canSignOfficialLetters' = 'true' ORDER BY created_at LIMIT 1`).Scan(&raw); err != nil {
+		return
+	}
+	if name := jsonx.Str(jsonx.Decode(raw), "fullName"); name != "" {
+		_, _ = store.Pool.Exec(ctx, `UPDATE settings SET data = data || jsonb_build_object('ceoName', $1::text) WHERE key = 'main'`, name)
+	}
 }
 
 func removeStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string) {
@@ -251,6 +264,14 @@ func putSettings(w http.ResponseWriter, r *http.Request, me auth.User, _ string,
 		merged = cur
 	}
 	notify.ForgetRules()
+	// The CEO's name is never typed by hand: it is always the person who holds the CEO tick.
+	var ceo []byte
+	if store.Pool.QueryRow(r.Context(), `SELECT data FROM users WHERE data->>'canSignOfficialLetters' = 'true' ORDER BY created_at LIMIT 1`).Scan(&ceo) == nil {
+		if name := jsonx.Str(jsonx.Decode(ceo), "fullName"); name != "" {
+			merged = jsonx.Copy(merged)
+			merged["ceoName"] = name
+		}
+	}
 	if _, err := store.Pool.Exec(r.Context(),
 		`INSERT INTO settings (key, data) VALUES ('main', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`,
 		jsonx.Encode(merged)); err != nil {

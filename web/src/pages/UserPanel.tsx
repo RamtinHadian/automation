@@ -141,7 +141,7 @@ export default function UserPanel() {
   const referralStaff = otherStaff.filter(
     (u) => u.isActive !== false && (u.canSendOfficialLetters === true || u.canSignOfficialLetters === true || u.role === 'SUPER_ADMIN')
   );
-  const signatoriesList = staffList.filter((u) => u.canSignOfficialLetters || u.role === 'SUPER_ADMIN');
+  const signatoriesList = staffList.filter((u) => u.canSignOfficialLetters);
 
   const [recipientId, setRecipientId] = useState<string>('');
   const [letterRecipientId, setLetterRecipientId] = useState<string>('');
@@ -165,8 +165,9 @@ export default function UserPanel() {
   const [referralComment, setReferralComment] = useState('جهت بررسی و اقدام مقتضی');
 
   // Permissions Check: Strictly check canSendOfficialLetters or canSignOfficialLetters or SUPER_ADMIN
-  const canSignOfficial = Boolean(currentUser.canSignOfficialLetters === true || currentUser.role === 'SUPER_ADMIN');
-  const canSendOfficial = Boolean(currentUser.canSendOfficialLetters === true || canSignOfficial);
+  // Only the person who holds the CEO tick may sign; the chief admin can still write and send letters.
+  const canSignOfficial = Boolean(currentUser.canSignOfficialLetters === true);
+  const canSendOfficial = Boolean(currentUser.canSendOfficialLetters === true || canSignOfficial || currentUser.role === 'SUPER_ADMIN');
   const canAccessLettersMenu = canSendOfficial || canSignOfficial;
   const canAccessTasksMenu = Boolean(
     currentUser.canUseTasks === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN'

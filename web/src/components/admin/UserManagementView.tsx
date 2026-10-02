@@ -829,6 +829,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               <b>آیا مدیرعامل عوض شده است؟</b> با تأیید، این سمت از «{ceoAsk.holder.fullName}» برداشته و به «{ceoAsk.target}» داده می‌شود.
             </p>
             <div className="rounded-2xl bg-purple-50 border border-purple-200 p-3 text-[11px] leading-6 text-purple-900 font-bold">
+              نام مدیرعامل جدید خودکار روی نامه‌ها و همه‌جای سامانه می‌نشیند و «{ceoAsk.holder.fullName}» دیگر نمی‌تواند نامه امضا کند.
+            </div>
+            <div className="rounded-2xl bg-purple-50 border border-purple-200 p-3 text-[11px] leading-6 text-purple-900 font-bold">
               این تغییر با نام شما، زمان و نشانی شبکه در گزارش رویدادهای سامانه با رنگ ویژه ثبت می‌شود و به هیچ عنوان قابل حذف یا ویرایش نیست.
             </div>
             <div className="flex items-center justify-end gap-2 pt-1">
