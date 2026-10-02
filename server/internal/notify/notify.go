@@ -14,6 +14,7 @@ import (
 
 	"automation/server/internal/jsonx"
 	"automation/server/internal/push"
+	"automation/server/internal/sms"
 	"automation/server/internal/sse"
 	"automation/server/internal/store"
 )
@@ -86,5 +87,6 @@ func Notify(ctx context.Context, userIDs []string, n Note, exceptID string) {
 		_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM notifications WHERE user_id = $1 AND NOT read`, uid).Scan(&unread)
 		doc["unread"] = unread
 		go push.Send(uid, doc)
+		sms.ForNotification(uid, n.Label, n.Title, n.Body)
 	}
 }

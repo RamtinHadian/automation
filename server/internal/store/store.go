@@ -110,6 +110,16 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
 	`CREATE INDEX IF NOT EXISTS crm_activities_customer_idx ON crm_activities (customer_id, created_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS sms_log (
+	  id TEXT PRIMARY KEY,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  sent_by TEXT NOT NULL DEFAULT '',
+	  to_num TEXT NOT NULL DEFAULT '',
+	  text TEXT NOT NULL DEFAULT '',
+	  status TEXT NOT NULL DEFAULT '',
+	  detail TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX IF NOT EXISTS sms_log_created_idx ON sms_log (created_at DESC)`,
 	`CREATE TABLE IF NOT EXISTS voip_calls (
 	  id TEXT PRIMARY KEY,
 	  started_at TIMESTAMPTZ NOT NULL,

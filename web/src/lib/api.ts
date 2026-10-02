@@ -54,6 +54,24 @@ export interface VoipStatRow {
   seconds: number;
 }
 
+export interface SmsSettings {
+  provider: '' | 'smsir' | 'kavenegar';
+  sender: string;
+  enabled: boolean;
+  labels: string[];
+  hasKey: boolean;
+  keyTail: string;
+}
+
+export interface SmsLogRow {
+  at: string;
+  by: string;
+  to: string;
+  text: string;
+  status: string;
+  detail: string;
+}
+
 export interface DemoInfo {
   demo: boolean;
   resetHours?: number;
@@ -114,6 +132,13 @@ export const api = {
     if (o.limit) p.set('limit', String(o.limit));
     return request<{ calls: VoipCall[] }>('GET', '/api/voip/calls' + (p.toString() ? '?' + p : ''));
   },
+  smsStatus: () => request<{ enabled: boolean }>('GET', '/api/sms/status'),
+  smsSettings: () => request<SmsSettings>('GET', '/api/sms/settings'),
+  smsSave: (b: { provider: string; sender: string; enabled: boolean; labels: string[]; apiKey: string }) => request<SmsSettings>('PUT', '/api/sms/settings', b),
+  smsBalance: () => request<{ balance: string }>('GET', '/api/sms/balance'),
+  smsLog: () => request<{ log: SmsLogRow[] }>('GET', '/api/sms/log'),
+  smsTest: (to: string) => request<{ ok: true }>('POST', '/api/sms/test', { to }),
+  smsSend: (b: { to: string; text: string; customerId?: string }) => request<{ ok: true }>('POST', '/api/sms/send', b),
   voipStats: () => request<{ byDay: VoipStatRow[]; byExt: VoipStatRow[] }>('GET', '/api/voip/stats'),
   voipLog: () => request<{ enabled: boolean; connected: boolean; eventCount: number; lastEvent: string | null; entries: { at: string; text: string }[] }>('GET', '/api/voip/log'),
   voipTestPopup: () => request<{ ok: true }>('POST', '/api/voip/test-popup'),

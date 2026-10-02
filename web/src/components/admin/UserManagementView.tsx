@@ -487,6 +487,19 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </div>
 
               <div>
+                <label className="block text-[11px] font-black text-[#3A241F] mb-1">شمارهٔ موبایل (اختیاری، برای پیامک)</label>
+                <input
+                  dir="ltr"
+                  inputMode="tel"
+                  value={editingUser.mobile || ''}
+                  onChange={(e) => setEditingUser({ ...editingUser, mobile: e.target.value.replace(/[^0-9+]/g, '') })}
+                  placeholder="09121234567"
+                  className="w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-mono text-[#3A241F] outline-hidden text-right"
+                />
+                <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">اگر پنل پیامک فعال باشد، ناتیف‌های انتخاب‌شدهٔ مدیر به این شماره هم پیامک می‌شود.</p>
+              </div>
+
+              <div>
                 <label className="block text-[11px] font-black text-[#3A241F] mb-1">شمارهٔ داخلی تلفن (اختیاری)</label>
                 <input
                   dir="ltr"

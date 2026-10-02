@@ -30,6 +30,8 @@ export interface User {
   canUseCrm?: boolean;
   /** Phone extension on the company phone system (for incoming-call pop-ups and click-to-call). */
   extension?: string;
+  /** Mobile number for SMS notifications (optional). */
+  mobile?: string;
   /** The user's own letter-editor settings (fonts, sizes, positions...), restored every time the editor opens. */
   letterPrefs?: Record<string, unknown>;
   themeId?: string;

@@ -29,6 +29,7 @@ import { ActivityType, CrmActivity, Customer, CustomerStatus, Deal, DealStage, U
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
+import { SmsModal } from './SmsModal';
 import type { VoipCall } from '../../lib/api';
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
@@ -938,6 +939,11 @@ const CustomerDetail: React.FC<{
   const isAdmin = me.role === 'SUPER_ADMIN' || me.role === 'DEPT_ADMIN';
   const st = STATUS[c.status];
   const [calls, setCalls] = useState<VoipCall[]>([]);
+  const [smsOn, setSmsOn] = useState(false);
+  const [smsOpen, setSmsOpen] = useState(false);
+  useEffect(() => {
+    api.smsStatus().then((s) => setSmsOn(s.enabled)).catch(() => {});
+  }, []);
   useEffect(() => {
     let alive = true;
     api
@@ -999,8 +1005,15 @@ const CustomerDetail: React.FC<{
                 تماس
               </button>
             )}
+            {smsOn && (
+              <button type="button" onClick={() => setSmsOpen(true)} className="flex items-center gap-1 text-[11px] font-black text-sky-700 hover:underline cursor-pointer">
+                <MessageSquare className="w-3.5 h-3.5" />
+                پیامک
+              </button>
+            )}
           </div>
         ))}
+        {smsOpen && <SmsModal customerId={c.id} customerName={c.name} phones={c.phones} onClose={() => setSmsOpen(false)} />}
         {c.email && (
           <div className="flex items-center gap-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2 text-xs font-bold text-[#3A241F] min-w-0">
             <Mail className="w-3.5 h-3.5 shrink-0 text-[#8C6F66]" />

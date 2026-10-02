@@ -1,0 +1,191 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { MessageSquare, RefreshCw, Save, Send } from 'lucide-react';
+import { api, SmsLogRow, SmsSettings } from '../../lib/api';
+import { useAppContext } from '../../context/AppContext';
+import { toPersianDigits } from '../../lib/jalali';
+import { formatTaskDate } from '../../lib/taskDates';
+
+/** Which notifications may also arrive as an SMS (for people who have a mobile number). */
+const EVENTS: { label: string; title: string }[] = [
+  { label: 'جهت امضا', title: 'نامه‌ای که باید امضا کنند' },
+  { label: 'وظیفه جدید', title: 'وظیفهٔ جدید' },
+  { label: 'موعد امروز', title: 'موعد وظیفه امروز است' },
+  { label: 'موعد گذشته', title: 'موعد وظیفه گذشته است' },
+  { label: 'تماس بی‌پاسخ', title: 'تماس بی‌پاسخ' },
+  { label: 'پیگیری امروز', title: 'پیگیری مشتری امروز' },
+  { label: 'پیگیری عقب‌افتاده', title: 'پیگیری مشتری عقب‌افتاده' },
+  { label: 'فروش موفق', title: 'فروش موفق (مدیران)' },
+];
+
+const box = 'w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none';
+const lab = 'block font-bold text-[#3A241F] mb-1.5';
+
+export const SmsSettingsCard: React.FC = () => {
+  const { showToast } = useAppContext();
+  const [s, setS] = useState<SmsSettings | null>(null);
+  const [apiKey, setApiKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [balance, setBalance] = useState('');
+  const [testTo, setTestTo] = useState('');
+  const [log, setLog] = useState<SmsLogRow[]>([]);
+
+  const loadLog = useCallback(() => api.smsLog().then((r) => setLog(r.log)).catch(() => {}), []);
+  useEffect(() => {
+    api.smsSettings().then(setS).catch(() => showToast('خواندن تنظیمات پیامک ممکن نشد.'));
+    void loadLog();
+  }, [loadLog, showToast]);
+
+  if (!s) return <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] text-xs text-gray-400 font-bold">در حال بارگذاری...</div>;
+
+  const patch = (u: Partial<SmsSettings>) => setS((p) => (p ? { ...p, ...u } : p));
+  const toggleLabel = (l: string) => patch({ labels: s.labels.includes(l) ? s.labels.filter((x) => x !== l) : [...s.labels, l] });
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await api.smsSave({ provider: s.provider, sender: s.sender, enabled: s.enabled, labels: s.labels, apiKey });
+      setS(r);
+      setApiKey('');
+      showToast('تنظیمات پیامک ذخیره شد.');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'ذخیره نشد.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const checkBalance = async () => {
+    setBalance('...');
+    try {
+      setBalance((await api.smsBalance()).balance);
+    } catch (e) {
+      setBalance(e instanceof Error ? e.message : 'خطا');
+    }
+  };
+
+  const sendTest = async () => {
+    setBusy(true);
+    try {
+      await api.smsTest(testTo);
+      showToast('پیامک آزمایشی ارسال شد.');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'ارسال نشد.');
+    } finally {
+      setBusy(false);
+      void loadLog();
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#EBDBCE] shadow-sm space-y-5 text-xs">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-sky-700" />
+          اتصال به پنل پیامک
+          <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-black ${s.enabled && s.hasKey ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+            {s.enabled && s.hasKey ? 'فعال' : 'غیرفعال'}
+          </span>
+        </h3>
+        <button type="button" disabled={busy} onClick={save} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] disabled:opacity-50 cursor-pointer">
+          <Save className="w-4 h-4" />
+          ذخیرهٔ تنظیمات پیامک
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className={lab}>سرویس‌دهنده:</label>
+          <select className={box} value={s.provider} onChange={(e) => patch({ provider: e.target.value as SmsSettings['provider'] })}>
+            <option value="">انتخاب کنید...</option>
+            <option value="smsir">sms.ir</option>
+            <option value="kavenegar">کاوه‌نگار</option>
+          </select>
+        </div>
+        <div>
+          <label className={lab}>شمارهٔ خط ارسال‌کننده:</label>
+          <input className={box} dir="ltr" value={s.sender} onChange={(e) => patch({ sender: e.target.value })} placeholder={s.provider === 'smsir' ? 'مثلاً 30007732000000' : 'مثلاً 10004346'} />
+        </div>
+        <div className="md:col-span-2">
+          <label className={lab}>
+            کلید API {s.hasKey && <span className="text-emerald-700">(ثبت شده، آخرین چهار نویسه: {s.keyTail})</span>}
+          </label>
+          <input
+            className={`${box} font-mono`}
+            dir="ltr"
+            type="password"
+            autoComplete="off"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={s.hasKey ? 'برای نگه‌داشتن کلید فعلی خالی بگذارید' : s.provider === 'smsir' ? 'کلید API را از بخش «توسعه‌دهندگان» sms.ir بردارید' : 'کلید API را از پنل کاوه‌نگار بردارید'}
+          />
+          <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">کلید فقط روی سرور نگه‌داری می‌شود و دوباره نمایش داده نمی‌شود.</p>
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 font-bold text-[#3A241F]">
+        <input type="checkbox" checked={s.enabled} onChange={(e) => patch({ enabled: e.target.checked })} />
+        ارسال پیامک در سامانه فعال باشد
+      </label>
+
+      <div>
+        <div className="font-bold text-[#3A241F] mb-1.5">این ناتیف‌ها علاوه بر خود سامانه، پیامک هم بشوند (برای کسانی که شمارهٔ موبایل دارند):</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {EVENTS.map((ev) => (
+            <label key={ev.label} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] font-bold text-[#3A241F] cursor-pointer">
+              <input type="checkbox" checked={s.labels.includes(ev.label)} onChange={() => toggleLabel(ev.label)} />
+              {ev.title}
+            </label>
+          ))}
+        </div>
+        <p className="text-[10px] text-[#8C6F66] mt-1.5 leading-5">شمارهٔ موبایل هر کاربر را در «کاربران و سهمیه‌ها ← ویرایش» وارد کنید.</p>
+      </div>
+
+      <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={checkBalance} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black text-[#3A241F] bg-white border border-[#EBDBCE] cursor-pointer">
+            <RefreshCw className="w-3.5 h-3.5" />
+            اعتبار پنل
+          </button>
+          {balance && <span className="font-black text-emerald-800">{toPersianDigits(balance)}</span>}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <input className={`${box} flex-1 min-w-40`} dir="ltr" inputMode="tel" value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="شمارهٔ موبایل برای پیامک آزمایشی" />
+          <button type="button" disabled={busy || !testTo.trim() || !s.hasKey} onClick={sendTest} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-40 cursor-pointer">
+            <Send className="w-3.5 h-3.5" />
+            ارسال پیامک آزمایشی
+          </button>
+        </div>
+        <p className="text-[10px] text-[#8C6F66]">اول تنظیمات را ذخیره کنید، بعد آزمایش کنید.</p>
+      </div>
+
+      <div className="rounded-2xl border border-[#EBDBCE] overflow-hidden">
+        <div className="px-3 py-2 bg-[#FAF5F1] font-black flex items-center justify-between">
+          <span>آخرین پیامک‌های ارسالی</span>
+          <button type="button" onClick={loadLog} className="text-[10px] text-[#6E1B1B] cursor-pointer">تازه‌سازی</button>
+        </div>
+        <div className="max-h-64 overflow-y-auto divide-y divide-[#EBDBCE]/60">
+          {log.length === 0 ? (
+            <div className="py-6 text-center text-gray-400 font-bold">هنوز پیامکی ارسال نشده است.</div>
+          ) : (
+            log.map((l, i) => (
+              <div key={i} className="px-3 py-2 flex gap-3">
+                <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${l.status === 'ok' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                <span className="flex-1 min-w-0">
+                  <span className="block font-bold text-[#3A241F] truncate">{l.text}</span>
+                  <span className="block text-[10px] text-[#8C6F66]">
+                    <span dir="ltr">{toPersianDigits(l.to)}</span> · {l.by === 'system' ? 'خودکار' : l.by} {l.detail ? `· ${l.detail}` : ''}
+                  </span>
+                </span>
+                <span className="text-[10px] text-[#8C6F66] shrink-0 text-left">
+                  {formatTaskDate(l.at.slice(0, 10))}
+                  <br />
+                  {toPersianDigits(new Date(l.at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

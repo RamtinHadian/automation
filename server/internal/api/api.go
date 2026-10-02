@@ -63,6 +63,13 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/voip/log", auth.Require(voipLog))
 	mux.HandleFunc("POST /api/voip/test-popup", auth.Require(voipTestPopup))
 	mux.HandleFunc("GET /api/voip/calls", auth.Require(voipCalls))
+	mux.HandleFunc("GET /api/sms/status", auth.Require(smsStatus))
+	mux.HandleFunc("GET /api/sms/settings", auth.Require(smsGetSettings))
+	mux.HandleFunc("PUT /api/sms/settings", auth.Require(smsPutSettings))
+	mux.HandleFunc("GET /api/sms/balance", auth.Require(smsBalance))
+	mux.HandleFunc("GET /api/sms/log", auth.Require(smsLog))
+	mux.HandleFunc("POST /api/sms/test", auth.Require(smsTest))
+	mux.HandleFunc("POST /api/sms/send", auth.Require(smsSend))
 	mux.HandleFunc("GET /api/voip/stats", auth.Require(voipStats))
 	mux.HandleFunc("POST /api/voip/call", auth.Require(voipCall))
 
