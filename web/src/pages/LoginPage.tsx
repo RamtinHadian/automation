@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, Lock, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
-import { DemoAdminHint, useDemoInfo } from '../components/common/DemoBanner';
+import { useDemoInfo } from '../components/common/DemoBanner';
 
 interface LoginPageProps {
   staffList: User[];
@@ -77,18 +77,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
     >
       <div className="w-full max-w-sm flex flex-col items-center gap-6">
 
-        {/* Heading */}
-        <div className="text-center space-y-1.5">
-          <h1>
-            <img src="/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-44 sm:w-52 mx-auto" draggable={false} />
-          </h1>
-          <div className="text-sm font-black text-[#3A241F]">خوش آمدید</div>
-          <p className="text-xs text-[#8C6F66] font-medium">
-              برای ورود به حساب کاربری اطلاعات خود را وارد کنید
-            </p>
-        </div>
-
-        {demo && <DemoAdminHint />}
+        {/* Only the logo and the login box */}
+        <h1>
+          <img src="/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-44 sm:w-52 mx-auto" draggable={false} />
+        </h1>
 
         {/* Login Card */}
         <div className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
