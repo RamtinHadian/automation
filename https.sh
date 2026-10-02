@@ -27,12 +27,15 @@ if [ "${1:-}" = "off" ]; then
 fi
 
 DOMAIN="${1:-}"
-PUBLIC_PORT="${2:-443}"
+# LISTEN_PORT: the port this server itself listens on for HTTPS (default 443). Use another one (e.g. LISTEN_PORT=8443) when 443 is taken
+# by something else on the server (for example a V2Ray service). APP_PORT: the port the app listens on (default: PORT in .env, else 8080).
+LISTEN_PORT="${LISTEN_PORT:-443}"
+PUBLIC_PORT="${2:-$LISTEN_PORT}"
 [ -n "$DOMAIN" ] || { echo "Usage: sudo bash https.sh <domain> [public-port]" >&2; exit 1; }
 
 touch .env
 PORT="$(grep -E '^PORT=' .env | tail -1 | cut -d= -f2 || true)"
-PORT="${PORT:-8080}"
+PORT="${APP_PORT:-${PORT:-8080}}"
 
 need_curl() {
   command -v curl >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq curl; }
@@ -49,7 +52,7 @@ fi
 echo "  $DOMAIN -> $resolved"
 
 if ! systemctl is-active --quiet "$SERVICE"; then
-  for p in 80 443; do
+  for p in 80 "$LISTEN_PORT"; do
     if ss -ltn "( sport = :$p )" 2>/dev/null | grep -q LISTEN; then
       echo "Port $p on this server is already in use by another program. Free it first (see: sudo ss -ltnp | grep :$p)." >&2
       exit 1
@@ -77,14 +80,17 @@ fi
 
 # --- configuration -------------------------------------------------------------
 mkdir -p "$CONF_DIR" /var/lib/automation-https
+HTTPS_PORT_LINE=""
+if [ "$LISTEN_PORT" != "443" ]; then HTTPS_PORT_LINE="	https_port $LISTEN_PORT"; fi
 cat > "$CONF_DIR/Caddyfile" <<EOF
 {
 	# Do not redirect http -> https: the public HTTPS port may not be 443 and port 80 is only used for the certificate.
 	auto_https disable_redirects
 	email admin@$DOMAIN
+$HTTPS_PORT_LINE
 }
 
-$DOMAIN:443 {
+$DOMAIN:$LISTEN_PORT {
 	encode gzip
 	# flush_interval -1 keeps live streams (notifications, file-transfer signalling) flowing immediately
 	reverse_proxy localhost:$PORT {
@@ -113,7 +119,7 @@ WantedBy=multi-user.target
 EOF
 
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
-  ufw allow 80/tcp >/dev/null && ufw allow 443/tcp >/dev/null && echo "Firewall: opened ports 80 and 443."
+  ufw allow 80/tcp >/dev/null && ufw allow "$LISTEN_PORT/tcp" >/dev/null && echo "Firewall: opened ports 80 and $LISTEN_PORT."
 fi
 
 systemctl daemon-reload
