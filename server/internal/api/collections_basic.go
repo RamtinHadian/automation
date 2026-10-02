@@ -44,12 +44,21 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 	var merged jsonx.M
 	if !me.IsAdmin() || DemoMode {
 		// Regular users (and everybody in the public demo) may only change cosmetic fields on their own record.
-		if !exists || exID != me.ID() {
+		// The one exception: in the demo the admin may hand over the CEO («مدیرعامل») tick, so the feature can be shown.
+		demoCEO := DemoMode && me.IsAdmin() && exists
+		if !exists || (exID != me.ID() && !demoCEO) {
 			httpx.Forbidden(w)
 			return
 		}
 		merged = jsonx.Copy(existing)
-		for _, k := range []string{"themeId", "letterPrefs", "avatarUrl"} {
+		keys := []string{"themeId", "letterPrefs", "avatarUrl"}
+		if exID != me.ID() {
+			keys = []string{}
+		}
+		if demoCEO {
+			keys = append(keys, "canSignOfficialLetters")
+		}
+		for _, k := range keys {
 			if v, ok := rest[k]; ok && v != nil {
 				merged[k] = v
 			}
@@ -142,7 +151,7 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 // ceoChanged keeps «مدیرعامل» (the authorised signatory) to one person: giving it to someone takes it from whoever had it,
 // and every grant, hand-over or withdrawal is written to the audit log as a permanent CEO_CHANGE line.
 func ceoChanged(r *http.Request, me auth.User, id, name string, was, now bool) {
-	if was == now || !me.IsAdmin() || DemoMode {
+	if was == now || !me.IsAdmin() {
 		return
 	}
 	ctx := r.Context()
