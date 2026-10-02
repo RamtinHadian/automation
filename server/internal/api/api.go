@@ -70,6 +70,12 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/sms/log", auth.Require(smsLog))
 	mux.HandleFunc("POST /api/sms/test", auth.Require(smsTest))
 	mux.HandleFunc("POST /api/sms/send", auth.Require(smsSend))
+	mux.HandleFunc("GET /api/msgr/status", auth.Require(msgrStatus))
+	mux.HandleFunc("GET /api/msgr/settings", auth.Require(msgrGetSettings))
+	mux.HandleFunc("PUT /api/msgr/settings", auth.Require(msgrPutSettings))
+	mux.HandleFunc("POST /api/msgr/check", auth.Require(msgrCheck))
+	mux.HandleFunc("GET /api/msgr/link", auth.Require(msgrLink))
+	mux.HandleFunc("POST /api/msgr/send", auth.Require(msgrSendFile))
 	mux.HandleFunc("GET /api/voip/stats", auth.Require(voipStats))
 	mux.HandleFunc("POST /api/voip/call", auth.Require(voipCall))
 

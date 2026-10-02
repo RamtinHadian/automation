@@ -87,6 +87,9 @@ export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP';
 export interface Customer {
   id: string;
   name: string;
+  /** Set when the customer opened the company bot (Telegram / Bale) with his link. */
+  telegramChatId?: string;
+  baleChatId?: string;
   company?: string;
   phones: string[];
   email?: string;

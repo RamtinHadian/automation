@@ -1,5 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { FileText, Plus, Trash2, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FileText, Link2, Plus, Send, Trash2, X } from 'lucide-react';
+import { api } from '../../lib/api';
+import { renderProformaPdf } from '../../lib/proformaFile';
+import { formatTaskDate } from '../../lib/taskDates';
+import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { addDaysIso, DEFAULT_PROFORMA_TERMS, nextProformaNumber, openProformaPdf, proformaTotals } from '../../lib/proformaPdf';
 import { normalizeTemplate } from '../../lib/proformaTemplates';
@@ -57,7 +61,15 @@ export const ProformaModal: React.FC<{
     };
   });
   const setField = (k: keyof ProformaFields, v: string) => setF((p) => ({ ...p, [k]: v }));
-  const numberTaken = !!number.trim() && allDeals.some((d) => d.id !== deal.id && d.proformaNumber === number.trim());
+  // ---- send straight to the customer's Telegram / Bale ----
+  const { showToast } = useAppContext();
+  const [msgr, setMsgr] = useState<{ telegram: boolean; bale: boolean } | null>(null);
+  const [chat, setChat] = useState({ telegram: customer?.telegramChatId || '', bale: customer?.baleChatId || '' });
+  const [sending, setSending] = useState<string | null>(null);
+  useEffect(() => {
+    api.msgrStatus().then(setMsgr).catch(() => {});
+  }, []);
+  const numberTaken =  !!number.trim() && allDeals.some((d) => d.id !== deal.id && d.proformaNumber === number.trim());
 
   const totals = useMemo(() => proformaTotals(items, discountPercent, taxPercent), [items, discountPercent, taxPercent]);
   const patchItem = (i: number, u: Partial<ProformaItem>) => setItems((p) => p.map((x, idx) => (idx === i ? { ...x, ...u } : x)));
@@ -75,6 +87,42 @@ export const ProformaModal: React.FC<{
     proformaFields: f,
     amount: totals.payable,
   });
+
+  const sendTo = async (ch: 'telegram' | 'bale') => {
+    if (!okItems.length) return;
+    if (!customer) {
+      showToast('برای ارسال، فرصت باید به یک مشتری وصل باشد.');
+      return;
+    }
+    setSending(ch);
+    try {
+      const next = build();
+      onSave(next);
+      const blob = await renderProformaPdf({ deal: next, customer, settings, issuerName });
+      const caption = toPersianDigits(`پیش‌فاکتور شمارهٔ ${next.proformaNumber}\nمبلغ قابل پرداخت: ${toman(totals.payable)} تومان\nاعتبار تا: ${formatTaskDate(valid)}`);
+      await api.msgrSendFile({ channel: ch, chatId: chat[ch].trim(), customerId: customer.id, caption, file: blob, filename: `${next.proformaNumber || 'proforma'}.pdf` });
+      showToast(`پیش‌فاکتور در ${ch === 'bale' ? 'بله' : 'تلگرام'} ارسال شد.`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'ارسال نشد.');
+    } finally {
+      setSending(null);
+    }
+  };
+
+  const copyLink = async (ch: 'telegram' | 'bale') => {
+    if (!customer) return;
+    try {
+      const { link } = await api.msgrLink(ch, customer.id);
+      if (!link) {
+        showToast('اول در تنظیمات، ربات را بررسی اتصال کنید تا لینک ساخته شود.');
+        return;
+      }
+      await navigator.clipboard.writeText(link);
+      showToast('لینک اتصال کپی شد؛ آن را برای مشتری بفرستید.');
+    } catch {
+      showToast('کپی لینک ممکن نشد.');
+    }
+  };
 
   const save = (pdf: boolean) => {
     if (!okItems.length) return;
@@ -208,6 +256,38 @@ export const ProformaModal: React.FC<{
             <label className={label}>شرایط و توضیحات (هر خط یک مورد)</label>
             <textarea className={`${field} min-h-[80px] leading-6`} value={terms} onChange={(e) => setTerms(e.target.value)} />
           </div>
+
+          {msgr && (msgr.telegram || msgr.bale) && (
+            <details className="rounded-2xl border border-sky-200 bg-sky-50/50 p-3">
+              <summary className="cursor-pointer text-xs font-black text-sky-900">ارسال مستقیم به تلگرام / بله</summary>
+              <div className="space-y-3 mt-3">
+                {(['bale', 'telegram'] as const).filter((ch) => msgr[ch]).map((ch) => (
+                  <div key={ch} className="rounded-xl bg-white border border-[#EBDBCE] p-3 space-y-2">
+                    <div className="text-[11px] font-black text-[#3A241F]">{ch === 'bale' ? 'بله' : 'تلگرام'}</div>
+                    <input
+                      className={field}
+                      dir="ltr"
+                      inputMode="numeric"
+                      value={chat[ch]}
+                      onChange={(e) => setChat((p) => ({ ...p, [ch]: e.target.value }))}
+                      placeholder="شناسهٔ گفتگوی مشتری (خودکار پر می‌شود وقتی مشتری ربات را با لینک شما باز کند)"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" disabled={sending !== null || !okItems.length || !chat[ch].trim()} onClick={() => sendTo(ch)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-40 cursor-pointer">
+                        <Send className="w-3.5 h-3.5" />
+                        {sending === ch ? 'در حال ساخت و ارسال...' : 'ذخیره و ارسال PDF'}
+                      </button>
+                      <button type="button" onClick={() => copyLink(ch)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black text-[#3A241F] bg-white border border-[#EBDBCE] cursor-pointer">
+                        <Link2 className="w-3.5 h-3.5" />
+                        کپی لینک اتصال مشتری
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <p className="text-[10px] text-[#8C6F66] leading-5">ربات فقط به کسی پیام می‌دهد که آن را استارت کرده باشد. لینک اتصال را برای مشتری بفرستید؛ وقتی او باز کند، شناسه خودکار ثبت می‌شود.</p>
+              </div>
+            </details>
+          )}
 
           <div className="rounded-2xl bg-[#FAF5F1] border border-[#EBDBCE] p-3 text-xs space-y-1">
             <div className="flex justify-between"><span>جمع</span><b>{toman(totals.subtotal)}</b></div>

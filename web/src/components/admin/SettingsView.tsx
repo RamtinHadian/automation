@@ -26,7 +26,8 @@ import {
   Type,
   Palette,
   PhoneCall,
-  MessageSquare
+  MessageSquare,
+  Send
 } from 'lucide-react';
 import { SystemSettings, LetterNumberingSettings } from '../../types';
 import { FontManagementModal } from './FontManagementModal';
@@ -38,6 +39,7 @@ import { useAppContext } from '../../context/AppContext';
 import { ProformaDesigner } from './ProformaDesigner';
 import { VoipStatusCard } from './VoipStatusCard';
 import { SmsSettingsCard } from './SmsSettingsCard';
+import { MessengerSettingsCard } from './MessengerSettingsCard';
 import { IconTab } from '../common/IconTab';
 
 interface SettingsViewProps {
@@ -115,7 +117,7 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
-type SettingsSection = 'identity' | 'phone' | 'sms' | 'proforma' | 'letters' | 'signature' | 'look' | 'policies';
+type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'proforma' | 'letters' | 'signature' | 'look' | 'policies';
 
 /** Each group of settings has its own tab under the page title. */
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -127,6 +129,7 @@ const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.Compo
   { id: 'policies', label: 'فایل‌ها و محدودیت‌ها', Icon: HardDrive },
   { id: 'phone', label: 'تلفن شرکت (ویپ)', Icon: PhoneCall },
   { id: 'sms', label: 'پیامک', Icon: MessageSquare },
+  { id: 'msgr', label: 'تلگرام و بله', Icon: Send },
 ];
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -502,6 +505,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {section === 'sms' && <SmsSettingsCard />}
+
+      {section === 'msgr' && <MessengerSettingsCard />}
 
 
       {section === 'proforma' && (

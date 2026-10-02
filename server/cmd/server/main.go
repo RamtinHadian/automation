@@ -14,6 +14,7 @@ import (
 	"automation/server/internal/push"
 	"automation/server/internal/store"
 	"automation/server/internal/demo"
+	"automation/server/internal/msgr"
 	"automation/server/internal/voip"
 	"automation/server/internal/work"
 )
@@ -52,6 +53,7 @@ func main() {
 		go demo.Run(ctx, cfg.DemoResetHours)
 	}
 	go crm.RunReminders(ctx)
+	go msgr.Run(ctx)
 	go work.RunTaskReminders(ctx)
 	api.SetPhone(phone)
 

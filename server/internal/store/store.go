@@ -120,6 +120,16 @@ var schema = []string{
 	  detail TEXT NOT NULL DEFAULT ''
 	)`,
 	`CREATE INDEX IF NOT EXISTS sms_log_created_idx ON sms_log (created_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS msgr_log (
+	  id TEXT PRIMARY KEY,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  sent_by TEXT NOT NULL DEFAULT '',
+	  channel TEXT NOT NULL DEFAULT '',
+	  chat TEXT NOT NULL DEFAULT '',
+	  text TEXT NOT NULL DEFAULT '',
+	  status TEXT NOT NULL DEFAULT '',
+	  detail TEXT NOT NULL DEFAULT ''
+	)`,
 	`CREATE TABLE IF NOT EXISTS voip_calls (
 	  id TEXT PRIMARY KEY,
 	  started_at TIMESTAMPTZ NOT NULL,

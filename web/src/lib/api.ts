@@ -72,6 +72,19 @@ export interface SmsLogRow {
   detail: string;
 }
 
+export interface MsgrBotInfo {
+  enabled: boolean;
+  hasToken: boolean;
+  tokenTail: string;
+  username: string;
+}
+
+export interface MsgrSettings {
+  telegram: MsgrBotInfo;
+  bale: MsgrBotInfo;
+  proxy: string;
+}
+
 export interface DemoInfo {
   demo: boolean;
   resetHours?: number;
@@ -131,6 +144,23 @@ export const api = {
     if (o.customer) p.set('customer', o.customer);
     if (o.limit) p.set('limit', String(o.limit));
     return request<{ calls: VoipCall[] }>('GET', '/api/voip/calls' + (p.toString() ? '?' + p : ''));
+  },
+  msgrStatus: () => request<{ telegram: boolean; bale: boolean }>('GET', '/api/msgr/status'),
+  msgrSettings: () => request<MsgrSettings>('GET', '/api/msgr/settings'),
+  msgrSave: (b: { telegram: { enabled: boolean; token: string }; bale: { enabled: boolean; token: string }; proxy: string }) => request<MsgrSettings>('PUT', '/api/msgr/settings', b),
+  msgrCheck: (channel: string, chatId: string) => request<{ username: string }>('POST', '/api/msgr/check', { channel, chatId }),
+  msgrLink: (channel: string, customer: string) => request<{ link: string }>('GET', `/api/msgr/link?channel=${channel}&customer=${encodeURIComponent(customer)}`),
+  msgrSendFile: async (f: { channel: string; chatId: string; customerId: string; caption: string; file: Blob; filename: string }) => {
+    const fd = new FormData();
+    fd.set('channel', f.channel);
+    fd.set('chatId', f.chatId);
+    fd.set('customerId', f.customerId);
+    fd.set('caption', f.caption);
+    fd.set('file', f.file, f.filename);
+    const res = await fetch('/api/msgr/send', { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || 'ارسال نشد.');
+    return j as { ok: true };
   },
   smsStatus: () => request<{ enabled: boolean }>('GET', '/api/sms/status'),
   smsSettings: () => request<SmsSettings>('GET', '/api/sms/settings'),
