@@ -173,6 +173,34 @@ export default function UserPanel() {
       setMainMenuTab('files');
     }
   }, [canAccessLettersMenu, mainMenuTab]);
+  // Unread notifications per menu (only for the menus this person may use). Opening a menu marks its notifications as read.
+  const { notifications, markNotificationsRead } = useAppContext();
+  const menuOfNotification = (n: AppNotification): 'files' | 'letters' | 'tasks' | 'crm' | null => {
+    const t = n.ref?.type;
+    if (t === 'customer' || t === 'deal') return 'crm';
+    if (t === 'task' || t === 'report') return 'tasks';
+    if (t === 'letter') return 'letters';
+    if (t === 'file') return 'files';
+    if (n.kind === 'file') return 'files';
+    if (n.kind === 'letter') return 'letters';
+    if (n.kind === 'task') return 'tasks';
+    return null;
+  };
+  const unreadByMenu = { files: 0, letters: 0, tasks: 0, crm: 0 };
+  for (const n of notifications) {
+    if (n.read) continue;
+    const m = menuOfNotification(n);
+    if (m) unreadByMenu[m]++;
+  }
+  const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm') =>
+    (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) ? 0 : unreadByMenu[m];
+  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm') => {
+    setMainMenuTab(m);
+    setSearchQuery('');
+    const ids = notifications.filter((n) => !n.read && menuOfNotification(n) === m).map((n) => n.id);
+    if (ids.length) markNotificationsRead(ids);
+  };
+
   const openNotification = (n: AppNotification) => {
     const type = n.ref?.type;
     setSearchQuery('');
@@ -600,7 +628,7 @@ export default function UserPanel() {
             
             {/* Menu 1: ارسال فایل */}
             <button
-              onClick={() => { setMainMenuTab('files'); setSearchQuery(''); }}
+              onClick={() => openMenu('files')}
               className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                 mainMenuTab === 'files'
                   ? 'bg-[#6E1B1B] text-white shadow-md shadow-[#6E1B1B]/25 scale-[1.02]'
@@ -609,12 +637,17 @@ export default function UserPanel() {
             >
               <ArrowLeftRight className="w-4 h-4" />
               <span>ارسال فایل</span>
+              {menuBadge('files') > 0 && (
+                  <span className="bg-rose-600 text-white text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full font-black shadow-sm">
+                    {toPersianDigits(menuBadge('files') > 99 ? '99+' : menuBadge('files'))}
+                  </span>
+                )}
             </button>
 
             {/* Menu 2: نامه (فقط برای کاربرانی که مجوز دارند) */}
             {canAccessLettersMenu && (
               <button
-                onClick={() => { setMainMenuTab('letters'); setSearchQuery(''); }}
+                onClick={() => openMenu('letters')}
                 className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'letters'
                     ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25 scale-[1.02]'
@@ -623,9 +656,9 @@ export default function UserPanel() {
               >
                 <Stamp className="w-4 h-4" />
                 <span>نامه</span>
-                {pendingLettersCount > 0 && canSignOfficial && (
-                  <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">
-                    {toPersianDigits(pendingLettersCount)}
+                {menuBadge('letters') > 0 && (
+                  <span className="bg-rose-600 text-white text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full font-black shadow-sm">
+                    {toPersianDigits(menuBadge('letters') > 99 ? '99+' : menuBadge('letters'))}
                   </span>
                 )}
               </button>
@@ -634,7 +667,7 @@ export default function UserPanel() {
             {/* Menu 4: مشتریان (CRM) */}
             {canAccessCrmMenu && (
               <button
-                onClick={() => { setMainMenuTab('crm'); setSearchQuery(''); }}
+                onClick={() => openMenu('crm')}
                 className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'crm'
                     ? 'bg-violet-600 text-white shadow-md shadow-violet-600/25 scale-[1.02]'
@@ -643,13 +676,18 @@ export default function UserPanel() {
               >
                 <Users className="w-4 h-4" />
                 <span>مشتریان</span>
+                {menuBadge('crm') > 0 && (
+                  <span className="bg-rose-600 text-white text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full font-black shadow-sm">
+                    {toPersianDigits(menuBadge('crm') > 99 ? '99+' : menuBadge('crm'))}
+                  </span>
+                )}
               </button>
             )}
 
             {/* Menu 3: وظایف (فقط برای کاربرانی که مجوز دارند) */}
             {canAccessTasksMenu && (
               <button
-                onClick={() => { setMainMenuTab('tasks'); setSearchQuery(''); }}
+                onClick={() => openMenu('tasks')}
                 className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'tasks'
                     ? 'bg-sky-600 text-white shadow-md shadow-sky-600/25 scale-[1.02]'
@@ -658,6 +696,11 @@ export default function UserPanel() {
               >
                 <ClipboardList className="w-4 h-4" />
                 <span>وظایف</span>
+                {menuBadge('tasks') > 0 && (
+                  <span className="bg-rose-600 text-white text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full font-black shadow-sm">
+                    {toPersianDigits(menuBadge('tasks') > 99 ? '99+' : menuBadge('tasks'))}
+                  </span>
+                )}
               </button>
             )}
           </div>
@@ -1697,7 +1740,7 @@ export default function UserPanel() {
         {/* Tab 1: ارسال فایل */}
         <button
           type="button"
-          onClick={() => { setMainMenuTab('files'); setSearchQuery(''); }}
+          onClick={() => openMenu('files')}
           className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
             mainMenuTab === 'files'
               ? 'bg-[#6E1B1B] text-white shadow-md'
@@ -1706,8 +1749,10 @@ export default function UserPanel() {
         >
           <ArrowLeftRight className="w-4 h-4" />
           <span className="text-[10px] font-black">تبادل فایل</span>
-          {receivedFiles.length > 0 && mainMenuTab !== 'files' && (
-            <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-[#D34A32]"></span>
+          {menuBadge('files') > 0 && (
+            <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
+              {toPersianDigits(menuBadge('files') > 99 ? '99+' : menuBadge('files'))}
+            </span>
           )}
         </button>
 
@@ -1715,7 +1760,7 @@ export default function UserPanel() {
         {canAccessLettersMenu && (
           <button
             type="button"
-            onClick={() => { setMainMenuTab('letters'); setSearchQuery(''); }}
+            onClick={() => openMenu('letters')}
             className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
               mainMenuTab === 'letters'
                 ? 'bg-amber-600 text-white shadow-md'
@@ -1724,9 +1769,9 @@ export default function UserPanel() {
           >
             <Stamp className="w-4 h-4" />
             <span className="text-[10px] font-black">نامه‌ها</span>
-            {pendingLettersCount > 0 && (
-              <span className="absolute -top-1 right-1 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full animate-pulse border-2 border-white shadow-xs">
-                {toPersianDigits(pendingLettersCount)}
+            {menuBadge('letters') > 0 && (
+              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
+                {toPersianDigits(menuBadge('letters') > 99 ? '99+' : menuBadge('letters'))}
               </span>
             )}
           </button>
@@ -1736,8 +1781,8 @@ export default function UserPanel() {
         {canAccessTasksMenu && (
           <button
             type="button"
-            onClick={() => { setMainMenuTab('tasks'); setSearchQuery(''); }}
-            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer ${
+            onClick={() => openMenu('tasks')}
+            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
               mainMenuTab === 'tasks'
                 ? 'bg-sky-600 text-white shadow-md'
                 : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
@@ -1745,6 +1790,11 @@ export default function UserPanel() {
           >
             <ClipboardList className="w-4 h-4" />
             <span className="text-[10px] font-black">وظایف</span>
+            {menuBadge('tasks') > 0 && (
+              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
+                {toPersianDigits(menuBadge('tasks') > 99 ? '99+' : menuBadge('tasks'))}
+              </span>
+            )}
           </button>
         )}
 
@@ -1752,8 +1802,8 @@ export default function UserPanel() {
         {canAccessCrmMenu && (
           <button
             type="button"
-            onClick={() => { setMainMenuTab('crm'); setSearchQuery(''); }}
-            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer ${
+            onClick={() => openMenu('crm')}
+            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
               mainMenuTab === 'crm'
                 ? 'bg-violet-600 text-white shadow-md'
                 : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
@@ -1761,6 +1811,11 @@ export default function UserPanel() {
           >
             <Users className="w-4 h-4" />
             <span className="text-[10px] font-black">مشتریان</span>
+            {menuBadge('crm') > 0 && (
+              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
+                {toPersianDigits(menuBadge('crm') > 99 ? '99+' : menuBadge('crm'))}
+              </span>
+            )}
           </button>
         )}
 
