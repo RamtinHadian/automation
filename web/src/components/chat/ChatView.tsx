@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Check, CheckCheck, MessageCircle, Search, Send } from 'lucide-react';
 import { api, ChatConversation, ChatMessage } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
@@ -41,6 +41,22 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
   const [search, setSearch] = useState('');
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+  // the chat fills what is left of the window, so the typing bar is always in view and nothing needs scrolling
+  useLayoutEffect(() => {
+    const fit = () => {
+      const el = box.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const reserve = window.innerWidth < 768 ? 92 : 20; // the phone has a bottom menu bar
+      setHeight(Math.max(380, window.innerHeight - (top - window.scrollY) - reserve));
+    };
+    fit();
+    box.current?.scrollIntoView({ block: 'nearest' });
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
   const lastCount = useRef(0);
 
   const people = useMemo(() => staffList.filter((u) => u.isActive !== false && u.id !== currentUser.id), [staffList, currentUser.id]);
@@ -131,7 +147,7 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
   const peerUser = staffList.find((u) => u.id === peer);
 
   return (
-    <div className="flex-1 grid grid-cols-1 md:grid-cols-12 min-h-[520px] md:h-[calc(100vh-290px)] md:max-h-[720px] bg-white">
+    <div ref={box} style={height ? { height } : { height: 520 }} className="grid grid-cols-1 grid-rows-[minmax(0,1fr)] md:grid-cols-12 bg-white overflow-hidden">
       {/* conversations */}
       <aside className={`md:col-span-4 border-l border-[#EBDBCE]/60 flex flex-col min-h-0 ${peer ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-3 border-b border-[#EBDBCE]/60">
@@ -213,7 +229,7 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
               })}
               <div ref={endRef} />
             </div>
-            <div className="p-3 bg-white border-t border-[#EBDBCE]/60 flex items-end gap-2 shrink-0">
+            <div className="p-3 max-md:pl-[76px] bg-white border-t border-[#EBDBCE]/60 flex items-end gap-2 shrink-0">
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
