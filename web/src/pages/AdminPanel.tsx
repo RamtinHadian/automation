@@ -1,4 +1,5 @@
 import { DemoAdminHint, useDemoInfo } from '../components/common/DemoBanner';
+import { IconTab } from '../components/common/IconTab';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
@@ -6,6 +7,7 @@ import {
   PieChart as PieChartIcon,
   Settings,
   Shield,
+  FileSearch,
   ShieldCheck,
   Lock,
   Search,
@@ -429,72 +431,13 @@ export default function AdminPanel() {
 
         {/* Admin Navigation Sub-Tabs */}
         <div className="bg-[#FAF5F1] px-6 sm:px-8 py-3 border-b border-[#EBDBCE] flex flex-wrap items-center justify-between gap-3">
-          <nav className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 flex-wrap">
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'users'
-                ? 'bg-[#6E1B1B] text-white shadow-sm'
-                : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/30 border border-[#EBDBCE]'
-                }`}
-            >
-              <Users className="w-4 h-4" />
-              <span>کاربران و سهمیه‌ها ({toPersianDigits(staffList.length)})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('departments')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'departments'
-                ? 'bg-[#6E1B1B] text-white shadow-sm'
-                : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/30 border border-[#EBDBCE]'
-                }`}
-            >
-              <Shield className="w-4 h-4" />
-              <span>واحدهای سازمانی ({toPersianDigits(departments.length)})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('transfers')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'transfers'
-                ? 'bg-[#6E1B1B] text-white shadow-sm'
-                : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/30 border border-[#EBDBCE]'
-                }`}
-            >
-              <Activity className="w-4 h-4" />
-              <span>مانیتورینگ انتقالات ({toPersianDigits(transfers.length)})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('audit')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'audit'
-                ? 'bg-[#6E1B1B] text-white shadow-sm'
-                : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/30 border border-[#EBDBCE]'
-                }`}
-            >
-              <Shield className="w-4 h-4" />
-              <span>گزارشات ممیزی ({toPersianDigits(auditLogs.length)})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'analytics'
-                ? 'bg-[#6E1B1B] text-white shadow-sm'
-                : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/30 border border-[#EBDBCE]'
-                }`}
-            >
-              <PieChartIcon className="w-4 h-4" />
-              <span>آمار و مصرف حافظه</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'settings'
-                ? 'bg-[#6E1B1B] text-white shadow-sm'
-                : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/30 border border-[#EBDBCE]'
-                }`}
-            >
-              <Settings className="w-4 h-4" />
-              <span>تنظیمات سیستم</span>
-            </button>
+          <nav className="flex items-center gap-2 flex-wrap">
+            <IconTab active={activeTab === 'users'} onClick={() => setActiveTab('users')} label="کاربران و سهمیه‌ها" count={toPersianDigits(staffList.length)} icon={<Users className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} label="واحدهای سازمانی" count={toPersianDigits(departments.length)} icon={<Shield className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'transfers'} onClick={() => setActiveTab('transfers')} label="مانیتورینگ انتقالات" count={toPersianDigits(transfers.length)} icon={<Activity className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} label="گزارشات ممیزی" count={toPersianDigits(auditLogs.length)} icon={<FileSearch className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} label="آمار و مصرف حافظه" icon={<PieChartIcon className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} label="تنظیمات سیستم" icon={<Settings className="w-[18px] h-[18px]" />} />
           </nav>
 
           <div className="flex items-center gap-2 text-[11px] font-bold text-[#8C6F66]">

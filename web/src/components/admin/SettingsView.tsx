@@ -38,6 +38,7 @@ import { useAppContext } from '../../context/AppContext';
 import { ProformaDesigner } from './ProformaDesigner';
 import { VoipStatusCard } from './VoipStatusCard';
 import { SmsSettingsCard } from './SmsSettingsCard';
+import { IconTab } from '../common/IconTab';
 
 interface SettingsViewProps {
   settings: SystemSettings;
@@ -320,19 +321,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {/* Tabs: every group of settings is under its own menu */}
-      <nav className="flex flex-wrap items-center gap-2 -mt-2">
+      <nav className="flex items-center gap-2 -mt-2 pt-6 flex-wrap">
         {SETTINGS_SECTIONS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setSection(id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-              section === id ? 'bg-[#6E1B1B] text-white shadow-sm' : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/30 border border-[#EBDBCE]'
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {label}
-          </button>
+          <IconTab key={id} active={section === id} onClick={() => setSection(id)} label={label} icon={<Icon className="w-[18px] h-[18px]" />} />
         ))}
       </nav>
 
