@@ -42,6 +42,8 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLElement>(null);
+  const [dock, setDock] = useState<{ left: number; width: number; bottom: number } | null>(null);
   const [height, setHeight] = useState<number | undefined>(undefined);
   // the chat fills what is left of the window, so the typing bar is always in view and nothing needs scrolling
   useLayoutEffect(() => {
@@ -49,14 +51,29 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
       const el = box.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY;
-      const reserve = window.innerWidth < 768 ? 92 : 20; // the phone has a bottom menu bar
+      const reserve = window.innerWidth < 768 ? 88 : 0; // the phone has a bottom menu bar
       setHeight(Math.max(380, window.innerHeight - (top - window.scrollY) - reserve));
     };
-    fit();
+    // the typing bar floats at the very bottom of the window, exactly under the conversation column
+    const place = () => {
+      const el = threadRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setDock({ left: r.left, width: r.width, bottom: window.innerWidth < 768 ? 88 : 0 });
+    };
+    const all = () => { fit(); place(); };
+    all();
     box.current?.scrollIntoView({ block: 'nearest' });
-    window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
-  }, []);
+    const ro = new ResizeObserver(all);
+    if (box.current) ro.observe(box.current);
+    window.addEventListener('resize', all);
+    window.addEventListener('scroll', place, { passive: true });
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', all);
+      window.removeEventListener('scroll', place);
+    };
+  }, [peer]);
   const lastCount = useRef(0);
 
   const people = useMemo(() => staffList.filter((u) => u.isActive !== false && u.id !== currentUser.id), [staffList, currentUser.id]);
@@ -190,7 +207,7 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
       </aside>
 
       {/* thread */}
-      <section className={`md:col-span-8 flex flex-col min-h-0 bg-[#FDFAF8] ${peer ? 'flex' : 'hidden md:flex'}`}>
+      <section ref={threadRef} className={`md:col-span-8 flex flex-col min-h-0 bg-[#FDFAF8] ${peer ? 'flex' : 'hidden md:flex'}`}>
         {!peer ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[#8C6F66] p-8 text-center">
             <span className="w-16 h-16 rounded-3xl bg-[#F6D9CD] text-[#6E1B1B] flex items-center justify-center"><MessageCircle className="w-8 h-8" /></span>
@@ -229,7 +246,11 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
               })}
               <div ref={endRef} />
             </div>
-            <div className="p-3 max-md:pl-[76px] bg-white border-t border-[#EBDBCE]/60 flex items-end gap-2 shrink-0">
+            <div className="h-[68px] shrink-0" aria-hidden />
+            <div
+              style={dock ? { position: 'fixed', left: dock.left, width: dock.width, bottom: dock.bottom } : undefined}
+              className="z-30 p-3 max-md:pl-[76px] bg-white border-t border-[#EBDBCE] shadow-[0_-6px_20px_rgba(58,36,31,0.10)] flex items-end gap-2"
+            >
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
