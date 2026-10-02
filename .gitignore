@@ -5,3 +5,5 @@ dist
 server/uploads
 
 demo.env
+backups/
+backups-demo/

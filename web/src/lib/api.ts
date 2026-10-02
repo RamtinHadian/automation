@@ -46,6 +46,13 @@ export interface VoipCall {
   duration: number;
 }
 
+export interface BackupInfo {
+  enabled: boolean;
+  pending: boolean;
+  items: { name: string; size: number; at: string; kind: 'auto' | 'manual' }[];
+  status: { result: 'ok' | 'error'; at: string; text: string } | null;
+}
+
 export interface VoipStatRow {
   key: string;
   total: number;
@@ -189,6 +196,18 @@ export const api = {
   smsTest: (to: string) => request<{ ok: true }>('POST', '/api/sms/test', { to }),
   smsSend: (b: { to: string; text: string; customerId?: string }) => request<{ ok: true }>('POST', '/api/sms/send', b),
   statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[] }>('GET', '/api/stats-data'),
+  backups: () => request<BackupInfo>('GET', '/api/backups'),
+  backupNow: () => request<{ ok: true }>('POST', '/api/backups'),
+  backupDownload: async (name: string) => {
+    const res = await fetch('/api/backups/' + encodeURIComponent(name), { headers: { Authorization: `Bearer ${getToken() || ''}` } });
+    if (!res.ok) throw new ApiError(res.status, 'download failed');
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  },
   voipStats: () => request<{ byDay: VoipStatRow[]; byExt: VoipStatRow[] }>('GET', '/api/voip/stats'),
   voipLog: () => request<{ enabled: boolean; connected: boolean; eventCount: number; lastEvent: string | null; entries: { at: string; text: string }[] }>('GET', '/api/voip/log'),
   voipTestPopup: () => request<{ ok: true }>('POST', '/api/voip/test-popup'),

@@ -37,8 +37,30 @@ services:
       BALE_BASE: ${BALE_BASE:-}
       KAVENEGAR_BASE: ${KAVENEGAR_BASE:-}
       DEMO_RESET_HOURS: ${DEMO_RESET_HOURS:-6}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
     ports:
       - "${PORT:-8080}:8080"
+
+  # Full database copies: every night and on request from the admin console. Files land in ./backups on the server.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: ${DB_USER:-automation}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: ${DB_NAME:-automation}
+      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-30}
+      TZ: Asia/Tehran
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+      - ./backup-loop.sh:/backup-loop.sh:ro
+    entrypoint: ["sh", "/backup-loop.sh"]
 
 volumes:
   pgdata:
