@@ -58,7 +58,6 @@ services:
       TZ: Asia/Tehran
     volumes:
       - ${BACKUP_DIR:-./backups}:/backups
-      - ./backup-loop.sh:/backup-loop.sh:ro
     entrypoint: ["sh", "/backup-loop.sh"]
 
 volumes:

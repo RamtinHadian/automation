@@ -161,6 +161,11 @@ func uploadBackup(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.ReadFull(rf, head)
 		rf.Close()
 	}
+	if DemoMode && !demoUploadAllowed(tmp) {
+		os.Remove(tmp)
+		httpx.Error(w, http.StatusForbidden, "در نسخهٔ نمایشی فقط فایلی که از همین نمایشی دانلود کرده‌اید پذیرفته می‌شود.")
+		return
+	}
 	if string(head) != "PGDMP" {
 		os.Remove(tmp)
 		httpx.Error(w, http.StatusBadRequest, "این فایل، پشتیبانی از این سامانه نیست (باید فایل .dump باشد).")

@@ -90,6 +90,11 @@ func backupPutSettings(w http.ResponseWriter, r *http.Request) {
 		"netUser":         user,
 		"netDomain":       domain,
 	}
+	if DemoMode {
+		netOn = false // the demo never connects anywhere; the form is only for show
+		doc["netEnabled"] = false
+		body["netPassword"] = ""
+	}
 	pass := jsonx.Str(body, "netPassword")
 	if pass == "" {
 		pass = jsonx.Str(old, "netPassword") // empty = keep the saved one
@@ -164,6 +169,11 @@ func backupPutSettings(w http.ResponseWriter, r *http.Request) {
 func backupNetTest(w http.ResponseWriter, r *http.Request) {
 	if auth.Current(r).Role() != "SUPER_ADMIN" {
 		httpx.Forbidden(w)
+		return
+	}
+	if DemoMode {
+		demoNetTest()
+		httpx.OK(w)
 		return
 	}
 	dir := backupDir()
@@ -292,6 +302,10 @@ func backupBrowse(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "مشخصات واردشده معتبر نیست.")
 		return
 	}
+	if DemoMode {
+		demoBrowse(w, strconv.FormatInt(time.Now().UnixNano(), 36), path)
+		return
+	}
 	dir := backupDir()
 	if _, err := os.Stat(filepath.Join(dir, ".browse-request")); err == nil {
 		httpx.Error(w, http.StatusConflict, "یک درخواست دیگر در حال انجام است؛ چند ثانیه صبر کنید.")
@@ -310,6 +324,14 @@ func backupBrowse(w http.ResponseWriter, r *http.Request) {
 func backupBrowseResult(w http.ResponseWriter, r *http.Request) {
 	if auth.Current(r).Role() != "SUPER_ADMIN" {
 		httpx.Forbidden(w)
+		return
+	}
+	if DemoMode {
+		if m, ok := demoBrowseResult(); ok {
+			httpx.JSON(w, http.StatusOK, m)
+			return
+		}
+		httpx.JSON(w, http.StatusOK, map[string]any{"pending": true})
 		return
 	}
 	raw, err := os.ReadFile(filepath.Join(backupDir(), ".browse.json"))
