@@ -11,7 +11,10 @@ export const IconTab: React.FC<{
   <div className="relative group">
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        onClick();
+        e.currentTarget.blur(); // the label belongs to the mouse hover; it must not stay on a button that was clicked
+      }}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
       className={`relative w-10 h-10 flex items-center justify-center rounded-2xl transition-all cursor-pointer ${
@@ -27,7 +30,7 @@ export const IconTab: React.FC<{
     </button>
     <span
       role="tooltip"
-      className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 rounded-lg bg-[#3A241F] text-white text-[11px] font-bold whitespace-nowrap shadow-lg opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0 z-30"
+      className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 rounded-lg bg-[#3A241F] text-white text-[11px] font-bold whitespace-nowrap shadow-lg opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 group-has-focus-visible:opacity-100 group-has-focus-visible:translate-y-0 z-30"
     >
       {label}
       <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#3A241F]" />
