@@ -464,8 +464,12 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [actionTab, setActionTab] = useState<'NONE' | 'SIGN' | 'REFER' | 'REJECT'>('NONE');
   const [signComment, setSignComment] = useState('تایید و امضا شد');
   const [rejectReason, setRejectReason] = useState('');
+  // Only people who may work with official letters (write, send or sign them) can be given a letter.
+  const referralCandidates = (staffList || []).filter(
+    (u) => u.isActive !== false && (u.canSendOfficialLetters === true || u.canSignOfficialLetters === true || u.role === 'SUPER_ADMIN')
+  );
   const [referToUserId, setReferToUserId] = useState(
-    staffList?.find((u) => u.id !== currentUser?.id)?.id || staffList?.[0]?.id || ''
+    referralCandidates.find((u) => u.id !== currentUser?.id)?.id || referralCandidates[0]?.id || ''
   );
   const [referComment, setReferComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1400,7 +1404,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   onChange={(e) => setReferToUserId(e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-amber-300 rounded-xl text-xs text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-amber-500/20 font-bold"
                 >
-                  {staffList.map((u) => (
+                  {referralCandidates.length === 0 && <option value="">کسی با مجوز نامه‌نگاری پیدا نشد</option>}
+                  {referralCandidates.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.fullName} ({u.departmentName})
                     </option>
