@@ -166,7 +166,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 <th className="py-3 px-4">کارمند</th>
                 <th className="py-3 px-4">واحد سازمانی</th>
                 <th className="py-3 px-4">سطح دسترسی (نقش)</th>
-                <th className="py-3 px-4">حق امضا / مجوز نامه</th>
+                <th className="py-3 px-4">مجوزها</th>
                 <th className="py-3 px-4">رمز عبور ورود</th>
                 <th className="py-3 px-4">مصرف / سهمیه فضا</th>
                 <th className="py-3 px-4">وضعیت</th>
@@ -215,29 +215,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                     {/* Signature & Official Letters Permission Badges */}
                     <td className="py-3.5 px-4">
-                      <div className="flex flex-col gap-1 items-start">
-                        {user.canSignOfficialLetters ? (
-                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-lg text-[10px] font-black shadow-2xs">
-                            <Award className="w-3 h-3 text-amber-600" />
-                            <span>صاحب امضای مجاز (مدیرعامل)</span>
-                          </span>
-                        ) : null}
-
-                        {user.canSendOfficialLetters ? (
-                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-lg text-[10px] font-bold">
-                            <FileCheck className="w-3 h-3 text-emerald-600" />
-                            <span>مجوز ارسال نامه</span>
-                          </span>
-                        ) : null}
-
-                        {user.canUseTasks ? (
-                          <span className="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-lg text-[10px] font-bold">
-                            <ClipboardList className="w-3 h-3 text-sky-600" />
-                            <span>مدیریت وظایف</span>
-                          </span>
-                        ) : null}
-
-                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && !user.canUseTasks && (
+                      {/* Compact: one small icon per permission (the name shows on hover), all in a single row */}
+                      <div className="flex flex-wrap items-center gap-1 max-w-[132px]">
+                        {([
+                          [user.canSignOfficialLetters, Award, 'صاحب امضای مجاز (مدیرعامل)', 'bg-amber-100 text-amber-700 border-amber-300'],
+                          [user.canSendOfficialLetters, FileCheck, 'مجوز ارسال نامه', 'bg-emerald-100 text-emerald-700 border-emerald-300'],
+                          [user.canUseTasks, ClipboardList, 'مدیریت وظایف', 'bg-sky-100 text-sky-700 border-sky-300'],
+                          [user.canUseCrm, Users, 'مشتریان (CRM)', 'bg-violet-100 text-violet-700 border-violet-300'],
+                        ] as const).map(([on, Icon, label, cls]) =>
+                          on ? (
+                            <span key={label} title={label} className={`w-6 h-6 inline-flex items-center justify-center rounded-lg border ${cls}`}>
+                              <Icon className="w-3.5 h-3.5" />
+                            </span>
+                          ) : null
+                        )}
+                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && !user.canUseTasks && !user.canUseCrm && (
                           <span className="text-[10px] text-gray-400">عادی</span>
                         )}
                       </div>
