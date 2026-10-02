@@ -5,6 +5,7 @@
 package demo
 
 import (
+	"strconv"
 	"context"
 	_ "embed"
 	"encoding/base64"
@@ -236,6 +237,51 @@ func Reset(ctx context.Context) error {
 		return err
 	}
 	pub := func(id string) jsonx.M { u := userDoc(by[id]); return u }
+
+	// ---- long conversations so the chat can be scrolled (older than the short ones below) ----
+	peerLines := []string{
+		"سلام، صبح بخیر", "گزارش هفتگی را آماده کرده‌ام، بفرستم؟", "مشتری جدید از طریق سایت تماس گرفته", "پیش‌فاکتور را بررسی کردید؟",
+		"جلسهٔ امروز ساعت ۱۱ است", "ممنون، دریافت شد", "فایل قرارداد را در بخش فایل‌ها فرستادم", "تخفیف را تا ۵٪ می‌توانیم بدهیم؟",
+		"تماس بی‌پاسخ داشتید، پیگیری کنم؟", "موعد تحویل پروژه فردا است", "صورت‌حساب این ماه تأیید شد", "نامهٔ ابلاغیه را امضا کردید؟",
+		"برای هماهنگی با انبار منتظر پاسخ هستم", "جلسه را به ساعت ۱۴ منتقل کردم", "لیست مشتریان فعال را به‌روز کردم", "پرداخت مشتری انجام شد",
+		"پیشنهاد قیمت را اصلاح کردم", "مدارک ثبت‌نام را کامل کردم", "امروز مرخصی ساعتی دارم", "گزارش روزانه را ثبت کردم",
+		"تعمیرکار برای چاپگر آمد", "صدای خوبی داشت، ممنون از پیگیری", "خسته نباشید", "فردا صبح اول وقت خدمتتان هستم",
+		"سفارش جدید ثبت شد", "فاکتور فروش صادر شد", "پیگیری چک انجام شد", "نماینده شرکت تدبیر صنعت امروز آمد",
+		"برای ارسال محموله نیاز به آدرس دقیق است", "حتماً تا آخر وقت انجام می‌شود",
+	}
+	ceoLines := []string{
+		"سلام، صبح شما هم بخیر", "بله لطفاً بفرستید", "عالی، پیگیری کنید و نتیجه را بگویید", "هنوز ندیده‌ام، امروز بررسی می‌کنم",
+		"باشد، حاضر می‌شوم", "ممنون از پیگیری شما", "دریافت کردم، بررسی می‌کنم", "تا ۳٪ مشکلی نیست، بیشتر نه",
+		"بله حتماً تماس بگیرید", "پس اولویت با آن پروژه باشد", "خوب است، پرداخت را انجام دهید", "بعدازظهر امضا می‌کنم",
+		"با انبار تماس بگیرید و خبر بدهید", "اشکالی ندارد", "ممنون، لطفاً فایلش را بفرستید", "عالی، تبریک",
+		"با مدیر فروش هم مشورت کنید", "تأیید می‌کنم", "موافقم، ثبت کنید", "دستتان درد نکند",
+		"لطفاً صورت‌جلسه را هم بنویسید", "خسته نباشید", "پیگیری کنید لطفاً", "موفق باشید",
+	}
+	type convSpec struct {
+		peer string
+		n    int
+		off  int
+	}
+	for _, c := range []convSpec{{"demo-secretary", 74, 0}, {"demo-sales", 52, 7}, {"demo-staff", 44, 13}, {"demo-sales2", 36, 3}, {"demo-fin2", 32, 11}, {"demo-hr1", 28, 19}} {
+		for i := 0; i < c.n; i++ {
+			from, to, lines := c.peer, "demo-ceo", peerLines
+			if i%2 == 1 {
+				from, to, lines = "demo-ceo", c.peer, ceoLines
+			}
+			// spread over the last six days, oldest first, a few minutes between lines of the same burst
+			at := now.Add(-6*24*time.Hour + time.Duration(i)*(6*24*time.Hour-7*time.Hour)/time.Duration(c.n))
+			unread := i >= c.n-2 && from != "demo-ceo" && (c.peer == "demo-sales2" || c.peer == "demo-fin2")
+			var readAt any
+			if !unread {
+				readAt = at.Add(4 * time.Minute)
+			}
+			txt := lines[(i/2+c.off)%len(lines)]
+			if err := exec(ctx, `INSERT INTO chat_messages (id, sender_id, recipient_id, text, created_at, read_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+				"demo-g-"+c.peer+"-"+strconv.Itoa(i), from, to, txt, at, readAt); err != nil {
+				return err
+			}
+		}
+	}
 
 	// ---- chat (the demo account is the CEO): some read, some not yet seen ----
 	for i, m := range []struct {
