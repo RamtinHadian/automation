@@ -58,7 +58,10 @@ export interface BackupInfo {
 
 export interface BackupSettings {
   scheduleEnabled?: boolean;
-  scheduleMode?: 'daily' | 'interval';
+  scheduleMode?: 'daily' | 'interval' | 'window';
+  scheduleFrom?: string;
+  scheduleTo?: string;
+  scheduleEveryMinutes?: number;
   scheduleTime?: string;
   scheduleDays?: number[];
   scheduleEveryHours?: number;

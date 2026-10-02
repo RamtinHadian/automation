@@ -106,10 +106,31 @@ func backupPutSettings(w http.ResponseWriter, r *http.Request) {
 	doc["netPassword"] = pass
 
 	mode := jsonx.Str(body, "scheduleMode")
-	if mode != "daily" && mode != "interval" {
+	if mode != "daily" && mode != "interval" && mode != "window" {
 		mode = "daily"
 	}
 	doc["scheduleMode"] = mode
+	from, to := jsonx.Str(body, "scheduleFrom"), jsonx.Str(body, "scheduleTo")
+	if from == "" {
+		from = "08:00"
+	}
+	if to == "" {
+		to = "18:00"
+	}
+	if !reTime.MatchString(from) || !reTime.MatchString(to) || from > to {
+		bad("بازهٔ ساعتی نامعتبر است: «تا ساعت» باید بعد از «از ساعت» باشد.")
+		return
+	}
+	doc["scheduleFrom"], doc["scheduleTo"] = from, to
+	every := 60
+	if n, ok := anyInt(body["scheduleEveryMinutes"]); ok {
+		every = n
+	}
+	if every < 5 || every > 720 {
+		bad("فاصلهٔ پشتیبان‌گیری باید بین ۵ دقیقه تا ۱۲ ساعت باشد.")
+		return
+	}
+	doc["scheduleEveryMinutes"] = every
 	t := jsonx.Str(body, "scheduleTime")
 	if t == "" {
 		t = "02:00"

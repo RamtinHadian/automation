@@ -5,6 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import { formatJalaliFullTimestamp, toPersianDigits } from '../../lib/jalali';
 import { smbHelp } from '../../lib/smbHelp';
 import { BackupFolderPicker } from './BackupFolderPicker';
+import { BackupCalendar } from './BackupCalendar';
 
 const size = (n: number) => (n >= 1048576 ? `${toPersianDigits((n / 1048576).toFixed(1))} مگابایت` : `${toPersianDigits(Math.max(1, Math.round(n / 1024)))} کیلوبایت`);
 const when = (iso: string) => toPersianDigits(formatJalaliFullTimestamp(new Date(iso)));
@@ -174,8 +175,6 @@ export const BackupSettingsCard: React.FC = () => {
   const last = info.items.find((i) => i.kind !== 'prerestore');
   const err = info.status?.result === 'error';
   const set = (p: Partial<BackupSettings>) => setCfg({ ...cfg, ...p });
-  const daily = cfg.scheduleMode !== 'interval';
-  const days = cfg.scheduleDays?.length ? cfg.scheduleDays : [0, 1, 2, 3, 4, 5, 6];
 
   return (
     <div className="space-y-4 text-right">
@@ -251,47 +250,7 @@ export const BackupSettingsCard: React.FC = () => {
           <div className="flex items-center gap-2 font-black text-sm text-[#3A241F]"><CalendarClock className="w-4 h-4 text-[#6E1B1B]" />زمان‌بندی پشتیبان‌گیری خودکار</div>
           <Switch on={cfg.scheduleEnabled !== false} onChange={(v) => set({ scheduleEnabled: v })} label="پشتیبان‌گیری خودکار" />
         </div>
-        {cfg.scheduleEnabled !== false && (
-          <div className="space-y-3">
-            <div className="flex gap-2 flex-wrap">
-              {([['daily', 'در ساعت مشخص، روزهای انتخابی'], ['interval', 'هر چند ساعت یک‌بار']] as const).map(([m, t]) => (
-                <button key={m} type="button" onClick={() => set({ scheduleMode: m })} className={`px-3.5 py-2 rounded-xl text-[11px] font-black cursor-pointer border ${(m === 'daily') === daily ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-[#FAF5F1] text-[#3A241F] border-[#EBDBCE]'}`}>{t}</button>
-              ))}
-            </div>
-            {daily ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
-                <div>
-                  <label className={lab}>ساعت پشتیبان‌گیری</label>
-                  <div className="flex items-center gap-2" dir="ltr">
-                    <select value={(cfg.scheduleTime || '02:00').split(':')[0]} onChange={(e) => set({ scheduleTime: `${e.target.value}:${(cfg.scheduleTime || '02:00').split(':')[1]}` })} className={input} aria-label="ساعت">
-                      {Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0')).map((h) => <option key={h} value={h}>{toPersianDigits(h)}</option>)}
-                    </select>
-                    <span className="font-black text-[#3A241F]">:</span>
-                    <select value={(cfg.scheduleTime || '02:00').split(':')[1]} onChange={(e) => set({ scheduleTime: `${(cfg.scheduleTime || '02:00').split(':')[0]}:${e.target.value}` })} className={input} aria-label="دقیقه">
-                      {Array.from({ length: 12 }, (_, m) => String(m * 5).padStart(2, '0')).map((m) => <option key={m} value={m}>{toPersianDigits(m)}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={lab}>روزهای هفته</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {DAYS.map((d) => {
-                      const on = days.includes(d.n);
-                      return (
-                        <button key={d.n} type="button" onClick={() => set({ scheduleDays: on ? days.filter((x) => x !== d.n) : [...days, d.n] })} className={`px-3 py-2 rounded-xl text-[11px] font-black cursor-pointer border ${on ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-[#FAF5F1] text-[#8C6F66] border-[#EBDBCE]'}`}>{d.label}</button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="max-w-xs">
-                <label className={lab}>هر چند ساعت یک‌بار؟</label>
-                <input type="number" min={1} max={168} value={cfg.scheduleEveryHours ?? 6} onChange={(e) => set({ scheduleEveryHours: parseInt(e.target.value) || 6 })} className={input} />
-              </div>
-            )}
-          </div>
-        )}
+        {cfg.scheduleEnabled !== false && <BackupCalendar cfg={cfg} set={set} lastSize={last?.size} />}
       </div>
 
       {/* network folder */}

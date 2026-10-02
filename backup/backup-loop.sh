@@ -115,6 +115,20 @@ due() {
   [ "$(cfg scheduleEnabled)" = "false" ] && return 1
   mode=$(cfg scheduleMode)
   now=$(date +%s)
+  if [ "$mode" = window ]; then
+    days=$(q "SELECT COALESCE(array_to_string(ARRAY(SELECT jsonb_array_elements_text(data->'scheduleDays')),','),'') FROM settings WHERE key='backup'")
+    [ -n "$days" ] || days=0,1,2,3,4,5,6
+    case ",$days," in *",$(date +%w),"*) ;; *) return 1 ;; esac
+    from=$(cfg scheduleFrom); to=$(cfg scheduleTo); ev=$(cfg scheduleEveryMinutes)
+    [ -n "$from" ] || from=08:00; [ -n "$to" ] || to=18:00; [ -n "$ev" ] || ev=60
+    fm=$(( $(strip0 "$(echo "$from" | cut -d: -f1)") * 60 + $(strip0 "$(echo "$from" | cut -d: -f2)") ))
+    tm=$(( $(strip0 "$(echo "$to" | cut -d: -f1)") * 60 + $(strip0 "$(echo "$to" | cut -d: -f2)") ))
+    nm=$(( $(strip0 "$(date +%H)") * 60 + $(strip0 "$(date +%M)") ))
+    { [ $nm -ge $fm ] && [ $nm -le $tm ]; } || return 1
+    last=$(cat "$BACKUPS/.last-auto-epoch" 2>/dev/null || echo 0)
+    [ $((now - last)) -ge $((ev * 60)) ]
+    return $?
+  fi
   if [ "$mode" = interval ]; then
     n=$(cfg scheduleEveryHours); [ -n "$n" ] || n=6
     last=$(cat "$BACKUPS/.last-auto-epoch" 2>/dev/null || echo 0)
