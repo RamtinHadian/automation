@@ -415,7 +415,7 @@ export default function AdminPanel() {
                 <span className="bg-[#D34A32]/20 border border-[#D34A32]/50 text-[#F6D9CD] text-[10px] font-black px-2.5 py-0.5 rounded-full">
                   ADMIN CONSOLE
                 </span>
-                <VersionBadge className="text-[10px] font-bold text-[#EBDBCE]" />
+                <VersionBadge withDate className="text-[10px] font-bold text-[#EBDBCE]" />
               </div>
               <p className="text-[11px] text-[#EBDBCE] font-medium">
                 سامانه پایش نقل و انتقالات، امنیت دسترسی، سهمیه‌ها و پیکربندی سازمان

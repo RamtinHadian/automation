@@ -1107,7 +1107,7 @@ export default function UserPanel() {
                 <span className="flex items-center gap-1.5 font-bold text-emerald-600">
                   <CheckCircle2 className="w-3.5 h-3.5" /> اتصال شبکه سازمانی فعال و امن
                 </span>
-                <span className="flex items-center gap-2">رمزنگاری فعال • تقویم هجری شمسی • <VersionBadge /></span>
+                <span className="flex items-center gap-2">رمزنگاری فعال • تقویم هجری شمسی • <VersionBadge withDate /></span>
               </div>
             </section>
           </div>
