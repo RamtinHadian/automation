@@ -42,7 +42,7 @@ services:
       # the host's machine id ties the licence to this server (copying the program elsewhere does not carry it along)
       - ${HOST_MACHINE_ID_FILE:-/etc/machine-id}:/etc/host-machine-id:ro
     ports:
-      - "${PORT:-8080}:8080"
+      - "${BIND_ADDR:-0.0.0.0}:${PORT:-8080}:8080"
 
   # Full database copies: every night and on request from the admin console. Files land in ./backups on the server.
   backup:
