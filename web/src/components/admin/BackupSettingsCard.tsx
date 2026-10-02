@@ -21,6 +21,17 @@ const DAYS: { n: number; label: string }[] = [
   { n: 4, label: 'پنجشنبه' },
   { n: 5, label: 'جمعه' },
 ];
+/** Plain-Persian explanation of the usual network-folder errors (the raw text stays visible after it). */
+const smbHelp = (t?: string) => {
+  const x = t || '';
+  if (x.includes('PASSWORD_MUST_CHANGE') || x.includes('PASSWORD_EXPIRED')) return 'رمز این کاربر در ویندوز/NAS منقضی شده یا تیک «کاربر باید در ورود بعدی رمز را عوض کند» دارد. یک‌بار با همین کاربر وارد آن کامپیوتر شوید و رمز تازه بگذارید (یا تیک را بردارید و «رمز هرگز منقضی نشود» را بزنید)، سپس رمز تازه را اینجا بنویسید.';
+  if (x.includes('LOGON_FAILURE')) return 'نام کاربری یا رمز اشتباه است.';
+  if (x.includes('ACCOUNT_DISABLED') || x.includes('ACCOUNT_LOCKED')) return 'این کاربر در ویندوز/NAS غیرفعال یا قفل شده است.';
+  if (x.includes('BAD_NETWORK_NAME')) return 'نام پوشهٔ اشتراکی (Share) روی آن سرور پیدا نشد؛ نامش را دقیق بنویسید.';
+  if (x.includes('ACCESS_DENIED')) return 'این کاربر اجازهٔ نوشتن در این پوشه را ندارد؛ در تنظیمات اشتراک، دسترسی «تغییر / Write» به او بدهید.';
+  if (x.includes('UNREACHABLE') || x.includes('CONNECTION_REFUSED') || x.includes('Connection to') || x.includes('timed out')) return 'به آن سرور دسترسی نیست؛ آدرس را بررسی کنید و مطمئن شوید روشن است و فایروال پورت ۴۴۵ را نبسته است.';
+  return '';
+};
 const input = 'w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none';
 const lab = 'block text-[11px] font-black text-[#3A241F] mb-1.5';
 const card = 'bg-white rounded-3xl border border-[#EBDBCE] shadow-sm p-5 sm:p-6 space-y-4';
@@ -215,7 +226,7 @@ export const BackupSettingsCard: React.FC = () => {
           <div className="space-y-1.5">
             <div className="flex items-start gap-2 rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-[12px] text-emerald-900 font-bold"><CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />آخرین نسخه: {when(last.at)} ({size(last.size)}) — پس از ساخت، خوانا بودنش بررسی شده است.</div>
             {info.status?.net === 'ok' && <div className="text-[11px] font-bold text-emerald-800 px-1">✓ همین نسخه در پوشهٔ شبکه هم کپی شد.</div>}
-            {info.status?.net === 'error' && <div className="text-[11px] font-bold text-rose-700 px-1">✗ کپی در پوشهٔ شبکه انجام نشد: {info.status.netText}</div>}
+            {info.status?.net === 'error' && <div className="text-[11px] font-bold text-rose-700 px-1">✗ کپی در پوشهٔ شبکه انجام نشد. {smbHelp(info.status.netText) || info.status.netText}</div>}
           </div>
         ) : (
           <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-[12px] text-amber-900 font-bold">هنوز نسخه‌ای گرفته نشده؛ «تهیهٔ پشتیبان همین حالا» را بزنید.</div>
@@ -314,7 +325,7 @@ export const BackupSettingsCard: React.FC = () => {
             </button>
             {info.nettest && !testing && (
               <span className={`text-[11px] font-bold ${info.nettest.result === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>
-                {info.nettest.result === 'ok' ? '✓ اتصال برقرار است و پوشه در دسترس است.' : '✗ اتصال برقرار نشد: ' + info.nettest.text}
+                {info.nettest.result === 'ok' ? '✓ اتصال برقرار است و پوشه در دسترس است.' : '✗ اتصال برقرار نشد. ' + (smbHelp(info.nettest.text) || info.nettest.text)}
               </span>
             )}
           </div>
