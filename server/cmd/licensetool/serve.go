@@ -28,6 +28,12 @@ var portalHTML string
 //go:embed vazirmatn.woff2
 var portalFont []byte
 
+//go:embed logo.png
+var portalLogo []byte
+
+//go:embed favicon.png
+var portalIcon []byte
+
 // The vendor portal runs only on the vendor's own computer (127.0.0.1): it signs activation codes with the private key and keeps a
 // history of what was issued. Nothing here is ever deployed to a customer or to a public server.
 
@@ -115,6 +121,15 @@ func serve(args []string) {
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte(strings.Replace(portalHTML, "{{TOKEN}}", token, 1)))
 	})
+	pic := func(b []byte) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "image/png")
+			w.Header().Set("Cache-Control", "max-age=86400")
+			_, _ = w.Write(b)
+		}
+	}
+	mux.HandleFunc("/logo.png", pic(portalLogo))
+	mux.HandleFunc("/favicon.png", pic(portalIcon))
 	mux.HandleFunc("/vazirmatn.woff2", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "font/woff2")
 		w.Header().Set("Cache-Control", "max-age=86400")
