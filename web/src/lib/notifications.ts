@@ -3,7 +3,7 @@ import { NotifySettings } from '../types';
 import { DEFAULT_NOTIFY, inQuietHours, resolveRule } from './notifyConfig';
 import { isCustom, loadCustomSound, NO_SOUND, playCustom, playPreset } from './sounds';
 
-export type NotificationKind = 'file' | 'letter' | 'task' | 'alert' | 'call';
+export type NotificationKind = 'file' | 'letter' | 'task' | 'alert' | 'call' | 'chat';
 
 export interface AppNotification {
   id: string;
@@ -13,7 +13,7 @@ export interface AppNotification {
   label?: string;
   title: string;
   body: string;
-  ref: { type: 'file' | 'letter' | 'task' | 'report' | 'customer' | 'deal'; id: string } | null;
+  ref: { type: 'file' | 'letter' | 'task' | 'report' | 'customer' | 'deal' | 'chat'; id: string } | null;
   createdAt: string;
   read: boolean;
 }

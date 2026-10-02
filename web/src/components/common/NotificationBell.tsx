@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Phone, Bell, BellRing, CheckCheck, ClipboardList, FileText, Send, Stamp, Trash2, Volume2, VolumeX, AlertTriangle } from 'lucide-react';
+import { MessageCircle, Phone, Bell, BellRing, CheckCheck, ClipboardList, FileText, Send, Stamp, Trash2, Volume2, VolumeX, AlertTriangle } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { AppNotification, isAudioReady, osPermission, playChime, requestOsPermission } from '../../lib/notifications';
 import { toPersianDigits } from '../../lib/jalali';
@@ -12,6 +12,7 @@ const KIND_ICON = {
   task: ClipboardList,
   alert: AlertTriangle,
   call: Phone,
+  chat: MessageCircle,
 } as const;
 
 const KIND_COLOR = {
@@ -20,6 +21,7 @@ const KIND_COLOR = {
   task: 'bg-sky-100 text-sky-700',
   alert: 'bg-rose-100 text-rose-700',
   call: 'bg-emerald-100 text-emerald-700',
+  chat: 'bg-emerald-100 text-emerald-700',
 } as const;
 
 const timeAgo = (iso: string) => {

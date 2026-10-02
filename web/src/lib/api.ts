@@ -46,6 +46,24 @@ export interface VoipCall {
   duration: number;
 }
 
+export interface ChatMessage {
+  id: string;
+  from: string;
+  to: string;
+  text: string;
+  at: string;
+  read: boolean;
+}
+
+export interface ChatConversation {
+  userId: string;
+  lastText: string;
+  lastAt: string;
+  lastFromMe: boolean;
+  lastRead: boolean;
+  unread: number;
+}
+
 export interface BackupInfo {
   enabled: boolean;
   pending: boolean;
@@ -231,6 +249,10 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status, json.error || 'upload failed');
     return json as { name: string; at: string };
   },
+  chatConversations: () => request<{ conversations: ChatConversation[] }>('GET', '/api/chat/conversations'),
+  chatMessages: (withId: string) => request<{ messages: ChatMessage[] }>('GET', '/api/chat/messages?with=' + encodeURIComponent(withId)),
+  chatSend: (to: string, text: string) => request<ChatMessage>('POST', '/api/chat/messages', { to, text }),
+  chatRead: (withId: string) => request<{ ok: true }>('POST', '/api/chat/read', { with: withId }),
   backupNow: () => request<{ ok: true }>('POST', '/api/backups'),
   backupDownload: async (name: string) => {
     const res = await fetch('/api/backups/' + encodeURIComponent(name), { headers: { Authorization: `Bearer ${getToken() || ''}` } });

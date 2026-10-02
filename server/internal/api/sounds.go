@@ -145,7 +145,7 @@ func notifyTest(w http.ResponseWriter, r *http.Request) {
 	}
 	kind, label := jsonx.Str(body, "kind"), jsonx.Str(body, "label")
 	switch kind {
-	case "file", "letter", "task", "alert", "call":
+	case "file", "letter", "task", "alert", "call", "chat":
 	default:
 		kind = "task"
 	}

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Phone, AlertTriangle, ClipboardList, FileText, Send, Stamp, VolumeX, X } from 'lucide-react';
+import { MessageCircle, Phone, AlertTriangle, ClipboardList, FileText, Send, Stamp, VolumeX, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
 
@@ -11,6 +11,7 @@ const KIND = {
   letter: { icon: Stamp, bar: 'bg-amber-500', badge: 'bg-amber-100 text-amber-800', ring: 'border-amber-300', fallback: 'نامه' },
   task: { icon: ClipboardList, bar: 'bg-sky-500', badge: 'bg-sky-100 text-sky-800', ring: 'border-sky-300', fallback: 'وظیفه' },
   call: { icon: Phone, bar: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-800', ring: 'border-emerald-300', fallback: 'تماس' },
+  chat: { icon: MessageCircle, bar: 'bg-emerald-600', badge: 'bg-emerald-100 text-emerald-800', ring: 'border-emerald-300', fallback: 'پیام' },
   alert: { icon: AlertTriangle, bar: 'bg-rose-500', badge: 'bg-rose-100 text-rose-700', ring: 'border-rose-300', fallback: 'هشدار' },
 } as const;
 

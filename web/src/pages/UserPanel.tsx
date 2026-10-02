@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ManagementReports } from '../components/admin/ManagementReports';
+import { ChatView } from '../components/chat/ChatView';
 import { CrmView } from '../components/crm/CrmView';
 import { TasksView } from '../components/tasks/TasksView';
 import { LoginDashboard } from '../components/dashboard/LoginDashboard';
@@ -53,6 +54,7 @@ import {
   KeyRound,
   User as UserIcon,
   BarChart3,
+  MessageCircle,
 } from 'lucide-react';
 import { FileCategory, FileTransfer, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
@@ -101,6 +103,8 @@ export default function UserPanel() {
   } = useAppContext();
 
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
+  const [filesSection, setFilesSection] = useState<'files' | 'chat'>('files');
+  const [chatPeer, setChatPeer] = useState('');
   const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats'>('files');
 
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -186,8 +190,8 @@ export default function UserPanel() {
     if (t === 'customer' || t === 'deal') return 'crm';
     if (t === 'task' || t === 'report') return 'tasks';
     if (t === 'letter') return 'letters';
-    if (t === 'file') return 'files';
-    if (n.kind === 'file') return 'files';
+    if (t === 'file' || t === 'chat') return 'files';
+    if (n.kind === 'file' || n.kind === 'chat') return 'files';
     if (n.kind === 'letter') return 'letters';
     if (n.kind === 'task') return 'tasks';
     return null;
@@ -198,12 +202,13 @@ export default function UserPanel() {
     const m = menuOfNotification(n);
     if (m) unreadByMenu[m]++;
   }
+  const chatUnread = notifications.filter((n) => !n.read && n.kind === 'chat').length;
   const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm') =>
     (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) ? 0 : unreadByMenu[m];
   const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats') => {
     setMainMenuTab(m);
     setSearchQuery('');
-    const ids = notifications.filter((n) => !n.read && menuOfNotification(n) === m).map((n) => n.id);
+    const ids = notifications.filter((n) => !n.read && n.kind !== 'chat' && menuOfNotification(n) === m).map((n) => n.id);
     if (ids.length) markNotificationsRead(ids);
   };
 
@@ -226,6 +231,10 @@ export default function UserPanel() {
       }
       window.dispatchEvent(new Event('open-reports-tab'));
       setMainMenuTab('tasks');
+    } else if (type === 'chat') {
+      setChatPeer(n.ref?.id || '');
+      setFilesSection('chat');
+      setMainMenuTab('files');
     } else if (type === 'task' && canAccessTasksMenu) setMainMenuTab('tasks');
     else if (type === 'letter' && canAccessLettersMenu) setMainMenuTab('letters');
     else setMainMenuTab('files');
@@ -763,6 +772,19 @@ export default function UserPanel() {
         {/* VIEW 1: FILE TRANSFER MODE (ارسال فایل) */}
         {/* ========================================================================= */}
         {mainMenuTab === 'files' && (
+          <div className="flex-1 flex flex-col">
+            <div className="flex items-center gap-2 px-4 sm:px-6 pt-4 pb-1">
+              {([['files', 'فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle]] as const).map(([id, label, Icon]) => (
+                <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
+                  <Icon className="w-4 h-4" />
+                  {label}
+                  {id === 'chat' && chatUnread > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{toPersianDigits(chatUnread > 99 ? '99+' : chatUnread)}</span>}
+                </button>
+              ))}
+            </div>
+            {filesSection === 'chat' ? (
+              <ChatView initialPeer={chatPeer} onPeerChange={setChatPeer} />
+            ) : (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-[#EBDBCE]/60">
 
             {/* Send File Panel */}
@@ -1086,6 +1108,8 @@ export default function UserPanel() {
                 <span>رمزنگاری فعال • تقویم هجری شمسی</span>
               </div>
             </section>
+          </div>
+            )}
           </div>
         )}
 

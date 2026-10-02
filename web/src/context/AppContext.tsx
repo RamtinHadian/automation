@@ -17,6 +17,7 @@ import {
 } from '../lib/notifications';
 import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task, DailyReport, Customer, Deal, CrmActivity } from '../types';
 import { INITIAL_SETTINGS } from '../lib/mock-data';
+import { isChatOpenWith } from '../lib/chatState';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
 import { useServerSync, hasPendingWrites } from '../lib/useServerSync';
 import { putLocalFile, getLocalFile, deleteLocalFile, dataUrlToBlob } from '../lib/localFiles';
@@ -485,6 +486,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recentAnnounced.current = [...recentAnnounced.current.filter((r) => r.at > recent), { key: n.title + '|' + n.body, at: Date.now() }];
         setNotifications((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 100)));
         setSeen(n.createdAt);
+        if (n.kind === 'chat' && isChatOpenWith(n.ref?.id)) {
+          // the conversation is open: the message is read right now, so no pop-up or sound
+          setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+          void api.markNotificationsRead([n.id]).catch(() => {});
+          return;
+        }
         const rule = ruleFor(n);
         playForNotification(n);
         if (rule.enabled && rule.popup) setPopups((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 4)));

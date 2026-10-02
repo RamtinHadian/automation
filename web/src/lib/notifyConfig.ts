@@ -8,6 +8,7 @@ export const DEFAULT_KIND_SOUND: Record<NotificationKind, string> = {
   task: 'cheerful',
   alert: 'alert',
   call: 'ring',
+  chat: 'droplet',
 };
 
 export const KIND_LABEL: Record<NotificationKind, string> = {
@@ -16,9 +17,10 @@ export const KIND_LABEL: Record<NotificationKind, string> = {
   task: 'وظیفه و گزارش و مشتریان',
   alert: 'هشدار و حذف',
   call: 'تماس تلفنی',
+  chat: 'گفتگو (چت)',
 };
 
-export const KINDS: NotificationKind[] = ['file', 'letter', 'task', 'alert', 'call'];
+export const KINDS: NotificationKind[] = ['file', 'letter', 'task', 'alert', 'call', 'chat'];
 
 /** Every event the system announces, by the label shown on the notification. */
 export const EVENTS: { label: string; kind: NotificationKind; group: string }[] = [
@@ -49,6 +51,7 @@ export const EVENTS: { label: string; kind: NotificationKind; group: string }[] 
   { label: 'سابقهٔ جدید', kind: 'task', group: 'مشتریان' },
   { label: 'فروش موفق', kind: 'task', group: 'مشتریان' },
   { label: 'اتصال به ربات', kind: 'task', group: 'مشتریان' },
+  { label: 'پیام جدید', kind: 'chat', group: 'گفتگو' },
   { label: 'تماس ورودی', kind: 'call', group: 'تلفن' },
   { label: 'تماس بی‌پاسخ', kind: 'call', group: 'تلفن' },
 ];

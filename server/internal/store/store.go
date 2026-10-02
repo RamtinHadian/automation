@@ -54,6 +54,17 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
 	`CREATE INDEX IF NOT EXISTS audit_logs_created_idx ON audit_logs (created_at DESC)`,
+	// one-to-one chat: one tick = sent, two green ticks = read (read_at)
+	`CREATE TABLE IF NOT EXISTS chat_messages (
+	  id TEXT PRIMARY KEY,
+	  sender_id TEXT NOT NULL,
+	  recipient_id TEXT NOT NULL,
+	  text TEXT NOT NULL,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  read_at TIMESTAMPTZ
+	)`,
+	`CREATE INDEX IF NOT EXISTS chat_pair_idx ON chat_messages (sender_id, recipient_id, created_at)`,
+	`CREATE INDEX IF NOT EXISTS chat_unread_idx ON chat_messages (recipient_id) WHERE read_at IS NULL`,
 	// Changes of the CEO («مدیرعامل») are permanent: the database itself refuses to edit or delete those log lines.
 	`CREATE OR REPLACE FUNCTION protect_ceo_log() RETURNS trigger AS $$
 	BEGIN

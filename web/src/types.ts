@@ -153,7 +153,7 @@ export interface NotifySettings {
   volume?: number;
   popupSeconds?: number;
   quiet?: { enabled: boolean; from: string; to: string };
-  kinds?: Partial<Record<'file' | 'letter' | 'task' | 'alert' | 'call', NotifyRule>>;
+  kinds?: Partial<Record<'file' | 'letter' | 'task' | 'alert' | 'call' | 'chat', NotifyRule>>;
   events?: Record<string, NotifyRule>;
 }
 
