@@ -106,11 +106,21 @@ EOF
   systemctl daemon-reload
   systemctl enable --now hoormand-demo-tunnel >/dev/null 2>&1
   sleep 3
-  systemctl is-active --quiet hoormand-demo-tunnel && echo "Tunnel is running." || echo "Tunnel did not start: journalctl -u hoormand-demo-tunnel -n 30"
+  TUNNEL_UP=""
+  for _ in 1 2 3 4 5 6 7 8; do
+    if journalctl -u hoormand-demo-tunnel -n 40 --no-pager 2>/dev/null | grep -q "Registered tunnel connection"; then TUNNEL_UP=1; break; fi
+    sleep 3
+  done
+  if [ -n "$TUNNEL_UP" ]; then echo "Tunnel is connected to Cloudflare."; else
+    echo "The tunnel is NOT connected yet. Look at:  journalctl -u hoormand-demo-tunnel -n 30 --no-pager"
+    echo "(the token must be only the long text starting with eyJ..., not the whole 'cloudflared service install ...' command)"
+  fi
 fi
 
-if [ -n "${CF_TOKEN:-}" ]; then
+if [ -n "${TUNNEL_UP:-}" ]; then
   TUNNEL_NOTE="(the tunnel is already connected)"
+elif [ -n "${CF_TOKEN:-}" ]; then
+  TUNNEL_NOTE="The tunnel is not connected yet: see the message above (journalctl -u hoormand-demo-tunnel -n 30 --no-pager)."
 else
   TUNNEL_NOTE="Not connected yet: run the script again with  CF_TOKEN=<token>  in front of \"bash\"."
 fi
