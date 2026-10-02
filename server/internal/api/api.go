@@ -50,6 +50,11 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/stats-data", auth.Require(statsData))
 	mux.HandleFunc("GET /api/backups", auth.Require(listBackups))
 	mux.HandleFunc("POST /api/backups", auth.Require(requestBackup))
+	mux.HandleFunc("GET /api/backups/restore-status", restoreStatus)
+	mux.HandleFunc("GET /api/backups/settings", auth.Require(backupGetSettings))
+	mux.HandleFunc("PUT /api/backups/settings", auth.Require(backupPutSettings))
+	mux.HandleFunc("POST /api/backups/net-test", auth.Require(backupNetTest))
+	mux.HandleFunc("POST /api/backups/restore", auth.Require(backupRestore))
 	mux.HandleFunc("GET /api/backups/{name}", auth.Require(downloadBackup))
 
 	mux.HandleFunc("GET /api/notify/stream", auth.Require(notifyStream))
@@ -128,7 +133,7 @@ func Router(cfg config.Config) http.Handler {
 	}))
 	mux.Handle("/", frontend(cfg.StaticDir))
 	if cfg.Demo {
-		return demo.Guard(mux)
+		return restoreGuard(demo.Guard(mux))
 	}
-	return mux
+	return restoreGuard(mux)
 }

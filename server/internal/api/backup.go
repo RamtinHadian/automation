@@ -27,7 +27,7 @@ func backupDir() string {
 	return "/backups"
 }
 
-var backupName = regexp.MustCompile(`^hoormand-\d{8}-\d{6}-(auto|manual)\.dump$`)
+var backupName = regexp.MustCompile(`^hoormand-\d{8}-\d{6}-(auto|manual|prerestore)\.dump$`)
 
 type backupItem struct {
 	Name string `json:"name"`
@@ -66,6 +66,8 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 		kind := "auto"
 		if strings.HasSuffix(e.Name(), "-manual.dump") {
 			kind = "manual"
+		} else if strings.HasSuffix(e.Name(), "-prerestore.dump") {
+			kind = "prerestore"
 		}
 		items = append(items, backupItem{Name: e.Name(), Size: info.Size(), At: info.ModTime().UTC().Format(time.RFC3339), Kind: kind})
 	}
@@ -75,7 +77,16 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 		status = jsonRaw(raw)
 	}
 	_, pending := os.Stat(filepath.Join(dir, ".request"))
-	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": enabled, "items": items, "status": status, "pending": pending == nil})
+	var nettest, restore any
+	if raw, err := os.ReadFile(filepath.Join(dir, ".nettest.json")); err == nil {
+		nettest = jsonRaw(raw)
+	}
+	if raw, err := os.ReadFile(filepath.Join(dir, ".restore.json")); err == nil {
+		restore = jsonRaw(raw)
+	}
+	_, testPending := os.Stat(filepath.Join(dir, ".nettest-request"))
+	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": enabled, "items": items, "status": status, "pending": pending == nil,
+		"nettest": nettest, "nettestPending": testPending == nil, "restore": restore})
 }
 
 func requestBackup(w http.ResponseWriter, r *http.Request) {

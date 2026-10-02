@@ -44,7 +44,7 @@ services:
 
   # Full database copies: every night and on request from the admin console. Files land in ./backups on the server.
   backup:
-    image: postgres:16-alpine
+    build: ./backup
     restart: unless-stopped
     depends_on:
       db:
@@ -54,7 +54,6 @@ services:
       PGUSER: ${DB_USER:-automation}
       PGPASSWORD: ${DB_PASSWORD}
       PGDATABASE: ${DB_NAME:-automation}
-      BACKUP_HOUR: ${BACKUP_HOUR:-2}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-30}
       TZ: Asia/Tehran
     volumes:

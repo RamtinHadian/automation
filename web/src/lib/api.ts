@@ -49,8 +49,26 @@ export interface VoipCall {
 export interface BackupInfo {
   enabled: boolean;
   pending: boolean;
-  items: { name: string; size: number; at: string; kind: 'auto' | 'manual' }[];
-  status: { result: 'ok' | 'error'; at: string; text: string } | null;
+  items: { name: string; size: number; at: string; kind: 'auto' | 'manual' | 'prerestore' }[];
+  status: { result: 'ok' | 'error'; at: string; text: string; net?: 'ok' | 'error' | 'off'; netText?: string } | null;
+  nettest: { result: 'ok' | 'error'; at: string; text: string } | null;
+  nettestPending: boolean;
+  restore: { result: 'ok' | 'error'; at: string; text: string } | null;
+}
+
+export interface BackupSettings {
+  scheduleEnabled?: boolean;
+  scheduleMode?: 'daily' | 'interval';
+  scheduleTime?: string;
+  scheduleDays?: number[];
+  scheduleEveryHours?: number;
+  netEnabled?: boolean;
+  netHost?: string;
+  netShare?: string;
+  netFolder?: string;
+  netUser?: string;
+  netDomain?: string;
+  hasPassword?: boolean;
 }
 
 export interface VoipStatRow {
@@ -197,6 +215,11 @@ export const api = {
   smsSend: (b: { to: string; text: string; customerId?: string }) => request<{ ok: true }>('POST', '/api/sms/send', b),
   statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[] }>('GET', '/api/stats-data'),
   backups: () => request<BackupInfo>('GET', '/api/backups'),
+  backupSettings: () => request<BackupSettings>('GET', '/api/backups/settings'),
+  backupSaveSettings: (b: BackupSettings & { netPassword: string }) => request<BackupSettings>('PUT', '/api/backups/settings', b),
+  backupNetTest: () => request<{ ok: true }>('POST', '/api/backups/net-test'),
+  backupRestore: (file: string) => request<{ ok: true }>('POST', '/api/backups/restore', { file, confirm: true }),
+  restoreStatus: async () => (await (await fetch('/api/backups/restore-status')).json()) as { restoring: boolean; result?: 'ok' | 'error'; text?: string },
   backupNow: () => request<{ ok: true }>('POST', '/api/backups'),
   backupDownload: async (name: string) => {
     const res = await fetch('/api/backups/' + encodeURIComponent(name), { headers: { Authorization: `Bearer ${getToken() || ''}` } });

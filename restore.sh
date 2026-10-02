@@ -16,7 +16,8 @@ $COMPOSE exec -T db pg_dump -U "$DBU" -d "$DBN" -Fc > "${FILE%.dump}.before-rest
 echo "Stopping the app ..."
 $COMPOSE stop app
 echo "Restoring $FILE ..."
-$COMPOSE exec -T db pg_restore -U "$DBU" -d "$DBN" --clean --if-exists --no-owner --exit-on-error < "$FILE"
+# one transaction: wipe the old tables and load the backup; if anything fails the current data stays untouched
+$COMPOSE exec -T db sh -c "{ echo 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'; pg_restore --no-owner -f - ; } | psql -U $DBU -d $DBN -q -1 -v ON_ERROR_STOP=1" < "$FILE"
 echo "Starting the app ..."
 $COMPOSE start app
 echo "Done. The data is back to the state of that backup."
