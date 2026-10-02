@@ -45,6 +45,22 @@ async function drawInvoice(input: ProformaRenderInput): Promise<HTMLCanvasElemen
   css = css.replace(/url\((['"]?)[^)]*woff2\1\)/g, `url(${font})`);
   css = css.replace(/html,\s*body\s*\{/g, '.pf-root {').replace(/(^|\n)\s*body\s*\{/g, '\n.pf-root {').replace(/:root\s*\{/g, '.pf-root {');
 
+  // An SVG used as an image cannot load anything from outside: every picture (logo, stamp, signature) must travel inside it as data.
+  const pics = Array.from(doc.querySelectorAll('.page img'));
+  await Promise.all(
+    pics.map(async (el) => {
+      const src = el.getAttribute('src') || '';
+      if (!src || src.startsWith('data:')) return;
+      try {
+        const res = await fetch(new URL(src, location.href).href);
+        if (!res.ok) throw new Error(String(res.status));
+        el.setAttribute('src', await toDataUrl(await res.blob()));
+      } catch {
+        el.remove(); // a picture that cannot be read is left out instead of breaking the whole file
+      }
+    })
+  );
+
   const page = new XMLSerializer().serializeToString(doc.querySelector('.page')!);
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${PAGE_W}" height="${height}">` +
