@@ -82,6 +82,7 @@ func customerByPhone(ctx context.Context, number string) (id, name string, ok bo
 // WatchCalls turns "a phone is ringing" events into a pop-up for the owner of that extension.
 func WatchCalls(c *Client) {
 	c.OnEvent = func(ev Event) {
+		journalEvent(ev)
 		if ev["Event"] != "DialBegin" {
 			return
 		}

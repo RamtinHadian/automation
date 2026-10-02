@@ -31,6 +31,29 @@ export const setUnauthorizedHandler = (fn: () => void) => {
   onUnauthorized = fn;
 };
 
+export interface VoipCall {
+  id: string;
+  startedAt: string;
+  direction: 'in' | 'out' | 'internal';
+  status: 'answered' | 'missed' | 'busy' | 'failed';
+  ext: string;
+  userId: string;
+  userName: string;
+  number: string;
+  name: string;
+  customerId: string;
+  customerName: string;
+  duration: number;
+}
+
+export interface VoipStatRow {
+  key: string;
+  total: number;
+  answered: number;
+  missed: number;
+  seconds: number;
+}
+
 export interface DemoInfo {
   demo: boolean;
   resetHours?: number;
@@ -84,6 +107,14 @@ export const api = {
   pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('POST', '/api/push/unsubscribe', { endpoint }),
   voipStatus: () => request<{ enabled: boolean; connected: boolean; extension: string }>('GET', '/api/voip/status'),
   demoInfo: () => request<DemoInfo>('GET', '/api/demo/info'),
+  voipCalls: (o: { scope?: 'all' | 'mine'; customer?: string; limit?: number } = {}) => {
+    const p = new URLSearchParams();
+    if (o.scope === 'all') p.set('scope', 'all');
+    if (o.customer) p.set('customer', o.customer);
+    if (o.limit) p.set('limit', String(o.limit));
+    return request<{ calls: VoipCall[] }>('GET', '/api/voip/calls' + (p.toString() ? '?' + p : ''));
+  },
+  voipStats: () => request<{ byDay: VoipStatRow[]; byExt: VoipStatRow[] }>('GET', '/api/voip/stats'),
   voipLog: () => request<{ enabled: boolean; connected: boolean; eventCount: number; lastEvent: string | null; entries: { at: string; text: string }[] }>('GET', '/api/voip/log'),
   voipTestPopup: () => request<{ ok: true }>('POST', '/api/voip/test-popup'),
   voipCall: (to: string) => request<{ ok: true }>('POST', '/api/voip/call', { to }),

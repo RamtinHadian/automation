@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { PhoneCall, RefreshCw } from 'lucide-react';
-import { api } from '../../lib/api';
+import { api, VoipStatRow, VoipCall } from '../../lib/api';
+import { CallList } from '../common/CallLog';
+import { formatTaskDate } from '../../lib/taskDates';
 import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 
@@ -19,6 +21,8 @@ export const VoipStatusCard: React.FC = () => {
   const { showToast } = useAppContext();
   const [log, setLog] = useState<VoipLog | null>(null);
   const [error, setError] = useState('');
+  const [stats, setStats] = useState<{ byDay: VoipStatRow[]; byExt: VoipStatRow[] } | null>(null);
+  const [recent, setRecent] = useState<VoipCall[]>([]);
 
   const load = useCallback(() => {
     api
@@ -32,8 +36,17 @@ export const VoipStatusCard: React.FC = () => {
 
   useEffect(() => {
     load();
+    const loadCalls = () => {
+      api.voipStats().then(setStats).catch(() => {});
+      api.voipCalls({ scope: 'all', limit: 40 }).then((r) => setRecent(r.calls)).catch(() => {});
+    };
+    loadCalls();
+    const t2 = setInterval(loadCalls, 20000);
     const t = setInterval(load, 5000);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      clearInterval(t2);
+    };
   }, [load]);
 
   const state = !log ? null : !log.enabled ? 'off' : log.connected ? 'on' : 'down';
@@ -91,6 +104,54 @@ export const VoipStatusCard: React.FC = () => {
               <b>{state === 'on' ? 'منتظر تماس' : state === 'down' ? 'در حال تلاش برای اتصال' : 'اتصال تنظیم نشده'}</b>
             </div>
           </div>
+
+          {stats && stats.byDay.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-[#EBDBCE] overflow-hidden">
+                <div className="px-3 py-2 bg-[#FAF5F1] font-black">تماس‌های ۷ روز اخیر</div>
+                <table className="w-full text-center">
+                  <thead><tr className="text-[10px] text-[#8C6F66]"><th className="py-1">روز</th><th>کل</th><th>پاسخ</th><th>بی‌پاسخ</th><th>مدت</th></tr></thead>
+                  <tbody>
+                    {stats.byDay.map((r) => (
+                      <tr key={r.key} className="border-t border-[#EBDBCE]/60">
+                        <td className="py-1.5 font-bold">{formatTaskDate(r.key)}</td>
+                        <td>{toPersianDigits(r.total)}</td>
+                        <td className="text-emerald-700 font-bold">{toPersianDigits(r.answered)}</td>
+                        <td className="text-rose-600 font-bold">{toPersianDigits(r.missed)}</td>
+                        <td>{toPersianDigits(Math.round(r.seconds / 60))} د</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="rounded-2xl border border-[#EBDBCE] overflow-hidden">
+                <div className="px-3 py-2 bg-[#FAF5F1] font-black">به تفکیک شمارهٔ داخلی</div>
+                <table className="w-full text-center">
+                  <thead><tr className="text-[10px] text-[#8C6F66]"><th className="py-1">داخلی</th><th>کل</th><th>پاسخ</th><th>بی‌پاسخ</th><th>مدت</th></tr></thead>
+                  <tbody>
+                    {stats.byExt.map((r) => (
+                      <tr key={r.key} className="border-t border-[#EBDBCE]/60">
+                        <td className="py-1.5 font-bold">{toPersianDigits(r.key)}</td>
+                        <td>{toPersianDigits(r.total)}</td>
+                        <td className="text-emerald-700 font-bold">{toPersianDigits(r.answered)}</td>
+                        <td className="text-rose-600 font-bold">{toPersianDigits(r.missed)}</td>
+                        <td>{toPersianDigits(Math.round(r.seconds / 60))} د</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {recent.length > 0 && (
+            <div className="rounded-2xl border border-[#EBDBCE] overflow-hidden">
+              <div className="px-3 py-2 bg-[#FAF5F1] font-black">آخرین تماس‌های شرکت</div>
+              <div className="max-h-72 overflow-y-auto">
+                <CallList calls={recent} showUser />
+              </div>
+            </div>
+          )}
 
           <p className="text-[#8C6F66] leading-6">
             با یک تماس واقعی به داخلی یکی از همکاران، باید چند خط در دفترچهٔ زیر بیاید. اگر «رویدادها» بالا نمی‌روند، صندوق تلفن رویدادی نمی‌فرستد. اگر «داخلی … زنگ می‌خورد اما کاربری ندارد» دیدید، شمارهٔ داخلی آن همکار را در فرم کاربر وارد کنید.

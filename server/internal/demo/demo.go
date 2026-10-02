@@ -202,7 +202,7 @@ func exec(ctx context.Context, sql string, args ...any) error {
 // Reset empties every table and fills it with the demo data.
 func Reset(ctx context.Context) error {
 	if err := exec(ctx, `TRUNCATE users, departments, transfers, transfer_hidden, audit_logs, tasks, notifications, push_subscriptions,
-		daily_reports, crm_customers, crm_deals, crm_activities`); err != nil {
+		daily_reports, crm_customers, crm_deals, crm_activities, voip_calls`); err != nil {
 		return err
 	}
 	if err := exec(ctx, `DELETE FROM settings WHERE key = 'main'`); err != nil { // other rows hold the push keys

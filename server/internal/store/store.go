@@ -110,6 +110,24 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
 	`CREATE INDEX IF NOT EXISTS crm_activities_customer_idx ON crm_activities (customer_id, created_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS voip_calls (
+	  id TEXT PRIMARY KEY,
+	  started_at TIMESTAMPTZ NOT NULL,
+	  answered_at TIMESTAMPTZ,
+	  ended_at TIMESTAMPTZ,
+	  direction TEXT NOT NULL,
+	  status TEXT NOT NULL,
+	  ext TEXT NOT NULL DEFAULT '',
+	  exts TEXT[] NOT NULL DEFAULT '{}',
+	  user_id TEXT NOT NULL DEFAULT '',
+	  other_num TEXT NOT NULL DEFAULT '',
+	  other_name TEXT NOT NULL DEFAULT '',
+	  customer_id TEXT NOT NULL DEFAULT '',
+	  customer_name TEXT NOT NULL DEFAULT '',
+	  duration_sec INT NOT NULL DEFAULT 0
+	)`,
+	`CREATE INDEX IF NOT EXISTS voip_calls_started_idx ON voip_calls (started_at DESC)`,
+	`CREATE INDEX IF NOT EXISTS voip_calls_exts_idx ON voip_calls USING GIN (exts)`,
 	`CREATE TABLE IF NOT EXISTS settings (
 	  key TEXT PRIMARY KEY,
 	  data JSONB NOT NULL

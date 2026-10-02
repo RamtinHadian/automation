@@ -276,5 +276,42 @@ func addBulk(ctx context.Context, now time.Time, hash string, by map[string]acco
 			return err
 		}
 	}
+	// ---- phone call journal: 24 calls over the last three days ----
+	type cl struct {
+		dir, status, ext, user, num, name, cust, custName string
+		mins, secs                                        int
+	}
+	calls := []cl{
+		{"in", "answered", "503", "demo-sales", "09121234567", "", "demo-c1", "شرکت آرمان صنعت - حسین کاظمی", 4, 12},
+		{"in", "missed", "503", "demo-sales", "09351112233", "", "demo-c2", "گروه بازرگانی ستاره - نرگس موسوی", 0, 0},
+		{"out", "answered", "503", "demo-sales", "09124445566", "", "demo-c3", "داروسازی سلامت - رضا حیدری", 6, 40},
+		{"in", "answered", "505", "demo-sales2", "09123000000", "", "", "", 2, 5},
+		{"out", "answered", "506", "demo-sales3", "09123007919", "", "", "", 3, 30},
+		{"in", "missed", "501", "demo-ceo", "09120001111", "", "", "", 0, 0},
+		{"internal", "answered", "502", "demo-secretary", "501", "رامتین هادیان", "", "", 1, 20},
+		{"in", "answered", "504", "demo-staff", "09127776655", "", "", "", 5, 2},
+		{"out", "busy", "509", "demo-fin2", "09125554433", "", "", "", 0, 0},
+		{"in", "answered", "513", "demo-hr1", "09129998877", "", "", "", 7, 45},
+		{"internal", "answered", "516", "demo-it1", "517", "ندا شریفی", "", "", 2, 10},
+		{"in", "missed", "505", "demo-sales2", "09351234000", "", "", "", 0, 0},
+	}
+	for i, c := range calls {
+		for rep := 0; rep < 2; rep++ {
+			start := now.Add(-time.Duration(2+i*3+rep*29) * time.Hour)
+			dur := c.mins*60 + c.secs
+			if rep == 1 && dur > 0 {
+				dur += 25
+			}
+			var answered any
+			if c.status == "answered" {
+				answered = start.Add(8 * time.Second)
+			}
+			if err := exec(ctx, `INSERT INTO voip_calls (id, started_at, answered_at, ended_at, direction, status, ext, exts, user_id, other_num, other_name, customer_id, customer_name, duration_sec)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+				fmt.Sprintf("demo-call-%d-%d", i, rep), start, answered, start.Add(time.Duration(dur+10)*time.Second), c.dir, c.status, c.ext, []string{c.ext}, c.user, c.num, c.name, c.cust, c.custName, dur); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }

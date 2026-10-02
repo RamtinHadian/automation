@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Phone, PhoneCall, Search } from 'lucide-react';
+import { History, Phone, PhoneCall, Search } from 'lucide-react';
+import { CallLogModal } from './CallLog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
@@ -19,6 +20,7 @@ export const CallMenu: React.FC = () => {
   const [q, setQ] = useState('');
   const [number, setNumber] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
@@ -70,7 +72,9 @@ export const CallMenu: React.FC = () => {
     [staffList, currentUser.id, q]
   );
 
-  if (!status?.enabled || !status.extension) return null;
+  // Without a connection to the phone system (for example the demo) only the call history is offered.
+  if (!status?.extension) return null;
+  const dialing = status.enabled;
 
   const call = async (to: string, label: string) => {
     setBusy(to);
@@ -89,8 +93,8 @@ export const CallMenu: React.FC = () => {
     <div className="relative" ref={box}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        title="تماس تلفنی"
+        onClick={() => (dialing ? setOpen((o) => !o) : setLogOpen(true))}
+        title={dialing ? 'تماس تلفنی' : 'سابقهٔ تماس‌ها'}
         className="flex items-center justify-center w-9 h-9 rounded-2xl bg-white border border-[#EBDBCE] text-[#3A241F] hover:bg-emerald-50 transition-all cursor-pointer"
       >
         <Phone className="w-4 h-4 text-emerald-700" />
@@ -112,6 +116,18 @@ export const CallMenu: React.FC = () => {
                 {!status.connected && <span className="text-rose-600 font-bold"> اتصال به تلفن سازمان فعلاً برقرار نیست.</span>}
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setLogOpen(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-b border-[#EBDBCE]/70 cursor-pointer"
+            >
+              <History className="w-4 h-4" />
+              سابقهٔ تماس‌ها و تماس‌های بی‌پاسخ
+            </button>
 
             <div className="p-3 border-b border-[#EBDBCE]/70 space-y-2">
               <div className="relative">
@@ -169,6 +185,7 @@ export const CallMenu: React.FC = () => {
           </div>,
           document.body
         )}
+      {logOpen && <CallLogModal onClose={() => setLogOpen(false)} isAdmin={currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN'} />}
     </div>
   );
 };

@@ -28,6 +28,8 @@ import { formatTaskDate, isOverdue, todayIso } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerStatus, Deal, DealStage, User } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
+import { CallList } from '../common/CallLog';
+import type { VoipCall } from '../../lib/api';
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -935,6 +937,17 @@ const CustomerDetail: React.FC<{
   const [owner, setOwner] = useState(me.id);
   const isAdmin = me.role === 'SUPER_ADMIN' || me.role === 'DEPT_ADMIN';
   const st = STATUS[c.status];
+  const [calls, setCalls] = useState<VoipCall[]>([]);
+  useEffect(() => {
+    let alive = true;
+    api
+      .voipCalls({ customer: c.id, limit: 30 })
+      .then((r) => alive && setCalls(r.calls))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [c.id]);
 
   const add = () => {
     const t = text.trim();
@@ -1042,6 +1055,14 @@ const CustomerDetail: React.FC<{
 
       {/* timeline */}
       <section className="space-y-2.5">
+        {calls.length > 0 && (
+          <div className="rounded-2xl border border-[#EBDBCE] overflow-hidden">
+            <div className="px-4 py-2 bg-[#FAF5F1] font-black text-xs text-[#3A241F]">تماس‌های تلفنی با این مشتری</div>
+            <div className="max-h-56 overflow-y-auto">
+              <CallList calls={calls} showUser onCall={canCall ? (n) => onCall(n, c.name) : undefined} />
+            </div>
+          </div>
+        )}
         <h4 className="font-black text-xs text-[#3A241F]">سابقهٔ تعامل</h4>
         <div className="bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-3 space-y-2">
           <div className="flex flex-wrap gap-1.5">
