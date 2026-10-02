@@ -2,6 +2,7 @@
 package api
 
 import (
+	"automation/server/internal/version"
 	"encoding/json"
 	"net/http"
 
@@ -49,6 +50,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/state", auth.Require(state))
 	mux.HandleFunc("GET /api/stats-data", auth.Require(statsData))
 	mux.HandleFunc("GET /api/license/status", licenseStatus)
+	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, _ *http.Request) { httpx.JSON(w, http.StatusOK, version.Current()) })
 	mux.HandleFunc("POST /api/license/activate", licenseActivate)
 	mux.HandleFunc("POST /api/license/renew", auth.Require(licenseRenew))
 	mux.HandleFunc("GET /api/chat/conversations", auth.Require(chatConversations))

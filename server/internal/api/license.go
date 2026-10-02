@@ -49,7 +49,7 @@ func activate(w http.ResponseWriter, r *http.Request) {
 func licenseGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := r.URL.Path
-		if strings.HasPrefix(p, "/api/") && !strings.HasPrefix(p, "/api/license/") && p != "/api/health" {
+		if strings.HasPrefix(p, "/api/") && !strings.HasPrefix(p, "/api/license/") && p != "/api/health" && p != "/api/version" {
 			s := license.Check()
 			switch {
 			case !s.Licensed:

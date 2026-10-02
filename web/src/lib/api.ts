@@ -265,6 +265,7 @@ export const api = {
   chatMessages: (withId: string) => request<{ messages: ChatMessage[] }>('GET', '/api/chat/messages?with=' + encodeURIComponent(withId)),
   chatSend: (to: string, text: string) => request<ChatMessage>('POST', '/api/chat/messages', { to, text }),
   chatRead: (withId: string) => request<{ ok: true }>('POST', '/api/chat/read', { with: withId }),
+  version: async () => (await (await fetch('/api/version', { cache: 'no-store' })).json()) as { version: string; date?: string },
   licenseStatus: async () => (await (await fetch('/api/license/status')).json()) as LicenseStatus,
   licenseActivate: async (code: string) => {
     const res = await fetch('/api/license/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });

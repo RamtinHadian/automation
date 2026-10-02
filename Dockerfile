@@ -19,6 +19,8 @@ FROM scratch
 COPY --from=api /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=api /out/server /server
 COPY --from=web /web/dist /app/public
+COPY VERSION /app/VERSION
+COPY VERSION /app/VERSION
 ENV STATIC_DIR=/app/public PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["/server"]

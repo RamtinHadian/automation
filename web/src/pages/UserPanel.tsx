@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ManagementReports } from '../components/admin/ManagementReports';
+import { VersionBadge } from '../components/common/VersionBadge';
 import { ChatView } from '../components/chat/ChatView';
 import { CrmView } from '../components/crm/CrmView';
 import { TasksView } from '../components/tasks/TasksView';
@@ -560,6 +561,7 @@ export default function UserPanel() {
                 <h1 className="leading-none">
                   <img src="/images/brand-name.png" alt="هورمند" className="h-6 sm:h-8 w-auto" draggable={false} />
                 </h1>
+                <VersionBadge className="text-[10px] font-bold text-[#8C6F66]" />
                 {canSignOfficial && (
                   <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 shadow-2xs shrink-0">
                     <Award className="w-3 h-3 text-amber-700" />
@@ -1105,7 +1107,7 @@ export default function UserPanel() {
                 <span className="flex items-center gap-1.5 font-bold text-emerald-600">
                   <CheckCircle2 className="w-3.5 h-3.5" /> اتصال شبکه سازمانی فعال و امن
                 </span>
-                <span>رمزنگاری فعال • تقویم هجری شمسی</span>
+                <span className="flex items-center gap-2">رمزنگاری فعال • تقویم هجری شمسی • <VersionBadge /></span>
               </div>
             </section>
           </div>
