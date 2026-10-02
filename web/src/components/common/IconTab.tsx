@@ -11,7 +11,9 @@ export const IconTab: React.FC<{
   active: boolean;
   onClick: () => void;
   count?: number | string;
-}> = ({ icon, label, active, onClick, count }) => (
+  /** unread notifications: a red badge */
+  alert?: boolean;
+}> = ({ icon, label, active, onClick, count, alert }) => (
   <div className="relative w-10 h-10 shrink-0 group hover:z-30 focus-within:z-30">
     <button
       type="button"
@@ -42,7 +44,7 @@ export const IconTab: React.FC<{
     </span>
 
     {count !== undefined && count !== '' && (
-      <span className={`pointer-events-none absolute -top-1.5 -left-1.5 min-w-[17px] h-[17px] px-1 rounded-full text-[9px] font-black flex items-center justify-center border-2 border-[#FAF5F1] z-10 ${active ? 'bg-[#D34A32] text-white' : 'bg-[#EBDBCE] text-[#3A241F]'}`}>
+      <span className={`pointer-events-none absolute -top-1.5 -left-1.5 min-w-[17px] h-[17px] px-1 rounded-full text-[9px] font-black flex items-center justify-center border-2 border-[#FAF5F1] z-10 ${alert ? 'bg-rose-600 text-white shadow-sm' : active ? 'bg-[#D34A32] text-white' : 'bg-[#EBDBCE] text-[#3A241F]'}`}>
         {count}
       </span>
     )}

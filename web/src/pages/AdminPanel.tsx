@@ -69,6 +69,8 @@ export default function AdminPanel() {
     handleDeleteDepartment,
     loginWithCredentials,
     logout,
+    notifications,
+    markNotificationsRead,
   } = useAppContext();
 
   // Authentication State for Admin Portal (Persisted to survive page refreshes)
@@ -117,6 +119,25 @@ export default function AdminPanel() {
 
   const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'letters' | 'transfers' | 'audit' | 'analytics' | 'stats' | 'settings'>('users');
   const [transfersSearch, setTransfersSearch] = useState('');
+
+  // Unread notifications per console menu. Opening a menu reads its notifications, so no badge stays on it.
+  type ConsoleTab = typeof activeTab;
+  const tabOfNotification = (n: { kind: string; ref: { type: string } | null }): ConsoleTab | null => {
+    const t = n.ref?.type;
+    if (t === 'file' || t === 'letter' || n.kind === 'file' || n.kind === 'letter') return 'transfers';
+    if (n.kind === 'alert' && !t) return 'audit';
+    return null;
+  };
+  const unreadOf = (tab: ConsoleTab) => notifications.filter((n) => !n.read && tabOfNotification(n) === tab).length;
+  useEffect(() => {
+    const ids = notifications.filter((n) => !n.read && tabOfNotification(n) === activeTab).map((n) => n.id);
+    if (ids.length) markNotificationsRead(ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, notifications]);
+  const badge = (tab: ConsoleTab) => {
+    const n = unreadOf(tab);
+    return n > 0 && activeTab !== tab ? toPersianDigits(n > 99 ? '99+' : n) : undefined;
+  };
 
   // Generate random 4-digit/character Captcha
   const generateCaptcha = () => {
@@ -434,10 +455,10 @@ export default function AdminPanel() {
         {/* Admin Navigation Sub-Tabs */}
         <div className="bg-[#FAF5F1] px-6 sm:px-8 py-3 border-b border-[#EBDBCE] flex flex-wrap items-center justify-between gap-3">
           <nav className="flex items-center gap-2 flex-wrap">
-            <IconTab active={activeTab === 'users'} onClick={() => setActiveTab('users')} label="کاربران و سهمیه‌ها" count={toPersianDigits(staffList.length)} icon={<Users className="w-[18px] h-[18px]" />} />
-            <IconTab active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} label="واحدهای سازمانی" count={toPersianDigits(departments.length)} icon={<Shield className="w-[18px] h-[18px]" />} />
-            <IconTab active={activeTab === 'transfers'} onClick={() => setActiveTab('transfers')} label="مانیتورینگ انتقالات" count={toPersianDigits(transfers.length)} icon={<Activity className="w-[18px] h-[18px]" />} />
-            <IconTab active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} label="گزارشات ممیزی" count={toPersianDigits(auditLogs.length)} icon={<FileSearch className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'users'} onClick={() => setActiveTab('users')} label="کاربران و سهمیه‌ها" count={badge('users')} alert icon={<Users className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} label="واحدهای سازمانی" count={badge('departments')} alert icon={<Shield className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'transfers'} onClick={() => setActiveTab('transfers')} label="مانیتورینگ انتقالات" count={badge('transfers')} alert icon={<Activity className="w-[18px] h-[18px]" />} />
+            <IconTab active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} label="گزارشات ممیزی" count={badge('audit')} alert icon={<FileSearch className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} label="گزارشات آماری مدیریتی" icon={<BarChart3 className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} label="آمار و مصرف حافظه" icon={<PieChartIcon className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} label="تنظیمات سیستم" icon={<Settings className="w-[18px] h-[18px]" />} />
