@@ -15,6 +15,7 @@ import (
 	"automation/server/internal/httpx"
 	"automation/server/internal/jalali"
 	"automation/server/internal/jsonx"
+	"automation/server/internal/license"
 	"automation/server/internal/notify"
 	"automation/server/internal/store"
 )
@@ -129,6 +130,12 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 
 	if password == "" {
 		httpx.Error(w, http.StatusBadRequest, "password required for new user")
+		return
+	}
+	var haveUsers int
+	_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM users`).Scan(&haveUsers)
+	if !license.UsersAllowed(haveUsers) {
+		httpx.Error(w, http.StatusForbidden, "تعداد کاربران به سقف مجاز مجوز شما رسیده است؛ برای افزایش آن با فروشنده تماس بگیرید.")
 		return
 	}
 	b, err := bcrypt.GenerateFromPassword([]byte(password), 10)

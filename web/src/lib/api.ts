@@ -46,6 +46,18 @@ export interface VoipCall {
   duration: number;
 }
 
+export interface LicenseStatus {
+  mode: 'active' | 'grace' | 'expired' | 'none';
+  licensed: boolean;
+  readOnly: boolean;
+  customer?: string;
+  serial?: string;
+  expires?: string;
+  daysLeft: number;
+  maxUsers: number;
+  installId: string;
+}
+
 export interface ChatMessage {
   id: string;
   from: string;
@@ -253,6 +265,14 @@ export const api = {
   chatMessages: (withId: string) => request<{ messages: ChatMessage[] }>('GET', '/api/chat/messages?with=' + encodeURIComponent(withId)),
   chatSend: (to: string, text: string) => request<ChatMessage>('POST', '/api/chat/messages', { to, text }),
   chatRead: (withId: string) => request<{ ok: true }>('POST', '/api/chat/read', { with: withId }),
+  licenseStatus: async () => (await (await fetch('/api/license/status')).json()) as LicenseStatus,
+  licenseActivate: async (code: string) => {
+    const res = await fetch('/api/license/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, json.error || 'activation failed');
+    return json as LicenseStatus;
+  },
+  licenseRenew: (code: string) => request<LicenseStatus>('POST', '/api/license/renew', { code }),
   backupNow: () => request<{ ok: true }>('POST', '/api/backups'),
   backupDownload: async (name: string) => {
     const res = await fetch('/api/backups/' + encodeURIComponent(name), { headers: { Authorization: `Bearer ${getToken() || ''}` } });

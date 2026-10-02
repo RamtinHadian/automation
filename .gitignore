@@ -7,3 +7,5 @@ server/uploads
 demo.env
 backups/
 backups-demo/
+lic.env
+backups-lic/

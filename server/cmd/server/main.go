@@ -11,6 +11,7 @@ import (
 	"automation/server/internal/auth"
 	"automation/server/internal/config"
 	"automation/server/internal/crm"
+	"automation/server/internal/license"
 	"automation/server/internal/push"
 	"automation/server/internal/store"
 	"automation/server/internal/demo"
@@ -42,6 +43,10 @@ func main() {
 	if err := store.Init(ctx, cfg); err != nil {
 		log.Fatalf("database: %v", err)
 	}
+	if err := license.Init(ctx, cfg.Demo); err != nil {
+		log.Fatalf("licence: %v", err)
+	}
+	go license.Run(ctx)
 	if err := push.Init(ctx, cfg); err != nil {
 		log.Fatalf("push keys: %v", err)
 	}
