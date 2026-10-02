@@ -2,7 +2,9 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -10,6 +12,7 @@ import (
 
 	"automation/server/internal/auth"
 	"automation/server/internal/httpx"
+	"automation/server/internal/jalali"
 	"automation/server/internal/jsonx"
 	"automation/server/internal/notify"
 	"automation/server/internal/store"
@@ -85,6 +88,7 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 			internalError(w)
 			return
 		}
+		ceoChanged(r, me, id, jsonx.Str(merged, "fullName"), jsonx.Bool(existing, "canSignOfficialLetters"), jsonx.Bool(merged, "canSignOfficialLetters"))
 		// Tell the person when an admin changed their account (access, department, login or password).
 		if me.IsAdmin() && id != me.ID() {
 			var changes []string
@@ -131,7 +135,50 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 		internalError(w)
 		return
 	}
+	ceoChanged(r, me, id, jsonx.Str(merged, "fullName"), false, jsonx.Bool(merged, "canSignOfficialLetters"))
 	httpx.OK(w)
+}
+
+// ceoChanged keeps «مدیرعامل» (the authorised signatory) to one person: giving it to someone takes it from whoever had it,
+// and every grant, hand-over or withdrawal is written to the audit log as a permanent CEO_CHANGE line.
+func ceoChanged(r *http.Request, me auth.User, id, name string, was, now bool) {
+	if was == now || !me.IsAdmin() || DemoMode {
+		return
+	}
+	ctx := r.Context()
+	var details string
+	if now {
+		rows, err := store.Pool.Query(ctx, `SELECT id, data FROM users WHERE id <> $1 AND data->>'canSignOfficialLetters' = 'true'`, id)
+		var olds []string
+		var oldIDs []string
+		if err == nil {
+			for rows.Next() {
+				var oid string
+				var raw []byte
+				if rows.Scan(&oid, &raw) == nil {
+					oldIDs = append(oldIDs, oid)
+					olds = append(olds, jsonx.Str(jsonx.Decode(raw), "fullName"))
+				}
+			}
+			rows.Close()
+		}
+		for _, oid := range oldIDs {
+			_, _ = store.Pool.Exec(ctx, `UPDATE users SET data = data || '{"canSignOfficialLetters": false}'::jsonb WHERE id = $1`, oid)
+		}
+		if len(olds) > 0 {
+			details = "تغییر مدیرعامل: «" + name + "» به‌جای «" + strings.Join(olds, "، ") + "» به‌عنوان مدیرعامل و صاحب امضای مجاز تعیین شد."
+		} else {
+			details = "«" + name + "» به‌عنوان مدیرعامل و صاحب امضای مجاز تعیین شد."
+		}
+	} else {
+		details = "سمت مدیرعاملی و امضای مجاز از «" + name + "» برداشته شد."
+	}
+	entry := jsonx.M{
+		"id": "aud-ceo-" + strconv.FormatInt(time.Now().UnixNano(), 36), "timestamp": jalali.Timestamp(time.Now()),
+		"userName": me.Name(), "userEmail": me.Email(), "action": "CEO_CHANGE", "severity": "CRITICAL",
+		"ipAddress": strings.TrimSpace(httpx.ClientIP(r)), "details": details,
+	}
+	_, _ = store.Pool.Exec(ctx, `INSERT INTO audit_logs (id, data) VALUES ($1, $2::jsonb)`, entry["id"], jsonx.Encode(entry))
 }
 
 func removeStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string) {

@@ -97,7 +97,7 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ logs }) => {
             </thead>
             <tbody className="divide-y divide-[#EBDBCE]/60 font-medium text-[#3A241F]">
               {filtered.map((log) => (
-                <tr key={log.id} className="hover:bg-[#FAF5F1] transition-colors">
+                <tr key={log.id} className={log.action === 'CEO_CHANGE' ? 'bg-purple-50 hover:bg-purple-100/70 transition-colors border-r-4 border-purple-600' : 'hover:bg-[#FAF5F1] transition-colors'}>
                   <td className="py-3.5 px-4 font-mono text-[11px] text-[#8C6F66] whitespace-nowrap">
                     {toPersianDigits(log.timestamp)}
                   </td>
@@ -106,8 +106,8 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ logs }) => {
                     <div className="text-[10px] text-[#8C6F66] font-mono">{log.userEmail}</div>
                   </td>
                   <td className="py-3.5 px-4">
-                    <span className="bg-[#FAF5F1] text-[#3A241F] border border-[#EBDBCE] font-mono text-[10px] px-2 py-0.5 rounded font-bold">
-                      {log.action}
+                    <span className={log.action === 'CEO_CHANGE' ? 'bg-purple-700 text-white border border-purple-800 text-[10px] px-2 py-0.5 rounded font-black whitespace-nowrap' : 'bg-[#FAF5F1] text-[#3A241F] border border-[#EBDBCE] font-mono text-[10px] px-2 py-0.5 rounded font-bold'}>
+                      {log.action === 'CEO_CHANGE' ? 'تغییر مدیرعامل' : log.action}
                     </span>
                   </td>
                   <td className="py-3.5 px-4">

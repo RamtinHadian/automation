@@ -197,6 +197,8 @@ interface AppContextType {
   notifications: AppNotification[];
   unreadCount: number;
   markNotificationsRead: (ids?: string[]) => void;
+  /** Fetch everything from the server again (e.g. after the server changed other people's records). */
+  reloadState: () => void;
   clearNotifications: () => void;
   soundEnabled: boolean;
   setSoundEnabled: (on: boolean) => void;
@@ -1486,6 +1488,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notifications,
         unreadCount,
         markNotificationsRead,
+        reloadState: () => reloadRef.current(),
         clearNotifications,
         soundEnabled,
         setSoundEnabled,

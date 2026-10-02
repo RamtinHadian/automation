@@ -54,6 +54,15 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
 	`CREATE INDEX IF NOT EXISTS audit_logs_created_idx ON audit_logs (created_at DESC)`,
+	// Changes of the CEO («مدیرعامل») are permanent: the database itself refuses to edit or delete those log lines.
+	`CREATE OR REPLACE FUNCTION protect_ceo_log() RETURNS trigger AS $$
+	BEGIN
+	  IF OLD.data->>'action' = 'CEO_CHANGE' THEN RAISE EXCEPTION 'the CEO change log is permanent'; END IF;
+	  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+	  RETURN NEW;
+	END $$ LANGUAGE plpgsql`,
+	`DROP TRIGGER IF EXISTS audit_logs_protect ON audit_logs`,
+	`CREATE TRIGGER audit_logs_protect BEFORE UPDATE OR DELETE ON audit_logs FOR EACH ROW EXECUTE FUNCTION protect_ceo_log()`,
 	`CREATE TABLE IF NOT EXISTS tasks (
 	  id TEXT PRIMARY KEY,
 	  creator_id TEXT,

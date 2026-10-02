@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { User, UserRole, Department } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
+import { useAppContext } from '../../context/AppContext';
 
 interface UserManagementViewProps {
   users: User[];
@@ -50,7 +51,19 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   onUpdateUser,
   onDeleteUser,
 }) => {
+  const { reloadState } = useAppContext();
   const [search, setSearch] = useState('');
+  // The CEO («مدیرعامل») is one person: before giving the tick to someone else, ask and warn.
+  const [ceoAsk, setCeoAsk] = useState<{ holder: User; target: string; apply: () => void } | null>(null);
+  const askCeo = (targetId: string, targetName: string, apply: () => void) => {
+    const holder = users.find((u) => u.id !== targetId && u.canSignOfficialLetters);
+    if (holder) setCeoAsk({ holder, target: targetName || 'این کاربر', apply });
+    else apply();
+  };
+  const afterCeoChange = () => {
+    window.setTimeout(reloadState, 1200);
+    window.setTimeout(reloadState, 3000);
+  };
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -98,6 +111,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       extension: newExtension.trim(),
     });
 
+    if (newCanSignOfficialLetters) afterCeoChange();
     setIsAddModalOpen(false);
     setNewFullName('');
     setNewEmail('');
@@ -463,9 +477,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 <input
                   type="checkbox"
                   checked={!!editingUser.canSignOfficialLetters}
-                  onChange={(e) =>
-                    setEditingUser({ ...editingUser, canSignOfficialLetters: e.target.checked })
-                  }
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    const apply = () => setEditingUser((cur) => (cur ? { ...cur, canSignOfficialLetters: on } : cur));
+                    if (on) askCeo(editingUser.id, editingUser.fullName, apply);
+                    else apply();
+                  }}
                   className="w-5 h-5 accent-amber-600 rounded cursor-pointer shrink-0"
                 />
               </div>
@@ -572,7 +589,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     window.alert('رمز عبور باید حداقل ۶ کاراکتر باشد.');
                     return;
                   }
+                  const ceoBefore = !!users.find((u) => u.id === editingUser.id)?.canSignOfficialLetters;
                   onUpdateUser(editingUser.id, { ...editingUser, fullName: name, email: login });
+                  if (ceoBefore !== !!editingUser.canSignOfficialLetters) afterCeoChange();
                   setEditingUser(null);
                 }}
                 className="px-5 py-2 text-xs font-bold bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-xl shadow-xs cursor-pointer"
@@ -733,7 +752,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 <input
                   type="checkbox"
                   checked={newCanSignOfficialLetters}
-                  onChange={(e) => setNewCanSignOfficialLetters(e.target.checked)}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    if (on) askCeo('', newFullName, () => setNewCanSignOfficialLetters(true));
+                    else setNewCanSignOfficialLetters(false);
+                  }}
                   className="w-5 h-5 accent-amber-600 rounded cursor-pointer shrink-0"
                 />
               </div>
@@ -790,6 +813,41 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {ceoAsk && (
+        <div className="fixed inset-0 z-[80] bg-black/55 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-3xl border border-purple-200 shadow-2xl w-full max-w-md p-6 space-y-4 text-right">
+            <div className="flex items-center gap-2 font-black text-sm text-purple-900">
+              <Award className="w-5 h-5 text-purple-600" />
+              <span>تغییر مدیرعامل؟</span>
+            </div>
+            <p className="text-[13px] leading-7 text-[#3A241F]">
+              «<b>{ceoAsk.holder.fullName}</b>» از قبل به‌عنوان مدیرعامل (صاحب امضای مجاز) ثبت شده است و این سمت فقط برای یک نفر ممکن است.
+              <br />
+              <b>آیا مدیرعامل عوض شده است؟</b> با تأیید، این سمت از «{ceoAsk.holder.fullName}» برداشته و به «{ceoAsk.target}» داده می‌شود.
+            </p>
+            <div className="rounded-2xl bg-purple-50 border border-purple-200 p-3 text-[11px] leading-6 text-purple-900 font-bold">
+              این تغییر با نام شما، زمان و نشانی شبکه در گزارش رویدادهای سامانه با رنگ ویژه ثبت می‌شود و به هیچ عنوان قابل حذف یا ویرایش نیست.
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button type="button" onClick={() => setCeoAsk(null)} className="px-4 py-2 text-xs font-bold text-[#3A241F] bg-[#FAF5F1] hover:bg-[#EBDBCE] rounded-xl cursor-pointer">
+                انصراف
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const go = ceoAsk.apply;
+                  setCeoAsk(null);
+                  go();
+                }}
+                className="px-4 py-2 text-xs font-black text-white bg-purple-700 hover:bg-purple-800 rounded-xl cursor-pointer"
+              >
+                بله، مدیرعامل عوض شده
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

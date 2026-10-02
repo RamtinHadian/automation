@@ -162,7 +162,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
           <div className="space-y-3 overflow-y-auto max-h-64 pl-1 divide-y divide-[#EBDBCE]/60">
             {auditLogs.map((log) => (
-              <div key={log.id} className="pt-2.5 first:pt-0 text-xs space-y-1">
+              <div key={log.id} className={log.action === 'CEO_CHANGE' ? 'pt-2.5 px-2 pb-2 first:pt-2.5 text-xs space-y-1 rounded-xl bg-purple-50 border-r-4 border-purple-600' : 'pt-2.5 first:pt-0 text-xs space-y-1'}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-[#3A241F]">{log.userName}</span>
                   <span className="text-[10px] text-[#8C6F66] font-mono">{log.timestamp}</span>
@@ -173,14 +173,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                     IP: {log.ipAddress}
                   </span>
                   <span
-                    className={`text-[9px] font-bold px-2 py-0.5 rounded ${log.severity === 'WARNING'
+                    className={`text-[9px] font-bold px-2 py-0.5 rounded ${log.action === 'CEO_CHANGE'
+                      ? 'bg-purple-700 text-white'
+                      : log.severity === 'WARNING'
                         ? 'bg-[#F6D9CD] text-[#D34A32]'
                         : log.severity === 'CRITICAL'
                           ? 'bg-[#6E1B1B]/15 text-[#6E1B1B]'
                           : 'bg-[#F6D9CD]/60 text-[#3A241F]'
                       }`}
                   >
-                    {log.action}
+                    {log.action === 'CEO_CHANGE' ? 'تغییر مدیرعامل' : log.action}
                   </span>
                 </div>
               </div>
