@@ -218,6 +218,10 @@ func Check() Status {
 	rolledBack := !st.lastSeen.IsZero() && now.Before(st.lastSeen.Add(-24*time.Hour)) // the clock was wound back
 	if st.lic != nil {
 		s.Customer, s.Serial, s.MaxUsers = st.lic.Customer, st.lic.Serial, st.lic.MaxUsers
+		if st.lic.Expires == 0 { // unlimited licence
+			s.Mode, s.Licensed, s.DaysLeft = "active", true, 99999
+			return s
+		}
 		exp := time.Unix(st.lic.Expires, 0)
 		s.Expires = exp.UTC().Format(time.RFC3339)
 		s.DaysLeft = int(time.Until(exp).Hours() / 24)
@@ -250,7 +254,7 @@ func Activate(ctx context.Context, code string) error {
 	if l.FP != fp {
 		return errors.New("این کد برای این سرور صادر نشده است؛ کد نصب را دقیقاً به فروشنده بدهید.")
 	}
-	if time.Now().After(time.Unix(l.Expires, 0)) {
+	if l.Expires != 0 && time.Now().After(time.Unix(l.Expires, 0)) {
 		return errors.New("این کد منقضی شده است.")
 	}
 	clean := strings.Join(strings.Fields(code), "")

@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>پورتال صدور مجوز هورمند</title>
 <style>
+  @font-face { font-family: 'Vazirmatn'; src: url('/vazirmatn.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
   :root { --ink:#3A241F; --muted:#8C6F66; --line:#EBDBCE; --bg:#FAF7F2; --card:#fff; --brand:#6E1B1B; --accent:#D34A32; --soft:#FAF5F1; --ok:#0E8F5B; --bad:#c0392b; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font-family: "Segoe UI", Tahoma, "Vazirmatn", sans-serif; font-size:14px; }
-  header { background: linear-gradient(to left, var(--brand), var(--accent)); color:#fff; padding:18px 24px; display:flex; align-items:center; gap:12px; }
-  header h1 { margin:0; font-size:18px; font-weight:800; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: "Vazirmatn", "Segoe UI", Tahoma, sans-serif; font-size:14px; line-height:1.7; }
+  header { background: linear-gradient(to left, var(--brand), var(--accent)); color:#fff; padding:26px 24px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:4px; }
+  header h1 { margin:0; font-size:22px; font-weight:900; }
   header p { margin:2px 0 0; font-size:12px; opacity:.85; }
-  main { max-width:1100px; margin:0 auto; padding:20px; display:grid; gap:18px; grid-template-columns: 1fr; }
-  @media (min-width: 900px) { main { grid-template-columns: 380px 1fr; align-items:start; } }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:20px; box-shadow:0 2px 10px rgba(58,36,31,.05); }
-  h2 { margin:0 0 14px; font-size:14px; font-weight:800; color:var(--brand); }
+  main { max-width:760px; margin:0 auto; padding:28px 18px 60px; display:grid; gap:22px; grid-template-columns: 1fr; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:26px; padding:26px; box-shadow:0 10px 34px rgba(58,36,31,.08); }
+  h2 { margin:0 0 16px; font-size:16px; font-weight:900; color:var(--brand); }
   label { display:block; font-size:12px; font-weight:800; margin:12px 0 6px; }
-  input, textarea, select { width:100%; padding:11px 12px; border:1px solid var(--line); background:var(--soft); border-radius:14px; font:inherit; color:var(--ink); }
+  input, textarea, select { width:100%; padding:12px 14px; border:1px solid var(--line); background:var(--soft); border-radius:14px; font:inherit; color:var(--ink); }
   input:focus, textarea:focus { outline:none; border-color:var(--brand); }
   .ltr { direction:ltr; text-align:left; font-family: Consolas, monospace; }
   .chips { display:flex; flex-wrap:wrap; gap:6px; }
@@ -43,8 +43,9 @@
 </head>
 <body>
 <header>
-  <div style="font-size:26px">🔑</div>
-  <div><h1>پورتال صدور مجوز هورمند</h1><p>فقط روی کامپیوتر شما اجرا می‌شود؛ کلید خصوصی هیچ‌جا ارسال نمی‌شود.</p></div>
+  <div style="font-size:34px;line-height:1">🔑</div>
+  <h1>پورتال صدور مجوز هورمند</h1>
+  <p>فقط روی کامپیوتر شما اجرا می‌شود؛ کلید خصوصی هیچ‌جا ارسال نمی‌شود.</p>
 </header>
 <main>
   <section class="card">
@@ -106,21 +107,23 @@ function jalali(date) {
   const jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
   return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`;
 }
-const fmtDate = (unix) => fa(jalali(new Date(unix * 1000)));
+const fmtDate = (unix) => (unix ? fa(jalali(new Date(unix * 1000))) : 'نامحدود');
+const isLive = (unix) => !unix || unix > Date.now() / 1000;
 
-const PRESETS = [['۱ ماه', 30], ['۳ ماه', 90], ['۶ ماه', 180], ['۱ سال', 365], ['۲ سال', 730]];
+const PRESETS = [['۱ ماه', 30], ['۳ ماه', 90], ['۶ ماه', 180], ['۱ سال', 365], ['۲ سال', 730], ['نامحدود', -1]];
 let days = 365;
 function drawPresets() {
   $('presets').innerHTML = '';
   PRESETS.forEach(([t, d]) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'chip' + (days === d ? ' on' : ''); b.textContent = t;
-    b.onclick = () => { days = d; $('days').value = d; drawPresets(); };
+    b.onclick = () => { days = d; $('days').value = d > 0 ? d : ''; $('days').disabled = d < 0; $('days').placeholder = d < 0 ? 'بدون تاریخ انقضا' : ''; drawPresets(); };
     $('presets').appendChild(b);
   });
 }
 $('days').value = days; drawPresets();
 $('days').oninput = () => { days = parseInt($('days').value) || 0; drawPresets(); };
+const forever = () => days < 0;
 
 let list = [];
 function drawList() {
@@ -130,7 +133,7 @@ function drawList() {
   $('rows').innerHTML = rows.length ? '' : '<tr><td colspan="6" class="empty">هنوز مجوزی صادر نشده است.</td></tr>';
   rows.forEach((r) => {
     const tr = document.createElement('tr');
-    const live = r.expires > now;
+    const live = isLive(r.expires);
     tr.innerHTML = `<td><b>${esc(r.customer)}</b>${r.note ? `<div style="color:#8C6F66;font-size:11px">${esc(r.note)}</div>` : ''}<div style="color:#8C6F66;font-size:11px">صدور: ${fmtDate(r.issued)}</div></td>
       <td class="ltr" style="font-size:11px">${esc(r.fp)}</td><td>${fmtDate(r.expires)}</td><td>${r.users ? fa(r.users) : 'نامحدود'}</td>
       <td><span class="tag ${live ? 'ok' : 'bad'}">${live ? 'معتبر' : 'منقضی'}</span></td>
@@ -149,8 +152,8 @@ $('search').oninput = drawList;
 $('go').onclick = async () => {
   $('error').innerHTML = ''; $('result').innerHTML = '';
   try {
-    const r = await api('/api/issue', { customer: $('customer').value, fp: $('fp').value, days: days, users: parseInt($('users').value) || 0, note: $('note').value });
-    $('result').innerHTML = `<div class="result"><div style="font-weight:800;margin-bottom:8px">✓ کد ساخته شد — برای «${esc(r.customer)}» تا ${fmtDate(r.expires)}</div><textarea class="ltr" readonly id="codeOut">${esc(r.code)}</textarea><div class="row" style="margin-top:8px"><button class="small" id="copyOut">کپی کد</button><span style="font-size:11px;color:#0b6b43">این کد را برای مشتری بفرستید.</span></div></div>`;
+    const r = await api('/api/issue', { customer: $('customer').value, fp: $('fp').value, days: forever() ? 0 : days, forever: forever(), users: parseInt($('users').value) || 0, note: $('note').value });
+    $('result').innerHTML = `<div class="result"><div style="font-weight:800;margin-bottom:8px">✓ کد ساخته شد — برای «${esc(r.customer)}» ${r.expires ? 'تا ' + fmtDate(r.expires) : '— بدون تاریخ انقضا'}</div><textarea class="ltr" readonly id="codeOut">${esc(r.code)}</textarea><div class="row" style="margin-top:8px"><button class="small" id="copyOut">کپی کد</button><span style="font-size:11px;color:#0b6b43">این کد را برای مشتری بفرستید.</span></div></div>`;
     $('copyOut').onclick = () => copy(r.code); $('codeOut').onclick = (e) => e.target.select();
     reload();
   } catch (e) { $('error').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
@@ -158,7 +161,7 @@ $('go').onclick = async () => {
 $('checkBtn').onclick = async () => {
   try {
     const r = await api('/api/show', { code: $('check').value });
-    const live = r.expires > Date.now() / 1000;
+    const live = isLive(r.expires);
     $('checkOut').innerHTML = `مشتری: <b>${esc(r.customer)}</b><br>کد نصب: <span class="ltr">${esc(r.fp)}</span><br>صدور: ${fmtDate(r.issued)} — پایان: ${fmtDate(r.expires)} <span class="tag ${live ? 'ok' : 'bad'}">${live ? 'معتبر' : 'منقضی'}</span><br>حداکثر کاربر: ${r.users ? fa(r.users) : 'نامحدود'}`;
   } catch (e) { $('checkOut').innerHTML = `<span style="color:#c0392b;font-weight:800">${esc(e.message)}</span>`; }
 };

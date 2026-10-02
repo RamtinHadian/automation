@@ -37,6 +37,7 @@ export const LicenseCard: React.FC = () => {
         </div>
         {s.customer && row('صادرشده برای', s.customer)}
         {s.serial && row('شمارهٔ مجوز', <span dir="ltr">{s.serial}</span>)}
+        {s.mode === 'active' && !s.expires && row('تاریخ پایان', 'نامحدود (بدون تاریخ انقضا)')}
         {s.expires && row(s.mode === 'grace' ? 'پایان مهلت' : 'تاریخ پایان', `${toPersianDigits(formatJalaliShort(new Date(s.expires)))} (${toPersianDigits(Math.max(0, s.daysLeft))} روز مانده)`)}
         {row('حداکثر کاربران', s.maxUsers ? toPersianDigits(s.maxUsers) : 'نامحدود')}
         {row('کد نصب این سرور', <span dir="ltr" className="font-mono select-all">{s.installId}</span>)}

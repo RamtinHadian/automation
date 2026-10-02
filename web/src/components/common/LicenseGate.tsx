@@ -87,7 +87,7 @@ export const LicenseGate: React.FC<{ children: React.ReactNode }> = ({ children 
 
   if (!status && !failed) return null;
   if (status && !status.licensed) return <ActivationPage status={status} onDone={() => window.location.reload()} />;
-  const warn = status && (status.readOnly || status.mode === 'grace' || (status.mode === 'active' && status.daysLeft <= 14));
+  const warn = status && (status.readOnly || status.mode === 'grace' || (status.mode === 'active' && !!status.expires && status.daysLeft <= 14));
   return (
     <>
       {warn && status && (

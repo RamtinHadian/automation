@@ -25,6 +25,9 @@ import (
 //go:embed portal.html
 var portalHTML string
 
+//go:embed vazirmatn.woff2
+var portalFont []byte
+
 // The vendor portal runs only on the vendor's own computer (127.0.0.1): it signs activation codes with the private key and keeps a
 // history of what was issued. Nothing here is ever deployed to a customer or to a public server.
 
@@ -112,6 +115,11 @@ func serve(args []string) {
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte(strings.Replace(portalHTML, "{{TOKEN}}", token, 1)))
 	})
+	mux.HandleFunc("/vazirmatn.woff2", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "font/woff2")
+		w.Header().Set("Cache-Control", "max-age=86400")
+		_, _ = w.Write(portalFont)
+	})
 	mux.HandleFunc("/api/list", guard(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -126,6 +134,7 @@ func serve(args []string) {
 			Customer string  `json:"customer"`
 			FP       string  `json:"fp"`
 			Days     float64 `json:"days"`
+			Forever  bool    `json:"forever"`
 			Users    int     `json:"users"`
 			Note     string  `json:"note"`
 		}
@@ -142,7 +151,7 @@ func serve(args []string) {
 		case !fpRe.MatchString(fp):
 			reply(w, 400, map[string]string{"error": "کد نصب باید مثل 1A2B-3C4D-5E6F-7A8B-9C0D باشد."})
 			return
-		case in.Days <= 0 || in.Days > 3660:
+		case !in.Forever && (in.Days <= 0 || in.Days > 3660):
 			reply(w, 400, map[string]string{"error": "مدت اعتبار نامعتبر است."})
 			return
 		case in.Users < 0 || in.Users > 100000:
@@ -151,6 +160,9 @@ func serve(args []string) {
 		}
 		now := time.Now()
 		l := license.License{Serial: now.Format("060102-150405"), Customer: in.Customer, FP: fp, Issued: now.Unix(), Expires: now.Add(time.Duration(in.Days * 24 * float64(time.Hour))).Unix(), MaxUsers: in.Users}
+		if in.Forever {
+			l.Expires = 0
+		}
 		code := license.Encode(priv, l)
 		rec := issued{Serial: l.Serial, Customer: l.Customer, FP: l.FP, Issued: l.Issued, Expires: l.Expires, Users: l.MaxUsers, Note: strings.TrimSpace(in.Note), Code: code}
 		mu.Lock()

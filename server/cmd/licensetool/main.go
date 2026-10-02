@@ -69,6 +69,7 @@ func main() {
 		customer := fs.String("customer", "", "customer name")
 		fp := fs.String("fp", "", "install code shown by the server")
 		days := fs.Float64("days", 365, "validity in days")
+		unlimited := fs.Bool("unlimited", false, "never expires")
 		users := fs.Int("users", 0, "maximum number of users (0 = unlimited)")
 		serial := fs.String("serial", "", "serial (default: from the time)")
 		_ = fs.Parse(os.Args[2:])
@@ -88,6 +89,9 @@ func main() {
 			*serial = now.Format("060102-150405")
 		}
 		l := license.License{Serial: *serial, Customer: *customer, FP: asciiDigits(strings.ToUpper(strings.TrimSpace(*fp))), Issued: now.Unix(), Expires: now.Add(time.Duration(*days * 24 * float64(time.Hour))).Unix(), MaxUsers: *users}
+		if *unlimited {
+			l.Expires = 0
+		}
 		fmt.Println(license.Encode(ed25519.PrivateKey(b), l))
 	case "serve":
 		serve(os.Args[2:])
@@ -99,7 +103,11 @@ func main() {
 		if err != nil {
 			die(err.Error())
 		}
-		fmt.Printf("customer: %s\nserial: %s\ninstall code: %s\nissued: %s\nexpires: %s\nmax users: %d\n", l.Customer, l.Serial, l.FP, time.Unix(l.Issued, 0).Format(time.RFC3339), time.Unix(l.Expires, 0).Format(time.RFC3339), l.MaxUsers)
+		exp := "never (unlimited)"
+		if l.Expires != 0 {
+			exp = time.Unix(l.Expires, 0).Format(time.RFC3339)
+		}
+		fmt.Printf("customer: %s\nserial: %s\ninstall code: %s\nissued: %s\nexpires: %s\nmax users: %d\n", l.Customer, l.Serial, l.FP, time.Unix(l.Issued, 0).Format(time.RFC3339), exp, l.MaxUsers)
 	default:
 		die("usage: licensetool keygen|issue|serve|show")
 	}
