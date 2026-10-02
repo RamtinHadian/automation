@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ManagementReports } from '../components/admin/ManagementReports';
 import { CrmView } from '../components/crm/CrmView';
 import { TasksView } from '../components/tasks/TasksView';
 import { LoginDashboard } from '../components/dashboard/LoginDashboard';
@@ -50,7 +51,8 @@ import {
   UserCheck2,
   Check,
   KeyRound,
-  User as UserIcon
+  User as UserIcon,
+  BarChart3,
 } from 'lucide-react';
 import { FileCategory, FileTransfer, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
@@ -99,7 +101,7 @@ export default function UserPanel() {
   } = useAppContext();
 
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
-  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm'>('files');
+  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats'>('files');
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -197,7 +199,7 @@ export default function UserPanel() {
   }
   const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm') =>
     (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) ? 0 : unreadByMenu[m];
-  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm') => {
+  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats') => {
     setMainMenuTab(m);
     setSearchQuery('');
     const ids = notifications.filter((n) => !n.read && menuOfNotification(n) === m).map((n) => n.id);
@@ -231,6 +233,10 @@ export default function UserPanel() {
   useEffect(() => {
     if (!canAccessCrmMenu && mainMenuTab === 'crm') setMainMenuTab('files');
   }, [canAccessCrmMenu, mainMenuTab]);
+  const canAccessStatsMenu = Boolean(currentUser.canViewStats === true || currentUser.role === 'SUPER_ADMIN');
+  useEffect(() => {
+    if (!canAccessStatsMenu && mainMenuTab === 'stats') setMainMenuTab('files');
+  }, [canAccessStatsMenu, mainMenuTab]);
   useEffect(() => {
     if (!canAccessTasksMenu && mainMenuTab === 'tasks') setMainMenuTab('files');
   }, [canAccessTasksMenu, mainMenuTab]);
@@ -686,6 +692,21 @@ export default function UserPanel() {
               </button>
             )}
 
+            {/* Menu 5: گزارشات آماری (مدیر ارشد یا دارندهٔ مجوز) */}
+            {canAccessStatsMenu && (
+              <button
+                onClick={() => openMenu('stats')}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                  mainMenuTab === 'stats'
+                    ? 'bg-orange-600 text-white shadow-md shadow-orange-600/25 scale-[1.02]'
+                    : 'bg-white text-[#3A241F] hover:bg-orange-50 border border-[#EBDBCE]'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>گزارشات</span>
+              </button>
+            )}
+
             {/* Menu 3: وظایف (فقط برای کاربرانی که مجوز دارند) */}
             {canAccessTasksMenu && (
               <button
@@ -717,6 +738,11 @@ export default function UserPanel() {
               <span className="flex items-center gap-1 text-violet-800">
                 <Users className="w-4 h-4 text-violet-600" />
                 مشتریان، فرصت‌های فروش و پیگیری‌ها
+              </span>
+            ) : mainMenuTab === 'stats' ? (
+              <span className="flex items-center gap-1 text-orange-800">
+                <BarChart3 className="w-4 h-4 text-orange-600" />
+                گزارشات آماری مدیریتی شرکت
               </span>
             ) : mainMenuTab === 'tasks' ? (
               <span className="flex items-center gap-1 text-sky-800">
@@ -1067,6 +1093,11 @@ export default function UserPanel() {
         {/* ========================================================================= */}
         {mainMenuTab === 'tasks' && canAccessTasksMenu && <TasksView />}
         {mainMenuTab === 'crm' && canAccessCrmMenu && <CrmView />}
+        {mainMenuTab === 'stats' && canAccessStatsMenu && (
+          <div className="p-3 sm:p-6">
+            <ManagementReports remote />
+          </div>
+        )}
 
         {mainMenuTab === 'letters' && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-[#EBDBCE]/60">
@@ -1819,6 +1850,21 @@ export default function UserPanel() {
                 {toPersianDigits(menuBadge('crm') > 99 ? '99+' : menuBadge('crm'))}
               </span>
             )}
+          </button>
+        )}
+
+        {canAccessStatsMenu && (
+          <button
+            type="button"
+            onClick={() => openMenu('stats')}
+            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+              mainMenuTab === 'stats'
+                ? 'bg-orange-600 text-white shadow-md'
+                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span className="text-[10px] font-black">گزارشات</span>
           </button>
         )}
 

@@ -47,6 +47,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("POST /api/auth/login", auth.Login)
 	mux.HandleFunc("POST /api/auth/change-password", auth.Require(auth.ChangePassword))
 	mux.HandleFunc("GET /api/state", auth.Require(state))
+	mux.HandleFunc("GET /api/stats-data", auth.Require(statsData))
 
 	mux.HandleFunc("GET /api/notify/stream", auth.Require(notifyStream))
 	mux.HandleFunc("GET /api/notifications", auth.Require(listNotifications))

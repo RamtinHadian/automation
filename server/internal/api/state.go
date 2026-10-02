@@ -119,3 +119,50 @@ func state(w http.ResponseWriter, r *http.Request) {
 		"settings":    settings,
 	})
 }
+
+// statsData hands the whole company's numbers to people allowed to see the management statistics
+// (admins, or users given that permission), whatever their own transfers/tasks view is.
+func statsData(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).CanViewStats() {
+		httpx.Forbidden(w)
+		return
+	}
+	ctx := r.Context()
+	fail := func(err error) bool {
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "internal error")
+			return true
+		}
+		return false
+	}
+	urows, err := store.Pool.Query(ctx, `SELECT id, email, data FROM users ORDER BY created_at`)
+	if fail(err) {
+		return
+	}
+	staff := []jsonx.M{}
+	for urows.Next() {
+		var uid, email string
+		var data []byte
+		if err := urows.Scan(&uid, &email, &data); fail(err) {
+			urows.Close()
+			return
+		}
+		staff = append(staff, auth.FromRow(uid, email, data))
+	}
+	urows.Close()
+	out := map[string]any{"staff": staff}
+	for key, q := range map[string]string{
+		"transfers": `SELECT data FROM transfers ORDER BY created_at DESC`,
+		"tasks":     `SELECT data FROM tasks ORDER BY created_at DESC`,
+		"reports":   `SELECT data FROM daily_reports ORDER BY report_date DESC LIMIT 1500`,
+		"customers": `SELECT data FROM crm_customers`,
+		"deals":     `SELECT data FROM crm_deals`,
+	} {
+		rows, err := store.RawList(ctx, q)
+		if fail(err) {
+			return
+		}
+		out[key] = rows
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}

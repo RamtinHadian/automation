@@ -188,6 +188,7 @@ export const api = {
   smsLog: () => request<{ log: SmsLogRow[] }>('GET', '/api/sms/log'),
   smsTest: (to: string) => request<{ ok: true }>('POST', '/api/sms/test', { to }),
   smsSend: (b: { to: string; text: string; customerId?: string }) => request<{ ok: true }>('POST', '/api/sms/send', b),
+  statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[] }>('GET', '/api/stats-data'),
   voipStats: () => request<{ byDay: VoipStatRow[]; byExt: VoipStatRow[] }>('GET', '/api/voip/stats'),
   voipLog: () => request<{ enabled: boolean; connected: boolean; eventCount: number; lastEvent: string | null; entries: { at: string; text: string }[] }>('GET', '/api/voip/log'),
   voipTestPopup: () => request<{ ok: true }>('POST', '/api/voip/test-popup'),

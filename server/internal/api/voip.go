@@ -151,7 +151,7 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 
 // voipStats gives admins the numbers behind the phone dashboard: calls per status today and over the last week, and per extension.
 func voipStats(w http.ResponseWriter, r *http.Request) {
-	if !auth.Current(r).IsAdmin() {
+	if !auth.Current(r).CanViewStats() {
 		httpx.Forbidden(w)
 		return
 	}

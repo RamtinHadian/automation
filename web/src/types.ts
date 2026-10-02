@@ -28,6 +28,8 @@ export interface User {
   canUseTasks?: boolean;
   /** Access to the customer (CRM) menu; admins always have it. */
   canUseCrm?: boolean;
+  /** Access to the management statistics page (admins always have it). */
+  canViewStats?: boolean;
   /** Phone extension on the company phone system (for incoming-call pop-ups and click-to-call). */
   extension?: string;
   /** Mobile number for SMS notifications (optional). */

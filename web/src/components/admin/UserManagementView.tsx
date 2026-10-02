@@ -16,6 +16,7 @@ import {
   Award,
   Stamp,
   ClipboardList,
+  BarChart3,
   Users
 } from 'lucide-react';
 import { User, UserRole, Department } from '../../types';
@@ -35,6 +36,7 @@ interface UserManagementViewProps {
     canSignOfficialLetters?: boolean;
     canUseTasks?: boolean;
     canUseCrm?: boolean;
+    canViewStats?: boolean;
     extension?: string;
   }) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
@@ -64,6 +66,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [newCanSignOfficialLetters, setNewCanSignOfficialLetters] = useState(false);
   const [newCanUseTasks, setNewCanUseTasks] = useState(false);
   const [newCanUseCrm, setNewCanUseCrm] = useState(false);
+  const [newCanViewStats, setNewCanViewStats] = useState(false);
   const [newExtension, setNewExtension] = useState('');
 
   const filteredUsers = users.filter((u) => {
@@ -91,6 +94,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       canSignOfficialLetters: newCanSignOfficialLetters,
       canUseTasks: newCanUseTasks,
       canUseCrm: newCanUseCrm,
+      canViewStats: newCanViewStats,
       extension: newExtension.trim(),
     });
 
@@ -102,6 +106,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     setNewCanSignOfficialLetters(false);
     setNewCanUseTasks(false);
     setNewCanUseCrm(false);
+    setNewCanViewStats(false);
     setNewExtension('');
   };
 
@@ -222,6 +227,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           [user.canSendOfficialLetters, FileCheck, 'مجوز ارسال نامه', 'bg-emerald-100 text-emerald-700 border-emerald-300'],
                           [user.canUseTasks, ClipboardList, 'مدیریت وظایف', 'bg-sky-100 text-sky-700 border-sky-300'],
                           [user.canUseCrm, Users, 'مشتریان (CRM)', 'bg-violet-100 text-violet-700 border-violet-300'],
+                          [user.canViewStats, BarChart3, 'گزارشات آماری مدیریتی', 'bg-orange-100 text-orange-700 border-orange-300'],
                         ] as const).map(([on, Icon, label, cls]) =>
                           on ? (
                             <span key={label} title={label} className={`w-6 h-6 inline-flex items-center justify-center rounded-lg border ${cls}`}>
@@ -229,7 +235,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                             </span>
                           ) : null
                         )}
-                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && !user.canUseTasks && !user.canUseCrm && (
+                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && !user.canUseTasks && !user.canUseCrm && !user.canViewStats && (
                           <span className="text-[10px] text-gray-400">عادی</span>
                         )}
                       </div>
@@ -410,6 +416,18 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   <p className="text-[10px] text-[#8C6F66] leading-relaxed">منوی «مشتریان» برای این کاربر فعال می‌شود: مشتری، فرصت فروش و پیگیری.</p>
                 </div>
                 <input type="checkbox" checked={!!editingUser.canUseCrm} onChange={(e) => setEditingUser({ ...editingUser, canUseCrm: e.target.checked })} className="w-5 h-5 accent-violet-600 rounded cursor-pointer shrink-0" />
+              </div>
+
+              {/* Permission: management statistics */}
+              <div className="p-3 bg-orange-50/70 rounded-2xl border border-orange-200 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-black text-xs text-orange-900">
+                    <BarChart3 className="w-4 h-4 text-orange-600" />
+                    <span>دسترسی به گزارشات آماری مدیریتی</span>
+                  </div>
+                  <p className="text-[10px] text-[#8C6F66] leading-relaxed">منوی «گزارشات» با نمودارهای کار، نامه، فروش و تلفن کل شرکت برای این کاربر فعال می‌شود.</p>
+                </div>
+                <input type="checkbox" checked={!!editingUser.canViewStats} onChange={(e) => setEditingUser({ ...editingUser, canViewStats: e.target.checked })} className="w-5 h-5 accent-orange-600 rounded cursor-pointer shrink-0" />
               </div>
 
               {/* Permission Checkbox: Task management */}
@@ -668,6 +686,18 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   <p className="text-[10px] text-[#8C6F66] leading-relaxed">منوی «مشتریان» برای این کاربر فعال می‌شود: مشتری، فرصت فروش و پیگیری.</p>
                 </div>
                 <input type="checkbox" checked={newCanUseCrm} onChange={(e) => setNewCanUseCrm(e.target.checked)} className="w-5 h-5 accent-violet-600 rounded cursor-pointer shrink-0" />
+              </div>
+
+              {/* Permission: management statistics */}
+              <div className="p-3 bg-orange-50/70 rounded-2xl border border-orange-200 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-black text-xs text-orange-900">
+                    <BarChart3 className="w-4 h-4 text-orange-600" />
+                    <span>دسترسی به گزارشات آماری مدیریتی</span>
+                  </div>
+                  <p className="text-[10px] text-[#8C6F66] leading-relaxed">منوی «گزارشات» با نمودارهای کار، نامه، فروش و تلفن کل شرکت برای این کاربر فعال می‌شود.</p>
+                </div>
+                <input type="checkbox" checked={newCanViewStats} onChange={(e) => setNewCanViewStats(e.target.checked)} className="w-5 h-5 accent-orange-600 rounded cursor-pointer shrink-0" />
               </div>
 
               {/* Permission Checkbox: Task management */}

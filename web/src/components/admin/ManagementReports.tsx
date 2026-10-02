@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Banknote, CalendarCheck, ClipboardCheck, FileSignature, Phone, Send, TrendingUp, UserPlus, Lightbulb, AlertTriangle } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
 import { api, VoipStatRow } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { computeStats, shortDay, STAGE_LABEL } from '../../lib/adminStats';
@@ -14,13 +13,27 @@ const RANGES = [
 ];
 
 /** The management dashboard: the numbers and charts behind decisions about work, letters, sales and phone. */
-export const ManagementReports: React.FC = () => {
-  const { staffList, transfers, tasks, reports, customers, deals } = useAppContext();
+export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
+  // Always read the whole company's numbers from the server, so it works in the user panel too (not only for admins).
+  const [data, setData] = useState<Awaited<ReturnType<typeof api.statsData>> | null>(null);
+  const [failed, setFailed] = useState(false);
   const [range, setRange] = useState(30);
   const [calls, setCalls] = useState<VoipStatRow[]>([]);
   useEffect(() => {
-    api.voipStats().then((s) => setCalls(s.byDay)).catch(() => {});
+    const load = () => {
+      api.statsData().then((d) => { setData(d); setFailed(false); }).catch(() => setFailed(true));
+      api.voipStats().then((s) => setCalls(s.byDay)).catch(() => {});
+    };
+    load();
+    const t = window.setInterval(load, 60000);
+    return () => window.clearInterval(t);
   }, []);
+  const staffList = data?.staff ?? [];
+  const transfers = data?.transfers ?? [];
+  const tasks = data?.tasks ?? [];
+  const reports = data?.reports ?? [];
+  const customers = data?.customers ?? [];
+  const deals = data?.deals ?? [];
 
   const s = useMemo(() => computeStats({ staff: staffList, transfers, tasks, reports, customers, deals }, range), [staffList, transfers, tasks, reports, customers, deals, range]);
   const labels = s.days.map(shortDay);
@@ -40,6 +53,8 @@ export const ManagementReports: React.FC = () => {
   if (missedCalls > 0) insights.push({ tone: 'warn', text: `در ۷ روز اخیر ${toPersianDigits(missedCalls)} تماس ورودی بی‌پاسخ مانده است.` });
   const idleDeals = deals.filter((d) => ['NEW', 'CONTACTED'].includes(d.stage) && Date.now() - new Date(d.updatedAt).getTime() > 14 * 86400000).length;
   if (idleDeals > 0) insights.push({ tone: 'info', text: `${toPersianDigits(idleDeals)} فرصت فروش بیش از ۲ هفته است که حرکتی نداشته و پیگیری لازم دارد.` });
+
+  if (!data) return <div className="py-20 text-center text-sm font-bold text-[#8C6F66]">{failed ? 'دریافت گزارش‌ها ممکن نشد؛ دسترسی یا اتصال را بررسی کنید.' : 'در حال آماده‌سازی گزارش‌ها…'}</div>;
 
   return (
     <div className="space-y-5 text-right">

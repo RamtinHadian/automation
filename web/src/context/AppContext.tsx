@@ -186,6 +186,7 @@ interface AppContextType {
     canSignOfficialLetters?: boolean;
     canUseTasks?: boolean;
     canUseCrm?: boolean;
+    canViewStats?: boolean;
     extension?: string;
   }) => void;
   handleUpdateUser: (userId: string, updates: Partial<User>) => void;
@@ -1191,6 +1192,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       canSignOfficialLetters?: boolean;
       canUseTasks?: boolean;
       canUseCrm?: boolean;
+      canViewStats?: boolean;
       extension?: string;
     }) => {
       const dept = departments.find((d) => d.id === data.departmentId) || departments[0];
@@ -1213,6 +1215,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         canSignOfficialLetters: !!data.canSignOfficialLetters,
         canUseTasks: !!data.canUseTasks,
         canUseCrm: !!data.canUseCrm,
+        canViewStats: !!data.canViewStats,
         ...(data.extension ? { extension: data.extension } : {}),
       };
 
