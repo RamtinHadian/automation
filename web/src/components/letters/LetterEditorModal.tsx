@@ -1121,7 +1121,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                     />
 
                     {/* Independent Font Picker for Center Title */}
-                    <div className="relative opacity-0 group-hover/title:opacity-100 transition-opacity">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-20 opacity-0 group-hover/title:opacity-100 transition-opacity">
                       <select
                         value={headerCenterFontFamily}
                         onChange={(e) => setHeaderCenterFontFamily(e.target.value)}
