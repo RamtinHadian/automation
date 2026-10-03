@@ -73,7 +73,7 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({
     const dx = (e.clientX - d.startX) / scale;
     const dy = (e.clientY - d.startY) / scale;
     if (d.mode === 'move') {
-      onOffsetChange({ x: clamp(d.initX + dx, -400, 400), y: clamp(d.initY + dy, -300, 300) });
+      onOffsetChange({ x: clamp(d.initX + dx, -900, 900), y: clamp(d.initY + dy, -1400, 1400) });
     } else {
       // Corner handle: grow by whichever axis was dragged further (width change converted to height).
       const grow = Math.abs(dx / d.aspect) > Math.abs(dy) ? dx / d.aspect : dy;
