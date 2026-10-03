@@ -147,6 +147,9 @@ export interface Deal {
   stage: DealStage;
   ownerId: string;
   ownerName: string;
+  /** More people in charge of the same deal (besides the main owner). */
+  coOwnerIds?: string[];
+  coOwnerNames?: string[];
   /** Expected closing day, yyyy-mm-dd. */
   expectedClose?: string;
   notes?: string;

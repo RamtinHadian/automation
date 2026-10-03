@@ -323,7 +323,13 @@ export const CrmView: React.FC = () => {
         </div>
         <div className="flex items-center justify-between">
           <span className="font-black text-xs text-violet-700">{toman(d.amount)} تومان</span>
-          <Avatar user={userById.get(d.ownerId)} size={22} />
+          <span className="flex items-center -space-x-1.5" dir="ltr">
+            <Avatar user={userById.get(d.ownerId)} size={22} />
+            {(d.coOwnerIds || []).slice(0, 3).map((id) => (
+              <Avatar key={id} user={userById.get(id)} size={22} />
+            ))}
+            {(d.coOwnerIds || []).length > 3 && <span className="text-[10px] font-black text-[#8C6F66] pl-2">+{toPersianDigits((d.coOwnerIds || []).length - 3)}</span>}
+          </span>
         </div>
         {d.expectedClose && (
           <div className={`text-[10px] font-bold flex items-center gap-1 ${overdue ? 'text-rose-600' : 'text-[#8C6F66]'}`}>
@@ -723,7 +729,8 @@ const DealForm: React.FC<{
     e.preventDefault();
     if (!valid) return;
     const owner = staff.find((u) => u.id === d.ownerId);
-    onSave({ ...d, ownerName: owner?.fullName || d.ownerName });
+    const co = (d.coOwnerIds || []).filter((id) => id !== d.ownerId);
+    onSave({ ...d, ownerName: owner?.fullName || d.ownerName, coOwnerIds: co, coOwnerNames: co.map((id) => staff.find((u) => u.id === id)?.fullName || '') });
   };
   return (
     <form onSubmit={submit}>
@@ -798,13 +805,44 @@ const DealForm: React.FC<{
             </select>
           </div>
           <div>
-            <label className={label}>مسئول</label>
-            <select className={field} value={d.ownerId} onChange={(e) => patch({ ownerId: e.target.value })}>
+            <label className={label}>مسئول اصلی</label>
+            <select
+              className={field}
+              value={d.ownerId}
+              onChange={(e) => patch({ ownerId: e.target.value, coOwnerIds: (d.coOwnerIds || []).filter((x) => x !== e.target.value) })}
+            >
               {staff.map((u) => (
                 <option key={u.id} value={u.id}>{u.fullName}</option>
               ))}
             </select>
           </div>
+        </div>
+        <div>
+          <label className={label}>مسئولان همراه (هر چند نفر)</label>
+          <div className="flex flex-wrap gap-1.5 mb-2 empty:hidden">
+            {(d.coOwnerIds || []).map((id) => (
+              <span key={id} className="flex items-center gap-1 bg-violet-50 text-violet-800 border border-violet-200 rounded-full pl-1.5 pr-3 py-1 text-[11px] font-bold">
+                {staff.find((u) => u.id === id)?.fullName || (d.coOwnerNames || [])[(d.coOwnerIds || []).indexOf(id)] || id}
+                <button type="button" onClick={() => patch({ coOwnerIds: (d.coOwnerIds || []).filter((x) => x !== id) })} className="cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+          <select
+            className={field}
+            value=""
+            onChange={(e) => {
+              if (e.target.value) patch({ coOwnerIds: [...(d.coOwnerIds || []), e.target.value] });
+            }}
+          >
+            <option value="">+ افزودن مسئول همراه...</option>
+            {staff
+              .filter((u) => u.id !== d.ownerId && !(d.coOwnerIds || []).includes(u.id))
+              .map((u) => (
+                <option key={u.id} value={u.id}>{u.fullName}</option>
+              ))}
+          </select>
         </div>
         <div>
           <label className={label}>تاریخ پیش‌بینی‌شدهٔ بستن</label>

@@ -151,15 +151,45 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		return
 	}
 	notifyNewOwner(r, me, owner, oldOwner, "deal", "فرصت فروش", "فرصت «"+jsonx.Str(doc, "title")+"» به شما سپرده شد", id)
-	if exists && owner != "" && owner != me.ID() && owner == oldOwner {
+	// Besides the main owner a deal can have more people in charge («coOwnerIds»): they are told when they are added
+	// and follow the deal's changes like the owner does.
+	coOwners := []string{}
+	prevCo := jsonx.Strings(before, "coOwnerIds")
+	for _, u := range jsonx.Strings(doc, "coOwnerIds") {
+		if u != "" && u != owner && !jsonx.Contains(coOwners, u) {
+			coOwners = append(coOwners, u)
+		}
+	}
+	for _, u := range coOwners {
+		if !jsonx.Contains(prevCo, u) {
+			notifyNewOwner(r, me, u, "", "deal", "فرصت فروش", "فرصت «"+jsonx.Str(doc, "title")+"» به شما نیز سپرده شد", id)
+		}
+	}
+	watchers := []string{}
+	if owner != "" && owner == oldOwner {
+		watchers = append(watchers, owner)
+	}
+	for _, u := range coOwners {
+		if jsonx.Contains(prevCo, u) {
+			watchers = append(watchers, u)
+		}
+	}
+	filtered := watchers[:0]
+	for _, u := range watchers {
+		if u != me.ID() {
+			filtered = append(filtered, u)
+		}
+	}
+	watchers = filtered
+	if exists && len(watchers) > 0 {
 		if jsonx.Str(before, "stage") != stage {
-			notify.Notify(r.Context(), []string{owner}, notify.Note{
+			notify.Notify(r.Context(), watchers, notify.Note{
 				Kind: "task", Label: "تغییر مرحله", Title: "مرحلهٔ فرصت «" + jsonx.Str(doc, "title") + "» تغییر کرد",
 				Body: dealStage(jsonx.Str(before, "stage")) + " ← " + dealStage(stage), Ref: ref("deal", id), Repeat: true,
 			}, me.ID())
 		}
 		if jsonx.Str(before, "proformaNumber") == "" && jsonx.Str(doc, "proformaNumber") != "" {
-			notify.Notify(r.Context(), []string{owner}, notify.Note{
+			notify.Notify(r.Context(), watchers, notify.Note{
 				Kind: "task", Label: "پیش‌فاکتور", Title: "برای فرصت «" + jsonx.Str(doc, "title") + "» پیش‌فاکتور صادر شد",
 				Body: jsonx.Str(doc, "proformaNumber"), Ref: ref("deal", id), Repeat: true,
 			}, me.ID())
