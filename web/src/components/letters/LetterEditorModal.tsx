@@ -448,7 +448,17 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     executeCommand('insertHTML', tableHtml);
   };
 
-  // Unified Drag handlers for all draggable elements
+  // Unified Drag handlers for all draggable elements.
+  // A box can be grabbed anywhere on it (not only by its small handle); typing fields and buttons keep working as usual.
+  const grab = (handler: (e: React.PointerEvent) => void) => (e: React.PointerEvent) => {
+    const el = e.target as HTMLElement;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (el.closest('input, textarea, select, button, option, [contenteditable="true"], [data-no-drag]')) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    handler(e);
+  };
+
   const handleSignatureMouseDown = (e: React.PointerEvent) => {
     setActiveDragItem('SIGNATURE');
     dragStartPos.current = { x: e.clientX, y: e.clientY };
@@ -491,21 +501,21 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       });
     } else if (activeDragItem === 'CENTER_TITLE') {
       setHeaderCenterOffset({
-        x: 0,
-        y: Math.max(-30, Math.min(80, dragStartOffset.current.y + dy)),
+        x: Math.max(-260, Math.min(260, dragStartOffset.current.x + dx)),
+        y: Math.max(-40, Math.min(140, dragStartOffset.current.y + dy)),
       });
     } else if (activeDragItem === 'SUBJECT') {
       setSubjectOffset({
-        x: Math.max(-150, Math.min(150, dragStartOffset.current.x + dx)),
-        y: Math.max(-50, Math.min(100, dragStartOffset.current.y + dy)),
+        x: Math.max(-300, Math.min(300, dragStartOffset.current.x + dx)),
+        y: Math.max(-80, Math.min(180, dragStartOffset.current.y + dy)),
       });
     } else if (activeDragItem === 'BODY') {
       const newX = Math.max(-180, Math.min(180, dragStartOffset.current.x + dx));
       setBodyOffsetX(newX);
     } else if (activeDragItem === 'META') {
       setMetaOffset({
-        x: Math.max(-150, Math.min(150, dragStartOffset.current.x + dx)),
-        y: Math.max(-50, Math.min(80, dragStartOffset.current.y + dy)),
+        x: Math.max(-300, Math.min(300, dragStartOffset.current.x + dx)),
+        y: Math.max(-80, Math.min(160, dragStartOffset.current.y + dy)),
       });
     }
   };
@@ -1084,17 +1094,19 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 {/* Center: Official Title (Strictly Centered & Vertically Draggable Only) */}
                 <div
                   className="absolute left-1/2 flex items-center justify-center z-10"
-                  style={{ top: '8px', transform: `translate(-50%, ${headerCenterOffset.y}px)` }}
+                  style={{ top: '8px', transform: `translate(calc(-50% + ${headerCenterOffset.x}px), ${headerCenterOffset.y}px)` }}
                 >
                   <div
-                    className={`group/title relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition-all ${
+                    onPointerDown={grab(handleCenterTitleMouseDown)}
+                    style={{ touchAction: 'none' }}
+                    className={`group/title relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition-all cursor-grab active:cursor-grabbing hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-400 ${
                       activeDragItem === 'CENTER_TITLE' ? 'ring-2 ring-amber-500/50 bg-amber-50/50 shadow-xs' : 'hover:bg-amber-50/30'
                     }`}
                   >
                     <div
                       onPointerDown={handleCenterTitleMouseDown} data-drag-handle
-                      className="cursor-ns-resize active:cursor-ns-resize p-1 text-[#8C6F66] hover:text-[#6E1B1B] transition-colors shrink-0 select-none"
-                      title="برای جابه‌جایی عمودی «به نام خدا»، با ماوس به بالا یا پایین بکشید (Drag Up/Down)"
+                      className="cursor-grab active:cursor-grabbing p-1 text-[#8C6F66] hover:text-[#6E1B1B] transition-colors shrink-0 select-none"
+                      title="«به نام خدا» را هر جای آن بگیرید و بکشید"
                     >
                       <Move className="w-3 h-3" />
                     </div>
@@ -1131,11 +1143,13 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                   style={{
                     transform: `translate(${metaOffset.x}px, ${metaOffset.y}px)`,
                     fontFamily: metaFontFamily,
+                    touchAction: 'none',
                   }}
-                  className="text-[11px] font-medium text-[#3A241F] relative group/meta select-none shrink-0"
+                  onPointerDown={grab(handleMetaMouseDown)}
+                  className="text-[11px] font-medium text-[#3A241F] relative group/meta select-none shrink-0 cursor-grab active:cursor-grabbing hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-400 rounded-md px-1"
                   dir="rtl"
                 >
-                  <div className="flex items-center gap-1 absolute -top-5 left-0 opacity-0 group-hover/meta:opacity-100 transition-opacity z-10">
+                  <div className="flex items-center gap-1 absolute -top-5 left-0 opacity-60 group-hover/meta:opacity-100 transition-opacity z-10">
                     <div
                       onPointerDown={handleMetaMouseDown} data-drag-handle
                       className="bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing shadow-2xs"
@@ -1217,10 +1231,12 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
               {/* Draggable & Editable Subject Field with Independent Font */}
               <div
-                className="pt-2 flex items-center gap-2 text-xs font-bold relative group/subj"
+                onPointerDown={grab(handleSubjectMouseDown)}
+                className="pt-2 flex items-center gap-2 text-xs font-bold relative group/subj cursor-grab active:cursor-grabbing hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-400 rounded-md"
                 style={{
                   transform: `translate(${subjectOffset.x}px, ${subjectOffset.y}px)`,
                   fontFamily: subjectFontFamily,
+                  touchAction: 'none',
                 }}
               >
                 <div
@@ -1262,7 +1278,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             <div className="relative flex flex-col group/body">
               <div
                 onPointerDown={handleBodyMouseDown} data-drag-handle
-                className="opacity-0 group-hover/body:opacity-100 transition-opacity absolute -top-3 left-2 bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing select-none z-10 shadow-xs"
+                className="opacity-60 group-hover/body:opacity-100 transition-opacity absolute -top-3 left-2 bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing select-none z-10 shadow-xs"
                 title="برای جابه‌جایی کل متن نامه به چپ یا راست، بکشید (Drag)"
               >
                 <Move className="w-3 h-3 text-[#C98B6A]" />

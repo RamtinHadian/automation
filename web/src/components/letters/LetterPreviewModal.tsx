@@ -1739,7 +1739,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   {isEditable && (
                     <div
                       onPointerDown={handleMouseDownOnMeta} data-drag-handle
-                      className="opacity-0 group-hover/meta:opacity-100 transition-opacity absolute -top-5 left-0 bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing z-10 shadow-2xs"
+                      className="opacity-60 group-hover/meta:opacity-100 transition-opacity absolute -top-5 left-0 bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing z-10 shadow-2xs"
                       title="برای جابه‌جایی کادر شماره، تاریخ و پیوست با ماوس بکشید (Drag)"
                     >
                       <Move className="w-2.5 h-2.5 text-[#C98B6A]" />
