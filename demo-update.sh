@@ -17,7 +17,7 @@ After=network-online.target docker.service
 
 [Service]
 Environment=BRANCH=$BRANCH
-ExecStart=/bin/bash -c 'while true; do flock -n /var/lock/hoormand-demo.lock "$DIR/demo-update.sh" >> /var/log/hoormand-demo-update.log 2>&1; sleep 30; done'
+ExecStart=/bin/bash -c 'while true; do flock -n /var/lock/hoormand-demo.lock bash "$DIR/demo-update.sh" >> /var/log/hoormand-demo-update.log 2>&1; sleep 30; done'
 Restart=always
 RestartSec=10
 

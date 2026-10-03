@@ -18,7 +18,7 @@ After=network-online.target docker.service
 
 [Service]
 Environment=BRANCH=$BRANCH
-ExecStart=/bin/bash -c 'while true; do flock -n /var/lock/automation-update.lock "$DIR/auto-update.sh" >> /var/log/automation-update.log 2>&1; sleep 30; done'
+ExecStart=/bin/bash -c 'while true; do flock -n /var/lock/automation-update.lock bash "$DIR/auto-update.sh" >> /var/log/automation-update.log 2>&1; sleep 30; done'
 Restart=always
 RestartSec=10
 
