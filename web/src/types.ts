@@ -388,6 +388,10 @@ export interface FileTransfer {
   /** Untick to leave the signature scan / the stamp off this letter (default: shown). */
   showSignatureImage?: boolean;
   showStampImage?: boolean;
+  /** Untick to leave the number / date / attachment line out of the letter header, e.g. on pre-printed letterhead paper (default: shown). */
+  showLetterNumber?: boolean;
+  showLetterDate?: boolean;
+  showLetterAttachment?: boolean;
   headerCenterOffsetX?: number;
   headerCenterOffsetY?: number;
   subjectOffsetX?: number;

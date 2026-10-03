@@ -125,6 +125,9 @@ interface AppContextType {
     stampOffsetY?: number;
     showSignatureImage?: boolean;
     showStampImage?: boolean;
+    showLetterNumber?: boolean;
+    showLetterDate?: boolean;
+    showLetterAttachment?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyPaddingX?: number;
@@ -148,6 +151,9 @@ interface AppContextType {
       stampOffsetY?: number;
       showSignatureImage?: boolean;
       showStampImage?: boolean;
+      showLetterNumber?: boolean;
+      showLetterDate?: boolean;
+      showLetterAttachment?: boolean;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -667,6 +673,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stampOffsetY,
       showSignatureImage,
       showStampImage,
+      showLetterNumber,
+      showLetterDate,
+      showLetterAttachment,
       customFooterNote,
       bodyOffsetX,
       bodyPaddingX,
@@ -708,6 +717,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stampOffsetY?: number;
       showSignatureImage?: boolean;
       showStampImage?: boolean;
+      showLetterNumber?: boolean;
+      showLetterDate?: boolean;
+      showLetterAttachment?: boolean;
       customFooterNote?: string;
       bodyOffsetX?: number;
       bodyPaddingX?: number;
@@ -788,6 +800,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             stampOffsetY,
             showSignatureImage,
             showStampImage,
+            showLetterNumber,
+            showLetterDate,
+            showLetterAttachment,
             customFooterNote,
             bodyOffsetX,
             bodyPaddingX,
@@ -1026,6 +1041,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         stampOffsetY?: number;
         showSignatureImage?: boolean;
         showStampImage?: boolean;
+        showLetterNumber?: boolean;
+        showLetterDate?: boolean;
+        showLetterAttachment?: boolean;
         pageSize?: string;
         customBody?: string;
         customHeaderNumber?: string;
@@ -1070,6 +1088,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               stampOffsetY: signatureOptions?.stampOffsetY ?? t.stampOffsetY ?? 0,
               showSignatureImage: signatureOptions?.showSignatureImage ?? t.showSignatureImage,
               showStampImage: signatureOptions?.showStampImage ?? t.showStampImage,
+              showLetterNumber: signatureOptions?.showLetterNumber ?? t.showLetterNumber,
+              showLetterDate: signatureOptions?.showLetterDate ?? t.showLetterDate,
+              showLetterAttachment: signatureOptions?.showLetterAttachment ?? t.showLetterAttachment,
               pageSize: signatureOptions?.pageSize || t.pageSize,
               letterContentHtml: convertNumbersInHtmlToPersian(signatureOptions?.customBody || t.letterContentHtml || ''),
               customHeaderNumber: signatureOptions?.customHeaderNumber || t.customHeaderNumber,

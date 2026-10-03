@@ -39,6 +39,9 @@ export interface LetterPrintOverrides {
   stampOffsetY?: number;
   showSignatureImage?: boolean;
   showStampImage?: boolean;
+  showLetterNumber?: boolean;
+  showLetterDate?: boolean;
+  showLetterAttachment?: boolean;
   signatureImgOffsetX?: number;
   signatureImgOffsetY?: number;
 }
@@ -56,6 +59,9 @@ export function generateOfficialLetterHtml(
   const attr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   const showSig = (overrides?.showSignatureImage ?? transfer.showSignatureImage) !== false;
   const showStamp = (overrides?.showStampImage ?? transfer.showStampImage) !== false;
+  const showNo = (overrides?.showLetterNumber ?? transfer.showLetterNumber) !== false;
+  const showDate = (overrides?.showLetterDate ?? transfer.showLetterDate) !== false;
+  const showAtt = (overrides?.showLetterAttachment ?? transfer.showLetterAttachment) !== false;
   const signatureImg = showSig ? transfer.signatureImageUrl || settings.ceoSignatureUrl : undefined;
   const stampImg = showStamp ? transfer.companyStampImageUrl || settings.companyStampUrl : undefined;
 
@@ -444,18 +450,18 @@ export function generateOfficialLetterHtml(
       </div>
       <div class="meta-box" style="transform: translate(${metaOffsetX}px, ${metaOffsetY}px); font-family: '${metaFont}', inherit; text-align: right; line-height: 1.8;">
         <table style="border-collapse: collapse; border: none; font-size: inherit; font-family: inherit; margin: 0; padding: 0;">
-          <tr>
+          ${showNo ? `<tr>
             <td style="padding: 1px 4px 1px 0; color: #8C6F66; font-weight: bold; text-align: right;">شماره:</td>
             <td style="padding: 1px 0; color: #3A241F; font-weight: bold; text-align: right;">${letterNo}</td>
-          </tr>
-          <tr>
+          </tr>` : ''}
+          ${showDate ? `<tr>
             <td style="padding: 1px 4px 1px 0; color: #8C6F66; font-weight: bold; text-align: right;">تاریخ:</td>
             <td style="padding: 1px 0; color: #3A241F; font-weight: bold; text-align: right;">${letterDate}</td>
-          </tr>
-          <tr>
+          </tr>` : ''}
+          ${showAtt ? `<tr>
             <td style="padding: 1px 4px 1px 0; color: #8C6F66; font-weight: bold; text-align: right;">پیوست:</td>
             <td style="padding: 1px 0; color: #3A241F; font-weight: bold; text-align: right;">${letterAttach}</td>
-          </tr>
+          </tr>` : ''}
         </table>
       </div>
     </div>

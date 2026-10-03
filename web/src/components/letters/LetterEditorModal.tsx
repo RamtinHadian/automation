@@ -80,6 +80,9 @@ interface LetterEditorModalProps {
     stampOffsetY?: number;
     showSignatureImage?: boolean;
     showStampImage?: boolean;
+    showLetterNumber?: boolean;
+    showLetterDate?: boolean;
+    showLetterAttachment?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyPaddingX?: number;
@@ -185,6 +188,9 @@ function parseLetterForEdit(t: FileTransfer) {
   layout.stampOffset = pt(t.stampOffsetX, t.stampOffsetY);
   if (t.showSignatureImage === false) layout.showSignatureImage = false;
   if (t.showStampImage === false) layout.showStampImage = false;
+  if (t.showLetterNumber === false) layout.showLetterNumber = false;
+  if (t.showLetterDate === false) layout.showLetterDate = false;
+  if (t.showLetterAttachment === false) layout.showLetterAttachment = false;
   const subject = (t.fileName || '').replace(/^نامه_/, '').replace(/_(A4|A5|Letter|Letterhead)\.html$/, '').replace(/_/g, ' ');
   return { bodyHtml, layout, subject, signerName: t.customSignerName, signerTitle: t.customSignerTitle };
 }
@@ -263,6 +269,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [stampOffset, setStampOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.stampOffset));
   const [showSigImg, setShowSigImg] = useState<boolean>(() => prefs.showSignatureImage !== false);
   const [showStampImg, setShowStampImg] = useState<boolean>(() => prefs.showStampImage !== false);
+  const [showNo, setShowNo] = useState<boolean>(() => prefs.showLetterNumber !== false);
+  const [showDate, setShowDate] = useState<boolean>(() => prefs.showLetterDate !== false);
+  const [showAtt, setShowAtt] = useState<boolean>(() => prefs.showLetterAttachment !== false);
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(() => (typeof prefs.stampHeightOverride === 'number' ? prefs.stampHeightOverride : null));
   const effectiveStampHeight =
     stampHeightOverride ?? (pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05));
@@ -536,6 +545,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       stampOffsetY: stampOffset.y,
       showSignatureImage: showSigImg ? undefined : false,
       showStampImage: showStampImg ? undefined : false,
+      showLetterNumber: showNo ? undefined : false,
+      showLetterDate: showDate ? undefined : false,
+      showLetterAttachment: showAtt ? undefined : false,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
       bodyOffsetX,
       bodyPaddingX,
@@ -929,6 +941,22 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </label>
             </div>
 
+            <div className="flex items-center gap-3 border-r border-amber-300/80 pr-2 mr-1 text-[10px] font-bold text-amber-950">
+              <span>نمایش در سربرگ:</span>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showNo} onChange={(e) => setShowNo(e.target.checked)} className="accent-amber-700" />
+                شماره
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showDate} onChange={(e) => setShowDate(e.target.checked)} className="accent-amber-700" />
+                تاریخ
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showAtt} onChange={(e) => setShowAtt(e.target.checked)} className="accent-amber-700" />
+                پیوست
+              </label>
+            </div>
+
             <div className="flex items-center gap-1.5 border-r border-amber-300/80 pr-2 mr-1">
               <span className="text-[10px] font-bold text-amber-950">سایز امضا:</span>
               <input
@@ -1101,6 +1129,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
                   {/* Perfectly Stacked Under Each Other with Fixed Column Alignment */}
                   <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-right items-center">
+                    {showNo && (
+                      <>
                     <span className="text-[#8C6F66] font-bold text-right shrink-0">شماره:</span>
                     <input
                       type="text"
@@ -1110,7 +1140,11 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       style={{ fontFamily: metaFontFamily }}
                       className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-28 text-right text-[11px] px-0.5"
                     />
+                      </>
+                    )}
 
+                    {showDate && (
+                      <>
                     <span className="text-[#8C6F66] font-bold text-right shrink-0">تاریخ:</span>
                     <input
                       type="text"
@@ -1120,7 +1154,11 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       style={{ fontFamily: metaFontFamily }}
                       className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-28 text-right text-[11px] px-0.5"
                     />
+                      </>
+                    )}
 
+                    {showAtt && (
+                      <>
                     <span className="text-[#8C6F66] font-bold text-right shrink-0">پیوست:</span>
                     <input
                       type="text"
@@ -1130,6 +1168,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       style={{ fontFamily: metaFontFamily }}
                       className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-28 text-right text-[11px] px-0.5"
                     />
+                      </>
+                    )}
+
                   </div>
                 </div>
               </div>

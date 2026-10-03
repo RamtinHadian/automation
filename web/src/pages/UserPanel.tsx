@@ -419,6 +419,9 @@ export default function UserPanel() {
     stampOffsetY?: number;
     showSignatureImage?: boolean;
     showStampImage?: boolean;
+    showLetterNumber?: boolean;
+    showLetterDate?: boolean;
+    showLetterAttachment?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyPaddingX?: number;
@@ -506,6 +509,9 @@ export default function UserPanel() {
       stampOffsetY: letterData.stampOffsetY,
       showSignatureImage: letterData.showSignatureImage,
       showStampImage: letterData.showStampImage,
+      showLetterNumber: letterData.showLetterNumber,
+      showLetterDate: letterData.showLetterDate,
+      showLetterAttachment: letterData.showLetterAttachment,
       customFooterNote: letterData.customFooterNote,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyPaddingX: letterData.bodyPaddingX,

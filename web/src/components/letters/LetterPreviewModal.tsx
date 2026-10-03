@@ -411,6 +411,9 @@ interface LetterPreviewModalProps {
       stampOffsetY?: number;
       showSignatureImage?: boolean;
       showStampImage?: boolean;
+      showLetterNumber?: boolean;
+      showLetterDate?: boolean;
+      showLetterAttachment?: boolean;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -460,6 +463,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const ceoTitle = settings?.ceoTitle || 'مدیرعامل';
   const [showSig, setShowSig] = useState(true);
   const [showStamp, setShowStamp] = useState(true);
+  const [showNo, setShowNo] = useState(true);
+  const [showDate, setShowDate] = useState(true);
+  const [showAtt, setShowAtt] = useState(true);
   const signatureImg = showSig ? letter?.signatureImageUrl || settings?.ceoSignatureUrl : undefined;
   const stampImg = showStamp ? letter?.companyStampImageUrl || settings?.companyStampUrl : undefined;
 
@@ -553,6 +559,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setStampHeightOverride(letter.stampHeight ?? null);
       setShowSig(letter.showSignatureImage !== false);
       setShowStamp(letter.showStampImage !== false);
+      setShowNo(letter.showLetterNumber !== false);
+      setShowDate(letter.showLetterDate !== false);
+      setShowAtt(letter.showLetterAttachment !== false);
       setHeaderCenterOffset({ x: letter.headerCenterOffsetX || 0, y: letter.headerCenterOffsetY || 0 });
       setSubjectOffset({ x: letter.subjectOffsetX || 0, y: letter.subjectOffsetY || 0 });
       setMetaOffset({ x: letter.metaOffsetX || 0, y: letter.metaOffsetY || 0 });
@@ -736,6 +745,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       stampOffsetY: stampOffset.y,
       showSignatureImage: showSig,
       showStampImage: showStamp,
+      showLetterNumber: showNo,
+      showLetterDate: showDate,
+      showLetterAttachment: showAtt,
       customBody: convertNumbersInHtmlToPersian(customBody),
       customHeaderNumber: headerNumber,
       customHeaderDate: headerDate,
@@ -822,6 +834,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       stampOffsetY: stampOffset.y,
       showSignatureImage: showSig,
       showStampImage: showStamp,
+      showLetterNumber: showNo,
+      showLetterDate: showDate,
+      showLetterAttachment: showAtt,
     });
   };
 
@@ -1253,6 +1268,22 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 ))}
               </select>
 
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-bold text-[#3A241F] pt-1">
+                <span className="text-[#8C6F66]">نمایش در سربرگ:</span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showNo} onChange={(e) => setShowNo(e.target.checked)} className="accent-[#6E1B1B]" />
+                  شماره
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showDate} onChange={(e) => setShowDate(e.target.checked)} className="accent-[#6E1B1B]" />
+                  تاریخ
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showAtt} onChange={(e) => setShowAtt(e.target.checked)} className="accent-[#6E1B1B]" />
+                  پیوست
+                </label>
+              </div>
+
               <div className="flex items-center gap-4 font-bold text-[#3A241F] pt-1">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={showSig} onChange={(e) => setShowSig(e.target.checked)} className="accent-[#6E1B1B]" />
@@ -1347,6 +1378,22 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-emerald-600" />
                   درج مهر
+                </label>
+              </div>
+
+              <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold">
+                <span>نمایش در سربرگ:</span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showNo} onChange={(e) => setShowNo(e.target.checked)} className="accent-emerald-600" />
+                  شماره
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showDate} onChange={(e) => setShowDate(e.target.checked)} className="accent-emerald-600" />
+                  تاریخ
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showAtt} onChange={(e) => setShowAtt(e.target.checked)} className="accent-emerald-600" />
+                  پیوست
                 </label>
               </div>
 
@@ -1699,6 +1746,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       <span>جابه‌جایی مشخصات</span>
                     </div>
                   )}
+                  {showNo && (
                   <div className="flex items-center gap-1 justify-end">
                     <span className="text-[#8C6F66]">شماره:</span>
                     {isEditable ? (
@@ -1716,6 +1764,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       <b className="font-bold text-[#3A241F]">{toPersianDigits(headerNumber)}</b>
                     )}
                   </div>
+                  )}
+                  {showDate && (
                   <div className="flex items-center gap-1 justify-end">
                     <span className="text-[#8C6F66]">تاریخ:</span>
                     {isEditable ? (
@@ -1733,6 +1783,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       <b className="font-bold text-[#3A241F]">{toPersianDigits(headerDate)}</b>
                     )}
                   </div>
+                  )}
+                  {showAtt && (
                   <div className="flex items-center gap-1 justify-end">
                     <span className="text-[#8C6F66]">پیوست:</span>
                     {isEditable ? (
@@ -1750,6 +1802,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       <b className="font-bold text-[#3A241F]">{headerAttachment}</b>
                     )}
                   </div>
+                  )}
                 </div>
               </div>
 
