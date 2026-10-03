@@ -424,6 +424,9 @@ export default function UserPanel() {
     showLetterAttachment?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
+    bodyOffsetY?: number;
+    orgOffsetX?: number;
+    orgOffsetY?: number;
     bodyPaddingX?: number;
     attachmentFileName?: string;
     attachmentFileSize?: string;
@@ -514,6 +517,9 @@ export default function UserPanel() {
       showLetterAttachment: letterData.showLetterAttachment,
       customFooterNote: letterData.customFooterNote,
       bodyOffsetX: letterData.bodyOffsetX,
+      bodyOffsetY: letterData.bodyOffsetY,
+      orgOffsetX: letterData.orgOffsetX,
+      orgOffsetY: letterData.orgOffsetY,
       bodyPaddingX: letterData.bodyPaddingX,
       attachmentFileName: letterData.attachmentFileName,
       attachmentFileSize: letterData.attachmentFileSize,

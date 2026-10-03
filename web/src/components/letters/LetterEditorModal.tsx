@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
+import { MoveBox } from './MoveBox';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
 import { useFitZoom } from '../../lib/useFitZoom';
@@ -9,6 +10,8 @@ import {
   X,
   FileText,
   Stamp,
+  Lock,
+  Unlock,
   Download,
   Send,
   Bold,
@@ -85,6 +88,9 @@ interface LetterEditorModalProps {
     showLetterAttachment?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
+    bodyOffsetY?: number;
+    orgOffsetX?: number;
+    orgOffsetY?: number;
     bodyPaddingX?: number;
     attachmentFileName?: string;
     attachmentFileSize?: string;
@@ -186,6 +192,8 @@ function parseLetterForEdit(t: FileTransfer) {
   layout.sigImgOffset = pt(t.signatureImgOffsetX, t.signatureImgOffsetY);
   if (t.stampHeight) layout.stampHeightOverride = t.stampHeight;
   layout.stampOffset = pt(t.stampOffsetX, t.stampOffsetY);
+  layout.orgOffset = pt(t.orgOffsetX, t.orgOffsetY);
+  if (t.bodyOffsetY) layout.bodyOffsetY = t.bodyOffsetY;
   if (t.showSignatureImage === false) layout.showSignatureImage = false;
   if (t.showStampImage === false) layout.showStampImage = false;
   if (t.showLetterNumber === false) layout.showLetterNumber = false;
@@ -278,11 +286,16 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.headerCenterOffset));
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.subjectOffset));
   const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.metaOffset));
+  const [orgOffset, setOrgOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.orgOffset));
+  const [bodyOffsetY, setBodyOffsetY] = useState<number>(() => numPref(prefs.bodyOffsetY, 0));
+  // Once everything is where it should be, the layout can be locked so a stray touch moves nothing.
+  const [layoutLocked, setLayoutLocked] = useState<boolean>(() => prefs.layoutLocked === true);
 
   const collectLayout = () => ({
     selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
     selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
+    orgOffset, bodyOffsetY, layoutLocked,
     showSignatureImage: showSigImg, showStampImage: showStampImg, showLetterNumber: showNo, showLetterDate: showDate, showLetterAttachment: showAtt,
   });
 
@@ -329,6 +342,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setHeaderCenterOffset(pt(base.headerCenterOffset));
     setSubjectOffset(pt(base.subjectOffset));
     setMetaOffset(pt(base.metaOffset));
+    setOrgOffset(pt(base.orgOffset));
+    setBodyOffsetY(numPref(base.bodyOffsetY, 0));
+    setLayoutLocked(false);
     setShowSigImg(base.showSignatureImage !== false);
     setShowStampImg(base.showStampImage !== false);
     setShowNo(base.showLetterNumber !== false);
@@ -572,6 +588,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       showLetterAttachment: showAtt ? undefined : false,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
       bodyOffsetX,
+      bodyOffsetY,
+      orgOffsetX: orgOffset.x,
+      orgOffsetY: orgOffset.y,
       bodyPaddingX,
       attachmentFileName: attachedFile?.name,
       attachmentFileSize: attachedFile?.size,
@@ -659,6 +678,17 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             }
           >
             {canSaveLayout && layoutDirty ? 'ذخیرهٔ تنظیمات' : 'تنظیمات ذخیره است'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLayoutLocked((v) => !v)}
+            className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-black shrink-0 flex items-center gap-1 cursor-pointer ${
+              layoutLocked ? 'border-amber-600 bg-amber-600 text-white hover:bg-amber-700' : 'border-[#EBDBCE] bg-white text-[#3A241F] hover:bg-[#FAF5F1]'
+            }`}
+            title={layoutLocked ? 'چیدمان قفل است؛ برای جابه‌جایی دوباره باز کنید' : 'وقتی همه‌چیز سر جایش بود، قفل کنید تا با یک لمس اشتباهی جابه‌جا نشود'}
+          >
+            {layoutLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+            {layoutLocked ? 'چیدمان قفل است' : 'قفل کردن چیدمان'}
           </button>
 
           {/* Format / Paper Size Selector */}
@@ -1056,7 +1086,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             <div className="pb-2 mb-4 space-y-3 shrink-0">
               <div className="relative flex items-start justify-between">
                 {/* Right: Company Info & Dynamic Logo */}
-                <div className={`space-y-1 min-w-0 ${pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
+                <MoveBox offset={orgOffset} onChange={setOrgOffset} locked={layoutLocked} scale={zoom} className={`space-y-1 min-w-0 ${pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
                   <div className="flex items-center gap-2.5">
                     {settings.companyLogoUrl ? (
                       <div
@@ -1089,27 +1119,14 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       </div>
                     )}
                   </div>
-                </div>
+                </MoveBox>
 
                 {/* Center: Official Title (Strictly Centered & Vertically Draggable Only) */}
                 <div
-                  className="absolute left-1/2 flex items-center justify-center z-10"
-                  style={{ top: '8px', transform: `translate(calc(-50% + ${headerCenterOffset.x}px), ${headerCenterOffset.y}px)` }}
+                  className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center z-10"
+                  style={{ top: '8px' }}
                 >
-                  <div
-                    onPointerDown={grab(handleCenterTitleMouseDown)}
-                    style={{ touchAction: 'none' }}
-                    className={`group/title relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition-all cursor-grab active:cursor-grabbing hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-400 ${
-                      activeDragItem === 'CENTER_TITLE' ? 'ring-2 ring-amber-500/50 bg-amber-50/50 shadow-xs' : 'hover:bg-amber-50/30'
-                    }`}
-                  >
-                    <div
-                      onPointerDown={handleCenterTitleMouseDown} data-drag-handle
-                      className="cursor-grab active:cursor-grabbing p-1 text-[#8C6F66] hover:text-[#6E1B1B] transition-colors shrink-0 select-none"
-                      title="«به نام خدا» را هر جای آن بگیرید و بکشید"
-                    >
-                      <Move className="w-3 h-3" />
-                    </div>
+                  <MoveBox offset={headerCenterOffset} onChange={setHeaderCenterOffset} locked={layoutLocked} scale={zoom} className="group/title relative flex items-center gap-1.5 px-2.5 py-1">
                     <input
                       type="text"
                       value={headerCenterTitle}
@@ -1135,29 +1152,20 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                         ))}
                       </select>
                     </div>
-                  </div>
+                  </MoveBox>
                 </div>
 
                 {/* Left: Metadata (Date, Number, Attachment) - Exactly Stacked Vertically & Aligned */}
-                <div
-                  style={{
-                    transform: `translate(${metaOffset.x}px, ${metaOffset.y}px)`,
-                    fontFamily: metaFontFamily,
-                    touchAction: 'none',
-                  }}
-                  onPointerDown={grab(handleMetaMouseDown)}
-                  className="text-[11px] font-medium text-[#3A241F] relative group/meta select-none shrink-0 cursor-grab active:cursor-grabbing hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-400 rounded-md px-1"
+                <MoveBox
+                  offset={metaOffset}
+                  onChange={setMetaOffset}
+                  locked={layoutLocked}
+                  scale={zoom}
                   dir="rtl"
+                  style={{ fontFamily: metaFontFamily }}
+                  className="text-[11px] font-medium text-[#3A241F] relative group/meta select-none shrink-0 px-1"
                 >
                   <div className="flex items-center gap-1 absolute -top-5 left-0 opacity-60 group-hover/meta:opacity-100 transition-opacity z-10">
-                    <div
-                      onPointerDown={handleMetaMouseDown} data-drag-handle
-                      className="bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing shadow-2xs"
-                      title="برای جابه‌جایی کادر شماره، تاریخ و پیوست با ماوس بکشید (Drag)"
-                    >
-                      <Move className="w-2.5 h-2.5 text-[#C98B6A]" />
-                      <span>جابه‌جایی</span>
-                    </div>
                     {/* Independent Font Picker for Metadata */}
                     <select
                       value={metaFontFamily}
@@ -1206,7 +1214,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                     />
 
                   </div>
-                </div>
+                </MoveBox>
               </div>
 
               {/* Attached File Indicator in Editor (if uploaded) */}
@@ -1230,23 +1238,15 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               )}
 
               {/* Draggable & Editable Subject Field with Independent Font */}
-              <div
-                onPointerDown={grab(handleSubjectMouseDown)}
-                className="pt-2 flex items-center gap-2 text-xs font-bold relative group/subj cursor-grab active:cursor-grabbing hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-400 rounded-md"
-                style={{
-                  transform: `translate(${subjectOffset.x}px, ${subjectOffset.y}px)`,
-                  fontFamily: subjectFontFamily,
-                  touchAction: 'none',
-                }}
+              <MoveBox
+                offset={subjectOffset}
+                onChange={setSubjectOffset}
+                locked={layoutLocked}
+                scale={zoom}
+                style={{ fontFamily: subjectFontFamily }}
+                className="pt-2 flex items-center gap-2 text-xs font-bold relative group/subj"
               >
-                <div
-                  onPointerDown={handleSubjectMouseDown} data-drag-handle
-                  className="cursor-grab active:cursor-grabbing p-1 text-[#8C6F66] hover:text-[#6E1B1B] transition-colors shrink-0 select-none flex items-center gap-1"
-                  title="برای جابه‌جایی خط موضوع نامه، با ماوس بکشید (Drag)"
-                >
-                  <Move className="w-3 h-3 text-[#C98B6A] group-hover/subj:text-[#6E1B1B]" />
-                  <span className="text-[#6E1B1B] shrink-0 font-black">موضوع نامه:</span>
-                </div>
+                <span className="text-[#6E1B1B] shrink-0 font-black">موضوع نامه:</span>
                 <input
                   type="text"
                   value={subject}
@@ -1271,19 +1271,20 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                     ))}
                   </select>
                 </div>
-              </div>
+              </MoveBox>
             </div>
 
             {/* Editable Letter Body (Word contentEditable) with Drag & Margin */}
-            <div className="relative flex flex-col group/body">
-              <div
-                onPointerDown={handleBodyMouseDown} data-drag-handle
-                className="opacity-60 group-hover/body:opacity-100 transition-opacity absolute -top-3 left-2 bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing select-none z-10 shadow-xs"
-                title="برای جابه‌جایی کل متن نامه به چپ یا راست، بکشید (Drag)"
-              >
-                <Move className="w-3 h-3 text-[#C98B6A]" />
-                <span>جابه‌جایی کل متن</span>
-              </div>
+            <MoveBox
+              offset={{ x: bodyOffsetX, y: bodyOffsetY }}
+              onChange={(o) => {
+                setBodyOffsetX(o.x);
+                setBodyOffsetY(o.y);
+              }}
+              locked={layoutLocked}
+              scale={zoom}
+              className="relative flex flex-col group/body p-3 -m-3"
+            >
               <div
                 ref={editorRef}
                 contentEditable
@@ -1295,12 +1296,11 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                   textAlign: 'justify',
                   paddingLeft: `${bodyPaddingX}px`,
                   paddingRight: `${bodyPaddingX}px`,
-                  transform: `translateX(${bodyOffsetX}px)`,
                 }}
                 className="focus:outline-none min-h-[160px] leading-relaxed space-y-3 transition-transform"
                 dangerouslySetInnerHTML={{ __html: initialBody }}
               />
-            </div>
+            </MoveBox>
 
             {/* CEO NAME / TITLE (font + size beside the text). Signature image and stamp are independent objects. */}
             <div className={`${pageSize === 'A5' ? 'mt-4 pt-1 min-h-[90px]' : 'mt-8 pt-2 min-h-[140px]'} flex justify-end items-end relative`}>
@@ -1308,7 +1308,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 className={`text-center ${pageSize === 'A5' ? 'w-[170px] min-w-[170px]' : 'w-[220px] min-w-[220px]'} flex flex-col items-center relative select-none`}
               >
                 {/* Name & title with only font and size controls */}
-                <div className="relative w-fit max-w-full" style={{ transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)` }}>
+                <MoveBox offset={signatureOffset} onChange={setSignatureOffset} locked={layoutLocked} scale={zoom} className="relative w-fit max-w-full p-2">
                   <div className="min-w-0 space-y-0.5 flex flex-col items-center">
                     <input
                       type="text"
@@ -1365,7 +1365,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       </button>
                     </div>
                   </div>
-                </div>
+                </MoveBox>
 
                 {/* Signature image & stamp: free objects, independent of the name/title and of each other */}
                 <div
@@ -1378,7 +1378,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       alt="امضا"
                       height={pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight}
                       offset={sigImgOffset}
-                      editable
+                      editable={!layoutLocked}
                       onOffsetChange={setSigImgOffset}
                       onHeightChange={setSignatureHeight}
                       anchorLeft={SIGNATURE_ANCHOR_LEFT}
@@ -1392,7 +1392,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       alt="مهر"
                       height={effectiveStampHeight}
                       offset={stampOffset}
-                      editable
+                      editable={!layoutLocked}
                       onOffsetChange={setStampOffset}
                       onHeightChange={setStampHeightOverride}
                       anchorLeft={STAMP_ANCHOR_LEFT}

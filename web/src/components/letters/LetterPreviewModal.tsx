@@ -430,6 +430,9 @@ interface LetterPreviewModalProps {
       subjectFontFamily?: string;
       metaFontFamily?: string;
       bodyOffsetX?: number;
+      bodyOffsetY?: number;
+      orgOffsetX?: number;
+      orgOffsetY?: number;
       bodyPaddingX?: number;
       signerFontFamily?: string;
       signerFontSize?: number;
@@ -495,6 +498,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [headerCenterTitle, setHeaderCenterTitle] = useState('');
   const [footerNote, setFooterNote] = useState('');
   const [bodyOffsetX, setBodyOffsetX] = useState<number>(0);
+  const [bodyOffsetY, setBodyOffsetY] = useState<number>(0);
+  const [orgOffset, setOrgOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [bodyPaddingX, setBodyPaddingX] = useState<number>(0);
 
   // Editable Letter Body
@@ -575,6 +580,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setCustomSignerTitle(letter.customSignerTitle || settings.ceoTitle || 'مدیرعامل');
       setSignatureHeight(resolveSignatureHeight(letter.signatureHeight, letter.pageSize === 'A5', settings?.ceoSignatureHeight));
       setBodyOffsetX(letter.bodyOffsetX || 0);
+      setBodyOffsetY(letter.bodyOffsetY || 0);
+      setOrgOffset({ x: letter.orgOffsetX || 0, y: letter.orgOffsetY || 0 });
       setBodyPaddingX(letter.bodyPaddingX || 0);
       setIsEditingBody(false);
     }
@@ -760,6 +767,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       metaOffsetX: metaOffset.x,
       metaOffsetY: metaOffset.y,
       bodyOffsetX,
+      bodyOffsetY,
+      orgOffsetX: orgOffset.x,
+      orgOffsetY: orgOffset.y,
       bodyPaddingX,
       signerFontFamily,
       signerFontSize,
@@ -823,6 +833,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       metaOffsetX: metaOffset.x,
       metaOffsetY: metaOffset.y,
       bodyOffsetX: bodyOffsetX,
+      bodyOffsetY: bodyOffsetY,
+      orgOffsetX: orgOffset.x,
+      orgOffsetY: orgOffset.y,
       bodyPaddingX: bodyPaddingX,
       signatureHeight: signatureHeight,
       signatureOffsetX: signatureOffset.x,
@@ -1632,7 +1645,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             <div className={`pb-2 ${pageSize === 'A5' ? 'mb-2 space-y-2' : 'mb-4 space-y-3'} shrink-0`}>
               <div className="relative flex items-start justify-between min-h-[50px]">
                 {/* Right: Company Info & Emblem */}
-                <div className={`space-y-0.5 min-w-0 ${pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
+                <div style={{ transform: `translate(${orgOffset.x}px, ${orgOffset.y}px)` }} className={`space-y-0.5 min-w-0 ${pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
                   <div className="flex items-center gap-2">
                     {settings.companyLogoUrl ? (
                       <div
@@ -1837,7 +1850,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               style={{
                 paddingLeft: `${bodyPaddingX}px`,
                 paddingRight: `${bodyPaddingX}px`,
-                transform: `translateX(${bodyOffsetX}px)`,
+                transform: `translate(${bodyOffsetX}px, ${bodyOffsetY}px)`,
                 fontFamily: bodyFontFamily || chosenFont.fontFamily,
                 fontSize: selectedFontSize,
               }}

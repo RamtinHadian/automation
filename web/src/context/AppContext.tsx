@@ -130,6 +130,9 @@ interface AppContextType {
     showLetterAttachment?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
+    bodyOffsetY?: number;
+    orgOffsetX?: number;
+    orgOffsetY?: number;
     bodyPaddingX?: number;
     attachmentFileName?: string;
     attachmentFileSize?: string;
@@ -174,6 +177,9 @@ interface AppContextType {
       customSignerName?: string;
       customSignerTitle?: string;
       bodyOffsetX?: number;
+      bodyOffsetY?: number;
+      orgOffsetX?: number;
+      orgOffsetY?: number;
       bodyPaddingX?: number;
     }
   ) => void;
@@ -678,6 +684,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showLetterAttachment,
       customFooterNote,
       bodyOffsetX,
+      bodyOffsetY,
+      orgOffsetX,
+      orgOffsetY,
       bodyPaddingX,
       attachmentFileName,
       attachmentFileSize,
@@ -722,6 +731,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showLetterAttachment?: boolean;
       customFooterNote?: string;
       bodyOffsetX?: number;
+      bodyOffsetY?: number;
+      orgOffsetX?: number;
+      orgOffsetY?: number;
       bodyPaddingX?: number;
       attachmentFileName?: string;
       attachmentFileSize?: string;
@@ -805,6 +817,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             showLetterAttachment,
             customFooterNote,
             bodyOffsetX,
+            bodyOffsetY,
+            orgOffsetX,
+            orgOffsetY,
             bodyPaddingX,
             attachmentFileName,
             attachmentFileSize,
@@ -1064,6 +1079,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         customSignerName?: string;
         customSignerTitle?: string;
         bodyOffsetX?: number;
+        bodyOffsetY?: number;
+        orgOffsetX?: number;
+        orgOffsetY?: number;
         bodyPaddingX?: number;
       }
     ) => {
@@ -1111,6 +1129,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               customSignerName: signatureOptions?.customSignerName || t.customSignerName,
               customSignerTitle: signatureOptions?.customSignerTitle || t.customSignerTitle,
               bodyOffsetX: signatureOptions?.bodyOffsetX !== undefined ? signatureOptions.bodyOffsetX : t.bodyOffsetX,
+              bodyOffsetY: signatureOptions?.bodyOffsetY !== undefined ? signatureOptions.bodyOffsetY : t.bodyOffsetY,
+              orgOffsetX: signatureOptions?.orgOffsetX !== undefined ? signatureOptions.orgOffsetX : t.orgOffsetX,
+              orgOffsetY: signatureOptions?.orgOffsetY !== undefined ? signatureOptions.orgOffsetY : t.orgOffsetY,
               bodyPaddingX: signatureOptions?.bodyPaddingX !== undefined ? signatureOptions.bodyPaddingX : t.bodyPaddingX,
             };
           }

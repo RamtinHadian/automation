@@ -407,6 +407,10 @@ export interface FileTransfer {
   customSignerName?: string;
   customSignerTitle?: string;
   bodyOffsetX?: number;
+  bodyOffsetY?: number;
+  /** Where the logo + organisation name box sits (px from its own place). */
+  orgOffsetX?: number;
+  orgOffsetY?: number;
   bodyPaddingX?: number;
   customHeaderNumber?: string;
   customHeaderDate?: string;

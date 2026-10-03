@@ -30,6 +30,9 @@ export interface LetterPrintOverrides {
   customSignerName?: string;
   customSignerTitle?: string;
   bodyOffsetX?: number;
+  bodyOffsetY?: number;
+  orgOffsetX?: number;
+  orgOffsetY?: number;
   bodyPaddingX?: number;
   signatureHeight?: number;
   signatureOffsetX?: number;
@@ -129,6 +132,9 @@ export function generateOfficialLetterHtml(
   const finalCeoTitle = overrides?.customSignerTitle || transfer.customSignerTitle || ceoTitle;
 
   const bodyOffsetX = overrides?.bodyOffsetX !== undefined ? overrides.bodyOffsetX : (transfer.bodyOffsetX || 0);
+  const bodyOffsetY = overrides?.bodyOffsetY !== undefined ? overrides.bodyOffsetY : (transfer.bodyOffsetY || 0);
+  const orgOffsetX = overrides?.orgOffsetX !== undefined ? overrides.orgOffsetX : (transfer.orgOffsetX || 0);
+  const orgOffsetY = overrides?.orgOffsetY !== undefined ? overrides.orgOffsetY : (transfer.orgOffsetY || 0);
   const bodyPaddingX = overrides?.bodyPaddingX !== undefined ? overrides.bodyPaddingX : (transfer.bodyPaddingX || 0);
 
   const finalSigHeight = isA5 ? Math.min(signatureHeight, 300) : signatureHeight;
@@ -438,7 +444,7 @@ export function generateOfficialLetterHtml(
 
   <div class="letter-container">
     <div class="header">
-      <div class="org-box">
+      <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);">
         ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" />` : ''}
         <div>
           ${companyName ? `<h1 class="org-title">${companyName}</h1>` : ''}
@@ -470,7 +476,7 @@ export function generateOfficialLetterHtml(
       <span style="color: #6E1B1B;">موضوع:</span> ${letterSubject}
     </div>
 
-    <div class="content-body" style="padding-left: ${bodyPaddingX}px; padding-right: ${bodyPaddingX}px; transform: translateX(${bodyOffsetX}px);">
+    <div class="content-body" style="padding-left: ${bodyPaddingX}px; padding-right: ${bodyPaddingX}px; transform: translate(${bodyOffsetX}px, ${bodyOffsetY}px);">
       ${letterBody}
     </div>
 
