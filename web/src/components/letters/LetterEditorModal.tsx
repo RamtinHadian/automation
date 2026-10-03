@@ -1163,7 +1163,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                   scale={zoom}
                   dir="rtl"
                   style={{ fontFamily: metaFontFamily }}
-                  className="text-[11px] font-medium text-[#3A241F] relative group/meta select-none shrink-0 px-1"
+                  className="text-[11px] font-medium text-[#3A241F] relative group/meta select-none shrink-0 p-2 -m-2"
                 >
                   <div className="flex items-center gap-1 absolute -top-5 left-0 opacity-60 group-hover/meta:opacity-100 transition-opacity z-10">
                     {/* Independent Font Picker for Metadata */}
