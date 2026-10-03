@@ -61,8 +61,13 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 			keys = append(keys, "canSignOfficialLetters")
 		}
 		for _, k := range keys {
-			if v, ok := rest[k]; ok && v != nil {
-				merged[k] = v
+			if v, ok := rest[k]; ok {
+				if v != nil {
+					merged[k] = v
+				} else if k == "letterPrefs" {
+					// an explicit null resets the person's own letter settings
+					delete(merged, k)
+				}
 			}
 		}
 	} else {

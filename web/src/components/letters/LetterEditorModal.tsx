@@ -334,13 +334,20 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setShowNo(base.showLetterNumber !== false);
     setShowDate(base.showLetterDate !== false);
     setShowAtt(base.showLetterAttachment !== false);
-    setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: undefined } : u)));
-    setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: undefined } : u));
+    // null (not undefined) so that the server forgets the saved settings too
+    setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: null as unknown as undefined } : u)));
+    setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: null as unknown as undefined } : u));
+    savedPrefs.current = JSON.stringify(collectLayout());
     showToast('چیدمان نامه به حالت استاندارد برگشت.');
   };
 
   // Admin: make the current layout (and opening text) the organisation's standard letter template.
   const saveOrgTemplate = (locked: boolean) => {
+    // the admin's own saved settings follow the template, otherwise an older personal copy would win over it on the next letter
+    const own = collectLayout();
+    savedPrefs.current = JSON.stringify(own);
+    setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: own } : u)));
+    setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: own } : u));
     setSettings({
       ...settings,
       letterTemplate: {
