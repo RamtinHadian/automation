@@ -645,6 +645,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const isRejected = letter.signatureStatus === 'REJECTED';
   const isPending = letter.signatureStatus === 'PENDING_SIGNATURE';
   const isEditable = !isSigned; // بعد از امضا، سند کاملاً قفل و غیرقابل تغییر است
+  // Waiting for the signature: the layout is locked. Only the texts and the place/size of the signature and the stamp can change.
+  const layoutFrozen = true;
 
   // Unified Drag listeners for signature, center title, and subject
   useEffect(() => {
@@ -691,7 +693,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   }, [activeDragItem, isEditable]);
 
   const handleMouseDownOnSignature = (e: React.PointerEvent) => {
-    if (!isEditable) return;
+    if (!isEditable || layoutFrozen) return;
     e.preventDefault();
     setActiveDragItem('SIGNATURE');
     dragStartRef.current = {
@@ -703,7 +705,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   };
 
   const handleMouseDownOnCenterTitle = (e: React.PointerEvent) => {
-    if (!isEditable) return;
+    if (!isEditable || layoutFrozen) return;
     e.preventDefault();
     setActiveDragItem('CENTER_TITLE');
     dragStartRef.current = {
@@ -715,7 +717,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   };
 
   const handleMouseDownOnSubject = (e: React.PointerEvent) => {
-    if (!isEditable) return;
+    if (!isEditable || layoutFrozen) return;
     e.preventDefault();
     setActiveDragItem('SUBJECT');
     dragStartRef.current = {
@@ -727,7 +729,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   };
 
   const handleMouseDownOnMeta = (e: React.PointerEvent) => {
-    if (!isEditable) return;
+    if (!isEditable || layoutFrozen) return;
     e.preventDefault();
     setActiveDragItem('META');
     dragStartRef.current = {
@@ -981,7 +983,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             )}
 
             {/* Hamburger Typography & Document Settings Button (Hidden on Mobile) */}
-            {isEditable && (
+            {isEditable && !layoutFrozen && (
               <button
                 type="button"
                 onClick={() => setShowFormattingSidebar(!showFormattingSidebar)}
@@ -1009,26 +1011,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           {/* Quick Paper Size & Signer Info in Top Bar (Hidden on Mobile) */}
           {isEditable ? (
             <div className="hidden sm:flex items-center gap-2 shrink-0 border-r border-[#EBDBCE] pr-2 mr-1">
-              <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-[#EBDBCE] text-[11px] font-bold shrink-0">
-                <span className="text-[#8C6F66]">قطع:</span>
-                <button
-                  type="button"
-                  onClick={() => setPageSize('A4')}
-                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
-                    pageSize === 'A4' ? 'bg-[#6E1B1B] text-white shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
-                  }`}
-                >
-                  A4
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPageSize('A5')}
-                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
-                    pageSize === 'A5' ? 'bg-[#6E1B1B] text-white shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
-                  }`}
-                >
-                  A5
-                </button>
+              <div className="flex items-center gap-1.5 bg-amber-50 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-xl text-[11px] font-black shrink-0" title="چیدمان نامه قفل است؛ در این مرحله فقط متن‌ها و جای امضا و مهر قابل تغییرند">
+                <Lock className="w-3.5 h-3.5 text-amber-700" />
+                <span>چیدمان قفل است</span>
+                <span className="font-bold text-amber-800">· قطع {pageSize}</span>
               </div>
 
               <div className="text-[11px] text-[#8C6F66] font-bold">
@@ -1043,7 +1029,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         </div>
 
         {/* Floating Typography & Settings Hamburger Drawer (Hidden on Mobile) */}
-        {showFormattingSidebar && isEditable && (
+        {showFormattingSidebar && isEditable && !layoutFrozen && (
           <aside className="hidden sm:block absolute top-14 right-4 sm:right-6 w-80 max-w-[92vw] max-h-[82vh] overflow-y-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-[#C98B6A]/40 p-4 z-50 animate-in slide-in-from-right-4 space-y-3.5 text-xs">
             {/* Drawer Header */}
             <div className="flex items-center justify-between pb-2 border-b border-[#EBDBCE]">
@@ -1395,22 +1381,6 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 </label>
               </div>
 
-              <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold">
-                <span>نمایش عنوان در سربرگ:</span>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={showNo} onChange={(e) => setShowNo(e.target.checked)} className="accent-emerald-600" />
-                  شماره
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={showDate} onChange={(e) => setShowDate(e.target.checked)} className="accent-emerald-600" />
-                  تاریخ
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={showAtt} onChange={(e) => setShowAtt(e.target.checked)} className="accent-emerald-600" />
-                  پیوست
-                </label>
-              </div>
-
               {/* Signature Size in Sign Banner */}
               <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold shrink-0 shadow-2xs">
                 <Sliders className="w-3.5 h-3.5 text-emerald-700" />
@@ -1710,7 +1680,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                     transform: `translate(calc(-50% + ${headerCenterOffset.x}px), ${headerCenterOffset.y}px)`,
                   }}
                 >
-                  {isEditable && (
+                  {isEditable && !layoutFrozen && (
                     <div
                       onPointerDown={handleMouseDownOnCenterTitle} data-drag-handle
                       className="cursor-grab active:cursor-grabbing p-1 text-[#8C6F66] hover:text-[#6E1B1B] select-none"
@@ -1750,7 +1720,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   }`}
                   dir="rtl"
                 >
-                  {isEditable && (
+                  {isEditable && !layoutFrozen && (
                     <div
                       onPointerDown={handleMouseDownOnMeta} data-drag-handle
                       className="opacity-60 group-hover/meta:opacity-100 transition-opacity absolute -top-5 left-0 bg-[#FAF5F1] hover:bg-amber-100 text-[#8C6F66] hover:text-[#6E1B1B] border border-[#EBDBCE] px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 cursor-grab active:cursor-grabbing z-10 shadow-2xs"
@@ -1821,7 +1791,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   transform: `translate(${subjectOffset.x}px, ${subjectOffset.y}px)`,
                 }}
               >
-                {isEditable && (
+                {isEditable && !layoutFrozen && (
                   <div
                     onPointerDown={handleMouseDownOnSubject} data-drag-handle
                     className="cursor-grab active:cursor-grabbing p-1 text-[#8C6F66] hover:text-[#6E1B1B] select-none flex items-center gap-1"
@@ -1992,23 +1962,23 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 onPointerDown={handleMouseDownOnSignature} data-drag-handle
                 style={{
                   transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)`,
-                  cursor: isEditable ? (isDraggingSig ? 'grabbing' : 'grab') : 'default',
+                  cursor: isEditable && !layoutFrozen ? (isDraggingSig ? 'grabbing' : 'grab') : 'default',
                 }}
                 className={`text-center w-fit max-w-full space-y-0.5 flex flex-col items-center relative select-none transition-all ${
-                  isEditable
+                  isEditable && !layoutFrozen
                     ? isDraggingSig
                       ? 'opacity-90 scale-102 z-30 ring-2 ring-amber-500 rounded-lg px-1 bg-amber-50/60 shadow-lg'
                       : 'z-10 hover:ring-2 hover:ring-amber-400/60 rounded-lg px-1 group/sig cursor-grab hover:bg-amber-50/30'
                     : 'z-10'
                 }`}
                 title={
-                  isEditable
+                  isEditable && !layoutFrozen
                     ? 'نام و سمت مدیرعامل (برای جابه‌جایی با ماوس درگ کنید)'
                     : 'امضای رسمی تایید شده'
                 }
               >
                 {/* Interactive Drag Badge for Pre-signing Mode */}
-                {isEditable && (
+                {isEditable && !layoutFrozen && (
                   <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover/sig:opacity-100 transition-opacity bg-[#3A241F] text-white text-[9px] font-bold px-2.5 py-0.5 rounded-md shadow-md whitespace-nowrap pointer-events-none flex items-center gap-1 z-40">
                     <Move className="w-2.5 h-2.5 text-amber-400" />
                     <span>نام و سمت را بکشید و جابه‌جا کنید (Drag)</span>
