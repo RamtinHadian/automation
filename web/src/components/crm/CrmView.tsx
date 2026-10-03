@@ -316,6 +316,7 @@ export const CrmView: React.FC = () => {
         className={`bg-white rounded-2xl border p-3.5 space-y-2 text-right shadow-2xs hover:shadow-md transition-all cursor-pointer ${dragId === d.id ? 'opacity-40' : ''} ${overdue ? 'border-rose-300' : 'border-[#EBDBCE]'}`}
       >
         <div className="font-black text-[13px] text-[#3A241F] leading-6">{d.title}</div>
+        {d.productCode && <div className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 w-fit" dir="ltr">{toPersianDigits(d.productCode)}</div>}
         <div className="text-[11px] text-[#8C6F66] flex items-center gap-1">
           <Building2 className="w-3 h-3" />
           {d.customerName}
@@ -752,9 +753,15 @@ const DealForm: React.FC<{
           </>
         }
       >
-        <div>
-          <label className={label}>عنوان فرصت *</label>
-          <input className={field} value={d.title} onChange={(e) => patch({ title: e.target.value })} autoFocus={isNew} placeholder="مثلاً: قرارداد پشتیبانی سالانه" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="sm:col-span-2">
+            <label className={label}>عنوان فرصت *</label>
+            <input className={field} value={d.title} onChange={(e) => patch({ title: e.target.value })} autoFocus={isNew} placeholder="مثلاً: قرارداد پشتیبانی سالانه" />
+          </div>
+          <div>
+            <label className={label}>کد کالا</label>
+            <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} placeholder="مثلاً A-1024" />
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

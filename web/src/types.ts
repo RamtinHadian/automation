@@ -140,6 +140,8 @@ export interface Deal {
   title: string;
   customerId: string;
   customerName: string;
+  /** کد کالا: the code of the product / service this opportunity is about. */
+  productCode?: string;
   /** Amount in Toman. */
   amount: number;
   stage: DealStage;
