@@ -942,7 +942,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             </div>
 
             <div className="flex items-center gap-3 border-r border-amber-300/80 pr-2 mr-1 text-[10px] font-bold text-amber-950">
-              <span>نمایش در سربرگ:</span>
+              <span>نمایش عنوان در سربرگ:</span>
               <label className="flex items-center gap-1 cursor-pointer">
                 <input type="checkbox" checked={showNo} onChange={(e) => setShowNo(e.target.checked)} className="accent-amber-700" />
                 شماره
@@ -1129,9 +1129,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
                   {/* Perfectly Stacked Under Each Other with Fixed Column Alignment */}
                   <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-right items-center">
-                    {showNo && (
-                      <>
-                    <span className="text-[#8C6F66] font-bold text-right shrink-0">شماره:</span>
+                    <span className="text-[#8C6F66] font-bold text-right shrink-0">{showNo ? 'شماره:' : ''}</span>
                     <input
                       type="text"
                       value={letterNumber}
@@ -1140,12 +1138,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       style={{ fontFamily: metaFontFamily }}
                       className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-28 text-right text-[11px] px-0.5"
                     />
-                      </>
-                    )}
 
-                    {showDate && (
-                      <>
-                    <span className="text-[#8C6F66] font-bold text-right shrink-0">تاریخ:</span>
+                    <span className="text-[#8C6F66] font-bold text-right shrink-0">{showDate ? 'تاریخ:' : ''}</span>
                     <input
                       type="text"
                       value={customDate}
@@ -1154,12 +1148,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       style={{ fontFamily: metaFontFamily }}
                       className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-28 text-right text-[11px] px-0.5"
                     />
-                      </>
-                    )}
 
-                    {showAtt && (
-                      <>
-                    <span className="text-[#8C6F66] font-bold text-right shrink-0">پیوست:</span>
+                    <span className="text-[#8C6F66] font-bold text-right shrink-0">{showAtt ? 'پیوست:' : ''}</span>
                     <input
                       type="text"
                       value={attachment}
@@ -1168,8 +1158,6 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       style={{ fontFamily: metaFontFamily }}
                       className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-28 text-right text-[11px] px-0.5"
                     />
-                      </>
-                    )}
 
                   </div>
                 </div>
