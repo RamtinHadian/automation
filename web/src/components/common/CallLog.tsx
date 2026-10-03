@@ -172,7 +172,7 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
 
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={onClose}>
-      <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[88vh] flex flex-col border border-[#EBDBCE] text-right">
+      <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl w-full max-w-xl h-[86vh] max-h-[720px] flex flex-col border border-[#EBDBCE] text-right">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#EBDBCE]">
           <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2">
             <Phone className="w-4 h-4 text-emerald-700" />
