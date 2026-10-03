@@ -10,8 +10,9 @@ UNIT=/etc/systemd/system/automation-update.service
 
 # Install the 30-second loop once (needs root + systemd) and retire the cron job.
 ensure_loop() {
-  [ "$(id -u)" -eq 0 ] && [ -d /run/systemd/system ] && [ ! -f "$UNIT" ] || return 0
-  cat > "$UNIT" <<UNITEOF
+  [ "$(id -u)" -eq 0 ] && [ -d /run/systemd/system ] || return 0
+  local want
+  want="$(cat <<UNITEOF
 [Unit]
 Description=Automation: pull the new version from GitHub every 30 seconds
 After=network-online.target docker.service
@@ -25,10 +26,14 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 UNITEOF
+)"
+  # install the service, and repair it when an older version of this script wrote a different one
+  if [ -f "$UNIT" ] && [ "$(cat "$UNIT")" = "$want" ]; then return 0; fi
+  echo "$want" > "$UNIT"
   systemctl daemon-reload
-  systemctl enable --now automation-update.service >/dev/null 2>&1 || return 0
-  rm -f /etc/cron.d/automation-update
-  echo "$(date -Is) switched to the 30-second update service"
+  systemctl enable automation-update.service >/dev/null 2>&1 || return 0
+  rm -f /etc/cron.d/automation-update; systemctl restart --no-block automation-update.service
+  echo "$(date -Is) update service installed/repaired"
 }
 
 main() {

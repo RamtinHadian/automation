@@ -9,8 +9,9 @@ PROJECT="${PROJECT:-autodemo}"
 UNIT=/etc/systemd/system/hoormand-demo-update.service
 
 ensure_loop() {
-  [ "$(id -u)" -eq 0 ] && [ -d /run/systemd/system ] && [ ! -f "$UNIT" ] || return 0
-  cat > "$UNIT" <<UNITEOF
+  [ "$(id -u)" -eq 0 ] && [ -d /run/systemd/system ] || return 0
+  local want
+  want="$(cat <<UNITEOF
 [Unit]
 Description=Hoormand demo: pull the new version from GitHub every 30 seconds
 After=network-online.target docker.service
@@ -24,10 +25,14 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 UNITEOF
+)"
+  # install the service, and repair it when an older version of this script wrote a different one
+  if [ -f "$UNIT" ] && [ "$(cat "$UNIT")" = "$want" ]; then return 0; fi
+  echo "$want" > "$UNIT"
   systemctl daemon-reload
-  systemctl enable --now hoormand-demo-update.service >/dev/null 2>&1 || return 0
-  rm -f /etc/cron.d/hoormand-demo-update
-  echo "$(date -Is) switched to the 30-second update service"
+  systemctl enable hoormand-demo-update.service >/dev/null 2>&1 || return 0
+  rm -f /etc/cron.d/hoormand-demo-update; systemctl restart --no-block hoormand-demo-update.service
+  echo "$(date -Is) update service installed/repaired"
 }
 
 main() {
