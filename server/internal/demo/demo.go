@@ -407,6 +407,17 @@ func Reset(ctx context.Context) error {
 		{"id": "demo-c3", "name": "رضا حیدری", "company": "داروسازی سلامت", "phones": []string{"09124445566"}, "status": "LEAD", "source": "نمایشگاه", "tags": []string{}},
 		{"id": "demo-c4", "name": "لیلا صادقی", "company": "فناوران پارس", "phones": []string{"09370001122"}, "status": "INACTIVE", "source": "شبکه‌های اجتماعی", "tags": []string{}},
 	}
+	// official details and introducers, so the customer form, the detail view and the marketing table have something to show
+	customers[0]["kind"], customers[0]["firstName"], customers[0]["lastName"], customers[0]["fatherName"] = "PERSON", "حسین", "کاظمی", "علی"
+	customers[0]["nationalCode"], customers[0]["idNumber"], customers[0]["gender"], customers[0]["birthDate"] = "0084575948", "1204", "M", "1984-03-21"
+	customers[0]["province"], customers[0]["city"], customers[0]["postalCode"] = "تهران", "تهران", "1458914551"
+	customers[0]["phones"] = []string{"09121234567", "09351230000", "02188776655", "02188776656"}
+	customers[1]["kind"], customers[1]["companyType"], customers[1]["nationalId"] = "COMPANY", "مسئولیت محدود", "10320543217"
+	customers[1]["economicCode"], customers[1]["registrationNumber"], customers[1]["repName"], customers[1]["repPosition"] = "411234567890", "458712", "نرگس موسوی", "مدیرعامل"
+	customers[1]["province"], customers[1]["city"] = "اصفهان", "اصفهان"
+	customers[1]["referrer"] = jsonx.M{"kind": "CUSTOMER", "id": "demo-c1", "name": "حسین کاظمی", "phone": "09121234567"}
+	customers[2]["referrer"] = jsonx.M{"kind": "STAFF", "id": "demo-sales", "name": by["demo-sales"].Name}
+	customers[3]["referrer"] = jsonx.M{"kind": "OTHER", "name": "آقای مهدوی", "phone": "09125550000"}
 	for _, c := range customers {
 		c["ownerId"], c["ownerName"], c["notes"] = owner, by[owner].Name, ""
 		c["createdAt"], c["updatedAt"] = iso(now.Add(-72*time.Hour)), iso(now.Add(-6*time.Hour))

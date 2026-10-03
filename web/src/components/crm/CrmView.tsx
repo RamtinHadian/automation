@@ -31,6 +31,8 @@ import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
+import { CustomerForm } from './CustomerForm';
+import { Modal, field, label, SOURCES } from './crmUi';
 import { CustomerImportModal } from './CustomerImportModal';
 import type { VoipCall } from '../../lib/api';
 
@@ -58,7 +60,6 @@ const ACTIVITY: Record<ActivityType, { label: string; cls: string }> = {
   FOLLOWUP: { label: 'پیگیری', cls: 'bg-violet-100 text-violet-700' },
 };
 
-const SOURCES = ['معرفی دوستان', 'وب‌سایت', 'تماس ورودی', 'نمایشگاه', 'شبکه‌های اجتماعی', 'مشتری قبلی'];
 
 const uid = (p: string) => p + '-' + Math.random().toString(36).substring(2, 10);
 const nowIso = () => new Date().toISOString();
@@ -69,9 +70,6 @@ const parseNumber = (s: string) => {
 };
 const timeText = (iso: string) => `${formatTaskDate(iso.slice(0, 10))} · ${toPersianDigits(new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}`;
 
-const field =
-  'w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-medium text-[#3A241F] outline-hidden focus:ring-2 focus:ring-violet-500/20 disabled:opacity-70';
-const label = 'block text-[11px] font-black text-[#3A241F] mb-1.5';
 
 export const CrmView: React.FC = () => {
   const { customers, setCustomers, deals, setDeals, activities, setActivities, staffList, currentUser, showToast, settings } = useAppContext();
@@ -139,9 +137,26 @@ export const CrmView: React.FC = () => {
     return customers
       .filter((c) => (statusFilter === 'ALL' ? true : c.status === statusFilter))
       .filter((c) => (mineOnly ? c.ownerId === me : true))
-      .filter((c) => !q || `${c.name} ${c.company || ''} ${c.phones.join(' ')} ${c.email || ''} ${c.tags.join(' ')}`.toLowerCase().includes(q))
+      .filter((c) => !q || `${c.name} ${c.company || ''} ${c.phones.join(' ')} ${c.email || ''} ${c.tags.join(' ')} ${c.nationalCode || ''} ${c.nationalId || ''} ${c.economicCode || ''} ${c.city || ''} ${c.referrer?.name || ''}`.toLowerCase().includes(q))
       .sort((a, b) => (lastActivity.get(b.id) || b.updatedAt).localeCompare(lastActivity.get(a.id) || a.updatedAt));
   }, [customers, statusFilter, mineOnly, search, me, lastActivity]);
+
+  // Marketing: who brought how many customers and how much sale (won deals) came from them.
+  const referrerStats = useMemo(() => {
+    const wonByCustomer = new Map<string, number>();
+    for (const d of deals) if (d.stage === 'WON') wonByCustomer.set(d.customerId, (wonByCustomer.get(d.customerId) || 0) + d.amount);
+    const map = new Map<string, { key: string; name: string; kind: string; count: number; won: number }>();
+    for (const c of customers) {
+      const r = c.referrer;
+      if (!r || !r.name.trim()) continue;
+      const key = r.id ? `${r.kind}:${r.id}` : `${r.kind}:${r.name.trim()}`;
+      const row = map.get(key) || { key, name: r.name.trim(), kind: r.kind, count: 0, won: 0 };
+      row.count += 1;
+      row.won += wonByCustomer.get(c.id) || 0;
+      map.set(key, row);
+    }
+    return [...map.values()].sort((a, b) => b.won - a.won || b.count - a.count);
+  }, [customers, deals]);
 
   const openFollowups = useMemo(() => activities.filter((a) => a.type === 'FOLLOWUP' && !a.done), [activities]);
   const overdueFollowups = openFollowups.filter((a) => a.dueDate && a.dueDate < todayIso());
@@ -249,7 +264,7 @@ export const CrmView: React.FC = () => {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="font-black text-[13px] text-[#3A241F] truncate">{c.name}</div>
-            {c.company && (
+            {c.company && c.company !== c.name && (
               <div className="text-[11px] text-[#8C6F66] flex items-center gap-1 truncate">
                 <Building2 className="w-3 h-3 shrink-0" />
                 {c.company}
@@ -443,6 +458,41 @@ export const CrmView: React.FC = () => {
               )}
             </section>
           </div>
+
+          <section className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-black text-sm text-[#3A241F]">معرف‌ها و بازاریابی</h3>
+              <span className="text-[11px] font-bold text-[#8C6F66]">
+                {toPersianDigits(customers.filter((c) => c.referrer?.name).length)} از {toPersianDigits(customers.length)} مشتری با معرف
+              </span>
+            </div>
+            {referrerStats.length === 0 ? (
+              <div className="text-center text-[11px] font-bold text-gray-400 py-6 border border-dashed border-[#EBDBCE] rounded-2xl">هنوز معرفی ثبت نشده است؛ در فرم مشتری، بخش «بازاریابی» معرف را مشخص کنید.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-[#8C6F66]">
+                    <tr>
+                      <th className="text-right font-black py-1.5">معرف</th>
+                      <th className="text-right font-black py-1.5">نوع</th>
+                      <th className="text-right font-black py-1.5">مشتریان معرفی‌شده</th>
+                      <th className="text-right font-black py-1.5">فروش موفق از آن‌ها</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {referrerStats.slice(0, 8).map((r) => (
+                      <tr key={r.key} className="border-t border-[#EBDBCE]/60">
+                        <td className="py-2 font-black text-[#3A241F]">{r.name}</td>
+                        <td className="py-2 text-[#8C6F66]">{r.kind === 'CUSTOMER' ? 'مشتری' : r.kind === 'STAFF' ? 'همکار' : 'دیگر'}</td>
+                        <td className="py-2 font-bold">{toPersianDigits(r.count)}</td>
+                        <td className="py-2 font-bold text-emerald-700">{toman(r.won)} تومان</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </div>
       )}
 
@@ -556,6 +606,7 @@ export const CrmView: React.FC = () => {
         <CustomerForm
           initial={editingCustomer}
           isNew={!customers.some((c) => c.id === editingCustomer.id)}
+          customers={customers}
           staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))}
           canDelete={canDelete(editingCustomer.ownerId) && customers.some((c) => c.id === editingCustomer.id)}
           onClose={() => setEditingCustomer(null)}
@@ -627,6 +678,8 @@ export const CrmView: React.FC = () => {
           activities={activities.filter((a) => a.customerId === openCustomer).sort((a, b) => b.createdAt.localeCompare(a.createdAt))}
           staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))}
           me={currentUser}
+          referred={customers.filter((x) => x.referrer?.kind === 'CUSTOMER' && x.referrer.id === openCustomer)}
+          allDeals={deals}
           canCall={canCall}
           onCall={call}
           onClose={() => setOpenCustomer(null)}
@@ -645,190 +698,6 @@ export const CrmView: React.FC = () => {
 };
 
 // ======================= customer form =======================
-
-const Modal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode; wide?: boolean }> = ({ title, onClose, children, footer, wide }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={onClose}>
-    <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className={`bg-white rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} max-h-[92vh] flex flex-col border border-[#EBDBCE] text-right`}>
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#EBDBCE]">
-        <h3 className="font-black text-sm text-[#3A241F] truncate">{title}</h3>
-        <button type="button" onClick={onClose} className="p-1.5 text-[#8C6F66] hover:text-[#3A241F] rounded-xl cursor-pointer">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="p-5 space-y-4 overflow-y-auto">{children}</div>
-      <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-[#EBDBCE]">{footer}</div>
-    </div>
-  </div>
-);
-
-const CustomerForm: React.FC<{
-  initial: Customer;
-  isNew: boolean;
-  staff: User[];
-  canDelete: boolean;
-  onClose: () => void;
-  onSave: (c: Customer) => void;
-  onDelete: () => void;
-}> = ({ initial, isNew, staff, canDelete, onClose, onSave, onDelete }) => {
-  const [c, setC] = useState<Customer>(initial);
-  const [phoneDraft, setPhoneDraft] = useState('');
-  const [tagDraft, setTagDraft] = useState('');
-  const patch = (u: Partial<Customer>) => setC((p) => ({ ...p, ...u }));
-  const addPhone = () => {
-    const v = phoneDraft.replace(/[^0-9+]/g, '');
-    if (v && !c.phones.includes(v)) patch({ phones: [...c.phones, v] });
-    setPhoneDraft('');
-  };
-  const addTag = () => {
-    const v = tagDraft.trim();
-    if (v && !c.tags.includes(v)) patch({ tags: [...c.tags, v] });
-    setTagDraft('');
-  };
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!c.name.trim()) return;
-    const phones = phoneDraft.replace(/[^0-9+]/g, '') ? [...c.phones, phoneDraft.replace(/[^0-9+]/g, '')] : c.phones;
-    const owner = staff.find((u) => u.id === c.ownerId);
-    onSave({ ...c, phones: [...new Set(phones)], ownerName: owner?.fullName || c.ownerName });
-  };
-  return (
-    <form onSubmit={submit}>
-      <Modal
-        title={isNew ? 'مشتری جدید' : 'ویرایش مشتری'}
-        onClose={onClose}
-        footer={
-          <>
-            <div>
-              {canDelete && (
-                <button type="button" onClick={onDelete} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-50 cursor-pointer">
-                  <Trash2 className="w-4 h-4" />
-                  حذف مشتری
-                </button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">انصراف</button>
-              <button type="submit" disabled={!c.name.trim()} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">{isNew ? 'ثبت مشتری' : 'ذخیره'}</button>
-            </div>
-          </>
-        }
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={label}>نام مشتری *</label>
-            <input className={field} value={c.name} onChange={(e) => patch({ name: e.target.value })} autoFocus={isNew} placeholder="نام و نام خانوادگی" />
-          </div>
-          <div>
-            <label className={label}>شرکت / سازمان</label>
-            <input className={field} value={c.company || ''} onChange={(e) => patch({ company: e.target.value })} />
-          </div>
-        </div>
-
-        <div>
-          <label className={label}>شمارهٔ تلفن</label>
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {c.phones.map((p) => (
-              <span key={p} className="flex items-center gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-full pl-1.5 pr-3 py-1 text-xs font-bold text-[#3A241F]" dir="ltr">
-                {toPersianDigits(p)}
-                <button type="button" onClick={() => patch({ phones: c.phones.filter((x) => x !== p) })} className="text-rose-500 cursor-pointer">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              className={field}
-              dir="ltr"
-              inputMode="tel"
-              value={phoneDraft}
-              onChange={(e) => setPhoneDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addPhone();
-                }
-              }}
-              placeholder="مثلاً 09121234567"
-            />
-            <button type="button" onClick={addPhone} className="px-3 rounded-xl bg-[#3A241F] text-white text-xs font-black cursor-pointer shrink-0">افزودن</button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={label}>ایمیل</label>
-            <input className={field} dir="ltr" value={c.email || ''} onChange={(e) => patch({ email: e.target.value })} />
-          </div>
-          <div>
-            <label className={label}>آدرس</label>
-            <input className={field} value={c.address || ''} onChange={(e) => patch({ address: e.target.value })} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className={label}>وضعیت</label>
-            <select className={field} value={c.status} onChange={(e) => patch({ status: e.target.value as CustomerStatus })}>
-              {(Object.keys(STATUS) as CustomerStatus[]).map((k) => (
-                <option key={k} value={k}>{STATUS[k].label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className={label}>منبع آشنایی</label>
-            <input className={field} list="crm-sources" value={c.source || ''} onChange={(e) => patch({ source: e.target.value })} />
-            <datalist id="crm-sources">
-              {SOURCES.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label className={label}>مسئول پیگیری</label>
-            <select className={field} value={c.ownerId} onChange={(e) => patch({ ownerId: e.target.value })}>
-              {staff.map((u) => (
-                <option key={u.id} value={u.id}>{u.fullName}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className={label}>برچسب‌ها</label>
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {c.tags.map((t) => (
-              <span key={t} className="flex items-center gap-1 bg-violet-50 text-violet-800 border border-violet-200 rounded-full pl-1.5 pr-3 py-1 text-[11px] font-bold">
-                {t}
-                <button type="button" onClick={() => patch({ tags: c.tags.filter((x) => x !== t) })} className="cursor-pointer">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-          <input
-            className={field}
-            value={tagDraft}
-            onChange={(e) => setTagDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addTag();
-              }
-            }}
-            onBlur={addTag}
-            placeholder="برچسب را بنویسید و Enter بزنید (مثلاً VIP)"
-          />
-        </div>
-
-        <div>
-          <label className={label}>توضیحات</label>
-          <textarea className={`${field} min-h-[80px] leading-6`} value={c.notes || ''} onChange={(e) => patch({ notes: e.target.value })} />
-        </div>
-      </Modal>
-    </form>
-  );
-};
 
 // ======================= deal form =======================
 
@@ -949,6 +818,8 @@ const CustomerDetail: React.FC<{
   activities: CrmActivity[];
   staff: User[];
   me: User;
+  referred: Customer[];
+  allDeals: Deal[];
   canCall: boolean;
   onCall: (number: string, name: string) => void;
   onClose: () => void;
@@ -958,7 +829,7 @@ const CustomerDetail: React.FC<{
   onAddActivity: (type: ActivityType, text: string, extra?: Partial<CrmActivity>) => void;
   onToggle: (a: CrmActivity) => void;
   onDeleteActivity: (a: CrmActivity) => void;
-}> = ({ customer: c, deals, activities, staff, me, canCall, onCall, onClose, onEdit, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
+}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, canCall, onCall, onClose, onEdit, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
   const [type, setType] = useState<ActivityType>('NOTE');
   const [text, setText] = useState('');
   const [due, setDue] = useState<string | undefined>(undefined);
@@ -1054,6 +925,45 @@ const CustomerDetail: React.FC<{
           </div>
         )}
       </div>
+      {(() => {
+        const rows: [string, string | undefined][] =
+          c.kind === 'COMPANY'
+            ? [
+                ['نوع شرکت', c.companyType],
+                ['شناسهٔ ملی', c.nationalId],
+                ['کد اقتصادی', c.economicCode],
+                ['شمارهٔ ثبت', c.registrationNumber],
+                ['تاریخ ثبت', c.registrationDate ? formatTaskDate(c.registrationDate) : undefined],
+                ['نماینده', [c.repName, c.repPosition].filter(Boolean).join(' - ') || undefined],
+                ['موبایل نماینده', c.repMobile],
+              ]
+            : [
+                ['نام پدر', c.fatherName],
+                ['کد ملی', c.nationalCode],
+                ['شمارهٔ شناسنامه', c.idNumber],
+                ['تاریخ تولد', c.birthDate ? formatTaskDate(c.birthDate) : undefined],
+                ['جنسیت', c.gender === 'M' ? 'آقا' : c.gender === 'F' ? 'خانم' : undefined],
+              ];
+        const loc = [c.province, c.city].filter(Boolean).join('، ');
+        const all: [string, string | undefined][] = [...rows, ['استان / شهر', loc || undefined], ['کد پستی', c.postalCode], ['وب‌سایت', c.website], ['معرف', c.referrer?.name ? `${c.referrer.name}${c.referrer.phone ? ` (${c.referrer.phone})` : ''}` : undefined]];
+        const shown = all.filter(([, v]) => v);
+        return shown.length === 0 ? null : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {shown.map(([k, v]) => (
+              <div key={k} className="bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 min-w-0">
+                <div className="text-[10px] font-black text-[#8C6F66]">{k}</div>
+                <div className="text-xs font-bold text-[#3A241F] truncate">{toPersianDigits(v!)}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+      {referred.length > 0 && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs font-bold text-emerald-900">
+          این مشتری {toPersianDigits(referred.length)} مشتری را معرفی کرده است: {referred.map((x) => x.name).join('، ')}. فروش موفق از آن‌ها:{' '}
+          {toman(allDeals.filter((d) => d.stage === 'WON' && referred.some((x) => x.id === d.customerId)).reduce((s, d) => s + d.amount, 0))} تومان
+        </div>
+      )}
       {c.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {c.tags.map((t) => (

@@ -93,6 +93,35 @@ export interface Customer {
   telegramChatId?: string;
   baleChatId?: string;
   company?: string;
+  /** Real person (default) or legal entity. */
+  kind?: 'PERSON' | 'COMPANY';
+  // --- real person
+  firstName?: string;
+  lastName?: string;
+  fatherName?: string;
+  nationalCode?: string;
+  idNumber?: string;
+  /** ISO date (Gregorian), shown in the Persian calendar. */
+  birthDate?: string;
+  gender?: 'M' | 'F';
+  // --- legal entity
+  companyType?: string;
+  /** شناسه ملی (11 digits) */
+  nationalId?: string;
+  economicCode?: string;
+  registrationNumber?: string;
+  registrationDate?: string;
+  repName?: string;
+  repPosition?: string;
+  repMobile?: string;
+  // --- address
+  province?: string;
+  city?: string;
+  postalCode?: string;
+  website?: string;
+  /** Who introduced this customer (for marketing figures). */
+  referrer?: { kind: 'CUSTOMER' | 'STAFF' | 'OTHER'; id?: string; name: string; phone?: string };
+  /** Every mobile and landline number, unlimited (mobiles start with 09). */
   phones: string[];
   email?: string;
   address?: string;

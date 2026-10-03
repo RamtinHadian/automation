@@ -203,6 +203,14 @@ func addBulk(ctx context.Context, now time.Time, hash string, by map[string]acco
 			"address": "تهران، خیابان شمارهٔ " + fa(i+10), "status": cstatus[i%5], "source": sources[i%len(sources)], "tags": []string{}, "ownerId": o, "ownerName": by[o].Name, "notes": "",
 			"createdAt": iso(hours(90 + i*6)), "updatedAt": iso(hours(5 + i)),
 		}
+		if i%3 == 0 {
+			doc["referrer"] = jsonx.M{"kind": "CUSTOMER", "id": "demo-c1", "name": "حسین کاظمی", "phone": "09121234567"}
+		} else if i%5 == 1 {
+			doc["referrer"] = jsonx.M{"kind": "STAFF", "id": "demo-sales2", "name": by["demo-sales2"].Name}
+		}
+		if i%2 == 0 {
+			doc["phones"] = []string{fmt.Sprintf("0912%07d", 3000000+i*7919), fmt.Sprintf("021%08d", 22000000+i*1301)}
+		}
 		if err := exec(ctx, `INSERT INTO crm_customers (id, owner_id, data) VALUES ($1, $2, $3::jsonb)`, id, o, jsonx.Encode(doc)); err != nil {
 			return err
 		}
