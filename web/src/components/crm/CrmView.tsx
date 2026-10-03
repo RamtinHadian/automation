@@ -34,6 +34,7 @@ import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
 import { CustomerForm } from './CustomerForm';
+import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
 import { Modal, field, label, SOURCES } from './crmUi';
 import { CustomerImportModal } from './CustomerImportModal';
 import type { VoipCall } from '../../lib/api';
@@ -65,7 +66,7 @@ const ACTIVITY: Record<ActivityType, { label: string; cls: string }> = {
 
 const uid = (p: string) => p + '-' + Math.random().toString(36).substring(2, 10);
 const nowIso = () => new Date().toISOString();
-const toman = (n: number) => new Intl.NumberFormat('fa-IR').format(Math.round(n || 0));
+const toman = formatMoney;
 const parseNumber = (s: string) => {
   const latin = s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[^0-9]/g, '');
   return latin ? parseInt(latin, 10) : 0;
@@ -298,7 +299,7 @@ export const CrmView: React.FC = () => {
             <Avatar user={userById.get(c.ownerId)} size={20} />
             {c.ownerName}
           </span>
-          <span>{open > 0 ? `${toman(open)} تومان در جریان` : last ? `آخرین تعامل: ${formatTaskDate(last.slice(0, 10))}` : ''}</span>
+          <span>{open > 0 ? `${toman(open)} ${unitName()} در جریان` : last ? `آخرین تعامل: ${formatTaskDate(last.slice(0, 10))}` : ''}</span>
         </div>
       </div>
     );
@@ -322,7 +323,7 @@ export const CrmView: React.FC = () => {
           {d.customerName}
         </div>
         <div className="flex items-center justify-between">
-          <span className="font-black text-xs text-violet-700">{toman(d.amount)} تومان</span>
+          <span className="font-black text-xs text-violet-700">{toman(d.amount)} {unitName()}</span>
           <span className="flex items-center -space-x-1.5" dir="ltr">
             <Avatar user={userById.get(d.ownerId)} size={22} />
             {(d.coOwnerIds || []).slice(0, 3).map((id) => (
@@ -418,8 +419,8 @@ export const CrmView: React.FC = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { l: 'مشتریان', v: toPersianDigits(stats.customers), i: Users, c: 'bg-violet-100 text-violet-700' },
-              { l: `فرصت‌های در جریان (${toPersianDigits(stats.openDeals.length)})`, v: `${toman(stats.openValue)} تومان`, i: Briefcase, c: 'bg-sky-100 text-sky-700' },
-              { l: `فروش موفق این ماه (${toPersianDigits(stats.wonMonth.length)})`, v: `${toman(stats.wonMonth.reduce((s, d) => s + d.amount, 0))} تومان`, i: Trophy, c: 'bg-emerald-100 text-emerald-700' },
+              { l: `فرصت‌های در جریان (${toPersianDigits(stats.openDeals.length)})`, v: `${toman(stats.openValue)} ${unitName()}`, i: Briefcase, c: 'bg-sky-100 text-sky-700' },
+              { l: `فروش موفق این ماه (${toPersianDigits(stats.wonMonth.length)})`, v: `${toman(stats.wonMonth.reduce((s, d) => s + d.amount, 0))} ${unitName()}`, i: Trophy, c: 'bg-emerald-100 text-emerald-700' },
               { l: 'پیگیری عقب‌افتاده', v: toPersianDigits(overdueFollowups.length), i: AlertTriangle, c: 'bg-rose-100 text-rose-700' },
             ].map((s) => (
               <div key={s.l} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 flex items-center gap-3 min-w-0">
@@ -448,7 +449,7 @@ export const CrmView: React.FC = () => {
                         <span className={`w-2 h-2 rounded-full ${s.dot}`} />
                         {s.label} ({toPersianDigits(list.length)})
                       </span>
-                      <span className="text-[#8C6F66]">{toman(total)} تومان</span>
+                      <span className="text-[#8C6F66]">{toman(total)} {unitName()}</span>
                     </div>
                     <div className="h-2 rounded-full bg-[#FAF5F1] overflow-hidden">
                       <div className={`h-full ${s.dot}`} style={{ width: `${(total / max) * 100}%` }} />
@@ -494,7 +495,7 @@ export const CrmView: React.FC = () => {
                         <td className="py-2 font-black text-[#3A241F]">{r.name}</td>
                         <td className="py-2 text-[#8C6F66]">{r.kind === 'CUSTOMER' ? 'مشتری' : r.kind === 'STAFF' ? 'همکار' : 'دیگر'}</td>
                         <td className="py-2 font-bold">{toPersianDigits(r.count)}</td>
-                        <td className="py-2 font-bold text-emerald-700">{toman(r.won)} تومان</td>
+                        <td className="py-2 font-bold text-emerald-700">{toman(r.won)} {unitName()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -568,7 +569,7 @@ export const CrmView: React.FC = () => {
                     </div>
                     <span className="text-[10px] font-black text-[#8C6F66]">{toPersianDigits(list.length)}</span>
                   </div>
-                  <div className="text-[10px] font-bold text-[#8C6F66] px-1">{toman(list.reduce((x, d) => x + d.amount, 0))} تومان</div>
+                  <div className="text-[10px] font-bold text-[#8C6F66] px-1">{toman(list.reduce((x, d) => x + d.amount, 0))} {unitName()}</div>
                   {list.map(dealCard)}
                   {list.length === 0 && <div className="text-center text-[10px] text-gray-400 font-bold py-4 border border-dashed border-[#EBDBCE] rounded-2xl">خالی</div>}
                 </div>
@@ -781,15 +782,15 @@ const DealForm: React.FC<{
             </select>
           </div>
           <div>
-            <label className={label}>مبلغ (تومان)</label>
+            <label className={label}>مبلغ ({unitName()})</label>
             <input
               className={field}
               inputMode="numeric"
               value={amountText}
               onChange={(e) => {
                 const n = parseNumber(e.target.value);
-                setAmountText(n ? toman(n) : '');
-                patch({ amount: n });
+                setAmountText(n ? formatNumber(n) : '');
+                patch({ amount: fromDisplay(n) });
               }}
               placeholder="۰"
             />
@@ -1027,7 +1028,7 @@ const CustomerDetail: React.FC<{
       {referred.length > 0 && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs font-bold text-emerald-900">
           این مشتری {toPersianDigits(referred.length)} مشتری را معرفی کرده است: {referred.map((x) => x.name).join('، ')}. فروش موفق از آن‌ها:{' '}
-          {toman(allDeals.filter((d) => d.stage === 'WON' && referred.some((x) => x.id === d.customerId)).reduce((s, d) => s + d.amount, 0))} تومان
+          {toman(allDeals.filter((d) => d.stage === 'WON' && referred.some((x) => x.id === d.customerId)).reduce((s, d) => s + d.amount, 0))} {unitName()}
         </div>
       )}
       {c.tags.length > 0 && (
@@ -1057,7 +1058,7 @@ const CustomerDetail: React.FC<{
               <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className="w-full flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
                 <span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>
                 <span className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] font-black text-violet-700">{toman(d.amount)} ت</span>
+                  <span className="text-[11px] font-black text-violet-700">{toman(d.amount)} {unitShort()}</span>
                   <span className={`text-[10px] font-black flex items-center gap-1 ${s.head}`}>
                     <span className={`w-2 h-2 rounded-full ${s.dot}`} />
                     {s.label}

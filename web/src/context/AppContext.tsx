@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { setCurrencyUnit } from '../lib/money';
 import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../lib/letterDefaults';
 import { disablePush, installAutoNotifyOptIn, registerServiceWorker, syncPushIfAllowed } from '../lib/push';
 import {
@@ -256,6 +257,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activities, setActivities] = useState<CrmActivity[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(INITIAL_SETTINGS);
+  setCurrencyUnit(settings.currencyUnit);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   // `ready`: initial session check finished. `syncReady`: a valid session exists and edits are mirrored to the server.
   const [ready, setReady] = useState(false);

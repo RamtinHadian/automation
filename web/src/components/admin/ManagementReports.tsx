@@ -3,7 +3,10 @@ import { Banknote, CalendarCheck, ClipboardCheck, FileSignature, Phone, Send, Tr
 import { api, VoipStatRow } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { computeStats, shortDay, STAGE_LABEL } from '../../lib/adminStats';
+import { toDisplay, unitName } from '../../lib/money';
 import { C, ChartCard, Columns, compact, Donut, fa, HBars, Kpi, RAMP, TrendChart } from './charts';
+
+const compactM = (n: number) => compact(toDisplay(n));
 
 const RANGES = [
   { days: 7, label: '۷ روز' },
@@ -48,7 +51,7 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
   }
   if (k.lettersPending > 0) insights.push({ tone: 'warn', text: `${toPersianDigits(k.lettersPending)} نامه منتظر امضاست${k.avgSignHours !== null ? `؛ میانگین زمان امضا در این دوره ${toPersianDigits(Math.round(k.avgSignHours))} ساعت بوده` : ''}.` });
   if (s.missingReportsToday.length > 0) insights.push({ tone: 'info', text: `امروز ${toPersianDigits(s.missingReportsToday.length)} نفر هنوز گزارش روزانه نداده‌اند: ${s.missingReportsToday.slice(0, 4).join('، ')}${s.missingReportsToday.length > 4 ? ' و ...' : ''}.` });
-  if (k.winRate !== null) insights.push({ tone: 'info', text: `از فرصت‌های بسته‌شدهٔ این دوره ${toPersianDigits(k.winRate)}٪ به فروش موفق رسیده است؛ مجموع فروش ${compact(k.wonValue)} تومان.` });
+  if (k.winRate !== null) insights.push({ tone: 'info', text: `از فرصت‌های بسته‌شدهٔ این دوره ${toPersianDigits(k.winRate)}٪ به فروش موفق رسیده است؛ مجموع فروش ${compactM(k.wonValue)} ${unitName()}.` });
   const missedCalls = callDays.reduce((a, d) => a + d.missed, 0);
   if (missedCalls > 0) insights.push({ tone: 'warn', text: `در ۷ روز اخیر ${toPersianDigits(missedCalls)} تماس ورودی بی‌پاسخ مانده است.` });
   const idleDeals = deals.filter((d) => ['NEW', 'CONTACTED'].includes(d.stage) && Date.now() - new Date(d.updatedAt).getTime() > 14 * 86400000).length;
@@ -92,9 +95,9 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
         <Kpi accent={C.blue} icon={<Send className="w-5 h-5" />} label={`فایل تبادل‌شده (${rangeLabel})`} value={fa(k.filesSent)} sub={k.avgSignHours !== null ? `میانگین امضا: ${toPersianDigits(Math.round(k.avgSignHours))} ساعت` : undefined} />
         <Kpi accent={C.aqua} icon={<ClipboardCheck className="w-5 h-5" />} label={`وظیفهٔ انجام‌شده (${rangeLabel})`} value={fa(k.tasksDone)} sub={k.completionRate !== null ? `${toPersianDigits(k.completionRate)}٪ نسبت به وظایف تازه` : `از ${toPersianDigits(k.tasksCreated)} وظیفهٔ تازه`} tone="good" />
         <Kpi accent={C.red} icon={<CalendarCheck className="w-5 h-5" />} label="وظایف معوق (الان)" value={fa(k.tasksOverdue)} sub={`${toPersianDigits(k.tasksOpen)} وظیفهٔ باز`} tone={k.tasksOverdue ? 'bad' : 'good'} />
-        <Kpi accent={C.orange} icon={<Banknote className="w-5 h-5" />} label="ارزش فرصت‌های باز (تومان)" value={compact(k.pipelineValue)} sub={`${toPersianDigits(k.openDeals)} فرصت در جریان`} />
-        <Kpi accent={C.green} icon={<TrendingUp className="w-5 h-5" />} label={`فروش موفق (${rangeLabel})`} value={compact(k.wonValue)} sub={k.winRate !== null ? `نرخ موفقیت ${toPersianDigits(k.winRate)}٪ · ${toPersianDigits(k.wonCount)} فروش` : `${toPersianDigits(k.wonCount)} فروش`} tone="good" />
-        <Kpi accent={C.magenta} icon={<UserPlus className="w-5 h-5" />} label={`مشتری جدید (${rangeLabel})`} value={fa(k.newCustomers)} sub={`${toPersianDigits(k.proformas)} پیش‌فاکتور · ${compact(k.proformaValue)}`} />
+        <Kpi accent={C.orange} icon={<Banknote className="w-5 h-5" />} label={`ارزش فرصت‌های باز (${unitName()})`} value={compactM(k.pipelineValue)} sub={`${toPersianDigits(k.openDeals)} فرصت در جریان`} />
+        <Kpi accent={C.green} icon={<TrendingUp className="w-5 h-5" />} label={`فروش موفق (${rangeLabel})`} value={compactM(k.wonValue)} sub={k.winRate !== null ? `نرخ موفقیت ${toPersianDigits(k.winRate)}٪ · ${toPersianDigits(k.wonCount)} فروش` : `${toPersianDigits(k.wonCount)} فروش`} tone="good" />
+        <Kpi accent={C.magenta} icon={<UserPlus className="w-5 h-5" />} label={`مشتری جدید (${rangeLabel})`} value={fa(k.newCustomers)} sub={`${toPersianDigits(k.proformas)} پیش‌فاکتور · ${compactM(k.proformaValue)}`} />
         <Kpi accent={C.yellow} icon={<Phone className="w-5 h-5" />} label="تماس بی‌پاسخ (۷ روز)" value={fa(missedCalls)} sub={callDays.length ? `از ${toPersianDigits(callDays.reduce((a, d) => a + d.total, 0))} تماس` : 'هنوز تماسی ثبت نشده'} tone={missedCalls ? 'bad' : 'good'} />
       </div>
 
@@ -114,16 +117,16 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
         <ChartCard title="قیف فروش" subtitle="تعداد فرصت در هر مرحله؛ مبلغ کنار هر ردیف">
           <HBars
             format={(v) => toPersianDigits(v)}
-            rows={s.funnel.map((f, i) => ({ label: f.label, segments: [{ value: f.count, color: RAMP[i] }], note: `${compact(f.value)} تومان` }))}
+            rows={s.funnel.map((f, i) => ({ label: f.label, segments: [{ value: f.count, color: RAMP[i] }], note: `${compactM(f.value)} ${unitName()}` }))}
           />
         </ChartCard>
 
-        <ChartCard title="فروش موفق هر ماه" subtitle="مجموع مبلغ فروش (تومان)">
-          <Columns labels={s.wonByMonth.map((m) => m.label)} series={[{ name: 'فروش', color: C.green, values: s.wonByMonth.map((m) => m.value) }]} format={(v) => compact(v)} />
+        <ChartCard title="فروش موفق هر ماه" subtitle={`مجموع مبلغ فروش (${unitName()})`}>
+          <Columns labels={s.wonByMonth.map((m) => m.label)} series={[{ name: 'فروش', color: C.green, values: s.wonByMonth.map((m) => m.value) }]} format={(v) => compactM(v)} />
         </ChartCard>
 
         <ChartCard title="فروش هر کارشناس" subtitle={`مبلغ فروش موفق در ${rangeLabel} اخیر`}>
-          <HBars format={(v) => compact(v)} rows={s.salesByOwner.map((o) => ({ label: o.name, segments: [{ value: o.won, color: C.green }], note: `${toPersianDigits(o.count)} فروش` }))} empty="در این دوره فروش موفقی ثبت نشده." />
+          <HBars format={(v) => compactM(v)} rows={s.salesByOwner.map((o) => ({ label: o.name, segments: [{ value: o.won, color: C.green }], note: `${toPersianDigits(o.count)} فروش` }))} empty="در این دوره فروش موفقی ثبت نشده." />
         </ChartCard>
 
         <ChartCard title="مشتریان از کجا آمده‌اند؟" subtitle="منبع آشنایی مشتریان">

@@ -10,8 +10,9 @@ import { normalizeTemplate } from '../../lib/proformaTemplates';
 import { todayIso } from '../../lib/taskDates';
 import { Customer, Deal, ProformaFields, ProformaItem, SystemSettings } from '../../types';
 import { JalaliDateField } from '../tasks/TasksView';
+import { formatMoney, fromDisplay, unitName } from '../../lib/money';
 
-const toman = (n: number) => new Intl.NumberFormat('fa-IR').format(Math.round(n || 0));
+const toman = formatMoney;
 const parseNumber = (s: string) => {
   const latin = s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[^0-9]/g, '');
   return latin ? parseInt(latin, 10) : 0;
@@ -99,7 +100,7 @@ export const ProformaModal: React.FC<{
       const next = build();
       onSave(next);
       const blob = await renderProformaPdf({ deal: next, customer, settings, issuerName });
-      const caption = toPersianDigits(`پیش‌فاکتور شمارهٔ ${next.proformaNumber}\nمبلغ قابل پرداخت: ${toman(totals.payable)} تومان\nاعتبار تا: ${formatTaskDate(valid)}`);
+      const caption = toPersianDigits(`پیش‌فاکتور شمارهٔ ${next.proformaNumber}\nمبلغ قابل پرداخت: ${toman(totals.payable)} ${unitName()}\nاعتبار تا: ${formatTaskDate(valid)}`);
       await api.msgrSendFile({ channel: ch, chatId: chat[ch].trim(), customerId: customer.id, caption, file: blob, filename: `${next.proformaNumber || 'proforma'}.pdf` });
       showToast(`پیش‌فاکتور در ${ch === 'bale' ? 'بله' : 'تلگرام'} ارسال شد.`);
     } catch (e) {
@@ -171,12 +172,12 @@ export const ProformaModal: React.FC<{
                     <input className={field} placeholder="عدد، ماه، ..." value={it.unit || ''} onChange={(e) => patchItem(i, { unit: e.target.value })} />
                   </div>
                   <div>
-                    <label className={label}>قیمت واحد (تومان)</label>
-                    <input className={field} inputMode="numeric" value={it.unitPrice ? toman(it.unitPrice) : ''} onChange={(e) => patchItem(i, { unitPrice: parseNumber(e.target.value) })} />
+                    <label className={label}>قیمت واحد ({unitName()})</label>
+                    <input className={field} inputMode="numeric" value={it.unitPrice ? toman(it.unitPrice) : ''} onChange={(e) => patchItem(i, { unitPrice: fromDisplay(parseNumber(e.target.value)) })} />
                   </div>
                   <div>
-                    <label className={label}>تخفیف ردیف (تومان)</label>
-                    <input className={field} inputMode="numeric" value={it.discount ? toman(it.discount) : ''} onChange={(e) => patchItem(i, { discount: parseNumber(e.target.value) })} />
+                    <label className={label}>تخفیف ردیف ({unitName()})</label>
+                    <input className={field} inputMode="numeric" value={it.discount ? toman(it.discount) : ''} onChange={(e) => patchItem(i, { discount: fromDisplay(parseNumber(e.target.value)) })} />
                   </div>
                 </div>
                 <input className={field} placeholder="توضیح بیشتر (اختیاری)" value={it.description || ''} onChange={(e) => patchItem(i, { description: e.target.value })} />
@@ -293,7 +294,7 @@ export const ProformaModal: React.FC<{
             <div className="flex justify-between"><span>جمع</span><b>{toman(totals.subtotal)}</b></div>
             {totals.discount > 0 && <div className="flex justify-between"><span>تخفیف</span><b>−{toman(totals.discount)}</b></div>}
             {totals.tax > 0 && <div className="flex justify-between"><span>مالیات</span><b>{toman(totals.tax)}</b></div>}
-            <div className="flex justify-between text-sm font-black text-violet-700 pt-1 border-t border-[#EBDBCE]"><span>قابل پرداخت (تومان)</span><span>{toman(totals.payable)}</span></div>
+            <div className="flex justify-between text-sm font-black text-violet-700 pt-1 border-t border-[#EBDBCE]"><span>قابل پرداخت ({unitName()})</span><span>{toman(totals.payable)}</span></div>
           </div>
         </div>
 

@@ -469,6 +469,8 @@ export interface SystemSettings {
   companyPhone?: string;
   companyEconomicCode?: string;
   companyWebsite?: string;
+  /** Money unit shown and typed everywhere (amounts are stored in Toman). */
+  currencyUnit?: 'TOMAN' | 'RIAL';
   /** Proforma defaults. */
   proformaTerms?: string;
   proformaBankInfo?: string;

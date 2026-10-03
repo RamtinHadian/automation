@@ -5,6 +5,7 @@ import { normalizeTemplate } from './proformaTemplates';
 import { toPersianDigits } from './jalali';
 import { formatTaskDate, isoToJalaliParts, todayIso } from './taskDates';
 import { numberToPersianWords } from './numberWords';
+import { formatMoney, toDisplay, unitName } from './money';
 
 export interface ProformaTotals {
   subtotal: number;
@@ -25,7 +26,7 @@ export function proformaTotals(items: ProformaItem[], discountPercent: number, t
   return { subtotal, discount, afterDiscount, tax, payable: afterDiscount + tax };
 }
 
-const fmt = (n: number) => new Intl.NumberFormat('fa-IR').format(Math.round(n));
+const fmt = (n: number) => formatMoney(n);
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 const nl = (s: string) => esc(s).replace(/\n/g, '<br>');
 
@@ -179,7 +180,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       </div></div>
     </div>`,
     items: `<table class="ts-${tpl.tableStyle}">
-      <thead><tr><th style="width:34px">ردیف</th><th>شرح کالا / خدمات</th><th style="width:70px">تعداد</th><th style="width:100px">قیمت واحد (تومان)</th><th style="width:80px">تخفیف</th><th style="width:110px">مبلغ کل (تومان)</th></tr></thead>
+      <thead><tr><th style="width:34px">ردیف</th><th>شرح کالا / خدمات</th><th style="width:70px">تعداد</th><th style="width:100px">قیمت واحد (${unitName()})</th><th style="width:80px">تخفیف</th><th style="width:110px">مبلغ کل (تومان)</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="6" class="c">—</td></tr>'}</tbody>
     </table>`,
     totals: `<div class="totals-wrap" style="justify-content:${tpl.totalsAlign === 'start' ? 'flex-start' : 'flex-end'}"><div class="tw">
@@ -187,9 +188,9 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
         <div class="r"><span>جمع کل</span><b>${fmt(t.subtotal)}</b></div>
         ${t.discount ? `<div class="r"><span>تخفیف (${toPersianDigits(deal.discountPercent || 0)}٪)</span><b>${fmt(t.discount)}</b></div>` : ''}
         ${t.tax ? `<div class="r"><span>مالیات بر ارزش افزوده (${toPersianDigits(deal.taxPercent || 0)}٪)</span><b>${fmt(t.tax)}</b></div>` : ''}
-        <div class="r pay"><span>مبلغ قابل پرداخت (تومان)</span><span>${fmt(t.payable)}</span></div>
+        <div class="r pay"><span>مبلغ قابل پرداخت (${unitName()})</span><span>${fmt(t.payable)}</span></div>
       </div>
-      <div class="words">مبلغ به حروف: <b>${numberToPersianWords(t.payable)} تومان</b></div>
+      <div class="words">مبلغ به حروف: <b>${numberToPersianWords(toDisplay(t.payable))} ${unitName()}</b></div>
     </div></div>`,
     terms: `<div class="terms">
       <h4>شرایط و توضیحات</h4>

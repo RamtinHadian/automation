@@ -575,6 +575,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             />
           </div>
           <div>
+            <label className="block font-bold text-[#3A241F] mb-1.5">واحد پول سامانه (پیش‌فاکتور، فرصت‌ها و گزارش‌ها):</label>
+            <select
+              value={settings.currencyUnit || 'TOMAN'}
+              onChange={(e) => setSettings({ ...settings, currencyUnit: e.target.value as 'TOMAN' | 'RIAL' })}
+              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
+            >
+              <option value="TOMAN">تومان</option>
+              <option value="RIAL">ریال</option>
+            </select>
+          </div>
+          <div>
             <label className="block font-bold text-[#3A241F] mb-1.5">مدت اعتبار پیش‌فاکتور (روز):</label>
             <input
               type="number"
