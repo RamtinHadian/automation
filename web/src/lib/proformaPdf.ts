@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
+import { proformaReleased } from './proformaApproval';
 import { Customer, Deal, ProformaHeaderItem, ProformaItem, ProformaSectionId, ProformaTemplate, SystemSettings } from '../types';
 import { normalizeTemplate } from './proformaTemplates';
 import { toPersianDigits } from './jalali';
@@ -98,6 +99,8 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
   const date = deal.proformaAt || todayIso();
   const valid = deal.validUntil || addDaysIso(date, settings.proformaValidDays || 7);
   const f = deal.proformaFields || {};
+  // with the approval setting on, the CEO's stamp and signature appear only after the CEO approved the proforma
+  const released = proformaReleased(deal, settings);
   // A name that was cleared on purpose stays blank; only a name that was never set falls back to the company name.
   const company = f.sellerName ?? (settings.proformaCompanyName !== undefined ? settings.proformaCompanyName : settings.companyName || '');
   const sellerAddress = f.sellerAddress ?? settings.companyAddress ?? '';
@@ -199,9 +202,9 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       ${bankInfo ? `<div class="bank"><h4>اطلاعات پرداخت</h4>${nl(bankInfo)}</div>` : ''}
     </div>`,
     signatures: `<div class="sign">
-      <div class="s"><b>مهر و امضای فروشنده</b>${settings.ceoName ? `<div class="who">${esc(settings.ceoName)}${settings.ceoTitle ? ' — ' + esc(settings.ceoTitle) : ''}</div>` : ''}${settings.companyStampUrl && f.showStamp !== false ? `<img src="${esc(settings.companyStampUrl)}" alt="" style="left:62%" />` : ''}${settings.ceoSignatureUrl && f.showSignature !== false ? `<img src="${esc(settings.ceoSignatureUrl)}" alt="" style="left:36%" />` : ''}</div>
+      <div class="s"><b>مهر و امضای فروشنده</b>${settings.ceoName ? `<div class="who">${esc(settings.ceoName)}${settings.ceoTitle ? ' — ' + esc(settings.ceoTitle) : ''}</div>` : ''}${released && settings.companyStampUrl && f.showStamp !== false ? `<img src="${esc(settings.companyStampUrl)}" alt="" style="left:62%" />` : ''}${released && settings.ceoSignatureUrl && f.showSignature !== false ? `<img src="${esc(settings.ceoSignatureUrl)}" alt="" style="left:36%" />` : ''}</div>
       <div class="s"><b>تأیید و امضای خریدار</b></div>
-    </div>`,
+    </div>${released ? '' : '<div style="text-align:center;color:#b42318;font-weight:bold;font-size:11px;margin-top:6px">پیش‌نویس — هنوز توسط مدیرعامل تأیید نشده است</div>'}`,
   };
   const visible = tpl.sections.filter((s) => s.visible);
   const sectionsHtml = visible

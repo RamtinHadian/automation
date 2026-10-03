@@ -143,6 +143,7 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		delete(doc, "closedAt")
 	}
 	owner := jsonx.Str(doc, "ownerId")
+	approvalEvent := proformaApprovalGate(r.Context(), me, before, doc)
 	if _, err := store.Pool.Exec(r.Context(),
 		`INSERT INTO crm_deals (id, customer_id, owner_id, data) VALUES ($1, $2, $3, $4::jsonb)
 		 ON CONFLICT (id) DO UPDATE SET customer_id = $2, owner_id = $3, data = $4::jsonb`,
@@ -151,6 +152,7 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		return
 	}
 	notifyNewOwner(r, me, owner, oldOwner, "deal", "فرصت فروش", "فرصت «"+jsonx.Str(doc, "title")+"» به شما سپرده شد", id)
+	notifyProformaApproval(r, me, approvalEvent, doc, id)
 	// Besides the main owner a deal can have more people in charge («coOwnerIds»): they are told when they are added
 	// and follow the deal's changes like the owner does.
 	coOwners := []string{}

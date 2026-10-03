@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { renderProformaPdf } from '../../lib/proformaFile';
 import { formatTaskDate } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
+import { approvalRequired, canApproveProforma, proformaReleased } from '../../lib/proformaApproval';
 import { toPersianDigits } from '../../lib/jalali';
 import { addDaysIso, DEFAULT_PROFORMA_TERMS, nextProformaNumber, openProformaPdf, proformaTotals } from '../../lib/proformaPdf';
 import { normalizeTemplate } from '../../lib/proformaTemplates';
@@ -66,7 +67,12 @@ export const ProformaModal: React.FC<{
   const [showStamp, setShowStamp] = useState(deal.proformaFields?.showStamp !== false);
   const [showSignature, setShowSignature] = useState(deal.proformaFields?.showSignature !== false);
   // ---- send straight to the customer's Telegram / Bale ----
-  const { showToast } = useAppContext();
+  const { showToast, currentUser } = useAppContext();
+  // CEO approval: with the setting on, only an approved proforma may be printed or sent
+  const required = approvalRequired(settings);
+  const isCeo = canApproveProforma(currentUser);
+  const released = proformaReleased(deal, settings);
+  const approval = deal.proformaApproval;
   const [msgr, setMsgr] = useState<{ telegram: boolean; bale: boolean } | null>(null);
   const [chat, setChat] = useState({ telegram: customer?.telegramChatId || '', bale: customer?.baleChatId || '' });
   const [sending, setSending] = useState<string | null>(null);
@@ -93,7 +99,7 @@ export const ProformaModal: React.FC<{
   });
 
   const sendTo = async (ch: 'telegram' | 'bale') => {
-    if (!okItems.length) return;
+    if (!okItems.length || !released) return;
     if (!customer) {
       showToast('برای ارسال، فرصت باید به یک مشتری وصل باشد.');
       return;
@@ -128,6 +134,25 @@ export const ProformaModal: React.FC<{
     }
   };
 
+  const decide = (status: 'PENDING' | 'APPROVED' | 'REJECTED') => {
+    if (!okItems.length) return;
+    let note = '';
+    if (status === 'REJECTED') {
+      const answer = window.prompt('دلیل رد پیش‌فاکتور (اختیاری):', '');
+      if (answer === null) return;
+      note = answer.trim();
+    }
+    const base = build();
+    const next: Deal = { ...base, proformaApproval: { ...(deal.proformaApproval || {}), status, ...(note ? { note } : {}) } };
+    // the CEO's approval puts the stamp and the signature on automatically
+    if (status === 'APPROVED') next.proformaFields = { ...(base.proformaFields || {}), showStamp: true, showSignature: true };
+    onSave(next);
+    showToast(
+      status === 'PENDING' ? 'پیش‌فاکتور برای تایید مدیرعامل فرستاده شد.' : status === 'APPROVED' ? 'پیش‌فاکتور تایید شد؛ مهر و امضای مدیرعامل درج شد.' : 'پیش‌فاکتور رد شد.'
+    );
+    onClose();
+  };
+
   const save = (pdf: boolean) => {
     if (!okItems.length) return;
     const next = build();
@@ -150,6 +175,27 @@ export const ProformaModal: React.FC<{
         </div>
 
         <div className="p-5 space-y-4 overflow-y-auto">
+          {required && (
+            <div
+              className={`rounded-2xl border px-4 py-3 text-xs font-bold leading-6 ${
+                approval?.status === 'APPROVED'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : approval?.status === 'REJECTED'
+                    ? 'bg-rose-50 border-rose-200 text-rose-900'
+                    : 'bg-amber-50 border-amber-200 text-amber-900'
+              }`}
+            >
+              {approval?.status === 'APPROVED' ? (
+                <>تایید شد توسط {approval.decidedByName || 'مدیرعامل'}؛ مهر و امضا درج شده و می‌توانید پیش‌فاکتور را چاپ یا ارسال کنید.</>
+              ) : approval?.status === 'REJECTED' ? (
+                <>رد شد توسط {approval.decidedByName || 'مدیرعامل'}{approval.note ? `: ${approval.note}` : ''}. پس از اصلاح می‌توانید دوباره برای تایید بفرستید.</>
+              ) : approval?.status === 'PENDING' ? (
+                <>در انتظار تایید مدیرعامل{approval.requestedByName ? ` (ارسال‌کننده: ${approval.requestedByName})` : ''}. چاپ و ارسال پس از تایید ممکن می‌شود.</>
+              ) : (
+                <>این پیش‌فاکتور پیش از ارسال باید مدیرعامل تایید کند؛ پس از تایید، مهر و امضای مدیرعامل خودکار درج می‌شود.</>
+              )}
+            </div>
+          )}
           <div className="space-y-2">
             {items.map((it, i) => (
               <div key={i} className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-2">
@@ -251,11 +297,11 @@ export const ProformaModal: React.FC<{
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] px-4 py-3 text-xs font-black text-[#3A241F]">
             <span className="text-[#8C6F66]">در پیش‌فاکتور درج شود:</span>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-violet-600 w-4 h-4" />
+              <input type="checkbox" disabled={required && !released} checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-violet-600 w-4 h-4" />
               مهر شرکت
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={showSignature} onChange={(e) => setShowSignature(e.target.checked)} className="accent-violet-600 w-4 h-4" />
+              <input type="checkbox" disabled={required && !released} checked={showSignature} onChange={(e) => setShowSignature(e.target.checked)} className="accent-violet-600 w-4 h-4" />
               امضا
             </label>
           </div>
@@ -289,7 +335,7 @@ export const ProformaModal: React.FC<{
                       placeholder="شناسهٔ گفتگوی مشتری (خودکار پر می‌شود وقتی مشتری ربات را با لینک شما باز کند)"
                     />
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" disabled={sending !== null || !okItems.length || !chat[ch].trim()} onClick={() => sendTo(ch)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-40 cursor-pointer">
+                      <button type="button" disabled={sending !== null || !okItems.length || !chat[ch].trim() || !released} onClick={() => sendTo(ch)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-40 cursor-pointer">
                         <Send className="w-3.5 h-3.5" />
                         {sending === ch ? 'در حال ساخت و ارسال...' : 'ذخیره و ارسال PDF'}
                       </button>
@@ -317,7 +363,22 @@ export const ProformaModal: React.FC<{
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">بعداً</button>
           <div className="flex gap-2">
             <button type="button" disabled={!okItems.length} onClick={() => save(false)} className="px-4 py-2 rounded-xl text-xs font-black text-violet-700 bg-violet-50 hover:bg-violet-100 disabled:opacity-50 cursor-pointer">فقط ذخیره</button>
-            <button type="button" disabled={!okItems.length} onClick={() => save(true)} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">ذخیره و ساخت PDF</button>
+            {required && !released ? (
+              isCeo ? (
+                <>
+                  <button type="button" disabled={!okItems.length} onClick={() => decide('REJECTED')} className="px-4 py-2 rounded-xl text-xs font-black text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 disabled:opacity-50 cursor-pointer">رد</button>
+                  <button type="button" disabled={!okItems.length} onClick={() => decide('APPROVED')} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">تایید و درج مهر و امضا</button>
+                </>
+              ) : approval?.status === 'PENDING' ? (
+                <span className="px-5 py-2 rounded-xl text-xs font-black text-amber-800 bg-amber-100 border border-amber-200">در انتظار تایید مدیرعامل</span>
+              ) : (
+                <button type="button" disabled={!okItems.length} onClick={() => decide('PENDING')} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">
+                  {approval?.status === 'REJECTED' ? 'ارسال دوباره برای تایید مدیرعامل' : 'ارسال برای تایید مدیرعامل'}
+                </button>
+              )
+            ) : (
+              <button type="button" disabled={!okItems.length} onClick={() => save(true)} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">ذخیره و ساخت PDF</button>
+            )}
           </div>
         </div>
       </div>

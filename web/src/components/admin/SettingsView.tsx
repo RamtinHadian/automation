@@ -574,6 +574,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
             />
           </div>
+          <div className="sm:col-span-2 rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-3">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.proformaApprovalRequired === true}
+                onChange={(e) => setSettings({ ...settings, proformaApprovalRequired: e.target.checked })}
+                className="mt-1 w-4 h-4 accent-[#6E1B1B]"
+              />
+              <span>
+                <span className="block font-black text-[#3A241F]">ارسال پیش‌فاکتور فقط پس از تایید مدیرعامل</span>
+                <span className="block text-[11px] leading-6 text-[#8C6F66] font-medium">
+                  اگر روشن باشد، هر پیش‌فاکتور اول برای مدیرعامل می‌رود؛ پس از تایید، مهر و امضای مدیرعامل خودکار پای آن درج می‌شود و بعد می‌شود آن را چاپ یا ارسال کرد.
+                  اگر خاموش باشد، همکاران خودشان می‌توانند پیش‌فاکتور را با مهر و امضای مدیرعامل بفرستند.
+                </span>
+              </span>
+            </label>
+          </div>
           <div>
             <label className="block font-bold text-[#3A241F] mb-1.5">واحد پول سامانه (پیش‌فاکتور، فرصت‌ها و گزارش‌ها):</label>
             <select

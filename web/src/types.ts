@@ -161,6 +161,17 @@ export interface Deal {
   discountPercent?: number;
   taxPercent?: number;
   proformaNumber?: string;
+  /** CEO approval of the proforma (kept by the server when the approval setting is on). */
+  proformaApproval?: {
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    requestedBy?: string;
+    requestedByName?: string;
+    requestedAt?: string;
+    decidedBy?: string;
+    decidedByName?: string;
+    decidedAt?: string;
+    note?: string;
+  };
   /** Issue day and last valid day, yyyy-mm-dd. */
   proformaAt?: string;
   /** Texts typed in by hand when the proforma was made (override the defaults from settings and the customer). */
@@ -483,6 +494,8 @@ export interface SystemSettings {
   companyPhone?: string;
   companyEconomicCode?: string;
   companyWebsite?: string;
+  /** A proforma may be sent only after the CEO approved it (the CEO's stamp and signature are then put on it automatically). */
+  proformaApprovalRequired?: boolean;
   /** Money unit shown and typed everywhere (amounts are stored in Toman). */
   currencyUnit?: 'TOMAN' | 'RIAL';
   /** Proforma defaults. */

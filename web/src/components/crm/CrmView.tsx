@@ -35,6 +35,7 @@ import { CallList } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
 import { CustomerForm } from './CustomerForm';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
+import { approvalRequired, canApproveProforma } from '../../lib/proformaApproval';
 import { Modal, field, label, SOURCES } from './crmUi';
 import { CustomerImportModal } from './CustomerImportModal';
 import type { VoipCall } from '../../lib/api';
@@ -318,6 +319,19 @@ export const CrmView: React.FC = () => {
       >
         <div className="font-black text-[13px] text-[#3A241F] leading-6">{d.title}</div>
         {d.productCode && <div className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 w-fit" dir="ltr">{toPersianDigits(d.productCode)}</div>}
+        {approvalRequired(settings) && d.proformaApproval && (
+          <div
+            className={`text-[10px] font-black rounded-full px-2 py-0.5 w-fit border ${
+              d.proformaApproval.status === 'APPROVED'
+                ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                : d.proformaApproval.status === 'REJECTED'
+                  ? 'text-rose-700 bg-rose-50 border-rose-200'
+                  : 'text-amber-800 bg-amber-50 border-amber-200'
+            }`}
+          >
+            پیش‌فاکتور: {d.proformaApproval.status === 'APPROVED' ? 'تایید شد' : d.proformaApproval.status === 'REJECTED' ? 'رد شد' : 'منتظر تایید مدیرعامل'}
+          </div>
+        )}
         <div className="text-[11px] text-[#8C6F66] flex items-center gap-1">
           <Building2 className="w-3 h-3" />
           {d.customerName}
@@ -434,6 +448,27 @@ export const CrmView: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {canApproveProforma(currentUser) && approvalRequired(settings) && deals.some((d) => d.proformaApproval?.status === 'PENDING') && (
+            <section className="bg-amber-50/70 border border-amber-200 rounded-3xl p-4 space-y-2.5">
+              <h3 className="font-black text-sm text-amber-900">پیش‌فاکتورهای منتظر تایید شما</h3>
+              {deals
+                .filter((d) => d.proformaApproval?.status === 'PENDING')
+                .map((d) => (
+                  <div key={d.id} className="flex items-center justify-between gap-3 bg-white border border-amber-200 rounded-2xl px-3.5 py-2.5">
+                    <div className="min-w-0">
+                      <div className="font-black text-xs text-[#3A241F] truncate">{d.title}</div>
+                      <div className="text-[11px] text-[#8C6F66] truncate">
+                        {d.customerName} · {toman(d.amount)} {unitName()} · ارسال‌کننده: {d.proformaApproval?.requestedByName || d.ownerName}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setProformaFor(d)} className="shrink-0 px-3.5 py-1.5 rounded-xl text-[11px] font-black text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer">
+                      بررسی و تایید
+                    </button>
+                  </div>
+                ))}
+            </section>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <section className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-3">
