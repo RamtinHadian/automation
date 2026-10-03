@@ -40,13 +40,17 @@ main() {
   cd "$DIR"
   ensure_loop
   git fetch -q origin "$BRANCH"
-  if [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$BRANCH")" ]; then
+  local want built
+  want="$(git rev-parse "origin/$BRANCH")"
+  built="$(cat "$DIR/.built-commit" 2>/dev/null || true)"
+  # compare with the last commit that was really built (a manual git pull must not make us skip the build)
+  if [ "$want" = "$built" ]; then
     return 0
   fi
-
   echo "$(date -Is) updating to $(git rev-parse --short "origin/$BRANCH")"
   git pull -q --ff-only origin "$BRANCH"
   docker compose up -d --build
+  echo "$want" > "$DIR/.built-commit"
   docker image prune -f >/dev/null 2>&1 || true
   echo "$(date -Is) update finished"
 }
