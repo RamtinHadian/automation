@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users } from 'lucide-react';
+import { PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users, UserPlus } from 'lucide-react';
 import { api, VoipCall } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
@@ -12,10 +12,11 @@ const clock = (iso: string) => toPersianDigits(new Date(iso).toLocaleTimeString(
 const STATUS_TEXT: Record<string, string> = { answered: 'پاسخ داده شد', missed: 'بی‌پاسخ', busy: 'مشغول', failed: 'ناموفق' };
 
 /** One list of calls: direction icon, who, when, how long, and a call-back button. */
-export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?: (number: string) => void; busy?: string | null; empty?: string }> = ({
+export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?: (number: string) => void; onSaveCustomer?: (number: string, name: string) => void; busy?: string | null; empty?: string }> = ({
   calls,
   showUser,
   onCall,
+  onSaveCustomer,
   busy,
   empty = 'تماسی ثبت نشده است.',
 }) => {
@@ -45,6 +46,16 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
               <span className="block">{formatTaskDate(c.startedAt.slice(0, 10))}</span>
               <span className="block">{clock(c.startedAt)}</span>
             </span>
+            {onSaveCustomer && !c.customerName && c.direction !== 'internal' && /^[0-9+]{7,}$/.test(c.number) && (
+              <button
+                type="button"
+                onClick={() => onSaveCustomer(c.number, c.name)}
+                title="ذخیره به‌عنوان مشتری جدید"
+                className="p-2 rounded-xl text-violet-700 hover:bg-violet-50 cursor-pointer shrink-0"
+              >
+                <UserPlus className="w-4 h-4" />
+              </button>
+            )}
             {callable && (
               <button
                 type="button"
@@ -67,7 +78,8 @@ type Filter = 'all' | 'missed' | 'in' | 'out';
 
 /** «Call history» window: my calls (admins can switch to the whole company), with filters, search and call-back. */
 export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> = ({ onClose, isAdmin }) => {
-  const { showToast } = useAppContext();
+  const { showToast, currentUser } = useAppContext();
+  const canSaveCustomer = currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
   const [calls, setCalls] = useState<VoipCall[] | null>(null);
   const [scope, setScope] = useState<'mine' | 'all'>('mine');
   const [filter, setFilter] = useState<Filter>('all');
@@ -109,6 +121,18 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
     } finally {
       setBusy(null);
     }
+  };
+
+  // Opens the CRM «new customer» form with this number filled in.
+  const saveAsCustomer = (number: string, name: string) => {
+    try {
+      sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: number, name }));
+    } catch {
+      /* storage unavailable */
+    }
+    window.dispatchEvent(new Event('goto-crm'));
+    window.dispatchEvent(new Event('open-crm-item'));
+    onClose();
   };
 
   const tab = (id: Filter, label: string, n?: number) => (
@@ -160,7 +184,7 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
           {calls === null ? (
             <div className="py-10 text-center text-xs font-bold text-gray-400">در حال بارگذاری...</div>
           ) : (
-            <CallList calls={shown} showUser={scope === 'all'} onCall={callBack} busy={busy} empty="تماسی با این فیلتر پیدا نشد." />
+            <CallList calls={shown} showUser={scope === 'all'} onCall={callBack} onSaveCustomer={canSaveCustomer ? saveAsCustomer : undefined} busy={busy} empty="تماسی با این فیلتر پیدا نشد." />
           )}
         </div>
       </div>

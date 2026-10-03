@@ -103,7 +103,12 @@ export const CrmView: React.FC = () => {
         const raw = sessionStorage.getItem('crm_open');
         if (!raw) return;
         sessionStorage.removeItem('crm_open');
-        const { type, id } = JSON.parse(raw) as { type: string; id: string };
+        const { type, id, phone, name } = JSON.parse(raw) as { type: string; id: string; phone?: string; name?: string };
+        if (type === 'newCustomer') {
+          setTab('customers');
+          setEditingCustomer({ ...newCustomer(), phones: phone ? [phone] : [], name: name || '', source: 'تماس تلفنی' });
+          return;
+        }
         if (type === 'customer') setOpenCustomer(id);
         if (type === 'deal') {
           const d = deals.find((x) => x.id === id);

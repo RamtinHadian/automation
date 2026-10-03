@@ -241,6 +241,12 @@ export default function UserPanel() {
     else setMainMenuTab('files');
   };
   const canAccessCrmMenu = Boolean(currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
+  // «Save as customer» in the call history jumps here.
+  useEffect(() => {
+    const go = () => canAccessCrmMenu && setMainMenuTab('crm');
+    window.addEventListener('goto-crm', go);
+    return () => window.removeEventListener('goto-crm', go);
+  }, [canAccessCrmMenu]);
   useEffect(() => {
     if (!canAccessCrmMenu && mainMenuTab === 'crm') setMainMenuTab('files');
   }, [canAccessCrmMenu, mainMenuTab]);
