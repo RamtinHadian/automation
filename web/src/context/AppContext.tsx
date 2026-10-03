@@ -517,6 +517,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const markNotificationsRead = useCallback((ids?: string[]) => {
     setNotifications((prev) => prev.map((n) => (!ids || ids.includes(n.id) ? { ...n, read: true } : n)));
+    // a pop-up of a notification that has been read goes away with it
+    setPopups((prev) => (ids ? prev.filter((p) => !ids.includes(p.id)) : []));
     void api.markNotificationsRead(ids).catch(() => {});
   }, []);
 

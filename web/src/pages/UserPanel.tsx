@@ -204,6 +204,16 @@ export default function UserPanel() {
     if (m) unreadByMenu[m]++;
   }
   const chatUnread = notifications.filter((n) => !n.read && n.kind === 'chat').length;
+  // Chat messages have their own badge on the «گفتگو» tab and are read in the conversation, so the «ارسال فایل» menu does not count them.
+  unreadByMenu.files = notifications.filter((n) => !n.read && n.kind !== 'chat' && n.ref?.type !== 'chat' && menuOfNotification(n) === 'files').length;
+  // While a menu is open its notifications are read a few seconds after they arrive (the pop-up and sound have had their moment).
+  useEffect(() => {
+    const ids = notifications.filter((n) => !n.read && n.kind !== 'chat' && n.ref?.type !== 'chat' && menuOfNotification(n) === mainMenuTab).map((n) => n.id);
+    if (!ids.length) return;
+    const t = window.setTimeout(() => markNotificationsRead(ids), 4000);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications, mainMenuTab]);
   const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm') =>
     (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) ? 0 : unreadByMenu[m];
   const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats') => {
