@@ -13,7 +13,9 @@ import {
   Mail,
   MapPin,
   MessageSquare,
+  Phone,
   PhoneCall,
+  Smartphone,
   Plus,
   Search,
   Trash2,
@@ -893,24 +895,43 @@ const CustomerDetail: React.FC<{
         {c.source && <span className="text-[11px] font-bold text-[#8C6F66]">منبع: {c.source}</span>}
       </div>
 
+      {c.phones.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+          {([
+            ['موبایل‌ها', c.phones.filter((p) => /^\+?(98)?0?9\d{9}$/.test(p)), Smartphone, 'text-emerald-600'],
+            ['تلفن‌های ثابت', c.phones.filter((p) => !/^\+?(98)?0?9\d{9}$/.test(p)), Phone, 'text-sky-600'],
+          ] as const).map(([title, list, Icon, tone]) =>
+            list.length === 0 ? null : (
+              <div key={title} className="rounded-2xl border border-[#EBDBCE] bg-white p-3 space-y-2">
+                <div className="flex items-center gap-2 text-[11px] font-black text-[#3A241F]">
+                  <Icon className={`w-4 h-4 ${tone}`} />
+                  {title} ({toPersianDigits(list.length)})
+                </div>
+                {list.map((p) => (
+                  <div key={p} className="flex items-center justify-between gap-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2">
+                    <span className="text-xs font-black text-[#3A241F]" dir="ltr">{toPersianDigits(p)}</span>
+                    <span className="flex items-center gap-3">
+                      {canCall && (
+                        <button type="button" onClick={() => onCall(p, c.name)} className="flex items-center gap-1 text-[11px] font-black text-emerald-700 hover:underline cursor-pointer">
+                          <PhoneCall className="w-3.5 h-3.5" />
+                          تماس
+                        </button>
+                      )}
+                      {smsOn && title === 'موبایل‌ها' && (
+                        <button type="button" onClick={() => setSmsOpen(true)} className="flex items-center gap-1 text-[11px] font-black text-sky-700 hover:underline cursor-pointer">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          پیامک
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        {c.phones.map((p) => (
-          <div key={p} className="flex items-center justify-between bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2">
-            <span className="text-xs font-black text-[#3A241F]" dir="ltr">{toPersianDigits(p)}</span>
-            {canCall && (
-              <button type="button" onClick={() => onCall(p, c.name)} className="flex items-center gap-1 text-[11px] font-black text-emerald-700 hover:underline cursor-pointer">
-                <PhoneCall className="w-3.5 h-3.5" />
-                تماس
-              </button>
-            )}
-            {smsOn && (
-              <button type="button" onClick={() => setSmsOpen(true)} className="flex items-center gap-1 text-[11px] font-black text-sky-700 hover:underline cursor-pointer">
-                <MessageSquare className="w-3.5 h-3.5" />
-                پیامک
-              </button>
-            )}
-          </div>
-        ))}
         {smsOpen && <SmsModal customerId={c.id} customerName={c.name} phones={c.phones} onClose={() => setSmsOpen(false)} />}
         {c.email && (
           <div className="flex items-center gap-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2 text-xs font-bold text-[#3A241F] min-w-0">
