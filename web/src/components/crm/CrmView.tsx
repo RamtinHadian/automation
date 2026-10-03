@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
+  FileSpreadsheet,
   FileText,
   Clock,
   LayoutGrid,
@@ -30,6 +31,7 @@ import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
+import { CustomerImportModal } from './CustomerImportModal';
 import type { VoipCall } from '../../lib/api';
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
@@ -82,6 +84,7 @@ export const CrmView: React.FC = () => {
   const [mineOnly, setMineOnly] = useState(false);
   const [openCustomer, setOpenCustomer] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [importing, setImporting] = useState(false);
   const [editingDeal, setEditingDeal] = useState<{ deal: Deal; isNew: boolean } | null>(null);
   const [voip, setVoip] = useState<{ enabled: boolean; connected: boolean; extension: string } | null>(null);
   const [proformaFor, setProformaFor] = useState<Deal | null>(null);
@@ -345,6 +348,13 @@ export const CrmView: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={() => setImporting(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            ورود از اکسل
+          </button>
+          <button
             onClick={() => setEditingDeal({ deal: newDeal(), isNew: true })}
             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 text-xs font-black cursor-pointer"
           >
@@ -560,6 +570,18 @@ export const CrmView: React.FC = () => {
         />
       )}
 
+      {importing && (
+        <CustomerImportModal
+          existing={customers}
+          ownerId={me}
+          ownerName={currentUser.fullName}
+          onClose={() => setImporting(false)}
+          onImport={(list) => {
+            setCustomers((prev) => [...list, ...prev]);
+            showToast(`${toPersianDigits(list.length)} مشتری اضافه شد.`);
+          }}
+        />
+      )}
       {editingDeal && (
         <DealForm
           initial={editingDeal.deal}
