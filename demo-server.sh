@@ -6,7 +6,7 @@
 #
 # What it does: installs Docker if missing, downloads the project to /opt/hoormand-demo, starts the demo (separate database, sample data,
 # reset every 48 hours) listening ONLY on 127.0.0.1:8095 (not reachable from the internet directly), optionally connects a Cloudflare Tunnel
-# (HTTPS, no open ports, nothing is touched on ports 80/443 so it can live next to V2Ray), and updates itself every night.
+# (HTTPS, no open ports, nothing is touched on ports 80/443 so it can live next to V2Ray), and updates itself every 30 seconds.
 # NEVER use this on a server that holds real company data.
 set -euo pipefail
 
@@ -70,11 +70,9 @@ done
 [ -n "$ok" ] || { echo "The demo did not start. Look at:  docker compose -p $PROJECT --env-file demo.env logs --tail 50" >&2; exit 1; }
 echo "Demo is up on http://127.0.0.1:$PORT  (login: demo / demo)"
 
-say "Nightly self-update"
-cat > /etc/cron.d/hoormand-demo-update <<EOF
-15 4 * * * root flock -n /var/lock/hoormand-demo.lock sh -c 'cd $DIR && git fetch -q origin $BRANCH && git reset -q --hard origin/$BRANCH && docker compose -p $PROJECT --env-file demo.env up -d --build && docker image prune -f >/dev/null 2>&1' >> /var/log/hoormand-demo-update.log 2>&1
-EOF
-chmod 644 /etc/cron.d/hoormand-demo-update
+say "Self-update every 30 seconds"
+chmod +x "$DIR/demo-update.sh"
+BRANCH="$BRANCH" PROJECT="$PROJECT" "$DIR/demo-update.sh" >> /var/log/hoormand-demo-update.log 2>&1 || true
 
 if [ -n "${CF_TOKEN:-}" ]; then
   say "Connecting the Cloudflare Tunnel"
@@ -135,5 +133,5 @@ $TUNNEL_NOTE
 
 Logs:   docker compose -p $PROJECT --env-file $DIR/demo.env logs --tail 50
 Stop:   docker compose -p $PROJECT --env-file $DIR/demo.env down
-Update: runs by itself every night at 04:15 (log: /var/log/hoormand-demo-update.log)
+Update: checks GitHub by itself every 30 seconds (log: /var/log/hoormand-demo-update.log)
 EOF

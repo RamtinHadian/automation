@@ -68,16 +68,12 @@ fi
 echo "==> Building and starting"
 docker compose up -d --build
 
-# Auto-update: check GitHub every minute and redeploy when the branch changed.
-# Disable with AUTO_UPDATE=0.
+# Auto-update: check GitHub every 30 seconds and redeploy when the branch changed
+# (auto-update.sh installs its own systemd service on its first run). Disable with AUTO_UPDATE=0.
 if [ "${AUTO_UPDATE:-1}" = 1 ] && [ -d .git ]; then
-  if [ -d /etc/cron.d ] && { command -v cron >/dev/null 2>&1 || command -v crond >/dev/null 2>&1; }; then
-    chmod +x auto-update.sh
-    echo "* * * * * root BRANCH=$BRANCH flock -n /var/lock/automation-update.lock $INSTALL_DIR/auto-update.sh >> /var/log/automation-update.log 2>&1" > /etc/cron.d/automation-update
-    echo "==> Auto-update enabled (every minute, log: /var/log/automation-update.log)"
-  else
-    echo "==> cron not found; auto-update not enabled (install cron, or run ./auto-update.sh yourself)"
-  fi
+  chmod +x auto-update.sh
+  BRANCH="$BRANCH" ./auto-update.sh >> /var/log/automation-update.log 2>&1 || true
+  echo "==> Auto-update enabled (every 30 seconds, log: /var/log/automation-update.log)"
 fi
 
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"

@@ -1,19 +1,51 @@
 #!/usr/bin/env bash
 # Pulls the deployment branch and rebuilds the stack only when there is something new.
-# Installed as a cron job by install.sh; safe to run by hand.
+# Runs every 30 seconds from a systemd service (it switches itself over from the old
+# once-a-minute cron job the first time it runs as root); safe to run by hand.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BRANCH="${BRANCH:-frontend}"
-cd "$DIR"
+UNIT=/etc/systemd/system/automation-update.service
 
-git fetch -q origin "$BRANCH"
-if [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$BRANCH")" ]; then
-  exit 0
-fi
+# Install the 30-second loop once (needs root + systemd) and retire the cron job.
+ensure_loop() {
+  [ "$(id -u)" -eq 0 ] && [ -d /run/systemd/system ] && [ ! -f "$UNIT" ] || return 0
+  cat > "$UNIT" <<UNITEOF
+[Unit]
+Description=Automation: pull the new version from GitHub every 30 seconds
+After=network-online.target docker.service
 
-echo "$(date -Is) updating to $(git rev-parse --short "origin/$BRANCH")"
-git pull -q --ff-only origin "$BRANCH"
-docker compose up -d --build
-docker image prune -f >/dev/null 2>&1 || true
-echo "$(date -Is) update finished"
+[Service]
+Environment=BRANCH=$BRANCH
+ExecStart=/bin/bash -c 'while true; do flock -n /var/lock/automation-update.lock "$DIR/auto-update.sh" >> /var/log/automation-update.log 2>&1; sleep 30; done'
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+UNITEOF
+  systemctl daemon-reload
+  systemctl enable --now automation-update.service >/dev/null 2>&1 || return 0
+  rm -f /etc/cron.d/automation-update
+  echo "$(date -Is) switched to the 30-second update service"
+}
+
+main() {
+  cd "$DIR"
+  ensure_loop
+  git fetch -q origin "$BRANCH"
+  if [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$BRANCH")" ]; then
+    return 0
+  fi
+
+  echo "$(date -Is) updating to $(git rev-parse --short "origin/$BRANCH")"
+  git pull -q --ff-only origin "$BRANCH"
+  docker compose up -d --build
+  docker image prune -f >/dev/null 2>&1 || true
+  echo "$(date -Is) update finished"
+}
+
+# The whole script is read before it runs: the git pull above may replace this very file.
+main "$@"
+exit $?
