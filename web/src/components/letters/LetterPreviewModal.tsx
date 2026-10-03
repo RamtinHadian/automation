@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { hwheel } from '../../lib/hscroll';
 import { DraggableImage } from './DraggableImage';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
@@ -159,7 +160,7 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
       </div>
 
       {/* ─── Ribbon Toolbar Row 1: Document metadata ─── */}
-      <div className="bg-[#F3F3F3] border-b border-gray-300 px-4 py-1.5 flex items-center gap-3 shrink-0 overflow-x-auto no-scrollbar text-xs whitespace-nowrap">
+      <div onWheel={hwheel} className="bg-[#F3F3F3] border-b border-gray-300 px-4 py-1.5 flex items-center gap-3 shrink-0 hscroll text-xs whitespace-nowrap">
         {/* Subject */}
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="text-gray-500 font-bold">موضوع:</span>
@@ -196,7 +197,7 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
       </div>
 
       {/* ─── Ribbon Toolbar Row 2: Rich text formatting (like Word ribbon) ─── */}
-      <div className="bg-[#F9F9F9] border-b border-gray-300 px-4 py-1.5 flex items-center gap-1 shrink-0 overflow-x-auto no-scrollbar whitespace-nowrap">
+      <div onWheel={hwheel} className="bg-[#F9F9F9] border-b border-gray-300 px-4 py-1.5 flex items-center gap-1 shrink-0 hscroll whitespace-nowrap">
 
         {/* Font Family */}
         <div className="flex items-center gap-1 bg-white border border-gray-300 rounded px-1.5 py-0.5 mr-1">
@@ -918,7 +919,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         </div>
 
         {/* Action Tray for CEO / Recipient */}
-        <div className="bg-[#FAF5F1] px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center gap-2 shrink-0 text-xs overflow-x-auto no-scrollbar whitespace-nowrap">
+        <div onWheel={hwheel} className="bg-[#FAF5F1] px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center gap-2 shrink-0 text-xs hscroll whitespace-nowrap">
           <div className="flex items-center gap-2 shrink-0">
             {/* CEO Sign Button */}
             {canSign && isPending && (
@@ -2146,7 +2147,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   ? letter.showFooterNote
                   : (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false))
             ) && (
-              <div className={`${pageSize === 'A5' ? 'mt-auto pt-2 text-[9px]' : 'mt-auto pt-3 text-[10px]'} border-t border-[#EBDBCE] text-[#8C6F66] flex items-center justify-between shrink-0`}>
+              <div className={`${pageSize === 'A5' ? 'mt-auto pt-2 text-[9px]' : 'mt-auto pt-3 text-[10px]'} text-[#8C6F66] flex items-center justify-between shrink-0`}>
                 {isEditable ? (
                   <input
                     type="text"

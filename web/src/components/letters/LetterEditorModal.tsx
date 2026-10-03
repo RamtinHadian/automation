@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
 import { MoveBox } from './MoveBox';
+import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
 import { useFitZoom } from '../../lib/useFitZoom';
@@ -653,7 +654,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         </div>
 
         {/* Action / Settings Toolbar Bar */}
-        <div className="bg-white px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center justify-between gap-2 shrink-0 overflow-x-auto no-scrollbar text-xs whitespace-nowrap">
+        <div onWheel={hwheel} className="bg-white px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center justify-between gap-2 shrink-0 hscroll text-xs whitespace-nowrap">
           
           {/* Reset the layout to the standard one */}
           <button type="button" onClick={resetLayout} className="px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] bg-white text-[11px] font-black text-[#3A241F] hover:bg-[#FAF5F1] cursor-pointer shrink-0" title="برگرداندن قلم، اندازه و جای همه‌چیز به حالت استاندارد">
@@ -783,7 +784,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         </div>
 
         {/* Word Styling Toolbar: one horizontally scrollable row on phones */}
-        <div className="flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-visible no-scrollbar whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0">
+        <div onWheel={hwheel} className="flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap hscroll whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0">
           
           <div className="flex items-center gap-1.5 flex-nowrap sm:flex-wrap">
             {/* Font Family Selector */}
@@ -1411,7 +1412,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
             {/* Official Letter Footer */}
             {(settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false) && (
-              <div className="mt-auto pt-4 border-t border-[#EBDBCE] text-[10px] text-[#8C6F66] flex items-center justify-between shrink-0">
+              <div className="mt-auto pt-4 text-[10px] text-[#8C6F66] flex items-center justify-between shrink-0">
                 <div>
                   تنظیم‌کننده: <b>{currentUser.fullName}</b> ({currentUser.departmentName}) • شماره: <span className="font-mono text-[#3A241F]">{letterNumber}</span>
                 </div>

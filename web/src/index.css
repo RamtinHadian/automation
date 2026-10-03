@@ -214,3 +214,17 @@ input, button, select, textarea {
 
 /* Drag handles on the letter paper must not scroll the page when dragged with a finger */
 [data-drag-handle] { touch-action: none; }
+
+/* Toolbars that scroll sideways (letter editor / viewer): a slim, always visible scrollbar */
+.hscroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 139, 106, 0.55) transparent;
+}
+.hscroll::-webkit-scrollbar {
+  height: 6px;
+}
+.hscroll::-webkit-scrollbar-thumb {
+  background: rgba(201, 139, 106, 0.55);
+  border-radius: 9999px;
+}

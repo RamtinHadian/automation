@@ -393,7 +393,6 @@ export function generateOfficialLetterHtml(
       transition: transform 0.1s ease;
     }
     .footer {
-      border-top: 1px solid #E0D4CB;
       padding-top: 8px;
       margin-top: auto;
       font-size: 9.5px;
