@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users, UserPlus } from 'lucide-react';
 import { api, VoipCall } from '../../lib/api';
@@ -78,7 +78,7 @@ type Filter = 'all' | 'missed' | 'in' | 'out';
 
 /** «Call history» window: my calls (admins can switch to the whole company), with filters, search and call-back. */
 export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> = ({ onClose, isAdmin }) => {
-  const { showToast, currentUser } = useAppContext();
+  const { showToast, currentUser, notifications, markNotificationsRead } = useAppContext();
   const canSaveCustomer = currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
   const [calls, setCalls] = useState<VoipCall[] | null>(null);
   const [scope, setScope] = useState<'mine' | 'all'>('mine');
@@ -109,7 +109,30 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
     });
   }, [calls, filter, q]);
 
-  const missedCount = (calls || []).filter((c) => c.direction === 'in' && c.status !== 'answered').length;
+  // Missed calls that came in since the history was last opened. Opening it (calls loaded) reads them: the count is
+  // remembered per person, and the call notifications (bell, pop-ups) are read too, so no red number is left behind.
+  const seenKey = `calllog_seen_${currentUser.id}`;
+  const [seenAt] = useState(() => {
+    try {
+      return localStorage.getItem(seenKey) || '';
+    } catch {
+      return '';
+    }
+  });
+  const missedCount = filter === 'missed' ? 0 : (calls || []).filter((c) => c.direction === 'in' && c.status !== 'answered' && c.startedAt > seenAt).length;
+  const marked = useRef(false);
+  useEffect(() => {
+    if (calls === null || marked.current) return;
+    marked.current = true;
+    try {
+      localStorage.setItem(seenKey, new Date().toISOString());
+    } catch {
+      /* storage unavailable */
+    }
+    const ids = notifications.filter((n) => !n.read && n.kind === 'call').map((n) => n.id);
+    if (ids.length) markNotificationsRead(ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calls]);
 
   const callBack = async (number: string) => {
     setBusy(number);
