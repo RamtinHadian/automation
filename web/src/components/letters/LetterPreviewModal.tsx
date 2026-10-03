@@ -409,6 +409,8 @@ interface LetterPreviewModalProps {
       stampHeight?: number;
       stampOffsetX?: number;
       stampOffsetY?: number;
+      showSignatureImage?: boolean;
+      showStampImage?: boolean;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -456,8 +458,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const canSign = currentUser?.canSignOfficialLetters === true;
   const ceoName = letter?.signedBy || settings?.ceoName || 'مدیریت محترم عامل';
   const ceoTitle = settings?.ceoTitle || 'مدیرعامل';
-  const signatureImg = letter?.signatureImageUrl || settings?.ceoSignatureUrl;
-  const stampImg = letter?.companyStampImageUrl || settings?.companyStampUrl;
+  const [showSig, setShowSig] = useState(true);
+  const [showStamp, setShowStamp] = useState(true);
+  const signatureImg = showSig ? letter?.signatureImageUrl || settings?.ceoSignatureUrl : undefined;
+  const stampImg = showStamp ? letter?.companyStampImageUrl || settings?.companyStampUrl : undefined;
 
   const attachment = useAttachment(isOpen ? letter : null, currentUser?.id);
 
@@ -547,6 +551,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setSigImgOffset({ x: letter.signatureImgOffsetX || 0, y: letter.signatureImgOffsetY || 0 });
       setStampOffset({ x: letter.stampOffsetX || 0, y: letter.stampOffsetY || 0 });
       setStampHeightOverride(letter.stampHeight ?? null);
+      setShowSig(letter.showSignatureImage !== false);
+      setShowStamp(letter.showStampImage !== false);
       setHeaderCenterOffset({ x: letter.headerCenterOffsetX || 0, y: letter.headerCenterOffsetY || 0 });
       setSubjectOffset({ x: letter.subjectOffsetX || 0, y: letter.subjectOffsetY || 0 });
       setMetaOffset({ x: letter.metaOffsetX || 0, y: letter.metaOffsetY || 0 });
@@ -728,6 +734,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       stampHeight: stampHeightOverride ?? undefined,
       stampOffsetX: stampOffset.x,
       stampOffsetY: stampOffset.y,
+      showSignatureImage: showSig,
+      showStampImage: showStamp,
       customBody: convertNumbersInHtmlToPersian(customBody),
       customHeaderNumber: headerNumber,
       customHeaderDate: headerDate,
@@ -812,6 +820,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       stampHeight: stampHeightOverride ?? undefined,
       stampOffsetX: stampOffset.x,
       stampOffsetY: stampOffset.y,
+      showSignatureImage: showSig,
+      showStampImage: showStamp,
     });
   };
 
@@ -1243,6 +1253,17 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 ))}
               </select>
 
+              <div className="flex items-center gap-4 font-bold text-[#3A241F] pt-1">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showSig} onChange={(e) => setShowSig(e.target.checked)} className="accent-[#6E1B1B]" />
+                  درج امضا
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-[#6E1B1B]" />
+                  درج مهر
+                </label>
+              </div>
+
               <div className="space-y-1 pt-1">
                 <div className="flex items-center justify-between font-bold text-[#8C6F66]">
                   <span>سایز امضا:</span>
@@ -1315,6 +1336,18 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                     className="w-full px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   />
                 </div>
+              </div>
+
+              {/* Which of the uploaded pictures go on this letter */}
+              <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showSig} onChange={(e) => setShowSig(e.target.checked)} className="accent-emerald-600" />
+                  درج امضا
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-emerald-600" />
+                  درج مهر
+                </label>
               </div>
 
               {/* Signature Size in Sign Banner */}

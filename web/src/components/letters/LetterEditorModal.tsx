@@ -78,6 +78,8 @@ interface LetterEditorModalProps {
     stampHeight?: number;
     stampOffsetX?: number;
     stampOffsetY?: number;
+    showSignatureImage?: boolean;
+    showStampImage?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyPaddingX?: number;
@@ -181,6 +183,8 @@ function parseLetterForEdit(t: FileTransfer) {
   layout.sigImgOffset = pt(t.signatureImgOffsetX, t.signatureImgOffsetY);
   if (t.stampHeight) layout.stampHeightOverride = t.stampHeight;
   layout.stampOffset = pt(t.stampOffsetX, t.stampOffsetY);
+  if (t.showSignatureImage === false) layout.showSignatureImage = false;
+  if (t.showStampImage === false) layout.showStampImage = false;
   const subject = (t.fileName || '').replace(/^نامه_/, '').replace(/_(A4|A5|Letter|Letterhead)\.html$/, '').replace(/_/g, ' ');
   return { bodyHtml, layout, subject, signerName: t.customSignerName, signerTitle: t.customSignerTitle };
 }
@@ -257,6 +261,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   // Signature image and stamp are positioned and sized independently (drag / corner handle)
   const [sigImgOffset, setSigImgOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.sigImgOffset));
   const [stampOffset, setStampOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.stampOffset));
+  const [showSigImg, setShowSigImg] = useState<boolean>(() => prefs.showSignatureImage !== false);
+  const [showStampImg, setShowStampImg] = useState<boolean>(() => prefs.showStampImage !== false);
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(() => (typeof prefs.stampHeightOverride === 'number' ? prefs.stampHeightOverride : null));
   const effectiveStampHeight =
     stampHeightOverride ?? (pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05));
@@ -528,6 +534,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       stampHeight: stampHeightOverride ?? undefined,
       stampOffsetX: stampOffset.x,
       stampOffsetY: stampOffset.y,
+      showSignatureImage: showSigImg ? undefined : false,
+      showStampImage: showStampImg ? undefined : false,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
       bodyOffsetX,
       bodyPaddingX,
@@ -910,6 +918,17 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </button>
             </div>
 
+            <div className="flex items-center gap-3 border-r border-amber-300/80 pr-2 mr-1 text-[10px] font-bold text-amber-950">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showSigImg} onChange={(e) => setShowSigImg(e.target.checked)} className="accent-amber-700" />
+                درج امضا
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showStampImg} onChange={(e) => setShowStampImg(e.target.checked)} className="accent-amber-700" />
+                درج مهر
+              </label>
+            </div>
+
             <div className="flex items-center gap-1.5 border-r border-amber-300/80 pr-2 mr-1">
               <span className="text-[10px] font-bold text-amber-950">سایز امضا:</span>
               <input
@@ -1276,7 +1295,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                   className="w-full relative my-1"
                   style={{ height: `${signatureAreaHeight(pageSize === 'A5', pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight, effectiveStampHeight)}px` }}
                 >
-                  {settings.ceoSignatureUrl ? (
+                  {settings.ceoSignatureUrl && showSigImg ? (
                     <DraggableImage
                       src={settings.ceoSignatureUrl}
                       alt="امضا"
@@ -1290,7 +1309,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                       opacityClass="opacity-90"
                     />
                   ) : null}
-                  {settings.companyStampUrl ? (
+                  {settings.companyStampUrl && showStampImg ? (
                     <DraggableImage
                       src={settings.companyStampUrl}
                       alt="مهر"

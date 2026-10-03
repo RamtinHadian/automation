@@ -123,6 +123,8 @@ interface AppContextType {
     stampHeight?: number;
     stampOffsetX?: number;
     stampOffsetY?: number;
+    showSignatureImage?: boolean;
+    showStampImage?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyPaddingX?: number;
@@ -144,6 +146,8 @@ interface AppContextType {
       stampHeight?: number;
       stampOffsetX?: number;
       stampOffsetY?: number;
+      showSignatureImage?: boolean;
+      showStampImage?: boolean;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -661,6 +665,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stampHeight,
       stampOffsetX,
       stampOffsetY,
+      showSignatureImage,
+      showStampImage,
       customFooterNote,
       bodyOffsetX,
       bodyPaddingX,
@@ -700,6 +706,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stampHeight?: number;
       stampOffsetX?: number;
       stampOffsetY?: number;
+      showSignatureImage?: boolean;
+      showStampImage?: boolean;
       customFooterNote?: string;
       bodyOffsetX?: number;
       bodyPaddingX?: number;
@@ -778,6 +786,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             stampHeight,
             stampOffsetX,
             stampOffsetY,
+            showSignatureImage,
+            showStampImage,
             customFooterNote,
             bodyOffsetX,
             bodyPaddingX,
@@ -1014,6 +1024,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         stampHeight?: number;
         stampOffsetX?: number;
         stampOffsetY?: number;
+        showSignatureImage?: boolean;
+        showStampImage?: boolean;
         pageSize?: string;
         customBody?: string;
         customHeaderNumber?: string;
@@ -1056,6 +1068,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               stampHeight: signatureOptions?.stampHeight ?? t.stampHeight,
               stampOffsetX: signatureOptions?.stampOffsetX ?? t.stampOffsetX ?? 0,
               stampOffsetY: signatureOptions?.stampOffsetY ?? t.stampOffsetY ?? 0,
+              showSignatureImage: signatureOptions?.showSignatureImage ?? t.showSignatureImage,
+              showStampImage: signatureOptions?.showStampImage ?? t.showStampImage,
               pageSize: signatureOptions?.pageSize || t.pageSize,
               letterContentHtml: convertNumbersInHtmlToPersian(signatureOptions?.customBody || t.letterContentHtml || ''),
               customHeaderNumber: signatureOptions?.customHeaderNumber || t.customHeaderNumber,

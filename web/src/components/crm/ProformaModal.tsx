@@ -43,7 +43,7 @@ export const ProformaModal: React.FC<{
   // Every text on the invoice can be changed here; what is typed is kept with this proforma.
   const tpl = useMemo(() => normalizeTemplate(settings.proformaTemplate), [settings.proformaTemplate]);
   const [number, setNumber] = useState(deal.proformaNumber || nextProformaNumber(allDeals, tpl));
-  const [f, setF] = useState<Required<ProformaFields>>(() => {
+  const [f, setF] = useState<Required<Omit<ProformaFields, 'showStamp' | 'showSignature'>>>(() => {
     const o = deal.proformaFields || {};
     return {
       title: o.title ?? tpl.title,
@@ -61,7 +61,10 @@ export const ProformaModal: React.FC<{
       footerText: o.footerText ?? tpl.footerText,
     };
   });
-  const setField = (k: keyof ProformaFields, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const setField = (k: Exclude<keyof ProformaFields, 'showStamp' | 'showSignature'>, v: string) => setF((p) => ({ ...p, [k]: v }));
+  // The stamp and the signature picture of the company are optional on each proforma.
+  const [showStamp, setShowStamp] = useState(deal.proformaFields?.showStamp !== false);
+  const [showSignature, setShowSignature] = useState(deal.proformaFields?.showSignature !== false);
   // ---- send straight to the customer's Telegram / Bale ----
   const { showToast } = useAppContext();
   const [msgr, setMsgr] = useState<{ telegram: boolean; bale: boolean } | null>(null);
@@ -85,7 +88,7 @@ export const ProformaModal: React.FC<{
     validUntil: valid,
     terms,
     proformaNumber: number.trim() || nextProformaNumber(allDeals, tpl),
-    proformaFields: f,
+    proformaFields: { ...f, showStamp, showSignature },
     amount: totals.payable,
   });
 
@@ -244,6 +247,18 @@ export const ProformaModal: React.FC<{
               <div className="sm:col-span-2"><label className={label}>نشانی</label><input className={field} value={f.buyerAddress} onChange={(e) => setField('buyerAddress', e.target.value)} /></div>
             </div>
           </details>
+
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] px-4 py-3 text-xs font-black text-[#3A241F]">
+            <span className="text-[#8C6F66]">در پیش‌فاکتور درج شود:</span>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-violet-600 w-4 h-4" />
+              مهر شرکت
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={showSignature} onChange={(e) => setShowSignature(e.target.checked)} className="accent-violet-600 w-4 h-4" />
+              امضا
+            </label>
+          </div>
 
           <details className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3">
             <summary className="cursor-pointer text-xs font-black text-[#3A241F]">اطلاعات پرداخت و پاورقی</summary>

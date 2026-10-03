@@ -417,6 +417,8 @@ export default function UserPanel() {
     stampHeight?: number;
     stampOffsetX?: number;
     stampOffsetY?: number;
+    showSignatureImage?: boolean;
+    showStampImage?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyPaddingX?: number;
@@ -502,6 +504,8 @@ export default function UserPanel() {
       stampHeight: letterData.stampHeight,
       stampOffsetX: letterData.stampOffsetX,
       stampOffsetY: letterData.stampOffsetY,
+      showSignatureImage: letterData.showSignatureImage,
+      showStampImage: letterData.showStampImage,
       customFooterNote: letterData.customFooterNote,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyPaddingX: letterData.bodyPaddingX,
@@ -1503,7 +1507,7 @@ export default function UserPanel() {
 
                             {/* Stamped Visual Signatures & Official Seal without any surrounding box or border */}
                             <div className="flex items-center gap-3 shrink-0">
-                              {(t.signatureImageUrl || settings.ceoSignatureUrl) && (
+                              {t.showSignatureImage !== false && (t.signatureImageUrl || settings.ceoSignatureUrl) && (
                                 <img
                                   src={t.signatureImageUrl || settings.ceoSignatureUrl}
                                   alt="اسکن امضای مدیرعامل"
@@ -1511,7 +1515,7 @@ export default function UserPanel() {
                                 />
                               )}
 
-                              {(t.companyStampImageUrl || settings.companyStampUrl) && (
+                              {t.showStampImage !== false && (t.companyStampImageUrl || settings.companyStampUrl) && (
                                 <img
                                   src={t.companyStampImageUrl || settings.companyStampUrl}
                                   alt="مهر رسمی شرکت"

@@ -205,6 +205,9 @@ export interface ProformaFields {
   buyerEmail?: string;
   bankInfo?: string;
   footerText?: string;
+  /** Untick to leave the company stamp / the signature scan off this proforma (default: shown). */
+  showStamp?: boolean;
+  showSignature?: boolean;
 }
 
 export interface ProformaItem {
@@ -382,6 +385,9 @@ export interface FileTransfer {
   stampHeight?: number; // اندازهٔ مهر (اگر خالی باشد متناسب با امضا)
   stampOffsetX?: number;
   stampOffsetY?: number;
+  /** Untick to leave the signature scan / the stamp off this letter (default: shown). */
+  showSignatureImage?: boolean;
+  showStampImage?: boolean;
   headerCenterOffsetX?: number;
   headerCenterOffsetY?: number;
   subjectOffsetX?: number;

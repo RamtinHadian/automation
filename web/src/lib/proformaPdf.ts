@@ -199,7 +199,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       ${bankInfo ? `<div class="bank"><h4>اطلاعات پرداخت</h4>${nl(bankInfo)}</div>` : ''}
     </div>`,
     signatures: `<div class="sign">
-      <div class="s"><b>مهر و امضای فروشنده</b>${settings.ceoName ? `<div class="who">${esc(settings.ceoName)}${settings.ceoTitle ? ' — ' + esc(settings.ceoTitle) : ''}</div>` : ''}${settings.companyStampUrl ? `<img src="${esc(settings.companyStampUrl)}" alt="" style="left:62%" />` : ''}${settings.ceoSignatureUrl ? `<img src="${esc(settings.ceoSignatureUrl)}" alt="" style="left:36%" />` : ''}</div>
+      <div class="s"><b>مهر و امضای فروشنده</b>${settings.ceoName ? `<div class="who">${esc(settings.ceoName)}${settings.ceoTitle ? ' — ' + esc(settings.ceoTitle) : ''}</div>` : ''}${settings.companyStampUrl && f.showStamp !== false ? `<img src="${esc(settings.companyStampUrl)}" alt="" style="left:62%" />` : ''}${settings.ceoSignatureUrl && f.showSignature !== false ? `<img src="${esc(settings.ceoSignatureUrl)}" alt="" style="left:36%" />` : ''}</div>
       <div class="s"><b>تأیید و امضای خریدار</b></div>
     </div>`,
   };

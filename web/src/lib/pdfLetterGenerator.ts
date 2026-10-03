@@ -37,6 +37,8 @@ export interface LetterPrintOverrides {
   stampHeight?: number;
   stampOffsetX?: number;
   stampOffsetY?: number;
+  showSignatureImage?: boolean;
+  showStampImage?: boolean;
   signatureImgOffsetX?: number;
   signatureImgOffsetY?: number;
 }
@@ -52,8 +54,10 @@ export function generateOfficialLetterHtml(
   const ceoTitle = settings.ceoTitle || 'مدیرعامل';
   // Image URLs (esp. inline SVG data URLs) can contain quotes; escape them for use inside src="..."
   const attr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-  const signatureImg = transfer.signatureImageUrl || settings.ceoSignatureUrl;
-  const stampImg = transfer.companyStampImageUrl || settings.companyStampUrl;
+  const showSig = (overrides?.showSignatureImage ?? transfer.showSignatureImage) !== false;
+  const showStamp = (overrides?.showStampImage ?? transfer.showStampImage) !== false;
+  const signatureImg = showSig ? transfer.signatureImageUrl || settings.ceoSignatureUrl : undefined;
+  const stampImg = showStamp ? transfer.companyStampImageUrl || settings.companyStampUrl : undefined;
 
   const pageSize = (overrides?.pageSize || transfer.pageSize || 'A4').trim();
   const isA5 = pageSize.toUpperCase() === 'A5';
