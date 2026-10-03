@@ -283,26 +283,26 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
     selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
+    showSignatureImage: showSigImg, showStampImage: showStampImg, showLetterNumber: showNo, showLetterDate: showDate, showLetterAttachment: showAtt,
   });
 
-  // Save the person's settings a moment after each change (never on opening, and not when the organisation template is locked).
+  // The person's own letter settings are saved only when they press «ذخیره تنظیمات»; until then every change belongs to
+  // this letter alone. The next new letter opens exactly from the last saved settings (nothing else changes them).
   const savedPrefs = useRef<string | null>(null);
-  useEffect(() => {
+  const [, bumpSaved] = useState(0);
+  const layoutJson = JSON.stringify(collectLayout());
+  if (savedPrefs.current === null) savedPrefs.current = layoutJson;
+  const layoutDirty = layoutJson !== savedPrefs.current;
+  const canSaveLayout = !isEditing && !orgTpl?.locked;
+  const saveLayout = () => {
+    if (!canSaveLayout) return;
     const next = collectLayout();
-    const json = JSON.stringify(next);
-    if (savedPrefs.current === null) {
-      savedPrefs.current = json;
-      return;
-    }
-    if (isEditing || orgTpl?.locked || json === savedPrefs.current) return;
-    const t = setTimeout(() => {
-      savedPrefs.current = json;
-      setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: next } : u)));
-      setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: next } : u));
-    }, 800);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize, selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign, signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset]);
+    savedPrefs.current = JSON.stringify(next);
+    setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: next } : u)));
+    setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: next } : u));
+    bumpSaved((n) => n + 1);
+    showToast('تنظیمات نامه ذخیره شد؛ نامهٔ بعدی دقیقاً از همین وضعیت شروع می‌شود.');
+  };
 
   // Back to the standard layout (organisation template when there is one, else the built-in defaults) and forget the
   // person's own saved settings, for when earlier adjustments left the letter out of shape.
@@ -329,6 +329,11 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setHeaderCenterOffset(pt(base.headerCenterOffset));
     setSubjectOffset(pt(base.subjectOffset));
     setMetaOffset(pt(base.metaOffset));
+    setShowSigImg(base.showSignatureImage !== false);
+    setShowStampImg(base.showStampImage !== false);
+    setShowNo(base.showLetterNumber !== false);
+    setShowDate(base.showLetterDate !== false);
+    setShowAtt(base.showLetterAttachment !== false);
     setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: undefined } : u)));
     setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: undefined } : u));
     showToast('چیدمان نامه به حالت استاندارد برگشت.');
@@ -617,6 +622,26 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           {/* Reset the layout to the standard one */}
           <button type="button" onClick={resetLayout} className="px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] bg-white text-[11px] font-black text-[#3A241F] hover:bg-[#FAF5F1] cursor-pointer shrink-0" title="برگرداندن قلم، اندازه و جای همه‌چیز به حالت استاندارد">
             بازنشانی چیدمان
+          </button>
+          {/* Save the layout for the next letters */}
+          <button
+            type="button"
+            onClick={saveLayout}
+            disabled={!canSaveLayout || !layoutDirty}
+            className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-black shrink-0 ${
+              canSaveLayout && layoutDirty ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer' : 'border-[#EBDBCE] bg-[#FAF5F1] text-[#8C6F66] cursor-default'
+            }`}
+            title={
+              !canSaveLayout
+                ? isEditing
+                  ? 'در ویرایش نامه، تنظیمات برای نامه‌های بعدی ذخیره نمی‌شود'
+                  : 'قالب سازمان قفل است و تنظیمات شخصی ذخیره نمی‌شود'
+                : layoutDirty
+                  ? 'ذخیرهٔ موقعیت و اندازه‌ها (قلم، سربرگ، امضا، مهر و ...) برای همهٔ نامه‌های بعدی شما'
+                  : 'تنظیمات شما ذخیره است و تغییر جدیدی نیست'
+            }
+          >
+            {canSaveLayout && layoutDirty ? 'ذخیرهٔ تنظیمات' : 'تنظیمات ذخیره است'}
           </button>
 
           {/* Format / Paper Size Selector */}
