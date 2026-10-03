@@ -880,7 +880,7 @@ const CustomerDetail: React.FC<{
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${st.cls}`}>{st.label}</span>
-        {c.company && (
+        {c.company && c.company !== c.name && (
           <span className="flex items-center gap-1 text-[11px] font-bold text-[#8C6F66]">
             <Building2 className="w-3.5 h-3.5" />
             {c.company}
