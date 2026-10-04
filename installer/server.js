@@ -196,7 +196,11 @@ class Session {
       if (m[2] !== 'RUN') return { code: Number(m[2]) || 0, out: all };
       // the job vanished without writing an exit code (killed, server restarted): do not wait for ever
       if (m[3] === '0') {
-        if (++dead >= 3) return { code: 255, out: all + '\nکار پس‌زمینه روی سرور ناگهان متوقف شد.' };
+        if (++dead >= 3) {
+          // the background job died at once (this server does not keep it alive): run the script directly instead
+          this.log('کار پس‌زمینه روی این سرور بلافاصله متوقف شد' + (all.trim() ? '' : ' و خروجی نداشت') + '؛ همان کار را مستقیم و زنده اجرا می‌کنم.', 'yellow');
+          return this.run(script, { root, label: label || script });
+        }
       } else dead = 0;
       await sleep(2500);
     }

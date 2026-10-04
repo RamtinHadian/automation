@@ -22,6 +22,7 @@ function answer(script) {
     return out('started\n');
   }
   if (/echo "HJ \$s \$e/.test(script)) {
+    if (process.env.JOBDIE) return out('HJ 0 RUN 0\n'); // simulate a background job that dies at once
     const off = Number(/OFF=(\d+)/.exec(script)[1]);
     const j = st.job || { data: Buffer.alloc(0), code: 0 };
     return out(`HJ ${j.data.length} ${j.code}\n` + j.data.slice(off).toString());
