@@ -247,3 +247,11 @@ html.night .official-letter-sheet img,
 html.night .official-letter-sheet canvas {
   filter: none;
 }
+
+/* the dark page background behind the cards stays dark at night (it would turn light when turned over) */
+html.night body {
+  background-color: #ededed !important;
+}
+html.night [class*='from-[#3A241F]'] {
+  background-image: linear-gradient(135deg, #ececec, #e2e2e2, #f0f0f0) !important;
+}
