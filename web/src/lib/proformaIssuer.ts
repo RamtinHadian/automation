@@ -28,11 +28,11 @@ export const mainIssuer = (s: SystemSettings): ProformaIssuer => ({
   ceoTitle: s.ceoTitle,
 });
 
+/** The unofficial business as long as nothing has been saved for it yet. */
+export const DEFAULT_OTHER_ISSUER: ProformaIssuer = { id: 'personal', label: 'کسب‌وکار غیررسمی', kind: 'UNOFFICIAL', name: '', taxPercent: 0, numberPrefix: 'N-' };
+
 /** Exactly two issuers: the official company and the one unofficial business (an individual with a business licence). */
-export const issuersOf = (s: SystemSettings): ProformaIssuer[] => {
-  const other = (s.proformaIssuers || []).find((i) => i.kind === 'UNOFFICIAL');
-  return other ? [mainIssuer(s), other] : [mainIssuer(s)];
-};
+export const issuersOf = (s: SystemSettings): ProformaIssuer[] => [mainIssuer(s), (s.proformaIssuers || []).find((i) => i.kind === 'UNOFFICIAL') || DEFAULT_OTHER_ISSUER];
 
 export const issuerById = (s: SystemSettings, id?: string): ProformaIssuer => issuersOf(s).find((i) => i.id === id) || mainIssuer(s);
 

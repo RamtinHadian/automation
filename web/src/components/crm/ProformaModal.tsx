@@ -65,16 +65,16 @@ export const ProformaModal: React.FC<{
     return {
       title: o.title ?? defaultTitleFor(issuer),
       subject: o.subject ?? deal.title,
-      sellerName: o.sellerName ?? issuer.name,
-      sellerAddress: o.sellerAddress ?? issuer.address ?? '',
-      sellerPhone: o.sellerPhone ?? issuer.phone ?? '',
-      sellerEconomicCode: o.sellerEconomicCode ?? issuer.economicCode ?? '',
-      sellerNationalId: o.sellerNationalId ?? issuer.nationalId ?? '',
-      sellerRegistrationNumber: o.sellerRegistrationNumber ?? issuer.registrationNumber ?? '',
-      sellerPostalCode: o.sellerPostalCode ?? issuer.postalCode ?? '',
-      sellerProvince: o.sellerProvince ?? issuer.province ?? '',
-      sellerCounty: o.sellerCounty ?? issuer.county ?? '',
-      sellerCity: o.sellerCity ?? issuer.city ?? '',
+      sellerName: issuer.name,
+      sellerAddress: issuer.address ?? '',
+      sellerPhone: issuer.phone ?? '',
+      sellerEconomicCode: issuer.economicCode ?? '',
+      sellerNationalId: issuer.nationalId ?? '',
+      sellerRegistrationNumber: issuer.registrationNumber ?? '',
+      sellerPostalCode: issuer.postalCode ?? '',
+      sellerProvince: issuer.province ?? '',
+      sellerCounty: issuer.county ?? '',
+      sellerCity: issuer.city ?? '',
       buyerProvince: o.buyerProvince ?? customer?.province ?? '',
       buyerCounty: o.buyerCounty ?? '',
       buyerCity: o.buyerCity ?? customer?.city ?? '',
@@ -146,7 +146,7 @@ export const ProformaModal: React.FC<{
     validUntil: valid,
     terms,
     proformaNumber: number.trim() || nextProformaNumber(allDeals, tpl),
-    proformaFields: { ...f, showStamp, showSignature },
+    proformaFields: (({ sellerName, sellerAddress, sellerPhone, sellerEconomicCode, sellerNationalId, sellerRegistrationNumber, sellerPostalCode, sellerProvince, sellerCounty, sellerCity, ...rest }) => ({ ...rest, showStamp, showSignature }))(f),
     proformaIssuerId: issuerId,
     amount: totals.payable,
   });
@@ -240,9 +240,9 @@ export const ProformaModal: React.FC<{
         </div>
 
         <div className="p-5 space-y-4 overflow-y-auto">
-          {issuers.length > 1 && (
+          {(
             <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] px-4 py-3 flex flex-wrap items-center gap-3">
-              <label className="text-xs font-black text-[#3A241F]">صادرکننده پیش‌فاکتور</label>
+              <label className="text-xs font-black text-[#3A241F]">پیش‌فاکتور با نام کدام شرکت صادر شود؟</label>
               <select className={`${field} sm:max-w-xs`} value={issuerId} onChange={(e) => changeIssuer(e.target.value)}>
                 {issuers.map((i) => (
                   <option key={i.id} value={i.id}>
@@ -257,7 +257,7 @@ export const ProformaModal: React.FC<{
           )}
           {official && problems.length > 0 && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-6 text-amber-900">
-              برای پیش‌فاکتور رسمی این موارد را تکمیل کنید (در «مشخصات فروشنده»، «مشخصات خریدار» و ردیف‌ها): {problems.join('، ')}.
+              برای پیش‌فاکتور رسمی این موارد را تکمیل کنید (مشخصات فروشنده را در «کنسول مدیریت ← تنظیمات ← پیش‌فاکتور» پر کنید؛ مشخصات خریدار و ردیف‌ها همین‌جا): {problems.join('، ')}.
             </div>
           )}
           {required && (
@@ -360,22 +360,6 @@ export const ProformaModal: React.FC<{
               <input className={field} value={f.subject} onChange={(e) => setField('subject', e.target.value)} />
             </div>
           </div>
-
-          <details className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3">
-            <summary className="cursor-pointer text-xs font-black text-[#3A241F]">مشخصات فروشنده</summary>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              <div><label className={label}>نام</label><input className={field} value={f.sellerName} onChange={(e) => setField('sellerName', e.target.value)} /></div>
-              <div><label className={label}>تلفن</label><input className={field} value={f.sellerPhone} onChange={(e) => setField('sellerPhone', e.target.value)} /></div>
-              <div><label className={label}>کد اقتصادی</label><input className={field} value={f.sellerEconomicCode} onChange={(e) => setField('sellerEconomicCode', e.target.value)} /></div>
-              <div><label className={label}>شناسه ملی</label><input className={field} value={f.sellerNationalId} onChange={(e) => setField('sellerNationalId', e.target.value)} /></div>
-              <div><label className={label}>شمارهٔ ثبت</label><input className={field} value={f.sellerRegistrationNumber} onChange={(e) => setField('sellerRegistrationNumber', e.target.value)} /></div>
-              <div><label className={label}>کد پستی</label><input className={field} value={f.sellerPostalCode} onChange={(e) => setField('sellerPostalCode', e.target.value)} /></div>
-              {official && <div><label className={label}>استان</label><input className={field} value={f.sellerProvince} onChange={(e) => setField('sellerProvince', e.target.value)} /></div>}
-              {official && <div><label className={label}>شهرستان</label><input className={field} value={f.sellerCounty} onChange={(e) => setField('sellerCounty', e.target.value)} /></div>}
-              {official && <div><label className={label}>شهر</label><input className={field} value={f.sellerCity} onChange={(e) => setField('sellerCity', e.target.value)} /></div>}
-              <div><label className={label}>نشانی</label><input className={field} value={f.sellerAddress} onChange={(e) => setField('sellerAddress', e.target.value)} /></div>
-            </div>
-          </details>
 
           <details className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3">
             <summary className="cursor-pointer text-xs font-black text-[#3A241F]">مشخصات خریدار</summary>
