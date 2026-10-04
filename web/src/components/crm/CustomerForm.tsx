@@ -185,6 +185,7 @@ export const CustomerForm: React.FC<{
     <form onSubmit={submit}>
       <Modal
         wide
+        onTop
         title={isNew ? 'مشتری جدید' : 'ویرایش مشتری'}
         onClose={onClose}
         footer={

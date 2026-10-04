@@ -93,6 +93,8 @@ export const CrmView: React.FC = () => {
   const [voip, setVoip] = useState<{ enabled: boolean; connected: boolean; extension: string } | null>(null);
   const [proformaFor, setProformaFor] = useState<Deal | null>(null);
   const [quickProforma, setQuickProforma] = useState(false);
+  // a customer made from inside another window (new opportunity / proforma) is handed back to it when saved
+  const [customerCb, setCustomerCb] = useState<((c: Customer) => void) | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [mobileStage, setMobileStage] = useState<DealStage>('NEW');
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
@@ -246,6 +248,10 @@ export const CrmView: React.FC = () => {
   const canCall = !!voip?.enabled && !!voip.extension;
   const canDelete = (ownerId: string) => isAdmin || ownerId === me;
 
+  const startCustomerFor = (cb: (c: Customer) => void) => {
+    setCustomerCb(() => cb);
+    setEditingCustomer(newCustomer());
+  };
   const newCustomer = (): Customer => ({
     id: uid('cu'), name: '', company: '', phones: [], email: '', address: '', status: 'LEAD', source: '', tags: [],
     ownerId: me, ownerName: currentUser.fullName, notes: '', createdAt: nowIso(), updatedAt: nowIso(),
@@ -664,13 +670,19 @@ export const CrmView: React.FC = () => {
           customers={customers}
           staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))}
           canDelete={canDelete(editingCustomer.ownerId) && customers.some((c) => c.id === editingCustomer.id)}
-          onClose={() => setEditingCustomer(null)}
+          onClose={() => {
+            setEditingCustomer(null);
+            setCustomerCb(null);
+          }}
           onSave={(c) => {
             const isNew = !customers.some((x) => x.id === c.id);
             saveCustomer(c);
             setEditingCustomer(null);
             showToast(isNew ? 'مشتری ثبت شد.' : 'اطلاعات مشتری ذخیره شد.');
-            if (isNew) setOpenCustomer(c.id);
+            if (customerCb) {
+              customerCb(c);
+              setCustomerCb(null);
+            } else if (isNew) setOpenCustomer(c.id);
           }}
           onDelete={() => removeCustomer(editingCustomer)}
         />
@@ -696,6 +708,7 @@ export const CrmView: React.FC = () => {
           staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))}
           canDelete={!editingDeal.isNew && canDelete(editingDeal.deal.ownerId)}
           onClose={() => setEditingDeal(null)}
+          onCreateCustomer={startCustomerFor}
           onProforma={(d) => {
             saveDeal(d);
             setEditingDeal(null);
@@ -715,6 +728,7 @@ export const CrmView: React.FC = () => {
         <QuickProformaDialog
           deals={deals}
           customers={customers}
+          onCreateCustomer={startCustomerFor}
           onClose={() => setQuickProforma(false)}
           onExisting={(deal, issuerId) => {
             setQuickProforma(false);
@@ -785,7 +799,8 @@ const DealForm: React.FC<{
   onSave: (d: Deal) => void;
   onProforma: (d: Deal) => void;
   onDelete: () => void;
-}> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onProforma, onDelete }) => {
+  onCreateCustomer: (cb: (c: Customer) => void) => void;
+}> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onProforma, onDelete, onCreateCustomer }) => {
   const [d, setD] = useState<Deal>(initial);
   const [amountText, setAmountText] = useState(initial.amount ? toman(initial.amount) : '');
   const patch = (u: Partial<Deal>) => setD((p) => ({ ...p, ...u }));
@@ -837,7 +852,12 @@ const DealForm: React.FC<{
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className={label}>مشتری *</label>
+            <label className={`${label} flex items-center justify-between`}>
+              <span>مشتری *</span>
+              <button type="button" onClick={() => onCreateCustomer((c) => patch({ customerId: c.id, customerName: c.name }))} className="text-[11px] font-black text-violet-700 hover:underline cursor-pointer">
+                + مشتری جدید
+              </button>
+            </label>
             <select className={field} value={d.customerId} onChange={(e) => patch({ customerId: e.target.value })}>
               <option value="">انتخاب مشتری...</option>
               {customers.map((c) => (

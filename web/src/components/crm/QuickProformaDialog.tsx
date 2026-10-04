@@ -17,11 +17,13 @@ export const QuickProformaDialog: React.FC<{
   deals: Deal[];
   customers: Customer[];
   onClose: () => void;
+  /** open the customer form; the saved customer is handed to the callback */
+  onCreateCustomer: (cb: (c: Customer) => void) => void;
   /** an existing opportunity was chosen */
   onExisting: (deal: Deal, issuerId: string) => void;
   /** a new opportunity must be made first */
   onNew: (input: { title: string; customerId: string }, issuerId: string) => void;
-}> = ({ deals, customers, onClose, onExisting, onNew }) => {
+}> = ({ deals, customers, onClose, onCreateCustomer, onExisting, onNew }) => {
   const { settings } = useAppContext();
   const issuers = issuersOf(settings);
   const [issuerId, setIssuerId] = useState(MAIN_ISSUER_ID);
@@ -139,7 +141,12 @@ export const QuickProformaDialog: React.FC<{
               <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثلاً: تامین تجهیزات شبکه" autoFocus />
             </div>
             <div className="sm:col-span-2">
-              <label className={label}>مشتری *</label>
+              <label className={`${label} flex items-center justify-between`}>
+                <span>مشتری *</span>
+                <button type="button" onClick={() => onCreateCustomer((c) => setCustomerId(c.id))} className="text-[11px] font-black text-violet-700 hover:underline cursor-pointer">
+                  + مشتری جدید (اگر در فهرست نیست)
+                </button>
+              </label>
               <select className={field} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
                 <option value="">انتخاب مشتری...</option>
                 {customers.map((c) => (
