@@ -8,6 +8,7 @@ import { LoginPage } from './pages/LoginPage';
 import { NotificationPopups } from './components/common/NotificationPopups';
 import { DemoBanner } from './components/common/DemoBanner';
 import { DayNightToggle } from './components/common/DayNightToggle';
+import { ErrorPopups } from './components/common/ErrorPopups';
 import { LicenseGate } from './components/common/LicenseGate';
 
 function AppRoutes() {
@@ -53,6 +54,7 @@ function AppRoutes() {
 export function App() {
   return (
     <LicenseGate>
+      <ErrorPopups />
       <AppProvider>
         <AppRoutes />
       </AppProvider>

@@ -269,3 +269,8 @@ html.night .brand-logo {
 html.night .brand-word {
   filter: invert(1) hue-rotate(180deg) hue-rotate(var(--word-hue, 0deg));
 }
+
+/* error pop-ups keep their red at night */
+html.night [data-error-popups] > div {
+  filter: invert(1) hue-rotate(180deg);
+}

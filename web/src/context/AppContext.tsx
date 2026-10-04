@@ -1,3 +1,4 @@
+import { looksLikeError, showError } from '../lib/errorBus';
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { setCurrencyUnit } from '../lib/money';
 import { DEFAULT_SIGNATURE_HEIGHT, resolveSignatureHeight } from '../lib/letterDefaults';
@@ -284,6 +285,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   transfersRef.current = transfers;
 
   const showToast = useCallback((msg: string) => {
+    if (looksLikeError(msg)) {
+      showError(msg);
+      return;
+    }
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   }, []);
