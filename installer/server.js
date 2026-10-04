@@ -13,6 +13,9 @@ const path = require('path');
 const { Client } = require('ssh2');
 const { WebSocketServer } = require('ws');
 
+process.on('uncaughtException', (e) => console.error('خطای پیش‌بینی‌نشده (پنل ادامه می‌دهد):', e && e.message));
+process.on('unhandledRejection', (e) => console.error('خطای پیش‌بینی‌نشده (پنل ادامه می‌دهد):', e && e.message));
+
 const PORT = Number(process.env.PANEL_PORT || 7077);
 const HOST = '127.0.0.1';
 const ROOT = path.join(__dirname, 'public');
@@ -100,6 +103,8 @@ class Session {
           username,
           password,
           readyTimeout: 20000,
+          keepaliveInterval: 10000,
+          keepaliveCountMax: 30,
           hostVerifier: (key) => {
             const fp = require('crypto').createHash('sha256').update(key).digest('base64');
             this.log(`اثر انگشت سرور (SHA256): ${fp}`, 'gray');
@@ -128,6 +133,8 @@ class Session {
           out += t;
           if (!quiet) this.log(t);
         };
+        stream.on('error', () => {});
+        stream.stderr.on('error', () => {});
         stream.on('data', take);
         stream.stderr.on('data', take);
         stream.on('close', (code) => {
@@ -139,6 +146,48 @@ class Session {
         if (timeout) timer = setTimeout(() => stream.close(), timeout);
       });
     });
+  }
+
+
+  /**
+   * Runs a long command (building the app takes minutes) in the background ON THE SERVER and shows its output
+   * as it grows. If the SSH line drops, the job keeps running on the server and can be picked up again.
+   */
+  async runJob(script, { root = true, label } = {}) {
+    const LOG = '/tmp/hoormand-job.log';
+    const EXIT = '/tmp/hoormand-job.exit';
+    const running = await this.run(`pgrep -f 'bash /tmp/hoormand-job.sh' >/dev/null && echo yes`, { quiet: true });
+    if (/yes/.test(running.out)) {
+      this.log('یک نصب نیمه‌کاره روی سرور در حال اجراست؛ به آن وصل می‌شوم.', 'yellow');
+    } else {
+      const b64 = Buffer.from('#!/bin/bash\n' + script + '\necho $? > ' + EXIT + '\n').toString('base64');
+      const start = `rm -f ${EXIT} ${LOG}; echo ${b64} | base64 -d > /tmp/hoormand-job.sh; setsid nohup bash /tmp/hoormand-job.sh > ${LOG} 2>&1 < /dev/null & echo started`;
+      this.log(`$ ${label || script}`, 'cyan');
+      const st = await this.run(start, { root, quiet: true });
+      if (!/started/.test(st.out)) return { code: 255, out: st.out };
+    }
+    let offset = 0;
+    let all = '';
+    let lost = 0;
+    for (;;) {
+      if (this.cancelled) return { code: 255, out: all };
+      const r = await this.run(`s=$(wc -c < ${LOG} 2>/dev/null || echo 0); e=$(cat ${EXIT} 2>/dev/null || echo RUN); echo "HJ $s $e"; OFF=${offset}; tail -c +$((OFF+1)) ${LOG} 2>/dev/null | head -c $((s-OFF))`, { root, quiet: true });
+      const m = /^HJ (\d+) (\S+)\n?/.exec(r.out);
+      if (!m) {
+        if (++lost > 20) return { code: 255, out: all + '\nارتباط با سرور قطع شد.' };
+        await sleep(3000);
+        continue;
+      }
+      lost = 0;
+      const chunk = r.out.slice(m[0].length);
+      if (chunk) {
+        this.log(chunk.endsWith('\n') ? chunk : chunk + '\n');
+        all += chunk;
+      }
+      offset = Number(m[1]);
+      if (m[2] !== 'RUN') return { code: Number(m[2]) || 0, out: all };
+      await sleep(2500);
+    }
   }
 
   // ---------------------------------------------------------------- the installation, one step after the other
@@ -252,7 +301,7 @@ class Session {
     const exists = await this.run('[ -f /opt/automation/docker-compose.yml ] && echo yes', { quiet: true });
     const env = /yes/.test(exists.out) ? 'PORT=' + port : 'PORT=' + port;
     this.log('نصب برنامه ۵ تا ۱۰ دقیقه طول می‌کشد؛ لطفاً صبر کنید.', 'gray');
-    const r = await this.run(`export ${env} AUTO_UPDATE=0; curl -fsSL -m 60 ${REPO_RAW} | bash`, { root: true, label: `sudo (نصب‌کنندهٔ برنامه از GitHub)` });
+    const r = await this.runJob(`export ${env} AUTO_UPDATE=0; curl -fsSL -m 60 ${REPO_RAW} | bash`, { label: 'نصب‌کنندهٔ برنامه از GitHub (روی خود سرور اجرا می‌شود)' });
     if (r.code !== 0) {
       if (/403|Forbidden|toomanyrequests|failed to resolve|failed to copy/i.test(r.out)) return { ok: false, note: 'ساخت برنامه به دانلود از Docker Hub برخورد کرد. دوباره «شروع نصب» را بزنید یا آینه‌ها را بررسی کنید.' };
       return { ok: false, note: 'نصب برنامه با خطا تمام شد. آخرین خطوط صفحه را برای پشتیبانی بفرستید.' };
@@ -264,11 +313,11 @@ class Session {
   }
 
   async stepUpdate() {
-    let r = await this.run('cd /opt/automation && ./auto-update.sh', { root: true });
+    let r = await this.runJob('cd /opt/automation && ./auto-update.sh', { label: 'cd /opt/automation && ./auto-update.sh' });
     if (/Cannot fast-forward|multiple branches/i.test(r.out)) {
       this.log('خطای شاخه‌های git؛ اصلاح می‌کنم.', 'yellow');
       await this.run('cd /opt/automation && git fetch origin frontend && git checkout -B frontend origin/frontend', { root: true });
-      r = await this.run('cd /opt/automation && ./auto-update.sh', { root: true });
+      r = await this.runJob('cd /opt/automation && ./auto-update.sh', { label: 'cd /opt/automation && ./auto-update.sh' });
     }
     const active = await this.run('systemctl is-active automation-update', { root: true, quiet: true });
     if (!/^active/.test(active.out.trim())) return { ok: false, note: 'سرویس به‌روزرسانی خودکار روشن نشد؛ برنامه کار می‌کند ولی آپدیت دستی است.' };

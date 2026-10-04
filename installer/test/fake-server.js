@@ -12,6 +12,20 @@ const log = [];
 function answer(script) {
   log.push(script.slice(0, 90));
   const out = (stdout = '', code = 0, stderr = '') => ({ stdout, code, stderr });
+  // background jobs (the panel starts long commands detached and then reads their log)
+  if (/pgrep -f 'bash \/tmp\/hoormand-job\.sh'/.test(script)) return out('', 1);
+  const jb = /echo (\S+) \| base64 -d > \/tmp\/hoormand-job\.sh/.exec(script);
+  if (jb) {
+    const inner = Buffer.from(jb[1], 'base64').toString().replace(/^#!.*\n/, '').replace(/\necho \$\? > .*\n$/, '');
+    const r = answer(inner);
+    st.job = { data: Buffer.from(r.stdout + r.stderr), code: r.code };
+    return out('started\n');
+  }
+  if (/echo "HJ \$s \$e"/.test(script)) {
+    const off = Number(/OFF=(\d+)/.exec(script)[1]);
+    const j = st.job || { data: Buffer.alloc(0), code: 0 };
+    return out(`HJ ${j.data.length} ${j.code}\n` + j.data.slice(off).toString());
+  }
   if (/os-release/.test(script)) return out('سیستم‌عامل: Ubuntu 24.04 LTS\nکاربر: paya\nآدرس: 192.168.1.80 172.17.0.1\nرم: 7800 مگابایت\nفضای آزاد: 80G\n');
   if (script === 'true') return out();
   if (/command -v apt-get/.test(script)) return out('apt\n');
