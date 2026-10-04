@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { DayNightToggle } from '../components/common/DayNightToggle';
 import { ManagementReports } from '../components/admin/ManagementReports';
 import { VersionBadge } from '../components/common/VersionBadge';
 import { ChatView } from '../components/chat/ChatView';
@@ -616,6 +617,8 @@ export default function UserPanel() {
           <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
             <CallMenu />
             <NotificationBell onOpenNotification={openNotification} />
+
+            <DayNightToggle className="p-2 sm:p-2.5 bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border border-[#EBDBCE] rounded-2xl shadow-2xs" />
 
             {/* Quick Theme Switcher Button */}
             <button

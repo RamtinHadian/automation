@@ -228,3 +228,22 @@ input, button, select, textarea {
   background: rgba(201, 139, 106, 0.55);
   border-radius: 9999px;
 }
+
+/* ---------- night mode: the whole system, one switch ----------
+   The colours are turned over (light <-> dark, hues kept); pictures, logos and the letter/proforma paper keep their own colours. */
+html.night {
+  filter: invert(1) hue-rotate(180deg);
+  background: #fff;
+}
+html.night img,
+html.night video,
+html.night canvas,
+html.night iframe,
+html.night [style*="background-image"],
+html.night .official-letter-sheet {
+  filter: invert(1) hue-rotate(180deg);
+}
+html.night .official-letter-sheet img,
+html.night .official-letter-sheet canvas {
+  filter: none;
+}

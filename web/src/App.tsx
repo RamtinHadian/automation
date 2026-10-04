@@ -7,6 +7,7 @@ import AdminPanel from './pages/AdminPanel';
 import { LoginPage } from './pages/LoginPage';
 import { NotificationPopups } from './components/common/NotificationPopups';
 import { DemoBanner } from './components/common/DemoBanner';
+import { DayNightToggle } from './components/common/DayNightToggle';
 import { LicenseGate } from './components/common/LicenseGate';
 
 function AppRoutes() {
@@ -22,6 +23,7 @@ function AppRoutes() {
   return (
     <>
     <DemoBanner />
+    {!loggedInUser && <DayNightToggle className="fixed top-4 left-4 z-50 p-2.5 rounded-2xl bg-white/80 hover:bg-white text-[#6E1B1B] border border-[#EBDBCE] shadow-md" />}
     {loggedInUser && <NotificationPopups />}
     <Routes>
       <Route

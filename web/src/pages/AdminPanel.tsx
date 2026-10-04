@@ -1,4 +1,5 @@
 import { DemoAdminHint, useDemoInfo } from '../components/common/DemoBanner';
+import { DayNightToggle } from '../components/common/DayNightToggle';
 import { IconTab } from '../components/common/IconTab';
 import { VersionBadge } from '../components/common/VersionBadge';
 import { ManagementReports } from '../components/admin/ManagementReports';
@@ -276,7 +277,8 @@ export default function AdminPanel() {
   // If not authenticated, show Admin Login Gate with Captcha
   if (!isAdminAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#3A241F] via-[#2E1A16] to-[#1F0F0C] flex items-center justify-center p-4 font-sans select-none" dir="rtl">
+      <div className="min-h-screen bg-gradient-to-br from-[#3A241F] via-[#2E1A16] to-[#1F0F0C] flex items-center justify-center p-4 font-sans select-none relative" dir="rtl">
+        <DayNightToggle className="absolute top-4 left-4 p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/20" />
         <div className="bg-white rounded-[32px] p-6 sm:p-8 max-w-md w-full border border-[#6E1B1B]/30 shadow-2xl space-y-6">
           
           {/* Header */}
@@ -433,6 +435,8 @@ export default function AdminPanel() {
                 </div>
               </div>
             </div>
+
+            <DayNightToggle className="p-2 rounded-2xl bg-[#2E1A16] hover:bg-[#6E1B1B] text-[#F6D9CD] border border-[#563D34]" />
 
             <button
               onClick={() => setShowThemeModal(true)}
