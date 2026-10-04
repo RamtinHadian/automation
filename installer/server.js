@@ -158,12 +158,13 @@ class Session {
   async runJob(script, { root = true, label } = {}) {
     const LOG = '/tmp/hoormand-job.log';
     const EXIT = '/tmp/hoormand-job.exit';
-    const running = await this.run(`pgrep -f 'bash /tmp/hoormand-job.sh' >/dev/null && echo yes`, { quiet: true });
+    const PID = '/tmp/hoormand-job.pid';
+    const running = await this.run(`[ -f ${PID} ] && [ ! -f ${EXIT} ] && kill -0 $(cat ${PID}) 2>/dev/null && echo yes`, { quiet: true });
     if (/yes/.test(running.out)) {
       this.log('یک نصب نیمه‌کاره روی سرور در حال اجراست؛ به آن وصل می‌شوم.', 'yellow');
     } else {
-      const b64 = Buffer.from('#!/bin/bash\n' + script + '\necho $? > ' + EXIT + '\n').toString('base64');
-      const start = `rm -f ${EXIT} ${LOG}; echo ${b64} | base64 -d > /tmp/hoormand-job.sh; setsid nohup bash /tmp/hoormand-job.sh > ${LOG} 2>&1 < /dev/null & echo started`;
+      const b64 = Buffer.from('#!/bin/bash\necho $$ > ' + PID + '\n' + script + '\necho $? > ' + EXIT + '\n').toString('base64');
+      const start = `rm -f ${EXIT} ${LOG} ${PID}; echo ${b64} | base64 -d > /tmp/hoormand-job.sh; setsid nohup bash /tmp/hoormand-job.sh > ${LOG} 2>&1 < /dev/null & echo started`;
       this.log(`$ ${label || script}`, 'cyan');
       const st = await this.run(start, { root, quiet: true });
       if (!/started/.test(st.out)) return { code: 255, out: st.out };
@@ -171,10 +172,11 @@ class Session {
     let offset = 0;
     let all = '';
     let lost = 0;
+    let dead = 0;
     for (;;) {
       if (this.cancelled) return { code: 255, out: all };
-      const r = await this.run(`s=$(wc -c < ${LOG} 2>/dev/null || echo 0); e=$(cat ${EXIT} 2>/dev/null || echo RUN); echo "HJ $s $e"; OFF=${offset}; tail -c +$((OFF+1)) ${LOG} 2>/dev/null | head -c $((s-OFF))`, { root, quiet: true });
-      const m = /^HJ (\d+) (\S+)\n?/.exec(r.out);
+      const r = await this.run(`s=$(wc -c < ${LOG} 2>/dev/null || echo 0); e=$(cat ${EXIT} 2>/dev/null || echo RUN); a=$(kill -0 $(cat ${PID} 2>/dev/null) 2>/dev/null && echo 1 || echo 0); echo "HJ $s $e $a"; OFF=${offset}; tail -c +$((OFF+1)) ${LOG} 2>/dev/null | head -c $((s-OFF))`, { root, quiet: true });
+      const m = /^HJ (\d+) (\S+)(?: (\d))?\n?/.exec(r.out);
       if (!m) {
         if (++lost > 20) return { code: 255, out: all + '\nارتباط با سرور قطع شد.' };
         await sleep(3000);
@@ -188,6 +190,10 @@ class Session {
       }
       offset = Number(m[1]);
       if (m[2] !== 'RUN') return { code: Number(m[2]) || 0, out: all };
+      // the job vanished without writing an exit code (killed, server restarted): do not wait for ever
+      if (m[3] === '0') {
+        if (++dead >= 3) return { code: 255, out: all + '\nکار پس‌زمینه روی سرور ناگهان متوقف شد.' };
+      } else dead = 0;
       await sleep(2500);
     }
   }

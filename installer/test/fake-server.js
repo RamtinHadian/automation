@@ -13,7 +13,7 @@ function answer(script) {
   log.push(script.slice(0, 90));
   const out = (stdout = '', code = 0, stderr = '') => ({ stdout, code, stderr });
   // background jobs (the panel starts long commands detached and then reads their log)
-  if (/pgrep -f 'bash \/tmp\/hoormand-job\.sh'/.test(script)) return out('', 1);
+  if (/^\[ -f \/tmp\/hoormand-job\.pid \]/.test(script)) return out('', 1);
   const jb = /echo (\S+) \| base64 -d > \/tmp\/hoormand-job\.sh/.exec(script);
   if (jb) {
     const inner = Buffer.from(jb[1], 'base64').toString().replace(/^#!.*\n/, '').replace(/\necho \$\? > .*\n$/, '');
@@ -21,7 +21,7 @@ function answer(script) {
     st.job = { data: Buffer.from(r.stdout + r.stderr), code: r.code };
     return out('started\n');
   }
-  if (/echo "HJ \$s \$e"/.test(script)) {
+  if (/echo "HJ \$s \$e/.test(script)) {
     const off = Number(/OFF=(\d+)/.exec(script)[1]);
     const j = st.job || { data: Buffer.alloc(0), code: 0 };
     return out(`HJ ${j.data.length} ${j.code}\n` + j.data.slice(off).toString());
