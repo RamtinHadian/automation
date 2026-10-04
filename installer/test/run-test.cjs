@@ -33,7 +33,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const text = await p.evaluate(() => document.body.innerText);
   console.log('password "pw" in the page text:', /\bpw\b/.test(text), '| admin password only in result card:', (text.match(/SecretPw123/g) || []).length);
   console.log('page height:', await p.evaluate(() => document.documentElement.scrollHeight)); await p.screenshot({ path: 'panel-test.png' });
-  console.log('--- adaptations seen on screen ---\n' + (await p.evaluate(() => document.querySelector('.xterm-rows').innerText)).split('\n').filter((l) => /403|آینه|Cannot fast|git|ufw allow|Rule added|Mirrors|mirror/i.test(l)).join('\n'));
+  console.log('--- adaptations seen on screen ---\n' + (await p.evaluate(() => document.querySelector('#term').innerText)).split('\n').filter((l) => /403|آینه|Cannot fast|git|ufw allow|Rule added|Mirrors|mirror/i.test(l)).join('\n'));
   console.log('--- report ---\n' + (await p.$eval('#repText', (e) => e.value)));
   console.log('report rows:', await p.$$eval('#reportItems .item', (r) => r.length), '| font:', await p.evaluate(() => getComputedStyle(document.body).fontFamily.slice(0, 30)));
   await p.screenshot({ path: 'panel-test.png', fullPage: false });
