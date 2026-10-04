@@ -1,11 +1,11 @@
 # Keeps the two local stacks (the main one on :8080 and the demo on :8095) on the newest committed version.
-# Every 30 seconds: when HEAD is different from the commit a stack was last built from, that stack is rebuilt.
+# Every 5 seconds (the demo first, so it is ready sooner): when HEAD is different from the commit a stack was last built from, that stack is rebuilt.
 # Start it with start-local-update.cmd (it also installs itself in the Windows Startup folder).
 $ErrorActionPreference = 'Continue'
 Set-Location $PSScriptRoot
 $stacks = @(
-  @{ Name = 'automation'; Args = @('compose', 'up', '-d', '--build') },
-  @{ Name = 'autodemo'; Args = @('compose', '-p', 'autodemo', '--env-file', 'demo.env', 'up', '-d', '--build') }
+  @{ Name = 'autodemo'; Args = @('compose', '-p', 'autodemo', '--env-file', 'demo.env', 'up', '-d', '--build') },
+  @{ Name = 'automation'; Args = @('compose', 'up', '-d', '--build') }
 )
 while ($true) {
   try {
@@ -24,5 +24,5 @@ while ($true) {
       }
     }
   } catch { Write-Host $_ }
-  Start-Sleep -Seconds 30
+  Start-Sleep -Seconds 5
 }
