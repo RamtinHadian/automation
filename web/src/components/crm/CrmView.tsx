@@ -35,6 +35,7 @@ import { CallList } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
 import { CustomerForm } from './CustomerForm';
 import { ProformaSection } from './ProformaSection';
+import { QuickProformaDialog } from './QuickProformaDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
 import { approvalRequired, canApproveProforma } from '../../lib/proformaApproval';
 import { Modal, field, label, SOURCES } from './crmUi';
@@ -91,6 +92,7 @@ export const CrmView: React.FC = () => {
   const [editingDeal, setEditingDeal] = useState<{ deal: Deal; isNew: boolean } | null>(null);
   const [voip, setVoip] = useState<{ enabled: boolean; connected: boolean; extension: string } | null>(null);
   const [proformaFor, setProformaFor] = useState<Deal | null>(null);
+  const [quickProforma, setQuickProforma] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [mobileStage, setMobileStage] = useState<DealStage>('NEW');
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
@@ -402,6 +404,13 @@ export const CrmView: React.FC = () => {
             فرصت جدید
           </button>
           <button
+            onClick={() => setQuickProforma(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
+          >
+            <FileText className="w-4 h-4" />
+            صدور پیش‌فاکتور
+          </button>
+          <button
             onClick={() => setEditingCustomer(newCustomer())}
             className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/25 transition-all active:scale-95 cursor-pointer"
           >
@@ -702,6 +711,25 @@ export const CrmView: React.FC = () => {
         />
       )}
 
+      {quickProforma && (
+        <QuickProformaDialog
+          deals={deals}
+          customers={customers}
+          onClose={() => setQuickProforma(false)}
+          onExisting={(deal, issuerId) => {
+            setQuickProforma(false);
+            // an opportunity that already has a proforma keeps its company; otherwise the chosen company is used
+            setProformaFor(deal.proformaNumber ? deal : { ...deal, proformaIssuerId: issuerId });
+          }}
+          onNew={(input, issuerId) => {
+            const d: Deal = { ...newDeal(input.customerId), title: input.title, stage: 'PROPOSAL', proformaIssuerId: issuerId };
+            saveDeal(d);
+            setQuickProforma(false);
+            showToast('فرصت فروش ساخته شد و پیش‌فاکتور به آن وصل می‌شود.');
+            setProformaFor(d);
+          }}
+        />
+      )}
       {proformaFor && (
         <ProformaModal
           deal={proformaFor}
