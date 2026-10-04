@@ -275,7 +275,7 @@ export const ProformaModal: React.FC<{
               ) : approval?.status === 'REJECTED' ? (
                 <>رد شد توسط {approval.decidedByName || 'مدیرعامل'}{approval.note ? `: ${approval.note}` : ''}. پس از اصلاح می‌توانید دوباره برای تایید بفرستید.</>
               ) : approval?.status === 'PENDING' ? (
-                <>در انتظار تایید مدیرعامل{approval.requestedByName ? ` (ارسال‌کننده: ${approval.requestedByName})` : ''}. چاپ و ارسال پس از تایید ممکن می‌شود.</>
+                <>در انتظار تایید مدیرعامل{approval.requestedByName ? ` (ارسال‌کننده: ${approval.requestedByName})` : ''}. {isCeo ? ' شما می‌توانید قبل از تایید، هر بخشی از پیش‌فاکتور (ردیف‌ها، قیمت، تخفیف، مالیات، مشخصات خریدار و ...) را تغییر دهید؛ «تایید و آمادهٔ ارسال» همین نسخهٔ اصلاح‌شده را امضا می‌کند.' : ' چاپ و ارسال پس از تایید ممکن می‌شود.'}</>
               ) : (
                 <>این پیش‌فاکتور پیش از ارسال باید مدیرعامل تایید کند؛ پس از تایید، مهر و امضای مدیرعامل خودکار درج می‌شود.</>
               )}
@@ -462,7 +462,7 @@ export const ProformaModal: React.FC<{
               isCeo ? (
                 <>
                   <button type="button" disabled={!okItems.length} onClick={() => decide('REJECTED')} className="px-4 py-2 rounded-xl text-xs font-black text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 disabled:opacity-50 cursor-pointer">رد</button>
-                  <button type="button" disabled={!okItems.length} onClick={() => decide('APPROVED')} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">تایید و درج مهر و امضا</button>
+                  <button type="button" disabled={!okItems.length} onClick={() => decide('APPROVED')} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">تایید و آمادهٔ ارسال</button>
                 </>
               ) : approval?.status === 'PENDING' ? (
                 <span className="px-5 py-2 rounded-xl text-xs font-black text-amber-800 bg-amber-100 border border-amber-200">در انتظار تایید مدیرعامل</span>
