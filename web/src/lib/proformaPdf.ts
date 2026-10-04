@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
+import { issuerOf, MAIN_ISSUER_ID } from './proformaIssuer';
 import { proformaReleased } from './proformaApproval';
 import { Customer, Deal, ProformaHeaderItem, ProformaItem, ProformaSectionId, ProformaTemplate, SystemSettings } from '../types';
 import { normalizeTemplate } from './proformaTemplates';
@@ -102,20 +103,33 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
   // with the approval setting on, the CEO's stamp and signature appear only after the CEO approved the proforma
   const released = proformaReleased(deal, settings);
   // A name that was cleared on purpose stays blank; only a name that was never set falls back to the company name.
-  const company = f.sellerName ?? (settings.proformaCompanyName !== undefined ? settings.proformaCompanyName : settings.companyName || '');
-  const sellerAddress = f.sellerAddress ?? settings.companyAddress ?? '';
-  const sellerPhone = f.sellerPhone ?? settings.companyPhone ?? '';
-  const sellerEco = f.sellerEconomicCode ?? settings.companyEconomicCode ?? '';
+  // The company that issues it: the organisation itself or one of the other companies / offices.
+  const issuer = issuerOf(deal, settings);
+  const isMain = issuer.id === MAIN_ISSUER_ID;
+  const official = issuer.kind === 'OFFICIAL';
+  const company = f.sellerName ?? issuer.name;
+  const sellerAddress = f.sellerAddress ?? issuer.address ?? '';
+  const sellerPhone = f.sellerPhone ?? issuer.phone ?? '';
+  const sellerEco = f.sellerEconomicCode ?? issuer.economicCode ?? '';
+  const sellerNid = f.sellerNationalId ?? issuer.nationalId ?? '';
+  const sellerReg = f.sellerRegistrationNumber ?? issuer.registrationNumber ?? '';
+  const sellerPostal = f.sellerPostalCode ?? issuer.postalCode ?? '';
+  const buyerNid = f.buyerNationalId ?? (customer?.kind === 'COMPANY' ? customer.nationalId : customer?.nationalCode) ?? '';
+  const buyerEco = f.buyerEconomicCode ?? customer?.economicCode ?? '';
+  const buyerPostal = f.buyerPostalCode ?? customer?.postalCode ?? '';
+  const hasCodes = official || items.some((i) => i.code);
   const buyerName = f.buyerName ?? (customer?.name || deal.customerName);
   const buyerCompany = f.buyerCompany ?? customer?.company ?? '';
   const buyerPhones = f.buyerPhones ?? (customer?.phones || []).join('، ');
   const buyerAddress = f.buyerAddress ?? customer?.address ?? '';
   const buyerEmail = f.buyerEmail ?? customer?.email ?? '';
   const subject = f.subject ?? deal.title;
-  const bankInfo = f.bankInfo ?? settings.proformaBankInfo ?? '';
-  const titleText = f.title ?? tpl.title;
+  const bankInfo = f.bankInfo ?? issuer.bankInfo ?? '';
+  const titleText = f.title ?? (official && (!tpl.title || tpl.title === 'پیش‌فاکتور') ? 'پیش‌فاکتور رسمی' : tpl.title);
   const footerText = f.footerText ?? tpl.footerText;
-  const logo = tpl.logoUrl || settings.companyLogoUrl;
+  const logo = isMain ? tpl.logoUrl || issuer.logoUrl : issuer.logoUrl;
+  const stampImg = issuer.stampUrl;
+  const signatureImg = issuer.signatureUrl;
   const terms = (deal.terms ?? settings.proformaTerms ?? DEFAULT_PROFORMA_TERMS).trim();
   const design = mode === 'design';
 
@@ -123,9 +137,9 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
     tpl.contact.address && sellerAddress,
     tpl.contact.phone && sellerPhone && `تلفن: ${sellerPhone}`,
     tpl.contact.economicCode && sellerEco && `کد اقتصادی: ${sellerEco}`,
-    tpl.contact.website && settings.companyWebsite,
+    tpl.contact.website && issuer.website,
   ].filter(Boolean) as string[];
-  const allContact = [sellerAddress, sellerPhone && `تلفن: ${sellerPhone}`, sellerEco && `کد اقتصادی: ${sellerEco}`, settings.companyWebsite].filter(Boolean) as string[];
+  const allContact = [sellerAddress, sellerPhone && `تلفن: ${sellerPhone}`, sellerEco && `کد اقتصادی: ${sellerEco}`, issuer.website].filter(Boolean) as string[];
 
   // ---- header ----
   const last = tpl.headerOrder.length - 1;
@@ -137,7 +151,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       return '';
     }
     if (id === 'company') {
-      return `<div class="h-company" ${attr}>${company.trim() ? `<h1>${esc(company)}</h1>` : ''}${settings.companySubtitle ? `<div class="sub0">${esc(settings.companySubtitle)}</div>` : ''}${contactLines.length ? `<div class="contact">${contactLines.map((l) => toPersianDigits(esc(l))).join('<br>')}</div>` : ''}</div>`;
+      return `<div class="h-company" ${attr}>${company.trim() ? `<h1>${esc(company)}</h1>` : ''}${issuer.subtitle ? `<div class="sub0">${esc(issuer.subtitle)}</div>` : ''}${contactLines.length ? `<div class="contact">${contactLines.map((l) => toPersianDigits(esc(l))).join('<br>')}</div>` : ''}</div>`;
     }
     const align = idx === last ? 'left' : idx === 0 ? 'right' : 'center';
     return `<div class="h-title" ${attr} style="text-align:${align}"><div class="t">${esc(titleText)}</div>${tpl.titleEn ? `<div class="en">${esc(tpl.titleEn)}</div>` : ''}</div>`;
@@ -150,6 +164,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       (i, idx) => `
       <tr>
         <td class="c">${toPersianDigits(idx + 1)}</td>
+        ${hasCodes ? `<td class="c">${i.code ? toPersianDigits(esc(i.code)) : '—'}</td>` : ''}
         <td>${esc(i.title)}${i.description ? `<div class="sub">${nl(i.description)}</div>` : ''}</td>
         <td class="c">${toPersianDigits(i.qty)}${i.unit ? ' ' + esc(i.unit) : ''}</td>
         <td class="n">${fmt(i.unitPrice)}</td>
@@ -171,6 +186,9 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
         ${sellerAddress ? `<div><span class="lbl">نشانی:</span> ${toPersianDigits(esc(sellerAddress))}</div>` : ''}
         ${sellerPhone ? `<div><span class="lbl">تلفن:</span> ${toPersianDigits(esc(sellerPhone))}</div>` : ''}
         ${sellerEco ? `<div><span class="lbl">کد اقتصادی:</span> ${toPersianDigits(esc(sellerEco))}</div>` : ''}
+        ${sellerNid ? `<div><span class="lbl">شناسه ملی:</span> ${toPersianDigits(esc(sellerNid))}</div>` : ''}
+        ${sellerReg ? `<div><span class="lbl">شمارهٔ ثبت:</span> ${toPersianDigits(esc(sellerReg))}</div>` : ''}
+        ${sellerPostal ? `<div><span class="lbl">کد پستی:</span> ${toPersianDigits(esc(sellerPostal))}</div>` : ''}
         <div><span class="lbl">تنظیم‌کننده:</span> ${esc(issuerName)}</div>
       </div></div>
       <div class="box"><h3>خریدار</h3><div class="in">
@@ -178,13 +196,16 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
         ${buyerCompany ? `<div><span class="lbl">شرکت:</span> ${esc(buyerCompany)}</div>` : ''}
         ${buyerPhones ? `<div><span class="lbl">تلفن:</span> ${toPersianDigits(esc(buyerPhones))}</div>` : ''}
         ${buyerAddress ? `<div><span class="lbl">نشانی:</span> ${esc(buyerAddress)}</div>` : ''}
+        ${buyerNid ? `<div><span class="lbl">کد / شناسه ملی:</span> ${toPersianDigits(esc(buyerNid))}</div>` : ''}
+        ${buyerEco ? `<div><span class="lbl">کد اقتصادی:</span> ${toPersianDigits(esc(buyerEco))}</div>` : ''}
+        ${buyerPostal ? `<div><span class="lbl">کد پستی:</span> ${toPersianDigits(esc(buyerPostal))}</div>` : ''}
         ${buyerEmail ? `<div><span class="lbl">ایمیل:</span> <span dir="ltr">${esc(buyerEmail)}</span></div>` : ''}
         <div><span class="lbl">موضوع:</span> ${esc(subject)}</div>
       </div></div>
     </div>`,
     items: `<table class="ts-${tpl.tableStyle}">
-      <thead><tr><th style="width:34px">ردیف</th><th>شرح کالا / خدمات</th><th style="width:70px">تعداد</th><th style="width:100px">قیمت واحد (${unitName()})</th><th style="width:80px">تخفیف</th><th style="width:110px">مبلغ کل (تومان)</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="6" class="c">—</td></tr>'}</tbody>
+      <thead><tr><th style="width:34px">ردیف</th>${hasCodes ? '<th style="width:90px">شناسه کالا / خدمت</th>' : ''}<th>شرح کالا / خدمات</th><th style="width:70px">تعداد</th><th style="width:100px">قیمت واحد (${unitName()})</th><th style="width:80px">تخفیف</th><th style="width:110px">مبلغ کل (تومان)</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="${hasCodes ? 7 : 6}" class="c">—</td></tr>`}</tbody>
     </table>`,
     totals: `<div class="totals-wrap" style="justify-content:${tpl.totalsAlign === 'start' ? 'flex-start' : 'flex-end'}"><div class="tw">
       <div class="totals">
@@ -202,7 +223,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       ${bankInfo ? `<div class="bank"><h4>اطلاعات پرداخت</h4>${nl(bankInfo)}</div>` : ''}
     </div>`,
     signatures: `<div class="sign">
-      <div class="s"><b>مهر و امضای فروشنده</b>${settings.ceoName ? `<div class="who">${esc(settings.ceoName)}${settings.ceoTitle ? ' — ' + esc(settings.ceoTitle) : ''}</div>` : ''}${released && settings.companyStampUrl && f.showStamp !== false ? `<img src="${esc(settings.companyStampUrl)}" alt="" style="left:62%" />` : ''}${released && settings.ceoSignatureUrl && f.showSignature !== false ? `<img src="${esc(settings.ceoSignatureUrl)}" alt="" style="left:36%" />` : ''}</div>
+      <div class="s"><b>مهر و امضای فروشنده</b>${issuer.ceoName ? `<div class="who">${esc(issuer.ceoName)}${issuer.ceoTitle ? ' — ' + esc(issuer.ceoTitle) : ''}</div>` : ''}${released && stampImg && f.showStamp !== false ? `<img src="${esc(stampImg)}" alt="" style="left:62%" />` : ''}${released && signatureImg && f.showSignature !== false ? `<img src="${esc(signatureImg)}" alt="" style="left:36%" />` : ''}</div>
       <div class="s"><b>تأیید و امضای خریدار</b></div>
     </div>${released ? '' : '<div style="text-align:center;color:#b42318;font-weight:bold;font-size:11px;margin-top:6px">پیش‌نویس — هنوز توسط مدیرعامل تأیید نشده است</div>'}`,
   };

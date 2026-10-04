@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { ProformaIssuersCard } from './ProformaIssuersCard';
 import { DEFAULT_SIGNATURE_HEIGHT, MIN_SIGNATURE_HEIGHT, MAX_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
 import {
   Save,
@@ -633,6 +634,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      <ProformaIssuersCard settings={settings} setSettings={setSettings} />
       </>
       )}
 

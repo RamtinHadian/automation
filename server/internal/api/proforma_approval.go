@@ -19,7 +19,7 @@ import (
 func proformaContent(d jsonx.M) string {
 	return jsonx.Encode(jsonx.M{
 		"items": d["items"], "discountPercent": d["discountPercent"], "taxPercent": d["taxPercent"], "terms": d["terms"],
-		"validUntil": d["validUntil"], "proformaNumber": d["proformaNumber"], "proformaFields": d["proformaFields"], "amount": d["amount"],
+		"validUntil": d["validUntil"], "proformaNumber": d["proformaNumber"], "proformaIssuerId": d["proformaIssuerId"], "proformaFields": d["proformaFields"], "amount": d["amount"],
 	})
 }
 

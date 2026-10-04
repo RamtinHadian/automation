@@ -161,6 +161,8 @@ export interface Deal {
   discountPercent?: number;
   taxPercent?: number;
   proformaNumber?: string;
+  /** Which company issues the proforma («main» = the organisation itself, else the id of a ProformaIssuer). */
+  proformaIssuerId?: string;
   /** CEO approval of the proforma (kept by the server when the approval setting is on). */
   proformaApproval?: {
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -216,6 +218,13 @@ export interface ProformaFields {
   buyerEmail?: string;
   bankInfo?: string;
   footerText?: string;
+  /** Official (tax) details; printed on proformas of an official issuer. */
+  sellerNationalId?: string;
+  sellerRegistrationNumber?: string;
+  sellerPostalCode?: string;
+  buyerNationalId?: string;
+  buyerEconomicCode?: string;
+  buyerPostalCode?: string;
   /** Untick to leave the company stamp / the signature scan off this proforma (default: shown). */
   showStamp?: boolean;
   showSignature?: boolean;
@@ -223,6 +232,8 @@ export interface ProformaFields {
 
 export interface ProformaItem {
   title: string;
+  /** شناسه کالا / خدمت (required on an official proforma) */
+  code?: string;
   description?: string;
   qty: number;
   unit?: string;
@@ -496,6 +507,12 @@ export interface SystemSettings {
   companyWebsite?: string;
   /** A proforma may be sent only after the CEO approved it (the CEO's stamp and signature are then put on it automatically). */
   proformaApprovalRequired?: boolean;
+  /** Official identity of the main company (tax invoices). */
+  companyNationalId?: string;
+  companyRegistrationNumber?: string;
+  companyPostalCode?: string;
+  /** More companies / offices a proforma can be issued under (besides the main company). */
+  proformaIssuers?: ProformaIssuer[];
   /** Money unit shown and typed everywhere (amounts are stored in Toman). */
   currencyUnit?: 'TOMAN' | 'RIAL';
   /** Proforma defaults. */
@@ -540,3 +557,30 @@ export type AuditAction =
   | 'DEPT_CREATE'
   | 'DEPT_UPDATE'
   | 'DEPT_DELETE';
+
+/** A company or office a proforma can be issued under. */
+export interface ProformaIssuer {
+  id: string;
+  /** Name in the lists, e.g. «دفتر دوم». */
+  label: string;
+  /** OFFICIAL: a tax-style proforma with all identity codes; UNOFFICIAL: a plain proforma under another name. */
+  kind: 'OFFICIAL' | 'UNOFFICIAL';
+  name: string;
+  subtitle?: string;
+  address?: string;
+  phone?: string;
+  website?: string;
+  economicCode?: string;
+  nationalId?: string;
+  registrationNumber?: string;
+  postalCode?: string;
+  bankInfo?: string;
+  taxPercent?: number;
+  /** Put in front of the number of this company's proformas, e.g. «B-». */
+  numberPrefix?: string;
+  logoUrl?: string;
+  stampUrl?: string;
+  signatureUrl?: string;
+  ceoName?: string;
+  ceoTitle?: string;
+}

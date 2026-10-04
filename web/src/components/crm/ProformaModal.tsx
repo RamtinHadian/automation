@@ -5,11 +5,12 @@ import { renderProformaPdf } from '../../lib/proformaFile';
 import { formatTaskDate } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
 import { approvalRequired, canApproveProforma, proformaReleased } from '../../lib/proformaApproval';
+import { issuersOf, MAIN_ISSUER_ID, officialProblems } from '../../lib/proformaIssuer';
 import { toPersianDigits } from '../../lib/jalali';
 import { addDaysIso, DEFAULT_PROFORMA_TERMS, nextProformaNumber, openProformaPdf, proformaTotals } from '../../lib/proformaPdf';
 import { normalizeTemplate } from '../../lib/proformaTemplates';
 import { todayIso } from '../../lib/taskDates';
-import { Customer, Deal, ProformaFields, ProformaItem, SystemSettings } from '../../types';
+import { Customer, Deal, ProformaFields, ProformaIssuer, ProformaItem, SystemSettings } from '../../types';
 import { JalaliDateField } from '../tasks/TasksView';
 import { formatMoney, fromDisplay, unitName } from '../../lib/money';
 
@@ -33,7 +34,7 @@ export const ProformaModal: React.FC<{
   onSave: (d: Deal) => void;
 }> = ({ deal, allDeals, customer, settings, issuerName, onClose, onSave }) => {
   const [items, setItems] = useState<ProformaItem[]>(
-    deal.items && deal.items.length ? deal.items : [{ title: deal.title, qty: 1, unitPrice: deal.amount || 0 }]
+    deal.items && deal.items.length ? deal.items : [{ title: deal.title, qty: 1, unitPrice: deal.amount || 0, code: deal.productCode }]
   );
   const [discountPercent, setDiscountPercent] = useState(deal.discountPercent || 0);
   const [taxPercent, setTaxPercent] = useState(deal.taxPercent ?? settings.proformaTaxPercent ?? 10);
@@ -43,26 +44,63 @@ export const ProformaModal: React.FC<{
 
   // Every text on the invoice can be changed here; what is typed is kept with this proforma.
   const tpl = useMemo(() => normalizeTemplate(settings.proformaTemplate), [settings.proformaTemplate]);
-  const [number, setNumber] = useState(deal.proformaNumber || nextProformaNumber(allDeals, tpl));
+  // Which company issues it: the organisation itself or another company / office (official or not).
+  const issuers = issuersOf(settings);
+  const [issuerId, setIssuerId] = useState(deal.proformaIssuerId && issuers.some((i) => i.id === deal.proformaIssuerId) ? deal.proformaIssuerId : MAIN_ISSUER_ID);
+  const issuer = issuers.find((i) => i.id === issuerId) || issuers[0];
+  const official = issuer.kind === 'OFFICIAL';
+  // every company counts its own proformas (with its own prefix)
+  const numberFor = (iss: ProformaIssuer) => {
+    const pre = iss.numberPrefix || '';
+    const same = allDeals
+      .filter((d) => (d.proformaIssuerId || MAIN_ISSUER_ID) === iss.id)
+      .map((d) => ({ ...d, proformaNumber: pre && d.proformaNumber?.startsWith(pre) ? d.proformaNumber.slice(pre.length) : d.proformaNumber }));
+    return pre + nextProformaNumber(same, tpl);
+  };
+  const [number, setNumber] = useState(deal.proformaNumber || numberFor(issuer));
   const [f, setF] = useState<Required<Omit<ProformaFields, 'showStamp' | 'showSignature'>>>(() => {
     const o = deal.proformaFields || {};
     return {
       title: o.title ?? tpl.title,
       subject: o.subject ?? deal.title,
-      sellerName: o.sellerName ?? (settings.proformaCompanyName !== undefined ? settings.proformaCompanyName : settings.companyName || ''),
-      sellerAddress: o.sellerAddress ?? settings.companyAddress ?? '',
-      sellerPhone: o.sellerPhone ?? settings.companyPhone ?? '',
-      sellerEconomicCode: o.sellerEconomicCode ?? settings.companyEconomicCode ?? '',
+      sellerName: o.sellerName ?? issuer.name,
+      sellerAddress: o.sellerAddress ?? issuer.address ?? '',
+      sellerPhone: o.sellerPhone ?? issuer.phone ?? '',
+      sellerEconomicCode: o.sellerEconomicCode ?? issuer.economicCode ?? '',
+      sellerNationalId: o.sellerNationalId ?? issuer.nationalId ?? '',
+      sellerRegistrationNumber: o.sellerRegistrationNumber ?? issuer.registrationNumber ?? '',
+      sellerPostalCode: o.sellerPostalCode ?? issuer.postalCode ?? '',
       buyerName: o.buyerName ?? (customer?.name || deal.customerName),
       buyerCompany: o.buyerCompany ?? customer?.company ?? '',
       buyerPhones: o.buyerPhones ?? (customer?.phones || []).join('، '),
       buyerAddress: o.buyerAddress ?? customer?.address ?? '',
       buyerEmail: o.buyerEmail ?? customer?.email ?? '',
-      bankInfo: o.bankInfo ?? settings.proformaBankInfo ?? '',
+      buyerNationalId: o.buyerNationalId ?? (customer?.kind === 'COMPANY' ? customer.nationalId : customer?.nationalCode) ?? '',
+      buyerEconomicCode: o.buyerEconomicCode ?? customer?.economicCode ?? '',
+      buyerPostalCode: o.buyerPostalCode ?? customer?.postalCode ?? '',
+      bankInfo: o.bankInfo ?? issuer.bankInfo ?? '',
       footerText: o.footerText ?? tpl.footerText,
     };
   });
   const setField = (k: Exclude<keyof ProformaFields, 'showStamp' | 'showSignature'>, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const changeIssuer = (id: string) => {
+    const iss = issuers.find((i) => i.id === id);
+    if (!iss) return;
+    setIssuerId(id);
+    setF((p) => ({
+      ...p,
+      sellerName: iss.name,
+      sellerAddress: iss.address ?? '',
+      sellerPhone: iss.phone ?? '',
+      sellerEconomicCode: iss.economicCode ?? '',
+      sellerNationalId: iss.nationalId ?? '',
+      sellerRegistrationNumber: iss.registrationNumber ?? '',
+      sellerPostalCode: iss.postalCode ?? '',
+      bankInfo: iss.bankInfo ?? '',
+    }));
+    if (!deal.proformaNumber) setNumber(numberFor(iss));
+    if (iss.taxPercent !== undefined) setTaxPercent(iss.taxPercent);
+  };
   // The stamp and the signature picture of the company are optional on each proforma.
   const [showStamp, setShowStamp] = useState(deal.proformaFields?.showStamp !== false);
   const [showSignature, setShowSignature] = useState(deal.proformaFields?.showSignature !== false);
@@ -84,6 +122,7 @@ export const ProformaModal: React.FC<{
   const totals = useMemo(() => proformaTotals(items, discountPercent, taxPercent), [items, discountPercent, taxPercent]);
   const patchItem = (i: number, u: Partial<ProformaItem>) => setItems((p) => p.map((x, idx) => (idx === i ? { ...x, ...u } : x)));
   const okItems = items.filter((i) => i.title.trim() && i.qty > 0);
+  const problems = official ? officialProblems(f, okItems) : [];
 
   const build = (): Deal => ({
     ...deal,
@@ -95,11 +134,16 @@ export const ProformaModal: React.FC<{
     terms,
     proformaNumber: number.trim() || nextProformaNumber(allDeals, tpl),
     proformaFields: { ...f, showStamp, showSignature },
+    proformaIssuerId: issuerId,
     amount: totals.payable,
   });
 
   const sendTo = async (ch: 'telegram' | 'bale') => {
     if (!okItems.length || !released) return;
+    if (problems.length) {
+      showToast('اطلاعات پیش‌فاکتور رسمی کامل نیست: ' + problems.join('، '));
+      return;
+    }
     if (!customer) {
       showToast('برای ارسال، فرصت باید به یک مشتری وصل باشد.');
       return;
@@ -136,6 +180,10 @@ export const ProformaModal: React.FC<{
 
   const decide = (status: 'PENDING' | 'APPROVED' | 'REJECTED') => {
     if (!okItems.length) return;
+    if (status !== 'REJECTED' && problems.length) {
+      showToast('اطلاعات پیش‌فاکتور رسمی کامل نیست: ' + problems.join('، '));
+      return;
+    }
     let note = '';
     if (status === 'REJECTED') {
       const answer = window.prompt('دلیل رد پیش‌فاکتور (اختیاری):', '');
@@ -155,6 +203,10 @@ export const ProformaModal: React.FC<{
 
   const save = (pdf: boolean) => {
     if (!okItems.length) return;
+    if (pdf && problems.length) {
+      showToast('اطلاعات پیش‌فاکتور رسمی کامل نیست: ' + problems.join('، '));
+      return;
+    }
     const next = build();
     onSave(next);
     if (pdf) openProformaPdf(next, customer, settings, issuerName);
@@ -175,6 +227,26 @@ export const ProformaModal: React.FC<{
         </div>
 
         <div className="p-5 space-y-4 overflow-y-auto">
+          {issuers.length > 1 && (
+            <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] px-4 py-3 flex flex-wrap items-center gap-3">
+              <label className="text-xs font-black text-[#3A241F]">صادرکننده پیش‌فاکتور</label>
+              <select className={`${field} sm:max-w-xs`} value={issuerId} onChange={(e) => changeIssuer(e.target.value)}>
+                {issuers.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.label} — {i.kind === 'OFFICIAL' ? 'رسمی' : 'غیررسمی'}
+                  </option>
+                ))}
+              </select>
+              <span className={`text-[11px] font-black rounded-full px-3 py-1 border ${official ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                {official ? 'پیش‌فاکتور رسمی (با شناسه‌های مالیاتی)' : 'پیش‌فاکتور غیررسمی'}
+              </span>
+            </div>
+          )}
+          {official && problems.length > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-6 text-amber-900">
+              برای پیش‌فاکتور رسمی این موارد را تکمیل کنید (در «مشخصات فروشنده»، «مشخصات خریدار» و ردیف‌ها): {problems.join('، ')}.
+            </div>
+          )}
           {required && (
             <div
               className={`rounded-2xl border px-4 py-3 text-xs font-bold leading-6 ${
@@ -229,7 +301,10 @@ export const ProformaModal: React.FC<{
                     <input className={field} inputMode="numeric" value={it.discount ? toman(it.discount) : ''} onChange={(e) => patchItem(i, { discount: fromDisplay(parseNumber(e.target.value)) })} />
                   </div>
                 </div>
-                <input className={field} placeholder="توضیح بیشتر (اختیاری)" value={it.description || ''} onChange={(e) => patchItem(i, { description: e.target.value })} />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input className={field} dir="ltr" placeholder={official ? 'شناسه کالا / خدمت (لازم)' : 'شناسه / کد کالا (اختیاری)'} value={it.code || ''} onChange={(e) => patchItem(i, { code: e.target.value })} />
+                  <input className={`${field} sm:col-span-2`} placeholder="توضیح بیشتر (اختیاری)" value={it.description || ''} onChange={(e) => patchItem(i, { description: e.target.value })} />
+                </div>
               </div>
             ))}
             <button type="button" onClick={() => setItems((p) => [...p, { title: '', qty: 1, unitPrice: 0 }])} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer">
@@ -279,6 +354,9 @@ export const ProformaModal: React.FC<{
               <div><label className={label}>نام</label><input className={field} value={f.sellerName} onChange={(e) => setField('sellerName', e.target.value)} /></div>
               <div><label className={label}>تلفن</label><input className={field} value={f.sellerPhone} onChange={(e) => setField('sellerPhone', e.target.value)} /></div>
               <div><label className={label}>کد اقتصادی</label><input className={field} value={f.sellerEconomicCode} onChange={(e) => setField('sellerEconomicCode', e.target.value)} /></div>
+              <div><label className={label}>شناسه ملی</label><input className={field} value={f.sellerNationalId} onChange={(e) => setField('sellerNationalId', e.target.value)} /></div>
+              <div><label className={label}>شمارهٔ ثبت</label><input className={field} value={f.sellerRegistrationNumber} onChange={(e) => setField('sellerRegistrationNumber', e.target.value)} /></div>
+              <div><label className={label}>کد پستی</label><input className={field} value={f.sellerPostalCode} onChange={(e) => setField('sellerPostalCode', e.target.value)} /></div>
               <div><label className={label}>نشانی</label><input className={field} value={f.sellerAddress} onChange={(e) => setField('sellerAddress', e.target.value)} /></div>
             </div>
           </details>
@@ -288,6 +366,9 @@ export const ProformaModal: React.FC<{
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <div><label className={label}>نام</label><input className={field} value={f.buyerName} onChange={(e) => setField('buyerName', e.target.value)} /></div>
               <div><label className={label}>شرکت</label><input className={field} value={f.buyerCompany} onChange={(e) => setField('buyerCompany', e.target.value)} /></div>
+              <div><label className={label}>کد ملی / شناسه ملی</label><input className={field} value={f.buyerNationalId} onChange={(e) => setField('buyerNationalId', e.target.value)} /></div>
+              <div><label className={label}>کد اقتصادی</label><input className={field} value={f.buyerEconomicCode} onChange={(e) => setField('buyerEconomicCode', e.target.value)} /></div>
+              <div><label className={label}>کد پستی</label><input className={field} value={f.buyerPostalCode} onChange={(e) => setField('buyerPostalCode', e.target.value)} /></div>
               <div><label className={label}>تلفن</label><input className={field} value={f.buyerPhones} onChange={(e) => setField('buyerPhones', e.target.value)} /></div>
               <div><label className={label}>ایمیل</label><input className={field} dir="ltr" value={f.buyerEmail} onChange={(e) => setField('buyerEmail', e.target.value)} /></div>
               <div className="sm:col-span-2"><label className={label}>نشانی</label><input className={field} value={f.buyerAddress} onChange={(e) => setField('buyerAddress', e.target.value)} /></div>
