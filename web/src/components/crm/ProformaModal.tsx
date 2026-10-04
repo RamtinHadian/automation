@@ -57,11 +57,13 @@ export const ProformaModal: React.FC<{
       .map((d) => ({ ...d, proformaNumber: pre && d.proformaNumber?.startsWith(pre) ? d.proformaNumber.slice(pre.length) : d.proformaNumber }));
     return pre + nextProformaNumber(same, tpl);
   };
+  // an official proforma is headed «پیش‌فاکتور رسمی» unless the admin gave the template its own title
+  const defaultTitleFor = (iss: ProformaIssuer) => (iss.kind === 'OFFICIAL' && (!tpl.title || tpl.title === 'پیش‌فاکتور') ? 'پیش‌فاکتور رسمی' : tpl.title);
   const [number, setNumber] = useState(deal.proformaNumber || numberFor(issuer));
   const [f, setF] = useState<Required<Omit<ProformaFields, 'showStamp' | 'showSignature'>>>(() => {
     const o = deal.proformaFields || {};
     return {
-      title: o.title ?? tpl.title,
+      title: o.title ?? defaultTitleFor(issuer),
       subject: o.subject ?? deal.title,
       sellerName: o.sellerName ?? issuer.name,
       sellerAddress: o.sellerAddress ?? issuer.address ?? '',
@@ -89,6 +91,7 @@ export const ProformaModal: React.FC<{
     setIssuerId(id);
     setF((p) => ({
       ...p,
+      title: p.title === defaultTitleFor(issuer) ? defaultTitleFor(iss) : p.title,
       sellerName: iss.name,
       sellerAddress: iss.address ?? '',
       sellerPhone: iss.phone ?? '',
