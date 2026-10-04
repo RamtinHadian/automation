@@ -106,7 +106,7 @@ export function buildOfficialHtml(input: ProformaRenderInput, mode: 'print' | 'p
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8" />
-<title>صورتحساب فروش کالا و خدمات ${esc(serial)} - ${esc(buyer.name)}</title>
+<title>پیش‌فاکتور فروش ${esc(serial)} - ${esc(buyer.name)}</title>
 <style>
   @font-face { font-family: 'Vazirmatn'; src: url('${location.origin}${fontUrl}') format('woff2'); font-weight: 100 900; }
   @page { size: A4 landscape; margin: 0; }
@@ -117,8 +117,8 @@ export function buildOfficialHtml(input: ProformaRenderInput, mode: 'print' | 'p
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid #000; padding: 3px 6px; vertical-align: middle; }
   .top { display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; gap: 8px; }
-  .top .logo img { max-height: 16mm; max-width: 40mm; object-fit: contain; display: block; }
-  .top .ttl { text-align: center; font-size: 17px; font-weight: 900; }
+  .top .logo img { max-height: 20mm; max-width: 48mm; object-fit: contain; display: block; }
+  .top .ttl { text-align: center; font-size: 26px; font-weight: 900; }
   .top .ttl small { display: block; font-size: 9.5px; font-weight: 600; margin-top: 1px; }
   .top .nums { border: 1px solid #000; }
   .top .nums div { display: flex; justify-content: space-between; gap: 8px; padding: 2px 8px; }
@@ -155,12 +155,12 @@ export function buildOfficialHtml(input: ProformaRenderInput, mode: 'print' | 'p
 ${mode === 'print' ? '<div class="toolbar"><button onclick="window.print()">چاپ / ذخیره به‌صورت PDF</button></div>' : ''}
 <div class="page" data-official-form="1">
   <div class="top">
+    <div class="logo">${logo ? `<img src="${esc(logo)}" alt="" />` : ''}</div>
+    <div class="ttl">پیش‌فاکتور فروش<small>صورتحساب فروش کالا و خدمات — مبالغ به ریال</small></div>
     <div class="nums">
       <div><span>شمارهٔ سریال:</span><b>${num(serial)}</b></div>
       <div><span>تاریخ:</span><b>${formatTaskDate(date)}</b></div>
     </div>
-    <div class="ttl">صورتحساب فروش کالا و خدمات<small>پیش‌فاکتور رسمی — مبالغ به ریال</small></div>
-    <div class="logo">${logo ? `<img src="${esc(logo)}" alt="" />` : ''}</div>
   </div>
   ${party('مشخصات فروشنده', seller)}
   ${party('مشخصات خریدار', buyer)}
