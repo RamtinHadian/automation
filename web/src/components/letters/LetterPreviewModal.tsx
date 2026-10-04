@@ -1349,12 +1349,12 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         {/* Expandable Action Box for Sign / Refer / Reject */}
         {actionTab === 'SIGN' && (
           <div className="bg-emerald-50 p-4 border-b border-emerald-200 flex flex-col gap-3 animate-in slide-in-from-top-2">
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 w-full lg:w-auto flex-1">
+            <div className="flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 w-full lg:w-auto flex-1 lg:min-w-[320px]">
                 <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                   <Award className="w-4 h-4" />
                 </div>
-                <div className="flex-1 space-y-1">
+                <div className="flex-1 space-y-1 min-w-0">
                   <label className="block text-[11px] font-bold text-emerald-950">
                     دستور / پاراف مدیرعامل هنگام امضا (اختیاری):
                   </label>
@@ -1369,8 +1369,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 </div>
               </div>
 
-              {/* Which of the uploaded pictures go on this letter */}
-              <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold">
+              {/* The signer decides whether the signature and the stamp go on this letter */}
+              <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold whitespace-nowrap">
+                <span className="text-emerald-700">روی این نامه درج شود:</span>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={showSig} onChange={(e) => setShowSig(e.target.checked)} className="accent-emerald-600" />
                   درج امضا
