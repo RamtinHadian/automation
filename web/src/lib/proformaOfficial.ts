@@ -156,7 +156,7 @@ ${mode === 'print' ? '<div class="toolbar"><button onclick="window.print()">چا
 <div class="page" data-official-form="1">
   <div class="top">
     <div class="logo">${logo ? `<img src="${esc(logo)}" alt="" />` : ''}</div>
-    <div class="ttl">پیش‌فاکتور فروش<small>صورتحساب فروش کالا و خدمات — مبالغ به ریال</small></div>
+    <div class="ttl">پیش‌فاکتور فروش</div>
     <div class="nums">
       <div><span>شمارهٔ سریال:</span><b>${num(serial)}</b></div>
       <div><span>تاریخ:</span><b>${formatTaskDate(date)}</b></div>
