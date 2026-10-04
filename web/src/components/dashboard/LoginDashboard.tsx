@@ -129,7 +129,7 @@ export const LoginDashboard: React.FC<Props> = ({ canUseTasks, onOpenFiles, onOp
         className="fixed bottom-24 sm:bottom-24 left-4 z-[45] w-14 h-14 rounded-full bg-white border-2 border-[#EBDBCE] shadow-xl shadow-[#3A241F]/25 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer"
       >
         {logo ? (
-          <img src={logo} alt="" className="w-9 h-9 object-contain" />
+          <img src={logo} alt="" className={`w-9 h-9 object-contain ${settings.companyLogoThemed ? 'brand-logo' : ''}`} />
         ) : (
           <span className="w-9 h-9 rounded-2xl bg-[#6E1B1B] text-[#F6D9CD] flex items-center justify-center">
             <ArrowLeftRight className="w-5 h-5" />
@@ -230,7 +230,7 @@ export const LoginDashboard: React.FC<Props> = ({ canUseTasks, onOpenFiles, onOp
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5 px-3.5 sm:px-8 py-3 sm:py-3.5 border-b border-[#EBDBCE] bg-white/70">
           <div className="flex items-center gap-3 min-w-0">
             {logo ? (
-              <img src={logo} alt="" className="w-9 h-9 object-contain shrink-0" />
+              <img src={logo} alt="" className={`w-9 h-9 object-contain shrink-0 ${settings.companyLogoThemed ? 'brand-logo' : ''}`} />
             ) : (
               <span className="w-9 h-9 rounded-2xl bg-[#6E1B1B] text-[#F6D9CD] flex items-center justify-center shrink-0">
                 <ArrowLeftRight className="w-5 h-5" />

@@ -534,6 +534,8 @@ export interface SystemSettings {
   /** The organisation's standard letter layout, set once by an admin in the letter editor. */
   letterTemplate?: OrgLetterTemplate;
   companyLogoUrl?: string; // لوگو و آرم رسمی سازمان
+  /** The floating logo bubble takes the colour of the theme (for the Hoormand logo). */
+  companyLogoThemed?: boolean;
   systemTitle?: string; // نام و عنوان سامانه
   maxUploadSizeBytes: number;
   allowedFileTypes: string[];

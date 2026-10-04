@@ -480,6 +480,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   حذف لوگو
                 </button>
               )}
+              {settings.companyLogoUrl && (
+                <label className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-[#3A241F] cursor-pointer">
+                  <input type="checkbox" checked={settings.companyLogoThemed === true} onChange={(e) => setSettings({ ...settings, companyLogoThemed: e.target.checked })} className="accent-[#6E1B1B]" />
+                  رنگ لوگوی شناور با تم رنگی سامانه عوض شود (برای لوگوی هورمند)
+                </label>
+              )}
             </div>
           </div>
 
