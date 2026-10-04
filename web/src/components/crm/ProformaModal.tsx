@@ -205,8 +205,6 @@ export const ProformaModal: React.FC<{
     }
     const base = build();
     const next: Deal = { ...base, proformaApproval: { ...(deal.proformaApproval || {}), status, ...(note ? { note } : {}) } };
-    // the CEO's approval puts the stamp and the signature on automatically
-    if (status === 'APPROVED') next.proformaFields = { ...(base.proformaFields || {}), showStamp: true, showSignature: true };
     onSave(next);
     showToast(
       status === 'PENDING' ? 'پیش‌فاکتور برای تایید مدیرعامل فرستاده شد.' : status === 'APPROVED' ? 'پیش‌فاکتور تایید شد؛ مهر و امضای مدیرعامل درج شد.' : 'پیش‌فاکتور رد شد.'
@@ -275,7 +273,7 @@ export const ProformaModal: React.FC<{
               ) : approval?.status === 'REJECTED' ? (
                 <>رد شد توسط {approval.decidedByName || 'مدیرعامل'}{approval.note ? `: ${approval.note}` : ''}. پس از اصلاح می‌توانید دوباره برای تایید بفرستید.</>
               ) : approval?.status === 'PENDING' ? (
-                <>در انتظار تایید مدیرعامل{approval.requestedByName ? ` (ارسال‌کننده: ${approval.requestedByName})` : ''}. {isCeo ? ' شما می‌توانید قبل از تایید، هر بخشی از پیش‌فاکتور (ردیف‌ها، قیمت، تخفیف، مالیات، مشخصات خریدار و ...) را تغییر دهید؛ «تایید و آمادهٔ ارسال» همین نسخهٔ اصلاح‌شده را امضا می‌کند.' : ' چاپ و ارسال پس از تایید ممکن می‌شود.'}</>
+                <>در انتظار تایید مدیرعامل{approval.requestedByName ? ` (ارسال‌کننده: ${approval.requestedByName})` : ''}. {isCeo ? ' شما می‌توانید قبل از تایید، هر بخشی از پیش‌فاکتور (ردیف‌ها، قیمت، تخفیف، مالیات، مشخصات خریدار و ...) را تغییر دهید؛ «تایید و آمادهٔ ارسال» همین نسخهٔ اصلاح‌شده را امضا می‌کند. تیک‌های «مهر شرکت» و «امضا» (پایین‌تر در همین پنجره) را هم شما تعیین می‌کنید: هر کدام را نزنید روی پیش‌فاکتور درج نمی‌شود.' : ' چاپ و ارسال پس از تایید ممکن می‌شود.'}</>
               ) : (
                 <>این پیش‌فاکتور پیش از ارسال باید مدیرعامل تایید کند؛ پس از تایید، مهر و امضای مدیرعامل خودکار درج می‌شود.</>
               )}
@@ -392,11 +390,11 @@ export const ProformaModal: React.FC<{
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] px-4 py-3 text-xs font-black text-[#3A241F]">
             <span className="text-[#8C6F66]">در پیش‌فاکتور درج شود:</span>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" disabled={required && !released} checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-violet-600 w-4 h-4" />
+              <input type="checkbox" disabled={required && !released && !(isCeo && approval?.status === 'PENDING')} checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-violet-600 w-4 h-4" />
               مهر شرکت
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" disabled={required && !released} checked={showSignature} onChange={(e) => setShowSignature(e.target.checked)} className="accent-violet-600 w-4 h-4" />
+              <input type="checkbox" disabled={required && !released && !(isCeo && approval?.status === 'PENDING')} checked={showSignature} onChange={(e) => setShowSignature(e.target.checked)} className="accent-violet-600 w-4 h-4" />
               امضا
             </label>
           </div>
