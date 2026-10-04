@@ -167,7 +167,11 @@ class Session {
       const start = `rm -f ${EXIT} ${LOG} ${PID}; echo ${b64} | base64 -d > /tmp/hoormand-job.sh; setsid nohup bash /tmp/hoormand-job.sh > ${LOG} 2>&1 < /dev/null & echo started`;
       this.log(`$ ${label || script}`, 'cyan');
       const st = await this.run(start, { root, quiet: true });
-      if (!/started/.test(st.out)) return { code: 255, out: st.out };
+      if (!/started/.test(st.out)) {
+        // detaching did not work on this server: run the same script directly (live, but a dropped line would stop it)
+        this.log(`اجرای پس‌زمینه شروع نشد (کد ${st.code}${st.out.trim() ? ': ' + st.out.trim().slice(0, 300) : ''}). مستقیم اجرا می‌کنم.`, 'yellow');
+        return this.run(script, { root, label: label || script });
+      }
     }
     let offset = 0;
     let all = '';
