@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { FileTransfer } from '../types';
 import { getLocalFile, putLocalFile } from './localFiles';
 import { requestFile } from './p2p';
+import { getServerFile } from './serverFiles';
 
 export interface AttachmentState {
   /** The letter has an attachment (its bytes live on the sender's computer). */
@@ -44,6 +45,11 @@ export function useAttachment(letter: FileTransfer | null | undefined, currentUs
       setUrl(null);
       const local = await getLocalFile(key).catch(() => null);
       if (local) return show(local);
+      const stored = await getServerFile(letterId, 'att');
+      if (stored) {
+        putLocalFile(key, stored).catch(() => {});
+        return show(stored);
+      }
       if (senderId === currentUserId) throw new Error('فایل پیوست روی این سیستم پیدا نشد.');
       const blob = await requestFile(senderId, key);
       if (!blob) throw new Error('دریافت پیوست ناموفق بود.');

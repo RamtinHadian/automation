@@ -24,6 +24,7 @@ import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '..
 import { useServerSync, hasPendingWrites } from '../lib/useServerSync';
 import { putLocalFile, getLocalFile, deleteLocalFile, dataUrlToBlob } from '../lib/localFiles';
 import { startP2P, stopP2P, requestFile } from '../lib/p2p';
+import { uploadServerFile, getServerFile, hasServerFile } from '../lib/serverFiles';
 import { formatCurrentJalaliDateTime, formatJalaliFullTimestamp, toPersianDigits, convertNumbersInHtmlToPersian } from '../lib/jalali';
 import { formatBytes, getFileCategory } from '../lib/utils';
 import { applyTheme } from '../lib/theme';
@@ -400,6 +401,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => stopP2P();
   }, [syncReady]);
 
+  // Files I sent earlier (before the server kept copies) are uploaded quietly, one time each.
+  const uploadedCheck = useRef(new Set<string>());
+  useEffect(() => {
+    if (!syncReady) return;
+    const mine = transfers.filter((t) => t.sender.id === sessionUserId.current && !uploadedCheck.current.has(t.id));
+    if (!mine.length) return;
+    mine.forEach((t) => uploadedCheck.current.add(t.id));
+    (async () => {
+      for (const t of mine) {
+        for (const kind of ['main', 'att'] as const) {
+          if (kind === 'att' && !t.attachmentFileName) continue;
+          const local = await getLocalFile(kind === 'att' ? `att:${t.id}` : t.id).catch(() => null);
+          if (local && !(await hasServerFile(t.id, kind))) await uploadServerFile(t.id, kind, local).catch(() => {});
+        }
+      }
+    })();
+  }, [transfers, syncReady]);
+
   // Pick up changes made by other users.
   // While the live stream is healthy a slow poll is enough; if the stream is silent (some proxies buffer it) poll fast.
   const lastBeat = useRef(0);
@@ -758,8 +777,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const storeLocally = async () => {
         onProgress(30);
         await putLocalFile(transferId, rawFile);
-        if (attachmentFileDataUrl) {
-          await putLocalFile(`att:${transferId}`, await dataUrlToBlob(attachmentFileDataUrl));
+        const attBlob = attachmentFileDataUrl ? await dataUrlToBlob(attachmentFileDataUrl) : null;
+        if (attBlob) await putLocalFile(`att:${transferId}`, attBlob);
+        // ... and a copy on the server, so the receiver can fetch it any time (also when this computer is off)
+        try {
+          await uploadServerFile(transferId, 'main', rawFile);
+          if (attBlob) await uploadServerFile(transferId, 'att', attBlob);
+        } catch (e) {
+          showToast(`فایل روی سرور ذخیره نشد؛ فقط از کامپیوتر شما قابل دریافت است: ${e instanceof Error ? e.message : ''}`);
         }
       };
       storeLocally()
@@ -889,6 +914,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           openAndDownloadPdfLetter(t, settings, currentUser);
         } else {
           let downloadBlob: Blob | null = await getLocalFile(t.id);
+          if (!downloadBlob) downloadBlob = await getServerFile(t.id, 'main');
           if (!downloadBlob) {
             if (t.sender.id === sessionUserId.current) {
               throw new Error('فایل روی این سیستم پیدا نشد (در مرورگر یا رایانهٔ دیگری ارسال شده است).');

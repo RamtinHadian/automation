@@ -374,6 +374,7 @@ func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id str
 	}
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM transfers WHERE id = $1`, id)
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM transfer_hidden WHERE transfer_id = $1`, id)
+	deleteStoredFiles(id)
 	what, label := "فایل", "فایل حذف شد"
 	if isLetter {
 		what, label = "نامه", "نامه حذف شد"

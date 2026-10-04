@@ -11,3 +11,7 @@ lic.env
 backups-lic/
 .built-commit
 .built-local-*
+
+files/
+files-demo/
+files-lic/

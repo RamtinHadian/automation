@@ -39,6 +39,8 @@ services:
       DEMO_RESET_HOURS: ${DEMO_RESET_HOURS:-6}
     volumes:
       - ${BACKUP_DIR:-./backups}:/backups
+      # every file that is sent is kept here too (the receiver can fetch it even when the sender's computer is off)
+      - ${FILES_DIR:-./files}:/files
       # the host's machine id ties the licence to this server (copying the program elsewhere does not carry it along)
       - ${HOST_MACHINE_ID_FILE:-/etc/machine-id}:/etc/host-machine-id:ro
     ports:
