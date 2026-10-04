@@ -6,9 +6,10 @@
 <title>پنل نصب هورمند</title>
 <link rel="stylesheet" href="/vendor/xterm.css" />
 <style>
+  @font-face { font-family: 'Vazirmatn'; src: url('/fonts/Vazirmatn.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
   :root { --bg:#f6f1ec; --card:#fff; --ink:#3a241f; --mut:#8c6f66; --line:#ebdbce; --brand:#6e1b1b; --ok:#0f9d6a; --bad:#d92d20; --run:#c27803; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font-family: Tahoma, "Vazirmatn", sans-serif; font-size:14px; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: 'Vazirmatn', Tahoma, sans-serif; font-size:14px; }
   header { background:var(--brand); color:#fff; padding:16px 22px; display:flex; align-items:center; gap:12px; }
   header h1 { margin:0; font-size:18px; }
   header span { opacity:.8; font-size:12px; }
@@ -17,6 +18,7 @@
   .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; }
   h2 { margin:0 0 10px; font-size:15px; }
   label { display:block; font-weight:bold; margin:10px 0 4px; font-size:12px; }
+  input, textarea { font-family: 'Vazirmatn', Tahoma, sans-serif; }
   input { width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; background:#faf5f1; font-size:13px; direction:ltr; text-align:left; font-family: inherit; }
   .row { display:grid; grid-template-columns: 1fr 90px; gap:8px; }
   button { font-family:inherit; font-weight:bold; border:0; border-radius:12px; padding:11px 16px; cursor:pointer; background:var(--brand); color:#fff; font-size:13px; }
@@ -39,6 +41,16 @@
   .gallery { display:flex; gap:8px; flex-wrap:wrap; }
   .gallery a { display:block; border:1px solid var(--line); border-radius:10px; overflow:hidden; width:150px; background:#fff; text-decoration:none; color:var(--ink); font-size:11px; }
   .gallery img { width:100%; display:block; } .gallery span { display:block; padding:4px 7px; }
+  .ask { border:2px solid var(--run); background:#fffbeb; border-radius:16px; padding:14px; margin-top:14px; display:none; }
+  .ask h3 { margin:0 0 6px; font-size:14px; }
+  .ask .grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+  .ask .btns { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .report { display:none; margin-top:14px; }
+  .report .item { display:flex; gap:8px; align-items:center; justify-content:space-between; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:#fdfaf7; margin-bottom:6px; }
+  .report .item span.k { font-size:12px; color:var(--mut); min-width:130px; }
+  .report .item b { direction:ltr; unicode-bidi:embed; flex:1; text-align:left; word-break:break-all; font-size:13px; }
+  .report .item button { padding:6px 10px; font-size:11px; }
+  textarea.rep { width:100%; min-height:210px; padding:10px; border:1px solid var(--line); border-radius:10px; background:#faf5f1; font-size:12.5px; line-height:2; direction:rtl; }
   .bar { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
 </style>
 </head>
@@ -58,6 +70,18 @@
       <div class="err" id="connErr"></div>
       <p class="note">نام کاربری و رمز را خودتان می‌زنید و فقط برای همین اتصال استفاده می‌شود. پنل از اینجا به بعد، دستورها را یکی‌یکی و بر اساس جواب سرور اجرا می‌کند.</p>
     </div>
+    <div class="ask" id="askIp">
+      <h3>آدرس IP سرور را ثابت کنیم؟</h3>
+      <p class="note" style="margin:0 0 8px">الان سرور آدرسش را خودکار (DHCP) می‌گیرد و ممکن است بعد از خاموش/روشن شدن روتر عوض شود و برنامه دیگر باز نشود. این‌جا آدرس فعلی را می‌بینید؛ اگر درست است «ثابت کن» را بزنید (می‌توانید عددها را هم تغییر دهید). IP انتخابی باید خالی باشد و بهتر است روی روتر هم از محدودهٔ DHCP خارج شود.</p>
+      <div class="grid">
+        <div><label>کارت شبکه</label><input id="ipIface" disabled /></div>
+        <div><label>IP سرور</label><input id="ipAddr" /></div>
+        <div><label>پیشوند (معمولاً 24)</label><input id="ipPrefix" /></div>
+        <div><label>گیت‌وی (روتر)</label><input id="ipGw" /></div>
+      </div>
+      <label>DNS (با کاما جدا کنید)</label><input id="ipDns" />
+      <div class="btns"><button id="ipYes">ثابت کن</button><button class="sec" id="ipNo">ثابت نکن، ادامه بده</button></div>
+    </div>
     <div class="card" style="margin-top:14px">
       <h2>۲. مرحله‌ها</h2>
       <ol class="steps" id="steps"></ol>
@@ -74,6 +98,14 @@
       </div>
     </div>
     <div class="result" id="result" style="margin-top:14px"></div>
+    <div class="card report" id="report">
+      <h2>گزارش برای مشتری</h2>
+      <p class="note" style="margin:0 0 8px">هر ردیف را جدا با «کپی» برش دارید، یا کل گزارش را یک‌جا کپی کنید و برای مشتری بفرستید.</p>
+      <div id="reportItems"></div>
+      <label style="margin-top:10px"><input type="checkbox" id="repPw" checked style="width:auto;direction:rtl"> رمز مدیر در گزارش باشد</label>
+      <textarea class="rep" id="repText" readonly></textarea>
+      <div class="bar"><button id="repCopy">کپی کل گزارش</button></div>
+    </div>
     <div class="card" style="margin-top:14px">
       <h2>اسکرین‌شات‌ها <span class="note">(بعد از هر مرحله خودکار گرفته می‌شود)</span></h2>
       <div class="gallery" id="gallery"></div>
@@ -86,7 +118,7 @@
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var term = new Terminal({ fontSize: 13, convertEol: false, scrollback: 6000, theme: { background: '#0b0f14' }, disableStdin: true });
+  var term = new Terminal({ fontFamily: "Consolas, 'Vazirmatn', monospace", fontSize: 13, convertEol: false, scrollback: 6000, theme: { background: '#0b0f14' }, disableStdin: true });
   var fit = new FitAddon.FitAddon(); term.loadAddon(fit); term.open($('term')); fit.fit();
   window.addEventListener('resize', function () { fit.fit(); });
   var report = []; var shots = [];
@@ -102,6 +134,7 @@
     else if (m.type === 'steps') renderSteps(m.steps);
     else if (m.type === 'shot') setTimeout(function () { snap(m.title, m.ok); }, 250);
     else if (m.type === 'stopped') { $('stopBox').style.display = 'block'; $('stopBox').innerHTML = '<b>نصب در این مرحله متوقف شد.</b><br>' + esc(m.note) + '<br>اسکرین‌شات این مرحله ساخته شده؛ با «کپی گزارش» یا اسکرین‌شات‌ها برای پشتیبانی بفرستید. بعد از رفع مشکل دوباره «شروع نصب» را بزنید.'; $('startBtn').disabled = false; $('startBtn').textContent = 'تلاش دوباره'; }
+    else if (m.type === 'ask-ip') askIp(m);
     else if (m.type === 'done') { showDone(m); $('startBtn').textContent = 'نصب کامل شد ✓'; }
   };
   ws.onclose = function () { term.writeln('\r\n\x1b[31mارتباط پنل با برنامهٔ نصب قطع شد.\x1b[0m'); };
@@ -122,7 +155,51 @@
       $('gallery').appendChild(a);
     }).catch(function () {});
   }
+  function askIp(m) {
+    $('ipIface').value = m.iface; $('ipAddr').value = m.ip; $('ipPrefix').value = m.prefix; $('ipGw').value = m.gateway; $('ipDns').value = m.dns;
+    $('askIp').style.display = 'block'; $('askIp').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function answerIp(apply) {
+    $('askIp').style.display = 'none';
+    ws.send(JSON.stringify({ type: 'ip-answer', apply: apply, ip: $('ipAddr').value.trim(), prefix: $('ipPrefix').value.trim(), gateway: $('ipGw').value.trim(), dns: $('ipDns').value.trim() }));
+  }
+  $('ipYes').onclick = function () { answerIp(true); };
+  $('ipNo').onclick = function () { answerIp(false); };
+
+  var lastDone = null;
+  function reportLines(m, withPw) {
+    var rows = [
+      ['آدرس برنامه (داخل شبکه)', m.url],
+      ['کنسول مدیریت', m.admin],
+      ['ایمیل مدیر', m.email],
+      ['رمز مدیر', withPw ? m.password : '(جداگانه اعلام می‌شود)'],
+      ['آدرس IP سرور', m.ip + (m.fixedIp ? ' (ثابت شده)' : ' (هنوز DHCP؛ ممکن است عوض شود)')],
+      ['گیت‌وی (روتر)', m.gateway || '-'],
+      ['کد نصب برای فعال‌سازی', m.installId || '-'],
+      ['اتصال SSH به سرور', m.sshUser + '@' + m.host + ' -p ' + m.sshPort],
+      ['پوشهٔ برنامه روی سرور', '/opt/automation'],
+      ['پشتیبان‌گیری شبانه', '/opt/automation/backups (۳۰ روز نگهداری)'],
+      ['راه‌اندازی دوبارهٔ برنامه', 'cd /opt/automation && sudo docker compose restart'],
+      ['دیدن خطاها (لاگ)', 'cd /opt/automation && sudo docker compose logs --tail 100 app'],
+    ];
+    return rows;
+  }
+  function renderReport() {
+    if (!lastDone) return;
+    var withPw = $('repPw').checked;
+    var rows = reportLines(lastDone, withPw);
+    $('reportItems').innerHTML = rows.map(function (r, i) { return '<div class="item"><span class="k">' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b><button class="sec" data-i="' + i + '">کپی</button></div>'; }).join('');
+    Array.prototype.forEach.call($('reportItems').querySelectorAll('button'), function (b) { b.onclick = function () { copy(rows[Number(b.dataset.i)][1], b); }; });
+    var text = 'گزارش نصب سامانهٔ هورمند\n' + rows.map(function (r) { return r[0] + ': ' + r[1]; }).join('\n') +
+      '\n\nمراحل بعدی:\n۱) برنامه را با آدرس بالا باز کنید.\n۲) «کد نصب» را برای دریافت کد فعال‌سازی بفرستید.\n۳) بعد از اولین ورود، رمز مدیر را عوض کنید.\n۴) به‌روزرسانی خودکار است و نیازی به کار شما ندارد.';
+    $('repText').value = text;
+  }
+  function copy(text, btn) { navigator.clipboard.writeText(text).then(function () { var t = btn.textContent; btn.textContent = 'کپی شد ✓'; setTimeout(function () { btn.textContent = t; }, 1500); }); }
+  $('repPw').onchange = renderReport;
+  $('repCopy').onclick = function () { copy($('repText').value, $('repCopy')); };
+
   function showDone(m) {
+    lastDone = m; $('report').style.display = 'block'; renderReport();
     var r = $('result'); r.style.display = 'block';
     r.innerHTML = '<h2>✓ نصب کامل شد</h2>' +
       'آدرس برنامه: <b>' + esc(m.url) + '</b><br>کنسول مدیریت: <b>' + esc(m.admin) + '</b><br>ایمیل مدیر: <b>' + esc(m.email) + '</b><br>رمز مدیر: <b>' + esc(m.password) + '</b> ' +

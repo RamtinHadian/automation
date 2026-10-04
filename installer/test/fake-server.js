@@ -26,6 +26,14 @@ function answer(script) {
     const j = st.job || { data: Buffer.alloc(0), code: 0 };
     return out(`HJ ${j.data.length} ${j.code}\n` + j.data.slice(off).toString());
   }
+  const route = () => (st.staticIp ? 'default via 192.168.1.1 dev ens18 proto static' : 'default via 192.168.1.1 dev ens18 proto dhcp src 192.168.1.80 metric 100');
+  if (/api\/license\/status/.test(script)) return out('{"mode":"active","installId":"AAAA-BBBB-CCCC"}');
+  if (/ip -4 route show default \| head -1; ip -4 -o addr/.test(script)) return out(route() + '\n192.168.1.80/24\n');
+  if (/^ip -4 route show default/.test(script)) return out(route() + '\n');
+  if (/ip -4 -o addr show dev ens18/.test(script)) return out('192.168.1.80/24\n');
+  if (/resolvectl dns/.test(script)) return out('192.168.1.1\n');
+  if (/command -v netplan/.test(script)) return out('/usr/sbin/netplan\n');
+  if (/netplan apply/.test(script)) { st.staticIp = true; return out('IP_OK\n'); }
   if (/os-release/.test(script)) return out('سیستم‌عامل: Ubuntu 24.04 LTS\nکاربر: paya\nآدرس: 192.168.1.80 172.17.0.1\nرم: 7800 مگابایت\nفضای آزاد: 80G\n');
   if (script === 'true') return out();
   if (/command -v apt-get/.test(script)) return out('apt\n');

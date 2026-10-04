@@ -85,6 +85,8 @@ class Session {
           finished = true;
           this.conn = conn;
           this.user = username;
+          this.host = host;
+          this.sshPort = Number(port) || 22;
           this.password = password;
           resolve();
         })
@@ -204,6 +206,7 @@ class Session {
       { id: 'app', title: 'دانلود و ساخت برنامه', status: 'wait' },
       { id: 'update', title: 'روشن کردن به‌روزرسانی خودکار', status: 'wait' },
       { id: 'firewall', title: 'فایروال', status: 'wait' },
+      { id: 'ip', title: 'ثابت کردن آدرس IP', status: 'wait' },
       { id: 'verify', title: 'آزمایش نهایی', status: 'wait' },
     ];
     this.send({ type: 'steps', steps: this.steps });
@@ -215,6 +218,7 @@ class Session {
       app: () => this.stepApp(port),
       update: () => this.stepUpdate(),
       firewall: () => this.stepFirewall(port),
+      ip: () => this.stepIp(),
       verify: () => this.stepVerify(port),
     };
     for (const s of this.steps) {
@@ -332,6 +336,63 @@ class Session {
     return r.code === 0 ? { ok: true, note: `پورت ${port} در فایروال باز شد.` } : { ok: false, note: 'باز کردن پورت در فایروال نشد.' };
   }
 
+
+  /** Waits until the person answers the question shown in the panel (fixed IP or not). */
+  ask(payload) {
+    return new Promise((resolve) => {
+      this.pending = resolve;
+      this.send(payload);
+    });
+  }
+
+  async stepIp() {
+    const route = (await this.run("ip -4 route show default | head -1", { quiet: true })).out.trim();
+    const m = /via (\S+) dev (\S+)/.exec(route);
+    if (!m) return { ok: true, note: 'مسیر شبکه را نشناختم؛ این مرحله رد شد (IP را دستی ثابت کنید).' };
+    const [, gateway, iface] = m;
+    const dhcp = /proto dhcp/.test(route);
+    const addr = (await this.run("ip -4 -o addr show dev " + iface + " scope global | awk '{print $4}' | head -1", { quiet: true })).out.trim();
+    const am = /^(\d+\.\d+\.\d+\.\d+)\/(\d+)$/.exec(addr);
+    if (!am) return { ok: true, note: 'آدرس IP کارت شبکه را نخواندم؛ این مرحله رد شد.' };
+    let dns = (await this.run("(resolvectl dns " + iface + " 2>/dev/null; grep -h '^nameserver' /etc/resolv.conf 2>/dev/null) | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+' | grep -v '^127\\.' | awk '!s[$0]++' | head -2", { quiet: true })).out.trim().split(/\s+/).filter(Boolean);
+    if (!dns.length) dns = [gateway];
+    const hasNetplan = /netplan/.test((await this.run('command -v netplan', { quiet: true })).out);
+    this.log('کارت شبکه: ' + iface + ' | IP فعلی: ' + am[1] + '/' + am[2] + ' | گیت‌وی: ' + gateway + ' | DNS: ' + dns.join(', ') + ' | روش: ' + (dhcp ? 'DHCP (خودکار؛ ممکن است عوض شود)' : 'ثابت'), 'gray');
+    if (!dhcp) return { ok: true, note: 'IP از قبل ثابت است: ' + am[1], ip: am[1] };
+    if (!hasNetplan) return { ok: true, note: 'این سرور netplan ندارد؛ IP را دستی ثابت کنید. IP فعلی: ' + am[1] };
+
+    const a = await this.ask({ type: 'ask-ip', iface, ip: am[1], prefix: am[2], gateway, dns: dns.join(', ') });
+    if (!a || !a.apply) return { ok: true, note: 'IP ثابت نشد (انتخاب شما). IP فعلی: ' + am[1] + ' (با DHCP ممکن است عوض شود).' };
+    const ok4 = (v) => /^\d+\.\d+\.\d+\.\d+$/.test(v) && v.split('.').every((n) => Number(n) <= 255);
+    const prefix = String(a.prefix || '').replace(/\D/g, '');
+    const dnsList = String(a.dns || '').split(/[\s,،]+/).filter(Boolean);
+    if (!ok4(a.ip) || !ok4(a.gateway) || !(Number(prefix) >= 8 && Number(prefix) <= 30) || !dnsList.length || !dnsList.every(ok4)) {
+      return { ok: false, note: 'مقدارهای IP، گیت‌وی، پیشوند یا DNS درست نیست. دوباره «تلاش دوباره» را بزنید.' };
+    }
+    const yaml = [
+      'network:', '  version: 2', '  ethernets:', '    ' + iface + ':', '      dhcp4: false',
+      '      addresses: [' + a.ip + '/' + prefix + ']', '      routes:', '        - to: default', '          via: ' + a.gateway,
+      '      nameservers:', '        addresses: [' + dnsList.join(', ') + ']', '',
+    ].join('\n');
+    const b64 = Buffer.from(yaml).toString('base64');
+    this.log('IP ثابت می‌شود (از فایل‌های قبلی شبکه پشتیبان گرفته می‌شود و اگر ارتباط قطع شود خودکار برمی‌گردد).', 'yellow');
+    const script = [
+      'mkdir -p /etc/netplan/hoormand-backup',
+      'for f in /etc/netplan/*.yaml; do [ -e "$f" ] && mv "$f" /etc/netplan/hoormand-backup/; done',
+      'echo ' + b64 + ' | base64 -d > /etc/netplan/01-hoormand-static.yaml',
+      'chmod 600 /etc/netplan/01-hoormand-static.yaml',
+      '[ -d /etc/cloud/cloud.cfg.d ] && echo "network: {config: disabled}" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg',
+      'netplan generate && netplan apply',
+      'sleep 6',
+      'if ping -c 2 -W 2 ' + a.gateway + ' >/dev/null 2>&1; then echo "IP_OK"; else echo "IP_FAILED: برمی‌گردانم"; rm -f /etc/netplan/01-hoormand-static.yaml; mv /etc/netplan/hoormand-backup/*.yaml /etc/netplan/; netplan apply; exit 1; fi',
+    ].join('\n');
+    const r = await this.runJob(script, { label: 'تنظیم IP ثابت با netplan' });
+    if (r.code !== 0 || !/IP_OK/.test(r.out)) return { ok: false, note: 'تنظیم IP ثابت نشد و به حالت قبل برگشت. IP فعلی همان است.' };
+    const chk = (await this.run("ip -4 route show default | head -1; ip -4 -o addr show dev " + iface + " scope global | awk '{print $4}'", { quiet: true })).out;
+    if (/proto dhcp/.test(chk)) return { ok: false, note: 'IP ثابت اعمال نشد (هنوز DHCP است).' };
+    return { ok: true, note: 'IP ثابت شد: ' + a.ip + '/' + prefix + ' (دیگر با DHCP عوض نمی‌شود). روی روتر هم این IP را از محدودهٔ DHCP خارج یا رزرو کنید.', ip: a.ip };
+  }
+
   async stepVerify(port) {
     let code = '';
     for (let i = 0; i < 20; i++) {
@@ -345,7 +406,14 @@ class Session {
     const ip = (await this.run("hostname -I | awk '{print $1}'", { quiet: true })).out.trim();
     const pw = (await this.run("grep '^ADMIN_PASSWORD=' /opt/automation/.env | cut -d= -f2", { root: true, quiet: true })).out.trim();
     const mail = (await this.run("grep '^ADMIN_EMAIL=' /opt/automation/.env | cut -d= -f2", { root: true, quiet: true })).out.trim();
-    this.send({ type: 'done', url: `http://${ip}:${port}`, admin: `http://${ip}:${port}/admin`, email: mail, password: pw });
+    const lic = (await this.run("curl -s -m 5 http://127.0.0.1:" + port + "/api/license/status", { quiet: true })).out;
+    const installId = (/"installId":"([^"]+)"/.exec(lic) || [])[1] || '';
+    const route = (await this.run("ip -4 route show default | head -1", { quiet: true })).out;
+    this.send({
+      type: 'done', url: `http://${ip}:${port}`, admin: `http://${ip}:${port}/admin`, email: mail, password: pw,
+      ip, port, installId, fixedIp: !/proto dhcp/.test(route), gateway: (/via (\S+)/.exec(route) || [])[1] || '',
+      host: this.host, sshPort: this.sshPort, sshUser: this.user,
+    });
     return { ok: true, note: 'نصب کامل شد.' };
   }
 
@@ -380,6 +448,12 @@ wss.on('connection', (ws) => {
       }
     } else if (m.type === 'start') {
       s.install({ appPort: m.appPort });
+    } else if (m.type === 'ip-answer') {
+      if (s.pending) {
+        const f = s.pending;
+        s.pending = null;
+        f(m);
+      }
     } else if (m.type === 'disconnect') {
       s.close();
     }
