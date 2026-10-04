@@ -255,3 +255,17 @@ html.night body {
 html.night [class*='from-[#3A241F]'] {
   background-image: linear-gradient(135deg, #ececec, #e2e2e2, #f0f0f0) !important;
 }
+
+/* the Hoormand logo follows the colour theme (hue turned from the logo's own blue to the theme's main colour) */
+.brand-logo {
+  filter: hue-rotate(var(--logo-hue, 0deg));
+}
+.brand-word {
+  filter: hue-rotate(var(--word-hue, 0deg));
+}
+html.night .brand-logo {
+  filter: invert(1) hue-rotate(180deg) hue-rotate(var(--logo-hue, 0deg));
+}
+html.night .brand-word {
+  filter: invert(1) hue-rotate(180deg) hue-rotate(var(--word-hue, 0deg));
+}

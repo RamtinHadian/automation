@@ -79,7 +79,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
 
         {/* Only the logo and the login box */}
         <h1>
-          <img src="/images/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-44 sm:w-52 mx-auto" draggable={false} />
+          <img src="/images/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="brand-logo w-44 sm:w-52 mx-auto" draggable={false} />
         </h1>
 
         {/* Login Card */}

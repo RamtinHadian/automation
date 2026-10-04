@@ -587,12 +587,12 @@ export default function UserPanel() {
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
 <div className="w-7 h-7 rounded-xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1">
-              <img src="/images/mark.png" alt="" className="w-full h-full object-contain" draggable={false} />
+              <img src="/images/mark.png" alt="" className="brand-logo w-full h-full object-contain" draggable={false} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="leading-none">
-                  <img src="/images/brand-name.png" alt="هورمند" className="h-6 sm:h-8 w-auto" draggable={false} />
+                  <img src="/images/brand-name.png" alt="هورمند" className="brand-word h-6 sm:h-8 w-auto" draggable={false} />
                 </h1>
                 <VersionBadge className="text-[10px] font-bold text-[#8C6F66]" />
                 {canSignOfficial && (

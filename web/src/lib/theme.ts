@@ -249,6 +249,16 @@ export const COLOR_THEMES: ColorTheme[] = [
   },
 ];
 
+/** Hue (0-360) of a #rrggbb colour. */
+const hueOf = (hex: string) => {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (d === 0) return 0;
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+};
+
 export const applyTheme = (themeId: string) => {
   const theme = COLOR_THEMES.find((t) => t.id === themeId) || COLOR_THEMES[0];
   const root = document.documentElement;
@@ -267,6 +277,11 @@ export const applyTheme = (themeId: string) => {
   root.style.setProperty('--theme-badge-bg', theme.badgeBg);
   root.style.setProperty('--theme-badge-text', theme.badgeText);
   
+  // the Hoormand logo takes the colour of the theme: its blue is turned to the hue of the theme's main colour
+  const h = hueOf(theme.primary);
+  root.style.setProperty('--logo-hue', `${Math.round(h - 220)}deg`);
+  root.style.setProperty('--word-hue', `${Math.round(h - 255)}deg`);
+
   root.setAttribute('data-theme', theme.id);
   
   if (document.body) {

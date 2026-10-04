@@ -62,7 +62,7 @@ export const ActivationForm: React.FC<{ status: LicenseStatus; renew?: boolean; 
 const ActivationPage: React.FC<{ status: LicenseStatus; onDone: (s: LicenseStatus) => void }> = ({ status, onDone }) => (
   <div className="min-h-screen flex items-center justify-center p-4 font-sans bg-[#FAF7F2] text-[#3A241F]" dir="rtl">
     <div className="w-full max-w-md flex flex-col items-center gap-6">
-      <img src="/images/logo-full.png" alt="هورمند" className="w-44 sm:w-52 mx-auto" draggable={false} />
+      <img src="/images/logo-full.png" alt="هورمند" className="brand-logo w-44 sm:w-52 mx-auto" draggable={false} />
       <div className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
         <div className="flex items-center gap-2 font-black text-sm"><KeyRound className="w-5 h-5 text-[#6E1B1B]" />فعال‌سازی سامانه</div>
         <p className="text-xs leading-6 text-[#8C6F66]">این سامانه روی این سرور هنوز فعال نشده است. برای شروع، کد نصب را به فروشنده بدهید و کد فعال‌سازی را دریافت و وارد کنید.</p>
