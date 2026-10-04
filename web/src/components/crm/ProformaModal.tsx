@@ -72,6 +72,13 @@ export const ProformaModal: React.FC<{
       sellerNationalId: o.sellerNationalId ?? issuer.nationalId ?? '',
       sellerRegistrationNumber: o.sellerRegistrationNumber ?? issuer.registrationNumber ?? '',
       sellerPostalCode: o.sellerPostalCode ?? issuer.postalCode ?? '',
+      sellerProvince: o.sellerProvince ?? issuer.province ?? '',
+      sellerCounty: o.sellerCounty ?? issuer.county ?? '',
+      sellerCity: o.sellerCity ?? issuer.city ?? '',
+      buyerProvince: o.buyerProvince ?? customer?.province ?? '',
+      buyerCounty: o.buyerCounty ?? '',
+      buyerCity: o.buyerCity ?? customer?.city ?? '',
+      paymentType: o.paymentType ?? 'CASH',
       buyerName: o.buyerName ?? (customer?.name || deal.customerName),
       buyerCompany: o.buyerCompany ?? customer?.company ?? '',
       buyerPhones: o.buyerPhones ?? (customer?.phones || []).join('، '),
@@ -84,7 +91,7 @@ export const ProformaModal: React.FC<{
       footerText: o.footerText ?? tpl.footerText,
     };
   });
-  const setField = (k: Exclude<keyof ProformaFields, 'showStamp' | 'showSignature'>, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const setField = (k: Exclude<keyof ProformaFields, 'showStamp' | 'showSignature' | 'paymentType'>, v: string) => setF((p) => ({ ...p, [k]: v }));
   const changeIssuer = (id: string) => {
     const iss = issuers.find((i) => i.id === id);
     if (!iss) return;
@@ -99,6 +106,9 @@ export const ProformaModal: React.FC<{
       sellerNationalId: iss.nationalId ?? '',
       sellerRegistrationNumber: iss.registrationNumber ?? '',
       sellerPostalCode: iss.postalCode ?? '',
+      sellerProvince: iss.province ?? '',
+      sellerCounty: iss.county ?? '',
+      sellerCity: iss.city ?? '',
       bankInfo: iss.bankInfo ?? '',
     }));
     if (!deal.proformaNumber) setNumber(numberFor(iss));
@@ -360,6 +370,9 @@ export const ProformaModal: React.FC<{
               <div><label className={label}>شناسه ملی</label><input className={field} value={f.sellerNationalId} onChange={(e) => setField('sellerNationalId', e.target.value)} /></div>
               <div><label className={label}>شمارهٔ ثبت</label><input className={field} value={f.sellerRegistrationNumber} onChange={(e) => setField('sellerRegistrationNumber', e.target.value)} /></div>
               <div><label className={label}>کد پستی</label><input className={field} value={f.sellerPostalCode} onChange={(e) => setField('sellerPostalCode', e.target.value)} /></div>
+              {official && <div><label className={label}>استان</label><input className={field} value={f.sellerProvince} onChange={(e) => setField('sellerProvince', e.target.value)} /></div>}
+              {official && <div><label className={label}>شهرستان</label><input className={field} value={f.sellerCounty} onChange={(e) => setField('sellerCounty', e.target.value)} /></div>}
+              {official && <div><label className={label}>شهر</label><input className={field} value={f.sellerCity} onChange={(e) => setField('sellerCity', e.target.value)} /></div>}
               <div><label className={label}>نشانی</label><input className={field} value={f.sellerAddress} onChange={(e) => setField('sellerAddress', e.target.value)} /></div>
             </div>
           </details>
@@ -374,7 +387,21 @@ export const ProformaModal: React.FC<{
               <div><label className={label}>کد پستی</label><input className={field} value={f.buyerPostalCode} onChange={(e) => setField('buyerPostalCode', e.target.value)} /></div>
               <div><label className={label}>تلفن</label><input className={field} value={f.buyerPhones} onChange={(e) => setField('buyerPhones', e.target.value)} /></div>
               <div><label className={label}>ایمیل</label><input className={field} dir="ltr" value={f.buyerEmail} onChange={(e) => setField('buyerEmail', e.target.value)} /></div>
+              {official && <div><label className={label}>استان</label><input className={field} value={f.buyerProvince} onChange={(e) => setField('buyerProvince', e.target.value)} /></div>}
+              {official && <div><label className={label}>شهرستان</label><input className={field} value={f.buyerCounty} onChange={(e) => setField('buyerCounty', e.target.value)} /></div>}
+              {official && <div><label className={label}>شهر</label><input className={field} value={f.buyerCity} onChange={(e) => setField('buyerCity', e.target.value)} /></div>}
               <div className="sm:col-span-2"><label className={label}>نشانی</label><input className={field} value={f.buyerAddress} onChange={(e) => setField('buyerAddress', e.target.value)} /></div>
+              {official && (
+                <div className="sm:col-span-2 flex items-center gap-5 text-xs font-black text-[#3A241F]">
+                  <span className="text-[#8C6F66]">شرایط فروش:</span>
+                  {([['CASH', 'نقدی'], ['CREDIT', 'غیرنقدی']] as const).map(([k, t]) => (
+                    <label key={k} className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name="pf-payment" checked={f.paymentType === k} onChange={() => setF((p) => ({ ...p, paymentType: k }))} className="accent-violet-600 w-4 h-4" />
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </details>
 

@@ -7,6 +7,7 @@ import { normalizeTemplate } from './proformaTemplates';
 import { toPersianDigits } from './jalali';
 import { formatTaskDate, isoToJalaliParts, todayIso } from './taskDates';
 import { numberToPersianWords } from './numberWords';
+import { buildOfficialHtml, usesOfficialForm } from './proformaOfficial';
 import { formatMoney, toDisplay, unitName } from './money';
 
 export interface ProformaTotals {
@@ -92,6 +93,7 @@ export interface ProformaRenderInput {
  * design = preview whose sections and header items can be dragged to reorder (posts `pf-reorder` to the parent).
  */
 export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'preview' | 'design' = 'print'): string {
+  if (mode !== 'design' && usesOfficialForm(input)) return buildOfficialHtml(input, mode);
   const { deal, customer, settings, issuerName } = input;
   const tpl = normalizeTemplate(input.template ?? settings.proformaTemplate);
   const c = tpl.colors;
@@ -351,9 +353,9 @@ export function sampleProforma(settings: SystemSettings): ProformaRenderInput {
       id: 'sample', title: 'قرارداد پشتیبانی سالانه', customerId: 'sample', customerName: 'علی رضایی', amount: 0, stage: 'PROPOSAL', ownerId: '', ownerName: '', createdAt: today, updatedAt: today,
       proformaNumber: 'PF-1405-0001', proformaAt: today, validUntil: addDaysIso(today, settings.proformaValidDays || 7), discountPercent: 5, taxPercent: settings.proformaTaxPercent ?? 10,
       items: [
-        { title: 'پشتیبانی و نگهداری سامانه', description: 'شامل پشتیبانی تلفنی و حضوری', qty: 12, unit: 'ماه', unitPrice: 4500000 },
-        { title: 'نصب و راه‌اندازی', qty: 1, unit: 'مورد', unitPrice: 8000000, discount: 500000 },
-        { title: 'آموزش کاربران', qty: 3, unit: 'جلسه', unitPrice: 2000000 },
+        { title: 'پشتیبانی و نگهداری سامانه', code: '2710001', description: 'شامل پشتیبانی تلفنی و حضوری', qty: 12, unit: 'ماه', unitPrice: 4500000 },
+        { title: 'نصب و راه‌اندازی', code: '2710002', qty: 1, unit: 'مورد', unitPrice: 8000000, discount: 500000 },
+        { title: 'آموزش کاربران', code: '2710003', qty: 3, unit: 'جلسه', unitPrice: 2000000 },
       ],
     },
   };

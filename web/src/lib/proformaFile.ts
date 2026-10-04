@@ -1,8 +1,10 @@
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
+import { usesOfficialForm } from './proformaOfficial';
 import { buildProformaHtml, ProformaRenderInput } from './proformaPdf';
 
-const PAGE_W = 794; // A4 at 96 dpi
-const PAGE_H = 1123;
+// A4 at 96 dpi; the official tax form is landscape
+const PORTRAIT = { w: 794, h: 1123 };
+const LANDSCAPE = { w: 1123, h: 794 };
 const SCALE = 2;
 
 const toDataUrl = (blob: Blob) =>
@@ -14,7 +16,7 @@ const toDataUrl = (blob: Blob) =>
   });
 
 /** How tall the invoice really is (many items make it longer than one page). */
-async function measure(html: string): Promise<number> {
+async function measure(html: string, PAGE_W: number, PAGE_H: number): Promise<number> {
   const frame = document.createElement('iframe');
   frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${PAGE_W}px;height:${PAGE_H}px;border:0;visibility:hidden`;
   document.body.appendChild(frame);
@@ -33,9 +35,9 @@ async function measure(html: string): Promise<number> {
 }
 
 /** Draws the invoice (with its real fonts, stamp and signature) onto one tall canvas by letting the browser render it inside an SVG. */
-async function drawInvoice(input: ProformaRenderInput): Promise<HTMLCanvasElement> {
+async function drawInvoice(input: ProformaRenderInput, PAGE_W: number, PAGE_H: number): Promise<HTMLCanvasElement> {
   const html = buildProformaHtml(input, 'preview');
-  const height = await measure(html);
+  const height = await measure(html, PAGE_W, PAGE_H);
   const doc = new DOMParser().parseFromString(html, 'text/html');
   let css = doc.querySelector('style')?.textContent || '';
 
@@ -94,7 +96,9 @@ const jpegBytes = (c: HTMLCanvasElement) =>
   );
 
 /** A minimal PDF: every A4 page is one JPEG picture of the invoice. */
-function pdfFromJpegs(pages: { data: Uint8Array; w: number; h: number }[]): Blob {
+function pdfFromJpegs(pages: { data: Uint8Array; w: number; h: number }[], landscape: boolean): Blob {
+  const MW = landscape ? '841.89' : '595.28';
+  const MH = landscape ? '595.28' : '841.89';
   const enc = new TextEncoder();
   const parts: Uint8Array[] = [];
   const offsets: number[] = [];
@@ -119,8 +123,8 @@ function pdfFromJpegs(pages: { data: Uint8Array; w: number; h: number }[]): Blob
     const pid = 3 + i * 3;
     const cid = pid + 1;
     const iid = pid + 2;
-    obj(pid, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 ${iid} 0 R >> >> /Contents ${cid} 0 R >>`);
-    const content = 'q 595.28 0 0 841.89 0 0 cm /Im0 Do Q';
+    obj(pid, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${MW} ${MH}] /Resources << /XObject << /Im0 ${iid} 0 R >> >> /Contents ${cid} 0 R >>`);
+    const content = `q ${MW} 0 0 ${MH} 0 0 cm /Im0 Do Q`;
     obj(cid, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
     obj(iid, () => {
       push(`<< /Type /XObject /Subtype /Image /Width ${p.w} /Height ${p.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${p.data.length} >>\nstream\n`);
@@ -138,7 +142,9 @@ function pdfFromJpegs(pages: { data: Uint8Array; w: number; h: number }[]): Blob
 
 /** Builds the proforma as a PDF file in the browser (no server-side browser needed). */
 export async function renderProformaPdf(input: ProformaRenderInput): Promise<Blob> {
-  const canvas = await drawInvoice(input);
+  const landscape = usesOfficialForm(input);
+  const { w: PAGE_W, h: PAGE_H } = landscape ? LANDSCAPE : PORTRAIT;
+  const canvas = await drawInvoice(input, PAGE_W, PAGE_H);
   const pageHpx = PAGE_H * SCALE;
   const n = Math.max(1, Math.ceil(canvas.height / pageHpx - 0.02));
   const pages: { data: Uint8Array; w: number; h: number }[] = [];
@@ -152,5 +158,5 @@ export async function renderProformaPdf(input: ProformaRenderInput): Promise<Blo
     g.drawImage(canvas, 0, i * pageHpx, canvas.width, pageHpx, 0, 0, slice.width, pageHpx);
     pages.push({ data: await jpegBytes(slice), w: slice.width, h: slice.height });
   }
-  return pdfFromJpegs(pages);
+  return pdfFromJpegs(pages, landscape);
 }

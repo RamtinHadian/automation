@@ -37,6 +37,7 @@ import { SystemSettings, LetterNumberingSettings } from '../../types';
 import { FontManagementModal } from './FontManagementModal';
 import { ThemeManagementModal } from './ThemeManagementModal';
 import { COLOR_THEMES } from '../../lib/theme';
+import { buildProformaHtml, sampleProforma } from '../../lib/proformaPdf';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { formatLetterNumber, DEFAULT_LETTER_NUMBERING } from '../../lib/letterNumbering';
 import { useAppContext } from '../../context/AppContext';
@@ -151,6 +152,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     sanitizeSettingsWithPersianDigits(initialSettings)
   );
   const [designerOpen, setDesignerOpen] = useState(false);
+  /** Opens the official tax-authority form filled with sample goods and the main company's details. */
+  const previewOfficialForm = () => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const sample = sampleProforma(settings);
+    w.document.open();
+    w.document.write(buildProformaHtml({ ...sample, deal: { ...sample.deal, proformaIssuerId: 'main' } }, 'preview'));
+    w.document.close();
+  };
   const [logoWidth, setLogoWidth] = useState<number>(initialSettings.companyLogoWidth || 70);
   const [isResizingLogo, setIsResizingLogo] = useState(false);
   const logoResizeStart = useRef<{ startX: number; startWidth: number }>({ startX: 0, startWidth: 70 });
@@ -535,54 +545,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'proforma' && (
       <>
-      {/* Company contact details and proforma defaults */}
-      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#EBDBCE] shadow-sm space-y-4 text-xs">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h3 className="font-black text-sm text-[#3A241F]">اطلاعات تماس شرکت و پیش‌فاکتور</h3>
+      <ProformaIssuersCard kind="OFFICIAL" settings={settings} setSettings={setSettings}>
+        <button type="button" onClick={previewOfficialForm} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 cursor-pointer">
+          <FileText className="w-4 h-4" />
+          دیدن نمونهٔ فرم رسمی
+        </button>
+      </ProformaIssuersCard>
+
+      <ProformaIssuersCard kind="UNOFFICIAL" settings={settings} setSettings={setSettings}>
+        <div className="border-t border-[#EBDBCE] pt-4 space-y-3">
           <button type="button" onClick={() => setDesignerOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] cursor-pointer">
             <Palette className="w-4 h-4" />
-            طراحی قالب پیش‌فاکتور (کشیدن و رها کردن)
+            طراحی قالب پیش‌فاکتور غیررسمی (کشیدن و رها کردن)
           </button>
-        </div>
-        <p className="text-[#8C6F66]">این اطلاعات در پیش‌فاکتور PDF فرصت‌های فروش چاپ می‌شود.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {([
-            ['proformaCompanyName', 'نام شرکت روی پیش‌فاکتور (اگر پاک کنید چاپ نمی‌شود)'],
-            ['companyAddress', 'نشانی شرکت'],
-            ['companyPhone', 'تلفن'],
-            ['companyEconomicCode', 'کد اقتصادی / شناسهٔ ملی'],
-            ['companyWebsite', 'وب‌سایت'],
-          ] as const).map(([key, title]) => (
-            <div key={key}>
-              <label className="block font-bold text-[#3A241F] mb-1.5">{title}:</label>
-              <input
-                type="text"
-                dir="rtl"
-                value={key === 'proformaCompanyName' && settings.proformaCompanyName === undefined ? settings.companyName || '' : settings[key] || ''}
-                onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
-                className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
-              />
-            </div>
-          ))}
           <div>
-            <label className="block font-bold text-[#3A241F] mb-1.5">مالیات بر ارزش افزودهٔ پیش‌فرض (٪):</label>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={settings.proformaTaxPercent ?? 10}
-              onChange={(e) => setSettings({ ...settings, proformaTaxPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
-              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
-            />
+            <label className="block font-bold text-[#3A241F] mb-1.5">شرایط پیش‌فرض پیش‌فاکتور (هر خط یک مورد؛ خالی = متن استاندارد):</label>
+            <textarea dir="rtl" value={settings.proformaTerms || ''} onChange={(e) => setSettings({ ...settings, proformaTerms: e.target.value })} className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none min-h-[80px]" />
           </div>
-          <div className="sm:col-span-2 rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-3">
+        </div>
+      </ProformaIssuersCard>
+
+      <details className="bg-white p-5 rounded-3xl border border-[#EBDBCE] shadow-sm text-xs">
+        <summary className="cursor-pointer font-black text-sm text-[#3A241F]">تنظیمات مشترک هر دو نوع (تایید مدیرعامل، واحد پول، مدت اعتبار)</summary>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="md:col-span-2 rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-3">
             <label className="flex items-start gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.proformaApprovalRequired === true}
-                onChange={(e) => setSettings({ ...settings, proformaApprovalRequired: e.target.checked })}
-                className="mt-1 w-4 h-4 accent-[#6E1B1B]"
-              />
+              <input type="checkbox" checked={settings.proformaApprovalRequired === true} onChange={(e) => setSettings({ ...settings, proformaApprovalRequired: e.target.checked })} className="mt-1 w-4 h-4 accent-[#6E1B1B]" />
               <span>
                 <span className="block font-black text-[#3A241F]">ارسال پیش‌فاکتور فقط پس از تایید مدیرعامل</span>
                 <span className="block text-[11px] leading-6 text-[#8C6F66] font-medium">
@@ -593,48 +581,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </label>
           </div>
           <div>
-            <label className="block font-bold text-[#3A241F] mb-1.5">واحد پول سامانه (پیش‌فاکتور، فرصت‌ها و گزارش‌ها):</label>
-            <select
-              value={settings.currencyUnit || 'TOMAN'}
-              onChange={(e) => setSettings({ ...settings, currencyUnit: e.target.value as 'TOMAN' | 'RIAL' })}
-              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
-            >
+            <label className="block font-bold text-[#3A241F] mb-1.5">واحد پول سامانه (فرم رسمی همیشه ریال است):</label>
+            <select value={settings.currencyUnit || 'TOMAN'} onChange={(e) => setSettings({ ...settings, currencyUnit: e.target.value as 'TOMAN' | 'RIAL' })} className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none">
               <option value="TOMAN">تومان</option>
               <option value="RIAL">ریال</option>
             </select>
           </div>
           <div>
             <label className="block font-bold text-[#3A241F] mb-1.5">مدت اعتبار پیش‌فاکتور (روز):</label>
-            <input
-              type="number"
-              min={1}
-              value={settings.proformaValidDays ?? 7}
-              onChange={(e) => setSettings({ ...settings, proformaValidDays: Math.max(1, Number(e.target.value) || 7) })}
-              className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
-            />
+            <input type="number" min={1} value={settings.proformaValidDays ?? 7} onChange={(e) => setSettings({ ...settings, proformaValidDays: Math.max(1, Number(e.target.value) || 7) })} className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none" />
           </div>
         </div>
-        <div>
-          <label className="block font-bold text-[#3A241F] mb-1.5">اطلاعات پرداخت (شماره حساب / شبا):</label>
-          <textarea
-            dir="rtl"
-            value={settings.proformaBankInfo || ''}
-            onChange={(e) => setSettings({ ...settings, proformaBankInfo: e.target.value })}
-            className="w-full p-2.5 min-h-[64px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="block font-bold text-[#3A241F] mb-1.5">شرایط پیش‌فرض پیش‌فاکتور (هر خط یک مورد؛ خالی = متن استاندارد):</label>
-          <textarea
-            dir="rtl"
-            value={settings.proformaTerms || ''}
-            onChange={(e) => setSettings({ ...settings, proformaTerms: e.target.value })}
-            className="w-full p-2.5 min-h-[80px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <ProformaIssuersCard settings={settings} setSettings={setSettings} />
+      </details>
       </>
       )}
 

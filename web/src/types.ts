@@ -225,6 +225,14 @@ export interface ProformaFields {
   buyerNationalId?: string;
   buyerEconomicCode?: string;
   buyerPostalCode?: string;
+  sellerProvince?: string;
+  sellerCounty?: string;
+  sellerCity?: string;
+  buyerProvince?: string;
+  buyerCounty?: string;
+  buyerCity?: string;
+  /** نقدی / غیرنقدی on the official form (default cash). */
+  paymentType?: 'CASH' | 'CREDIT';
   /** Untick to leave the company stamp / the signature scan off this proforma (default: shown). */
   showStamp?: boolean;
   showSignature?: boolean;
@@ -511,6 +519,9 @@ export interface SystemSettings {
   companyNationalId?: string;
   companyRegistrationNumber?: string;
   companyPostalCode?: string;
+  companyProvince?: string;
+  companyCounty?: string;
+  companyCity?: string;
   /** More companies / offices a proforma can be issued under (besides the main company). */
   proformaIssuers?: ProformaIssuer[];
   /** Money unit shown and typed everywhere (amounts are stored in Toman). */
@@ -574,6 +585,9 @@ export interface ProformaIssuer {
   nationalId?: string;
   registrationNumber?: string;
   postalCode?: string;
+  province?: string;
+  county?: string;
+  city?: string;
   bankInfo?: string;
   taxPercent?: number;
   /** Put in front of the number of this company's proformas, e.g. «B-». */
