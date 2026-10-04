@@ -48,7 +48,7 @@ main() {
     return 0
   fi
   echo "$(date -Is) updating to $(git rev-parse --short "origin/$BRANCH")"
-  git pull -q --ff-only origin "$BRANCH"
+  git checkout -q -B "$BRANCH" "origin/$BRANCH"   # (not `git pull`: it fails with "Cannot fast-forward to multiple branches" in clones that have several branches)
   docker compose up -d --build
   echo "$want" > "$DIR/.built-commit"
   docker image prune -f >/dev/null 2>&1 || true
