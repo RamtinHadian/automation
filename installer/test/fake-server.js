@@ -85,6 +85,7 @@ new Server({ hostKeys: [privateKey] }, (client) => {
         if (/^sudo -S/.test(cmd)) {
           stream.once('data', (d) => {
             if (d.toString().trim() !== 'pw') return done({ stdout: '', stderr: 'Sorry, try again.', code: 1 });
+            if (process.env.SUDOWARN) stream.stderr.write('sudo: unable to resolve host ava-ubuntu: Name or service not known\n');
             cmd = cmd.replace(/^sudo -S -p '' /, '');
             run();
           });

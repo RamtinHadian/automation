@@ -131,7 +131,8 @@ class Session {
       this.conn.exec(full, { pty: false }, (err, stream) => {
         if (err) return resolve({ code: 255, out: String(err.message) });
         const take = (d) => {
-          const t = d.toString();
+          const t = d.toString().replace(/^sudo: .*\n?/gm, '');
+          if (!t) return;
           out += t;
           if (!quiet) this.log(t);
         };
@@ -180,14 +181,17 @@ class Session {
     for (;;) {
       if (this.cancelled) return { code: 255, out: all };
       const r = await this.run(`s=$(wc -c < ${LOG} 2>/dev/null || echo 0); e=$(cat ${EXIT} 2>/dev/null || echo RUN); a=$(kill -0 $(cat ${PID} 2>/dev/null) 2>/dev/null && echo 1 || echo 0); echo "HJ $s $e $a"; OFF=${offset}; tail -c +$((OFF+1)) ${LOG} 2>/dev/null | head -c $((s-OFF))`, { root, quiet: true });
-      const m = /^HJ (\d+) (\S+)(?: (\d))?\n?/.exec(r.out);
+      const m = /HJ (\d+) (\S+)(?: (\d))?\n?/.exec(r.out);
       if (!m) {
-        if (++lost > 20) return { code: 255, out: all + '\nارتباط با سرور قطع شد.' };
+        if (++lost > 5) {
+          this.log('جواب خواندن وضعیت نصب نامفهوم بود: ' + JSON.stringify(r.out.slice(0, 200)) + ' (کد ' + r.code + '). همان کار را مستقیم اجرا می‌کنم.', 'yellow');
+          return this.run(script, { root, label: label || script });
+        }
         await sleep(3000);
         continue;
       }
       lost = 0;
-      const chunk = r.out.slice(m[0].length);
+      const chunk = r.out.slice(m.index + m[0].length);
       if (chunk) {
         this.log(chunk.endsWith('\n') ? chunk : chunk + '\n');
         all += chunk;
