@@ -461,4 +461,27 @@ wss.on('connection', (ws) => {
   ws.on('close', () => s.close());
 });
 
-server.listen(PORT, HOST, () => console.log(`پنل نصب هورمند: http://${HOST}:${PORT}`));
+// When the page is closed the panel stops by itself, and so does the black command window that started it.
+let quitTimer = null;
+const quitSoon = (ms) => {
+  clearTimeout(quitTimer);
+  quitTimer = setTimeout(() => {
+    if (wss.clients.size === 0) {
+      console.log('صفحه بسته شد؛ پنل خاموش می‌شود.');
+      process.exit(0);
+    }
+  }, ms);
+};
+wss.on('connection', (ws) => {
+  clearTimeout(quitTimer);
+  ws.on('close', () => quitSoon(6000)); // a few seconds of grace so a page reload does not stop it
+});
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') console.log('پنل از قبل باز است؛ صفحهٔ آن را در مرورگر ببینید (http://' + HOST + ':' + PORT + ').');
+  else console.log('پنل شروع نشد:', e.message);
+  process.exit(0);
+});
+server.listen(PORT, HOST, () => {
+  console.log(`پنل نصب هورمند: http://${HOST}:${PORT}`);
+  quitSoon(90000); // nobody ever opened the page
+});
