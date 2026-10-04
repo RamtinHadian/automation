@@ -119,7 +119,12 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
       return '';
     }
   });
-  const missedCount = filter === 'missed' ? 0 : (calls || []).filter((c) => c.direction === 'in' && c.status !== 'answered' && c.startedAt > seenAt).length;
+  // once the person has looked at the missed calls the red number is gone for good (not only while that tab is open)
+  const [missedSeen, setMissedSeen] = useState(false);
+  useEffect(() => {
+    if (filter === 'missed') setMissedSeen(true);
+  }, [filter]);
+  const missedCount = missedSeen ? 0 : (calls || []).filter((c) => c.direction === 'in' && c.status !== 'answered' && c.startedAt > seenAt).length;
   const marked = useRef(false);
   useEffect(() => {
     if (calls === null || marked.current) return;
