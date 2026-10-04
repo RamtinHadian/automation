@@ -13,7 +13,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   console.log('wrong password ->', await p.$eval('#connErr', (e) => e.textContent));
   await type('pass', 'pw'); await p.click('#connectBtn'); await sleep(2500);
   console.log('start button visible:', await p.$eval('#startBtn', (e) => getComputedStyle(e).display !== 'none'));
-  await p.click('#startBtn');
+
   for (let i = 0; i < 60; i++) { await sleep(1000); if (await p.$eval('#result', (e) => getComputedStyle(e).display !== 'none')) break; }
   console.log('steps:', await p.$$eval('#steps li', (l) => l.map((x) => x.className + ':' + x.querySelector('.t').textContent).join(' | ')));
   console.log('result:', (await p.$eval('#result', (e) => e.innerText)).replace(/\n+/g, ' / ').slice(0, 300));
