@@ -63,7 +63,7 @@ const ApprovalTick: React.FC<{ checked: boolean; onChange: (v: boolean) => void 
  * 1. the official company (all the tax identity details, printed on the official form);
  * 2. an unofficial business, like an individual with a business licence (no economic code and the like).
  */
-export const ProformaIssuersCard: React.FC<{ settings: SystemSettings; setSettings: (s: SystemSettings) => void; children?: React.ReactNode }> = ({ settings, setSettings, children }) => {
+export const ProformaIssuersCard: React.FC<{ settings: SystemSettings; setSettings: (s: SystemSettings) => void; children?: React.ReactNode; unofficialChildren?: React.ReactNode }> = ({ settings, setSettings, children, unofficialChildren }) => {
   const all = settings.proformaIssuers || [];
   const saved = all.find((i) => i.kind === 'UNOFFICIAL');
   const other: ProformaIssuer = saved || { id: 'personal', label: 'کسب‌وکار غیررسمی', kind: 'UNOFFICIAL', name: '', taxPercent: 0, numberPrefix: 'N-' };
@@ -156,6 +156,7 @@ export const ProformaIssuersCard: React.FC<{ settings: SystemSettings; setSettin
           <PictureField title="امضا" value={other.signatureUrl} onChange={(v) => patch({ signatureUrl: v })} />
         </div>
         <ApprovalTick checked={other.approvalRequired === true} onChange={(v) => patch({ approvalRequired: v })} />
+        {unofficialChildren}
       </div>
     </>
   );

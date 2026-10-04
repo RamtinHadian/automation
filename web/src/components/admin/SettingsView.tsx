@@ -152,6 +152,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     sanitizeSettingsWithPersianDigits(initialSettings)
   );
   const [designerOpen, setDesignerOpen] = useState(false);
+  /** Opens the designed (unofficial) proforma, filled with sample goods and the unofficial business's details. */
+  const previewUnofficialForm = () => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const saved = (settings.proformaIssuers || []).find((i) => i.kind === 'UNOFFICIAL');
+    const other = saved || { id: 'personal', label: 'کسب‌وکار غیررسمی', kind: 'UNOFFICIAL' as const, name: '', taxPercent: 0 };
+    const withIssuer = { ...settings, proformaIssuers: saved ? settings.proformaIssuers : [...(settings.proformaIssuers || []), other] };
+    const sample = sampleProforma(withIssuer);
+    w.document.open();
+    w.document.write(buildProformaHtml({ ...sample, deal: { ...sample.deal, proformaIssuerId: other.id, taxPercent: other.taxPercent ?? 0 } }, 'preview'));
+    w.document.close();
+  };
   /** Opens the official tax-authority form filled with sample goods and the main company's details. */
   const previewOfficialForm = () => {
     const w = window.open('', '_blank');
@@ -545,7 +557,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'proforma' && (
       <>
-      <ProformaIssuersCard settings={settings} setSettings={setSettings}>
+      <ProformaIssuersCard
+        settings={settings}
+        setSettings={setSettings}
+        unofficialChildren={
+          <button type="button" onClick={previewUnofficialForm} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-[#6E1B1B] bg-[#FAF5F1] border border-[#EBDBCE] hover:bg-[#F3E9E2] cursor-pointer">
+            <FileText className="w-4 h-4" />
+            پیش‌نمایش پیش‌فاکتور غیررسمی (با قالب طراحی‌شده)
+          </button>
+        }
+      >
         <button type="button" onClick={previewOfficialForm} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 cursor-pointer">
           <FileText className="w-4 h-4" />
           دیدن نمونهٔ فرم رسمی
