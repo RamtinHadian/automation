@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
-import { issuerOf, MAIN_ISSUER_ID } from './proformaIssuer';
+import { issuerOf, MAIN_ISSUER_ID, titleFor } from './proformaIssuer';
 import { proformaReleased } from './proformaApproval';
 import { Customer, Deal, ProformaHeaderItem, ProformaItem, ProformaSectionId, ProformaTemplate, SystemSettings } from '../types';
 import { normalizeTemplate } from './proformaTemplates';
@@ -125,7 +125,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
   const buyerEmail = f.buyerEmail ?? customer?.email ?? '';
   const subject = f.subject ?? deal.title;
   const bankInfo = f.bankInfo ?? issuer.bankInfo ?? '';
-  const titleText = f.title ?? (official && (!tpl.title || tpl.title === 'پیش‌فاکتور') ? 'پیش‌فاکتور رسمی' : tpl.title);
+  const titleText = f.title ?? titleFor(issuer, tpl.title);
   const footerText = f.footerText ?? tpl.footerText;
   const logo = isMain ? tpl.logoUrl || issuer.logoUrl : issuer.logoUrl;
   const stampImg = issuer.stampUrl;

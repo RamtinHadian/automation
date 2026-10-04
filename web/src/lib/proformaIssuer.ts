@@ -50,3 +50,7 @@ export function officialProblems(f: Pick<ProformaFields, 'sellerName' | 'sellerN
   if (rows.some((i) => blank(i.unit))) p.push('واحد اندازه‌گیری هر ردیف');
   return p;
 }
+
+/** An official proforma is headed «پیش‌فاکتور رسمی فروش» unless the admin gave the template a title of their own. */
+export const titleFor = (issuer: Pick<ProformaIssuer, 'kind'>, templateTitle: string): string =>
+  issuer.kind === 'OFFICIAL' && ['', 'پیش‌فاکتور', 'پیش‌فاکتور فروش'].includes((templateTitle || '').trim()) ? 'پیش‌فاکتور رسمی فروش' : templateTitle;

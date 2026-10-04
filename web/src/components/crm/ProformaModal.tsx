@@ -5,7 +5,7 @@ import { renderProformaPdf } from '../../lib/proformaFile';
 import { formatTaskDate } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
 import { approvalRequired, canApproveProforma, proformaReleased } from '../../lib/proformaApproval';
-import { issuersOf, MAIN_ISSUER_ID, officialProblems } from '../../lib/proformaIssuer';
+import { issuersOf, MAIN_ISSUER_ID, officialProblems, titleFor } from '../../lib/proformaIssuer';
 import { toPersianDigits } from '../../lib/jalali';
 import { addDaysIso, DEFAULT_PROFORMA_TERMS, nextProformaNumber, openProformaPdf, proformaTotals } from '../../lib/proformaPdf';
 import { normalizeTemplate } from '../../lib/proformaTemplates';
@@ -58,7 +58,7 @@ export const ProformaModal: React.FC<{
     return pre + nextProformaNumber(same, tpl);
   };
   // an official proforma is headed «پیش‌فاکتور رسمی» unless the admin gave the template its own title
-  const defaultTitleFor = (iss: ProformaIssuer) => (iss.kind === 'OFFICIAL' && (!tpl.title || tpl.title === 'پیش‌فاکتور') ? 'پیش‌فاکتور رسمی' : tpl.title);
+  const defaultTitleFor = (iss: ProformaIssuer) => titleFor(iss, tpl.title);
   const [number, setNumber] = useState(deal.proformaNumber || numberFor(issuer));
   const [f, setF] = useState<Required<Omit<ProformaFields, 'showStamp' | 'showSignature'>>>(() => {
     const o = deal.proformaFields || {};
