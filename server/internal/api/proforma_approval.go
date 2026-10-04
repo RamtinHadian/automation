@@ -25,17 +25,30 @@ func proformaContent(d jsonx.M) string {
 
 // proformaApprovalGate fixes up doc["proformaApproval"] and returns what happened: "", "pending", "approved",
 // "rejected" or "reset".
-func proformaApprovalGate(ctx context.Context, me auth.User, before, doc jsonx.M) string {
-	// each issuing company has its own tick: the official company («main») uses the main setting, the other one its own
-	issuerID := jsonx.Str(doc, "proformaIssuerId")
+// proformaApprovalConfig tells whether the company that issues the proforma asks for approval, and who approves
+// (empty = anyone who holds the signing tick). The official company («main») uses the main settings, the other one its own.
+func proformaApprovalConfig(ctx context.Context, issuerID string) (bool, string) {
 	var required bool
-	_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(CASE WHEN $1 IN ('', 'main') THEN (data->>'proformaApprovalRequired')::boolean
-		ELSE (SELECT (i->>'approvalRequired')::boolean FROM jsonb_array_elements(COALESCE(data::jsonb->'proformaIssuers', '[]'::jsonb)) i WHERE i->>'id' = $1 LIMIT 1) END, false)
-		FROM settings WHERE key = 'main'`, issuerID).Scan(&required)
+	var approver string
+	_ = store.Pool.QueryRow(ctx, `SELECT
+		COALESCE(CASE WHEN $1 IN ('', 'main') THEN (data->>'proformaApprovalRequired')::boolean
+			ELSE (SELECT (i->>'approvalRequired')::boolean FROM jsonb_array_elements(COALESCE(data::jsonb->'proformaIssuers', '[]'::jsonb)) i WHERE i->>'id' = $1 LIMIT 1) END, false),
+		COALESCE(CASE WHEN $1 IN ('', 'main') THEN data->>'proformaApproverId'
+			ELSE (SELECT i->>'approverId' FROM jsonb_array_elements(COALESCE(data::jsonb->'proformaIssuers', '[]'::jsonb)) i WHERE i->>'id' = $1 LIMIT 1) END, '')
+		FROM settings WHERE key = 'main'`, issuerID).Scan(&required, &approver)
+	return required, approver
+}
+
+func proformaApprovalGate(ctx context.Context, me auth.User, before, doc jsonx.M) string {
+	required, approver := proformaApprovalConfig(ctx, jsonx.Str(doc, "proformaIssuerId"))
 	if !required {
 		return ""
 	}
+	// the person chosen for this company approves; without a choice, anyone who may sign official letters
 	canSign := jsonx.Bool(me.M, "canSignOfficialLetters")
+	if approver != "" {
+		canSign = me.ID() == approver
+	}
 	old := jsonx.Sub(before, "proformaApproval")
 	incoming := jsonx.Sub(doc, "proformaApproval")
 	oldStatus, newStatus := jsonx.Str(old, "status"), jsonx.Str(incoming, "status")
@@ -96,22 +109,26 @@ func notifyProformaApproval(r *http.Request, me auth.User, event string, doc jso
 	ap := jsonx.Sub(doc, "proformaApproval")
 	switch event {
 	case "pending":
-		rows, err := store.Pool.Query(r.Context(), `SELECT id FROM users WHERE data->>'canSignOfficialLetters' = 'true'`)
-		if err != nil {
-			return
-		}
 		var ceo []string
-		for rows.Next() {
-			var uid string
-			if rows.Scan(&uid) == nil {
-				ceo = append(ceo, uid)
+		if _, approver := proformaApprovalConfig(r.Context(), jsonx.Str(doc, "proformaIssuerId")); approver != "" {
+			ceo = []string{approver}
+		} else {
+			rows, err := store.Pool.Query(r.Context(), `SELECT id FROM users WHERE data->>'canSignOfficialLetters' = 'true'`)
+			if err != nil {
+				return
 			}
+			for rows.Next() {
+				var uid string
+				if rows.Scan(&uid) == nil {
+					ceo = append(ceo, uid)
+				}
+			}
+			rows.Close()
 		}
-		rows.Close()
 		notify.Notify(r.Context(), ceo, notify.Note{
 			Kind: "task", Label: "تایید پیش‌فاکتور", Title: "پیش‌فاکتور «" + title + "» منتظر تایید شماست",
 			Body: "ارسال‌کننده: " + me.Name() + " · شمارهٔ " + jsonx.Str(doc, "proformaNumber"), Ref: ref("deal", id), Repeat: true,
-		}, me.ID())
+		}, "")
 	case "approved", "rejected":
 		to := []string{}
 		for _, u := range []string{jsonx.Str(ap, "requestedBy"), jsonx.Str(doc, "ownerId")} {

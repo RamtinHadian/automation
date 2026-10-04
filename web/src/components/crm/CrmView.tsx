@@ -37,7 +37,7 @@ import { CustomerForm } from './CustomerForm';
 import { ProformaSection } from './ProformaSection';
 import { QuickProformaDialog } from './QuickProformaDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
-import { approvalRequired, canApproveProforma } from '../../lib/proformaApproval';
+import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
 import { Modal, field, label, SOURCES } from './crmUi';
 import { CustomerImportModal } from './CustomerImportModal';
 import type { VoipCall } from '../../lib/api';
@@ -261,7 +261,8 @@ export const CrmView: React.FC = () => {
     ownerId: me, ownerName: currentUser.fullName, expectedClose: undefined, notes: '', createdAt: nowIso(), updatedAt: nowIso(),
   });
 
-  const pendingProformas = deals.filter((d) => d.proformaApproval?.status === 'PENDING');
+  const mine = (d: Deal) => canApproveProforma(currentUser, settings, d.proformaIssuerId);
+  const pendingProformas = deals.filter((d) => d.proformaApproval?.status === 'PENDING' && mine(d));
   const baseTabs = [
     ['overview', 'خلاصه', TrendingUp],
     ['customers', 'مشتریان', Users],
@@ -269,7 +270,7 @@ export const CrmView: React.FC = () => {
     ['followups', 'پیگیری‌ها', ListChecks],
   ] as const;
   // the CEO also has «پیش‌فاکتورهای ارسالی»: what waits for the signature and what was signed
-  const tabs = canApproveProforma(currentUser) ? ([...baseTabs, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : baseTabs;
+  const tabs = isAnyApprover(currentUser, settings) ? ([...baseTabs, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : baseTabs;
 
   const customerCard = (c: Customer) => {
     const st = STATUS[c.status];
@@ -469,11 +470,10 @@ export const CrmView: React.FC = () => {
             ))}
           </div>
 
-          {canApproveProforma(currentUser) && deals.some((d) => d.proformaApproval?.status === 'PENDING') && (
+          {pendingProformas.length > 0 && (
             <section className="bg-amber-50/70 border border-amber-200 rounded-3xl p-4 space-y-2.5">
               <h3 className="font-black text-sm text-amber-900">پیش‌فاکتورهای منتظر تایید شما</h3>
-              {deals
-                .filter((d) => d.proformaApproval?.status === 'PENDING')
+              {pendingProformas
                 .map((d) => (
                   <div key={d.id} className="flex items-center justify-between gap-3 bg-white border border-amber-200 rounded-2xl px-3.5 py-2.5">
                     <div className="min-w-0">
@@ -635,7 +635,7 @@ export const CrmView: React.FC = () => {
       )}
 
       {/* ---------- follow-ups ---------- */}
-      {tab === 'proformas' && canApproveProforma(currentUser) && (
+      {tab === 'proformas' && isAnyApprover(currentUser, settings) && (
         <div className="space-y-4">
           {([
             ['PENDING', 'در انتظار امضای شما', 'bg-amber-50/70 border-amber-200 text-amber-900', 'بررسی و تایید'],
@@ -643,7 +643,7 @@ export const CrmView: React.FC = () => {
             ['REJECTED', 'رد شده', 'bg-rose-50/60 border-rose-200 text-rose-900', 'مشاهده'],
           ] as const).map(([status, heading, tone, action]) => {
             const list = deals
-              .filter((d) => d.proformaApproval?.status === status)
+              .filter((d) => d.proformaApproval?.status === status && mine(d))
               .sort((a, b) => (b.proformaApproval?.decidedAt || b.proformaApproval?.requestedAt || '').localeCompare(a.proformaApproval?.decidedAt || a.proformaApproval?.requestedAt || ''));
             return (
               <section key={status} className={`border rounded-3xl p-4 space-y-2.5 ${tone}`} data-pf-list={status}>

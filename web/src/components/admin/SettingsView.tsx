@@ -147,7 +147,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   settings: initialSettings,
   onSaveSettings,
 }) => {
-  const { fonts, currentTheme } = useAppContext();
+  const { fonts, currentTheme, staffList } = useAppContext();
   const [settings, setSettings] = useState<SystemSettings>(() =>
     sanitizeSettingsWithPersianDigits(initialSettings)
   );
@@ -564,6 +564,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {section === 'proforma' && (
       <>
       <ProformaIssuersCard
+        staff={staffList.map((u) => ({ id: u.id, name: u.fullName }))}
         settings={settings}
         setSettings={setSettings}
         unofficialChildren={

@@ -515,6 +515,8 @@ export interface SystemSettings {
   companyWebsite?: string;
   /** A proforma may be sent only after the CEO approved it (the CEO's stamp and signature are then put on it automatically). */
   proformaApprovalRequired?: boolean;
+  /** Who approves (and so stamps and signs) the official company's proformas; empty = anyone who may sign letters. */
+  proformaApproverId?: string;
   /** Official identity of the main company (tax invoices). */
   companyNationalId?: string;
   companyRegistrationNumber?: string;
@@ -601,6 +603,8 @@ export interface ProformaIssuer {
   ceoTitle?: string;
   /** This company's proformas go to the CEO for approval (stamp and signature) before they can be sent. */
   approvalRequired?: boolean;
+  /** The person who approves this company's proformas; empty = anyone who may sign letters. */
+  approverId?: string;
   /** شمارهٔ مجوز کسب‌وکار (for an individual with a business licence). */
   licenseNumber?: string;
 }

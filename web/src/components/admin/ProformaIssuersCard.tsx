@@ -46,8 +46,9 @@ const PictureField: React.FC<{ title: string; value?: string; onChange: (v: stri
 const input2 = input;
 
 /** The tick «send to the CEO for approval» each of the two companies has. */
-const ApprovalTick: React.FC<{ checked: boolean; onChange: (v: boolean) => void }> = ({ checked, onChange }) => (
-  <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-3">
+const ApprovalTick: React.FC<{ checked: boolean; onChange: (v: boolean) => void; approverId?: string; onApprover: (v: string) => void; staff: { id: string; name: string }[] }> = ({ checked, onChange, approverId, onApprover, staff }) => (
+  <div className="rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-2.5">
+  <label className="flex items-start gap-2.5 cursor-pointer">
     <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 w-4 h-4 accent-[#6E1B1B]" />
     <span>
       <span className="block font-black text-[#3A241F]">ارسال پیش‌فاکتور برای تایید و امضای مدیرعامل</span>
@@ -56,6 +57,18 @@ const ApprovalTick: React.FC<{ checked: boolean; onChange: (v: boolean) => void 
       </span>
     </span>
   </label>
+  {checked && (
+    <div className="flex flex-wrap items-center gap-2 pr-6">
+      <span className="font-black text-[#3A241F]">با تایید چه کسی مهر و امضا شود؟</span>
+      <select className="p-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F]" value={approverId || ''} onChange={(e) => onApprover(e.target.value)}>
+        <option value="">هر کسی که اجازهٔ امضای نامهٔ رسمی دارد</option>
+        {staff.map((u) => (
+          <option key={u.id} value={u.id}>{u.name}</option>
+        ))}
+      </select>
+    </div>
+  )}
+  </div>
 );
 
 /**
@@ -63,7 +76,7 @@ const ApprovalTick: React.FC<{ checked: boolean; onChange: (v: boolean) => void 
  * 1. the official company (all the tax identity details, printed on the official form);
  * 2. an unofficial business, like an individual with a business licence (no economic code and the like).
  */
-export const ProformaIssuersCard: React.FC<{ settings: SystemSettings; setSettings: (s: SystemSettings) => void; children?: React.ReactNode; unofficialChildren?: React.ReactNode }> = ({ settings, setSettings, children, unofficialChildren }) => {
+export const ProformaIssuersCard: React.FC<{ staff: { id: string; name: string }[]; settings: SystemSettings; setSettings: (s: SystemSettings) => void; children?: React.ReactNode; unofficialChildren?: React.ReactNode }> = ({ staff, settings, setSettings, children, unofficialChildren }) => {
   const all = settings.proformaIssuers || [];
   const saved = all.find((i) => i.kind === 'UNOFFICIAL');
   const other: ProformaIssuer = saved || { id: 'personal', label: 'کسب‌وکار غیررسمی', kind: 'UNOFFICIAL', name: '', taxPercent: 0, numberPrefix: 'N-' };
@@ -123,7 +136,7 @@ export const ProformaIssuersCard: React.FC<{ settings: SystemSettings; setSettin
           <PictureField title="مهر" value={settings.companyStampUrl} onChange={(v) => setSettings({ ...settings, companyStampUrl: v })} />
           <PictureField title="امضا" value={settings.ceoSignatureUrl} onChange={(v) => setSettings({ ...settings, ceoSignatureUrl: v })} />
         </div>
-        <ApprovalTick checked={settings.proformaApprovalRequired === true} onChange={(v) => setSettings({ ...settings, proformaApprovalRequired: v })} />
+        <ApprovalTick staff={staff} checked={settings.proformaApprovalRequired === true} onChange={(v) => setSettings({ ...settings, proformaApprovalRequired: v })} approverId={settings.proformaApproverId} onApprover={(v) => setSettings({ ...settings, proformaApproverId: v || undefined })} />
         {children}
       </div>
 
@@ -155,7 +168,7 @@ export const ProformaIssuersCard: React.FC<{ settings: SystemSettings; setSettin
           <PictureField title="مهر" value={other.stampUrl} onChange={(v) => patch({ stampUrl: v })} />
           <PictureField title="امضا" value={other.signatureUrl} onChange={(v) => patch({ signatureUrl: v })} />
         </div>
-        <ApprovalTick checked={other.approvalRequired === true} onChange={(v) => patch({ approvalRequired: v })} />
+        <ApprovalTick staff={staff} checked={other.approvalRequired === true} onChange={(v) => patch({ approvalRequired: v })} approverId={other.approverId} onApprover={(v) => patch({ approverId: v || undefined })} />
         {unofficialChildren}
       </div>
     </>
