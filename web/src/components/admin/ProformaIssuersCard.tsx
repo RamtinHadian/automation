@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, ChevronDown, Plus, Trash2, Upload } from 'lucide-react';
+import { Building2, Upload, UserSquare2 } from 'lucide-react';
 import { ProformaIssuer, SystemSettings } from '../../types';
 
 const input = 'w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none';
@@ -43,150 +43,120 @@ const PictureField: React.FC<{ title: string; value?: string; onChange: (v: stri
   );
 };
 
+const input2 = input;
+
+/** The tick «send to the CEO for approval» each of the two companies has. */
+const ApprovalTick: React.FC<{ checked: boolean; onChange: (v: boolean) => void }> = ({ checked, onChange }) => (
+  <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-3">
+    <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 w-4 h-4 accent-[#6E1B1B]" />
+    <span>
+      <span className="block font-black text-[#3A241F]">ارسال پیش‌فاکتور برای تایید و امضای مدیرعامل</span>
+      <span className="block text-[11px] leading-6 text-[#8C6F66] font-medium">
+        اگر روشن باشد، پیش‌فاکتور اول به «پیش‌فاکتورهای ارسالی» مدیرعامل می‌رود؛ پس از تایید، مهر و امضای همین شرکت پای آن درج می‌شود و بعد می‌شود آن را چاپ یا ارسال کرد.
+      </span>
+    </span>
+  </label>
+);
+
 /**
- * One of the two proforma parts in the settings.
- * OFFICIAL: the companies that issue the tax-authority «صورتحساب فروش کالا و خدمات» form (the main company first).
- * UNOFFICIAL: other names / offices that issue an ordinary designed proforma.
+ * The proforma settings: exactly two issuing companies.
+ * 1. the official company (all the tax identity details, printed on the official form);
+ * 2. an unofficial business, like an individual with a business licence (no economic code and the like).
  */
-export const ProformaIssuersCard: React.FC<{ kind: ProformaIssuer['kind']; settings: SystemSettings; setSettings: (s: SystemSettings) => void; children?: React.ReactNode }> = ({ kind, settings, setSettings, children }) => {
+export const ProformaIssuersCard: React.FC<{ settings: SystemSettings; setSettings: (s: SystemSettings) => void; children?: React.ReactNode }> = ({ settings, setSettings, children }) => {
   const all = settings.proformaIssuers || [];
-  const issuers = all.filter((i) => i.kind === kind);
-  const official = kind === 'OFFICIAL';
-  const [open, setOpen] = useState<string | null>(null);
+  const saved = all.find((i) => i.kind === 'UNOFFICIAL');
+  const other: ProformaIssuer = saved || { id: 'personal', label: 'کسب‌وکار غیررسمی', kind: 'UNOFFICIAL', name: '', taxPercent: 0, numberPrefix: 'N-' };
+  const patch = (u: Partial<ProformaIssuer>) => setSettings({ ...settings, proformaIssuers: saved ? all.map((i) => (i.id === saved.id ? { ...i, ...u } : i)) : [...all, { ...other, ...u }] });
 
-  const setIssuers = (list: ProformaIssuer[]) => setSettings({ ...settings, proformaIssuers: list });
-  const patch = (id: string, u: Partial<ProformaIssuer>) => setIssuers(all.map((i) => (i.id === id ? { ...i, ...u } : i)));
-  const add = () => {
-    const n: ProformaIssuer = { id: uid(), label: official ? 'شرکت دوم (رسمی)' : 'دفتر دوم (غیررسمی)', kind, name: '', taxPercent: official ? settings.proformaTaxPercent ?? 10 : 0, numberPrefix: official ? 'B-' : 'N-' };
-    setIssuers([...all, n]);
-    setOpen(n.id);
-  };
-  const remove = (i: ProformaIssuer) => {
-    if (!window.confirm(`«${i.label}» از فهرست صادرکننده‌ها حذف شود؟ پیش‌فاکتورهای قبلی که با آن ساخته شده‌اند به شرکت اصلی برمی‌گردند.`)) return;
-    setIssuers(all.filter((x) => x.id !== i.id));
-  };
-
-  const text = (i: ProformaIssuer, key: keyof ProformaIssuer, title: string, ltr = false) => (
-    <div>
-      <label className={lab}>{title}</label>
-      <input className={input} dir={ltr ? 'ltr' : undefined} value={(i[key] as string) || ''} onChange={(e) => patch(i.id, { [key]: e.target.value } as Partial<ProformaIssuer>)} />
-    </div>
-  );
   const main = (key: keyof SystemSettings, title: string, ltr = false) => (
     <div>
       <label className={lab}>{title}</label>
       <input
-        className={input}
+        className={input2}
         dir={ltr ? 'ltr' : undefined}
         value={key === 'proformaCompanyName' && settings.proformaCompanyName === undefined ? settings.companyName || '' : ((settings[key] as string) || '')}
         onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
       />
     </div>
   );
+  const text = (key: keyof ProformaIssuer, title: string, ltr = false) => (
+    <div>
+      <label className={lab}>{title}</label>
+      <input className={input2} dir={ltr ? 'ltr' : undefined} value={(other[key] as string) || ''} onChange={(e) => patch({ [key]: e.target.value } as Partial<ProformaIssuer>)} />
+    </div>
+  );
 
   return (
-    <div className={`bg-white p-6 sm:p-7 rounded-3xl border-2 shadow-sm space-y-4 text-xs ${official ? 'border-emerald-200' : 'border-[#EBDBCE]'}`}>
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <>
+      {/* 1. the official company */}
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border-2 border-emerald-200 shadow-sm space-y-4 text-xs">
         <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2">
-          <Building2 className={`w-4 h-4 ${official ? 'text-emerald-700' : 'text-[#6E1B1B]'}`} />
-          {official ? '۱. پیش‌فاکتور رسمی — فرم صورتحساب فروش کالا و خدمات (دارایی)' : '۲. پیش‌فاکتور غیررسمی — با نام و ظاهر دلخواه'}
+          <Building2 className="w-4 h-4 text-emerald-700" />
+          ۱. شرکت رسمی
         </h3>
-        <button type="button" onClick={add} className={`flex items-center gap-1 px-3 py-2 rounded-xl text-white font-black cursor-pointer ${official ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#3A241F] hover:bg-black'}`}>
-          <Plus className="w-3.5 h-3.5" />
-          {official ? 'افزودن شرکت رسمی دیگر' : 'افزودن دفتر / نام غیررسمی'}
-        </button>
+        <p className="text-[#8C6F66] leading-6">پیش‌فاکتور این شرکت همیشه با فرم رسمی «صورتحساب فروش کالا و خدمات» (A4 افقی، مبالغ به ریال) چاپ می‌شود و تا کامل‌بودن همهٔ مشخصات، چاپ و ارسال نمی‌شود.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {main('proformaCompanyName', 'نام شخص حقوقی')}
+          {main('companyEconomicCode', 'کد اقتصادی')}
+          {main('companyNationalId', 'شناسه ملی')}
+          {main('companyRegistrationNumber', 'شمارهٔ ثبت')}
+          {main('companyPhone', 'تلفن / نمابر')}
+          {main('companyPostalCode', 'کد پستی ۱۰ رقمی')}
+          {main('companyProvince', 'استان')}
+          {main('companyCounty', 'شهرستان')}
+          {main('companyCity', 'شهر')}
+          <div className="sm:col-span-3">{main('companyAddress', 'نشانی کامل')}</div>
+          <div>
+            <label className={lab}>مالیات بر ارزش افزوده (٪)</label>
+            <input type="number" min={0} max={100} className={input2} value={settings.proformaTaxPercent ?? 10} onChange={(e) => setSettings({ ...settings, proformaTaxPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={lab}>اطلاعات پرداخت (شماره حساب / شبا)</label>
+            <input className={input2} value={settings.proformaBankInfo || ''} onChange={(e) => setSettings({ ...settings, proformaBankInfo: e.target.value })} />
+          </div>
+          {main('ceoName', 'نام امضاکننده (مدیرعامل)')}
+          {main('ceoTitle', 'سمت امضاکننده')}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <PictureField title="لوگو" value={settings.companyLogoUrl} onChange={(v) => setSettings({ ...settings, companyLogoUrl: v })} />
+          <PictureField title="مهر" value={settings.companyStampUrl} onChange={(v) => setSettings({ ...settings, companyStampUrl: v })} />
+          <PictureField title="امضا" value={settings.ceoSignatureUrl} onChange={(v) => setSettings({ ...settings, ceoSignatureUrl: v })} />
+        </div>
+        <ApprovalTick checked={settings.proformaApprovalRequired === true} onChange={(v) => setSettings({ ...settings, proformaApprovalRequired: v })} />
+        {children}
       </div>
-      <p className="text-[#8C6F66] leading-6">
-        {official
-          ? 'هر پیش‌فاکتورِ شرکتِ رسمی، همیشه با قالب ثابت «صورتحساب فروش کالا و خدمات» (برگهٔ افقی A4، مبالغ به ریال، با مشخصات فروشنده و خریدار، شناسهٔ کالا، مالیات و ردیف مهر و امضا) چاپ می‌شود و ظاهر آن قابل تغییر نیست. تا همهٔ مشخصات لازم کامل نشود، چاپ و ارسال نمی‌شود.'
-          : 'برای دفتر یا نامی که رسمی نیست؛ این پیش‌فاکتور با قالبِ قابل‌طراحیِ خودتان (رنگ، لوگو، ترتیب بخش‌ها) صادر می‌شود و الزام شناسه‌های مالیاتی ندارد.'}
-      </p>
 
-      {official && (
-        <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="font-black text-[#3A241F]">
-              {settings.proformaCompanyName ?? (settings.companyName || 'شرکت اصلی')} <span className="mr-2 text-[10px] font-black rounded-full px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200">شرکت اصلی</span>
-            </div>
-            <span className="text-[11px] text-[#8C6F66]">لوگو، مهر و امضای این شرکت در بخش‌های «نام و هویت سازمان» و «مهر و امضا» است.</span>
+      {/* 2. the unofficial business */}
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border-2 border-[#EBDBCE] shadow-sm space-y-4 text-xs">
+        <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2">
+          <UserSquare2 className="w-4 h-4 text-[#6E1B1B]" />
+          ۲. کسب‌وکار غیررسمی (شخص حقیقی با مجوز کسب‌وکار)
+        </h3>
+        <p className="text-[#8C6F66] leading-6">مثل فاکتور افراد حقیقی دارای مجوز؛ بدون کد اقتصادی و شناسهٔ ملی شرکت و بدون الزام مالیاتی. قالب این پیش‌فاکتور قابل طراحی است.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {text('name', 'نام و نام خانوادگی / نام کسب‌وکار')}
+          {text('licenseNumber', 'شمارهٔ مجوز کسب‌وکار')}
+          {text('nationalId', 'کد ملی')}
+          {text('phone', 'تلفن')}
+          {text('postalCode', 'کد پستی')}
+          {text('numberPrefix', 'پیشوند شمارهٔ پیش‌فاکتور (مثلاً N-)', true)}
+          <div className="sm:col-span-3">{text('address', 'نشانی')}</div>
+          <div>
+            <label className={lab}>مالیات (٪)</label>
+            <input type="number" min={0} max={100} className={input2} value={other.taxPercent ?? 0} onChange={(e) => patch({ taxPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {main('proformaCompanyName', 'نام شرکت روی برگه')}
-            {main('companyEconomicCode', 'کد اقتصادی')}
-            {main('companyNationalId', 'شناسه ملی')}
-            {main('companyRegistrationNumber', 'شمارهٔ ثبت')}
-            {main('companyPhone', 'تلفن / نمابر')}
-            {main('companyPostalCode', 'کد پستی ۱۰ رقمی')}
-            {main('companyProvince', 'استان')}
-            {main('companyCounty', 'شهرستان')}
-            {main('companyCity', 'شهر')}
-            <div className="sm:col-span-3">{main('companyAddress', 'نشانی کامل')}</div>
-            <div>
-              <label className={lab}>مالیات بر ارزش افزودهٔ پیش‌فرض (٪)</label>
-              <input type="number" min={0} max={100} className={input} value={settings.proformaTaxPercent ?? 10} onChange={(e) => setSettings({ ...settings, proformaTaxPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={lab}>اطلاعات پرداخت (شماره حساب / شبا)</label>
-              <input className={input} value={settings.proformaBankInfo || ''} onChange={(e) => setSettings({ ...settings, proformaBankInfo: e.target.value })} />
-            </div>
-          </div>
+          <div className="sm:col-span-2">{text('bankInfo', 'اطلاعات پرداخت (شماره حساب / شبا)')}</div>
+          {text('ceoName', 'نام امضاکننده')}
+          {text('ceoTitle', 'سمت امضاکننده')}
         </div>
-      )}
-
-      {issuers.length === 0 && !official && <p className="rounded-xl bg-[#FAF5F1] border border-dashed border-[#EBDBCE] p-4 text-center text-[#8C6F66] font-bold">هنوز دفتر یا نام غیررسمی اضافه نکرده‌اید.</p>}
-
-      {issuers.map((i) => (
-        <div key={i.id} className="rounded-2xl border border-[#EBDBCE] bg-white">
-          <button type="button" onClick={() => setOpen(open === i.id ? null : i.id)} className="w-full flex items-center justify-between gap-2 p-4 cursor-pointer">
-            <span className="font-black text-[#3A241F]">{i.label || 'بدون نام'}</span>
-            <ChevronDown className={`w-4 h-4 text-[#8C6F66] transition-transform ${open === i.id ? 'rotate-180' : ''}`} />
-          </button>
-          {open === i.id && (
-            <div className="p-4 pt-0 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {text(i, 'label', 'نام در فهرست (فقط برای خودتان)')}
-                {text(i, 'name', official ? 'نام شخص حقوقی روی برگه' : 'نام روی پیش‌فاکتور')}
-                {text(i, 'numberPrefix', 'پیشوند شمارهٔ پیش‌فاکتور (مثلاً B-)', true)}
-                {!official && text(i, 'subtitle', 'عنوان فرعی زیر نام')}
-                {text(i, 'phone', 'تلفن')}
-                {!official && text(i, 'website', 'وب‌سایت', true)}
-                {official && (
-                  <>
-                    {text(i, 'economicCode', 'کد اقتصادی')}
-                    {text(i, 'nationalId', 'شناسه ملی')}
-                    {text(i, 'registrationNumber', 'شمارهٔ ثبت')}
-                    {text(i, 'postalCode', 'کد پستی ۱۰ رقمی')}
-                    {text(i, 'province', 'استان')}
-                    {text(i, 'county', 'شهرستان')}
-                    {text(i, 'city', 'شهر')}
-                  </>
-                )}
-                <div className="sm:col-span-3">{text(i, 'address', official ? 'نشانی کامل' : 'نشانی')}</div>
-                <div>
-                  <label className={lab}>مالیات پیش‌فرض (٪)</label>
-                  <input type="number" min={0} max={100} className={input} value={i.taxPercent ?? 0} onChange={(e) => patch(i.id, { taxPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} />
-                </div>
-                {text(i, 'ceoName', 'نام امضاکننده')}
-                {text(i, 'ceoTitle', 'سمت امضاکننده')}
-              </div>
-              <div>
-                <label className={lab}>اطلاعات پرداخت (شماره حساب / شبا)</label>
-                <textarea className={`${input} min-h-[60px]`} value={i.bankInfo || ''} onChange={(e) => patch(i.id, { bankInfo: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <PictureField title="لوگو" value={i.logoUrl} onChange={(v) => patch(i.id, { logoUrl: v })} />
-                <PictureField title="مهر" value={i.stampUrl} onChange={(v) => patch(i.id, { stampUrl: v })} />
-                <PictureField title="امضا" value={i.signatureUrl} onChange={(v) => patch(i.id, { signatureUrl: v })} />
-              </div>
-              <button type="button" onClick={() => remove(i)} className="flex items-center gap-1.5 text-rose-600 font-black cursor-pointer">
-                <Trash2 className="w-3.5 h-3.5" />
-                حذف
-              </button>
-            </div>
-          )}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <PictureField title="لوگو" value={other.logoUrl} onChange={(v) => patch({ logoUrl: v })} />
+          <PictureField title="مهر" value={other.stampUrl} onChange={(v) => patch({ stampUrl: v })} />
+          <PictureField title="امضا" value={other.signatureUrl} onChange={(v) => patch({ signatureUrl: v })} />
         </div>
-      ))}
-      {children}
-    </div>
+        <ApprovalTick checked={other.approvalRequired === true} onChange={(v) => patch({ approvalRequired: v })} />
+      </div>
+    </>
   );
 };

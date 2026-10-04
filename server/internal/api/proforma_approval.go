@@ -26,8 +26,12 @@ func proformaContent(d jsonx.M) string {
 // proformaApprovalGate fixes up doc["proformaApproval"] and returns what happened: "", "pending", "approved",
 // "rejected" or "reset".
 func proformaApprovalGate(ctx context.Context, me auth.User, before, doc jsonx.M) string {
+	// each issuing company has its own tick: the official company («main») uses the main setting, the other one its own
+	issuerID := jsonx.Str(doc, "proformaIssuerId")
 	var required bool
-	_ = store.Pool.QueryRow(ctx, `SELECT COALESCE((data->>'proformaApprovalRequired')::boolean, false) FROM settings WHERE key = 'main'`).Scan(&required)
+	_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(CASE WHEN $1 IN ('', 'main') THEN (data->>'proformaApprovalRequired')::boolean
+		ELSE (SELECT (i->>'approvalRequired')::boolean FROM jsonb_array_elements(COALESCE(data::jsonb->'proformaIssuers', '[]'::jsonb)) i WHERE i->>'id' = $1 LIMIT 1) END, false)
+		FROM settings WHERE key = 'main'`, issuerID).Scan(&required)
 	if !required {
 		return ""
 	}

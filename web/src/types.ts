@@ -597,4 +597,8 @@ export interface ProformaIssuer {
   signatureUrl?: string;
   ceoName?: string;
   ceoTitle?: string;
+  /** This company's proformas go to the CEO for approval (stamp and signature) before they can be sent. */
+  approvalRequired?: boolean;
+  /** شمارهٔ مجوز کسب‌وکار (for an individual with a business licence). */
+  licenseNumber?: string;
 }

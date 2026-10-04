@@ -24,7 +24,7 @@ export const ProformaSection: React.FC<{
   const { settings, currentUser } = useAppContext();
   const issuers = issuersOf(settings);
   const has = !!deal.proformaNumber && !!deal.items?.length;
-  const required = approvalRequired(settings);
+  const required = approvalRequired(settings, deal.proformaIssuerId);
   const released = proformaReleased(deal, settings);
   const status = deal.proformaApproval?.status;
 

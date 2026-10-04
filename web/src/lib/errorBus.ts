@@ -14,7 +14,7 @@ export const showError = (msg: string) => {
 
 /** A toast text that tells the user something went wrong (not a success note). */
 export const looksLikeError = (msg: string) =>
-  !/با موفقیت|موفق\b|انجام شد|ذخیره شد|ارسال شد\b/.test(msg) && /خطا|نشد|ممکن نیست|نادرست|ناموفق|نامعتبر|مجاز نیست|نمی‌توان|نمی‌تواند|الزامی|لطفاً|باید |قطع|مسدود|تکراری|failed|error/i.test(msg);
+  !/با موفقیت|موفق\b|انجام شد|ذخیره شد|ارسال شد\b/.test(msg) && /خطا|نیست|نشد|بیش از سقف|اول |فقط |ممکن نیست|نادرست|ناموفق|نامعتبر|مجاز نیست|نمی‌توان|نمی‌تواند|الزامی|لطفاً|باید |قطع|مسدود|تکراری|failed|error/i.test(msg);
 
 let installed = false;
 /** Alerts, unhandled failures and script errors all become the same red pop-up. */

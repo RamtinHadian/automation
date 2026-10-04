@@ -82,7 +82,7 @@ export const CrmView: React.FC = () => {
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups'>('overview');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'proformas'>('overview');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -261,12 +261,15 @@ export const CrmView: React.FC = () => {
     ownerId: me, ownerName: currentUser.fullName, expectedClose: undefined, notes: '', createdAt: nowIso(), updatedAt: nowIso(),
   });
 
-  const tabs = [
+  const pendingProformas = deals.filter((d) => d.proformaApproval?.status === 'PENDING');
+  const baseTabs = [
     ['overview', 'خلاصه', TrendingUp],
     ['customers', 'مشتریان', Users],
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
     ['followups', 'پیگیری‌ها', ListChecks],
   ] as const;
+  // the CEO also has «پیش‌فاکتورهای ارسالی»: what waits for the signature and what was signed
+  const tabs = canApproveProforma(currentUser) ? ([...baseTabs, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : baseTabs;
 
   const customerCard = (c: Customer) => {
     const st = STATUS[c.status];
@@ -328,7 +331,7 @@ export const CrmView: React.FC = () => {
       >
         <div className="font-black text-[13px] text-[#3A241F] leading-6">{d.title}</div>
         {d.productCode && <div className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 w-fit" dir="ltr">{toPersianDigits(d.productCode)}</div>}
-        {approvalRequired(settings) && d.proformaApproval && (
+        {approvalRequired(settings, d.proformaIssuerId) && d.proformaApproval && (
           <div
             className={`text-[10px] font-black rounded-full px-2 py-0.5 w-fit border ${
               d.proformaApproval.status === 'APPROVED'
@@ -438,6 +441,7 @@ export const CrmView: React.FC = () => {
           >
             <Icon className="w-4 h-4" />
             {text}
+            {id === 'proformas' && pendingProformas.length > 0 && <span className="bg-amber-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(pendingProformas.length)}</span>}
             {id === 'followups' && overdueFollowups.length > 0 && <span className="bg-rose-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(overdueFollowups.length)}</span>}
           </button>
         ))}
@@ -465,7 +469,7 @@ export const CrmView: React.FC = () => {
             ))}
           </div>
 
-          {canApproveProforma(currentUser) && approvalRequired(settings) && deals.some((d) => d.proformaApproval?.status === 'PENDING') && (
+          {canApproveProforma(currentUser) && deals.some((d) => d.proformaApproval?.status === 'PENDING') && (
             <section className="bg-amber-50/70 border border-amber-200 rounded-3xl p-4 space-y-2.5">
               <h3 className="font-black text-sm text-amber-900">پیش‌فاکتورهای منتظر تایید شما</h3>
               {deals
@@ -631,6 +635,44 @@ export const CrmView: React.FC = () => {
       )}
 
       {/* ---------- follow-ups ---------- */}
+      {tab === 'proformas' && canApproveProforma(currentUser) && (
+        <div className="space-y-4">
+          {([
+            ['PENDING', 'در انتظار امضای شما', 'bg-amber-50/70 border-amber-200 text-amber-900', 'بررسی و تایید'],
+            ['APPROVED', 'امضا شده', 'bg-emerald-50/60 border-emerald-200 text-emerald-900', 'مشاهده'],
+            ['REJECTED', 'رد شده', 'bg-rose-50/60 border-rose-200 text-rose-900', 'مشاهده'],
+          ] as const).map(([status, heading, tone, action]) => {
+            const list = deals
+              .filter((d) => d.proformaApproval?.status === status)
+              .sort((a, b) => (b.proformaApproval?.decidedAt || b.proformaApproval?.requestedAt || '').localeCompare(a.proformaApproval?.decidedAt || a.proformaApproval?.requestedAt || ''));
+            return (
+              <section key={status} className={`border rounded-3xl p-4 space-y-2.5 ${tone}`} data-pf-list={status}>
+                <h3 className="font-black text-sm">
+                  {heading} <span className="text-[11px] font-bold opacity-70">({toPersianDigits(list.length)})</span>
+                </h3>
+                {list.length === 0 && <div className="text-[11px] font-bold opacity-60 py-2">موردی نیست.</div>}
+                {list.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between gap-3 bg-white border border-[#EBDBCE] rounded-2xl px-3.5 py-2.5">
+                    <div className="min-w-0">
+                      <div className="font-black text-xs text-[#3A241F] truncate">
+                        {d.title} {d.proformaNumber && <span className="text-[10px] text-violet-700 font-black" dir="ltr">· {toPersianDigits(d.proformaNumber)}</span>}
+                      </div>
+                      <div className="text-[11px] text-[#8C6F66] truncate">
+                        {d.customerName} · {toman(d.amount)} {unitName()} · ارسال‌کننده: {d.proformaApproval?.requestedByName || d.ownerName}
+                        {d.proformaApproval?.decidedAt ? ` · ${status === 'APPROVED' ? 'امضا' : 'رد'}: ${formatTaskDate(d.proformaApproval.decidedAt.slice(0, 10))}` : ''}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setProformaFor(d)} className="shrink-0 px-3.5 py-1.5 rounded-xl text-[11px] font-black text-white bg-violet-600 hover:bg-violet-700 cursor-pointer">
+                      {action}
+                    </button>
+                  </div>
+                ))}
+              </section>
+            );
+          })}
+        </div>
+      )}
+
       {tab === 'followups' && (
         <div className="space-y-3">
           <div className="flex bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 w-fit">

@@ -120,9 +120,9 @@ export const ProformaModal: React.FC<{
   // ---- send straight to the customer's Telegram / Bale ----
   const { showToast, currentUser } = useAppContext();
   // CEO approval: with the setting on, only an approved proforma may be printed or sent
-  const required = approvalRequired(settings);
+  const required = approvalRequired(settings, issuerId);
   const isCeo = canApproveProforma(currentUser);
-  const released = proformaReleased(deal, settings);
+  const released = proformaReleased({ ...deal, proformaIssuerId: issuerId }, settings);
   const approval = deal.proformaApproval;
   const [msgr, setMsgr] = useState<{ telegram: boolean; bale: boolean } | null>(null);
   const [chat, setChat] = useState({ telegram: customer?.telegramChatId || '', bale: customer?.baleChatId || '' });

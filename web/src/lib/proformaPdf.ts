@@ -189,6 +189,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
         ${sellerPhone ? `<div><span class="lbl">تلفن:</span> ${toPersianDigits(esc(sellerPhone))}</div>` : ''}
         ${sellerEco ? `<div><span class="lbl">کد اقتصادی:</span> ${toPersianDigits(esc(sellerEco))}</div>` : ''}
         ${sellerNid ? `<div><span class="lbl">شناسه ملی:</span> ${toPersianDigits(esc(sellerNid))}</div>` : ''}
+        ${!official && issuer.licenseNumber ? `<div><span class="lbl">شمارهٔ مجوز کسب‌وکار:</span> ${toPersianDigits(esc(issuer.licenseNumber))}</div>` : ''}
         ${sellerReg ? `<div><span class="lbl">شمارهٔ ثبت:</span> ${toPersianDigits(esc(sellerReg))}</div>` : ''}
         ${sellerPostal ? `<div><span class="lbl">کد پستی:</span> ${toPersianDigits(esc(sellerPostal))}</div>` : ''}
         <div><span class="lbl">تنظیم‌کننده:</span> ${esc(issuerName)}</div>

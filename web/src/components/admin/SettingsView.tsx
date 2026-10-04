@@ -545,40 +545,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'proforma' && (
       <>
-      <ProformaIssuersCard kind="OFFICIAL" settings={settings} setSettings={setSettings}>
+      <ProformaIssuersCard settings={settings} setSettings={setSettings}>
         <button type="button" onClick={previewOfficialForm} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 cursor-pointer">
           <FileText className="w-4 h-4" />
           دیدن نمونهٔ فرم رسمی
         </button>
       </ProformaIssuersCard>
 
-      <ProformaIssuersCard kind="UNOFFICIAL" settings={settings} setSettings={setSettings}>
-        <div className="border-t border-[#EBDBCE] pt-4 space-y-3">
-          <button type="button" onClick={() => setDesignerOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] cursor-pointer">
-            <Palette className="w-4 h-4" />
-            طراحی قالب پیش‌فاکتور غیررسمی (کشیدن و رها کردن)
-          </button>
-          <div>
-            <label className="block font-bold text-[#3A241F] mb-1.5">شرایط پیش‌فرض پیش‌فاکتور (هر خط یک مورد؛ خالی = متن استاندارد):</label>
-            <textarea dir="rtl" value={settings.proformaTerms || ''} onChange={(e) => setSettings({ ...settings, proformaTerms: e.target.value })} className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none min-h-[80px]" />
-          </div>
-        </div>
-      </ProformaIssuersCard>
-
       <details className="bg-white p-5 rounded-3xl border border-[#EBDBCE] shadow-sm text-xs">
-        <summary className="cursor-pointer font-black text-sm text-[#3A241F]">تنظیمات مشترک هر دو نوع (تایید مدیرعامل، واحد پول، مدت اعتبار)</summary>
+        <summary className="cursor-pointer font-black text-sm text-[#3A241F]">تنظیمات عمومی (طراحی قالب غیررسمی، شرایط، واحد پول، مدت اعتبار)</summary>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div className="md:col-span-2 rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-3">
-            <label className="flex items-start gap-2.5 cursor-pointer">
-              <input type="checkbox" checked={settings.proformaApprovalRequired === true} onChange={(e) => setSettings({ ...settings, proformaApprovalRequired: e.target.checked })} className="mt-1 w-4 h-4 accent-[#6E1B1B]" />
-              <span>
-                <span className="block font-black text-[#3A241F]">ارسال پیش‌فاکتور فقط پس از تایید مدیرعامل</span>
-                <span className="block text-[11px] leading-6 text-[#8C6F66] font-medium">
-                  اگر روشن باشد، هر پیش‌فاکتور اول برای مدیرعامل می‌رود؛ پس از تایید، مهر و امضای مدیرعامل خودکار پای آن درج می‌شود و بعد می‌شود آن را چاپ یا ارسال کرد.
-                  اگر خاموش باشد، همکاران خودشان می‌توانند پیش‌فاکتور را با مهر و امضای مدیرعامل بفرستند.
-                </span>
-              </span>
-            </label>
+          <div className="md:col-span-2">
+            <button type="button" onClick={() => setDesignerOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] cursor-pointer">
+              <Palette className="w-4 h-4" />
+              طراحی قالب پیش‌فاکتور غیررسمی (کشیدن و رها کردن)
+            </button>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block font-bold text-[#3A241F] mb-1.5">شرایط پیش‌فرض پیش‌فاکتور غیررسمی (هر خط یک مورد؛ خالی = متن استاندارد):</label>
+            <textarea dir="rtl" value={settings.proformaTerms || ''} onChange={(e) => setSettings({ ...settings, proformaTerms: e.target.value })} className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none min-h-[80px]" />
           </div>
           <div>
             <label className="block font-bold text-[#3A241F] mb-1.5">واحد پول سامانه (فرم رسمی همیشه ریال است):</label>
