@@ -34,6 +34,7 @@ import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
 import { CustomerForm } from './CustomerForm';
+import { ProformaSection } from './ProformaSection';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
 import { approvalRequired, canApproveProforma } from '../../lib/proformaApproval';
 import { Modal, field, label, SOURCES } from './crmUi';
@@ -880,6 +881,12 @@ const DealForm: React.FC<{
               ))}
           </select>
         </div>
+        <ProformaSection
+          deal={d}
+          customer={customers.find((c) => c.id === d.customerId)}
+          ready={!!valid}
+          onOpen={(issuerId) => onProforma({ ...d, ownerName: staff.find((u) => u.id === d.ownerId)?.fullName || d.ownerName, ...(issuerId ? { proformaIssuerId: issuerId } : {}) })}
+        />
         <div>
           <label className={label}>تاریخ پیش‌بینی‌شدهٔ بستن</label>
           <JalaliDateField value={d.expectedClose} onChange={(v) => patch({ expectedClose: v })} />
