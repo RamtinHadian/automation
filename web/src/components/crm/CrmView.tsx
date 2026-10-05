@@ -359,6 +359,16 @@ export const CrmView: React.FC = () => {
             {(d.coOwnerIds || []).length > 3 && <span className="text-[10px] font-black text-[#8C6F66] pl-2">+{toPersianDigits((d.coOwnerIds || []).length - 3)}</span>}
           </span>
         </div>
+        {/* the full name(s) of who is on this opportunity, under the price */}
+        {(() => {
+          const names = [userById.get(d.ownerId)?.fullName || d.ownerName, ...(d.coOwnerIds || []).map((id, i) => userById.get(id)?.fullName || d.coOwnerNames?.[i] || '')].filter(Boolean);
+          return names.length > 0 ? (
+            <div className="text-[11px] font-bold text-[#503730] leading-5 break-words" title="مسئول پیگیری">
+              <span className="text-[#8C6F66] font-medium">مسئول: </span>
+              {names.join('، ')}
+            </div>
+          ) : null;
+        })()}
         {d.expectedClose && (
           <div className={`text-[10px] font-bold flex items-center gap-1 ${overdue ? 'text-rose-600' : 'text-[#8C6F66]'}`}>
             <CalendarDays className="w-3 h-3" />
