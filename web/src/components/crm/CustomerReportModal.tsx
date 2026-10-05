@@ -57,7 +57,7 @@ export const CustomerReportModal: React.FC<{ customer: Customer; deals: Deal[]; 
   return (
     <Modal
       wide
-      onTop
+      onTop="max"
       title={`گزارش مشتری: ${customer.name}`}
       onClose={onClose}
       footer={
