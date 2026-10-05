@@ -397,8 +397,8 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#3A241F] via-[#2E1A16] to-[#1F0F0C] p-3 sm:p-6 lg:p-8 flex items-center justify-center font-sans antialiased text-[#3A241F]" dir="rtl">
-      <div className="w-full max-w-7xl bg-white rounded-[32px] shadow-2xl overflow-hidden border border-[#6E1B1B]/30 flex flex-col min-h-[820px]">
+    <div className="min-h-screen bg-gradient-to-br from-[#3A241F] via-[#2E1A16] to-[#1F0F0C] p-0 sm:p-1 flex items-stretch justify-center font-sans antialiased text-[#3A241F]" dir="rtl">
+      <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#6E1B1B]/30 flex flex-col min-h-[calc(100vh-0.5rem)]">
 
         {/* Top Admin Header */}
         <header className="px-6 sm:px-8 py-4 bg-[#3A241F] text-white flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-[#563D34]">

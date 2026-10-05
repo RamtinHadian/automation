@@ -245,7 +245,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [signatureHeight, setSignatureHeight] = useState<number>(() => numPref(prefs.signatureHeight, settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT));
 
   const [pageSize, setPageSize] = useState<PaperSize>(() => (['A4', 'A5', 'Letter', 'Letterhead'].includes(prefs.pageSize) ? prefs.pageSize : 'A4'));
-  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720);
+  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true);
   const zoom = fitZ.zoom;
   const [showNote, setShowNote] = useState(false);
   // On phones the paper is narrow, so the centre title flows above the header instead of overlapping the company name.
@@ -621,9 +621,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       onPointerMove={handleMouseMove}
       onPointerUp={handleMouseUp}
       onPointerCancel={handleMouseUp}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-1.5 sm:p-4 overflow-y-auto animate-in fade-in select-none font-sans"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#EFE8E1] p-0 overflow-hidden animate-in fade-in select-none font-sans"
     >
-      <div className="bg-[#EFE8E1] rounded-2xl sm:rounded-[28px] shadow-2xl w-full max-w-6xl border border-[#C98B6A]/40 flex flex-col h-[96vh] sm:h-[94vh] overflow-hidden">
+      <div className="bg-[#EFE8E1] w-full max-w-none h-full rounded-none flex flex-col overflow-hidden">
         
         {/* Top Header Bar */}
         <div className="bg-[#3A241F] text-white px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between shrink-0 border-b border-[#563D34]">
@@ -1077,7 +1077,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         <div className={`flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
           {/* Virtual Paper Sheet */}
-          <ScaledPaper enabled={fitZ.isPhone} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
+          <ScaledPaper enabled={fitZ.isPhone || fitZ.zoom !== 1} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
             ref={paperSheetRef}
             style={{ fontFamily: selectedFontFamily }}
