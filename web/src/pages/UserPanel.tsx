@@ -63,6 +63,7 @@ import { toPersianDigits, formatCurrentJalaliDateTime } from '../lib/jalali';
 import { useAppContext } from '../context/AppContext';
 import { api } from '../lib/api';
 import { ThemeSelector } from '../components/common/ThemeSelector';
+import { CustomerReportModal } from '../components/crm/CustomerReportModal';
 import { LetterEditorModal } from '../components/letters/LetterEditorModal';
 import { LetterThumbnail } from '../components/letters/LetterThumbnail';
 import { LetterPreviewModal } from '../components/letters/LetterPreviewModal';
@@ -116,6 +117,14 @@ export default function UserPanel() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isLetterEditorOpen, setIsLetterEditorOpen] = useState(false);
+  // «گزارش مشتری» can be opened from the call history and from the incoming-call pop-up
+  const { customers, deals } = useAppContext();
+  const [reportCustomerId, setReportCustomerId] = useState<string | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => setReportCustomerId((e as CustomEvent<{ id: string }>).detail?.id || null);
+    window.addEventListener('open-customer-report', on);
+    return () => window.removeEventListener('open-customer-report', on);
+  }, []);
   // Letter being edited by its author (only while it is not signed yet)
   const [editingLetter, setEditingLetter] = useState<FileTransfer | null>(null);
   const [previewingLetter, setPreviewingLetter] = useState<FileTransfer | null>(null);
@@ -1594,6 +1603,10 @@ export default function UserPanel() {
             setIsLetterEditorOpen(true);
           }}
         />
+      )}
+
+      {reportCustomerId && customers.find((c) => c.id === reportCustomerId) && (
+        <CustomerReportModal customer={customers.find((c) => c.id === reportCustomerId)!} deals={deals.filter((d) => d.customerId === reportCustomerId)} onClose={() => setReportCustomerId(null)} />
       )}
 
       {/* Rich Word-Like Letter Editor Modal */}

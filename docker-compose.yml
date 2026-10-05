@@ -41,6 +41,8 @@ services:
       - ${BACKUP_DIR:-./backups}:/backups
       # every file that is sent is kept here too (the receiver can fetch it even when the sender's computer is off)
       - ${FILES_DIR:-./files}:/files
+      # the phone system's recordings folder (read-only), so calls can be played in the call history
+      - ${VOIP_RECORDINGS_DIR:-./recordings}:/recordings:ro
       # the host's machine id ties the licence to this server (copying the program elsewhere does not carry it along)
       - ${HOST_MACHINE_ID_FILE:-/etc/machine-id}:/etc/host-machine-id:ro
     ports:

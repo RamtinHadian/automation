@@ -16,7 +16,41 @@ interface VoipLog {
 
 const time = (iso: string) => toPersianDigits(new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
-/** Connection state of the company phone system plus a diary of what happened to recent calls. */
+/** How the phone system's call recordings reach this program (shown to admins). */
+const RecordingSetup: React.FC = () => {
+  const [info, setInfo] = useState<{ key: string; mountedDir: string; mountedFiles: number } | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (open && !info) api.voipRecordingSetup().then(setInfo).catch(() => {});
+  }, [open, info]);
+  const host = typeof window !== 'undefined' ? window.location.origin : '';
+  const cmd = info ? `curl -s -X PUT -H "X-Recording-Key: ${info.key}" --data-binary @"$FILE" "${host}/api/voip/recordings/$CALLID?ext=wav"` : '';
+  return (
+    <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-4 space-y-2">
+      <button type="button" onClick={() => setOpen(!open)} className="font-black text-[#3A241F] cursor-pointer">
+        ضبط مکالمات و پخش در سابقهٔ تماس {open ? '▴' : '▾'}
+      </button>
+      {open && (
+        <div className="space-y-2 leading-6 text-[#503730]">
+          <p>
+            خود تلفن‌سانتر (Issabel/Asterisk) باید مکالمات را ضبط کند (در Issabel: ضبط «همهٔ تماس‌ها» یا برای هر داخلی). برای پخش در سامانه یکی از دو راه را بروید:
+          </p>
+          <p>
+            <b>راه ۱ – پوشهٔ مشترک:</b> پوشهٔ ضبط‌ها (<span dir="ltr">/var/spool/asterisk/monitor</span>) را روی سرور برنامه mount کنید و مسیرش را در فایل <span dir="ltr">.env</span> بنویسید: <span dir="ltr">VOIP_RECORDINGS_DIR=/mnt/pbx-recordings</span>. فایل‌هایی که شناسهٔ تماس (مثل <span dir="ltr">1759660000.123</span>) در نامشان است خودکار به تماس‌ها وصل می‌شوند.
+            {info ? <> الان {toPersianDigits(info.mountedFiles)} فایل در پوشهٔ <span dir="ltr">{info.mountedDir}</span> دیده می‌شود.</> : null}
+          </p>
+          <p>
+            <b>راه ۲ – ارسال از تلفن‌سانتر:</b> بعد از هر تماس، فایل را با این دستور بفرستید (<span dir="ltr">$FILE</span> مسیر فایل و <span dir="ltr">$CALLID</span> شناسهٔ تماس):
+          </p>
+          <pre className="bg-white border border-[#EBDBCE] rounded-xl p-3 text-[10px] leading-5 overflow-x-auto select-all" dir="ltr">{cmd || '...'}</pre>
+          <p className="text-[#8C6F66]">این کلید محرمانه است؛ فقط مدیران آن را می‌بینند. فرمت‌های wav، mp3 و ogg در مرورگر پخش می‌شود (gsm پخش نمی‌شود).</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** Connection state of the company phone system/** Connection state of the company phone system plus a diary of what happened to recent calls. */
 export const VoipStatusCard: React.FC = () => {
   const { showToast } = useAppContext();
   const [log, setLog] = useState<VoipLog | null>(null);
@@ -86,6 +120,7 @@ export const VoipStatusCard: React.FC = () => {
         </div>
       </div>
 
+      <RecordingSetup />
       {error && <div className="text-rose-600 font-bold">{error}</div>}
 
       {log && (

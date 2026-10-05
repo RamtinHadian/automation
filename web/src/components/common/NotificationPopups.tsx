@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageCircle, Phone, AlertTriangle, ClipboardList, FileText, Send, Stamp, VolumeX, X } from 'lucide-react';
+import { BarChart3, MessageCircle, Phone, AlertTriangle, ClipboardList, FileText, Send, Stamp, UserPlus, VolumeX, X } from 'lucide-react';
+import { formatMoney, unitName } from '../../lib/money';
+import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
 
@@ -20,6 +22,16 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const Icon = k.icon || FileText;
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(() => !isAudioReady() && isSoundEnabled());
+  const { deals, customers } = useAppContext();
+  const isCall = n.kind === 'call';
+  const cust = isCall && n.ref?.type === 'customer' ? customers.find((c) => c.id === n.ref!.id) : undefined;
+  const summary = React.useMemo(() => {
+    if (!cust) return null;
+    const mine = deals.filter((d) => d.customerId === cust.id && d.proformaNumber);
+    const won = deals.filter((d) => d.customerId === cust.id && d.stage === 'WON');
+    return { bought: won.reduce((s, d) => s + (d.amount || 0), 0), wonCount: won.length, quotes: mine.length, status: cust.status };
+  }, [cust, deals]);
+  const unknownNumber = isCall && n.ref?.type === 'phone' ? n.ref.id : '';
   const total = useRef(showMs());
   const left = useRef(total.current);
   const startedAt = useRef(Date.now());
@@ -54,6 +66,44 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
           {n.body && <span className="block text-[11px] text-[#8C6F66] leading-5 mt-0.5 line-clamp-2">{n.body}</span>}
         </span>
       </button>
+
+      {isCall && cust && summary && (
+        <div className="px-3.5 py-2 bg-emerald-50 border-t border-emerald-100 flex items-center justify-between gap-2 text-[11px] font-bold text-emerald-900">
+          <span className="min-w-0">
+            {summary.wonCount > 0 ? `تا حالا ${formatMoney(summary.bought)} ${unitName()} خرید (${toPersianDigits(summary.wonCount)} فروش)` : 'هنوز خریدی ثبت نشده'}
+            {summary.quotes > 0 ? ` · ${toPersianDigits(summary.quotes)} پیش‌فاکتور` : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-customer-report', { detail: { id: cust.id } }))}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-black cursor-pointer"
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            گزارش
+          </button>
+        </div>
+      )}
+      {unknownNumber && (
+        <div className="px-3.5 py-2 bg-amber-50 border-t border-amber-100 flex items-center justify-between gap-2 text-[11px] font-bold text-amber-900">
+          <span>این شماره ذخیره نشده است.</span>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: unknownNumber, name: '' }));
+              } catch {
+                /* storage unavailable */
+              }
+              window.dispatchEvent(new Event('goto-crm'));
+              window.dispatchEvent(new Event('open-crm-item'));
+            }}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-black cursor-pointer"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            ذخیره مشتری
+          </button>
+        </div>
+      )}
 
       {muted && (
         <button

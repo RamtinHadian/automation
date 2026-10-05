@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users, UserPlus } from 'lucide-react';
+import { BarChart3, Pause, Play, PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users, UserPlus } from 'lucide-react';
 import { api, VoipCall } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
@@ -10,6 +10,41 @@ const dur = (s: number) => (s > 0 ? toPersianDigits(`${Math.floor(s / 60)}:${Str
 const clock = (iso: string) => toPersianDigits(new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }));
 
 const STATUS_TEXT: Record<string, string> = { answered: 'پاسخ داده شد', missed: 'بی‌پاسخ', busy: 'مشغول', failed: 'ناموفق' };
+
+/** Plays the recording of one call (fetched with the login, then played from memory). */
+const RecordingButton: React.FC<{ id: string }> = ({ id }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const open = async () => {
+    if (url) {
+      setUrl(null);
+      return;
+    }
+    setLoading(true);
+    setErr('');
+    try {
+      setUrl(URL.createObjectURL(await api.voipRecording(id)));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'ضبط مکالمه در دسترس نیست.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  return (
+    <>
+      <button type="button" onClick={open} title={url ? 'بستن پخش' : 'شنیدن مکالمهٔ ضبط‌شده'} className="p-2 rounded-xl text-rose-700 hover:bg-rose-50 cursor-pointer shrink-0">
+        {url ? <Pause className="w-4 h-4" /> : <Play className={`w-4 h-4 ${loading ? 'animate-pulse' : ''}`} />}
+      </button>
+      {(url || err) && (
+        <div className="basis-full order-last" dir="ltr">
+          {url ? <audio src={url} controls autoPlay className="w-full h-9" /> : <div className="text-[11px] font-bold text-rose-600 text-right" dir="rtl">{err}</div>}
+        </div>
+      )}
+    </>
+  );
+};
 
 /** One list of calls: direction icon, who, when, how long, and a call-back button. */
 export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?: (number: string) => void; onSaveCustomer?: (number: string, name: string) => void; busy?: string | null; empty?: string }> = ({
@@ -29,7 +64,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
         const who = c.customerName || c.name || c.number;
         const callable = onCall && c.number && /^[0-9*#+]+$/.test(c.number);
         return (
-          <div key={c.id} className="flex items-center gap-3 px-4 py-2.5">
+          <div key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
             <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${missed ? 'bg-rose-100 text-rose-600' : c.status === 'answered' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
               <Icon className="w-4 h-4" />
             </span>
@@ -46,6 +81,17 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
               <span className="block">{formatTaskDate(c.startedAt.slice(0, 10))}</span>
               <span className="block">{clock(c.startedAt)}</span>
             </span>
+            {c.hasRecording && <RecordingButton id={c.id} />}
+            {c.customerId && (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-customer-report', { detail: { id: c.customerId } }))}
+                title="گزارش این مشتری (خریدها و قیمت‌های گرفته‌شده)"
+                className="p-2 rounded-xl text-emerald-700 hover:bg-emerald-50 cursor-pointer shrink-0"
+              >
+                <BarChart3 className="w-4 h-4" />
+              </button>
+            )}
             {onSaveCustomer && !c.customerName && c.direction !== 'internal' && /^[0-9+]{7,}$/.test(c.number) && (
               <button
                 type="button"

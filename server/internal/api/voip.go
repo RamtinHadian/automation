@@ -144,7 +144,7 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		out = append(out, jsonx.M{"id": id, "startedAt": started.UTC().Format("2006-01-02T15:04:05.000Z"), "direction": direction, "status": status,
-			"ext": ext, "userId": uid, "userName": uname, "number": num, "name": name, "customerId": cid, "customerName": cname, "duration": dur})
+			"ext": ext, "userId": uid, "userName": uname, "number": num, "name": name, "customerId": cid, "customerName": cname, "duration": dur, "hasRecording": recordingFile(id) != ""})
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"calls": out})
 }

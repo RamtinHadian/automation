@@ -121,6 +121,9 @@ func WatchCalls(c *Client) {
 				note.Title = "تماس ورودی از مشتری: " + cname
 				note.Body = number + " · داخلی " + ext
 				note.Ref = map[string]any{"type": "customer", "id": cid}
+			} else {
+				// an unknown number: the pop-up offers «ذخیره به‌عنوان مشتری»
+				note.Ref = map[string]any{"type": "phone", "id": number}
 			}
 			notify.Notify(ctx, []string{uid}, note, "")
 			Logf("پاپ‌آپ برای کاربر %s فرستاده شد: %s", uid, note.Title)

@@ -44,6 +44,8 @@ export interface VoipCall {
   customerId: string;
   customerName: string;
   duration: number;
+  /** The phone system recorded this call and the file is available. */
+  hasRecording?: boolean;
 }
 
 export interface LicenseStatus {
@@ -203,6 +205,16 @@ export const api = {
   pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('POST', '/api/push/unsubscribe', { endpoint }),
   voipStatus: () => request<{ enabled: boolean; connected: boolean; extension: string }>('GET', '/api/voip/status'),
   demoInfo: () => request<DemoInfo>('GET', '/api/demo/info'),
+  voipRecordingSetup: () => request<{ key: string; mountedDir: string; mountedFiles: number }>('GET', '/api/voip/recording-setup'),
+  /** The recording of a call as a playable blob (the request carries the login, so a plain <audio src> cannot be used). */
+  voipRecording: async (id: string): Promise<Blob> => {
+    const res = await fetch('/api/voip/recording/' + encodeURIComponent(id), { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || 'ضبط مکالمه در دسترس نیست.');
+    }
+    return res.blob();
+  },
   voipCalls: (o: { scope?: 'all' | 'mine'; customer?: string; limit?: number } = {}) => {
     const p = new URLSearchParams();
     if (o.scope === 'all') p.set('scope', 'all');
