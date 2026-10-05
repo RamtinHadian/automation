@@ -28,5 +28,5 @@ export function useFitZoom(designWidth: number, sidePad = 20, allowWide = false)
   const zoomOut = useCallback(() => setUserZoom((z) => Math.max(0.6, +(z - 0.25).toFixed(2))), []);
   const reset = useCallback(() => setUserZoom(1), []);
 
-  return { isPhone, zoom, zoomIn, zoomOut, reset };
+  return { vw, isPhone, zoom, zoomIn, zoomOut, reset };
 }

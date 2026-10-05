@@ -247,6 +247,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [pageSize, setPageSize] = useState<PaperSize>(() => (['A4', 'A5', 'Letter', 'Letterhead'].includes(prefs.pageSize) ? prefs.pageSize : 'A4'));
   const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true);
   const zoom = fitZ.zoom;
+  // wide screens: the toolbars sit in a column on each side of the paper
+  const side = fitZ.vw >= 1100;
   const [showNote, setShowNote] = useState(false);
   // On phones the paper is narrow, so the centre title flows above the header instead of overlapping the company name.
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
@@ -653,8 +655,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           </div>
         </div>
 
+        {/* Body: on wide screens the two toolbars become side columns so the top stays open */}
+        <div className={side ? 'flex flex-1 min-h-0' : 'contents'}>
         {/* Action / Settings Toolbar Bar */}
-        <div onWheel={hwheel} className="bg-white px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center justify-between gap-2 shrink-0 hscroll text-xs whitespace-nowrap">
+        <div onWheel={side ? undefined : hwheel} className={side ? 'order-1 bg-white w-[290px] shrink-0 overflow-y-auto border-l border-[#EBDBCE] flex flex-wrap content-start items-center gap-2 p-3 text-xs [&>*]:max-w-full' : 'order-1 bg-white px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center justify-between gap-2 shrink-0 hscroll text-xs whitespace-nowrap'}>
           
           {/* Reset the layout to the standard one */}
           <button type="button" onClick={resetLayout} className="px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] bg-white text-[11px] font-black text-[#3A241F] hover:bg-[#FAF5F1] cursor-pointer shrink-0" title="برگرداندن قلم، اندازه و جای همه‌چیز به حالت استاندارد">
@@ -783,298 +787,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           ) : null}
         </div>
 
-        {/* Word Styling Toolbar: one horizontally scrollable row on phones */}
-        <div onWheel={hwheel} className="flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap hscroll whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0">
-          
-          <div className="flex items-center gap-1.5 flex-nowrap sm:flex-wrap">
-            {/* Font Family Selector */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
-              <Type className="w-3.5 h-3.5 text-[#6E1B1B] mr-1 ml-0.5 shrink-0" />
-              <select
-                value={selectedFontFamily}
-                onChange={(e) => handleFontChange(e.target.value)}
-                className="bg-transparent text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer py-0.5 px-1 max-w-[160px]"
-                title="انتخاب قلم و فونت نامه"
-              >
-                {fonts.map((f) => (
-                  <option key={f.id} value={f.fontFamily} style={{ fontFamily: f.fontFamily }}>
-                    {f.name} {f.isDefault ? '' : '(آپلودی)'}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Font Size Selector */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
-              <select
-                value={selectedFontSize}
-                onChange={(e) => handleFontSizeChange(e.target.value)}
-                className="bg-transparent text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer py-0.5 px-1"
-                title="اندازه قلم متن"
-              >
-                <option value="11px">۱۱ (ریز)</option>
-                <option value="12px">۱۲ (متوسط)</option>
-                <option value="13px">۱۳ (استاندارد)</option>
-                <option value="14px">۱۴ (خوانا)</option>
-                <option value="16px">۱۶ (بزرگ)</option>
-                <option value="18px">۱۸ (تیتر)</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
-              <button
-                type="button"
-                onClick={() => executeCommand('bold')}
-                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F] font-bold"
-                title="ضخیم (Bold)"
-              >
-                <Bold className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => executeCommand('italic')}
-                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
-                title="مورب (Italic)"
-              >
-                <Italic className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => executeCommand('underline')}
-                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
-                title="خط زیر (Underline)"
-              >
-                <Underline className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
-              <button
-                type="button"
-                onClick={() => executeCommand('justifyRight')}
-                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
-                title="راست‌چین"
-              >
-                <AlignRight className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => executeCommand('justifyCenter')}
-                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
-                title="وسط‌چین"
-              >
-                <AlignCenter className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => executeCommand('justifyLeft')}
-                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
-                title="چپ‌چین"
-              >
-                <AlignLeft className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => executeCommand('justifyFull')}
-                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
-                title="هم‌تراز (Justify)"
-              >
-                <AlignJustify className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
-              <button
-                type="button"
-                onClick={() => executeCommand('insertUnorderedList')}
-                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
-                title="لیست بالت"
-              >
-                <List className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => executeCommand('insertOrderedList')}
-                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
-                title="لیست شماره‌دار"
-              >
-                <ListOrdered className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
-              <span className="text-[11px] font-bold text-[#8C6F66]">جابه‌جایی کل متن (چپ/راست):</span>
-              <input
-                type="range"
-                min="-120"
-                max="120"
-                value={bodyOffsetX}
-                onChange={(e) => setBodyOffsetX(Number(e.target.value))}
-                className="w-20 accent-[#6E1B1B] cursor-pointer"
-                title="جابه‌جایی کل بدنه متن نامه به چپ یا راست"
-              />
-              <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-8 text-center">{toPersianDigits(bodyOffsetX)}px</span>
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
-              <span className="text-[11px] font-bold text-[#8C6F66]">حاشیه متن:</span>
-              <input
-                type="range"
-                min="0"
-                max="80"
-                value={bodyPaddingX}
-                onChange={(e) => setBodyPaddingX(Number(e.target.value))}
-                className="w-16 accent-[#6E1B1B] cursor-pointer"
-                title="تغییر فاصله و حاشیه متن از سمت چپ و راست"
-              />
-              <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-7 text-center">{toPersianDigits(bodyPaddingX)}px</span>
-            </div>
-
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
-              <button
-                type="button"
-                onClick={handleInsertTable}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#3A241F] hover:bg-[#FAF5F1] rounded-lg cursor-pointer"
-                title="افزودن جدول"
-              >
-                <Table className="w-3.5 h-3.5 text-[#C98B6A]" />
-                <span>درج جدول</span>
-              </button>
-            </div>
-
-            {/* Attachment Upload Button in Editor Toolbar */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
-              <input
-                type="file"
-                ref={attachmentInputRef}
-                accept=".pdf,image/*,.doc,.docx,.xls,.xlsx"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleAttachmentUpload(e.target.files[0]);
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => attachmentInputRef.current?.click()}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-50 rounded-lg cursor-pointer"
-                title="افزودن فایل پیوست یا اسکن سند"
-              >
-                <Paperclip className="w-3.5 h-3.5 text-amber-600" />
-                <span>{attachedFile ? 'تغییر فایل پیوست' : 'افزودن پیوست / اسکن'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Position & Size Controls for Signature Block */}
-          <div className="flex items-center gap-2 bg-amber-50/80 px-3 py-1 rounded-xl border border-amber-200">
-            <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1">
-              <Move className="w-3.5 h-3.5 text-amber-700" />
-              <span>محل امضای مدیر:</span>
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => { setSignatureAlign('left'); setSignatureOffset({ x: 0, y: 0 }); }}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
-                  signatureAlign === 'left' ? 'bg-amber-600 text-white' : 'text-[#8C6F66] hover:bg-white'
-                }`}
-              >
-                چپ‌چین اداری
-              </button>
-              <button
-                type="button"
-                onClick={() => { setSignatureAlign('center'); setSignatureOffset({ x: 0, y: 0 }); }}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
-                  signatureAlign === 'center' ? 'bg-amber-600 text-white' : 'text-[#8C6F66] hover:bg-white'
-                }`}
-              >
-                وسط
-              </button>
-              <button
-                type="button"
-                onClick={() => { setSignatureAlign('right'); setSignatureOffset({ x: 0, y: 0 }); }}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
-                  signatureAlign === 'right' ? 'bg-amber-600 text-white' : 'text-[#8C6F66] hover:bg-white'
-                }`}
-              >
-                راست
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 border-r border-amber-300/80 pr-2 mr-1 text-[10px] font-bold text-amber-950">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" checked={showSigImg} onChange={(e) => setShowSigImg(e.target.checked)} className="accent-amber-700" />
-                درج امضا
-              </label>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" checked={showStampImg} onChange={(e) => setShowStampImg(e.target.checked)} className="accent-amber-700" />
-                درج مهر
-              </label>
-            </div>
-
-            <div className="flex items-center gap-3 border-r border-amber-300/80 pr-2 mr-1 text-[10px] font-bold text-amber-950">
-              <span>نمایش عنوان در سربرگ:</span>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" checked={showNo} onChange={(e) => setShowNo(e.target.checked)} className="accent-amber-700" />
-                شماره
-              </label>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" checked={showDate} onChange={(e) => setShowDate(e.target.checked)} className="accent-amber-700" />
-                تاریخ
-              </label>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" checked={showAtt} onChange={(e) => setShowAtt(e.target.checked)} className="accent-amber-700" />
-                پیوست
-              </label>
-            </div>
-
-            <div className="flex items-center gap-1.5 border-r border-amber-300/80 pr-2 mr-1">
-              <span className="text-[10px] font-bold text-amber-950">سایز امضا:</span>
-              <input
-                type="range"
-                min="20"
-                max="600"
-                value={signatureHeight}
-                onChange={(e) => setSignatureHeight(Number(e.target.value))}
-                className="w-20 accent-amber-700 cursor-pointer"
-                title="تنظیم اندازه و ارتفاع امضای مدیرعامل"
-              />
-              <span className="font-mono text-[10px] font-bold text-amber-800 w-8">{toPersianDigits(signatureHeight)}px</span>
-            </div>
-
-            <div className="flex items-center gap-1.5 border-r border-amber-300/80 pr-2 mr-1">
-              <span className="text-[10px] font-bold text-amber-950">سایز مهر:</span>
-              <input
-                type="range"
-                min="20"
-                max="600"
-                value={effectiveStampHeight}
-                onChange={(e) => setStampHeightOverride(Number(e.target.value))}
-                className="w-20 accent-amber-700 cursor-pointer"
-                title="تنظیم اندازهٔ مهر"
-              />
-              <span className="font-mono text-[10px] font-bold text-amber-800 w-8">{toPersianDigits(effectiveStampHeight)}px</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setSigImgOffset({ x: 0, y: 0 });
-                  setStampOffset({ x: 0, y: 0 });
-                  setStampHeightOverride(null);
-                }}
-                className="text-[10px] font-bold text-amber-800 hover:underline cursor-pointer"
-                title="بازگرداندن جای امضا و مهر به حالت اولیه"
-              >
-                بازنشانی
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Main Document Workspace Canvas */}
-        {fitZ.isPhone && <ZoomBar zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} />}
-        <div className={`flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
+        {fitZ.isPhone && <div className="order-3"><ZoomBar zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} /></div>}
+        <div className={`${side ? 'order-2 min-w-0' : 'order-3'} flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : side ? 'p-3 flex justify-center' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
           {/* Virtual Paper Sheet */}
           <ScaledPaper enabled={fitZ.isPhone || fitZ.zoom !== 1} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
@@ -1425,10 +1140,301 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           </ScaledPaper>
         </div>
 
+        {/* Word Styling Toolbar: one horizontally scrollable row on phones */}
+        <div onWheel={side ? undefined : hwheel} className={side ? 'order-3 flex bg-[#FAF5F1] w-[290px] shrink-0 overflow-y-auto border-r border-[#EBDBCE] flex-wrap content-start items-center gap-2 p-3 text-xs [&>*]:shrink-0' : 'order-2 flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap hscroll whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0'}>
+          
+          <div className={`flex items-center gap-1.5 ${side ? 'w-full flex-wrap' : 'flex-nowrap sm:flex-wrap'}`}>
+            {/* Font Family Selector */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
+              <Type className="w-3.5 h-3.5 text-[#6E1B1B] mr-1 ml-0.5 shrink-0" />
+              <select
+                value={selectedFontFamily}
+                onChange={(e) => handleFontChange(e.target.value)}
+                className="bg-transparent text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer py-0.5 px-1 max-w-[160px]"
+                title="انتخاب قلم و فونت نامه"
+              >
+                {fonts.map((f) => (
+                  <option key={f.id} value={f.fontFamily} style={{ fontFamily: f.fontFamily }}>
+                    {f.name} {f.isDefault ? '' : '(آپلودی)'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Font Size Selector */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
+              <select
+                value={selectedFontSize}
+                onChange={(e) => handleFontSizeChange(e.target.value)}
+                className="bg-transparent text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer py-0.5 px-1"
+                title="اندازه قلم متن"
+              >
+                <option value="11px">۱۱ (ریز)</option>
+                <option value="12px">۱۲ (متوسط)</option>
+                <option value="13px">۱۳ (استاندارد)</option>
+                <option value="14px">۱۴ (خوانا)</option>
+                <option value="16px">۱۶ (بزرگ)</option>
+                <option value="18px">۱۸ (تیتر)</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+              <button
+                type="button"
+                onClick={() => executeCommand('bold')}
+                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F] font-bold"
+                title="ضخیم (Bold)"
+              >
+                <Bold className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => executeCommand('italic')}
+                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
+                title="مورب (Italic)"
+              >
+                <Italic className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => executeCommand('underline')}
+                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
+                title="خط زیر (Underline)"
+              >
+                <Underline className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+              <button
+                type="button"
+                onClick={() => executeCommand('justifyRight')}
+                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
+                title="راست‌چین"
+              >
+                <AlignRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => executeCommand('justifyCenter')}
+                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
+                title="وسط‌چین"
+              >
+                <AlignCenter className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => executeCommand('justifyLeft')}
+                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
+                title="چپ‌چین"
+              >
+                <AlignLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => executeCommand('justifyFull')}
+                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
+                title="هم‌تراز (Justify)"
+              >
+                <AlignJustify className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+              <button
+                type="button"
+                onClick={() => executeCommand('insertUnorderedList')}
+                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
+                title="لیست بالت"
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => executeCommand('insertOrderedList')}
+                className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F]"
+                title="لیست شماره‌دار"
+              >
+                <ListOrdered className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
+              <span className="text-[11px] font-bold text-[#8C6F66]">جابه‌جایی کل متن (چپ/راست):</span>
+              <input
+                type="range"
+                min="-120"
+                max="120"
+                value={bodyOffsetX}
+                onChange={(e) => setBodyOffsetX(Number(e.target.value))}
+                className="w-20 accent-[#6E1B1B] cursor-pointer"
+                title="جابه‌جایی کل بدنه متن نامه به چپ یا راست"
+              />
+              <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-8 text-center">{toPersianDigits(bodyOffsetX)}px</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
+              <span className="text-[11px] font-bold text-[#8C6F66]">حاشیه متن:</span>
+              <input
+                type="range"
+                min="0"
+                max="80"
+                value={bodyPaddingX}
+                onChange={(e) => setBodyPaddingX(Number(e.target.value))}
+                className="w-16 accent-[#6E1B1B] cursor-pointer"
+                title="تغییر فاصله و حاشیه متن از سمت چپ و راست"
+              />
+              <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-7 text-center">{toPersianDigits(bodyPaddingX)}px</span>
+            </div>
+
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+              <button
+                type="button"
+                onClick={handleInsertTable}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#3A241F] hover:bg-[#FAF5F1] rounded-lg cursor-pointer"
+                title="افزودن جدول"
+              >
+                <Table className="w-3.5 h-3.5 text-[#C98B6A]" />
+                <span>درج جدول</span>
+              </button>
+            </div>
+
+            {/* Attachment Upload Button in Editor Toolbar */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+              <input
+                type="file"
+                ref={attachmentInputRef}
+                accept=".pdf,image/*,.doc,.docx,.xls,.xlsx"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleAttachmentUpload(e.target.files[0]);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => attachmentInputRef.current?.click()}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-50 rounded-lg cursor-pointer"
+                title="افزودن فایل پیوست یا اسکن سند"
+              >
+                <Paperclip className="w-3.5 h-3.5 text-amber-600" />
+                <span>{attachedFile ? 'تغییر فایل پیوست' : 'افزودن پیوست / اسکن'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Position & Size Controls for Signature Block */}
+          <div className={`flex items-center gap-2 bg-amber-50/80 px-3 py-1 rounded-xl border border-amber-200 ${side ? 'w-full flex-wrap' : ''}`}>
+            <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1">
+              <Move className="w-3.5 h-3.5 text-amber-700" />
+              <span>محل امضای مدیر:</span>
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => { setSignatureAlign('left'); setSignatureOffset({ x: 0, y: 0 }); }}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                  signatureAlign === 'left' ? 'bg-amber-600 text-white' : 'text-[#8C6F66] hover:bg-white'
+                }`}
+              >
+                چپ‌چین اداری
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSignatureAlign('center'); setSignatureOffset({ x: 0, y: 0 }); }}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                  signatureAlign === 'center' ? 'bg-amber-600 text-white' : 'text-[#8C6F66] hover:bg-white'
+                }`}
+              >
+                وسط
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSignatureAlign('right'); setSignatureOffset({ x: 0, y: 0 }); }}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                  signatureAlign === 'right' ? 'bg-amber-600 text-white' : 'text-[#8C6F66] hover:bg-white'
+                }`}
+              >
+                راست
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 border-r border-amber-300/80 pr-2 mr-1 text-[10px] font-bold text-amber-950">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showSigImg} onChange={(e) => setShowSigImg(e.target.checked)} className="accent-amber-700" />
+                درج امضا
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showStampImg} onChange={(e) => setShowStampImg(e.target.checked)} className="accent-amber-700" />
+                درج مهر
+              </label>
+            </div>
+
+            <div className="flex items-center gap-3 border-r border-amber-300/80 pr-2 mr-1 text-[10px] font-bold text-amber-950">
+              <span>نمایش عنوان در سربرگ:</span>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showNo} onChange={(e) => setShowNo(e.target.checked)} className="accent-amber-700" />
+                شماره
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showDate} onChange={(e) => setShowDate(e.target.checked)} className="accent-amber-700" />
+                تاریخ
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={showAtt} onChange={(e) => setShowAtt(e.target.checked)} className="accent-amber-700" />
+                پیوست
+              </label>
+            </div>
+
+            <div className="flex items-center gap-1.5 border-r border-amber-300/80 pr-2 mr-1">
+              <span className="text-[10px] font-bold text-amber-950">سایز امضا:</span>
+              <input
+                type="range"
+                min="20"
+                max="600"
+                value={signatureHeight}
+                onChange={(e) => setSignatureHeight(Number(e.target.value))}
+                className="w-20 accent-amber-700 cursor-pointer"
+                title="تنظیم اندازه و ارتفاع امضای مدیرعامل"
+              />
+              <span className="font-mono text-[10px] font-bold text-amber-800 w-8">{toPersianDigits(signatureHeight)}px</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 border-r border-amber-300/80 pr-2 mr-1">
+              <span className="text-[10px] font-bold text-amber-950">سایز مهر:</span>
+              <input
+                type="range"
+                min="20"
+                max="600"
+                value={effectiveStampHeight}
+                onChange={(e) => setStampHeightOverride(Number(e.target.value))}
+                className="w-20 accent-amber-700 cursor-pointer"
+                title="تنظیم اندازهٔ مهر"
+              />
+              <span className="font-mono text-[10px] font-bold text-amber-800 w-8">{toPersianDigits(effectiveStampHeight)}px</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSigImgOffset({ x: 0, y: 0 });
+                  setStampOffset({ x: 0, y: 0 });
+                  setStampHeightOverride(null);
+                }}
+                className="text-[10px] font-bold text-amber-800 hover:underline cursor-pointer"
+                title="بازگرداندن جای امضا و مهر به حالت اولیه"
+              >
+                بازنشانی
+              </button>
+            </div>
+          </div>
+        </div>
+
+        </div>
+
         {/* Bottom Submission Bar */}
         <form
           onSubmit={handleSubmit}
-          className="bg-white px-3 sm:px-6 py-2.5 sm:py-3 border-t border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 shrink-0"
+          className="order-4 bg-white px-3 sm:px-6 py-2.5 sm:py-3 border-t border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 shrink-0"
         >
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto flex-wrap min-w-0">
             <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
