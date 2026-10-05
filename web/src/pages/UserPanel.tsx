@@ -1162,10 +1162,32 @@ export default function UserPanel() {
         )}
 
         {mainMenuTab === 'letters' && (
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-[#EBDBCE]/60">
+          <div className="fixed inset-0 z-[48] flex flex-col bg-[#FAF5F1] animate-in fade-in duration-200" data-letters-workspace>
+            {/* Top bar of the workspace: where I am, and a clear way back */}
+            <div className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-8 py-3 bg-gradient-to-l from-amber-600 to-amber-700 text-white shadow-md">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Stamp className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="font-black text-base sm:text-lg leading-tight truncate">کارتابل مکاتبات و نامه‌های رسمی</h1>
+                  <p className="text-[11px] sm:text-xs text-amber-100 truncate">نگارش، امضا، ارجاع و بایگانی نامه‌ها در یک فضای کاری بزرگ</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => openMenu('files')}
+                className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/30 text-xs font-black cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+                بستن
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+            <div className="min-h-full max-w-[1800px] mx-auto bg-white shadow-sm grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-[#EBDBCE]/60">
 
             {/* Submit / Type Official Letter Panel */}
-            <section className="lg:col-span-5 p-6 sm:p-8 bg-amber-50/20 flex flex-col justify-between space-y-6">
+            <section className="lg:col-span-4 p-6 sm:p-8 bg-amber-50/20 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
@@ -1244,7 +1266,7 @@ export default function UserPanel() {
             </section>
 
             {/* Official Letters Workflow & Referral Registry Panel */}
-            <section className="lg:col-span-7 p-4 sm:p-6 lg:p-8 flex flex-col justify-between space-y-5 bg-white">
+            <section className="lg:col-span-8 p-4 sm:p-6 lg:p-8 flex flex-col justify-between space-y-5 bg-white">
               <div className="space-y-4">
                 
                 {/* Header + Filters (Row 1) + Search (Row 2) */}
@@ -1344,7 +1366,7 @@ export default function UserPanel() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3.5 max-h-[500px] overflow-y-auto pl-1">
+                  <div className="space-y-3.5 max-h-[calc(100vh-330px)] min-h-[320px] overflow-y-auto pl-1">
                     {userOfficialLetters.map((t) => (
                       <div
                         key={t.id}
@@ -1572,6 +1594,8 @@ export default function UserPanel() {
                 <span>امضای الکترونیک معتبر • تقویم هجری شمسی</span>
               </div>
             </section>
+            </div>
+            </div>
           </div>
         )}
 
