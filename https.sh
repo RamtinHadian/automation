@@ -60,22 +60,33 @@ if ! systemctl is-active --quiet "$SERVICE"; then
   done
 fi
 
-# --- download caddy from GitHub (Docker Hub / other mirrors may be blocked) ----
+# --- get caddy: from GitHub, or (when GitHub is unreachable from this server) from the Ubuntu/Debian repository ----
 if [ ! -x "$BIN" ]; then
   case "$(uname -m)" in
     x86_64) arch=amd64 ;;
     aarch64 | arm64) arch=arm64 ;;
     *) echo "Unsupported CPU: $(uname -m)" >&2; exit 1 ;;
   esac
-  tag="$(curl -fsSIL -o /dev/null -w '%{url_effective}' https://github.com/caddyserver/caddy/releases/latest | sed 's|.*/tag/||')"
-  [ -n "$tag" ] || { echo "Could not find the latest Caddy release." >&2; exit 1; }
-  ver="${tag#v}"
-  echo "Downloading Caddy $ver ($arch)..."
-  tmp="$(mktemp -d)"
-  curl -fL --retry 3 -o "$tmp/caddy.tgz" "https://github.com/caddyserver/caddy/releases/download/$tag/caddy_${ver}_linux_${arch}.tar.gz"
-  tar -xzf "$tmp/caddy.tgz" -C "$tmp" caddy
-  install -m 0755 "$tmp/caddy" "$BIN"
-  rm -rf "$tmp"
+  tag="$(curl -fsSIL -m 20 -o /dev/null -w '%{url_effective}' https://github.com/caddyserver/caddy/releases/latest 2>/dev/null | sed 's|.*/tag/||' || true)"
+  got=0
+  if [ -n "$tag" ]; then
+    ver="${tag#v}"
+    echo "Downloading Caddy $ver ($arch)..."
+    tmp="$(mktemp -d)"
+    if curl -fL -m 300 --retry 3 -o "$tmp/caddy.tgz" "https://github.com/caddyserver/caddy/releases/download/$tag/caddy_${ver}_linux_${arch}.tar.gz" && tar -xzf "$tmp/caddy.tgz" -C "$tmp" caddy; then
+      install -m 0755 "$tmp/caddy" "$BIN"
+      got=1
+    fi
+    rm -rf "$tmp"
+  fi
+  if [ "$got" = 0 ]; then
+    echo "GitHub is not reachable from this server; installing Caddy from the system package repository instead ..."
+    apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq caddy
+    # the package starts its own service on ports 80/443; we run our own, so stop that one
+    systemctl disable --now caddy 2>/dev/null || true
+    [ -x /usr/bin/caddy ] || { echo "Could not install Caddy." >&2; exit 1; }
+    ln -sf /usr/bin/caddy "$BIN"
+  fi
 fi
 
 # --- configuration -------------------------------------------------------------
