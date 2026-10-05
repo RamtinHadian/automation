@@ -11,7 +11,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await type('host', '127.0.0.1'); await type('port', '2222'); await type('user', 'paya'); await type('pass', 'wrong');
   await p.click('#connectBtn'); await sleep(2500);
   console.log('wrong password ->', await p.$eval('#connErr', (e) => e.textContent));
-  await type('pass', 'pw'); await p.click('#connectBtn'); await sleep(2500);
+  await type('pass', 'pw'); if (process.env.INST) { await type('instName', 'crm2'); await type('appPort', '8081'); await type('instDomain', 'crm2.example.com'); } await p.click('#connectBtn'); await sleep(2500);
   console.log('start button visible:', await p.$eval('#startBtn', (e) => getComputedStyle(e).display !== 'none'));
 
   let asked = false;
@@ -37,5 +37,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   console.log('--- report ---\n' + (await p.$eval('#repText', (e) => e.value)));
   console.log('report rows:', await p.$$eval('#reportItems .item', (r) => r.length), '| font:', await p.evaluate(() => getComputedStyle(document.body).fontFamily.slice(0, 30)));
   await p.screenshot({ path: 'panel-test.png', fullPage: false });
+  console.log('log mentions:', (await p.evaluate(() => document.querySelector('#term').innerText)).split('\n').filter((l) => /crm2|8081|opt\/automation/.test(l)).slice(0, 6).join(' || '));
   await b.close();
 })();

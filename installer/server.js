@@ -59,6 +59,9 @@ class Session {
     this.cancelled = false;
     this.steps = [];
     this.adminPassword = '';
+    this.dir = '/opt/automation';
+    this.name = 'automation';
+    this.domain = '';
   }
   send(o) {
     if (this.ws.readyState === 1) this.ws.send(JSON.stringify(o));
@@ -123,6 +126,7 @@ class Session {
   run(cmd, { root = false, quiet = false, label, timeout = 0 } = {}) {
     return new Promise((resolve) => {
       if (!this.conn) return resolve({ code: 255, out: 'no connection' });
+      cmd = cmd.split('/opt/automation').join(this.dir);
       const needSudo = root && this.user !== 'root';
       const full = needSudo ? `sudo -S -p '' bash -c ${sq(cmd)}` : `bash -c ${sq(cmd)}`;
       if (!quiet) this.log(`$ ${label || (needSudo ? 'sudo ' : '') + cmd}`, 'cyan');
@@ -157,6 +161,7 @@ class Session {
    * as it grows. If the SSH line drops, the job keeps running on the server and can be picked up again.
    */
   async runJob(script, { root = true, label } = {}) {
+    script = script.split('/opt/automation').join(this.dir);
     const LOG = '/tmp/hoormand-job.log';
     const EXIT = '/tmp/hoormand-job.exit';
     const PID = '/tmp/hoormand-job.pid';
@@ -216,6 +221,12 @@ class Session {
     this.running = true;
     this.cancelled = false;
     const port = String(opts.appPort || 8080).replace(/\D/g, '') || '8080';
+    // a second CRM beside the first: its own folder, Docker project, database, port, update service and (optionally) domain
+    const name = String(opts.name || 'automation').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24) || 'automation';
+    this.name = name;
+    this.dir = name === 'automation' ? '/opt/automation' : '/opt/' + name;
+    this.domain = String(opts.domain || '').trim().toLowerCase().replace(/[^a-z0-9.-]/g, '');
+    this.log('نصب «' + name + '» در ' + this.dir + ' روی پورت ' + port + (this.domain ? ' با دامنهٔ ' + this.domain : ''), 'gray');
     this.steps = [
       { id: 'system', title: 'بررسی سرور', status: 'wait' },
       { id: 'network', title: 'بررسی اینترنت و GitHub', status: 'wait' },
@@ -223,6 +234,7 @@ class Session {
       { id: 'hub', title: 'بررسی دانلود از Docker Hub', status: 'wait' },
       { id: 'app', title: 'دانلود و ساخت برنامه', status: 'wait' },
       { id: 'update', title: 'روشن کردن به‌روزرسانی خودکار', status: 'wait' },
+      { id: 'domain', title: 'دامنه (Caddy)', status: 'wait' },
       { id: 'firewall', title: 'فایروال', status: 'wait' },
       { id: 'ip', title: 'ثابت کردن آدرس IP', status: 'wait' },
       { id: 'verify', title: 'آزمایش نهایی', status: 'wait' },
@@ -235,6 +247,7 @@ class Session {
       hub: () => this.stepHub(),
       app: () => this.stepApp(port),
       update: () => this.stepUpdate(),
+      domain: () => this.stepDomain(port),
       firewall: () => this.stepFirewall(port),
       ip: () => this.stepIp(),
       verify: () => this.stepVerify(port),
@@ -321,7 +334,11 @@ class Session {
 
   async stepApp(port) {
     const exists = await this.run('[ -f /opt/automation/docker-compose.yml ] && echo yes', { quiet: true });
-    const env = /yes/.test(exists.out) ? 'PORT=' + port : 'PORT=' + port;
+    if (!/yes/.test(exists.out)) {
+      const busy = await this.run('ss -ltn "( sport = :' + port + ' )" | grep -q LISTEN && echo busy', { root: true, quiet: true });
+      if (/busy/.test(busy.out)) return { ok: false, note: 'پورت ' + port + ' روی این سرور از قبل استفاده می‌شود (احتمالاً CRM دیگری). پورت دیگری بدهید، مثلاً ' + (Number(port) + 1) + '.' };
+    }
+    const env = 'PORT=' + port + ' INSTALL_DIR=' + this.dir;
     this.log('نصب برنامه ۵ تا ۱۰ دقیقه طول می‌کشد؛ لطفاً صبر کنید.', 'gray');
     const r = await this.runJob(`export ${env} AUTO_UPDATE=0; curl -fsSL -m 60 ${REPO_RAW} | bash`, { label: 'نصب‌کنندهٔ برنامه از GitHub (روی خود سرور اجرا می‌شود)' });
     if (r.code !== 0) {
@@ -341,9 +358,26 @@ class Session {
       await this.run('cd /opt/automation && git fetch origin frontend && git checkout -B frontend origin/frontend', { root: true });
       r = await this.runJob('cd /opt/automation && ./auto-update.sh', { label: 'cd /opt/automation && ./auto-update.sh' });
     }
-    const active = await this.run('systemctl is-active automation-update', { root: true, quiet: true });
+    const svc = this.name === 'automation' ? 'automation-update' : 'automation-update-' + this.name;
+    const active = await this.run('systemctl is-active ' + svc, { root: true, quiet: true });
     if (!/^active/.test(active.out.trim())) return { ok: false, note: 'سرویس به‌روزرسانی خودکار روشن نشد؛ برنامه کار می‌کند ولی آپدیت دستی است.' };
     return { ok: true, note: 'به‌روزرسانی خودکار روشن است.' };
+  }
+
+  /** Optional: one more site block in the shared Caddy, so several CRMs can share ports 80 and 443 by domain name. */
+  async stepDomain(port) {
+    if (!this.domain) return { ok: true, note: 'دامنه‌ای داده نشد؛ رد شد (با آدرس و پورت باز می‌شود).' };
+    const has = await this.run('command -v caddy >/dev/null && [ -f /etc/caddy/Caddyfile ] && echo yes', { quiet: true });
+    if (!/yes/.test(has.out)) {
+      this.log('Caddy روی این سرور نیست؛ برای HTTPS باید جداگانه نصب شود (مرحلهٔ ssl).', 'yellow');
+      return { ok: true, note: 'Caddy نصب نیست؛ تنظیم دامنه رد شد.' };
+    }
+    const d = this.domain;
+    const block = d + ' {\n\tencode gzip\n\treverse_proxy localhost:' + port + ' {\n\t\tflush_interval -1\n\t}\n}\n';
+    const b64 = Buffer.from(block).toString('base64');
+    const r = await this.run('grep -q "^' + d + ' " /etc/caddy/Caddyfile && echo exists || { cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-hoormand; echo ' + b64 + ' | base64 -d >> /etc/caddy/Caddyfile; caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 && systemctl reload caddy && echo added || { cp /etc/caddy/Caddyfile.bak-hoormand /etc/caddy/Caddyfile; echo failed; }; }', { root: true });
+    if (/failed/.test(r.out)) return { ok: false, note: 'تنظیم Caddy معتبر نبود و به حالت قبل برگشت.' };
+    return { ok: true, note: /exists/.test(r.out) ? 'دامنه از قبل در Caddy بود.' : 'دامنهٔ ' + d + ' به Caddy اضافه شد (گواهی خودکار گرفته می‌شود؛ DNS و پورت‌های ۸۰ و ۴۴۳ باید درست باشد).' };
   }
 
   async stepFirewall(port) {
@@ -465,7 +499,7 @@ wss.on('connection', (ws) => {
         s.send({ type: 'connect-failed', note: text });
       }
     } else if (m.type === 'start') {
-      s.install({ appPort: m.appPort });
+      s.install({ appPort: m.appPort, name: m.name, domain: m.domain });
     } else if (m.type === 'ip-answer') {
       if (s.pending) {
         const f = s.pending;

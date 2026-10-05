@@ -66,7 +66,9 @@
       <div class="row"><input id="host" placeholder="مثلاً 192.168.1.80" autocomplete="off" /><input id="port" value="22" title="پورت SSH" /></div>
       <label>نام کاربری</label><input id="user" placeholder="مثلاً paya یا root" autocomplete="off" />
       <label>رمز عبور</label><input id="pass" type="password" autocomplete="off" />
-      <label>پورت برنامه (پیش‌فرض ۸۰۸۰)</label><input id="appPort" value="8080" />
+      <label>پورت برنامه (پیش‌فرض ۸۰۸۰؛ برای نصب دوم مثلاً ۸۰۸۱)</label><input id="appPort" value="8080" />
+      <label>نام نصب (برای CRM دوم یک نام تازه، مثلاً crm2)</label><input id="instName" value="automation" />
+      <label>دامنه (اختیاری، مثلاً crm2.ramtinai.com)</label><input id="instDomain" placeholder="خالی = فقط با آدرس و پورت" />
       <button class="full" id="connectBtn">اتصال به سرور</button>
       <button class="full" id="startBtn" style="display:none">شروع نصب</button>
       <div class="err" id="connErr"></div>
@@ -152,7 +154,7 @@
   ws.onmessage = function (e) {
     var m = JSON.parse(e.data);
     if (m.type === 'log') { term.write(m.data); report.push(plain(m.data)); }
-    else if (m.type === 'connected') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = true; $('startBtn').textContent = 'در حال نصب...'; ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value })); $('connErr').style.display = 'none'; ['host','port','user','pass'].forEach(function (i) { $(i).disabled = true; }); }
+    else if (m.type === 'connected') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = true; $('startBtn').textContent = 'در حال نصب...'; ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value, name: $('instName').value, domain: $('instDomain').value })); $('connErr').style.display = 'none'; ['host','port','user','pass','appPort','instName','instDomain'].forEach(function (i) { $(i).disabled = true; }); }
     else if (m.type === 'connect-failed') { $('connectBtn').disabled = false; $('connErr').textContent = m.note; $('connErr').style.display = 'block'; }
     else if (m.type === 'steps') renderSteps(m.steps);
     else if (m.type === 'shot') setTimeout(function () { snap(m.title, m.ok); }, 250);
@@ -234,7 +236,7 @@
     $('connectBtn').disabled = true;
     ws.send(JSON.stringify({ type: 'connect', host: $('host').value.trim(), port: $('port').value.trim(), username: $('user').value.trim(), password: $('pass').value }));
   };
-  $('startBtn').onclick = function () { $('startBtn').disabled = true; $('stopBox').style.display = 'none'; $('result').style.display = 'none'; $('startBtn').textContent = 'در حال نصب...'; ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value })); };
+  $('startBtn').onclick = function () { $('startBtn').disabled = true; $('stopBox').style.display = 'none'; $('result').style.display = 'none'; $('startBtn').textContent = 'در حال نصب...'; ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value, name: $('instName').value, domain: $('instDomain').value })); };
   $('copyBtn').onclick = function () { navigator.clipboard.writeText(report.join('').split('\r').join('').slice(-12000)).then(function () { $('copyBtn').textContent = 'کپی شد ✓'; setTimeout(function () { $('copyBtn').textContent = 'کپی گزارش متنی (برای پشتیبانی)'; }, 2000); }); };
   $('shotAllBtn').onclick = function () { snap('همه', true); setTimeout(function () { shots.forEach(function (s, i) { setTimeout(function () { var a = document.createElement('a'); a.href = s.url; a.download = 'hoormand-install-' + s.name + '.png'; a.click(); }, i * 400); }); }, 600); };
 })();

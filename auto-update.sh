@@ -6,7 +6,10 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BRANCH="${BRANCH:-frontend}"
-UNIT=/etc/systemd/system/automation-update.service
+# every installation folder gets its own service, lock and log (the first one keeps the old names)
+BASE="$(basename "$DIR")"
+if [ "$BASE" = "automation" ]; then SVC=automation-update; else SVC="automation-update-$BASE"; fi
+UNIT=/etc/systemd/system/$SVC.service
 
 # Install the 30-second loop once (needs root + systemd) and retire the cron job.
 ensure_loop() {
@@ -19,7 +22,7 @@ After=network-online.target docker.service
 
 [Service]
 Environment=BRANCH=$BRANCH
-ExecStart=/bin/bash -c 'while true; do flock -n /var/lock/automation-update.lock bash "$DIR/auto-update.sh" >> /var/log/automation-update.log 2>&1; sleep 30; done'
+ExecStart=/bin/bash -c 'while true; do flock -n /var/lock/$SVC.lock bash "$DIR/auto-update.sh" >> /var/log/$SVC.log 2>&1; sleep 30; done'
 Restart=always
 RestartSec=10
 
@@ -31,8 +34,8 @@ UNITEOF
   if [ -f "$UNIT" ] && [ "$(cat "$UNIT")" = "$want" ]; then return 0; fi
   echo "$want" > "$UNIT"
   systemctl daemon-reload
-  systemctl enable automation-update.service >/dev/null 2>&1 || return 0
-  rm -f /etc/cron.d/automation-update; systemctl restart --no-block automation-update.service
+  systemctl enable "$SVC.service" >/dev/null 2>&1 || return 0
+  rm -f "/etc/cron.d/$SVC"; systemctl restart --no-block "$SVC.service"
   echo "$(date -Is) update service installed/repaired"
 }
 
