@@ -69,7 +69,7 @@
       <label>رمز عبور</label><input id="pass" type="password" autocomplete="off" />
       <div id="voipFields" style="display:none"><label>آدرس سرور برنامه (که اجازهٔ اتصال به ایزابل می‌گیرد)</label><input id="vApp" placeholder="مثلاً 192.168.2.248" />
         <label>نام کاربر AMI (پیش‌فرض hoormand)</label><input id="vUser" value="hoormand" />
-        <label>رمز AMI (خالی = خودکار ساخته می‌شود)</label><input id="vSecret" autocomplete="off" />
+        <label>رمز AMI (خالی = خودکار ساخته می‌شود؛ رمز SSH ایزابل را اینجا ننویسید؛ فقط حرف و عدد)</label><input id="vSecret" autocomplete="off" />
         <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:bold;font-size:12px">اختیاری: نوشتن خودکار در سرور برنامه (SSH آن)</summary>
           <label>آدرس و پورت SSH سرور برنامه</label><div class="row"><input id="aHost" placeholder="مثلاً 37.255.238.219" /><input id="aPort" value="22" /></div>
           <label>نام کاربری</label><input id="aUser" /><label>رمز</label><input id="aPass" type="password" autocomplete="off" /></details></div>
@@ -264,6 +264,7 @@
   }
   $('connectBtn').onclick = function () {
     if (!$('host').value.trim() || !$('user').value.trim() || !$('pass').value) { $('connErr').textContent = 'آدرس، نام کاربری و رمز را وارد کنید.'; $('connErr').style.display = 'block'; return; }
+    if (mode === 'voip' && !/^\d{1,3}(\.\d{1,3}){3}$/.test($('vApp').value.trim())) { $('connErr').textContent = 'آدرس سرور برنامه را وارد کنید (مثلاً 192.168.2.248)؛ فقط همین آدرس اجازهٔ اتصال به ایزابل می‌گیرد.'; $('connErr').style.display = 'block'; $('vApp').focus(); return; }
     $('connectBtn').disabled = true;
     ws.send(JSON.stringify({ type: 'connect', mode: mode, host: $('host').value.trim(), port: $('port').value.trim(), username: $('user').value.trim(), password: $('pass').value }));
   };
