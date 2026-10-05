@@ -23,6 +23,7 @@ import {
   Trophy,
   Users,
   X,
+  BarChart3,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
@@ -38,6 +39,7 @@ import { ProformaSection } from './ProformaSection';
 import { QuickProformaDialog } from './QuickProformaDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
 import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
+import { CustomerReportModal } from './CustomerReportModal';
 import { Modal, field, label, SOURCES } from './crmUi';
 import { CustomerImportModal } from './CustomerImportModal';
 import type { VoipCall } from '../../lib/api';
@@ -1029,6 +1031,7 @@ const CustomerDetail: React.FC<{
   const [calls, setCalls] = useState<VoipCall[]>([]);
   const [smsOn, setSmsOn] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   useEffect(() => {
     api.smsStatus().then((s) => setSmsOn(s.enabled)).catch(() => {});
   }, []);
@@ -1063,6 +1066,10 @@ const CustomerDetail: React.FC<{
       onClose={onClose}
       footer={
         <>
+          <button type="button" onClick={() => setReportOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 cursor-pointer">
+            <BarChart3 className="w-4 h-4" />
+            گزارش مشتری
+          </button>
           <button type="button" onClick={onEdit} className="px-4 py-2 rounded-xl text-xs font-black text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 cursor-pointer">ویرایش مشتری</button>
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">بستن</button>
         </>
@@ -1120,7 +1127,8 @@ const CustomerDetail: React.FC<{
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        {smsOpen && <SmsModal customerId={c.id} customerName={c.name} phones={c.phones} onClose={() => setSmsOpen(false)} />}
+        {reportOpen && <CustomerReportModal customer={c} deals={deals} onClose={() => setReportOpen(false)} />}
+      {smsOpen && <SmsModal customerId={c.id} customerName={c.name} phones={c.phones} onClose={() => setSmsOpen(false)} />}
         {c.email && (
           <div className="flex items-center gap-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2 text-xs font-bold text-[#3A241F] min-w-0">
             <Mail className="w-3.5 h-3.5 shrink-0 text-[#8C6F66]" />
