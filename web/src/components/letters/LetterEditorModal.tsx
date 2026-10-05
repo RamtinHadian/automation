@@ -658,7 +658,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         {/* Body: on wide screens the two toolbars become side columns so the top stays open */}
         <div className={side ? 'flex flex-1 min-h-0' : 'contents'}>
         {/* Action / Settings Toolbar Bar */}
-        <div onWheel={side ? undefined : hwheel} className={side ? 'order-1 bg-white w-[290px] shrink-0 overflow-y-auto border-l border-[#EBDBCE] flex flex-wrap content-start items-center gap-2 p-3 text-xs [&>*]:max-w-full' : 'order-1 bg-white px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center justify-between gap-2 shrink-0 hscroll text-xs whitespace-nowrap'}>
+        <div onWheel={side ? undefined : hwheel} className={side ? 'order-1 bg-[#FAF5F1] w-[300px] shrink-0 overflow-y-auto border-l border-[#EBDBCE] flex flex-col items-stretch gap-2.5 p-3 text-xs [&>*]:w-full [&>button]:justify-center [&>button]:py-2.5 [&>button]:rounded-xl [&>div]:flex-col [&>div]:items-stretch [&>div]:gap-2 [&>div]:bg-white [&>div]:rounded-2xl [&>div]:border [&>div]:border-[#EBDBCE] [&>div]:p-3 [&>div]:shadow-sm [&>div_select]:w-full' : 'order-1 bg-white px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center justify-between gap-2 shrink-0 hscroll text-xs whitespace-nowrap'}>
           
           {/* Reset the layout to the standard one */}
           <button type="button" onClick={resetLayout} className="px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] bg-white text-[11px] font-black text-[#3A241F] hover:bg-[#FAF5F1] cursor-pointer shrink-0" title="برگرداندن قلم، اندازه و جای همه‌چیز به حالت استاندارد">
@@ -788,8 +788,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         </div>
 
         {/* Main Document Workspace Canvas */}
-        {fitZ.isPhone && <div className="order-3"><ZoomBar zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} /></div>}
-        <div className={`${side ? 'order-2 min-w-0' : 'order-3'} flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : side ? 'p-3 flex justify-center' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
+        <div className={side ? 'order-2 flex-1 min-w-0 flex flex-col' : 'contents'}>
+        {(fitZ.isPhone || side) && <div className={side ? 'order-first' : 'order-3'}><ZoomBar zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} /></div>}
+        <div className={`${side ? 'min-h-0 min-w-0' : 'order-3'} flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : side ? 'p-3 flex justify-center' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
           {/* Virtual Paper Sheet */}
           <ScaledPaper enabled={fitZ.isPhone || fitZ.zoom !== 1} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
@@ -1139,11 +1140,12 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           </div>
           </ScaledPaper>
         </div>
+        </div>
 
         {/* Word Styling Toolbar: one horizontally scrollable row on phones */}
-        <div onWheel={side ? undefined : hwheel} className={side ? 'order-3 flex bg-[#FAF5F1] w-[290px] shrink-0 overflow-y-auto border-r border-[#EBDBCE] flex-wrap content-start items-center gap-2 p-3 text-xs [&>*]:shrink-0' : 'order-2 flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap hscroll whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0'}>
+        <div onWheel={side ? undefined : hwheel} className={side ? 'order-3 flex bg-[#FAF5F1] w-[300px] shrink-0 overflow-y-auto border-r border-[#EBDBCE] flex-col items-stretch gap-2.5 p-3 text-xs [&>*]:shrink-0' : 'order-2 flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap hscroll whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0'}>
           
-          <div className={`flex items-center gap-1.5 ${side ? 'w-full flex-wrap' : 'flex-nowrap sm:flex-wrap'}`}>
+          <div className={`flex items-center gap-1.5 ${side ? 'w-full flex-col items-stretch gap-2 [&>*]:w-full [&>*]:justify-between [&>*]:rounded-xl [&>*>select]:flex-1 [&>*>input]:flex-1' : 'flex-nowrap sm:flex-wrap'}`}>
             {/* Font Family Selector */}
             <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
               <Type className="w-3.5 h-3.5 text-[#6E1B1B] mr-1 ml-0.5 shrink-0" />
@@ -1270,7 +1272,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 className="w-20 accent-[#6E1B1B] cursor-pointer"
                 title="جابه‌جایی کل بدنه متن نامه به چپ یا راست"
               />
-              <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-8 text-center">{toPersianDigits(bodyOffsetX)}px</span>
+              <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-8 text-center">{toPersianDigits(Math.round(bodyOffsetX))}px</span>
             </div>
 
             <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
@@ -1325,7 +1327,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           </div>
 
           {/* Quick Position & Size Controls for Signature Block */}
-          <div className={`flex items-center gap-2 bg-amber-50/80 px-3 py-1 rounded-xl border border-amber-200 ${side ? 'w-full flex-wrap' : ''}`}>
+          <div className={`flex items-center gap-2 bg-amber-50/80 px-3 py-1 rounded-xl border border-amber-200 ${side ? 'w-full flex-col items-stretch gap-2 !rounded-2xl !p-3 [&>*]:w-full [&>div]:flex-wrap [&>div]:!border-r-0 [&>div]:!pr-0 [&>div]:!mr-0' : ''}`}>
             <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1">
               <Move className="w-3.5 h-3.5 text-amber-700" />
               <span>محل امضای مدیر:</span>

@@ -21,8 +21,10 @@ export function useFitZoom(designWidth: number, sidePad = 20, allowWide = false)
   const isPhone = vw < 640;
   const fit = isPhone ? Math.min(1, (vw - sidePad) / designWidth) : 1;
   // where asked (the letter editor), big screens use their room: the sheet is drawn larger and the designed positions scale with it
-  const wide = allowWide ? (vw >= 1600 ? 1.35 : vw >= 1280 ? 1.2 : 1) : 1;
-  const zoom = isPhone ? Math.min(1.6, fit * userZoom) : wide;
+  // two side columns of 300 px (+ gaps) take their room on screens from 1100 px; the sheet fits what is left, never above 1.35
+  const reserve = vw >= 1100 ? 664 : 0;
+  const wide = allowWide ? Math.max(0.5, Math.min(1.35, (vw - reserve) / designWidth)) : 1;
+  const zoom = isPhone ? Math.min(1.6, fit * userZoom) : allowWide ? Math.min(2.5, Math.max(0.4, +(wide * userZoom).toFixed(2))) : 1;
 
   const zoomIn = useCallback(() => setUserZoom((z) => Math.min(3, +(z + 0.25).toFixed(2))), []);
   const zoomOut = useCallback(() => setUserZoom((z) => Math.max(0.6, +(z - 0.25).toFixed(2))), []);
