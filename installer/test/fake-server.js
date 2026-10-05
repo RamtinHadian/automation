@@ -12,6 +12,15 @@ const log = [];
 function answer(script) {
   log.push(script.slice(0, 90));
   const out = (stdout = '', code = 0, stderr = '') => ({ stdout, code, stderr });
+  // Issabel / phone-system commands
+  if (/^asterisk -V/.test(script)) return out('Asterisk 16.30.0\nIssabel release 5.0\nroot\n  Enabled:                     Yes\n  Port:                        5038\n');
+  if (/manager_custom\.conf/.test(script)) return out('username: hoormand\nsecret: <Set>\npermit: 192.168.2.248/255.255.255.255\n');
+  if (/command -v iptables/.test(script)) return out('Chain INPUT (policy ACCEPT)\n');
+  if (/iptables -C INPUT/.test(script)) return out('added\ndone\n');
+  if (/spool\/asterisk\/monitor/.test(script)) return out('پوشه: /var/spool/asterisk/monitor\nتعداد فایل: 12\nout-0912-501-20261005-103000-1759660000.123.wav\n');
+  if (/\[ -f \.env \] && cp -n/.test(script)) return out('env-ok\n');
+  if (/dev\/tcp\//.test(script)) return out('reach-ok\n');
+  if (/docker compose up -d 2>&1 \| tail/.test(script)) return out(' Container app Started\n');
   // background jobs (the panel starts long commands detached and then reads their log)
   if (/^\[ -f \/tmp\/hoormand-job\.pid \]/.test(script)) return out('', 1);
   const jb = /echo (\S+) \| base64 -d > \/tmp\/hoormand-job\.sh/.exec(script);

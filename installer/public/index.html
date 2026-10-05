@@ -53,11 +53,12 @@
   .report .item b { direction:ltr; unicode-bidi:embed; flex:1; text-align:left; word-break:break-all; font-size:13px; }
   .report .item button { padding:6px 10px; font-size:11px; }
   textarea.rep { width:100%; min-height:210px; padding:10px; border:1px solid var(--line); border-radius:10px; background:#faf5f1; font-size:12.5px; line-height:2; direction:rtl; }
+  header { flex-wrap: wrap; } .tabs { display:flex; gap:6px; margin-inline-start:14px; } .tabs button { background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.3); padding:7px 14px; font-size:12px; } .tabs button.on { background:#fff; color:var(--brand); }
   .bar { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
 </style>
 </head>
 <body>
-<header><h1>پنل نصب هورمند</h1><span>این صفحه فقط روی کامپیوتر خودتان اجرا می‌شود؛ رمز SSH جایی ذخیره نمی‌شود.</span></header>
+<header><h1>پنل نصب هورمند</h1><nav class="tabs"><button id="tabInstall" class="on">نصب برنامه روی سرور</button><button id="tabVoip">اتصال به تلفن ایزابل (ویپ)</button></nav><span>این صفحه فقط روی کامپیوتر خودتان اجرا می‌شود؛ رمز SSH جایی ذخیره نمی‌شود.</span></header>
 <main>
   <section>
     <div class="card" id="loginCard">
@@ -66,9 +67,15 @@
       <div class="row"><input id="host" placeholder="مثلاً 192.168.1.80" autocomplete="off" /><input id="port" value="22" title="پورت SSH" /></div>
       <label>نام کاربری</label><input id="user" placeholder="مثلاً paya یا root" autocomplete="off" />
       <label>رمز عبور</label><input id="pass" type="password" autocomplete="off" />
-      <label>پورت برنامه (پیش‌فرض ۸۰۸۰؛ برای نصب دوم مثلاً ۸۰۸۱)</label><input id="appPort" value="8080" />
+      <div id="voipFields" style="display:none"><label>آدرس سرور برنامه (که اجازهٔ اتصال به ایزابل می‌گیرد)</label><input id="vApp" placeholder="مثلاً 192.168.2.248" />
+        <label>نام کاربر AMI (پیش‌فرض hoormand)</label><input id="vUser" value="hoormand" />
+        <label>رمز AMI (خالی = خودکار ساخته می‌شود)</label><input id="vSecret" autocomplete="off" />
+        <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:bold;font-size:12px">اختیاری: نوشتن خودکار در سرور برنامه (SSH آن)</summary>
+          <label>آدرس و پورت SSH سرور برنامه</label><div class="row"><input id="aHost" placeholder="مثلاً 37.255.238.219" /><input id="aPort" value="22" /></div>
+          <label>نام کاربری</label><input id="aUser" /><label>رمز</label><input id="aPass" type="password" autocomplete="off" /></details></div>
+      <div id="installFields"><label>پورت برنامه (پیش‌فرض ۸۰۸۰؛ برای نصب دوم مثلاً ۸۰۸۱)</label><input id="appPort" value="8080" />
       <label>نام نصب (برای CRM دوم یک نام تازه، مثلاً crm2)</label><input id="instName" value="automation" />
-      <label>دامنه (اختیاری، مثلاً crm2.ramtinai.com)</label><input id="instDomain" placeholder="خالی = فقط با آدرس و پورت" />
+      <label>دامنه (اختیاری، مثلاً crm2.ramtinai.com)</label><input id="instDomain" placeholder="خالی = فقط با آدرس و پورت" /></div>
       <button class="full" id="connectBtn">اتصال به سرور</button>
       <button class="full" id="startBtn" style="display:none">شروع نصب</button>
       <div class="err" id="connErr"></div>
@@ -154,12 +161,13 @@
   ws.onmessage = function (e) {
     var m = JSON.parse(e.data);
     if (m.type === 'log') { term.write(m.data); report.push(plain(m.data)); }
-    else if (m.type === 'connected') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = true; $('startBtn').textContent = 'در حال نصب...'; ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value, name: $('instName').value, domain: $('instDomain').value })); $('connErr').style.display = 'none'; ['host','port','user','pass','appPort','instName','instDomain'].forEach(function (i) { $(i).disabled = true; }); }
+    else if (m.type === 'connected') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = true; $('startBtn').textContent = 'در حال نصب...'; sendStart(); $('connErr').style.display = 'none'; ['host','port','user','pass','appPort','instName','instDomain'].forEach(function (i) { $(i).disabled = true; }); }
     else if (m.type === 'connect-failed') { $('connectBtn').disabled = false; $('connErr').textContent = m.note; $('connErr').style.display = 'block'; }
     else if (m.type === 'steps') renderSteps(m.steps);
     else if (m.type === 'shot') setTimeout(function () { snap(m.title, m.ok); }, 250);
     else if (m.type === 'stopped') { $('stopBox').style.display = 'block'; $('stopBox').innerHTML = '<b>نصب در این مرحله متوقف شد.</b><br>' + esc(m.note) + '<br>اسکرین‌شات این مرحله ساخته شده؛ با «کپی گزارش» یا اسکرین‌شات‌ها برای پشتیبانی بفرستید. بعد از رفع مشکل دوباره «شروع نصب» را بزنید.'; $('startBtn').disabled = false; $('startBtn').textContent = 'تلاش دوباره'; }
     else if (m.type === 'ask-ip') askIp(m);
+    else if (m.type === 'voip-done') showVoipDone(m);
     else if (m.type === 'done') { showDone(m); $('startBtn').textContent = 'نصب کامل شد ✓'; }
   };
   ws.onclose = function () { term.writeln('\r\n\x1b[31mارتباط پنل با برنامهٔ نصب قطع شد.\x1b[0m'); };
@@ -223,6 +231,14 @@
   $('repPw').onchange = renderReport;
   $('repCopy').onclick = function () { copy($('repText').value, $('repCopy')); };
 
+  function showVoipDone(m) {
+    var r = $('result'); r.style.display = 'block';
+    var rows = [['AMI_HOST', m.host], ['AMI_PORT', m.port], ['AMI_USER', m.user], ['AMI_SECRET', m.secret]];
+    r.innerHTML = '<h2>✓ ایزابل آمادهٔ اتصال شد</h2>' + rows.map(function (x) { return x[0] + '=<b>' + esc(x[1]) + '</b>'; }).join('<br>') + '<br><span class="note">' +
+      (m.wroteEnv ? 'این چهار خط در .env سرور برنامه نوشته شد و برنامه دوباره راه افتاد.' : 'این چهار خط را در فایل .env سرور برنامه بگذارید و بزنید: docker compose up -d') +
+      ' بعد در کنسول مدیریت ← تنظیمات ← «ارتباط با تلفن سازمان» وضعیت باید «متصل» شود. شمارهٔ داخلی هر کاربر را هم در کنسول مدیریت بنویسید.</span>';
+    $('startBtn').textContent = 'تمام شد ✓';
+  }
   function showDone(m) {
     lastDone = m; $('report').style.display = 'block'; renderReport();
     var r = $('result'); r.style.display = 'block';
@@ -231,12 +247,27 @@
       '<span class="note">(این رمز فقط همین‌جا نشان داده می‌شود؛ در گزارش و اسکرین‌شات‌ها نیست. بعد از اولین ورود آن را عوض کنید.)</span><br>' +
       'مرحلهٔ بعد: برنامه را باز کنید و «کد نصب» صفحهٔ فعال‌سازی را برای دریافت کد فعال‌سازی بفرستید.';
   }
+  var mode = 'install';
+  function setMode(m) {
+    mode = m;
+    $('tabInstall').className = m === 'install' ? 'on' : ''; $('tabVoip').className = m === 'voip' ? 'on' : '';
+    $('installFields').style.display = m === 'install' ? '' : 'none'; $('voipFields').style.display = m === 'voip' ? '' : 'none';
+    $('startBtn').textContent = m === 'voip' ? 'شروع تنظیم ایزابل' : 'شروع نصب';
+    var t = document.querySelector('#loginCard h2'); if (t) t.textContent = m === 'voip' ? '۱. ورود به ایزابل (SSH، معمولاً root)' : '۱. ورود به سرور (SSH)';
+  }
+  $('tabInstall').onclick = function () { setMode('install'); }; $('tabVoip').onclick = function () { setMode('voip'); };
+  function sendStart() {
+    if (mode === 'voip') {
+      ws.send(JSON.stringify({ type: 'voip-start', appHost: $('vApp').value.trim(), amiUser: $('vUser').value.trim(), amiSecret: $('vSecret').value.trim(),
+        appSsh: $('aHost').value.trim() ? { host: $('aHost').value.trim(), port: $('aPort').value.trim(), user: $('aUser').value.trim(), password: $('aPass').value } : null }));
+    } else ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value, name: $('instName').value, domain: $('instDomain').value }));
+  }
   $('connectBtn').onclick = function () {
     if (!$('host').value.trim() || !$('user').value.trim() || !$('pass').value) { $('connErr').textContent = 'آدرس، نام کاربری و رمز را وارد کنید.'; $('connErr').style.display = 'block'; return; }
     $('connectBtn').disabled = true;
-    ws.send(JSON.stringify({ type: 'connect', host: $('host').value.trim(), port: $('port').value.trim(), username: $('user').value.trim(), password: $('pass').value }));
+    ws.send(JSON.stringify({ type: 'connect', mode: mode, host: $('host').value.trim(), port: $('port').value.trim(), username: $('user').value.trim(), password: $('pass').value }));
   };
-  $('startBtn').onclick = function () { $('startBtn').disabled = true; $('stopBox').style.display = 'none'; $('result').style.display = 'none'; $('startBtn').textContent = 'در حال نصب...'; ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value, name: $('instName').value, domain: $('instDomain').value })); };
+  $('startBtn').onclick = function () { $('startBtn').disabled = true; $('stopBox').style.display = 'none'; $('result').style.display = 'none'; $('startBtn').textContent = 'در حال نصب...'; sendStart(); };
   $('copyBtn').onclick = function () { navigator.clipboard.writeText(report.join('').split('\r').join('').slice(-12000)).then(function () { $('copyBtn').textContent = 'کپی شد ✓'; setTimeout(function () { $('copyBtn').textContent = 'کپی گزارش متنی (برای پشتیبانی)'; }, 2000); }); };
   $('shotAllBtn').onclick = function () { snap('همه', true); setTimeout(function () { shots.forEach(function (s, i) { setTimeout(function () { var a = document.createElement('a'); a.href = s.url; a.download = 'hoormand-install-' + s.name + '.png'; a.click(); }, i * 400); }); }, 600); };
 })();

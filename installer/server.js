@@ -389,6 +389,114 @@ class Session {
   }
 
 
+  /**
+   * Connects the program to the Issabel / Asterisk phone system: makes the AMI user, lets this program's server in, and
+   * (when its SSH login is given) writes the AMI lines into that server's .env and restarts the program there.
+   */
+  async voipSetup(o) {
+    if (this.running) return;
+    this.running = true;
+    this.cancelled = false;
+    const appHost = String(o.appHost || '').trim();
+    const user = String(o.amiUser || 'hoormand').replace(/[^A-Za-z0-9_-]/g, '') || 'hoormand';
+    const secret = String(o.amiSecret || '').replace(/[^A-Za-z0-9]/g, '') || require('crypto').randomBytes(12).toString('hex');
+    const pbxHost = this.host;
+    const app = o.appSsh && o.appSsh.host && o.appSsh.user && o.appSsh.password ? o.appSsh : null;
+    this.steps = [
+      { id: 'pbx', title: 'بررسی ایزابل', status: 'wait' },
+      { id: 'ami', title: 'ساخت کاربر AMI', status: 'wait' },
+      { id: 'fw', title: 'فایروال ایزابل (پورت ۵۰۳۸)', status: 'wait' },
+      { id: 'rec', title: 'بررسی پوشهٔ ضبط مکالمات', status: 'wait' },
+      { id: 'app', title: 'اتصال سرور برنامه', status: 'wait' },
+    ];
+    this.send({ type: 'steps', steps: this.steps });
+    const ip4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+    const steps = {
+      pbx: async () => {
+        const r = await this.run('asterisk -V 2>&1 | head -1; cat /etc/issabel-release /etc/redhat-release 2>/dev/null | head -2; whoami; asterisk -rx "manager show settings" 2>&1 | grep -iE "enabled|port|bind" | head -5', { root: true });
+        if (!/Asterisk/i.test(r.out)) return { ok: false, note: 'Asterisk روی این سرور پیدا نشد. با آدرس خود ایزابل وصل شده‌اید؟ (کاربر root لازم است.)' };
+        if (/Manager \(AMI\):\s*No/i.test(r.out)) this.log('هشدار: AMI در manager.conf خاموش است (enabled = yes لازم است).', 'yellow');
+        return { ok: true, note: 'Asterisk پیدا شد.' };
+      },
+      ami: async () => {
+        if (!ip4.test(appHost)) return { ok: false, note: 'آدرس سرور برنامه (که اجازهٔ اتصال می‌گیرد) درست نیست؛ مثلاً 192.168.2.248.' };
+        const block = '[' + user + ']\nsecret = ' + secret + '\ndeny = 0.0.0.0/0.0.0.0\npermit = ' + appHost + '/255.255.255.255\nread = system,call,cdr,agent,user\nwrite = originate,call,command\n';
+        const b64 = Buffer.from(block).toString('base64');
+        const f = '/etc/asterisk/manager_custom.conf';
+        const script = [
+          'touch ' + f,
+          'cp -n ' + f + ' ' + f + '.bak-hoormand',
+          // remove an older block with the same name, then add the new one
+          "awk -v n='[" + user + "]' 'BEGIN{skip=0} /^\\[/{skip=($0==n)} !skip{print}' " + f + ' > ' + f + '.tmp && mv ' + f + '.tmp ' + f,
+          'echo ' + b64 + ' | base64 -d >> ' + f,
+          'asterisk -rx "manager reload" >/dev/null',
+          'asterisk -rx "manager show user ' + user + '" 2>&1 | head -12',
+        ].join('; ');
+        const r = await this.run(script, { root: true, label: 'sudo (نوشتن کاربر AMI در manager_custom.conf و manager reload)' });
+        if (!new RegExp('username:\\s*' + user, 'i').test(r.out)) return { ok: false, note: 'کاربر AMI ساخته یا خوانده نشد. خروجی بالا را بفرستید.' };
+        this.ami = { user, secret };
+        return { ok: true, note: 'کاربر «' + user + '» ساخته شد و فقط ' + appHost + ' اجازهٔ اتصال دارد.' };
+      },
+      fw: async () => {
+        const has = await this.run('command -v iptables >/dev/null && iptables -L INPUT -n 2>/dev/null | head -3', { root: true, quiet: true });
+        if (!has.out.trim()) return { ok: true, note: 'iptables پیدا نشد؛ فایروال لازم نیست یا جداگانه مدیریت می‌شود.' };
+        const rule = '-p tcp -s ' + appHost + ' --dport 5038 -j ACCEPT';
+        const r = await this.run('iptables -C INPUT ' + rule + ' 2>/dev/null && echo exists || (iptables -I INPUT 1 ' + rule + ' && echo added); (service iptables save 2>/dev/null || iptables-save > /etc/sysconfig/iptables 2>/dev/null) >/dev/null; echo done', { root: true });
+        this.log('اگر در بخش Firewall ایزابل قواعد را دستی می‌چینید، همین قاعده را آنجا هم اضافه کنید: TCP پورت 5038 از ' + appHost + '.', 'gray');
+        return { ok: /exists|added/.test(r.out), note: /exists/.test(r.out) ? 'قاعده از قبل بود.' : 'پورت ۵۰۳۸ فقط برای ' + appHost + ' باز شد.' };
+      },
+      rec: async () => {
+        const r = await this.run('d=/var/spool/asterisk/monitor; [ -d $d ] && { echo "پوشه: $d"; echo "تعداد فایل: $(find $d -type f 2>/dev/null | wc -l)"; find $d -type f -printf "%f\\n" 2>/dev/null | head -2; } || echo "پوشهٔ ضبط پیدا نشد"', { root: true });
+        const n = Number((/تعداد فایل: (\d+)/.exec(r.out) || [])[1] || 0);
+        if (!n) this.log('هنوز مکالمه‌ای ضبط نشده؛ در Issabel ضبط تماس‌ها را روشن کنید (PBX ← Extensions ← Recording، یا Call Recording).', 'yellow');
+        return { ok: true, note: n ? 'پوشهٔ ضبط پیدا شد (' + n + ' فایل).' : 'ضبط هنوز روشن نیست (دستی در ایزابل).' };
+      },
+      app: async () => {
+        if (!app) return { ok: true, note: 'مشخصات SSH سرور برنامه داده نشد؛ مقدارها را پایین ببینید و خودتان در .env بگذارید.' };
+        try { this.conn && this.conn.end(); } catch {}
+        this.conn = null;
+        try {
+          await this.connect({ host: app.host, port: app.port || 22, username: app.user, password: app.password });
+        } catch (e) {
+          return { ok: false, note: 'به سرور برنامه وصل نشدم: ' + e.message };
+        }
+        const dir = String(app.dir || '/opt/automation').replace(/[^A-Za-z0-9/_.-]/g, '');
+        this.dir = dir;
+        const lines = { AMI_HOST: pbxHost, AMI_PORT: '5038', AMI_USER: user, AMI_SECRET: secret };
+        const upd = Object.entries(lines).map(([k, v]) => 'grep -q "^' + k + '=" .env && sed -i "s|^' + k + '=.*|' + k + '=' + v + '|" .env || echo "' + k + '=' + v + '" >> .env').join('; ');
+        const r = await this.run('cd ' + dir + ' && [ -f .env ] && cp -n .env .env.bak-hoormand && ' + upd + ' && echo env-ok', { root: true, quiet: true });
+        if (!/env-ok/.test(r.out)) return { ok: false, note: 'فایل .env در ' + dir + ' پیدا یا نوشته نشد.' };
+        this.log('خطوط AMI در .env نوشته شد (رمز در گزارش پایین هست).', 'gray');
+        const up = await this.runJob('cd ' + dir + ' && docker compose up -d 2>&1 | tail -5', { label: 'راه‌اندازی دوبارهٔ برنامه' });
+        const t = await this.run('timeout 6 bash -c "echo > /dev/tcp/' + pbxHost + '/5038" && echo reach-ok || echo reach-fail', { quiet: true });
+        if (/reach-fail/.test(t.out)) return { ok: false, note: 'سرور برنامه به ' + pbxHost + ' پورت ۵۰۳۸ نمی‌رسد (فایروال یا مسیر شبکه).' };
+        return { ok: up.code === 0, note: up.code === 0 ? 'برنامه دوباره راه افتاد و به ایزابل می‌رسد؛ در کنسول مدیریت ← تنظیمات ← تلفن، وضعیت «متصل» را ببینید.' : 'برنامه راه‌اندازی نشد.' };
+      },
+    };
+    for (const s of this.steps) {
+      if (this.cancelled || (!this.conn && s.id !== 'app')) break;
+      this.setStep(s.id, 'run');
+      this.log('\n━━━ ' + s.title + ' ━━━', 'yellow');
+      let r;
+      try {
+        r = await steps[s.id]();
+      } catch (e) {
+        r = { ok: false, note: 'خطای غیرمنتظره: ' + e.message };
+      }
+      this.setStep(s.id, r.ok ? 'ok' : 'fail', r.note);
+      this.send({ type: 'shot', id: s.id, title: s.title, ok: r.ok });
+      if (!r.ok) {
+        this.log('\n✗ ' + r.note, 'red');
+        this.send({ type: 'stopped', step: s.id, note: r.note || '' });
+        this.running = false;
+        return;
+      }
+      this.log('✓ ' + r.note, 'green');
+    }
+    this.send({ type: 'voip-done', host: pbxHost, port: '5038', user, secret, appHost, wroteEnv: !!app });
+    this.running = false;
+  }
+
   /** Waits until the person answers the question shown in the panel (fixed IP or not). */
   ask(payload) {
     return new Promise((resolve) => {
@@ -492,12 +600,14 @@ wss.on('connection', (ws) => {
       try {
         await s.connect(m);
         s.log('اتصال برقرار شد.', 'green');
-        s.send({ type: 'connected' });
+        s.send({ type: 'connected', mode: m.mode || 'install' });
       } catch (e) {
         const text = /authentication/i.test(e.message) ? 'نام کاربری یا رمز اشتباه است.' : /ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|ENOTFOUND/.test(e.message + (e.code || '')) ? 'به سرور نرسیدم؛ آدرس، پورت SSH و اینکه سرور روشن و در دسترس است را بررسی کنید.' : e.message;
         s.log(text, 'red');
         s.send({ type: 'connect-failed', note: text });
       }
+    } else if (m.type === 'voip-start') {
+      s.voipSetup({ appHost: m.appHost, amiUser: m.amiUser, amiSecret: m.amiSecret, appSsh: m.appSsh });
     } else if (m.type === 'start') {
       s.install({ appPort: m.appPort, name: m.name, domain: m.domain });
     } else if (m.type === 'ip-answer') {
