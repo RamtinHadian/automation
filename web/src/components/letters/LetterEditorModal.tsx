@@ -4,6 +4,7 @@ import { MoveBox } from './MoveBox';
 import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
+import { LetterTextTemplatesModal, bodyToText } from './LetterTextTemplatesModal';
 import { useFitZoom } from '../../lib/useFitZoom';
 import { SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT, signatureAreaHeight } from '../../lib/letterDefaults';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
@@ -413,6 +414,20 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     }
   };
 
+  const [tplMgrOpen, setTplMgrOpen] = useState(false);
+  const customTemplates = settings.letterTextTemplates || [];
+  const handleApplyCustom = (id: string) => {
+    const t = customTemplates.find((x) => x.id === id);
+    if (!t) return;
+    if (t.subject) setSubject(t.subject);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = t.bodyHtml
+        .replace(/\[نام و سمت فرستنده\]/g, `${currentUser.fullName} - ${currentUser.departmentName}`)
+        .replace(/\[نام متقاضی\]/g, currentUser.fullName)
+        .replace(/\[نام واحد\]/g, currentUser.departmentName);
+    }
+  };
+
   const handleApplyTemplate = (template: LetterTemplate) => {
     setSubject(template.defaultSubject);
     if (editorRef.current) {
@@ -744,6 +759,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             <span className="text-xs font-bold text-[#8C6F66]">قالب آماده:</span>
             <select
               onChange={(e) => {
+                if (e.target.value.startsWith('lt-')) {
+                  handleApplyCustom(e.target.value);
+                  return;
+                }
                 const t = TEMPLATES.find((item) => item.id === e.target.value);
                 if (t) handleApplyTemplate(t);
               }}
@@ -753,12 +772,28 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               <option value="" disabled>
                 انتخاب قالب نامه‌نگاری...
               </option>
-              {TEMPLATES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
+              {customTemplates.length > 0 && (
+                <optgroup label="قالب‌های سازمان">
+                  {customTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="قالب‌های پایه">
+                {TEMPLATES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                  </option>
+                ))}
+              </optgroup>
             </select>
+            {isAdmin && (
+              <button type="button" onClick={() => setTplMgrOpen(true)} className="px-2.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-[11px] font-black text-amber-800 cursor-pointer shrink-0" title="نوشتن و مدیریت متن‌های آمادهٔ نامه برای همهٔ کاربران">
+                + مدیریت قالب‌ها
+              </button>
+            )}
           </div>
 
           {/* Organisation letter template: set once by an admin, used by everyone afterwards */}
@@ -1432,6 +1467,19 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         </div>
 
         </div>
+
+        {tplMgrOpen && (
+          <LetterTextTemplatesModal
+            templates={customTemplates}
+            currentText={bodyToText(editorRef.current?.innerHTML || '')}
+            currentSubject={subject}
+            onChange={(list) => {
+              setSettings({ ...settings, letterTextTemplates: list });
+              showToast('قالب‌های نامه ذخیره شد.');
+            }}
+            onClose={() => setTplMgrOpen(false)}
+          />
+        )}
 
         {/* Bottom Submission Bar */}
         <form

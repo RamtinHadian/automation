@@ -535,6 +535,8 @@ export interface SystemSettings {
   proformaValidDays?: number;
   /** The organisation's standard letter layout, set once by an admin in the letter editor. */
   letterTemplate?: OrgLetterTemplate;
+  /** Ready-made letter texts written by an admin; users pick one in the letter editor. */
+  letterTextTemplates?: LetterTextTemplate[];
   companyLogoUrl?: string; // لوگو و آرم رسمی سازمان
   /** The floating logo bubble takes the colour of the theme (for the Hoormand logo). */
   companyLogoThemed?: boolean;
@@ -572,6 +574,14 @@ export type AuditAction =
   | 'DEPT_CREATE'
   | 'DEPT_UPDATE'
   | 'DEPT_DELETE';
+
+/** A ready-made letter text (subject + body) chosen in the letter editor. */
+export interface LetterTextTemplate {
+  id: string;
+  title: string;
+  subject: string;
+  bodyHtml: string;
+}
 
 /** A company or office a proforma can be issued under. */
 export interface ProformaIssuer {
