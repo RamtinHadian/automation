@@ -67,14 +67,14 @@
     <div class="card" id="loginCard">
       <h2>۱. ورود به سرور (SSH)</h2>
       <div class="guide" id="guide"></div>
-      <label>آدرس سرور</label>
+      <label id="lbHost">آدرس سرور</label>
       <div class="row"><input id="host" placeholder="مثلاً 192.168.1.80" autocomplete="off" /><input id="port" value="22" title="پورت SSH" /></div>
-      <label>نام کاربری</label><input id="user" placeholder="مثلاً paya یا root" autocomplete="off" />
-      <label>رمز عبور</label><input id="pass" type="password" autocomplete="off" />
+      <label id="lbUser">نام کاربری</label><input id="user" placeholder="مثلاً paya یا root" autocomplete="off" />
+      <label id="lbPass">رمز عبور</label><input id="pass" type="password" autocomplete="off" />
       <div id="voipFields" style="display:none">
         <div style="margin:16px 0 4px;font-weight:bold;font-size:13px;color:#7a1c20">۲. سرور برنامهٔ هورمند (پنل خودش آدرس و پوشهٔ برنامه را پیدا می‌کند، تنظیم را می‌نویسد و برنامه را دوباره راه می‌اندازد)</div>
-        <label>آدرس و پورت SSH سرور برنامه</label><div class="row"><input id="aHost" placeholder="مثلاً 37.255.238.219" /><input id="aPort" value="22" /></div>
-        <label>نام کاربری</label><input id="aUser" /><label>رمز</label><input id="aPass" type="password" autocomplete="off" />
+        <label>آدرس و پورت SSH <b>سرور برنامهٔ هورمند</b> (پورت چپ: مثلاً 2292 = سرور 248، 2293 = mitto)</label><div class="row"><input id="aHost" placeholder="مثلاً 37.255.238.219" /><input id="aPort" value="22" title="پورت SSH سرور برنامه" /></div>
+        <label>نام کاربری سرور برنامه (اوبونتو)</label><input id="aUser" /><label>رمز SSH سرور برنامه</label><input id="aPass" type="password" autocomplete="off" />
         <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:bold;font-size:12px">پیشرفته (معمولاً لازم نیست)</summary>
           <label>آدرس داخلی سرور برنامه (خالی = خودکار خوانده می‌شود)</label><input id="vApp" placeholder="خالی = خودکار" />
           <label>پوشهٔ برنامه روی آن سرور (خالی = خودکار)</label><input id="aDir" placeholder="مثلاً /opt/automation" />
@@ -261,6 +261,9 @@
     $('installFields').style.display = m === 'install' ? '' : 'none'; $('voipFields').style.display = m === 'voip' ? '' : 'none';
     $('startBtn').textContent = m === 'voip' ? 'شروع تنظیم ایزابل' : 'شروع نصب';
     $('guide').innerHTML = m === 'voip' ? GUIDE_VOIP : GUIDE_INSTALL;
+    $('lbHost').innerHTML = m === 'voip' ? 'آدرس و پورت SSH <b>ایزابل</b> (دستگاه تلفن؛ پورت چپ: مثلاً 2200 در روتر شما)' : 'آدرس و پورت SSH <b>سروری که برنامه روی آن نصب می‌شود</b> (پورت چپ: مثلاً 2292 = سرور 248، 2293 = mitto)';
+    $('lbUser').innerHTML = m === 'voip' ? 'نام کاربری <b>ایزابل</b> (معمولاً root)' : 'نام کاربری همان سرور (اوبونتو)';
+    $('lbPass').innerHTML = m === 'voip' ? 'رمز SSH <b>ایزابل</b>' : 'رمز SSH همان سرور';
     var t = document.querySelector('#loginCard h2'); if (t) t.textContent = m === 'voip' ? '۱. ورود به ایزابل (SSH، معمولاً root)' : '۱. ورود به سرور (SSH)';
   }
   var GUIDE_INSTALL = '<b>کدام سرور را بنویسم؟</b> همان سروری که برنامهٔ هورمند باید روی آن نصب شود (اوبونتو).<ol><li><b>آدرس و پورت:</b> از داخل شبکه آدرس داخلی سرور و پورت 22 (مثلاً 192.168.2.248). از بیرون شبکه IP عمومی و پورتی که روتر به آن سرور داده است (مثلاً 37.255.238.219 و 2292).</li><li><b>نام کاربری و رمز:</b> کاربر خود سرور اوبونتو (نه ایزابل) که دسترسی sudo دارد.</li></ol>';
