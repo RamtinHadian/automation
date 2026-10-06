@@ -56,9 +56,26 @@ func announcementCreate(w http.ResponseWriter, r *http.Request) {
 	id := "an-" + time.Now().UTC().Format("060102150405.000") + "-" + me.ID()
 	id = strings.ReplaceAll(id, ".", "")
 	important, pinned := jsonx.Bool(body, "important"), jsonx.Bool(body, "pinned")
+	// «on top of every page»: shown for a number of days (1-60), optionally with the day of the event
+	banner := jsonx.Bool(body, "banner")
+	bannerDays := 3
+	if f, ok := body["bannerDays"].(float64); ok && f >= 1 && f <= 60 {
+		bannerDays = int(f)
+	}
+	eventDate := jsonx.Str(body, "eventDate")
+	if !leaveDate.MatchString(eventDate) {
+		eventDate = ""
+	}
 	doc := jsonx.M{
 		"id": id, "title": title, "text": text, "important": important, "pinned": pinned,
 		"authorId": me.ID(), "authorName": me.Name(), "createdAt": time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+	}
+	if banner {
+		doc["banner"], doc["bannerDays"] = true, bannerDays
+		doc["bannerUntil"] = time.Now().UTC().Add(time.Duration(bannerDays) * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z")
+		if eventDate != "" {
+			doc["eventDate"] = eventDate
+		}
 	}
 	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO announcements (id, pinned, data) VALUES ($1, $2, $3::jsonb)`, id, pinned, jsonx.Encode(doc)); err != nil {
 		internalError(w)

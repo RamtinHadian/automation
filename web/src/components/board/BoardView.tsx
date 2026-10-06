@@ -3,7 +3,8 @@ import { AlertCircle, Megaphone, Pin, PinOff, Plus, Send, Trash2, X } from 'luci
 import { Announcement, api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
-import { formatTaskDate } from '../../lib/taskDates';
+import { formatTaskDate, todayIso } from '../../lib/taskDates';
+import { JalaliDateField } from '../tasks/TasksView';
 
 const field = 'w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none';
 const clock = (iso: string) => toPersianDigits(new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }));
@@ -20,6 +21,9 @@ export const BoardView: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [composing, setComposing] = useState(false);
+  const [banner, setBanner] = useState(false);
+  const [bannerDays, setBannerDays] = useState(3);
+  const [eventDate, setEventDate] = useState<string | undefined>(undefined);
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
   const load = useCallback(() => {
@@ -41,7 +45,7 @@ export const BoardView: React.FC = () => {
     }
     setBusy(true);
     try {
-      const r = await api.announcementCreate({ title: title.trim(), text: text.trim(), important, pinned });
+      const r = await api.announcementCreate({ title: title.trim(), text: text.trim(), important, pinned, banner, bannerDays, eventDate: banner ? eventDate : undefined });
       // shown at once (the list from the server is read again right after)
       setItems((cur) => [{ id: r.id, title: title.trim(), text: text.trim(), important, pinned, authorId: currentUser.id, authorName: currentUser.fullName, createdAt: new Date().toISOString() }, ...cur]);
       showToast('اعلان منتشر شد و برای همه اعلان رفت.');
@@ -50,6 +54,8 @@ export const BoardView: React.FC = () => {
       setImportant(false);
       setPinned(false);
       setComposing(false);
+      setBanner(false);
+      setEventDate(undefined);
       load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'منتشر نشد.');
@@ -128,6 +134,28 @@ export const BoardView: React.FC = () => {
                 سنجاق در بالای تابلو
               </label>
             </div>
+            <label className="flex items-center gap-1.5 cursor-pointer text-amber-900">
+              <input type="checkbox" checked={banner} onChange={(e) => setBanner(e.target.checked)} className="accent-amber-600 w-4 h-4" />
+              نمایش در بالای همهٔ صفحه‌ها (بنر)
+            </label>
+          </div>
+          {banner && (
+            <div className="rounded-2xl border border-amber-200 bg-white p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <div className="text-[11px] font-black text-[#3A241F] mb-1.5">چند روز بالای صفحه باشد؟</div>
+                <div className="flex items-center gap-2">
+                  <input type="number" min={1} max={60} className={`${field} max-w-[110px]`} value={bannerDays} onChange={(e) => setBannerDays(Math.max(1, Math.min(60, Number(e.target.value) || 1)))} />
+                  <span className="text-[11px] font-bold text-[#8C6F66]">روز (کاربر می‌تواند با ✕ ببندد)</span>
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] font-black text-[#3A241F] mb-1.5">روز رویداد (اختیاری، مثلاً روز جلسه)</div>
+                <JalaliDateField value={eventDate} onChange={setEventDate} />
+                {eventDate && <div className="text-[10px] font-bold text-[#8C6F66] mt-1">{formatTaskDate(eventDate)}{eventDate < todayIso() ? ' (گذشته)' : ''}</div>}
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end">
             <button type="button" disabled={busy} onClick={publish} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-xs font-black cursor-pointer shadow-sm">
               <Send className="w-4 h-4" />
               انتشار اعلان

@@ -57,6 +57,11 @@ export interface Announcement {
   authorId: string;
   authorName: string;
   createdAt: string;
+  /** shown on top of every page until bannerUntil */
+  banner?: boolean;
+  bannerDays?: number;
+  bannerUntil?: string;
+  eventDate?: string;
 }
 
 export interface LeaveRequest {
@@ -237,7 +242,7 @@ export const api = {
   voipStatus: () => request<{ enabled: boolean; connected: boolean; extension: string }>('GET', '/api/voip/status'),
   demoInfo: () => request<DemoInfo>('GET', '/api/demo/info'),
   announcements: () => request<{ announcements: Announcement[]; canPost: boolean }>('GET', '/api/announcements'),
-  announcementCreate: (b: { title: string; text: string; important: boolean; pinned: boolean }) => request<{ ok: true; id: string }>('POST', '/api/announcements', b),
+  announcementCreate: (b: { title: string; text: string; important: boolean; pinned: boolean; banner?: boolean; bannerDays?: number; eventDate?: string }) => request<{ ok: true; id: string }>('POST', '/api/announcements', b),
   announcementDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/announcements/${encodeURIComponent(id)}`),
   announcementPin: (id: string, pinned: boolean) => request<{ ok: true }>('POST', `/api/announcements/${encodeURIComponent(id)}/pin`, { pinned }),
   leaves: (scope: 'mine' | 'all') => request<{ leaves: LeaveRequest[]; canDecide: boolean }>('GET', '/api/leaves?scope=' + scope),

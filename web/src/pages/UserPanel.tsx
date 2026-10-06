@@ -5,6 +5,7 @@ import { VersionBadge } from '../components/common/VersionBadge';
 import { ChatView } from '../components/chat/ChatView';
 import { LeaveView } from '../components/leave/LeaveView';
 import { BoardView } from '../components/board/BoardView';
+import { BannerStrip } from '../components/board/BannerStrip';
 import { CrmView } from '../components/crm/CrmView';
 import { TasksView } from '../components/tasks/TasksView';
 import { CallMenu } from '../components/common/CallMenu';
@@ -602,6 +603,7 @@ export default function UserPanel() {
       <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 sm:min-h-[calc(100vh-0.5rem)]">
 
         {/* Top Header */}
+        <BannerStrip />
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
 <div className="w-7 h-7 rounded-xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1">
