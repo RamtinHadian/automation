@@ -410,31 +410,31 @@ export const CrmView: React.FC = () => {
           <h2 className="font-black text-lg text-[#3A241F]">مشتریان و فروش</h2>
           <p className="text-xs text-[#8C6F66] mt-0.5">مشتری‌ها، فرصت‌های فروش و پیگیری‌ها؛ همه در یک‌جا.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 sm:flex gap-2">
           <button
             onClick={() => setImporting(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4" />
             ورود از اکسل
           </button>
           <button
             onClick={() => setEditingDeal({ deal: newDeal(), isNew: true })}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 text-xs font-black cursor-pointer"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 text-xs font-black cursor-pointer"
           >
             <Briefcase className="w-4 h-4" />
             فرصت جدید
           </button>
           <button
             onClick={() => setQuickProforma(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
+            className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
           >
             <FileText className="w-4 h-4" />
             صدور پیش‌فاکتور
           </button>
           <button
             onClick={() => setEditingCustomer(newCustomer())}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/25 transition-all active:scale-95 cursor-pointer"
+            className="order-first sm:order-none col-span-2 sm:col-span-1 flex items-center justify-center gap-2 px-5 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/25 transition-all active:scale-95 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             مشتری جدید
@@ -442,13 +442,13 @@ export const CrmView: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 overflow-x-auto">
+      <div className="flex flex-wrap sm:flex-nowrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 sm:overflow-x-auto">
         {tabs.map(([id, text, Icon]) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`flex-1 sm:flex-initial whitespace-nowrap flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            className={`flex-1 basis-[45%] sm:basis-auto sm:flex-initial min-h-[44px] sm:min-h-0 whitespace-nowrap flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
               tab === id ? 'bg-white text-violet-700 shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
             }`}
           >
