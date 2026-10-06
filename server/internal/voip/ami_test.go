@@ -96,3 +96,24 @@ func TestChannelExt(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeEventAsterisk11(t *testing.T) {
+	ev := Event{"Event": "Dial", "SubEvent": "Begin", "Channel": "SIP/trunk-0000001a", "Destination": "SIP/501-0000001b", "CallerIDNum": "09121234567", "UniqueID": "1759660000.5", "DestUniqueID": "1759660000.6"}
+	normalizeEvent(ev)
+	if ev["Event"] != "DialBegin" || ev["DestChannel"] != "SIP/501-0000001b" || ev["Linkedid"] != "1759660000.5" {
+		t.Fatalf("not normalized: %v", ev)
+	}
+	if m := channelExt.FindStringSubmatch(ev["DestChannel"]); m == nil || m[1] != "501" {
+		t.Fatalf("extension not found in %q", ev["DestChannel"])
+	}
+	end := Event{"Event": "Dial", "SubEvent": "End", "UniqueID": "1759660000.5", "DialStatus": "ANSWER"}
+	normalizeEvent(end)
+	if end["Event"] != "DialEnd" || end["Linkedid"] != "1759660000.5" {
+		t.Fatalf("end not normalized: %v", end)
+	}
+	newer := Event{"Event": "DialBegin", "DestChannel": "PJSIP/502-00000001", "Linkedid": "X.1", "Uniqueid": "X.2"}
+	normalizeEvent(newer)
+	if newer["Linkedid"] != "X.1" || newer["DestChannel"] != "PJSIP/502-00000001" {
+		t.Fatalf("newer events must stay untouched: %v", newer)
+	}
+}

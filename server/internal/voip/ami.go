@@ -124,6 +124,7 @@ func (c *Client) session(ctx context.Context) error {
 		if ev["Event"] != "" {
 			noteEvent()
 		}
+		normalizeEvent(ev)
 		if ev["Event"] != "" && c.OnEvent != nil {
 			c.OnEvent(ev)
 		}
@@ -240,4 +241,29 @@ func (c *Client) Call(fromExt, target string) error {
 		return errors.New("تماس برقرار نشد: " + resp["Message"])
 	}
 	return nil
+}
+
+// normalizeEvent lets older phone systems (Asterisk 11 and older, e.g. Issabel 4) talk like the newer ones. There a
+// ringing leg is ONE event «Dial» with SubEvent Begin/End (and the called channel is called «Destination»), and no
+// event has a Linkedid; everything below is written for the newer names (DialBegin, DialEnd, DestChannel, Linkedid).
+func normalizeEvent(ev Event) {
+	if ev["Event"] == "Dial" {
+		switch strings.ToLower(ev["SubEvent"]) {
+		case "begin":
+			ev["Event"] = "DialBegin"
+			if ev["DestChannel"] == "" {
+				ev["DestChannel"] = ev["Destination"]
+			}
+		case "end":
+			ev["Event"] = "DialEnd"
+		}
+	}
+	switch ev["Event"] {
+	case "DialBegin", "DialEnd", "Hangup":
+		if ev["Linkedid"] == "" && ev["LinkedID"] == "" {
+			if u := pick(ev, "Uniqueid", "UniqueID"); u != "" {
+				ev["Linkedid"] = u
+			}
+		}
+	}
 }
