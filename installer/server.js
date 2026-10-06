@@ -552,7 +552,34 @@ class Session {
         const r = await this.run('d=/var/spool/asterisk/monitor; [ -d $d ] && { echo "پوشه: $d"; echo "تعداد فایل: $(find $d -type f 2>/dev/null | wc -l)"; find $d -type f -printf "%f\\n" 2>/dev/null | head -2; } || echo "پوشهٔ ضبط پیدا نشد"', { root: true });
         const n = Number((/تعداد فایل: (\d+)/.exec(r.out) || [])[1] || 0);
         if (!n) this.log('هنوز مکالمه‌ای ضبط نشده؛ در Issabel ضبط تماس‌ها را روشن کنید (PBX ← Extensions ← Recording، یا Call Recording).', 'yellow');
-        return { ok: true, note: n ? 'پوشهٔ ضبط پیدا شد (' + n + ' فایل).' : 'ضبط هنوز روشن نیست (دستی در ایزابل).' };
+        // The program only plays what reaches it. With the user's explicit approval (2026-10-07) this installs a small
+        // sender on the phone system: every minute it uploads each new recording (the call id is in the file name) to the
+        // program, authorised by a key that is also written to the program's .env (VOIP_RECORDING_KEY).
+        if (ip4.test(appHost)) {
+          const sender = [
+            '#!/bin/bash',
+            '# Sends new call recordings to the Hoormand server (installed by the Hoormand installer panel)',
+            'DIR=/var/spool/asterisk/monitor',
+            'URL=http://' + appHost + ':' + appPort + '/api/voip/recordings',
+            'KEY=' + recKey,
+            'DONE=/var/lib/hoormand-rec',
+            'mkdir -p "$DONE"',
+            'exec 9>/var/lock/hoormand-rec.lock; flock -n 9 || exit 0',
+            `find "$DIR" -type f \\( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.gsm' -o -iname '*.ogg' \\) -mmin +1 -mtime -7 | while read -r f; do`,
+            `  id=$(basename "$f" | grep -oE '[0-9]{9,11}\\.[0-9]+' | head -1)`,
+            '  [ -n "$id" ] || continue',
+            '  [ -e "$DONE/$id" ] && continue',
+            `  ext=$(echo "\${f##*.}" | tr 'A-Z' 'a-z')`,
+            '  if curl -sf -m 300 -X PUT -H "X-Recording-Key: $KEY" --data-binary @"$f" "$URL/$id?ext=$ext" >/dev/null; then touch "$DONE/$id"; fi',
+            'done',
+            '',
+          ].join('\n');
+          const b64 = Buffer.from(sender).toString('base64');
+          const inst = await this.run('echo ' + b64 + ' | base64 -d > /usr/local/bin/hoormand-push-recordings.sh && chmod 700 /usr/local/bin/hoormand-push-recordings.sh && echo "* * * * * root /usr/local/bin/hoormand-push-recordings.sh >/dev/null 2>&1" > /etc/cron.d/hoormand-recordings && chmod 644 /etc/cron.d/hoormand-recordings && (service crond reload 2>/dev/null || systemctl reload crond 2>/dev/null || true) && (nohup /usr/local/bin/hoormand-push-recordings.sh >/dev/null 2>&1 &) ; echo sender-ok', { root: true, label: 'sudo (نصب فرستندهٔ خودکار ضبط‌ها به سرور برنامه، هر یک دقیقه)' });
+          if (!/sender-ok/.test(inst.out)) return { ok: false, note: 'فرستندهٔ ضبط‌ها روی ایزابل نصب نشد. خروجی بالا را بفرستید.' };
+          this.log('هر دقیقه ضبط‌های تازه از ایزابل به سرور برنامه (' + appHost + ':' + appPort + ') فرستاده می‌شود؛ ضبط‌های هفتهٔ اخیر هم همین حالا شروع به رفتن می‌کنند.', 'gray');
+        }
+        return { ok: true, note: (n ? 'پوشهٔ ضبط پیدا شد (' + n + ' فایل)' : 'ضبط هنوز روشن نیست (دستی در ایزابل)') + '؛ ارسال خودکار به سرور برنامه نصب شد.' };
       },
       app: async () => {
         if (!app) return { ok: true, note: 'مشخصات SSH سرور برنامه داده نشد؛ مقدارها را پایین ببینید و خودتان در .env بگذارید.' };
