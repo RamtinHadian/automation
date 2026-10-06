@@ -63,6 +63,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/backups/settings", auth.Require(backupGetSettings))
 	mux.HandleFunc("PUT /api/backups/settings", auth.Require(backupPutSettings))
 	mux.HandleFunc("POST /api/backups/net-test", auth.Require(backupNetTest))
+	mux.HandleFunc("POST /api/backups/cloud-test", auth.Require(backupCloudTest))
 	mux.HandleFunc("POST /api/backups/restore", auth.Require(backupRestore))
 	mux.HandleFunc("POST /api/backups/browse", auth.Require(backupBrowse))
 	mux.HandleFunc("GET /api/backups/browse", auth.Require(backupBrowseResult))

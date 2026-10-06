@@ -88,8 +88,13 @@ func listBackups(w http.ResponseWriter, r *http.Request) {
 		restore = jsonRaw(raw)
 	}
 	_, testPending := os.Stat(filepath.Join(dir, ".nettest-request"))
+	var cloud any
+	if raw, err := os.ReadFile(filepath.Join(dir, ".cloud.json")); err == nil {
+		cloud = jsonRaw(raw)
+	}
+	_, cloudPending := os.Stat(filepath.Join(dir, ".cloudtest-request"))
 	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": enabled, "items": items, "status": status, "pending": pending == nil,
-		"nettest": nettest, "nettestPending": testPending == nil, "restore": restore})
+		"nettest": nettest, "nettestPending": testPending == nil, "cloud": cloud, "cloudPending": cloudPending == nil, "restore": restore})
 }
 
 func requestBackup(w http.ResponseWriter, r *http.Request) {

@@ -120,6 +120,8 @@ export interface BackupInfo {
   status: { result: 'ok' | 'error'; at: string; text: string; net?: 'ok' | 'error' | 'off'; netText?: string } | null;
   nettest: { result: 'ok' | 'error'; at: string; text: string } | null;
   nettestPending: boolean;
+  cloud: { result: 'ok' | 'error'; at: string; text: string } | null;
+  cloudPending: boolean;
   restore: { result: 'ok' | 'error'; at: string; text: string } | null;
 }
 
@@ -139,6 +141,10 @@ export interface BackupSettings {
   netUser?: string;
   netDomain?: string;
   hasPassword?: boolean;
+  cloudEnabled?: boolean;
+  cloudType?: 'drive' | 'onedrive';
+  cloudFolder?: string;
+  hasCloudToken?: boolean;
 }
 
 export interface VoipStatRow {
@@ -309,8 +315,9 @@ export const api = {
   statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[] }>('GET', '/api/stats-data'),
   backups: () => request<BackupInfo>('GET', '/api/backups'),
   backupSettings: () => request<BackupSettings>('GET', '/api/backups/settings'),
-  backupSaveSettings: (b: BackupSettings & { netPassword: string }) => request<BackupSettings>('PUT', '/api/backups/settings', b),
+  backupSaveSettings: (b: BackupSettings & { netPassword: string; cloudToken?: string }) => request<BackupSettings>('PUT', '/api/backups/settings', b),
   backupNetTest: () => request<{ ok: true }>('POST', '/api/backups/net-test'),
+  backupCloudTest: () => request<{ ok: true }>('POST', '/api/backups/cloud-test'),
   backupRestore: (file: string) => request<{ ok: true }>('POST', '/api/backups/restore', { file, confirm: true }),
   restoreStatus: async () => (await (await fetch('/api/backups/restore-status')).json()) as { restoring: boolean; result?: 'ok' | 'error'; text?: string },
   backupBrowse: (b: { host: string; path: string; user: string; domain: string; password: string }) => request<{ id: string }>('POST', '/api/backups/browse', b),

@@ -56,6 +56,67 @@ net_test() {
   printf '{"result":"%s","at":"%s","text":"%s"}\n' "$r" "$(date -Iseconds)" "$(json "$t")" > "$BACKUPS/.nettest.json"
 }
 
+# ---------- cloud copy (Google Drive / OneDrive through rclone) ----------
+# The admin pastes the code that "rclone authorize" prints on his own computer (Settings -> Backup). From it the rclone
+# config is built here; rclone renews the login by itself and keeps the renewed one in .rclone.conf, which is only rebuilt
+# when the saved code changes.
+RCLONE_CONF="$BACKUPS/.rclone.conf"
+cloud_ready() { # prints a short reason and returns 1 when the cloud cannot be used
+  command -v rclone > /dev/null 2>&1 || { echo "rclone is not installed in the backup container (the server could not download it when the image was built)"; return 1; }
+  ctype=$(cfg cloudType); token=$(cfg cloudToken)
+  [ -n "$token" ] || { echo "no cloud login is saved"; return 1; }
+  sum=$(printf '%s|%s' "$ctype" "$token" | md5sum | cut -d' ' -f1)
+  if [ "$(cat "$BACKUPS/.rclone.sum" 2>/dev/null)" != "$sum" ] || [ ! -s "$RCLONE_CONF" ]; then
+    case "$ctype" in
+      onedrive)
+        # OneDrive needs the id of the drive: ask Microsoft once, with the fresh code
+        acc=$(printf '%s' "$token" | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
+        info=$(wget -qO- --timeout=20 --header "Authorization: Bearer $acc" https://graph.microsoft.com/v1.0/me/drive 2>/dev/null)
+        did=$(printf '%s' "$info" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p' | head -1)
+        dtype=$(printf '%s' "$info" | sed -n 's/.*"driveType":"\([^"]*\)".*/\1/p' | head -1)
+        [ -n "$did" ] || { echo "Microsoft did not accept the code (it is valid for about an hour: run the rclone authorize command again and paste the new code)"; return 1; }
+        printf '[cloud]\ntype = onedrive\ntoken = %s\ndrive_id = %s\ndrive_type = %s\n' "$token" "$did" "${dtype:-personal}" > "$RCLONE_CONF" ;;
+      local) printf '[cloud]\ntype = local\n' > "$RCLONE_CONF" ;; # only used by the tests of this script
+      *) printf '[cloud]\ntype = drive\nscope = drive\ntoken = %s\n' "$token" > "$RCLONE_CONF" ;;
+    esac
+    chmod 600 "$RCLONE_CONF"
+    echo "$sum" > "$BACKUPS/.rclone.sum"
+  fi
+  return 0
+}
+cloud_folder() { f=$(cfg cloudFolder); echo "${f:-Hoormand-Backups}"; }
+cloud_write() { # $1 ok|error, $2 text
+  printf '{"result":"%s","at":"%s","text":"%s"}\n' "$1" "$(date -Iseconds)" "$(json "$2")" > "$BACKUPS/.cloud.json"
+}
+rc_run() { rclone --config "$RCLONE_CONF" --contimeout 30s --timeout 300s --retries 2 --low-level-retries 2 "$@"; }
+cloud_send() { # $1 = file; returns 0 ok, 1 error, 2 not enabled
+  [ "$(cfg cloudEnabled)" = "true" ] || return 2
+  reason=$(cloud_ready) || { cloud_write error "$reason"; return 1; }
+  folder=$(cloud_folder)
+  if out=$(rc_run copy "$1" "cloud:$folder" 2>&1) && rc_run lsf "cloud:$folder" --include "$(basename "$1")" 2>/dev/null | grep -q .; then
+    cloud_write ok "uploaded $(basename "$1") to $folder"
+    # keep the cloud tidy too: older than KEEP_DAYS days go, but never fewer than the 5 newest
+    if [ "$(rc_run lsf "cloud:$folder" --include 'hoormand-*.dump' 2>/dev/null | wc -l)" -gt 5 ]; then
+      rc_run delete "cloud:$folder" --include 'hoormand-*.dump' --min-age "${KEEP_DAYS}d" > /dev/null 2>&1
+    fi
+    return 0
+  fi
+  cloud_write error "$(printf '%s' "$out" | tail -n 3 | tr '\n' ' ' | cut -c1-250)"
+  return 1
+}
+cloud_test() {
+  reason=$(cloud_ready) || { cloud_write error "$reason"; return; }
+  folder=$(cloud_folder); tf=$(mktemp); echo "Hoormand backup test $(date -Iseconds)" > "$tf"
+  name="hoormand-connection-test.txt"; cp "$tf" "/tmp/$name"; rm -f "$tf"
+  if out=$(rc_run copy "/tmp/$name" "cloud:$folder" 2>&1); then
+    rc_run deletefile "cloud:$folder/$name" > /dev/null 2>&1
+    cloud_write ok "connected: a test file was written to $folder and removed again"
+  else
+    cloud_write error "$(printf '%s' "$out" | tail -n 3 | tr '\n' ' ' | cut -c1-250)"
+  fi
+  rm -f "/tmp/$name"
+}
+
 # ---------- browse the network (lets the admin pick the share and folder instead of typing them) ----------
 browse() {
   f="$BACKUPS/.browse-request"
@@ -100,6 +161,7 @@ take() { # $1 = auto | manual | prerestore
   fi
   mv "$tmp" "$BACKUPS/$name"
   nt=$(net_send "$BACKUPS/$name"); nrc=$?
+  cloud_send "$BACKUPS/$name" > /dev/null
   case $nrc in 0) status ok "$name" ok "$nt" ;; 1) status ok "$name" error "$nt" ;; *) status ok "$name" off "" ;; esac
   # keep the last KEEP_DAYS days, but never fewer than the 5 newest copies
   if [ "$(ls "$BACKUPS"/hoormand-*.dump 2>/dev/null | wc -l)" -gt 5 ]; then
@@ -174,6 +236,7 @@ while true; do
   [ -f "$BACKUPS/.request" ] && { rm -f "$BACKUPS/.request"; take manual; }
   [ -f "$BACKUPS/.browse-request" ] && browse
   [ -f "$BACKUPS/.nettest-request" ] && { rm -f "$BACKUPS/.nettest-request"; net_test; }
+  [ -f "$BACKUPS/.cloudtest-request" ] && { rm -f "$BACKUPS/.cloudtest-request"; cloud_test; }
   if [ $((tick % 30)) -eq 0 ] && due; then
     date +%Y%m%d > "$BACKUPS/.last-auto-date"; date +%s > "$BACKUPS/.last-auto-epoch"
     take auto

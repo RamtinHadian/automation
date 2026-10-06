@@ -52,6 +52,8 @@ func maskedBackupSettings(r *http.Request) jsonx.M {
 	out := jsonx.Copy(s)
 	delete(out, "netPassword")
 	out["hasPassword"] = jsonx.Str(s, "netPassword") != ""
+	delete(out, "cloudToken")
+	out["hasCloudToken"] = jsonx.Str(s, "cloudToken") != ""
 	return out
 }
 
@@ -104,6 +106,44 @@ func backupPutSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	doc["netPassword"] = pass
+
+	// the cloud copy (Google Drive / OneDrive through rclone): the access token never goes back to the browser
+	cloudOn := jsonx.Bool(body, "cloudEnabled")
+	cloudType := jsonx.Str(body, "cloudType")
+	if cloudType != "onedrive" {
+		cloudType = "drive"
+	}
+	cloudFolder := strings.Trim(strings.TrimSpace(jsonx.Str(body, "cloudFolder")), "/")
+	if cloudFolder == "" {
+		cloudFolder = "Hoormand-Backups"
+	}
+	if !reDir.MatchString(cloudFolder) || strings.ContainsAny(cloudFolder, ":'`$") || strings.Contains(cloudFolder, "..") {
+		bad("نام پوشهٔ ابری نامعتبر است (از علامت‌های : ' ` $ و .. استفاده نکنید).")
+		return
+	}
+	cloudToken := strings.Join(strings.Fields(jsonx.Str(body, "cloudToken")), "")
+	if cloudToken == "" {
+		cloudToken = jsonx.Str(old, "cloudToken") // empty = keep the saved one
+	}
+	if DemoMode {
+		cloudOn, cloudToken = false, ""
+	}
+	if cloudToken != "" {
+		var t map[string]any
+		if err := json.Unmarshal([]byte(cloudToken), &t); err != nil || strings.TrimSpace(jsonx.Str(t, "access_token")) == "" {
+			bad("کد ابری درست نیست: باید همان متنِ شروع‌شده با { و پایان‌یافته با } باشد که دستور rclone authorize چاپ می‌کند.")
+			return
+		}
+		if strings.ContainsAny(cloudToken, "'`") {
+			bad("کد ابری نامعتبر است.")
+			return
+		}
+	}
+	if cloudOn && cloudToken == "" {
+		bad("برای روشن‌کردن کپی ابری، کد دریافتی از rclone را در کادر بچسبانید.")
+		return
+	}
+	doc["cloudEnabled"], doc["cloudType"], doc["cloudFolder"], doc["cloudToken"] = cloudOn, cloudType, cloudFolder, cloudToken
 
 	mode := jsonx.Str(body, "scheduleMode")
 	if mode != "daily" && mode != "interval" && mode != "window" {
@@ -185,6 +225,28 @@ func backupPutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	auditLine(r, me, "WARNING", "تنظیمات پشتیبان‌گیری (زمان‌بندی / پوشهٔ شبکه) تغییر کرد.")
 	httpx.JSON(w, http.StatusOK, maskedBackupSettings(r))
+}
+
+// backupCloudTest asks the backup container to try the saved Google Drive / OneDrive login and write a small test file.
+func backupCloudTest(w http.ResponseWriter, r *http.Request) {
+	if auth.Current(r).Role() != "SUPER_ADMIN" {
+		httpx.Forbidden(w)
+		return
+	}
+	if DemoMode {
+		m := map[string]any{"result": "ok", "at": time.Now().Format(time.RFC3339), "text": "نمایشی: اتصال به فضای ابری فرضی برقرار است"}
+		raw, _ := json.Marshal(m)
+		_ = os.WriteFile(filepath.Join(backupDir(), ".cloud.json"), raw, 0o644)
+		httpx.OK(w)
+		return
+	}
+	dir := backupDir()
+	_ = os.Remove(filepath.Join(dir, ".cloud.json"))
+	if err := os.WriteFile(filepath.Join(dir, ".cloudtest-request"), []byte("1"), 0o644); err != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, "سرویس پشتیبان‌گیری در دسترس نیست.")
+		return
+	}
+	httpx.OK(w)
 }
 
 func backupNetTest(w http.ResponseWriter, r *http.Request) {

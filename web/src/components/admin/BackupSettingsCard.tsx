@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { BackupCloudBlock } from './BackupCloudBlock';
 import { AlertTriangle, CalendarClock, CheckCircle2, DatabaseBackup, Download, FolderOpen, HardDriveDownload, Loader2, Network, RotateCcw, Save, ShieldCheck, Upload, Wifi } from 'lucide-react';
 import { api, BackupInfo, BackupSettings } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
@@ -44,6 +45,8 @@ export const BackupSettingsCard: React.FC = () => {
   const before = useRef<string>('');
   const [cfg, setCfg] = useState<BackupSettings | null>(null);
   const [pass, setPass] = useState('');
+  const [cloudToken, setCloudToken] = useState('');
+  const [cloudTesting, setCloudTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [askRestore, setAskRestore] = useState<{ name: string; at: string; fromComputer?: boolean } | null>(null);
@@ -71,6 +74,9 @@ export const BackupSettingsCard: React.FC = () => {
   useEffect(() => {
     if (testing && info && !info.nettestPending && info.nettest) setTesting(false);
   }, [info, testing]);
+  useEffect(() => {
+    if (cloudTesting && info && !info.cloudPending && info.cloud) setCloudTesting(false);
+  }, [info, cloudTesting]);
 
   const make = async () => {
     before.current = info?.items[0]?.name || '';
@@ -94,9 +100,10 @@ export const BackupSettingsCard: React.FC = () => {
     if (!cfg) return false;
     setSaving(true);
     try {
-      const saved = await api.backupSaveSettings({ ...cfg, netPassword: pass });
+      const saved = await api.backupSaveSettings({ ...cfg, netPassword: pass, cloudToken });
       setCfg(saved);
       setPass('');
+      setCloudToken('');
       showToast('تنظیمات پشتیبان‌گیری ذخیره شد.');
       return true;
     } catch (e) {
@@ -104,6 +111,17 @@ export const BackupSettingsCard: React.FC = () => {
       return false;
     } finally {
       setSaving(false);
+    }
+  };
+  const testCloud = async () => {
+    if (!(await save())) return;
+    setCloudTesting(true);
+    try {
+      await api.backupCloudTest();
+      load();
+    } catch {
+      setCloudTesting(false);
+      showToast('درخواست آزمایش ارسال نشد.');
     }
   };
   const testNet = async () => {
@@ -310,6 +328,9 @@ export const BackupSettingsCard: React.FC = () => {
             )}
           </div>
         )}
+        <div className="border-t border-[#EBDBCE] pt-4">
+          <BackupCloudBlock cfg={cfg} set={set} token={cloudToken} setToken={setCloudToken} testing={cloudTesting} saving={saving} onTest={testCloud} result={info.cloud} />
+        </div>
       </div>
 
       <div className="flex justify-end">
