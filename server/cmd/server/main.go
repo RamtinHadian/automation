@@ -61,6 +61,7 @@ func main() {
 	go msgr.Run(ctx)
 	go work.RunTaskReminders(ctx)
 	go api.RunFileRetention(ctx)
+	go api.RunNetWatch(ctx)
 	api.SetPhone(phone)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: api.Router(cfg)}

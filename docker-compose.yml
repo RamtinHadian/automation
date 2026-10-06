@@ -31,6 +31,7 @@ services:
       AMI_PORT: ${AMI_PORT:-5038}
       AMI_USER: ${AMI_USER:-}
       AMI_SECRET: ${AMI_SECRET:-}
+      VOIP_RECORDING_KEY: ${VOIP_RECORDING_KEY:-}
       DEMO: ${DEMO:-}
       SMSIR_BASE: ${SMSIR_BASE:-}
       TELEGRAM_BASE: ${TELEGRAM_BASE:-}

@@ -463,6 +463,8 @@ class Session {
     // the address this machine uses to reach the LAN/internet: the source address of the route to a public address
     const LAN_CMD = `ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1`;
     const pbxLogin = { host: this.host, port: this.sshPort, username: this.user, password: this.password };
+    let appPort = '8080'; // the port the program listens on (read from its container below)
+    const recKey = require('crypto').randomBytes(24).toString('hex'); // lets the phone system hand recordings over to the program
     const user = String(o.amiUser || 'hoormand').replace(/[^A-Za-z0-9_-]/g, '') || 'hoormand';
     const secret = String(o.amiSecret || '').replace(/[^A-Za-z0-9]/g, '') || require('crypto').randomBytes(12).toString('hex');
     let pbxHost = this.host; // replaced by the phone system's own LAN address when we reached it through the public IP
@@ -490,6 +492,9 @@ class Session {
         const lan = (await this.run(LAN_CMD, { quiet: true })).out.trim();
         const dirs = (await this.run(`docker ps --filter label=com.docker.compose.service=app -q | xargs -r docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`, { root: true, quiet: true })).out
           .split(/\r?\n/).map((x) => x.trim()).filter((x) => x.startsWith('/'));
+        const portOut = (await this.run(`docker ps --filter label=com.docker.compose.service=app --format '{{.Ports}}' | head -1`, { root: true, quiet: true })).out;
+        const pm = /:(\d{2,5})->/.exec(portOut);
+        if (pm) appPort = pm[1];
         let dir = String(app.dir || '').trim() || dirs[0] || '';
         if (!dir) dir = /yes/.test((await this.run('[ -f /opt/automation/.env ] && echo yes', { quiet: true })).out) ? '/opt/automation' : '';
         if (dirs.length > 1 && !app.dir) this.log('چند برنامه روی این سرور هست (' + dirs.join('، ') + ')؛ اولی را انتخاب کردم. اگر برنامهٔ دیگری مدنظر است، «پوشهٔ برنامه» را در بخش پیشرفته بنویسید.', 'yellow');
@@ -560,7 +565,7 @@ class Session {
         }
         const dir = String(app.dir || '/opt/automation').replace(/[^A-Za-z0-9/_.-]/g, '');
         this.dir = dir;
-        const lines = { AMI_HOST: pbxHost, AMI_PORT: '5038', AMI_USER: user, AMI_SECRET: secret };
+        const lines = { AMI_HOST: pbxHost, AMI_PORT: '5038', AMI_USER: user, AMI_SECRET: secret, VOIP_RECORDING_KEY: recKey };
         const upd = Object.entries(lines).map(([k, v]) => 'grep -q "^' + k + '=" .env && sed -i "s|^' + k + '=.*|' + k + '=' + v + '|" .env || echo "' + k + '=' + v + '" >> .env').join('; ');
         const r = await this.run('cd ' + dir + ' && [ -f .env ] && cp -n .env .env.bak-hoormand && ' + upd + ' && echo env-ok', { root: true, quiet: true });
         if (!/env-ok/.test(r.out)) return { ok: false, note: 'فایل .env در ' + dir + ' پیدا یا نوشته نشد.' };

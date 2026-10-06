@@ -104,6 +104,19 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	  data JSONB NOT NULL
 	)`,
+	`CREATE TABLE IF NOT EXISTS net_events (
+	  id BIGSERIAL PRIMARY KEY,
+	  at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  kind TEXT NOT NULL,
+	  seconds INT NOT NULL DEFAULT 0,
+	  version TEXT NOT NULL DEFAULT '',
+	  detail TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE TABLE IF NOT EXISTS net_heartbeat (
+	  id INT PRIMARY KEY,
+	  at TIMESTAMPTZ NOT NULL,
+	  version TEXT NOT NULL DEFAULT ''
+	)`,
 	`CREATE TABLE IF NOT EXISTS leave_requests (
 	  id TEXT PRIMARY KEY,
 	  user_id TEXT NOT NULL,

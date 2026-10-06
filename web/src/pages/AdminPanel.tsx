@@ -30,6 +30,7 @@ import {
 import { useAppContext } from '../context/AppContext';
 import { UserManagementView } from '../components/admin/UserManagementView';
 import { AnalyticsView } from '../components/admin/AnalyticsView';
+import { NetWatchCard } from '../components/admin/NetWatchCard';
 import { AuditLogsView } from '../components/admin/AuditLogsView';
 import { SettingsView } from '../components/admin/SettingsView';
 import { LetterManagementAdminView } from '../components/admin/LetterManagementAdminView';
@@ -683,13 +684,16 @@ export default function AdminPanel() {
           {activeTab === 'stats' && <ManagementReports />}
 
           {activeTab === 'analytics' && (
-            <AnalyticsView
-              users={staffList}
-              files={INITIAL_FILES}
-              transfers={transfers}
-              auditLogs={auditLogs}
-              departments={departments}
-            />
+            <div className="space-y-4">
+              <NetWatchCard />
+              <AnalyticsView
+                users={staffList}
+                files={INITIAL_FILES}
+                transfers={transfers}
+                auditLogs={auditLogs}
+                departments={departments}
+              />
+            </div>
           )}
 
           {activeTab === 'settings' && (

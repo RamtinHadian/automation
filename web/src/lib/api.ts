@@ -252,6 +252,7 @@ export const api = {
   leaveCreate: (b: { type: string; fromDate: string; toDate: string; fromTime?: string; toTime?: string; reason: string }) => request<{ ok: true; id: string }>('POST', '/api/leaves', b),
   leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string) => request<{ ok: true }>('POST', `/api/leaves/${encodeURIComponent(id)}/decide`, { status, note }),
   leaveCancel: (id: string) => request<{ ok: true }>('DELETE', `/api/leaves/${encodeURIComponent(id)}`),
+  netWatch: () => request<any>('GET', '/api/admin/netwatch'),
   voipRecordingSetup: () => request<{ key: string; mountedDir: string; mountedFiles: number }>('GET', '/api/voip/recording-setup'),
   /** The recording of a call as a playable blob (the request carries the login, so a plain <audio src> cannot be used). */
   voipRecording: async (id: string): Promise<Blob> => {

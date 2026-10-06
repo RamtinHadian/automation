@@ -97,6 +97,10 @@ func recordingKeyFile() string { return filepath.Join(uploadedDir(), ".key") }
 
 // recordingKey is the secret the PBX uses to push files; made once.
 func recordingKey() string {
+	// the installer panel can hand the key over in the environment (VOIP_RECORDING_KEY), so nobody has to copy it by hand
+	if k := strings.TrimSpace(os.Getenv("VOIP_RECORDING_KEY")); len(k) >= 16 {
+		return k
+	}
 	if b, err := os.ReadFile(recordingKeyFile()); err == nil && len(strings.TrimSpace(string(b))) >= 16 {
 		return strings.TrimSpace(string(b))
 	}

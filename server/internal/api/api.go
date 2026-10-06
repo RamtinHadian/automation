@@ -104,6 +104,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("POST /api/sms/test", auth.Require(smsTest))
 	mux.HandleFunc("POST /api/sms/send", auth.Require(smsSend))
 	mux.HandleFunc("GET /api/admin/files/info", auth.Require(adminFileInfo))
+	mux.HandleFunc("GET /api/admin/netwatch", auth.Require(netWatchInfo))
 	mux.HandleFunc("POST /api/admin/files/{id}/purge", auth.Require(adminFilePurge))
 	mux.HandleFunc("POST /api/admin/files/{id}/keep", auth.Require(adminFileKeep))
 	mux.HandleFunc("PUT /api/files/{id}", auth.Require(uploadFile))
