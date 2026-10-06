@@ -39,7 +39,7 @@ const RecordingButton: React.FC<{ id: string }> = ({ id }) => {
       </button>
       {(url || err) && (
         <div className="basis-full order-last" dir="ltr">
-          {url ? <audio src={url} controls autoPlay className="w-full h-9" /> : <div className="text-[11px] font-bold text-rose-600 text-right" dir="rtl">{err}</div>}
+          {url ? <audio src={url} controls autoPlay onPlay={(e) => document.querySelectorAll('audio').forEach((a) => { if (a !== e.currentTarget) a.pause(); })} className="w-full h-9" /> : <div className="text-[11px] font-bold text-rose-600 text-right" dir="rtl">{err}</div>}
         </div>
       )}
     </>
