@@ -30,6 +30,8 @@ export interface User {
   canUseCrm?: boolean;
   /** Access to the management statistics page (admins always have it). */
   canViewStats?: boolean;
+  /** May publish on the bulletin board (admins always may). */
+  canPostAnnouncements?: boolean;
   /** Phone extension on the company phone system (for incoming-call pop-ups and click-to-call). */
   extension?: string;
   /** Mobile number for SMS notifications (optional). */

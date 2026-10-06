@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, BarChart3, ClipboardList, FileCheck, HardDrive, KeyRound, Lock, Phone, Smartphone, UserPlus, Users, X } from 'lucide-react';
+import { Award, BarChart3, Megaphone, ClipboardList, FileCheck, HardDrive, KeyRound, Lock, Phone, Smartphone, UserPlus, Users, X } from 'lucide-react';
 import { Department, UserRole } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 
@@ -11,6 +11,7 @@ export interface UserForm {
   role: UserRole;
   canUseCrm?: boolean;
   canViewStats?: boolean;
+  canPostAnnouncements?: boolean;
   canUseTasks?: boolean;
   canSignOfficialLetters?: boolean;
   canSendOfficialLetters?: boolean;
@@ -171,6 +172,7 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
               <Tile icon={<ClipboardList className="w-[18px] h-[18px]" />} title="مدیریت وظایف" hint="منوی «وظایف» برای او فعال می‌شود." on={!!form.canUseTasks} color="#0284C7" tint="#EAF6FD" border="#A9D8F0" onChange={(v) => set({ canUseTasks: v })} />
               <Tile icon={<Users className="w-[18px] h-[18px]" />} title="مشتریان و فروش (CRM)" hint="مشتری، فرصت فروش و پیگیری." on={!!form.canUseCrm} color="#7C3AED" tint="#F3EEFE" border="#CDB8F7" onChange={(v) => set({ canUseCrm: v })} />
               <Tile icon={<BarChart3 className="w-[18px] h-[18px]" />} title="گزارشات آماری مدیریتی" hint="نمودارهای کار، نامه، فروش و تلفن شرکت." on={!!form.canViewStats} color="#EA580C" tint="#FFF1E8" border="#F8C3A0" onChange={(v) => set({ canViewStats: v })} />
+              <Tile icon={<Megaphone className="w-[18px] h-[18px]" />} title="تابلو اعلانات" hint="می‌تواند اخبار و اطلاعیه را برای همه منتشر کند." on={!!form.canPostAnnouncements} color="#B45309" tint="#FEF5E7" border="#F3D29B" onChange={(v) => set({ canPostAnnouncements: v })} />
             </div>
             <p className="text-[10px] text-[#8C6F66] leading-5 pt-1">مدیران ارشد و مدیران واحد بدون نیاز به این سوئیچ‌ها به وظایف و مشتریان دسترسی دارند؛ فقط «مدیرعامل» با سوئیچ اول تعیین می‌شود.</p>
           </section>

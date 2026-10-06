@@ -207,6 +207,7 @@ interface AppContextType {
     canUseTasks?: boolean;
     canUseCrm?: boolean;
     canViewStats?: boolean;
+    canPostAnnouncements?: boolean;
     extension?: string;
   }) => void;
   handleUpdateUser: (userId: string, updates: Partial<User>) => void;
@@ -1293,6 +1294,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       canUseTasks?: boolean;
       canUseCrm?: boolean;
       canViewStats?: boolean;
+      canPostAnnouncements?: boolean;
       extension?: string;
     }) => {
       const dept = departments.find((d) => d.id === data.departmentId) || departments[0];
@@ -1316,6 +1318,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         canUseTasks: !!data.canUseTasks,
         canUseCrm: !!data.canUseCrm,
         canViewStats: !!data.canViewStats,
+        canPostAnnouncements: !!data.canPostAnnouncements,
         ...(data.extension ? { extension: data.extension } : {}),
       };
 

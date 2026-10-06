@@ -48,6 +48,17 @@ export interface VoipCall {
   hasRecording?: boolean;
 }
 
+export interface Announcement {
+  id: string;
+  title: string;
+  text: string;
+  important?: boolean;
+  pinned?: boolean;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+}
+
 export interface LeaveRequest {
   id: string;
   userId: string;
@@ -224,6 +235,10 @@ export const api = {
   pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('POST', '/api/push/unsubscribe', { endpoint }),
   voipStatus: () => request<{ enabled: boolean; connected: boolean; extension: string }>('GET', '/api/voip/status'),
   demoInfo: () => request<DemoInfo>('GET', '/api/demo/info'),
+  announcements: () => request<{ announcements: Announcement[]; canPost: boolean }>('GET', '/api/announcements'),
+  announcementCreate: (b: { title: string; text: string; important: boolean; pinned: boolean }) => request<{ ok: true; id: string }>('POST', '/api/announcements', b),
+  announcementDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/announcements/${encodeURIComponent(id)}`),
+  announcementPin: (id: string, pinned: boolean) => request<{ ok: true }>('POST', `/api/announcements/${encodeURIComponent(id)}/pin`, { pinned }),
   leaves: (scope: 'mine' | 'all') => request<{ leaves: LeaveRequest[]; canDecide: boolean }>('GET', '/api/leaves?scope=' + scope),
   leaveCreate: (b: { type: string; fromDate: string; toDate: string; fromTime?: string; toTime?: string; reason: string }) => request<{ ok: true; id: string }>('POST', '/api/leaves', b),
   leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string) => request<{ ok: true }>('POST', `/api/leaves/${encodeURIComponent(id)}/decide`, { status, note }),

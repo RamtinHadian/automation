@@ -98,6 +98,12 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
 	`CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions (user_id)`,
+	`CREATE TABLE IF NOT EXISTS announcements (
+	  id TEXT PRIMARY KEY,
+	  pinned BOOLEAN NOT NULL DEFAULT false,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  data JSONB NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS leave_requests (
 	  id TEXT PRIMARY KEY,
 	  user_id TEXT NOT NULL,
