@@ -125,7 +125,7 @@ func downloadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		httpx.Error(w, http.StatusNotFound, "فایل روی سرور نیست.")
+		httpx.Error(w, http.StatusNotFound, "فایل روی سرور نیست (ممکن است توسط مدیر کل سیستم حذف شده باشد).")
 		return
 	}
 	defer f.Close()

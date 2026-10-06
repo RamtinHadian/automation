@@ -1064,6 +1064,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* ========================================================================= */}
       {/* SECTION 6: SYSTEM POLICIES & UPLOAD LIMITS */}
       {/* ========================================================================= */}
+      <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-3 text-xs">
+        <div className="flex items-center gap-2.5 text-[#3A241F]">
+          <HardDrive className="w-5 h-5 text-[#6E1B1B]" />
+          <h3 className="font-bold text-sm">نگهداری فایل‌های ارسالی روی سرور</h3>
+        </div>
+        <p className="text-[#8C6F66] leading-6">
+          هر فایلی که ارسال می‌شود روی سرور ذخیره می‌شود. اینجا تعیین کنید چه مدت بماند. فایلی که پاک شود، سابقه‌اش (چه کسی، چه ساعتی، چند بار دانلود شد) می‌ماند و برای کاربران نوشته می‌شود «توسط مدیر کل سیستم حذف شد».
+          در «مانیتورینگ انتقالات» هر فایل را می‌شود دستی حذف کرد یا با «همیشه بماند» از حذف خودکار نجات داد.
+        </p>
+        <select
+          value={settings.fileRetentionDays ?? 0}
+          onChange={(e) => setSettings({ ...settings, fileRetentionDays: Number(e.target.value) })}
+          className="w-full sm:max-w-sm p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none"
+        >
+          <option value={0}>همیشه نگه‌داری شود (هیچ‌وقت خودکار پاک نشود)</option>
+          <option value={7}>بعد از ۷ روز پاک شود</option>
+          <option value={30}>بعد از ۳۰ روز پاک شود</option>
+          <option value={90}>بعد از ۹۰ روز پاک شود</option>
+          <option value={180}>بعد از ۱۸۰ روز پاک شود</option>
+          <option value={365}>بعد از یک سال پاک شود</option>
+        </select>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Upload Limits */}
         <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-4">

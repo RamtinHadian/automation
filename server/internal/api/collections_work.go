@@ -278,6 +278,8 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 
 	doc := jsonx.Copy(data)
 	doc["id"] = id
+	// the admin's «file deleted» / «keep» marks are the server's, not the client's
+	keepMarkers(before, doc)
 	if _, err := store.Pool.Exec(ctx,
 		`INSERT INTO transfers (id, sender_id, recipient_ids, data) VALUES ($1, $2, $3, $4::jsonb)
 		 ON CONFLICT (id) DO UPDATE SET recipient_ids = $3, data = $4::jsonb, updated_at = now()`,

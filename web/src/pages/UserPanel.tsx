@@ -1074,6 +1074,11 @@ export default function UserPanel() {
                                   <span>•</span>
                                   <span className="font-mono">{toPersianDigits(t.sentAt)}</span>
                                 </div>
+                                {t.fileDeletedAt && !t.isOfficialLetter && (
+                                  <p className="text-[11px] font-black text-rose-700 bg-rose-50 p-1.5 rounded-lg border border-rose-200">
+                                    این فایل توسط مدیر کل سیستم حذف شد.
+                                  </p>
+                                )}
                                 {t.note && (
                                   <p className="text-[11px] text-[#503730] bg-[#FAF5F1] p-1.5 rounded-lg border border-[#EBDBCE] italic">
                                     "{t.note}"
@@ -1084,7 +1089,8 @@ export default function UserPanel() {
                             <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                               <button
                                 onClick={() => handleDownload(t)}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-[#6E1B1B] hover:bg-[#D34A32] text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer"
+                                disabled={!!t.fileDeletedAt && !t.isOfficialLetter}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-[#6E1B1B] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D34A32] text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer"
                                 title="دانلود فایل"
                               >
                                 <Download className="w-3.5 h-3.5" />
@@ -1137,6 +1143,11 @@ export default function UserPanel() {
                                     {toPersianDigits(t.downloadsCount)} بار دانلود شده
                                   </span>
                                 </div>
+                                {t.fileDeletedAt && !t.isOfficialLetter && (
+                                  <p className="text-[11px] font-black text-rose-700 bg-rose-50 p-1.5 rounded-lg border border-rose-200">
+                                    این فایل توسط مدیر کل سیستم حذف شد.
+                                  </p>
+                                )}
                                 {t.note && (
                                   <p className="text-[11px] text-[#503730] bg-[#FAF5F1] p-1.5 rounded-lg border border-[#EBDBCE] italic">
                                     "{t.note}"
@@ -1147,7 +1158,8 @@ export default function UserPanel() {
                             <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                               <button
                                 onClick={() => handleDownload(t)}
-                                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border border-[#EBDBCE] font-bold text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                                disabled={!!t.fileDeletedAt && !t.isOfficialLetter}
+                                className="flex items-center gap-1.5 px-3.5 py-2 disabled:opacity-40 disabled:cursor-not-allowed bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border border-[#EBDBCE] font-bold text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
                                 title="دانلود فایل ارسالی"
                               >
                                 <Download className="w-3.5 h-3.5" />

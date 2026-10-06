@@ -60,6 +60,7 @@ func main() {
 	go crm.RunReminders(ctx)
 	go msgr.Run(ctx)
 	go work.RunTaskReminders(ctx)
+	go api.RunFileRetention(ctx)
 	api.SetPhone(phone)
 
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: api.Router(cfg)}

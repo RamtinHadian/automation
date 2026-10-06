@@ -3,6 +3,7 @@ import { DayNightToggle } from '../components/common/DayNightToggle';
 import { IconTab } from '../components/common/IconTab';
 import { VersionBadge } from '../components/common/VersionBadge';
 import { ManagementReports } from '../components/admin/ManagementReports';
+import { api } from '../lib/api';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
@@ -61,6 +62,7 @@ export default function AdminPanel() {
     setSettings,
     toastMessage,
     showToast,
+    reloadState,
     departments,
     handleCreateUser,
     handleUpdateUser,
@@ -121,6 +123,13 @@ export default function AdminPanel() {
 
   const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'letters' | 'transfers' | 'audit' | 'analytics' | 'stats' | 'settings'>('users');
   const [transfersSearch, setTransfersSearch] = useState('');
+  // which files still exist on the server (and how big): read when the monitoring page is open
+  const [fileSizes, setFileSizes] = useState<Record<string, number> | null>(null);
+  const loadFileSizes = () => { api.adminFileInfo().then((r) => setFileSizes(r.sizes)).catch(() => setFileSizes(null)); };
+  useEffect(() => {
+    if (activeTab === 'transfers' && isAdminAuthenticated) loadFileSizes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isAdminAuthenticated]);
 
   // Unread notifications per console menu. Opening a menu reads its notifications, so no badge stays on it.
   type ConsoleTab = typeof activeTab;
@@ -532,15 +541,16 @@ export default function AdminPanel() {
                       <th className="py-3 px-4">گیرنده</th>
                       <th className="py-3 px-4">حجم</th>
                       <th className="py-3 px-4">تاریخ ارسال</th>
-                      <th className="py-3 px-4">دانلودها</th>
+                      <th className="py-3 px-4">دریافت / دانلود</th>
+                      <th className="py-3 px-4">روی سرور</th>
                       <th className="py-3 px-4">وضعیت</th>
-                      <th className="py-3 px-4">حذف</th>
+                      <th className="py-3 px-4">مدیریت فایل</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EBDBCE]/60 font-medium text-[#3A241F]">
                     {filteredTransfers.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center text-[#8C6F66]">
+                        <td colSpan={9} className="py-12 text-center text-[#8C6F66]">
                           هیچ رکوردی برای تبادل فایل یافت نشد.
                         </td>
                       </tr>
@@ -572,7 +582,26 @@ export default function AdminPanel() {
                           </td>
                           <td className="py-3 px-4 font-black text-[#3A241F]">{t.fileSize}</td>
                           <td className="py-3 px-4 font-mono text-[11px] text-[#8C6F66]">{toPersianDigits(t.sentAt)}</td>
-                          <td className="py-3 px-4 font-bold text-[#6E1B1B]">{toPersianDigits(t.downloadsCount)} بار</td>
+                          <td className="py-3 px-4 font-bold">
+                            {t.isOfficialLetter ? (
+                              <span className="text-[#6E1B1B]">{toPersianDigits(t.downloadsCount)} بار</span>
+                            ) : t.downloadsCount > 0 ? (
+                              <span className="text-emerald-700">دریافت شد · {toPersianDigits(t.downloadsCount)} بار دانلود</span>
+                            ) : (
+                              <span className="text-amber-700">هنوز دانلود نشده</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-[11px] font-bold">
+                            {t.isOfficialLetter ? (
+                              <span className="text-[#8C6F66]">—</span>
+                            ) : t.fileDeletedAt ? (
+                              <span className="text-rose-700">حذف شد</span>
+                            ) : fileSizes && fileSizes[t.id] != null ? (
+                              <span className="text-emerald-700">ذخیره است · {toPersianDigits(Math.max(1, Math.round(fileSizes[t.id] / 1024)))} KB{t.keepForever ? ' · نگه‌دار' : ''}</span>
+                            ) : (
+                              <span className="text-[#8C6F66]">فقط نزد فرستنده</span>
+                            )}
+                          </td>
                           <td className="py-3 px-4">
                             {t.isOfficialLetter ? (
                               t.signatureStatus === 'SIGNED' ? (
@@ -588,6 +617,11 @@ export default function AdminPanel() {
                                   در انتظار امضا
                                 </span>
                               )
+                            ) : t.fileDeletedAt ? (
+                              <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-0.5 rounded-full text-[10px] font-black leading-5 inline-block">
+                                این فایل توسط مدیر کل سیستم حذف شد
+                                {t.fileDeletedByName ? ` (${t.fileDeletedByName})` : ' (سیاست نگهداری)'}
+                              </span>
                             ) : (
                               <span className="bg-[#F6D9CD] text-[#6E1B1B] border border-[#C98B6A]/30 px-2.5 py-0.5 rounded-full text-[10px] font-black">
                                 تحویل داده شده
@@ -598,16 +632,39 @@ export default function AdminPanel() {
                             {t.isOfficialLetter && t.signatureStatus === 'SIGNED' ? (
                               <span className="text-[10px] font-bold text-[#8C6F66]" title="نامهٔ امضاشده قابل حذف نیست">محافظت‌شده</span>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (window.confirm(`«${t.fileName}» برای همیشه حذف شود؟ این کار قابل بازگشت نیست.`)) handleAdminDeleteTransfer(t.id);
-                                }}
-                                className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                                title="حذف این فایل"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex flex-col gap-1.5 items-start">
+                                {!t.isOfficialLetter && !t.fileDeletedAt && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        if (!window.confirm(`فایل «${t.fileName}» از سرور حذف شود؟ سابقهٔ ارسال و دانلود می‌ماند و برای کاربران می‌نویسد «توسط مدیر کل سیستم حذف شد».`)) return;
+                                        try { await api.adminFilePurge(t.id); showToast('فایل از سرور حذف شد؛ سابقه نگه داشته شد.'); await reloadState(); loadFileSizes(); } catch (e) { showToast(e instanceof Error ? e.message : 'حذف نشد.'); }
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black cursor-pointer"
+                                    >
+                                      حذف فایل از سرور
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={async () => { try { await api.adminFileKeep(t.id, !t.keepForever); await reloadState(); } catch (e) { showToast(e instanceof Error ? e.message : 'انجام نشد.'); } }}
+                                      className={`px-2.5 py-1 rounded-lg border text-[10px] font-black cursor-pointer ${t.keepForever ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}
+                                    >
+                                      {t.keepForever ? '✓ همیشه بماند' : 'همیشه بماند'}
+                                    </button>
+                                  </>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm(`رکورد «${t.fileName}» (با تاریخچه) برای همیشه پاک شود؟ قابل بازگشت نیست.`)) handleAdminDeleteTransfer(t.id);
+                                  }}
+                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title="پاک کردن کامل رکورد و تاریخچه"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>

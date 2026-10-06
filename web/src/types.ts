@@ -379,6 +379,12 @@ export type TransferStatus = 'PENDING' | 'DELIVERED' | 'DOWNLOADED' | 'EXPIRED';
 
 export interface FileTransfer {
   id: string;
+  /** The system administrator removed the file from the server (the history stays). */
+  fileDeletedAt?: string;
+  fileDeletedByName?: string;
+  fileDeletedReason?: string;
+  /** The administrator marked this file «keep» (the retention period does not delete it). */
+  keepForever?: boolean;
   fileId: string;
   fileName: string;
   fileSize: string;
@@ -517,6 +523,8 @@ export interface SystemSettings {
   companyWebsite?: string;
   /** A proforma may be sent only after the CEO approved it (the CEO's stamp and signature are then put on it automatically). */
   proformaApprovalRequired?: boolean;
+  /** Sent files older than this many days are removed from the server (0 = keep). Files marked «keep» stay. */
+  fileRetentionDays?: number;
   /** Who approves (and so stamps and signs) the official company's proformas; empty = anyone who may sign letters. */
   proformaApproverId?: string;
   /** Official identity of the main company (tax invoices). */

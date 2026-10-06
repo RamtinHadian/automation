@@ -909,6 +909,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const handleDownload = useCallback(
     async (t: FileTransfer) => {
+      if (!t.isOfficialLetter && t.fileDeletedAt) {
+        showToast('این فایل توسط مدیر کل سیستم حذف شد و دیگر قابل دریافت نیست.');
+        return;
+      }
       try {
         // Official letters are rendered to PDF client-side with the embedded signature & stamp
         if (t.isOfficialLetter) {
