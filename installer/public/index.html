@@ -16,6 +16,9 @@
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
   .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; }
   h2 { margin:0 0 10px; font-size:15px; }
+  .guide { background:#fff8e6; border:1px solid #ecd9a6; border-radius:10px; padding:10px 12px; font-size:12px; line-height:1.9; margin:0 0 10px; }
+  .guide b { color:#7a1c20; }
+  .guide ol { margin:4px 0 0; padding-inline-start:18px; }
   label { display:block; font-weight:bold; margin:10px 0 4px; font-size:12px; }
   input, textarea { font-family: 'Vazirmatn', Tahoma, sans-serif; }
   input { width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; background:#faf5f1; font-size:13px; direction:ltr; text-align:left; font-family: inherit; }
@@ -63,6 +66,7 @@
   <section>
     <div class="card" id="loginCard">
       <h2>۱. ورود به سرور (SSH)</h2>
+      <div class="guide" id="guide"></div>
       <label>آدرس سرور</label>
       <div class="row"><input id="host" placeholder="مثلاً 192.168.1.80" autocomplete="off" /><input id="port" value="22" title="پورت SSH" /></div>
       <label>نام کاربری</label><input id="user" placeholder="مثلاً paya یا root" autocomplete="off" />
@@ -253,9 +257,12 @@
     $('tabInstall').className = m === 'install' ? 'on' : ''; $('tabVoip').className = m === 'voip' ? 'on' : '';
     $('installFields').style.display = m === 'install' ? '' : 'none'; $('voipFields').style.display = m === 'voip' ? '' : 'none';
     $('startBtn').textContent = m === 'voip' ? 'شروع تنظیم ایزابل' : 'شروع نصب';
+    $('guide').innerHTML = m === 'voip' ? GUIDE_VOIP : GUIDE_INSTALL;
     var t = document.querySelector('#loginCard h2'); if (t) t.textContent = m === 'voip' ? '۱. ورود به ایزابل (SSH، معمولاً root)' : '۱. ورود به سرور (SSH)';
   }
-  $('tabInstall').onclick = function () { setMode('install'); }; $('tabVoip').onclick = function () { setMode('voip'); };
+  var GUIDE_INSTALL = '<b>کدام سرور را بنویسم؟</b> همان سروری که برنامهٔ هورمند باید روی آن نصب شود (اوبونتو).<ol><li><b>آدرس و پورت:</b> از داخل شبکه آدرس داخلی سرور و پورت 22 (مثلاً 192.168.2.248). از بیرون شبکه IP عمومی و پورتی که روتر به آن سرور داده است (مثلاً 37.255.238.219 و 2292).</li><li><b>نام کاربری و رمز:</b> کاربر خود سرور اوبونتو (نه ایزابل) که دسترسی sudo دارد.</li></ol>';
+  var GUIDE_VOIP = '<b>در این صفحه دو سرور مختلف هست؛ قاطی نکنید:</b><ol><li><b>بالای فرم (آدرس، پورت، کاربر، رمز) = خود ایزابل</b> (دستگاه تلفن). از داخل شبکه: آدرس داخلی ایزابل و پورت 22. از بیرون: IP عمومی و پورتی که روتر به ایزابل می‌دهد (مثلاً 2200). کاربر <b>root</b> و رمز SSH خود ایزابل.</li><li><b>«آدرس سرور برنامه» = سروری که هورمند روی آن نصب است</b> (آدرس داخلی، مثلاً 192.168.2.248). فقط این آدرس اجازهٔ اتصال به ایزابل می‌گیرد. آدرس خود ایزابل را اینجا ننویسید.</li><li><b>نام و رمز AMI:</b> رمز را خالی بگذارید تا خودکار ساخته شود؛ بعد در تنظیمات تلفن برنامه همین‌ها را وارد کنید.</li></ol>';
+  $('tabInstall').onclick = function () { setMode('install'); }; $('tabVoip').onclick = function () { setMode('voip'); }; setMode(mode);
   function sendStart() {
     if (mode === 'voip') {
       ws.send(JSON.stringify({ type: 'voip-start', appHost: $('vApp').value.trim(), amiUser: $('vUser').value.trim(), amiSecret: $('vSecret').value.trim(),
