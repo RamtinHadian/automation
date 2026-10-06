@@ -83,6 +83,7 @@ func customerByPhone(ctx context.Context, number string) (id, name string, ok bo
 func WatchCalls(c *Client) {
 	c.OnEvent = func(ev Event) {
 		journalEvent(ev)
+		sampleRinging(ev)
 		if ev["Event"] != "DialBegin" {
 			return
 		}
@@ -129,4 +130,29 @@ func WatchCalls(c *Client) {
 			Logf("پاپ‌آپ برای کاربر %s فرستاده شد: %s", uid, note.Title)
 		}(m[1])
 	}
+}
+
+var (
+	sampleMu sync.Mutex
+	sampleAt time.Time
+	sampleN  int
+)
+
+// sampleRinging writes a short description of the first few ringing events of every hour into the diary, so that a
+// missing pop-up can be explained from what the phone system really sends (name of the event, channels, caller).
+func sampleRinging(ev Event) {
+	ringing := ev["Event"] == "DialBegin" || (ev["Event"] == "Newstate" && strings.EqualFold(ev["ChannelStateDesc"], "Ringing"))
+	if !ringing {
+		return
+	}
+	sampleMu.Lock()
+	defer sampleMu.Unlock()
+	if time.Since(sampleAt) > time.Hour {
+		sampleAt, sampleN = time.Now(), 0
+	}
+	if sampleN >= 12 {
+		return
+	}
+	sampleN++
+	Logf("نمونهٔ رویداد زنگ از ایزابل: Event=%s Channel=%s DestChannel=%s Caller=%s", ev["Event"], ev["Channel"], pick(ev, "DestChannel", "Destination"), pick(ev, "CallerIDNum", "ConnectedLineNum"))
 }
