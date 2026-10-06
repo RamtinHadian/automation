@@ -3,6 +3,7 @@ import { DayNightToggle } from '../components/common/DayNightToggle';
 import { ManagementReports } from '../components/admin/ManagementReports';
 import { VersionBadge } from '../components/common/VersionBadge';
 import { ChatView } from '../components/chat/ChatView';
+import { LeaveView } from '../components/leave/LeaveView';
 import { CrmView } from '../components/crm/CrmView';
 import { TasksView } from '../components/tasks/TasksView';
 import { CallMenu } from '../components/common/CallMenu';
@@ -18,6 +19,7 @@ import {
   FolderArchive,
   UploadCloud,
   Send,
+  CalendarCheck2,
   Download,
   CheckCircle2,
   Inbox,
@@ -105,7 +107,7 @@ export default function UserPanel() {
   } = useAppContext();
 
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
-  const [filesSection, setFilesSection] = useState<'files' | 'chat'>('files');
+  const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave'>('files');
   const [chatPeer, setChatPeer] = useState('');
   const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats'>('files');
 
@@ -200,7 +202,7 @@ export default function UserPanel() {
     if (t === 'customer' || t === 'deal') return 'crm';
     if (t === 'task' || t === 'report') return 'tasks';
     if (t === 'letter') return 'letters';
-    if (t === 'file' || t === 'chat') return 'files';
+    if (t === 'file' || t === 'chat' || t === 'leave') return 'files';
     if (n.kind === 'file' || n.kind === 'chat') return 'files';
     if (n.kind === 'letter') return 'letters';
     if (n.kind === 'task') return 'tasks';
@@ -251,6 +253,9 @@ export default function UserPanel() {
       }
       window.dispatchEvent(new Event('open-reports-tab'));
       setMainMenuTab('tasks');
+    } else if (type === 'leave') {
+      setFilesSection('leave');
+      setMainMenuTab('files');
     } else if (type === 'chat') {
       setChatPeer(n.ref?.id || '');
       setFilesSection('chat');
@@ -819,7 +824,7 @@ export default function UserPanel() {
         {mainMenuTab === 'files' && (
           <div className="flex-1 flex flex-col">
             <div className="flex items-center gap-2 px-4 sm:px-6 pt-4 pb-1">
-              {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle]] as const).map(([id, label, Icon]) => (
+              {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2]] as const).map(([id, label, Icon]) => (
                 <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
                   <Icon className="w-4 h-4" />
                   {label}
@@ -827,7 +832,9 @@ export default function UserPanel() {
                 </button>
               ))}
             </div>
-            {filesSection === 'chat' ? (
+            {filesSection === 'leave' ? (
+              <LeaveView />
+            ) : filesSection === 'chat' ? (
               <ChatView initialPeer={chatPeer} onPeerChange={setChatPeer} />
             ) : (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-[#EBDBCE]/60">

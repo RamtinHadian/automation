@@ -48,6 +48,25 @@ export interface VoipCall {
   hasRecording?: boolean;
 }
 
+export interface LeaveRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  departmentName?: string;
+  type: string;
+  typeLabel: string;
+  fromDate: string;
+  toDate: string;
+  fromTime?: string;
+  toTime?: string;
+  reason?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+  decidedByName?: string;
+  decidedAt?: string;
+  note?: string;
+}
+
 export interface LicenseStatus {
   mode: 'active' | 'grace' | 'expired' | 'none';
   licensed: boolean;
@@ -205,6 +224,10 @@ export const api = {
   pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('POST', '/api/push/unsubscribe', { endpoint }),
   voipStatus: () => request<{ enabled: boolean; connected: boolean; extension: string }>('GET', '/api/voip/status'),
   demoInfo: () => request<DemoInfo>('GET', '/api/demo/info'),
+  leaves: (scope: 'mine' | 'all') => request<{ leaves: LeaveRequest[]; canDecide: boolean }>('GET', '/api/leaves?scope=' + scope),
+  leaveCreate: (b: { type: string; fromDate: string; toDate: string; fromTime?: string; toTime?: string; reason: string }) => request<{ ok: true; id: string }>('POST', '/api/leaves', b),
+  leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string) => request<{ ok: true }>('POST', `/api/leaves/${encodeURIComponent(id)}/decide`, { status, note }),
+  leaveCancel: (id: string) => request<{ ok: true }>('DELETE', `/api/leaves/${encodeURIComponent(id)}`),
   voipRecordingSetup: () => request<{ key: string; mountedDir: string; mountedFiles: number }>('GET', '/api/voip/recording-setup'),
   /** The recording of a call as a playable blob (the request carries the login, so a plain <audio src> cannot be used). */
   voipRecording: async (id: string): Promise<Blob> => {
