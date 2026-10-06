@@ -476,7 +476,7 @@ class Session {
     const steps = {
       pbx: async () => {
         const r = await this.run('asterisk -V 2>&1 | head -1; cat /etc/issabel-release /etc/redhat-release 2>/dev/null | head -2; whoami; asterisk -rx "manager show settings" 2>&1 | grep -iE "enabled|port|bind" | head -5', { root: true });
-        if (!/Asterisk/i.test(r.out)) return { ok: false, note: 'Asterisk روی این سرور پیدا نشد. با آدرس خود ایزابل وصل شده‌اید؟ (کاربر root لازم است.)' };
+        if (!/Asterisk\s+\d/i.test(r.out) || /command not found/i.test(r.out)) return { ok: false, note: 'Asterisk روی این سرور پیدا نشد. با آدرس خود ایزابل وصل شده‌اید؟ (کاربر root لازم است.)' };
         if (/Manager \(AMI\):\s*No/i.test(r.out)) this.log('هشدار: AMI در manager.conf خاموش است (enabled = yes لازم است).', 'yellow');
         return { ok: true, note: 'Asterisk پیدا شد.' };
       },
