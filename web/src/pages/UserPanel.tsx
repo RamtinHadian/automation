@@ -699,7 +699,7 @@ export default function UserPanel() {
 
         {/* PRIMARY MENU NAVIGATION: 'ارسال فایل' vs 'نامه' */}
         <div className="bg-[#FAF5F1] px-4 sm:px-8 py-2.5 sm:py-3 border-b border-[#EBDBCE] flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-          <div className="hscroll flex items-center gap-2 w-full sm:w-auto py-1.5 -my-1.5">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))] sm:flex sm:items-center gap-2 w-full sm:w-auto">
 
             {/* Menu 1: ارسال فایل */}
             <button
@@ -830,7 +830,7 @@ export default function UserPanel() {
         {/* ========================================================================= */}
         {mainMenuTab === 'files' && (
           <div className="flex-1 flex flex-col">
-            <div className="hscroll flex items-center gap-2 px-4 sm:px-6 pt-4 pb-2">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 px-4 sm:px-6 pt-4 pb-2">
               {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone]] as const).map(([id, label, Icon]) => (
                 <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative shrink-0 whitespace-nowrap min-h-[44px] sm:min-h-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
                   <Icon className="w-4 h-4" />
@@ -1964,31 +1964,9 @@ export default function UserPanel() {
           </button>
         )}
 
-        {/* Center Floating Action Button (FAB) for Draft / Quick Action */}
-        {canSendOfficial && (
-          <button
-            type="button"
-            onClick={() => setIsLetterEditorOpen(true)}
-            className="w-12 h-12 -mt-5 rounded-full bg-gradient-to-tr from-[#6E1B1B] via-[#D34A32] to-amber-500 text-white shadow-xl shadow-[#6E1B1B]/40 flex items-center justify-center border-3 border-white active:scale-90 transition-transform cursor-pointer shrink-0"
-            title="نگارش آنلاین نامه جدید"
-          >
-            <PenTool className="w-5 h-5" />
-            <span className="sr-only">نگارش نامه</span>
-          </button>
-        )}
+        {/* (the letter-writing pen button and the colour-theme tab are not in this bar: the theme button is in the page header) */}
 
-        {/* Tab 3: تغییر تم */}
-        <button
-          type="button"
-          onClick={() => setShowThemeModal(true)}
-          className="flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1] transition-all active:scale-95 cursor-pointer"
-          title="تغییر رنگبندی"
-        >
-          <Palette className="w-4 h-4 text-[#C98B6A]" />
-          <span className="text-[10px] font-black">رنگبندی</span>
-        </button>
-
-        {/* Tab 4: منوی پروفایل و تنظیمات */}
+        {/* Tab: منوی پروفایل و تنظیمات */}
         <button
           type="button"
           onClick={() => setShowMobileMenu(true)}
