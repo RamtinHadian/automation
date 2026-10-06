@@ -237,6 +237,10 @@ input, textarea {
   -webkit-user-select: text;
   user-select: text;
 }
+/* a field inside a row (flex) may shrink below its default width (≈20 characters), otherwise the row pushes the page wider than a phone */
+input, select, textarea {
+  min-width: 0;
+}
 /* iOS zooms the whole page into any field smaller than 16px and never zooms back: keep fields at 16px on touch screens */
 @media (pointer: coarse) {
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']),
