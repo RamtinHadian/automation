@@ -192,6 +192,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   const token = getToken();
   const res = await fetch(url, {
     method,
+    cache: method === 'GET' ? 'no-store' : undefined,
     headers: {
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

@@ -18,10 +18,14 @@ export const BoardView: React.FC = () => {
   const [important, setImportant] = useState(false);
   const [pinned, setPinned] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
   const load = useCallback(() => {
-    api.announcements().then((r) => { setItems(r.announcements); setCanPost(r.canPost); }).catch(() => {});
+    api
+      .announcements()
+      .then((r) => { setItems(r.announcements); setCanPost(r.canPost); setLoadError(''); })
+      .catch((e) => setLoadError(e instanceof Error ? e.message : 'خواندن تابلو ممکن نشد.'));
   }, []);
   useEffect(() => {
     load();
@@ -36,7 +40,9 @@ export const BoardView: React.FC = () => {
     }
     setBusy(true);
     try {
-      await api.announcementCreate({ title: title.trim(), text: text.trim(), important, pinned });
+      const r = await api.announcementCreate({ title: title.trim(), text: text.trim(), important, pinned });
+      // shown at once (the list from the server is read again right after)
+      setItems((cur) => [{ id: r.id, title: title.trim(), text: text.trim(), important, pinned, authorId: currentUser.id, authorName: currentUser.fullName, createdAt: new Date().toISOString() }, ...cur]);
       showToast('اعلان منتشر شد و برای همه اعلان رفت.');
       setTitle('');
       setText('');
@@ -95,6 +101,7 @@ export const BoardView: React.FC = () => {
         </section>
       )}
 
+      {loadError && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">خواندن تابلو ممکن نشد: {loadError}</div>}
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-12 text-center text-xs font-bold text-[#8C6F66]">هنوز اعلانی ثبت نشده است.</div>
       ) : (
