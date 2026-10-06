@@ -459,12 +459,16 @@ class Session {
     if (this.running) return;
     this.running = true;
     this.cancelled = false;
-    const appHost = String(o.appHost || '').trim();
+    let appHost = String(o.appHost || '').trim();
+    // the address this machine uses to reach the LAN/internet: the source address of the route to a public address
+    const LAN_CMD = `ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1`;
+    const pbxLogin = { host: this.host, port: this.sshPort, username: this.user, password: this.password };
     const user = String(o.amiUser || 'hoormand').replace(/[^A-Za-z0-9_-]/g, '') || 'hoormand';
     const secret = String(o.amiSecret || '').replace(/[^A-Za-z0-9]/g, '') || require('crypto').randomBytes(12).toString('hex');
     let pbxHost = this.host; // replaced by the phone system's own LAN address when we reached it through the public IP
     const app = o.appSsh && o.appSsh.host && o.appSsh.user && o.appSsh.password ? o.appSsh : null;
     this.steps = [
+      ...(app ? [{ id: 'srv', title: 'شناسایی سرور برنامه', status: 'wait' }] : []),
       { id: 'pbx', title: 'بررسی ایزابل', status: 'wait' },
       { id: 'ami', title: 'ساخت کاربر AMI', status: 'wait' },
       { id: 'fw', title: 'فایروال ایزابل (پورت ۵۰۳۸)', status: 'wait' },
@@ -474,11 +478,37 @@ class Session {
     this.send({ type: 'steps', steps: this.steps });
     const ip4 = /^\d{1,3}(\.\d{1,3}){3}$/;
     const steps = {
+      // look at the program's server first (its LAN address and folder), then go back to the phone system
+      srv: async () => {
+        try { this.conn && this.conn.end(); } catch {}
+        this.conn = null;
+        try {
+          await this.connect({ host: app.host, port: app.port || 22, username: app.user, password: app.password });
+        } catch (e) {
+          return { ok: false, note: 'به سرور برنامه وصل نشدم: ' + e.message + ' (آدرس، پورت، نام کاربری و رمز SSH سرور برنامه را بررسی کنید.)' };
+        }
+        const lan = (await this.run(LAN_CMD, { quiet: true })).out.trim();
+        const dirs = (await this.run(`docker ps --filter label=com.docker.compose.service=app -q | xargs -r docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`, { root: true, quiet: true })).out
+          .split(/\r?\n/).map((x) => x.trim()).filter((x) => x.startsWith('/'));
+        let dir = String(app.dir || '').trim() || dirs[0] || '';
+        if (!dir) dir = /yes/.test((await this.run('[ -f /opt/automation/.env ] && echo yes', { quiet: true })).out) ? '/opt/automation' : '';
+        if (dirs.length > 1 && !app.dir) this.log('چند برنامه روی این سرور هست (' + dirs.join('، ') + ')؛ اولی را انتخاب کردم. اگر برنامهٔ دیگری مدنظر است، «پوشهٔ برنامه» را در بخش پیشرفته بنویسید.', 'yellow');
+        try { this.conn && this.conn.end(); } catch {}
+        this.conn = null;
+        try { await this.connect(pbxLogin); } catch (e) { return { ok: false, note: 'برگشتن به ایزابل نشد: ' + e.message }; }
+        if (!dir) return { ok: false, note: 'برنامهٔ هورمند روی سرور برنامه پیدا نشد (Docker یا پوشهٔ /opt/automation). اول نصب برنامه را کامل کنید.' };
+        if (!appHost) {
+          if (!ip4.test(lan)) return { ok: false, note: 'آدرس داخلی سرور برنامه را نخواندم؛ آن را در بخش پیشرفته بنویسید.' };
+          appHost = lan;
+        }
+        app.dir = dir;
+        return { ok: true, note: 'سرور برنامه ' + appHost + '، پوشهٔ ' + dir + '.' };
+      },
       pbx: async () => {
         const r = await this.run('asterisk -V 2>&1 | head -1; cat /etc/issabel-release /etc/redhat-release 2>/dev/null | head -2; whoami; asterisk -rx "manager show settings" 2>&1 | grep -iE "enabled|port|bind" | head -5', { root: true });
         if (!/Asterisk\s+\d/i.test(r.out) || /command not found/i.test(r.out)) return { ok: false, note: 'Asterisk روی این سرور پیدا نشد. با آدرس خود ایزابل وصل شده‌اید؟ (کاربر root لازم است.)' };
         // the app server lives inside the LAN: it must reach the phone system by its LAN address, not by the public IP we SSH into
-        const lan = (await this.run("hostname -I 2>/dev/null | tr ' ' '\\n' | grep -E '^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)' | head -1", { quiet: true })).out.trim();
+        const lan = (await this.run(LAN_CMD, { quiet: true })).out.trim();
         if (/^\d{1,3}(\.\d{1,3}){3}$/.test(lan) && lan !== pbxHost) {
           this.log('آدرس داخلی ایزابل ' + lan + ' است؛ برنامه با همین آدرس به ایزابل وصل می‌شود (نه با ' + pbxHost + ' که فقط برای SSH از بیرون است).', 'gray');
           pbxHost = lan;

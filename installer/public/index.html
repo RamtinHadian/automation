@@ -71,12 +71,15 @@
       <div class="row"><input id="host" placeholder="مثلاً 192.168.1.80" autocomplete="off" /><input id="port" value="22" title="پورت SSH" /></div>
       <label>نام کاربری</label><input id="user" placeholder="مثلاً paya یا root" autocomplete="off" />
       <label>رمز عبور</label><input id="pass" type="password" autocomplete="off" />
-      <div id="voipFields" style="display:none"><label>آدرس سرور برنامه (که اجازهٔ اتصال به ایزابل می‌گیرد)</label><input id="vApp" placeholder="مثلاً 192.168.2.248" />
-        <label>نام کاربر AMI (پیش‌فرض hoormand)</label><input id="vUser" value="hoormand" />
-        <label>رمز AMI (خالی = خودکار ساخته می‌شود؛ رمز SSH ایزابل را اینجا ننویسید؛ فقط حرف و عدد)</label><input id="vSecret" autocomplete="off" />
-        <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:bold;font-size:12px">اختیاری: نوشتن خودکار در سرور برنامه (SSH آن)</summary>
-          <label>آدرس و پورت SSH سرور برنامه</label><div class="row"><input id="aHost" placeholder="مثلاً 37.255.238.219" /><input id="aPort" value="22" /></div>
-          <label>نام کاربری</label><input id="aUser" /><label>رمز</label><input id="aPass" type="password" autocomplete="off" /></details></div>
+      <div id="voipFields" style="display:none">
+        <div style="margin:16px 0 4px;font-weight:bold;font-size:13px;color:#7a1c20">۲. سرور برنامهٔ هورمند (پنل خودش آدرس و پوشهٔ برنامه را پیدا می‌کند، تنظیم را می‌نویسد و برنامه را دوباره راه می‌اندازد)</div>
+        <label>آدرس و پورت SSH سرور برنامه</label><div class="row"><input id="aHost" placeholder="مثلاً 37.255.238.219" /><input id="aPort" value="22" /></div>
+        <label>نام کاربری</label><input id="aUser" /><label>رمز</label><input id="aPass" type="password" autocomplete="off" />
+        <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:bold;font-size:12px">پیشرفته (معمولاً لازم نیست)</summary>
+          <label>آدرس داخلی سرور برنامه (خالی = خودکار خوانده می‌شود)</label><input id="vApp" placeholder="خالی = خودکار" />
+          <label>پوشهٔ برنامه روی آن سرور (خالی = خودکار)</label><input id="aDir" placeholder="مثلاً /opt/automation" />
+          <label>نام کاربر AMI (پیش‌فرض hoormand)</label><input id="vUser" value="hoormand" />
+          <label>رمز AMI (خالی = خودکار ساخته می‌شود؛ فقط حرف و عدد)</label><input id="vSecret" autocomplete="off" /></details></div>
       <div id="installFields"><label>پورت برنامه (پیش‌فرض ۸۰۸۰؛ برای نصب دوم مثلاً ۸۰۸۱)</label><input id="appPort" value="8080" />
       <label>نام نصب (برای CRM دوم یک نام تازه، مثلاً crm2)</label><input id="instName" value="automation" />
       <label>دامنه (اختیاری، مثلاً crm2.ramtinai.com)</label><input id="instDomain" placeholder="خالی = فقط با آدرس و پورت" /></div>
@@ -261,17 +264,17 @@
     var t = document.querySelector('#loginCard h2'); if (t) t.textContent = m === 'voip' ? '۱. ورود به ایزابل (SSH، معمولاً root)' : '۱. ورود به سرور (SSH)';
   }
   var GUIDE_INSTALL = '<b>کدام سرور را بنویسم؟</b> همان سروری که برنامهٔ هورمند باید روی آن نصب شود (اوبونتو).<ol><li><b>آدرس و پورت:</b> از داخل شبکه آدرس داخلی سرور و پورت 22 (مثلاً 192.168.2.248). از بیرون شبکه IP عمومی و پورتی که روتر به آن سرور داده است (مثلاً 37.255.238.219 و 2292).</li><li><b>نام کاربری و رمز:</b> کاربر خود سرور اوبونتو (نه ایزابل) که دسترسی sudo دارد.</li></ol>';
-  var GUIDE_VOIP = '<b>در این صفحه دو سرور مختلف هست؛ قاطی نکنید:</b><ol><li><b>بالای فرم (آدرس، پورت، کاربر، رمز) = خود ایزابل</b> (دستگاه تلفن). از داخل شبکه: آدرس داخلی ایزابل و پورت 22. از بیرون: IP عمومی و پورتی که روتر به ایزابل می‌دهد (مثلاً 2200). کاربر <b>root</b> و رمز SSH خود ایزابل.</li><li><b>«آدرس سرور برنامه» = سروری که هورمند روی آن نصب است</b> (آدرس داخلی، مثلاً 192.168.2.248). فقط این آدرس اجازهٔ اتصال به ایزابل می‌گیرد. آدرس خود ایزابل را اینجا ننویسید.</li><li><b>نام و رمز AMI:</b> رمز را خالی بگذارید تا خودکار ساخته شود؛ بعد در تنظیمات تلفن برنامه همین‌ها را وارد کنید.</li></ol>';
+  var GUIDE_VOIP = '<b>در این صفحه دو سرور مختلف هست؛ قاطی نکنید:</b><ol><li><b>بالای فرم (آدرس، پورت، کاربر، رمز) = خود ایزابل</b> (دستگاه تلفن). از داخل شبکه: آدرس داخلی ایزابل و پورت 22. از بیرون: IP عمومی و پورتی که روتر به ایزابل می‌دهد (مثلاً 2200). کاربر <b>root</b> و رمز SSH خود ایزابل.</li><li><b>فرم دوم = سروری که هورمند روی آن نصب است</b> (از بیرون مثلاً IP عمومی و پورت 2292 یا 2293، با کاربر و رمز همان سرور اوبونتو). پنل خودش آدرس داخلی و پوشهٔ برنامه را از آن می‌خواند، به ایزابل می‌گوید فقط همین سرور مجاز است، تنظیم را در برنامه می‌نویسد و برنامه را دوباره راه می‌اندازد؛ شما کاری ندارید.</li></ol>';
   $('tabInstall').onclick = function () { setMode('install'); }; $('tabVoip').onclick = function () { setMode('voip'); }; setMode(mode);
   function sendStart() {
     if (mode === 'voip') {
       ws.send(JSON.stringify({ type: 'voip-start', appHost: $('vApp').value.trim(), amiUser: $('vUser').value.trim(), amiSecret: $('vSecret').value.trim(),
-        appSsh: $('aHost').value.trim() ? { host: $('aHost').value.trim(), port: $('aPort').value.trim(), user: $('aUser').value.trim(), password: $('aPass').value } : null }));
+        appSsh: $('aHost').value.trim() ? { host: $('aHost').value.trim(), port: $('aPort').value.trim(), user: $('aUser').value.trim(), password: $('aPass').value, dir: $('aDir').value.trim() } : null }));
     } else ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value, name: $('instName').value, domain: $('instDomain').value }));
   }
   $('connectBtn').onclick = function () {
     if (!$('host').value.trim() || !$('user').value.trim() || !$('pass').value) { $('connErr').textContent = 'آدرس، نام کاربری و رمز را وارد کنید.'; $('connErr').style.display = 'block'; return; }
-    if (mode === 'voip' && !/^\d{1,3}(\.\d{1,3}){3}$/.test($('vApp').value.trim())) { $('connErr').textContent = 'آدرس سرور برنامه را وارد کنید (مثلاً 192.168.2.248)؛ فقط همین آدرس اجازهٔ اتصال به ایزابل می‌گیرد.'; $('connErr').style.display = 'block'; $('vApp').focus(); return; }
+    if (mode === 'voip' && !($('aHost').value.trim() && $('aUser').value.trim() && $('aPass').value)) { $('connErr').textContent = 'مشخصات SSH سرور برنامه (آدرس، نام کاربری، رمز) را در فرم دوم وارد کنید تا پنل همه‌چیز را خودکار انجام دهد.'; $('connErr').style.display = 'block'; $('aHost').focus(); return; }
     $('connectBtn').disabled = true;
     ws.send(JSON.stringify({ type: 'connect', mode: mode, host: $('host').value.trim(), port: $('port').value.trim(), username: $('user').value.trim(), password: $('pass').value }));
   };

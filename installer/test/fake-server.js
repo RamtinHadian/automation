@@ -15,7 +15,8 @@ function answer(script) {
   const out = (stdout = '', code = 0, stderr = '') => ({ stdout, code, stderr });
   if (/^stat -c %s \/tmp\/hoormand-src\.tgz/.test(script)) return out(String(st.uploadedBytes || 0) + '\n');
   // Issabel / phone-system commands
-  if (/^hostname -I 2>\/dev\/null \| tr/.test(script)) return out('192.168.2.100\n');
+  if (/^ip -4 route get 1\.1\.1\.1/.test(script)) return out('192.168.2.100\n');
+  if (/^docker ps --filter label=com\.docker\.compose\.service=app/.test(script)) return out('/opt/automation\n');
   if (/^asterisk -V/.test(script)) return out('Asterisk 16.30.0\nIssabel release 5.0\nroot\n  Enabled:                     Yes\n  Port:                        5038\n');
   if (/manager_custom\.conf/.test(script)) return out('username: hoormand\nsecret: <Set>\npermit: 192.168.2.248/255.255.255.255\n');
   if (/command -v iptables/.test(script)) return out('Chain INPUT (policy ACCEPT)\n');

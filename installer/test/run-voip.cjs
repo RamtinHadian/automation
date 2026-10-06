@@ -9,8 +9,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await p.click('#tabVoip'); await sleep(300);
   console.log('voip fields visible:', await p.$eval('#voipFields', (e) => getComputedStyle(e).display !== 'none'), '| install fields hidden:', await p.$eval('#installFields', (e) => getComputedStyle(e).display === 'none'));
   await type('host', '127.0.0.1'); await type('port', '2222'); await type('user', 'paya'); await type('pass', 'pw');
-  await type('vApp', '192.168.2.248');
-  await p.$eval('#aHost', (e) => { e.closest('details').open = true; });
   await type('aHost', '127.0.0.1'); await type('aPort', '2222'); await type('aUser', 'paya'); await type('aPass', 'pw');
   await p.click('#connectBtn');
   for (let i = 0; i < 60; i++) { await sleep(1000); if (await p.$eval('#result', (e) => getComputedStyle(e).display !== 'none')) break; }
