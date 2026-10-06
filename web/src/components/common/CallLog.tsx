@@ -11,6 +11,16 @@ const clock = (iso: string) => toPersianDigits(new Date(iso).toLocaleTimeString(
 
 const STATUS_TEXT: Record<string, string> = { answered: 'پاسخ داده شد', missed: 'بی‌پاسخ', busy: 'مشغول', failed: 'ناموفق' };
 
+// recordings are often loud and harsh (both sides mixed, speakerphone echo): start quieter and remember what the person picks
+const VOLUME_KEY = 'call_recording_volume';
+const savedVolume = (): number => {
+  try {
+    const v = parseFloat(localStorage.getItem(VOLUME_KEY) || '');
+    if (v >= 0 && v <= 1) return v;
+  } catch { /* private window */ }
+  return 0.35;
+};
+
 /** Plays the recording of one call (fetched with the login, then played from memory). */
 const RecordingButton: React.FC<{ id: string }> = ({ id }) => {
   const [url, setUrl] = useState<string | null>(null);
@@ -39,7 +49,7 @@ const RecordingButton: React.FC<{ id: string }> = ({ id }) => {
       </button>
       {(url || err) && (
         <div className="basis-full order-last" dir="ltr">
-          {url ? <audio src={url} controls autoPlay onPlay={(e) => document.querySelectorAll('audio').forEach((a) => { if (a !== e.currentTarget) a.pause(); })} className="w-full h-9" /> : <div className="text-[11px] font-bold text-rose-600 text-right" dir="rtl">{err}</div>}
+          {url ? <audio src={url} controls autoPlay ref={(a) => { if (a && !a.dataset.vol) { a.dataset.vol = '1'; a.volume = savedVolume(); } }} onVolumeChange={(e) => { try { localStorage.setItem(VOLUME_KEY, String(e.currentTarget.volume)); } catch { /* private window */ } }} onPlay={(e) => document.querySelectorAll('audio').forEach((a) => { if (a !== e.currentTarget) a.pause(); })} className="w-full h-9" /> : <div className="text-[11px] font-bold text-rose-600 text-right" dir="rtl">{err}</div>}
         </div>
       )}
     </>
