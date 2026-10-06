@@ -341,6 +341,12 @@ class Session {
     let apt = null;
     if (r.code !== 0) {
       this.log('get.docker.com جواب نداد؛ از مخزن خود اوبونتو نصب می‌کنم (apt).', 'yellow');
+      // archive.ubuntu.com is often unreachable from Iran: when it is, point apt at the Iranian mirror (backup kept)
+      const reach = await this.run('curl -4 -sI -m 8 http://archive.ubuntu.com/ubuntu/ >/dev/null 2>&1 && echo ok || echo no', { quiet: true });
+      if (!/ok/.test(reach.out)) {
+        this.log('archive.ubuntu.com از این سرور باز نمی‌شود؛ مخزن apt را روی آینهٔ ایرانی (mirror.arvancloud.ir) می‌گذارم. نسخهٔ قبلی با پسوند .bak-hoormand ذخیره می‌شود.', 'yellow');
+        await this.run(`for f in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do [ -f "$f" ] && { [ -f "$f.bak-hoormand" ] || cp "$f" "$f.bak-hoormand"; sed -i -E 's#https?://([a-z]{2}\\.)?(archive|security)\\.ubuntu\\.com/ubuntu/?#https://mirror.arvancloud.ir/ubuntu#g' "$f"; }; done; echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99hoormand-ipv4; true`, { root: true, label: 'sudo (تغییر مخزن apt به آینهٔ ایرانی)' });
+      }
       const upd = await this.run('apt-get update 2>&1 | tail -4', { root: true, label: 'sudo apt-get update' });
       // the Compose plugin has a different name on different releases: try them one after the other
       for (const pkgs of ['docker.io docker-compose-v2', 'docker.io docker-compose-plugin', 'docker.io docker-compose']) {
