@@ -72,7 +72,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 font-sans bg-[#FAF7F2] text-[#3A241F] select-none"
+      className="min-h-screen min-h-dvh flex items-center justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] font-sans bg-[#FAF7F2] text-[#3A241F] select-none"
       dir="rtl"
     >
       <div className="w-full max-w-sm flex flex-col items-center gap-6">
@@ -103,6 +103,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
                 }}
                 onFocus={() => setShowDropdown(true)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="next"
+                aria-label="نام کاربری"
                 className="flex-1 bg-transparent text-sm font-bold text-[#3A241F] focus:outline-none"
               />
               {selectedUser && (
@@ -150,12 +156,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
                 setError('');
               }}
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
+              aria-label="رمز عبور"
               className="flex-1 bg-transparent text-sm font-bold text-[#3A241F] focus:outline-none font-mono"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="text-[#8C6F66] hover:text-[#3A241F] transition-colors shrink-0 p-0.5"
+              aria-label={showPassword ? 'پنهان‌کردن رمز' : 'نمایش رمز'}
+              className="text-[#8C6F66] hover:text-[#3A241F] transition-colors shrink-0 p-2.5 -m-2"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>

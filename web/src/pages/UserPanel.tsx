@@ -634,7 +634,7 @@ export default function UserPanel() {
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:shrink-0">
             <CallMenu />
             <NotificationBell onOpenNotification={openNotification} />
 
@@ -678,7 +678,7 @@ export default function UserPanel() {
                   setShowPasswordModal(true);
                 }}
                 title="تغییر کلمه عبور حساب کاربری"
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white hover:bg-amber-100 text-[#6E1B1B] border border-[#EBDBCE] flex items-center justify-center transition-colors cursor-pointer"
+                className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-white hover:bg-amber-100 text-[#6E1B1B] border border-[#EBDBCE] flex items-center justify-center transition-colors cursor-pointer"
               >
                 <KeyRound className="w-3.5 h-3.5" />
               </button>
@@ -687,7 +687,7 @@ export default function UserPanel() {
               <button
                 onClick={logout}
                 title="خروج از حساب"
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#F6D9CD] hover:bg-[#D34A32] text-[#6E1B1B] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-[#F6D9CD] hover:bg-[#D34A32] text-[#6E1B1B] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -699,12 +699,12 @@ export default function UserPanel() {
 
         {/* PRIMARY MENU NAVIGATION: 'ارسال فایل' vs 'نامه' */}
         <div className="bg-[#FAF5F1] px-4 sm:px-8 py-2.5 sm:py-3 border-b border-[#EBDBCE] flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            
+          <div className="hscroll flex items-center gap-2 w-full sm:w-auto py-1.5 -my-1.5">
+
             {/* Menu 1: ارسال فایل */}
             <button
               onClick={() => openMenu('files')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                 mainMenuTab === 'files'
                   ? 'bg-[#6E1B1B] text-white shadow-md shadow-[#6E1B1B]/25 scale-[1.02]'
                   : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/40 border border-[#EBDBCE]'
@@ -723,7 +723,7 @@ export default function UserPanel() {
             {canAccessLettersMenu && (
               <button
                 onClick={() => openMenu('letters')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'letters'
                     ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-amber-50 border border-[#EBDBCE]'
@@ -743,7 +743,7 @@ export default function UserPanel() {
             {canAccessCrmMenu && (
               <button
                 onClick={() => openMenu('crm')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'crm'
                     ? 'bg-violet-600 text-white shadow-md shadow-violet-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-violet-50 border border-[#EBDBCE]'
@@ -763,7 +763,7 @@ export default function UserPanel() {
             {canAccessStatsMenu && (
               <button
                 onClick={() => openMenu('stats')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'stats'
                     ? 'bg-orange-600 text-white shadow-md shadow-orange-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-orange-50 border border-[#EBDBCE]'
@@ -778,7 +778,7 @@ export default function UserPanel() {
             {canAccessTasksMenu && (
               <button
                 onClick={() => openMenu('tasks')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'tasks'
                     ? 'bg-sky-600 text-white shadow-md shadow-sky-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-sky-50 border border-[#EBDBCE]'
@@ -830,9 +830,9 @@ export default function UserPanel() {
         {/* ========================================================================= */}
         {mainMenuTab === 'files' && (
           <div className="flex-1 flex flex-col">
-            <div className="flex items-center gap-2 px-4 sm:px-6 pt-4 pb-1">
+            <div className="hscroll flex items-center gap-2 px-4 sm:px-6 pt-4 pb-2">
               {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone]] as const).map(([id, label, Icon]) => (
-                <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
+                <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative shrink-0 whitespace-nowrap min-h-[44px] sm:min-h-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
                   <Icon className="w-4 h-4" />
                   {label}
                   {id === 'chat' && chatUnread > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{toPersianDigits(chatUnread > 99 ? '99+' : chatUnread)}</span>}
@@ -1854,7 +1854,7 @@ export default function UserPanel() {
 
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed bottom-24 sm:bottom-6 left-6 z-50 bg-gray-900 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 border border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] sm:bottom-6 left-6 z-50 bg-gray-900 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 border border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-200">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
@@ -1865,7 +1865,7 @@ export default function UserPanel() {
       {/* ========================================================================= */}
       <nav
         aria-label="منوی شناور موبایل"
-        className="fixed bottom-4 inset-x-3 sm:hidden z-40 max-w-md mx-auto bg-white/95 backdrop-blur-2xl border border-[#EBDBCE] shadow-[0_16px_48px_rgba(58,36,31,0.28)] rounded-[28px] p-1.5 flex items-center justify-between gap-1 transition-all select-none"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] inset-x-3 sm:hidden z-40 max-w-md mx-auto bg-white/95 backdrop-blur-2xl border border-[#EBDBCE] shadow-[0_16px_48px_rgba(58,36,31,0.28)] rounded-[28px] p-1.5 flex items-center justify-between gap-1 transition-all select-none"
       >
         {/* Tab 1: ارسال فایل */}
         <button

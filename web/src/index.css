@@ -212,6 +212,40 @@ input, button, select, textarea {
   background: rgba(0, 0, 0, 0.25);
 }
 
+/* Phone feel: no grey flash on tap, no font inflation in landscape, no pull-to-refresh that throws the work away,
+   content kept out of the notch / rounded corners in landscape (the values are 0 where there is no notch). */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+body {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+/* Taps fire at once (no double-tap-zoom wait); buttons are controls, so their text is not selected by a long press;
+   fields must stay typeable even inside a page that disables selection (iOS Safari) */
+button, a, [role='button'], summary, label[for] {
+  touch-action: manipulation;
+}
+button, [role='button'] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+/* iOS zooms the whole page into any field smaller than 16px and never zooms back: keep fields at 16px on touch screens */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* Drag handles on the letter paper must not scroll the page when dragged with a finger */
 [data-drag-handle] { touch-action: none; }
 
