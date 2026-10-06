@@ -44,6 +44,7 @@ const wss = new WebSocketServer({
 });
 
 // ---------------------------------------------------------------- helpers
+const BUNDLE = path.join(__dirname, 'bundle', 'hoormand-src.tgz');
 const MIRRORS = ['https://docker.arvancloud.ir', 'https://registry.docker.ir', 'https://mirror.gcr.io'];
 const REPO_RAW = 'https://raw.githubusercontent.com/RamtinHadian/automation/frontend/install.sh';
 const sq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
@@ -290,9 +291,40 @@ class Session {
     return { ok: true, note: 'سرور آماده است.' };
   }
 
+  uploadFile(local, remote) {
+    return new Promise((resolve) => {
+      if (!this.conn) return resolve(false);
+      this.conn.exec('cat > ' + remote, (err, stream) => {
+        if (err) return resolve(false);
+        const total = fs.statSync(local).size;
+        let sent = 0;
+        let last = 0;
+        stream.on('error', () => resolve(false));
+        stream.resume(); // the server's (empty) answer must be read, or the channel never closes
+        stream.stderr.resume();
+        stream.on('close', () => resolve(true));
+        const rs = fs.createReadStream(local);
+        rs.on('data', (c) => {
+          sent += c.length;
+          if (sent - last > 1024 * 1024) {
+            last = sent;
+            this.log('ارسال کد: ' + Math.round((sent / total) * 100) + '٪', 'gray');
+          }
+        });
+        rs.on('error', () => resolve(false));
+        rs.pipe(stream);
+      });
+    });
+  }
+
   async stepNetwork() {
     const g = await this.run(`curl -sS -m 20 -o /dev/null -w "github: %{http_code}\\n" https://github.com; curl -sS -m 20 -o /dev/null -w "raw: %{http_code}\\n" ${REPO_RAW}`);
     if (!/github: 200/.test(g.out) || !/raw: 200/.test(g.out)) {
+      if (fs.existsSync(BUNDLE)) {
+        this.offline = true;
+        this.log('GitHub از این سرور باز نمی‌شود؛ کد برنامه را از همین کامپیوتر (فایل ' + path.basename(BUNDLE) + ') روی سرور می‌فرستم. به‌روزرسانی خودکار از GitHub در این حالت کار نمی‌کند.', 'yellow');
+        return { ok: true, note: 'GitHub بسته است؛ نصب با ارسال کد از این کامپیوتر انجام می‌شود.' };
+      }
       return { ok: false, note: 'سرور به GitHub دسترسی ندارد؛ کد برنامه از آن‌جا دانلود می‌شود. اینترنت، DNS یا فیلترینگ سرور را بررسی کنید.' };
     }
     return { ok: true, note: 'GitHub در دسترس است.' };
@@ -305,14 +337,27 @@ class Session {
       return { ok: true, note: 'Docker از قبل نصب است.' };
     }
     this.log('Docker نصب نیست؛ نصب می‌شود (چند دقیقه).', 'gray');
-    let r = await this.run('curl -fsSL -m 120 https://get.docker.com | sh', { root: true, label: 'sudo (نصب Docker از get.docker.com)' });
+    let r = await this.run('curl -fsS -m 25 -o /tmp/get-docker.sh https://get.docker.com && sh /tmp/get-docker.sh', { root: true, label: 'sudo (نصب Docker از get.docker.com)' });
+    let apt = null;
     if (r.code !== 0) {
-      this.log('get.docker.com جواب نداد؛ از مخزن خود اوبونتو نصب می‌کنم.', 'yellow');
-      r = await this.run('apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2', { root: true });
+      this.log('get.docker.com جواب نداد؛ از مخزن خود اوبونتو نصب می‌کنم (apt).', 'yellow');
+      const upd = await this.run('apt-get update 2>&1 | tail -4', { root: true, label: 'sudo apt-get update' });
+      // the Compose plugin has a different name on different releases: try them one after the other
+      for (const pkgs of ['docker.io docker-compose-v2', 'docker.io docker-compose-plugin', 'docker.io docker-compose']) {
+        apt = await this.run('DEBIAN_FRONTEND=noninteractive apt-get install -y ' + pkgs + ' 2>&1 | tail -6', { root: true, label: 'sudo apt-get install ' + pkgs });
+        const ok = await this.run('docker --version', { root: true, quiet: true });
+        if (ok.code === 0) break;
+      }
+      if (/Temporary failure resolving|Could not resolve|Unable to locate|Failed to fetch|Connection failed|Err:/i.test((upd.out || '') + (apt ? apt.out : ''))) {
+        this.log('apt هم به مخزن بسته نمی‌رسد: اینترنت این سرور برای نصب Docker کافی نیست.', 'red');
+      }
     }
     await this.run('systemctl enable --now docker', { root: true, quiet: true });
     const check = await this.run('docker compose version', { root: true, quiet: true });
-    if (check.code !== 0) return { ok: false, note: 'Docker نصب نشد. آخرین خطوط صفحه را برای پشتیبانی بفرستید.' };
+    if (check.code !== 0) {
+      const dv = await this.run('docker --version', { root: true, quiet: true });
+      return { ok: false, note: dv.code === 0 ? 'Docker نصب شد ولی «docker compose» ندارد (بستهٔ compose در مخزن نبود).' : 'Docker نصب نشد؛ سرور نه به get.docker.com می‌رسد و نه مخزن apt را دارد. اینترنت (HTTPS و apt) سرور را باید درست کرد؛ خطوط قرمز/زرد صفحه را بفرستید.' };
+    }
     return { ok: true, note: 'Docker نصب شد.' };
   }
 
@@ -340,7 +385,17 @@ class Session {
     }
     const env = 'PORT=' + port + ' INSTALL_DIR=' + this.dir;
     this.log('نصب برنامه ۵ تا ۱۰ دقیقه طول می‌کشد؛ لطفاً صبر کنید.', 'gray');
-    const r = await this.runJob(`export ${env} AUTO_UPDATE=0; curl -fsSL -m 60 ${REPO_RAW} | bash`, { label: 'نصب‌کنندهٔ برنامه از GitHub (روی خود سرور اجرا می‌شود)' });
+    let r;
+    if (this.offline) {
+      this.log('ارسال کد برنامه به سرور (' + Math.round(fs.statSync(BUNDLE).size / 1024) + ' کیلوبایت)...', 'cyan');
+      const sent = await this.uploadFile(BUNDLE, '/tmp/hoormand-src.tgz');
+      const got = Number((await this.run('stat -c %s /tmp/hoormand-src.tgz 2>/dev/null || echo 0', { quiet: true })).out.trim());
+      if (!sent || got !== fs.statSync(BUNDLE).size) return { ok: false, note: 'ارسال کد به سرور کامل نشد (' + got + ' از ' + fs.statSync(BUNDLE).size + ' بایت رسید؛ ارتباط SSH یا فضای /tmp).' };
+      r = await this.runJob(
+        'mkdir -p /opt/automation && tar xzf /tmp/hoormand-src.tgz -C /opt/automation && cd /opt/automation && export ' + env + ' AUTO_UPDATE=0 && bash ./install.sh',
+        { label: 'باز کردن کد و ساخت برنامه روی خود سرور' }
+      );
+    } else r = await this.runJob(`export ${env} AUTO_UPDATE=0; curl -fsSL -m 60 ${REPO_RAW} | bash`, { label: 'نصب‌کنندهٔ برنامه از GitHub (روی خود سرور اجرا می‌شود)' });
     if (r.code !== 0) {
       if (/403|Forbidden|toomanyrequests|failed to resolve|failed to copy/i.test(r.out)) return { ok: false, note: 'ساخت برنامه به دانلود از Docker Hub برخورد کرد. دوباره «شروع نصب» را بزنید یا آینه‌ها را بررسی کنید.' };
       return { ok: false, note: 'نصب برنامه با خطا تمام شد. آخرین خطوط صفحه را برای پشتیبانی بفرستید.' };
@@ -352,6 +407,7 @@ class Session {
   }
 
   async stepUpdate() {
+    if (this.offline) return { ok: true, note: 'GitHub در دسترس نیست؛ به‌روزرسانی خودکار روشن نشد. برای آپدیت، پنل نصب را دوباره با کد تازه اجرا کنید.' };
     let r = await this.runJob('cd /opt/automation && ./auto-update.sh', { label: 'cd /opt/automation && ./auto-update.sh' });
     if (/Cannot fast-forward|multiple branches/i.test(r.out)) {
       this.log('خطای شاخه‌های git؛ اصلاح می‌کنم.', 'yellow');

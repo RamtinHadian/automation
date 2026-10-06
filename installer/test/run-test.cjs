@@ -15,7 +15,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   console.log('start button visible:', await p.$eval('#startBtn', (e) => getComputedStyle(e).display !== 'none'));
 
   let asked = false;
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 160; i++) {
     await sleep(1000);
     if (!asked && (await p.$eval('#askIp', (e) => getComputedStyle(e).display !== 'none'))) {
       asked = true;

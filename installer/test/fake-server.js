@@ -11,7 +11,9 @@ const log = [];
 
 function answer(script) {
   log.push(script.slice(0, 90));
+  if (process.env.FAKEDEBUG) console.log('CMD', script.slice(0, 110).split('\n').join(' '));
   const out = (stdout = '', code = 0, stderr = '') => ({ stdout, code, stderr });
+  if (/^stat -c %s \/tmp\/hoormand-src\.tgz/.test(script)) return out(String(st.uploadedBytes || 0) + '\n');
   // Issabel / phone-system commands
   if (/^asterisk -V/.test(script)) return out('Asterisk 16.30.0\nIssabel release 5.0\nroot\n  Enabled:                     Yes\n  Port:                        5038\n');
   if (/manager_custom\.conf/.test(script)) return out('username: hoormand\nsecret: <Set>\npermit: 192.168.2.248/255.255.255.255\n');
@@ -47,13 +49,14 @@ function answer(script) {
   if (/os-release/.test(script)) return out('سیستم‌عامل: Ubuntu 24.04 LTS\nکاربر: paya\nآدرس: 192.168.1.80 172.17.0.1\nرم: 7800 مگابایت\nفضای آزاد: 80G\n');
   if (script === 'true') return out();
   if (/command -v apt-get/.test(script)) return out('apt\n');
-  if (/github\.com/.test(script)) return out('github: 200\nraw: 200\n');
+  if (/github\.com/.test(script)) return process.env.NOGITHUB ? out('github: 000\nraw: 000\n', 7, 'curl: (7) Failed to connect to github.com port 443') : out('github: 200\nraw: 200\n');
   if (/^docker --version/.test(script)) return st.docker ? out('Docker version 27.0\nDocker Compose version v2.29\n') : out('', 127, 'docker: command not found');
   if (/get\.docker\.com/.test(script)) { st.docker = true; return out('# Executing docker install script\nDocker installed.\n'); }
   if (/systemctl enable --now docker/.test(script)) return out();
   if (/^docker compose version/.test(script)) return st.docker ? out('Docker Compose version v2.29\n') : out('', 1, 'no docker');
   if (/docker pull -q postgres/.test(script)) return st.mirrors ? out('sha256:abc\n') : out('', 1, 'unknown: failed to copy: httpReadSeeker: failed open: unexpected status from GET request to https://production.cloudfront.docker.com/...: 403 Forbidden\n');
   if (/daemon\.json/.test(script)) { st.mirrors = true; return out(); }
+  if (/tar xzf \/tmp\/hoormand-src\.tgz/.test(script)) { if (!st.uploaded) return out('', 2, 'tar: no such file'); st.app = true; return out('==> Building and starting\nDone.\n'); }
   if (/install\.sh/.test(script)) { st.app = true; return out('==> Building and starting\n[+] Running 3/3\n ✔ Container automation-db-1  Healthy\n ✔ Container automation-app-1  Started\nDone.\n'); }
   if (/docker compose ps/.test(script)) return out('app running\ndb running\nbackup running\n');
   if (/git fetch origin frontend/.test(script)) { st.fixedGit = true; return out("Reset branch 'frontend'\n"); }
@@ -85,6 +88,12 @@ new Server({ hostKeys: [privateKey] }, (client) => {
           stream.exit(r.code);
           stream.end();
         };
+        if (/^cat > \/tmp\/hoormand-src\.tgz/.test(cmd)) {
+          let n = 0;
+          stream.on('data', (d) => (n += d.length));
+          stream.on('end', () => { st.uploaded = n > 1000; st.uploadedBytes = n; console.log('upload bytes', n); stream.exit(0); stream.end(); });
+          return;
+        }
         const run = () => {
           const m = /^bash -c '([\s\S]*)'$/.exec(cmd);
           const script = m ? m[1].replace(/'\\''/g, "'") : cmd;
