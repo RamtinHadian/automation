@@ -699,7 +699,7 @@ export default function UserPanel() {
               }`}
             >
               <ArrowLeftRight className="w-4 h-4" />
-              <span>ارسال فایل</span>
+              <span>امور اداری</span>
               {menuBadge('files') > 0 && (
                   <span className="bg-rose-600 text-white text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full font-black shadow-sm">
                     {toPersianDigits(menuBadge('files') > 99 ? '99+' : menuBadge('files'))}
@@ -819,7 +819,7 @@ export default function UserPanel() {
         {mainMenuTab === 'files' && (
           <div className="flex-1 flex flex-col">
             <div className="flex items-center gap-2 px-4 sm:px-6 pt-4 pb-1">
-              {([['files', 'فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle]] as const).map(([id, label, Icon]) => (
+              {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle]] as const).map(([id, label, Icon]) => (
                 <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
                   <Icon className="w-4 h-4" />
                   {label}
@@ -1850,7 +1850,7 @@ export default function UserPanel() {
           }`}
         >
           <ArrowLeftRight className="w-4 h-4" />
-          <span className="text-[10px] font-black">تبادل فایل</span>
+          <span className="text-[10px] font-black">امور اداری</span>
           {menuBadge('files') > 0 && (
             <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
               {toPersianDigits(menuBadge('files') > 99 ? '99+' : menuBadge('files'))}
