@@ -4,7 +4,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const b = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
   const p = await b.newPage(); await p.setViewport({ width: 1300, height: 1000 });
   p.on('pageerror', (e) => console.log('PAGEERR', String(e).slice(0, 200)));
-  await p.goto('http://127.0.0.1:7077/', { waitUntil: 'load' }); await sleep(800);
+  await p.goto('http://127.0.0.1:' + (process.env.PANEL_PORT || 7077) + '/', { waitUntil: 'load' }); await sleep(800);
   const type = async (id, v) => { await p.$eval('#' + id, (e) => { e.value = ''; }); await p.type('#' + id, v); };
   await p.click('#tabVoip'); await sleep(300);
   console.log('voip fields visible:', await p.$eval('#voipFields', (e) => getComputedStyle(e).display !== 'none'), '| install fields hidden:', await p.$eval('#installFields', (e) => getComputedStyle(e).display === 'none'));

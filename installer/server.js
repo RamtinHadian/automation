@@ -462,7 +462,7 @@ class Session {
     const appHost = String(o.appHost || '').trim();
     const user = String(o.amiUser || 'hoormand').replace(/[^A-Za-z0-9_-]/g, '') || 'hoormand';
     const secret = String(o.amiSecret || '').replace(/[^A-Za-z0-9]/g, '') || require('crypto').randomBytes(12).toString('hex');
-    const pbxHost = this.host;
+    let pbxHost = this.host; // replaced by the phone system's own LAN address when we reached it through the public IP
     const app = o.appSsh && o.appSsh.host && o.appSsh.user && o.appSsh.password ? o.appSsh : null;
     this.steps = [
       { id: 'pbx', title: 'بررسی ایزابل', status: 'wait' },
@@ -477,6 +477,12 @@ class Session {
       pbx: async () => {
         const r = await this.run('asterisk -V 2>&1 | head -1; cat /etc/issabel-release /etc/redhat-release 2>/dev/null | head -2; whoami; asterisk -rx "manager show settings" 2>&1 | grep -iE "enabled|port|bind" | head -5', { root: true });
         if (!/Asterisk\s+\d/i.test(r.out) || /command not found/i.test(r.out)) return { ok: false, note: 'Asterisk روی این سرور پیدا نشد. با آدرس خود ایزابل وصل شده‌اید؟ (کاربر root لازم است.)' };
+        // the app server lives inside the LAN: it must reach the phone system by its LAN address, not by the public IP we SSH into
+        const lan = (await this.run("hostname -I 2>/dev/null | tr ' ' '\\n' | grep -E '^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)' | head -1", { quiet: true })).out.trim();
+        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(lan) && lan !== pbxHost) {
+          this.log('آدرس داخلی ایزابل ' + lan + ' است؛ برنامه با همین آدرس به ایزابل وصل می‌شود (نه با ' + pbxHost + ' که فقط برای SSH از بیرون است).', 'gray');
+          pbxHost = lan;
+        }
         if (/Manager \(AMI\):\s*No/i.test(r.out)) this.log('هشدار: AMI در manager.conf خاموش است (enabled = yes لازم است).', 'yellow');
         return { ok: true, note: 'Asterisk پیدا شد.' };
       },
