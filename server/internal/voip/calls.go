@@ -87,11 +87,15 @@ func WatchCalls(c *Client) {
 		if ev["Event"] != "DialBegin" {
 			return
 		}
-		m := channelExt.FindStringSubmatch(ev["DestChannel"])
-		if m == nil {
+		extNum := ringingExt(ev["DestChannel"])
+		if extNum == "" {
 			return
 		}
 		if !firstTime(pick(ev, "DestUniqueID", "DestUniqueid")) {
+			return
+		}
+		// the same call can ring one extension twice (a ring group or follow-me dials «Local/500@…» and then the phone itself)
+		if !firstTime("call|" + extNum + "|" + pick(ev, "Linkedid", "LinkedID", "Uniqueid", "UniqueID")) {
 			return
 		}
 		go func(ext string) {
@@ -128,7 +132,7 @@ func WatchCalls(c *Client) {
 			}
 			notify.Notify(ctx, []string{uid}, note, "")
 			Logf("پاپ‌آپ برای کاربر %s فرستاده شد: %s", uid, note.Title)
-		}(m[1])
+		}(extNum)
 	}
 }
 
@@ -155,4 +159,18 @@ func sampleRinging(ev Event) {
 	}
 	sampleN++
 	Logf("نمونهٔ رویداد زنگ از ایزابل: Event=%s Channel=%s DestChannel=%s Caller=%s", ev["Event"], ev["Channel"], pick(ev, "DestChannel", "Destination"), pick(ev, "CallerIDNum", "ConnectedLineNum"))
+}
+
+// localExt is «Local/500@from-internal-0000;1»: how ring groups, follow-me and queues call an extension.
+var localExt = regexp.MustCompile(`^Local/([0-9]{2,8})@[^;]+;[12]$`)
+
+// ringingExt returns the extension a channel belongs to (a phone «SIP/500-0000001b» or a «Local/500@…» leg), or "".
+func ringingExt(ch string) string {
+	if m := channelExt.FindStringSubmatch(ch); m != nil {
+		return m[1]
+	}
+	if m := localExt.FindStringSubmatch(ch); m != nil {
+		return m[1]
+	}
+	return ""
 }

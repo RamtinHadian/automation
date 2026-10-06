@@ -117,3 +117,20 @@ func TestNormalizeEventAsterisk11(t *testing.T) {
 		t.Fatalf("newer events must stay untouched: %v", newer)
 	}
 }
+
+func TestRingingExt(t *testing.T) {
+	cases := map[string]string{
+		"SIP/500-0000001b":                "500",
+		"PJSIP/501-00000012":              "501",
+		"Local/500@from-internal-0000;1":  "500",
+		"Local/500@from-internal-0000;2":  "500",
+		"SIP/mytrunk-00000003":            "mytrunk", // a trunk has a name, the caller of this function filters by user
+		"Local/s@macro-dialout;1":         "",
+		"DAHDI/1-1":                       "",
+	}
+	for ch, want := range cases {
+		if got := ringingExt(ch); got != want {
+			t.Errorf("%q -> %q, want %q", ch, got, want)
+		}
+	}
+}
