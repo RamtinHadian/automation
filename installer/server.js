@@ -468,6 +468,7 @@ class Session {
     const user = String(o.amiUser || 'hoormand').replace(/[^A-Za-z0-9_-]/g, '') || 'hoormand';
     const secret = String(o.amiSecret || '').replace(/[^A-Za-z0-9]/g, '') || require('crypto').randomBytes(12).toString('hex');
     let pbxHost = this.host; // replaced by the phone system's own LAN address when we reached it through the public IP
+    let pbxCands = []; // all private addresses of the phone system (found in the first step)
     const app = o.appSsh && o.appSsh.host && o.appSsh.user && o.appSsh.password ? o.appSsh : null;
     this.steps = [
       ...(app ? [{ id: 'srv', title: 'شناسایی سرور برنامه', status: 'wait' }] : []),
@@ -513,11 +514,18 @@ class Session {
         const r = await this.run('asterisk -V 2>&1 | head -1; cat /etc/issabel-release /etc/redhat-release 2>/dev/null | head -2; whoami; asterisk -rx "manager show settings" 2>&1 | grep -iE "enabled|port|bind" | head -5', { root: true });
         if (!/Asterisk\s+\d/i.test(r.out) || /command not found/i.test(r.out)) return { ok: false, note: 'Asterisk روی این سرور پیدا نشد. با آدرس خود ایزابل وصل شده‌اید؟ (کاربر root لازم است.)' };
         // the app server lives inside the LAN: it must reach the phone system by its LAN address, not by the public IP we SSH into
-        const lan = (await this.run(LAN_CMD, { quiet: true })).out.trim();
-        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(lan) && lan !== pbxHost) {
-          this.log('آدرس داخلی ایزابل ' + lan + ' است؛ برنامه با همین آدرس به ایزابل وصل می‌شود (نه با ' + pbxHost + ' که فقط برای SSH از بیرون است).', 'gray');
-          pbxHost = lan;
+        // every private address of this machine, the one used to reach the internet first
+        const found = (await this.run("(" + LAN_CMD + "; hostname -I 2>/dev/null | tr ' ' '\\n'; ip -4 -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1) | grep -E '^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)' | awk '!s[$0]++'", { quiet: true })).out.split(/\s+/).filter((x) => ip4.test(x));
+        pbxCands = found;
+        if (found.length) {
+          this.log('آدرس‌های داخلی ایزابل: ' + found.join('، ') + (found[0] !== pbxHost ? '؛ برنامه با ' + found[0] + ' به ایزابل وصل می‌شود (نه با ' + pbxHost + ' که فقط برای SSH از بیرون است).' : ''), 'gray');
+          if (found[0] !== pbxHost) pbxHost = found[0];
+        } else if (!/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(pbxHost)) {
+          this.log('هشدار: آدرس داخلی ایزابل را پیدا نکردم و آدرسی که با آن SSH زدید (' + pbxHost + ') بیرونی است؛ اتصال برنامه به ایزابل با آن کار نمی‌کند.', 'yellow');
         }
+        const listen = (await this.run("ss -ltn 2>/dev/null | grep -E ':5038\\b' || netstat -ltn 2>/dev/null | grep -E ':5038\\b'", { quiet: true })).out.trim();
+        this.log('پورت ۵۰۳۸ (AMI) روی ایزابل: ' + (listen ? listen.replace(/\s+/g, ' ') : 'کسی گوش نمی‌دهد؛ AMI در manager.conf خاموش است'), listen ? 'gray' : 'yellow');
+        if (listen && /127\.0\.0\.1:5038/.test(listen) && !/(0\.0\.0\.0|\*|\[::\]):5038/.test(listen)) this.log('AMI فقط روی خود ایزابل (127.0.0.1) گوش می‌دهد؛ در /etc/asterisk/manager.conf مقدار bindaddr باید 0.0.0.0 باشد تا سرور برنامه وصل شود.', 'yellow');
         if (/Manager \(AMI\):\s*No/i.test(r.out)) this.log('هشدار: AMI در manager.conf خاموش است (enabled = yes لازم است).', 'yellow');
         return { ok: true, note: 'Asterisk پیدا شد.' };
       },
@@ -592,14 +600,22 @@ class Session {
         }
         const dir = String(app.dir || '/opt/automation').replace(/[^A-Za-z0-9/_.-]/g, '');
         this.dir = dir;
+        // find the address of the phone system that THIS server can really reach, before anything is written into .env
+        const tryHosts = [...new Set([pbxHost, ...pbxCands])];
+        let okHost = '';
+        for (const h of tryHosts) {
+          const t = await this.run('timeout 6 bash -c "echo > /dev/tcp/' + h + '/5038" && echo reach-ok || echo reach-fail', { quiet: true });
+          this.log('آزمایش اتصال سرور برنامه به ' + h + ':5038 ← ' + (/reach-ok/.test(t.out) ? 'می‌رسد' : 'نمی‌رسد'), /reach-ok/.test(t.out) ? 'gray' : 'yellow');
+          if (/reach-ok/.test(t.out)) { okHost = h; break; }
+        }
+        if (!okHost) return { ok: false, note: 'سرور برنامه به ایزابل (' + tryHosts.join('، ') + ') پورت ۵۰۳۸ نمی‌رسد؛ چیزی در .env نوشته نشد. علت‌های محتمل: AMI فقط روی خود ایزابل گوش می‌دهد (در manager.conf مقدار bindaddr باید 0.0.0.0 باشد)، فایروال ایزابل، یا مسیر شبکه. خطوط زرد بالا را بفرستید.' };
+        pbxHost = okHost;
         const lines = { AMI_HOST: pbxHost, AMI_PORT: '5038', AMI_USER: user, AMI_SECRET: secret, VOIP_RECORDING_KEY: recKey };
         const upd = Object.entries(lines).map(([k, v]) => 'grep -q "^' + k + '=" .env && sed -i "s|^' + k + '=.*|' + k + '=' + v + '|" .env || echo "' + k + '=' + v + '" >> .env').join('; ');
         const r = await this.run('cd ' + dir + ' && [ -f .env ] && cp -n .env .env.bak-hoormand && ' + upd + ' && echo env-ok', { root: true, quiet: true });
         if (!/env-ok/.test(r.out)) return { ok: false, note: 'فایل .env در ' + dir + ' پیدا یا نوشته نشد.' };
         this.log('خطوط AMI در .env نوشته شد (رمز در گزارش پایین هست).', 'gray');
         const up = await this.runJob('cd ' + dir + ' && docker compose up -d 2>&1 | tail -5', { label: 'راه‌اندازی دوبارهٔ برنامه' });
-        const t = await this.run('timeout 6 bash -c "echo > /dev/tcp/' + pbxHost + '/5038" && echo reach-ok || echo reach-fail', { quiet: true });
-        if (/reach-fail/.test(t.out)) return { ok: false, note: 'سرور برنامه به ' + pbxHost + ' پورت ۵۰۳۸ نمی‌رسد (فایروال یا مسیر شبکه).' };
         return { ok: up.code === 0, note: up.code === 0 ? 'برنامه دوباره راه افتاد و به ایزابل می‌رسد؛ در کنسول مدیریت ← تنظیمات ← تلفن، وضعیت «متصل» را ببینید.' : 'برنامه راه‌اندازی نشد.' };
       },
     };

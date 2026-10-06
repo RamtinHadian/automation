@@ -15,7 +15,7 @@ function answer(script) {
   const out = (stdout = '', code = 0, stderr = '') => ({ stdout, code, stderr });
   if (/^stat -c %s \/tmp\/hoormand-src\.tgz/.test(script)) return out(String(st.uploadedBytes || 0) + '\n');
   // Issabel / phone-system commands
-  if (/^ip -4 route get 1\.1\.1\.1/.test(script)) return out('192.168.2.100\n');
+  if (/ip -4 route get 1\.1\.1\.1/.test(script)) return out('192.168.2.100\n');
   if (/hoormand-push-recordings\.sh/.test(script)) { st.sender = Buffer.from(/echo (\S+) \| base64 -d/.exec(script)[1], 'base64').toString(); require('fs').writeFileSync(process.env.SENDER_OUT || 'sender-test.sh', st.sender); return out('sender-ok\n'); }
   if (/^docker ps --filter label=com\.docker\.compose\.service=app --format '\{\{\.Ports\}\}'/.test(script)) return out('0.0.0.0:8080->8080/tcp\n');
   if (/^docker ps --filter label=com\.docker\.compose\.service=app/.test(script)) return out('/opt/automation\n');
