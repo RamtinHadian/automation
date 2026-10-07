@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { BarChart3, MessageCircle, Phone, AlertTriangle, ClipboardList, FileText, Send, Stamp, UserPlus, VolumeX, X } from 'lucide-react';
 import { formatMoney, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
+import { normPhone } from '../../lib/customerImport';
 import { useAppContext } from '../../context/AppContext';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
 
@@ -90,7 +91,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
             type="button"
             onClick={() => {
               try {
-                sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: unknownNumber, name: '' }));
+                sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: normPhone(unknownNumber) || unknownNumber, name: '' }));
               } catch {
                 /* storage unavailable */
               }

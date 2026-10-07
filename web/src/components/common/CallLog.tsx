@@ -4,6 +4,7 @@ import { BarChart3, Pause, Play, PhoneCall, PhoneIncoming, PhoneMissed, PhoneOut
 import { api, VoipCall } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
+import { callerNameOnly, normPhone } from '../../lib/customerImport';
 import { useAppContext } from '../../context/AppContext';
 
 const dur = (s: number) => (s > 0 ? toPersianDigits(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`) : '');
@@ -210,7 +211,8 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
   // Opens the CRM «new customer» form with this number filled in.
   const saveAsCustomer = (number: string, name: string) => {
     try {
-      sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: number, name }));
+      // the number goes into the mobile or the landline box (decided from the number itself); it is never used as the name
+      sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: normPhone(number) || number, name: callerNameOnly(name, number) }));
     } catch {
       /* storage unavailable */
     }

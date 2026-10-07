@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Building2, Landmark, Phone, Smartphone, Trash2, User as UserIcon, X } from 'lucide-react';
 import { Customer, CustomerStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
-import { normPhone, normText } from '../../lib/customerImport';
+import { isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label, SOURCES } from './crmUi';
 
@@ -22,7 +22,7 @@ const validNationalCode = (code: string) => {
   const check = Number(code[9]);
   return sum < 2 ? check === sum : check === 11 - sum;
 };
-const isMobile = (p: string) => /^09\d{9}$/.test(p) || /^\+?989\d{9}$/.test(p);
+const isMobile = (p: string) => isMobileNumber(p);
 const cleanNumber = (v: string) => normPhone(v) || normText(v).replace(/[^0-9+]/g, '');
 
 /** Any number of phone numbers of one sort (mobile or landline). */

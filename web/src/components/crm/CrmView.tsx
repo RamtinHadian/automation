@@ -38,6 +38,7 @@ import { CustomerForm } from './CustomerForm';
 import { ProformaSection } from './ProformaSection';
 import { QuickProformaDialog } from './QuickProformaDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
+import { callerNameOnly, normPhone } from '../../lib/customerImport';
 import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
 import { CustomerReportModal } from './CustomerReportModal';
 import { Modal, field, label, SOURCES } from './crmUi';
@@ -118,7 +119,7 @@ export const CrmView: React.FC = () => {
         const { type, id, phone, name } = JSON.parse(raw) as { type: string; id: string; phone?: string; name?: string };
         if (type === 'newCustomer') {
           setTab('customers');
-          setEditingCustomer({ ...newCustomer(), phones: phone ? [phone] : [], name: name || '', source: 'تماس تلفنی' });
+          setEditingCustomer({ ...newCustomer(), phones: phone ? [normPhone(phone) || phone] : [], name: callerNameOnly(name, phone), source: 'تماس تلفنی' });
           return;
         }
         if (type === 'customer') setOpenCustomer(id);

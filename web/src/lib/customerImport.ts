@@ -31,7 +31,20 @@ export const normPhone = (v: unknown): string => {
   else if (s.startsWith('0098')) s = '0' + s.slice(4);
   else if (/^98\d{10}$/.test(s)) s = '0' + s.slice(2);
   else if (/^9\d{9}$/.test(s)) s = '0' + s;
+  else if (/^[1-8]\d{9}$/.test(s)) s = '0' + s; // a landline written without its leading zero: «2133445566» -> «02133445566»
   return s.length >= 5 ? s : '';
+};
+
+/** Mobile (09…) or landline: decided from the number itself, in any of the ways the phone system or a person writes it. */
+export const isMobileNumber = (v: unknown): boolean => /^09\d{9}$/.test(normPhone(v));
+
+/** The caller's name from the phone system, or '' when it is only the number again (many phone systems send the number as the name). */
+export const callerNameOnly = (name: unknown, number: unknown): string => {
+  const n = normText(name);
+  if (!n || /^(<unknown>|unknown|anonymous)$/i.test(n)) return '';
+  if (/^[0-9+()\-\s]+$/.test(n) && n.replace(/\D/g, '').length >= 5) return '';
+  if (n.replace(/\D/g, '') !== '' && n.replace(/\D/g, '') === normText(number).replace(/\D/g, '')) return '';
+  return n;
 };
 
 /** Best-guess column for every field from the header texts (-1 = none). Each column is used once. */
