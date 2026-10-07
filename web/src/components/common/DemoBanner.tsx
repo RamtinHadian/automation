@@ -23,10 +23,24 @@ export function useDemoInfo(): DemoInfo | null {
 /** Small label in the corner that tells visitors this is a demonstration. */
 export const DemoBanner: React.FC = () => {
   const info = useDemoInfo();
+  const [next, setNext] = useState<number | null>(null);
+  const [now, setNow] = useState(Date.now());
+  // the time of the next reset is asked again every minute (the demo puts its data back to the start by itself)
+  useEffect(() => {
+    if (!info) return;
+    const load = () => api.demoInfo().then((d) => setNext(d.nextResetAt ? new Date(d.nextResetAt).getTime() : null)).catch(() => {});
+    load();
+    const a = window.setInterval(load, 60000);
+    const b = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => { window.clearInterval(a); window.clearInterval(b); };
+  }, [info]);
   if (!info) return null;
+  const h = info.resetHours || 1;
+  const every = h === 1 ? 'هر ساعت' : `هر ${toPersianDigits(h)} ساعت`;
+  const left = next ? Math.max(0, Math.round((next - now) / 60000)) : null;
   return (
     <div dir="rtl" className="fixed bottom-3 left-3 z-[60] pointer-events-none px-3 py-1.5 rounded-full bg-[#3A241F]/90 text-white text-[10px] font-black shadow-lg">
-      نسخهٔ نمایشی · اطلاعات هر {toPersianDigits(info.resetHours || 6)} ساعت بازنشانی می‌شود
+      نسخهٔ نمایشی · اطلاعات {every} به حالت اول برمی‌گردد{left !== null && ` (ریست بعدی: ${toPersianDigits(left)} دقیقهٔ دیگر)`}
     </div>
   );
 };

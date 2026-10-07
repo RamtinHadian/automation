@@ -242,6 +242,12 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [selectedFontSize, setSelectedFontSize] = useState<string>(() => (typeof prefs.selectedFontSize === 'string' ? prefs.selectedFontSize : '13px'));
   const [headerCenterTitle, setHeaderCenterTitle] = useState<string>(() => (typeof prefs.headerCenterTitle === 'string' ? prefs.headerCenterTitle : '« به نام خدا »'));
   const [bodyPaddingX, setBodyPaddingX] = useState<number>(() => numPref(prefs.bodyPaddingX, 32));
+  // «درج جدول»: the person chooses the number of rows and columns first
+  const [tableOpen, setTableOpen] = useState(false);
+  const [tableRows, setTableRows] = useState('3');
+  const [tableCols, setTableCols] = useState('3');
+  const [tableHeader, setTableHeader] = useState(true);
+  const tableSel = useRef<Range | null>(null);
   const [bodyOffsetX, setBodyOffsetX] = useState<number>(() => numPref(prefs.bodyOffsetX, 0));
   const [signatureHeight, setSignatureHeight] = useState<number>(() => numPref(prefs.signatureHeight, settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT));
 
@@ -458,28 +464,34 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const clampInt = (v: string, min: number, max: number, fallback: number) => {
+    const n = parseInt(v.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[^0-9]/g, ''), 10);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  };
+  // remember where the cursor was in the letter before the size box takes the focus
+  const openTableBox = () => {
+    const sel = window.getSelection();
+    tableSel.current = sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+    setTableOpen((v) => !v);
+  };
   const handleInsertTable = () => {
-    const tableHtml = `
-      <table style="width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 11px; text-align: right;">
-        <thead>
-          <tr style="background-color: #FAF5F1; border: 1px solid #EBDBCE;">
-            <th style="border: 1px solid #EBDBCE; padding: 6px 10px;">ردیف</th>
-            <th style="border: 1px solid #EBDBCE; padding: 6px 10px;">شرح اقدام / موضوع</th>
-            <th style="border: 1px solid #EBDBCE; padding: 6px 10px;">واحد مسئول</th>
-            <th style="border: 1px solid #EBDBCE; padding: 6px 10px;">مهلت</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="border: 1px solid #EBDBCE; padding: 6px 10px;">۱</td>
-            <td style="border: 1px solid #EBDBCE; padding: 6px 10px;">بررسی و اعلام نظر کارشناسی</td>
-            <td style="border: 1px solid #EBDBCE; padding: 6px 10px;">فناوری اطلاعات</td>
-            <td style="border: 1px solid #EBDBCE; padding: 6px 10px;">۴۸ ساعت</td>
-          </tr>
-        </tbody>
-      </table>
-    `;
+    const rows = clampInt(tableRows, 1, 40, 3);
+    const cols = clampInt(tableCols, 1, 12, 3);
+    const cell = 'border: 1px solid #EBDBCE; padding: 6px 10px; min-width: 40px;';
+    const head = tableHeader
+      ? `<thead><tr style="background-color: #FAF5F1; border: 1px solid #EBDBCE;">${Array.from({ length: cols }, (_, c) => `<th style="${cell}">${c === 0 && cols > 1 ? 'ردیف' : '&nbsp;'}</th>`).join('')}</tr></thead>`
+      : '';
+    const bodyRows = tableHeader ? rows - 1 : rows;
+    const body = `<tbody>${Array.from({ length: Math.max(0, bodyRows) }, (_, r) => `<tr>${Array.from({ length: cols }, (_, c) => `<td style="${cell}">${c === 0 && cols > 1 && tableHeader ? toPersianDigits(r + 1) : '&nbsp;'}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    const tableHtml = `<table style="width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 11px; text-align: right;">${head}${body}</table><p><br></p>`;
+    editorRef.current?.focus();
+    if (tableSel.current) {
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(tableSel.current);
+    }
     executeCommand('insertHTML', tableHtml);
+    setTableOpen(false);
   };
 
   // Unified Drag handlers for all draggable elements.
@@ -1324,16 +1336,41 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-7 text-center">{toPersianDigits(bodyPaddingX)}px</span>
             </div>
 
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+            <div className="relative flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
               <button
                 type="button"
-                onClick={handleInsertTable}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={openTableBox}
                 className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#3A241F] hover:bg-[#FAF5F1] rounded-lg cursor-pointer"
-                title="افزودن جدول"
+                title="افزودن جدول: تعداد سطر و ستون را خودتان تعیین می‌کنید"
+                aria-expanded={tableOpen}
               >
                 <Table className="w-3.5 h-3.5 text-[#C98B6A]" />
                 <span>درج جدول</span>
               </button>
+              {tableOpen && (
+                <div className="absolute top-full mt-1.5 right-0 z-[60] w-64 bg-white border border-[#EBDBCE] rounded-2xl shadow-xl p-3 space-y-2.5" data-table-box dir="rtl">
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="space-y-1">
+                      <span className="block text-[11px] font-black text-[#3A241F]">تعداد سطر</span>
+                      <input value={tableRows} onChange={(e) => setTableRows(e.target.value)} inputMode="numeric" className="w-full px-2.5 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-center outline-hidden focus:ring-2 focus:ring-[#6E1B1B]/20" />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-[11px] font-black text-[#3A241F]">تعداد ستون</span>
+                      <input value={tableCols} onChange={(e) => setTableCols(e.target.value)} inputMode="numeric" className="w-full px-2.5 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-center outline-hidden focus:ring-2 focus:ring-[#6E1B1B]/20" />
+                    </label>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-[#503730]">
+                    <input type="checkbox" checked={tableHeader} onChange={(e) => setTableHeader(e.target.checked)} className="w-4 h-4 accent-[#6E1B1B]" />
+                    سطر اول سرتیتر (عنوان ستون‌ها) باشد
+                  </label>
+                  <div className="text-[10px] text-[#8C6F66]">تا ۴۰ سطر و ۱۲ ستون؛ بعداً هم می‌توانید داخل خانه‌ها بنویسید.</div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={handleInsertTable} className="flex-1 min-h-[40px] sm:min-h-0 px-3 py-2 rounded-xl bg-[#6E1B1B] hover:bg-[#D34A32] text-white text-xs font-black cursor-pointer">درج جدول</button>
+                    <button type="button" onClick={() => setTableOpen(false)} className="px-3 py-2 rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] text-xs font-black text-[#3A241F] cursor-pointer">انصراف</button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Attachment Upload Button in Editor Toolbar */}

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -56,6 +57,9 @@ var tehran = func() *time.Location {
 
 // Info is what the login pages need to show the one public demo account (no secrets: the demo password is public).
 func Info(enabled bool, resetHours int) http.HandlerFunc {
+	if resetHours < 1 {
+		resetHours = 1
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enabled {
 			httpx.JSON(w, http.StatusOK, map[string]any{"demo": false})
@@ -63,7 +67,11 @@ func Info(enabled bool, resetHours int) http.HandlerFunc {
 		}
 		ceo := accounts[0]
 		list := []map[string]string{{"name": ceo.Name, "title": ceo.Title, "identifier": ceo.Email, "password": Password}}
-		httpx.JSON(w, http.StatusOK, map[string]any{"demo": true, "resetHours": resetHours, "accounts": list})
+		out := map[string]any{"demo": true, "resetHours": resetHours, "accounts": list}
+		if t := nextReset.Load(); t != nil {
+			out["nextResetAt"] = t.(time.Time).UTC().Format(time.RFC3339)
+		}
+		httpx.JSON(w, http.StatusOK, out)
 	}
 }
 
@@ -143,6 +151,9 @@ func safeToWipe(ctx context.Context) bool {
 	return false
 }
 
+// nextReset is when the data will be put back to the starting state again (shown to the visitors).
+var nextReset atomic.Value
+
 // Run fills the database now and again every resetHours.
 func Run(ctx context.Context, resetHours int) {
 	if !safeToWipe(ctx) {
@@ -150,9 +161,10 @@ func Run(ctx context.Context, resetHours int) {
 		return
 	}
 	if resetHours < 1 {
-		resetHours = 6
+		resetHours = 1
 	}
 	for {
+		nextReset.Store(time.Now().Add(time.Duration(resetHours) * time.Hour))
 		if err := Reset(ctx); err != nil {
 			log.Printf("demo: reset failed: %v", err)
 		} else {
@@ -473,5 +485,9 @@ func Reset(ctx context.Context) error {
 			return err
 		}
 	}
-	return addBulk(ctx, now, string(hash), by)
+	if err := addBulk(ctx, now, string(hash), by); err != nil {
+		return err
+	}
+	store.BackfillDealCreators(ctx) // the sample opportunities also say who made them
+	return nil
 }

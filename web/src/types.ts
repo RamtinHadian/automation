@@ -155,6 +155,8 @@ export interface Deal {
   /** Who created the opportunity (set by the server once; older opportunities have none). */
   createdById?: string;
   createdByName?: string;
+  /** True when the creator was filled in later from the main owner (the real creator was not recorded). */
+  createdByGuess?: boolean;
   /** Expected closing day, yyyy-mm-dd. */
   expectedClose?: string;
   notes?: string;

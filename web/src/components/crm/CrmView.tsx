@@ -366,9 +366,9 @@ export const CrmView: React.FC = () => {
           ) : null;
         })()}
         {/* who created this opportunity (the full name, written by the server when it was created) */}
-        <div className="text-[11px] font-bold text-[#503730] leading-5 break-words" title="ایجادکنندهٔ این فرصت">
+        <div className="text-[11px] font-bold text-[#503730] leading-5 break-words" title={d.createdByGuess ? 'سازندهٔ این فرصت دقیق ثبت نشده بود؛ از روی مسئول فرصت پر شده است' : 'ایجادکنندهٔ این فرصت'}>
           <span className="text-[#8C6F66] font-medium">ایجاد شده توسط: </span>
-          {userById.get(d.createdById || '')?.fullName || d.createdByName || <span className="text-[#8C6F66] font-medium">نامشخص (قبل از ثبت این مورد)</span>}
+          {userById.get(d.createdById || '')?.fullName || d.createdByName || d.ownerName || <span className="text-[#8C6F66] font-medium">نامشخص</span>}
         </div>
         {d.expectedClose && (
           <div className={`text-[10px] font-bold flex items-center gap-1 ${overdue ? 'text-rose-600' : 'text-[#8C6F66]'}`}>
@@ -896,7 +896,7 @@ const DealForm: React.FC<{
         {!isNew && (
           <div className="rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] px-3 py-2 text-[11px] font-bold text-[#503730]" data-deal-creator>
             <span className="text-[#8C6F66] font-medium">ایجاد شده توسط: </span>
-            {d.createdByName || 'نامشخص (قبل از ثبت این مورد)'}
+            {staff.find((u) => u.id === d.createdById)?.fullName || d.createdByName || d.ownerName || 'نامشخص'}
             {d.createdAt && <span className="text-[#8C6F66] font-medium"> · {formatTaskDate(d.createdAt.slice(0, 10))}</span>}
           </div>
         )}

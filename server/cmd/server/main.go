@@ -43,6 +43,7 @@ func main() {
 	if err := store.Init(ctx, cfg); err != nil {
 		log.Fatalf("database: %v", err)
 	}
+	store.BackfillDealCreators(ctx)
 	if err := license.Init(ctx, cfg.Demo); err != nil {
 		log.Fatalf("licence: %v", err)
 	}

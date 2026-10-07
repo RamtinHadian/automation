@@ -282,3 +282,20 @@ func RawList(ctx context.Context, sql string, args ...any) ([]json.RawMessage, e
 	}
 	return out, rows.Err()
 }
+
+// BackfillDealCreators fills «who created this opportunity» for the opportunities made before that was recorded, with the
+// best information there is: their main owner (marked as a guess, createdByGuess, so the page can say so). Safe to run again.
+func BackfillDealCreators(ctx context.Context) {
+	tag, err := Pool.Exec(ctx, `UPDATE crm_deals SET data = data || jsonb_build_object(
+		  'createdById', COALESCE(NULLIF(data->>'ownerId', ''), owner_id, ''),
+		  'createdByName', COALESCE(data->>'ownerName', ''),
+		  'createdByGuess', true)
+		WHERE COALESCE(data->>'createdById', '') = '' AND COALESCE(NULLIF(data->>'ownerId', ''), owner_id, '') <> ''`)
+	if err != nil {
+		log.Printf("store: backfill of deal creators: %v", err)
+		return
+	}
+	if n := tag.RowsAffected(); n > 0 {
+		log.Printf("store: %d opportunities got their owner as creator", n)
+	}
+}

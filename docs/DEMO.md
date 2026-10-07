@@ -13,7 +13,7 @@ JWT_SECRET=یک-رشتهٔ-تصادفی-طولانی
 ADMIN_PASSWORD=یک-رمز-تصادفی
 PORT=8080
 DEMO=1
-DEMO_RESET_HOURS=6
+DEMO_RESET_HOURS=1
 ```
 
 2. `docker compose up -d --build`

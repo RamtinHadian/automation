@@ -61,7 +61,7 @@ func Load() Config {
 		AMISecret:     os.Getenv("AMI_SECRET"),
 		Demo:          os.Getenv("DEMO") == "1",
 	}
-	c.DemoResetHours = 6
+	c.DemoResetHours = 1
 	if h, err := strconv.Atoi(os.Getenv("DEMO_RESET_HOURS")); err == nil && h > 0 {
 		c.DemoResetHours = h
 	}

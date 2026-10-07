@@ -37,7 +37,7 @@ services:
       TELEGRAM_BASE: ${TELEGRAM_BASE:-}
       BALE_BASE: ${BALE_BASE:-}
       KAVENEGAR_BASE: ${KAVENEGAR_BASE:-}
-      DEMO_RESET_HOURS: ${DEMO_RESET_HOURS:-6}
+      DEMO_RESET_HOURS: ${DEMO_RESET_HOURS:-1}
     volumes:
       - ${BACKUP_DIR:-./backups}:/backups
       # every file that is sent is kept here too (the receiver can fetch it even when the sender's computer is off)

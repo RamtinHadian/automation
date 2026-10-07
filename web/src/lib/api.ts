@@ -196,6 +196,8 @@ export interface UploadedSound {
 export interface DemoInfo {
   demo: boolean;
   resetHours?: number;
+  /** ISO time of the next automatic reset to the starting data. */
+  nextResetAt?: string;
   accounts?: { name: string; title: string; identifier: string; password: string }[];
 }
 
