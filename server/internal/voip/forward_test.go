@@ -42,3 +42,23 @@ func TestFollowMeLegIsTheExtension(t *testing.T) {
 		t.Fatal("same number written two ways")
 	}
 }
+
+func TestFollowMeHelperChannelsAreNotCalls(t *testing.T) {
+	jMu.Lock()
+	active = map[string]*callState{}
+	jMu.Unlock()
+	journalEvent(Event{"Event": "DialBegin", "Channel": "Local/FMGL-09132019476#@from-internal-00000046;2", "DestChannel": "SIP/33920/09132019476", "CallerIDNum": "500", "Linkedid": "x1"})
+	jMu.Lock()
+	n := len(active)
+	jMu.Unlock()
+	if n != 0 {
+		t.Fatalf("a follow-me helper channel must not start a call, have %d", n)
+	}
+	journalEvent(Event{"Event": "DialBegin", "Channel": "SIP/33920-0000003d", "DestChannel": "Local/FMPR-500@from-internal-00000045;1", "CallerIDNum": "9132019476", "Linkedid": "x2"})
+	jMu.Lock()
+	st := active["x2"]
+	jMu.Unlock()
+	if st == nil || len(st.legExts) != 1 || st.legExts[0] != "500" {
+		t.Fatalf("the trunk's call must know extension 500 rang: %+v", st)
+	}
+}

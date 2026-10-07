@@ -30,6 +30,8 @@ type callState struct {
 	lastStatus string
 }
 
+var followMeLeg = regexp.MustCompile(`^Local/FM(?:PR|GL)-`)
+
 var digitsOnly = regexp.MustCompile(`^[0-9]{2,6}$`)
 
 var (
@@ -80,6 +82,11 @@ func dialedNumber(ev Event) string {
 
 // journalEvent feeds one Asterisk event into the journal.
 func journalEvent(ev Event) {
+	// The follow-me of an extension rings its numbers through helper channels (Local/FMPR-500…, Local/FMGL-0913…#…). They are
+	// parts of the call that the trunk's channel already tracks, never calls of their own.
+	if followMeLeg.MatchString(ev["Channel"]) {
+		return
+	}
 	switch ev["Event"] {
 	case "DialBegin":
 		linked := get(ev, "Linkedid", "LinkedID")
