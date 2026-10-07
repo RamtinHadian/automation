@@ -75,7 +75,8 @@ export function resolveRule(cfg: NotifySettings | undefined, kind: NotificationK
   return {
     enabled: (cfg?.enabled ?? true) && pick(e.enabled, k.enabled, true),
     sound,
-    popup: pick(e.popup, k.popup, true),
+    // a missed call was already announced by its ringing pop-up: by default it only goes to the bell list, the phone and the sound
+    popup: pick(e.popup, k.popup, label !== 'تماس بی‌پاسخ'),
     os: pick(e.os, k.os, true),
     push: pick(e.push, k.push, true),
   };
