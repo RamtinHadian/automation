@@ -262,7 +262,7 @@ export const CrmView: React.FC = () => {
   });
   const newDeal = (customerId = ''): Deal => ({
     id: uid('dl'), title: '', customerId, customerName: customerById.get(customerId)?.name || '', amount: 0, stage: 'NEW',
-    ownerId: me, ownerName: currentUser.fullName, expectedClose: undefined, notes: '', createdAt: nowIso(), updatedAt: nowIso(),
+    ownerId: me, ownerName: currentUser.fullName, createdById: me, createdByName: currentUser.fullName, expectedClose: undefined, notes: '', createdAt: nowIso(), updatedAt: nowIso(),
   });
 
   const mine = (d: Deal) => canApproveProforma(currentUser, settings, d.proformaIssuerId);
