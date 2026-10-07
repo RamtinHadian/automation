@@ -3,6 +3,9 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"strings"
 	"sync"
@@ -214,4 +217,43 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.OK(w)
+}
+
+// ---- customer portal («پشتیبانی» page for customers) ----
+// Portal tokens are signed with a key derived from the server secret, so a portal token can never be taken for a staff token
+// (and the other way round).
+
+func portalKey() []byte {
+	m := hmac.New(sha256.New, secret)
+	m.Write([]byte("portal-v1"))
+	return m.Sum(nil)
+}
+
+// PortalHash is what is stored for a customer's access code of one subscription (the code itself is shown once and never kept).
+func PortalHash(subID, code string) string {
+	m := hmac.New(sha256.New, portalKey())
+	m.Write([]byte(subID + "|" + code))
+	return hex.EncodeToString(m.Sum(nil))
+}
+
+// PortalToken is a 12-hour token for one customer.
+func PortalToken(customerID string) (string, error) {
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub": customerID, "aud": "portal", "exp": time.Now().Add(12 * time.Hour).Unix(),
+	}).SignedString(portalKey())
+}
+
+// PortalCustomer returns the customer id of a valid portal token ("" when invalid).
+func PortalCustomer(r *http.Request) string {
+	h := r.Header.Get("Authorization")
+	if !strings.HasPrefix(h, "Bearer ") {
+		return ""
+	}
+	tok, err := jwt.Parse(strings.TrimPrefix(h, "Bearer "), func(t *jwt.Token) (any, error) { return portalKey(), nil },
+		jwt.WithValidMethods([]string{"HS256"}), jwt.WithAudience("portal"))
+	if err != nil || !tok.Valid {
+		return ""
+	}
+	sub, _ := tok.Claims.GetSubject()
+	return sub
 }

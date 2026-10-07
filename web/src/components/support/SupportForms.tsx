@@ -46,7 +46,7 @@ export const SubForm: React.FC<{
   customers: Customer[];
   plans: SupportPlan[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (saved: SupportSub & { portalCode?: string }) => void;
   onError: (msg: string) => void;
 }> = ({ initial, presetCustomerId, customers, plans, onClose, onSaved, onError }) => {
   const isNew = !initial;
@@ -74,8 +74,8 @@ export const SubForm: React.FC<{
     if (!valid || saving || !startDate) return;
     setSaving(true);
     try {
-      await api.supportSubPut(initial?.id || uid('ss'), { customerId, planId, startDate, months: m, endDate: end, price: fromDisplay(parseInt(toEn(price), 10) || 0), notes: notes.trim() });
-      onSaved();
+      const saved = await api.supportSubPut(initial?.id || uid('ss'), { customerId, planId, startDate, months: m, endDate: end, price: fromDisplay(parseInt(toEn(price), 10) || 0), notes: notes.trim() });
+      onSaved(saved);
     } catch (e) {
       onError(e instanceof Error ? e.message : 'ذخیره نشد.');
     } finally {

@@ -260,7 +260,14 @@ func supportSubPut(w http.ResponseWriter, r *http.Request) {
 		internalError(w)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, doc)
+	out := jsonx.M{}
+	for k, v := range doc {
+		out[k] = v
+	}
+	if code, err := issuePortalCode(ctx, id); err == nil {
+		out["portalCode"] = code // shown to the staff once; only its hash is kept
+	}
+	httpx.JSON(w, http.StatusOK, out)
 }
 
 // POST /api/support/subs/{id}/cancel  {reason}
@@ -544,7 +551,8 @@ func ticketNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	markFirstResponse(doc)
-	appendLog(doc, jsonx.M{"at": utcNow(), "kind": "note", "byId": me.ID(), "byName": me.Name(), "note": text})
+	pub, _ := body["public"].(bool)
+	appendLog(doc, jsonx.M{"at": utcNow(), "kind": "note", "byId": me.ID(), "byName": me.Name(), "note": text, "public": pub})
 	if err := saveTicket(r.Context(), doc); err != nil {
 		internalError(w)
 		return

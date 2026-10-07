@@ -771,11 +771,13 @@ export interface SupportSub {
 
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'WAITING' | 'RESOLVED' | 'CLOSED';
 export type TicketPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
-export type TicketChannel = 'PHONE' | 'CHAT' | 'EMAIL' | 'VISIT' | 'OTHER';
+export type TicketChannel = 'PHONE' | 'CHAT' | 'EMAIL' | 'VISIT' | 'OTHER' | 'PORTAL';
 
 export interface TicketLogEntry {
   at: string;
-  kind: 'create' | 'status' | 'note' | 'assign';
+  kind: 'create' | 'status' | 'note' | 'assign' | 'customer' | 'ai';
+  /** a note the customer can read on the customer page */
+  public?: boolean;
   byId: string;
   byName: string;
   from?: TicketStatus;
@@ -813,4 +815,14 @@ export interface SupportTicket {
   createdById: string;
   createdByName: string;
   log?: TicketLogEntry[];
+}
+
+export interface SupportSettings {
+  portalEnabled: boolean;
+  aiEnabled: boolean;
+  aiModel: string;
+  aiPrompt: string;
+  /** the key itself never comes back from the server */
+  aiKeySet: boolean;
+  aiBaseUrl: string;
 }

@@ -25,6 +25,7 @@ export const TicketDetail: React.FC<{
   const [minutes, setMinutes] = useState('');
   const [visit, setVisit] = useState(false);
   const [text, setText] = useState('');
+  const [pub, setPub] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const st = TICKET_STATUS[ticket.status];
@@ -152,9 +153,10 @@ export const TicketDetail: React.FC<{
         <div>
           <label className={label}>یادداشت تازه</label>
           <div className="flex gap-2">
-            <input className={field} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && text.trim() && run(async () => { const t = await api.ticketNote(ticket.id, text.trim()); setText(''); return t; })} placeholder="مثلاً با مشتری تماس گرفته شد" />
-            <button type="button" disabled={!text.trim() || busy} onClick={() => run(async () => { const t = await api.ticketNote(ticket.id, text.trim()); setText(''); return t; })} className="shrink-0 px-3 rounded-xl bg-white border border-[#EBDBCE] text-teal-700 disabled:opacity-50 cursor-pointer" aria-label="ثبت یادداشت"><MessageSquare className="w-4 h-4" /></button>
+            <input className={field} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && text.trim() && run(async () => { const t = await api.ticketNote(ticket.id, text.trim(), pub); setText(''); return t; })} placeholder="یادداشت یا پاسخ به مشتری" />
+            <button type="button" disabled={!text.trim() || busy} onClick={() => run(async () => { const t = await api.ticketNote(ticket.id, text.trim(), pub); setText(''); return t; })} className="shrink-0 px-3 rounded-xl bg-white border border-[#EBDBCE] text-teal-700 disabled:opacity-50 cursor-pointer" aria-label="ثبت یادداشت"><MessageSquare className="w-4 h-4" /></button>
           </div>
+          <label className="mt-1.5 flex items-center gap-2 text-[11px] font-black text-[#503730] cursor-pointer min-h-[32px]"><input type="checkbox" checked={pub} onChange={(e) => setPub(e.target.checked)} />نمایش به مشتری در صفحهٔ مشتریان</label>
         </div>
       </div>
 
@@ -164,7 +166,7 @@ export const TicketDetail: React.FC<{
           {[...(ticket.log || [])].reverse().map((e, i) => (
             <div key={i} className="flex gap-2.5 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2.5">
               <span className={`mt-0.5 shrink-0 h-fit text-[10px] font-black px-2 py-0.5 rounded-full border ${e.to ? TICKET_STATUS[e.to].cls : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                {e.kind === 'status' || e.kind === 'create' ? TICKET_STATUS[e.to as TicketStatus]?.label : e.kind === 'assign' ? 'مسئول' : 'یادداشت'}
+                {e.kind === 'status' || e.kind === 'create' ? TICKET_STATUS[e.to as TicketStatus]?.label : e.kind === 'assign' ? 'مسئول' : e.kind === 'customer' ? 'پیام مشتری' : e.kind === 'ai' ? 'پاسخ هوشمند' : e.public ? 'پاسخ به مشتری' : 'یادداشت داخلی'}
               </span>
               <div className="min-w-0 flex-1">
                 {e.note && <p className="text-xs leading-6 text-[#3A241F] whitespace-pre-wrap">{e.note}</p>}

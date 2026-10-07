@@ -1,5 +1,5 @@
 import type { AppNotification } from './notifications';
-import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport, Customer, Deal, CrmActivity, Warranty, WarrantyClaim, SupportPlan, SupportSub, SupportTicket, TicketStatus, WarrantySettings, ClaimStatus, ClaimResolution } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport, Customer, Deal, CrmActivity, Warranty, WarrantyClaim, SupportPlan, SupportSettings, SupportSub, SupportTicket, TicketStatus, WarrantySettings, ClaimStatus, ClaimResolution } from '../types';
 
 const TOKEN_KEY = 'app_token_v6';
 
@@ -275,7 +275,11 @@ export const api = {
   supportSubCancel: (id: string, reason: string) => request<{ ok: true }>('POST', `/api/support/subs/${encodeURIComponent(id)}/cancel`, { reason }),
   ticketCreate: (b: Record<string, unknown>) => request<SupportTicket>('POST', '/api/support/tickets', b),
   ticketStatus: (id: string, b: { status: TicketStatus; note?: string; minutes?: number; visit?: boolean }) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/status`, b),
-  ticketNote: (id: string, text: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/note`, { text }),
+  ticketNote: (id: string, text: string, pub = false) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/note`, { text, public: pub }),
+  supportPortalCode: (id: string, sms: boolean) => request<{ code: string; sms: string }>('POST', `/api/support/subs/${encodeURIComponent(id)}/portal-code`, { sms }),
+  supportGetSettings: () => request<SupportSettings>('GET', '/api/support/settings'),
+  supportSaveSettings: (b: Record<string, unknown>) => request<SupportSettings>('PUT', '/api/support/settings', b),
+  supportAiTest: () => request<{ reply: string }>('POST', '/api/support/ai-test', {}),
   ticketAssign: (id: string, handlerId: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/assign`, { handlerId }),
   voipRecordingSetup: () => request<{ key: string; mountedDir: string; mountedFiles: number }>('GET', '/api/voip/recording-setup'),
   /** The recording of a call as a playable blob (the request carries the login, so a plain <audio src> cannot be used). */

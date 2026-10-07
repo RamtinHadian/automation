@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, BadgeCheck, CalendarClock, ClipboardList, Headset, LifeBuoy, Plus, Search, Timer, UserPlus } from 'lucide-react';
+import { AlertTriangle, Bot, Copy, KeyRound, MessageCircle, Settings2, BadgeCheck, CalendarClock, ClipboardList, Headset, LifeBuoy, Plus, Search, Timer, UserPlus } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { formatMoney, unitName } from '../../lib/money';
@@ -12,10 +12,11 @@ import {
 } from '../../lib/support';
 import { C, ChartCard, Donut, HBars, Kpi } from '../admin/charts';
 import { Modal, field, label } from '../crm/crmUi';
+import { SupportSettings } from '../../types';
 import { PlanCard, PlanForm, SubForm, TicketForm } from './SupportForms';
 import { TicketDetail } from './TicketDetail';
 
-type Tab = 'overview' | 'tickets' | 'subs' | 'plans';
+type Tab = 'overview' | 'tickets' | 'subs' | 'plans' | 'settings';
 
 /** The support menu: plans the company sells, customers' subscriptions, support requests with their deadlines and the numbers. */
 export const SupportView: React.FC = () => {
@@ -38,6 +39,36 @@ export const SupportView: React.FC = () => {
   const [ticketFilter, setTicketFilter] = useState<'OPEN' | 'LATE' | 'DONE' | 'ALL'>('OPEN');
   const [subFilter, setSubFilter] = useState<'ALL' | 'ACTIVE' | 'SOON' | 'EXPIRED' | 'CANCELLED'>('ALL');
   const [, setTick] = useState(0);
+  // the customer's access code for the customer page: shown once, never kept
+  const [codeFor, setCodeFor] = useState<{ sub: SupportSub; code?: string; sms?: string } | null>(null);
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [sset, setSset] = useState<SupportSettings | null>(null);
+  const [aiKey, setAiKey] = useState('');
+  const [aiModel, setAiModel] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiOn, setAiOn] = useState(false);
+  const [portalOn, setPortalOn] = useState(true);
+  const [aiTestText, setAiTestText] = useState('');
+  const portalUrl = `${window.location.origin}/support`;
+  const makeCode = async (sms: boolean) => {
+    if (!codeFor || codeBusy) return;
+    setCodeBusy(true);
+    try {
+      const r = await api.supportPortalCode(codeFor.sub.id, sms);
+      setCodeFor({ sub: codeFor.sub, code: r.code, sms: r.sms });
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'ساخته نشد.');
+    } finally {
+      setCodeBusy(false);
+    }
+  };
+  const copy = (text: string) => {
+    try {
+      navigator.clipboard.writeText(text).then(() => showToast('کپی شد.'), () => showToast('کپی نشد؛ خودتان انتخاب و کپی کنید.'));
+    } catch {
+      showToast('کپی نشد؛ خودتان انتخاب و کپی کنید.');
+    }
+  };
 
   const load = useCallback(() => {
     api
@@ -60,6 +91,18 @@ export const SupportView: React.FC = () => {
       window.clearInterval(clock);
     };
   }, [load]);
+
+  useEffect(() => {
+    if (!isAdmin || tab !== 'settings') return;
+    api.supportGetSettings().then((r) => {
+      setSset(r);
+      setAiModel(r.aiModel);
+      setAiPrompt(r.aiPrompt);
+      setAiOn(r.aiEnabled);
+      setPortalOn(r.portalEnabled);
+    }).catch(() => showToast('تنظیمات پشتیبانی خوانده نشد.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, tab]);
 
   // opened from a notification, or from a customer's page
   useEffect(() => {
@@ -149,6 +192,7 @@ export const SupportView: React.FC = () => {
     ['tickets', 'درخواست‌ها', Headset],
     ['subs', 'اشتراک‌ها', BadgeCheck],
     ['plans', 'پلن‌ها', ClipboardList],
+    ...(isAdmin ? ([['settings', 'صفحهٔ مشتریان و هوش مصنوعی', Settings2]] as [Tab, string, React.ElementType][]) : []),
   ];
 
   const ticketCard = (t: SupportTicket) => {
@@ -204,6 +248,7 @@ export const SupportView: React.FC = () => {
           {s.status === 'ACTIVE' && (
             <>
               <button type="button" onClick={() => setNewTicket({ customerId: s.customerId })} className="flex items-center gap-1 px-2.5 py-1.5 min-h-[36px] rounded-lg bg-teal-50 border border-teal-200 text-[11px] font-black text-teal-800 cursor-pointer"><Headset className="w-3.5 h-3.5" />درخواست پشتیبانی</button>
+              <button type="button" onClick={() => setCodeFor({ sub: s })} className="flex items-center gap-1 px-2.5 py-1.5 min-h-[36px] rounded-lg bg-violet-50 border border-violet-200 text-[11px] font-black text-violet-800 cursor-pointer" data-portal-code-btn><KeyRound className="w-3.5 h-3.5" />کد ورود مشتری</button>
               {(isAdmin || s.createdById === currentUser.id) && (
                 <>
                   <button type="button" onClick={() => setEditingSub({ s })} className="px-2.5 py-1.5 min-h-[36px] rounded-lg bg-white border border-[#EBDBCE] text-[11px] font-black text-[#3A241F] cursor-pointer">ویرایش</button>
@@ -342,7 +387,111 @@ export const SupportView: React.FC = () => {
         </div>
       )}
 
-      {editingSub && <SubForm initial={editingSub.s} presetCustomerId={editingSub.customerId} customers={customers} plans={plans} onClose={() => setEditingSub(null)} onError={fail} onSaved={() => { setEditingSub(null); showToast('اشتراک ذخیره شد.'); load(); }} />}
+      {loaded && tab === 'settings' && isAdmin && (
+        <div className="space-y-4 max-w-2xl" data-support-settings>
+          <div className="bg-white border border-[#EBDBCE] rounded-3xl p-5 space-y-3">
+            <h3 className="font-black text-sm flex items-center gap-2"><MessageCircle className="w-4 h-4 text-teal-600" />صفحهٔ مشتریان</h3>
+            <p className="text-[11px] font-bold text-[#8C6F66] leading-6">مشتری با پلن فعال، با شمارهٔ موبایل ثبت‌شده در پروندهٔ خودش و «کد ورود» (که از کارت اشتراک می‌سازید) وارد این صفحه می‌شود، مشکلش را می‌فرستد و درخواست در همین منو می‌نشیند.</p>
+            <div className="flex items-center gap-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2">
+              <span className="flex-1 min-w-0 text-xs font-black text-[#3A241F] truncate" dir="ltr">{portalUrl}</span>
+              <button type="button" onClick={() => copy(portalUrl)} className="shrink-0 flex items-center gap-1 text-[11px] font-black text-teal-700 cursor-pointer"><Copy className="w-3.5 h-3.5" />کپی</button>
+            </div>
+            <label className="flex items-center gap-2 text-xs font-black cursor-pointer min-h-[36px]"><input type="checkbox" checked={portalOn} onChange={(e) => setPortalOn(e.target.checked)} />ورود مشتریان باز باشد</label>
+          </div>
+          <div className="bg-white border border-[#EBDBCE] rounded-3xl p-5 space-y-3">
+            <h3 className="font-black text-sm flex items-center gap-2"><Bot className="w-4 h-4 text-violet-600" />پاسخ هوشمند (togpt)</h3>
+            <p className="text-[11px] font-bold text-[#8C6F66] leading-6">اگر روشن باشد، دستیار هوش مصنوعی به پیام‌های مشتری در صفحهٔ مشتریان یک جواب اولیه می‌دهد. جواب او «پاسخ هوشمند» نام دارد، وضعیت و مهلت درخواست را عوض نمی‌کند و همکار شما همچنان درخواست را می‌بیند. کلید API را از حساب togpt خودتان بگیرید.</p>
+            <div>
+              <label className={label}>نشانی سرویس (ثابت است و تغییر نمی‌کند)</label>
+              <input className={`${field} opacity-70`} dir="ltr" readOnly value={sset?.aiBaseUrl || 'https://togpt.ir/api/v1'} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={label}>کلید API {sset?.aiKeySet ? '(ذخیره شده است؛ برای تغییر، کلید تازه را بنویسید)' : ''}</label>
+                <input className={field} dir="ltr" type="password" autoComplete="new-password" value={aiKey} onChange={(e) => setAiKey(e.target.value)} placeholder={sset?.aiKeySet ? '••••••••••' : 'sk-…'} />
+              </div>
+              <div>
+                <label className={label}>نام مدل</label>
+                <input className={field} dir="ltr" value={aiModel} onChange={(e) => setAiModel(e.target.value)} placeholder="نام مدل را از togpt بگیرید" />
+              </div>
+            </div>
+            <div>
+              <label className={label}>اطلاعات شرکت و محصولات برای دستیار (اختیاری)</label>
+              <textarea className={`${field} min-h-[96px] leading-6`} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="مثلاً: ساعت کاری، شمارهٔ تماس، پاسخ سؤال‌های پرتکرار، روش نصب و عیب‌یابی محصولات…" />
+            </div>
+            <label className="flex items-center gap-2 text-xs font-black cursor-pointer min-h-[36px]"><input type="checkbox" checked={aiOn} onChange={(e) => setAiOn(e.target.checked)} />پاسخ هوشمند روشن باشد</label>
+            {aiTestText && <div className="text-[11px] font-bold bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 leading-6">{aiTestText}</div>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  setSset(await api.supportSaveSettings({ portalEnabled: portalOn, aiEnabled: aiOn, aiModel: aiModel.trim(), aiPrompt, aiKey: aiKey.trim() }));
+                  setAiKey('');
+                  showToast('تنظیمات ذخیره شد.');
+                } catch (e) {
+                  fail(e instanceof Error ? e.message : 'ذخیره نشد.');
+                }
+              }}
+              className="px-6 py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black cursor-pointer"
+            >
+              ذخیرهٔ تنظیمات
+            </button>
+            <button
+              type="button"
+              disabled={!sset?.aiKeySet}
+              onClick={async () => {
+                setAiTestText('در حال آزمایش…');
+                try {
+                  setAiTestText('پاسخ آزمایشی: ' + (await api.supportAiTest()).reply);
+                } catch (e) {
+                  setAiTestText(e instanceof Error ? e.message : 'آزمایش انجام نشد.');
+                }
+              }}
+              className="px-5 py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-white border border-violet-200 text-violet-800 disabled:opacity-50 text-xs font-black cursor-pointer"
+            >
+              آزمایش اتصال
+            </button>
+            {sset?.aiKeySet && (
+              <button type="button" onClick={async () => { try { setSset(await api.supportSaveSettings({ portalEnabled: portalOn, aiEnabled: false, aiModel: aiModel.trim(), aiPrompt, clearKey: true })); setAiOn(false); showToast('کلید پاک شد.'); } catch (e) { fail(e instanceof Error ? e.message : 'پاک نشد.'); } }} className="px-5 py-2.5 min-h-[44px] sm:min-h-0 rounded-xl text-rose-700 text-xs font-black cursor-pointer">پاک‌کردن کلید</button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {codeFor && (
+        <Modal
+          title={`کد ورود مشتری — ${codeFor.sub.customerName}`}
+          onClose={() => setCodeFor(null)}
+          onTop
+          footer={<button type="button" onClick={() => setCodeFor(null)} className="px-5 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer mr-auto">بستن</button>}
+        >
+          {codeFor.code ? (
+            <div className="space-y-3" data-portal-code>
+              <div className="rounded-2xl bg-violet-50 border border-violet-200 p-4 text-center">
+                <div className="text-[11px] font-black text-violet-800 mb-1">کد ورود (فقط همین حالا دیده می‌شود)</div>
+                <div className="text-3xl font-black tracking-widest text-[#3A241F]" dir="ltr">{codeFor.code}</div>
+                <button type="button" onClick={() => copy(codeFor.code!)} className="mt-2 inline-flex items-center gap-1 text-[11px] font-black text-violet-700 cursor-pointer"><Copy className="w-3.5 h-3.5" />کپی کد</button>
+              </div>
+              {codeFor.sms === 'ok' && <div className="text-[11px] font-black text-emerald-700">پیامک ارسال شد.</div>}
+              {codeFor.sms && codeFor.sms !== 'ok' && <div className="text-[11px] font-black text-rose-600">{codeFor.sms}</div>}
+              <p className="text-[11px] font-bold text-[#503730] leading-6">به مشتری بگویید در {portalUrl.replace(/^https?:\/\//, '')} با شمارهٔ موبایلی که در پروندهاش ثبت است و این کد وارد شود. کد ذخیره نمی‌شود؛ اگر گم شد کد تازه بسازید (کد قبلی از کار می‌افتد).</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-[#503730] leading-6">برای ورود {codeFor.sub.customerName} به صفحهٔ پشتیبانی یک کد تازه ساخته می‌شود. اگر قبلاً کدی داده‌اید، آن کد از کار می‌افتد.</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={codeBusy} onClick={() => makeCode(false)} className="px-5 py-2.5 min-h-[44px] rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black disabled:opacity-60 cursor-pointer">ساخت کد</button>
+                <button type="button" disabled={codeBusy} onClick={() => makeCode(true)} className="px-5 py-2.5 min-h-[44px] rounded-xl bg-white border border-violet-200 text-violet-800 text-xs font-black disabled:opacity-60 cursor-pointer">ساخت کد و ارسال پیامک</button>
+              </div>
+              <p className="text-[10px] font-bold text-[#8C6F66]">ارسال پیامک نیاز دارد که پیامک در «تنظیمات» مدیریت روشن و درست تنظیم شده باشد.</p>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {editingSub && <SubForm initial={editingSub.s} presetCustomerId={editingSub.customerId} customers={customers} plans={plans} onClose={() => setEditingSub(null)} onError={fail} onSaved={(saved) => { setEditingSub(null); showToast('اشتراک ذخیره شد.'); load(); if (saved.portalCode) setCodeFor({ sub: saved, code: saved.portalCode }); }} />}
       {newTicket && <TicketForm customers={customers} subs={subs} presetCustomerId={newTicket.customerId} staff={staff} onClose={() => setNewTicket(null)} onError={fail} onSaved={() => { setNewTicket(null); setTab('tickets'); setTicketFilter('OPEN'); showToast('درخواست پشتیبانی ثبت شد.'); load(); }} />}
       {editingPlan && <PlanForm initial={editingPlan.p} onClose={() => setEditingPlan(null)} onError={fail} onSaved={() => { setEditingPlan(null); showToast('پلن ذخیره شد.'); load(); }} />}
       {openTicketDoc && <TicketDetail ticket={openTicketDoc} isAdmin={isAdmin} staff={staff} onClose={() => setOpenTicket(null)} onError={fail} onChange={(t) => { setTickets((list) => list.map((x) => (x.id === t.id ? t : x))); load(); }} />}

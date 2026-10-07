@@ -141,6 +141,7 @@ var schema = []string{
 	  data JSONB NOT NULL
 	)`,
 	`CREATE INDEX IF NOT EXISTS support_subs_customer_idx ON support_subs (customer_id)`,
+	`ALTER TABLE support_subs ADD COLUMN IF NOT EXISTS portal_hash TEXT NOT NULL DEFAULT ''`,
 	`CREATE TABLE IF NOT EXISTS support_tickets (
 	  id TEXT PRIMARY KEY,
 	  sub_id TEXT NOT NULL DEFAULT '',

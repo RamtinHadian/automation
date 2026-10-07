@@ -70,7 +70,7 @@ export const PRIORITY: Record<TicketPriority, { label: string; cls: string }> = 
   URGENT: { label: 'فوری', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
 };
 
-export const CHANNEL: Record<TicketChannel, string> = { PHONE: 'تلفن', CHAT: 'پیام / گفتگو', EMAIL: 'ایمیل', VISIT: 'حضوری', OTHER: 'سایر' };
+export const CHANNEL: Record<TicketChannel, string> = { PHONE: 'تلفن', CHAT: 'پیام / گفتگو', EMAIL: 'ایمیل', VISIT: 'حضوری', OTHER: 'سایر', PORTAL: 'صفحهٔ مشتریان' };
 
 export const isOpenTicket = (t: SupportTicket) => t.status !== 'RESOLVED' && t.status !== 'CLOSED';
 
