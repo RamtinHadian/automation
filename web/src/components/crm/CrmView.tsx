@@ -38,7 +38,7 @@ import { CustomerForm } from './CustomerForm';
 import { ProformaSection } from './ProformaSection';
 import { QuickProformaDialog } from './QuickProformaDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
-import { callerNameOnly, normPhone } from '../../lib/customerImport';
+import { callerNameOnly, normPhone, normText } from '../../lib/customerImport';
 import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
 import { CustomerReportModal } from './CustomerReportModal';
 import { Modal, field, label, SOURCES } from './crmUi';
@@ -67,6 +67,7 @@ const ACTIVITY: Record<ActivityType, { label: string; cls: string }> = {
   CALL: { label: 'تماس', cls: 'bg-emerald-100 text-emerald-700' },
   MEETING: { label: 'جلسه', cls: 'bg-sky-100 text-sky-700' },
   FOLLOWUP: { label: 'پیگیری', cls: 'bg-violet-100 text-violet-700' },
+  MISSING: { label: 'کالای ناموجود', cls: 'bg-rose-100 text-rose-700' },
 };
 
 
@@ -1025,6 +1026,10 @@ const CustomerDetail: React.FC<{
 }> = ({ customer: c, deals, activities, staff, me, referred, allDeals, canCall, onCall, onClose, onEdit, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
   const [type, setType] = useState<ActivityType>('NOTE');
   const [text, setText] = useState('');
+  // «the customer looked for a product we did not have»: ticked, then the product's name (and how many, if known)
+  const [missingOn, setMissingOn] = useState(false);
+  const [missingName, setMissingName] = useState('');
+  const [missingQty, setMissingQty] = useState('');
   const [due, setDue] = useState<string | undefined>(undefined);
   const [owner, setOwner] = useState(me.id);
   const isAdmin = me.role === 'SUPER_ADMIN' || me.role === 'DEPT_ADMIN';
@@ -1046,6 +1051,16 @@ const CustomerDetail: React.FC<{
       alive = false;
     };
   }, [c.id]);
+
+  const addMissing = () => {
+    const name = missingName.trim();
+    if (!name) return;
+    const qty = Number(normText(missingQty).replace(/[^0-9.]/g, ''));
+    onAddActivity('MISSING', `کالای ناموجود: ${name}${qty > 0 ? ' × ' + toPersianDigits(qty) : ''}`, { itemName: name, ...(qty > 0 ? { qty } : {}) });
+    setMissingName('');
+    setMissingQty('');
+    setMissingOn(false);
+  };
 
   const add = () => {
     const t = text.trim();
@@ -1231,10 +1246,23 @@ const CustomerDetail: React.FC<{
             </div>
           </div>
         )}
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-3 space-y-2" data-missing-form>
+          <label className="flex items-center gap-2.5 cursor-pointer min-h-[28px]">
+            <input type="checkbox" checked={missingOn} onChange={(e) => setMissingOn(e.target.checked)} className="w-4 h-4 accent-rose-600" />
+            <span className="text-xs font-black text-rose-800">مشتری دنبال کالایی بود که موجود نبود</span>
+          </label>
+          {missingOn && (
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_110px_auto] gap-2">
+              <input className={field} value={missingName} onChange={(e) => setMissingName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addMissing()} placeholder="نام کالا (مثلاً میل لنگ سانز)" />
+              <input className={field} value={missingQty} onChange={(e) => setMissingQty(e.target.value)} inputMode="numeric" placeholder="تعداد (اختیاری)" />
+              <button type="button" onClick={addMissing} disabled={!missingName.trim()} className="px-4 py-2 min-h-[44px] sm:min-h-0 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-black cursor-pointer">ثبت کالای ناموجود</button>
+            </div>
+          )}
+        </div>
         <h4 className="font-black text-xs text-[#3A241F]">سابقهٔ تعامل</h4>
         <div className="bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-3 space-y-2">
           <div className="flex flex-wrap gap-1.5">
-            {(Object.keys(ACTIVITY) as ActivityType[]).map((k) => (
+            {(Object.keys(ACTIVITY) as ActivityType[]).filter((k) => k !== 'MISSING').map((k) => (
               <button key={k} type="button" onClick={() => setType(k)} className={`px-3 py-1.5 rounded-xl text-[11px] font-black cursor-pointer border ${type === k ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}>
                 {ACTIVITY[k].label}
               </button>

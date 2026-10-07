@@ -86,7 +86,7 @@ export interface DailyReport {
 
 export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE';
 export type DealStage = 'NEW' | 'CONTACTED' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST';
-export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP';
+export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP' | 'MISSING';
 
 export interface Customer {
   id: string;
@@ -290,6 +290,9 @@ export interface CrmActivity {
   dealId?: string;
   type: ActivityType;
   text: string;
+  /** «MISSING»: the product the customer asked for and the shop did not have (feeds the missing-products report). */
+  itemName?: string;
+  qty?: number;
   /** Follow-ups: the day it is due, yyyy-mm-dd. */
   dueDate?: string;
   done?: boolean;

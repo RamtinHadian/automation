@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Banknote, CalendarCheck, ClipboardCheck, FileSignature, Phone, Send, TrendingUp, UserPlus, Lightbulb, AlertTriangle } from 'lucide-react';
+import { Banknote, CalendarCheck, ClipboardCheck, FileSignature, PackageX, Phone, Send, TrendingUp, UserPlus, Users, Lightbulb, AlertTriangle } from 'lucide-react';
 import { api, VoipStatRow } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { computeStats, shortDay, STAGE_LABEL } from '../../lib/adminStats';
 import { toDisplay, unitName } from '../../lib/money';
 import { C, ChartCard, Columns, compact, Donut, fa, HBars, Kpi, RAMP, TrendChart } from './charts';
+import { missingStats } from '../../lib/missingItems';
 
 const compactM = (n: number) => compact(toDisplay(n));
 
@@ -37,6 +38,17 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
   const reports = data?.reports ?? [];
   const customers = data?.customers ?? [];
   const deals = data?.deals ?? [];
+  const missing = useMemo(() => missingStats(data?.missing ?? [], customers, range), [data?.missing, customers, range]);
+  // the chart over time: a column per day up to a month, then per week (90 days) or per month (a year)
+  const missingBuckets = useMemo(() => {
+    const step = range <= 31 ? 1 : range <= 90 ? 7 : 30;
+    const out: { label: string; value: number }[] = [];
+    for (let i = 0; i < missing.perDay.length; i += step) {
+      const part = missing.perDay.slice(i, i + step);
+      out.push({ label: step === 1 ? shortDay(part[0].day) : shortDay(part[0].day) + (step === 7 ? '…' : '…'), value: part.reduce((a, d) => a + d.value, 0) });
+    }
+    return out;
+  }, [missing, range]);
 
   const s = useMemo(() => computeStats({ staff: staffList, transfers, tasks, reports, customers, deals }, range), [staffList, transfers, tasks, reports, customers, deals, range]);
   const labels = s.days.map(shortDay);
@@ -161,6 +173,47 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
           <HBars format={(v) => toPersianDigits(Math.round(v * 10) / 10)} rows={s.storageByDept.map((d) => ({ label: d.name, segments: [{ value: d.used, color: d.quota && d.used / d.quota > 0.85 ? C.red : C.blue }], note: `از ${toPersianDigits(Math.round(d.quota))}` }))} />
         </ChartCard>
       </div>
+
+      {/* products customers asked for that were not in stock: what to buy next */}
+      <section className="space-y-3" data-missing-report>
+        <div>
+          <h3 className="font-black text-[14px] text-[#3A241F] flex items-center gap-2"><PackageX className="w-4 h-4 text-[#6E1B1B]" />کالاهای درخواست‌شده و ناموجود</h3>
+          <p className="text-[11px] text-[#8C6F66] mt-0.5">هر بار که کارشناس در پروندهٔ مشتری «کالا موجود نبود» را ثبت کند، این‌جا شمارش می‌شود ({rangeLabel} اخیر).</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Kpi accent={C.red} icon={<PackageX className="w-5 h-5" />} label="کالای مختلفِ ناموجود" value={fa(missing.items.length)} sub={missing.items[0] ? `بیشترین: ${missing.items[0].name}` : 'هنوز موردی ثبت نشده'} />
+          <Kpi accent={C.orange} icon={<ClipboardCheck className="w-5 h-5" />} label="کل درخواست‌ها" value={fa(missing.total)} sub={missing.items[0] ? `${toPersianDigits(missing.items[0].count)} بار برای پرتقاضاترین کالا` : undefined} />
+          <Kpi accent={C.violet} icon={<Users className="w-5 h-5" />} label="مشتریانی که کالا را نیافتند" value={fa(missing.customerCount)} />
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <ChartCard title="کدام کالاها بیشتر خواسته شده و نبوده؟" subtitle="۱۰ کالای پرتقاضا؛ عدد = تعداد درخواست">
+            <HBars empty="در این دوره کالای ناموجودی ثبت نشده است." rows={missing.items.slice(0, 10).map((m) => ({ label: m.name, segments: [{ value: m.count, color: C.red, name: 'درخواست' }], note: `${toPersianDigits(m.customers.length)} مشتری` }))} />
+          </ChartCard>
+          <ChartCard title="روند درخواست کالای ناموجود" subtitle={range <= 31 ? 'تعداد درخواست در هر روز' : range <= 90 ? 'تعداد درخواست در هر هفته' : 'تعداد درخواست در هر ماه'}>
+            <Columns labels={missingBuckets.map((b) => b.label)} series={[{ name: 'درخواست', color: C.red, values: missingBuckets.map((b) => b.value) }]} />
+          </ChartCard>
+        </div>
+        {missing.items.length > 0 && (
+          <div className="bg-white rounded-3xl border border-[#EBDBCE] shadow-sm overflow-hidden">
+            <div className="px-5 py-3 bg-[#FAF5F1] font-black text-[12px] text-[#3A241F]">فهرست کامل کالاهای ناموجود</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-[11px]">
+                <thead><tr className="text-[#8C6F66]"><th className="px-4 py-2 font-bold">کالا</th><th className="px-2 font-bold">تعداد درخواست</th><th className="px-2 font-bold">مقدار خواسته‌شده</th><th className="px-2 font-bold">مشتریان</th></tr></thead>
+                <tbody>
+                  {missing.items.map((m) => (
+                    <tr key={m.name} className="border-t border-[#EBDBCE]/60 align-top">
+                      <td className="px-4 py-2 font-black text-[#3A241F]">{m.name}</td>
+                      <td className="px-2 py-2 font-black text-[#d03b3b]">{toPersianDigits(m.count)}</td>
+                      <td className="px-2 py-2">{m.qty ? toPersianDigits(m.qty) : '—'}</td>
+                      <td className="px-2 py-2 text-[#503730] leading-5">{m.customers.slice(0, 6).join('، ')}{m.customers.length > 6 ? ` و ${toPersianDigits(m.customers.length - 6)} نفر دیگر` : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
 
       <p className="text-[10px] text-[#8C6F66] text-center">همهٔ عددها از اطلاعات ثبت‌شده در سامانه حساب می‌شود و با هر ورود تازه به‌روز است. «{STAGE_LABEL.WON}» یعنی فرصت‌هایی که در مرحلهٔ فروش موفق بسته شده‌اند.</p>
     </div>
