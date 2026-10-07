@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -177,7 +178,12 @@ func sendSmsIr(ctx context.Context, c Config, mobiles []string, text string) ([]
 	}
 	body := map[string]any{"messageText": text, "mobiles": nums}
 	if c.Sender != "" {
-		body["lineNumber"] = c.Sender
+		// sms.ir wants the line number as a NUMBER ("lineNumber": 30007732...), not as text
+		line, perr := strconv.ParseInt(strings.TrimSpace(c.Sender), 10, 64)
+		if perr != nil {
+			return nil, errors.New("شمارهٔ خط ارسال‌کننده برای sms.ir باید فقط عدد باشد (همان شمارهٔ خط در پنل sms.ir، بدون فاصله و حروف).")
+		}
+		body["lineNumber"] = line
 	}
 	b, status, err := post(ctx, smsirBase+"/send/bulk", map[string]string{"X-API-KEY": c.APIKey}, body)
 	if err != nil {

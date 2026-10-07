@@ -41,7 +41,7 @@ func TestSmsIrRequest(t *testing.T) {
 	if err != nil || len(ids) != 2 || ids[0] != "111" {
 		t.Fatalf("ids=%v err=%v", ids, err)
 	}
-	if gotKey != "KEY" || gotPath != "/v1/send/bulk" || body["messageText"] != "سلام" || body["lineNumber"] != "3000" {
+	if gotKey != "KEY" || gotPath != "/v1/send/bulk" || body["messageText"] != "سلام" || body["lineNumber"] != float64(3000) {
 		t.Fatalf("bad request: key=%q path=%q body=%v", gotKey, gotPath, body)
 	}
 	if m := body["mobiles"].([]any); m[0] != "9121234567" {
