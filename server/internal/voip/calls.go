@@ -87,10 +87,11 @@ var (
 	callerAt = map[string]time.Time{}
 )
 
+// rememberCaller keeps the caller's number of a channel. A trunk usually reports it later than the channel's birth
+// («Newcallerid», «Newstate»), so every such event updates it, under the channel's id and under the call's id.
 func rememberCaller(ev Event) {
-	id := pick(ev, "Uniqueid", "UniqueID")
 	num := pick(ev, "CallerIDNum")
-	if id == "" || num == "" {
+	if num == "" {
 		return
 	}
 	callerMu.Lock()
@@ -102,7 +103,15 @@ func rememberCaller(ev Event) {
 			delete(callers, k)
 		}
 	}
-	callers[id], callerAt[id] = [2]string{num, pick(ev, "CallerIDName")}, now
+	name := pick(ev, "CallerIDName")
+	uid, linked := pick(ev, "Uniqueid", "UniqueID"), pick(ev, "Linkedid", "LinkedID")
+	if uid != "" {
+		callers[uid], callerAt[uid] = [2]string{num, name}, now
+	}
+	// only the call's first channel speaks for the caller (the other legs carry the numbers of the people being called)
+	if linked != "" && (uid == "" || uid == linked) {
+		callers[linked], callerAt[linked] = [2]string{num, name}, now
+	}
 }
 
 func callerOf(ev Event) (number, name string) {
@@ -112,8 +121,10 @@ func callerOf(ev Event) (number, name string) {
 	}
 	callerMu.Lock()
 	defer callerMu.Unlock()
-	if c, ok := callers[pick(ev, "Uniqueid", "UniqueID")]; ok {
-		return c[0], c[1]
+	for _, id := range []string{pick(ev, "Uniqueid", "UniqueID"), pick(ev, "Linkedid", "LinkedID")} {
+		if c, ok := callers[id]; ok && id != "" {
+			return c[0], c[1]
+		}
 	}
 	return
 }
@@ -175,6 +186,10 @@ func popup(ev Event, ext string) {
 	}
 	Logf("داخلی %s برای کاربر %s زنگ می‌خورد.", ext, uid)
 	number, callerName := callerOf(ev)
+	for try := 0; number == "" && try < 6; try++ { // the trunk may report the caller's number a moment after the call arrives
+		time.Sleep(400 * time.Millisecond)
+		number, callerName = callerOf(ev)
+	}
 	if number == ext { // the first leg of a call the person started from the app rings their own phone
 		Logf("داخلی %s برای تماسی که خودش از برنامه شروع کرده زنگ می‌خورد؛ پاپ‌آپ لازم نیست.", ext)
 		return
