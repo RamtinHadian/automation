@@ -135,6 +135,29 @@ func dialedExts(appData string) []string {
 	return out
 }
 
+var (
+	popMu   sync.Mutex
+	popLast = map[string]time.Time{}
+)
+
+// samePopupWithin is false when this caller was already announced for this extension a moment ago.
+func samePopupWithin(ext, number string, d time.Duration) bool {
+	popMu.Lock()
+	defer popMu.Unlock()
+	now := time.Now()
+	for k, t := range popLast {
+		if now.Sub(t) > time.Minute {
+			delete(popLast, k)
+		}
+	}
+	k := ext + "|" + number
+	if t, ok := popLast[k]; ok && now.Sub(t) < d {
+		return false
+	}
+	popLast[k] = now
+	return true
+}
+
 // popup tells the owner of an extension that a call is coming in.
 func popup(ev Event, ext string) {
 	// the same call can reach one extension in several ways (the dialplan, a ring group, the phone itself): one pop-up
@@ -154,6 +177,10 @@ func popup(ev Event, ext string) {
 	number, callerName := callerOf(ev)
 	if number == ext { // the first leg of a call the person started from the app rings their own phone
 		Logf("داخلی %s برای تماسی که خودش از برنامه شروع کرده زنگ می‌خورد؛ پاپ‌آپ لازم نیست.", ext)
+		return
+	}
+	// the same call told by two kinds of events (the dialplan and the ringing phone) gets one pop-up
+	if !samePopupWithin(ext, number, 10*time.Second) {
 		return
 	}
 	who := number

@@ -21,6 +21,7 @@ type callState struct {
 	callerNum  string
 	callerName string
 	legExts    []string          // extensions that rang (a ring group has several)
+	arrived    []string          // extensions the call reached in the dialplan (even when their phone is off and the call is forwarded)
 	legOf      map[string]string // dest unique id -> number
 	destNum    string            // the number dialled when it was not an extension (outgoing call)
 	answered   bool
@@ -118,6 +119,32 @@ func journalEvent(ev Event) {
 		if uid := get(ev, "DestUniqueid", "DestUniqueID"); uid != "" {
 			st.legOf[uid] = num
 		}
+	case "Newexten":
+		// the call reached an extension in the phone system: this happens also when the extension's phone is off and the
+		// extension only forwards the call to another number
+		ext := get(ev, "Extension", "Exten")
+		if !strings.EqualFold(ev["Context"], "ext-local") || !digitsOnly.MatchString(ext) {
+			return
+		}
+		linked := get(ev, "Linkedid", "LinkedID", "Uniqueid", "UniqueID")
+		if linked == "" {
+			return
+		}
+		caller, callerName := callerOf(ev)
+		if caller == ext {
+			return
+		}
+		jMu.Lock()
+		defer jMu.Unlock()
+		st := active[linked]
+		if st == nil {
+			st = &callState{linked: linked, started: time.Now(), callerNum: caller, callerName: callerName, legOf: map[string]string{}}
+			active[linked] = st
+		}
+		if st.callerNum == "" {
+			st.callerNum, st.callerName = caller, callerName
+		}
+		st.arrived = addUnique(st.arrived, ext)
 	case "DialEnd":
 		linked := get(ev, "Linkedid", "LinkedID")
 		jMu.Lock()
@@ -317,4 +344,19 @@ func pad2(n int) string {
 		return "0" + itoa(n)
 	}
 	return itoa(n)
+}
+
+// incomingExt is the extension an incoming call belongs to: the one that answered, else the first one that rang, else the
+// first one the call reached in the dialplan (an extension whose phone is off and which forwards the call to a mobile).
+func incomingExt(st *callState) string {
+	if st.answered && digitsOnly.MatchString(st.answeredBy) {
+		return st.answeredBy
+	}
+	if len(st.legExts) > 0 {
+		return st.legExts[0]
+	}
+	if len(st.arrived) > 0 {
+		return st.arrived[0]
+	}
+	return ""
 }
