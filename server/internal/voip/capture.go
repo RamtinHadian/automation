@@ -37,9 +37,12 @@ func captureEvent(ev Event) {
 	if time.Now().After(capUntil) || len(capLines) >= captureMax {
 		return
 	}
+	if ev["Event"] == "VarSet" { // hundreds of lines per call that say nothing useful here
+		return
+	}
 	var b strings.Builder
 	b.WriteString(time.Now().Format("15:04:05") + "  " + ev["Event"])
-	for _, k := range []string{"SubEvent", "Channel", "DestChannel", "Destination", "Application", "AppData", "Context", "Exten", "Extension", "CallerIDNum", "Source", "Disposition", "DialStatus"} {
+	for _, k := range []string{"SubEvent", "Channel", "DestChannel", "Destination", "Application", "AppData", "Context", "Exten", "Extension", "CallerIDNum", "CallerIDName", "ConnectedLineNum", "Source", "Disposition", "DialStatus"} {
 		if v := strings.TrimSpace(ev[k]); v != "" && v != "<unknown>" {
 			if len(v) > 70 {
 				v = v[:70] + "…"

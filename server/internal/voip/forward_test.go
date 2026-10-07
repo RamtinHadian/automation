@@ -26,3 +26,19 @@ func TestSamePopupWithin(t *testing.T) {
 		t.Fatal("second within the window must be refused")
 	}
 }
+
+func TestFollowMeLegIsTheExtension(t *testing.T) {
+	// what a real Issabel sent: the call is offered to the follow-me primary leg of extension 500 and to the follow-me number list
+	if got := ringingExt("Local/FMPR-500@from-internal-00000045;1"); got != "500" {
+		t.Fatalf("want 500, got %q", got)
+	}
+	if got := ringingExt("Local/FMGL-09132019476#@from-internal-00000046;1"); got != "" {
+		t.Fatalf("a follow-me number is not an extension, got %q", got)
+	}
+	if got := dialedExts("Local/FMPR-500@from-internal&Local/FMGL-09132019476#@from-internal,42,tr"); len(got) != 1 || got[0] != "500" {
+		t.Fatalf("dialedExts: %v", got)
+	}
+	if !sameDigits("09132019476", "9132019476") {
+		t.Fatal("same number written two ways")
+	}
+}

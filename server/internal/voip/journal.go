@@ -91,8 +91,8 @@ func journalEvent(ev Event) {
 		}
 		caller := get(ev, "CallerIDNum", "ConnectedLineNum")
 		destExt := ""
-		if m := channelExt.FindStringSubmatch(ev["DestChannel"]); m != nil && digitsOnly.MatchString(m[1]) { // trunks have names, extensions are numbers
-			destExt = m[1]
+		if e := ringingExt(ev["DestChannel"]); digitsOnly.MatchString(e) { // trunks have names, extensions are numbers
+			destExt = e
 		}
 		if destExt != "" && destExt == caller { // the first leg of a call started from the app rings the person's own phone
 			return
@@ -123,7 +123,7 @@ func journalEvent(ev Event) {
 		// the call reached an extension in the phone system: this happens also when the extension's phone is off and the
 		// extension only forwards the call to another number
 		ext := get(ev, "Extension", "Exten")
-		if !strings.EqualFold(ev["Context"], "ext-local") || !digitsOnly.MatchString(ext) {
+		if !arrivalContext.MatchString(ev["Context"]) || !digitsOnly.MatchString(ext) {
 			return
 		}
 		linked := get(ev, "Linkedid", "LinkedID", "Uniqueid", "UniqueID")

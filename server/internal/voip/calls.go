@@ -129,8 +129,11 @@ func callerOf(ev Event) (number, name string) {
 	return
 }
 
+// arrivalContext: where the dialplan hands a call to an extension (directly, or from an inbound route / IVR).
+var arrivalContext = regexp.MustCompile(`^(ext-local|from-did-direct)$`)
+
 // appDataExt: the extensions in what «Dial» was told to call, e.g. «SIP/500&SIP/501,30,tT» or «Local/500@from-internal/n».
-var appDataExt = regexp.MustCompile(`^(?:(?:SIP|PJSIP|IAX2)/|Local/)([0-9]{2,8})(?:@.*)?$`)
+var appDataExt = regexp.MustCompile(`^(?:(?:SIP|PJSIP|IAX2)/|Local/(?:FMPR-)?)([0-9]{2,8})(?:@.*)?$`)
 
 func dialedExts(appData string) []string {
 	first := appData
@@ -204,7 +207,7 @@ func popup(ev Event, ext string) {
 	}
 	if _, name, ok := userByExtension(ctx, number); ok && name != "" {
 		who = name + " (" + number + ")"
-	} else if callerName != "" && callerName != number {
+	} else if callerName != "" && callerName != number && !sameDigits(callerName, number) {
 		who = callerName + " (" + number + ")"
 	}
 	note := notify.Note{Kind: "call", Label: "تماس ورودی", Title: "تماس ورودی از " + who, Body: "داخلی " + ext, Repeat: true}
@@ -278,7 +281,8 @@ func sampleRinging(ev Event) {
 }
 
 // localExt is «Local/500@from-internal-0000;1»: how ring groups, follow-me and queues call an extension.
-var localExt = regexp.MustCompile(`^Local/([0-9]{2,8})@[^;]+;[12]$`)
+// «FMPR-500» is the primary leg of the follow-me of extension 500 (the extension itself rings there).
+var localExt = regexp.MustCompile(`^Local/(?:FMPR-)?([0-9]{2,8})@[^;]+;[12]$`)
 
 // ringingExt returns the extension a channel belongs to (a phone «SIP/500-0000001b» or a «Local/500@…» leg), or "".
 func ringingExt(ch string) string {
@@ -289,4 +293,22 @@ func ringingExt(ch string) string {
 		return m[1]
 	}
 	return ""
+}
+
+// sameDigits is true when two texts are the same number written differently (9132019476 and 09132019476).
+func sameDigits(a, b string) bool {
+	keep := func(s string) string {
+		var d []byte
+		for i := 0; i < len(s); i++ {
+			if s[i] >= '0' && s[i] <= '9' {
+				d = append(d, s[i])
+			}
+		}
+		if len(d) > 10 {
+			d = d[len(d)-10:]
+		}
+		return string(d)
+	}
+	x, y := keep(a), keep(b)
+	return x != "" && x == y
 }
