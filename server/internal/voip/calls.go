@@ -197,8 +197,10 @@ func popup(ev Event, ext string) {
 		Logf("داخلی %s برای تماسی که خودش از برنامه شروع کرده زنگ می‌خورد؛ پاپ‌آپ لازم نیست.", ext)
 		return
 	}
-	// the same call told by two kinds of events (the dialplan and the ringing phone) gets one pop-up
-	if !samePopupWithin(ext, number, 10*time.Second) {
+	// One call is reported by several channels (the trunk, the follow-me legs, the ring group's legs) and some of them do not
+	// know the caller. An extension gets one pop-up for all of them: the first one that is ready wins (the ones that know the
+	// number are ready at once, the others have waited for it above).
+	if !samePopupWithin(ext, "", 8*time.Second) {
 		return
 	}
 	who := number
