@@ -25,12 +25,7 @@ const dayLabel = (iso: string) => {
 export const Ticks: React.FC<{ read: boolean }> = ({ read }) =>
   read ? <CheckCheck className="w-3.5 h-3.5 text-[#16a34a]" aria-label="دیده شد" /> : <Check className="w-3.5 h-3.5 text-[#8C6F66]" aria-label="ارسال شد" />;
 
-const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 40 }) => (
-  <span className="rounded-2xl bg-[#F6D9CD] text-[#6E1B1B] font-black flex items-center justify-center shrink-0" style={{ width: size, height: size, fontSize: size * 0.4 }}>
-    {name.trim().slice(0, 1) || '؟'}
-  </span>
-);
-
+// names are written in full everywhere: no circle with the first letter of the name
 /** Chat between colleagues, inside the «file» menu. */
 export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: string) => void }> = ({ initialPeer = '', onPeerChange }) => {
   const { staffList, currentUser, notifications, markNotificationsRead } = useAppContext();
@@ -184,7 +179,6 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
             const active = id === peer;
             return (
               <button key={id} type="button" onClick={() => setPeer(id)} className={`w-full flex items-center gap-3 px-3.5 py-3 text-right cursor-pointer border-b border-[#EBDBCE]/40 transition-colors ${active ? 'bg-[#FBEFEA]' : 'hover:bg-[#FAF5F1]'}`}>
-                <Avatar name={nameOf(id)} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-black text-[12px] text-[#3A241F] truncate">{nameOf(id)}</span>
@@ -222,7 +216,6 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
           <>
             <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-[#EBDBCE]/60 shrink-0">
               <button type="button" onClick={() => setPeer('')} className="md:hidden w-9 h-9 rounded-xl bg-[#FAF5F1] flex items-center justify-center cursor-pointer" aria-label="بازگشت"><ArrowRight className="w-4 h-4" /></button>
-              <Avatar name={nameOf(peer)} size={38} />
               <div className="min-w-0">
                 <div className="font-black text-sm text-[#3A241F] truncate">{nameOf(peer)}</div>
                 <div className="text-[11px] text-[#8C6F66] truncate">{peerUser?.departmentName}</div>

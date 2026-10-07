@@ -47,19 +47,13 @@ const prio = (p: TaskPriority) => PRIORITIES.find((x) => x.id === p) || PRIORITI
 const uid = (p: string) => p + '-' + Math.random().toString(36).substring(2, 10);
 const nowIso = () => new Date().toISOString();
 
-export const Avatar: React.FC<{ user?: User; size?: number }> = ({ user, size = 24 }) => (
-  <span
-    title={user?.fullName}
-    style={{ width: size, height: size, fontSize: size * 0.42 }}
-    className="inline-flex items-center justify-center rounded-full bg-[#F6D9CD] text-[#6E1B1B] font-black border-2 border-white shrink-0 overflow-hidden"
-  >
-    {user?.avatarUrl && !user.avatarUrl.includes('unsplash') ? (
+/** A person's photo, when one was uploaded. There is no more circle with the first letters of the name: names are always written in full. */
+export const Avatar: React.FC<{ user?: User; size?: number }> = ({ user, size = 24 }) =>
+  user?.avatarUrl && !user.avatarUrl.includes('unsplash') ? (
+    <span title={user.fullName} style={{ width: size, height: size }} className="inline-flex rounded-full border-2 border-white shrink-0 overflow-hidden">
       <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-    ) : (
-      user?.avatarInitials || user?.fullName?.slice(0, 2) || '؟'
-    )}
-  </span>
-);
+    </span>
+  ) : null;
 
 /** Jalali date picker (day / month / year selects) that stores a Gregorian yyyy-mm-dd string. */
 export const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string | undefined) => void; disabled?: boolean; minYear?: number; maxYear?: number }> = ({
@@ -243,16 +237,15 @@ const TasksBoard: React.FC = () => {
           )}
         </div>
         <div className="flex items-center justify-between">
-          <div className="flex -space-x-1.5 space-x-reverse">
-            {t.assigneeIds.slice(0, 4).map((id) => (
-              <Avatar key={id} user={userById.get(id)} />
-            ))}
-            {t.assigneeIds.length > 4 && (
-              <span className="w-6 h-6 rounded-full bg-[#FAF5F1] border-2 border-white text-[9px] font-black flex items-center justify-center text-[#8C6F66]">
-                +{toPersianDigits(t.assigneeIds.length - 4)}
+          <div className="min-w-0 text-[10px] font-bold text-[#503730] leading-5">
+            {t.assigneeIds.length === 0 ? (
+              <span className="text-gray-400">بدون مسئول</span>
+            ) : (
+              <span title={t.assigneeIds.map((id) => userById.get(id)?.fullName || '').join('، ')}>
+                مسئول: {t.assigneeIds.slice(0, 3).map((id) => userById.get(id)?.fullName || '').filter(Boolean).join('، ')}
+                {t.assigneeIds.length > 3 && ` و ${toPersianDigits(t.assigneeIds.length - 3)} نفر دیگر`}
               </span>
             )}
-            {t.assigneeIds.length === 0 && <span className="text-[10px] text-gray-400">بدون مسئول</span>}
           </div>
           <span className="text-[10px] text-[#8C6F66]">از: {t.creatorName}</span>
         </div>
@@ -446,10 +439,8 @@ const TasksBoard: React.FC = () => {
                     <span className={`text-[11px] font-bold w-28 ${overdue ? 'text-rose-600' : 'text-[#8C6F66]'}`}>
                       {t.dueDate ? formatTaskDate(t.dueDate) : '—'}
                     </span>
-                    <div className="flex -space-x-1.5 space-x-reverse min-w-[40px]">
-                      {t.assigneeIds.slice(0, 4).map((id) => (
-                        <Avatar key={id} user={userById.get(id)} />
-                      ))}
+                    <div className="min-w-[110px] max-w-[220px] text-[11px] font-bold text-[#503730] leading-5">
+                      {t.assigneeIds.length === 0 ? '—' : t.assigneeIds.map((id) => userById.get(id)?.fullName || '').filter(Boolean).join('، ')}
                     </div>
                   </div>
                 );
@@ -590,7 +581,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
                     type="button"
                     disabled={!fullEdit}
                     onClick={() => patch({ assigneeIds: on ? t.assigneeIds.filter((x) => x !== u.id) : [...t.assigneeIds, u.id] })}
-                    className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full border text-[11px] font-bold transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold transition-all ${
                       on ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'
                     } ${fullEdit ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
                   >

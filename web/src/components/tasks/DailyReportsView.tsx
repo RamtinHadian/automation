@@ -312,7 +312,7 @@ export const DailyReportsView: React.FC = () => {
                       key={u.id}
                       type="button"
                       onClick={() => setForm({ ...form, recipientIds: on ? form.recipientIds.filter((x) => x !== u.id) : [...form.recipientIds, u.id] })}
-                      className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full border text-[11px] font-bold transition-all cursor-pointer ${
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold transition-all cursor-pointer ${
                         on ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'
                       }`}
                     >
@@ -391,7 +391,7 @@ export const DailyReportsView: React.FC = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 {missing.map((u) => (
-                  <span key={u.id} className="flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-white border border-amber-200 text-[11px] font-bold text-[#3A241F]">
+                  <span key={u.id} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-amber-200 text-[11px] font-bold text-[#3A241F]">
                     <Avatar user={u} size={22} />
                     {u.fullName}
                   </span>

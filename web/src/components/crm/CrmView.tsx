@@ -314,8 +314,7 @@ export const CrmView: React.FC = () => {
         </div>
         <div className="flex items-center justify-between text-[10px] font-bold text-[#8C6F66]">
           <span className="flex items-center gap-1.5">
-            <Avatar user={userById.get(c.ownerId)} size={20} />
-            {c.ownerName}
+            {userById.get(c.ownerId)?.fullName || c.ownerName}
           </span>
           <span>{open > 0 ? `${toman(open)} ${unitName()} در جریان` : last ? `آخرین تعامل: ${formatTaskDate(last.slice(0, 10))}` : ''}</span>
         </div>
@@ -355,13 +354,6 @@ export const CrmView: React.FC = () => {
         </div>
         <div className="flex items-center justify-between">
           <span className="font-black text-xs text-violet-700">{toman(d.amount)} {unitName()}</span>
-          <span className="flex items-center -space-x-1.5" dir="ltr">
-            <Avatar user={userById.get(d.ownerId)} size={22} />
-            {(d.coOwnerIds || []).slice(0, 3).map((id) => (
-              <Avatar key={id} user={userById.get(id)} size={22} />
-            ))}
-            {(d.coOwnerIds || []).length > 3 && <span className="text-[10px] font-black text-[#8C6F66] pl-2">+{toPersianDigits((d.coOwnerIds || []).length - 3)}</span>}
-          </span>
         </div>
         {/* the full name(s) of who is on this opportunity, under the price */}
         {(() => {
