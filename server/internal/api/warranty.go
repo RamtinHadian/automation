@@ -117,7 +117,18 @@ func warrantySaveSettings(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "متن شرایط گارانتی خیلی بلند است (حداکثر ۲۰۰۰ نویسه).")
 		return
 	}
-	doc := jsonx.M{"defaultMonths": months, "terms": terms}
+	doc := jsonx.M{"defaultMonths": months, "terms": terms, "signerName": clean(jsonx.Str(body, "signerName"), 80), "signerTitle": clean(jsonx.Str(body, "signerTitle"), 80)}
+	for _, k := range []string{"stampImage", "signatureImage"} {
+		img := jsonx.Str(body, k)
+		if img == "" {
+			continue
+		}
+		if len(img) > 600000 || !(strings.HasPrefix(img, "data:image/png;base64,") || strings.HasPrefix(img, "data:image/jpeg;base64,") || strings.HasPrefix(img, "data:image/webp;base64,")) {
+			httpx.Error(w, http.StatusBadRequest, "تصویر مهر یا امضا باید PNG، JPG یا WebP و کمتر از حدود ۴۰۰ کیلوبایت باشد.")
+			return
+		}
+		doc[k] = img
+	}
 	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO settings (key, data) VALUES ('warranty', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`, jsonx.Encode(doc)); err != nil {
 		internalError(w)
 		return

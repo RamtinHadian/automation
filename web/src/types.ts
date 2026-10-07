@@ -720,4 +720,8 @@ export interface WarrantyClaim {
 export interface WarrantySettings {
   defaultMonths: number;
   terms: string;
+  signerName?: string;
+  signerTitle?: string;
+  stampImage?: string;
+  signatureImage?: string;
 }

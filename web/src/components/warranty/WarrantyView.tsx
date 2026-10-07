@@ -15,6 +15,24 @@ import { ClaimForm, WarrantyForm } from './WarrantyForms';
 type Tab = 'overview' | 'warranties' | 'claims' | 'settings';
 const DEFAULT_SETTINGS: WarrantySettings = { defaultMonths: 12, terms: '' };
 
+/** Shrinks a picked stamp/signature picture to at most 420 px (keeps transparency) so it stays small. */
+const shrinkImage = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 420 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k));
+      c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d')?.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+    img.src = url;
+  });
+
 /** The warranty menu: sold warranties, customers' claims with their whole history, a printable certificate and the numbers. */
 export const WarrantyView: React.FC = () => {
   const { customers, staffList, currentUser, showToast, settings } = useAppContext();
@@ -37,6 +55,10 @@ export const WarrantyView: React.FC = () => {
   const [claimFilter, setClaimFilter] = useState<'OPEN' | 'ALL' | 'DONE'>('OPEN');
   const [terms, setTerms] = useState('');
   const [months, setMonths] = useState('12');
+  const [signerName, setSignerName] = useState('');
+  const [signerTitle, setSignerTitle] = useState('');
+  const [stamp, setStamp] = useState('');
+  const [signature, setSignature] = useState('');
 
   const load = useCallback(() => {
     api
@@ -58,6 +80,10 @@ export const WarrantyView: React.FC = () => {
   useEffect(() => {
     setTerms(wset.terms);
     setMonths(String(wset.defaultMonths));
+    setSignerName(wset.signerName || '');
+    setSignerTitle(wset.signerTitle || '');
+    setStamp(wset.stampImage || '');
+    setSignature(wset.signatureImage || '');
   }, [wset]);
 
   // opened from a notification, or from a customer's page («ثبت گارانتی»)
@@ -327,11 +353,42 @@ export const WarrantyView: React.FC = () => {
             <label className={label}>شرایط گارانتی (روی گواهی چاپ می‌شود؛ هر خط یک بند)</label>
             <textarea className={`${field} min-h-[140px] leading-7`} value={terms} onChange={(e) => setTerms(e.target.value)} />
           </div>
+          <div className="border-t border-[#EBDBCE] pt-4 space-y-3">
+            <div className="text-xs font-black text-[#3A241F]">مهر و امضای دیجیتال (روی گواهی چاپ می‌شود)</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={label}>نام امضاکننده</label>
+                <input className={field} value={signerName} onChange={(e) => setSignerName(e.target.value)} />
+              </div>
+              <div>
+                <label className={label}>سمت</label>
+                <input className={field} value={signerTitle} onChange={(e) => setSignerTitle(e.target.value)} placeholder="مثلاً مدیر فروش" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {([['مهر شرکت', stamp, setStamp], ['امضا', signature, setSignature]] as const).map(([title, value, set]) => (
+                <div key={title} className="border border-[#EBDBCE] rounded-2xl p-3 text-center space-y-2">
+                  <div className="text-[11px] font-black text-[#8C6F66]">{title}</div>
+                  <div className="h-24 flex items-center justify-center bg-[#FAF5F1] rounded-xl">
+                    {value ? <img src={value} alt="" className="max-h-20 max-w-full" /> : <span className="text-[10px] font-bold text-gray-400">{title === 'مهر شرکت' ? 'بدون تصویر، مهر خودکار ساخته می‌شود' : 'بدون تصویر، فقط نام چاپ می‌شود'}</span>}
+                  </div>
+                  <div className="flex gap-2 justify-center">
+                    <label className="px-3 py-1.5 min-h-[36px] rounded-lg bg-[#FAF5F1] border border-[#EBDBCE] text-[11px] font-black cursor-pointer flex items-center">
+                      انتخاب تصویر
+                      <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { try { set(await shrinkImage(f)); } catch { fail('تصویر خوانده نشد.'); } } }} />
+                    </label>
+                    {value && <button type="button" onClick={() => set('')} className="px-3 py-1.5 min-h-[36px] rounded-lg text-[11px] font-black text-red-600 cursor-pointer">حذف</button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="text-[10px] font-bold text-[#8C6F66] leading-5">بهتر است تصویر مهر و امضا با پس‌زمینهٔ شفاف (PNG) باشد. در چاپ گواهی گزینهٔ «مهر و امضای دیجیتال» را می‌توان روشن یا خاموش کرد.</div>
+          </div>
           <button
             type="button"
             onClick={async () => {
               try {
-                setWset(await api.warrantySaveSettings({ defaultMonths: parseInt(months, 10) || 12, terms }));
+                setWset(await api.warrantySaveSettings({ defaultMonths: parseInt(months, 10) || 12, terms, signerName, signerTitle, stampImage: stamp, signatureImage: signature }));
                 showToast('تنظیمات گارانتی ذخیره شد.');
               } catch (e) {
                 fail(e instanceof Error ? e.message : 'ذخیره نشد.');
