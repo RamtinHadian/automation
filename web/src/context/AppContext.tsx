@@ -510,7 +510,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setNotifications(list);
           if (!announce) return;
           const seen = getSeen();
-          const fresh = list.filter((n) => !n.read && n.createdAt > seen);
+          // after a reload or a lost connection, an old call is no longer news: only calls of the last two minutes pop up again
+          const fresh = list.filter((n) => !n.read && n.createdAt > seen && (n.kind !== 'call' || Date.now() - new Date(n.createdAt).getTime() < 120000));
           if (fresh.length) {
             playForNotification(fresh[0]);
             const shown = fresh.filter((x) => ruleFor(x).enabled && ruleFor(x).popup);
