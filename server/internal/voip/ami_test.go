@@ -142,3 +142,27 @@ func TestCdrStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestDialedExts(t *testing.T) {
+	cases := map[string][]string{
+		"SIP/500,30,tT":                   {"500"},
+		"SIP/500&SIP/501&SIP/trunk,30":    {"500", "501"},
+		"PJSIP/502,15,HhTtrM(auto-blkvm)": {"502"},
+		"Local/500@from-internal/n,30":    {"500"},
+		"SIP/mytrunk/09121234567,300":     nil,
+		"DAHDI/g0/0912":                   nil,
+		"":                                nil,
+	}
+	for in, want := range cases {
+		got := dialedExts(in)
+		if len(got) != len(want) {
+			t.Errorf("%q -> %v, want %v", in, got, want)
+			continue
+		}
+		for i := range got {
+			if got[i] != want[i] {
+				t.Errorf("%q -> %v, want %v", in, got, want)
+			}
+		}
+	}
+}

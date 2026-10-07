@@ -98,7 +98,7 @@ func (c *Client) session(ctx context.Context) error {
 
 	loginID := c.nextID()
 	c.register(loginID)
-	if err := c.send(map[string]string{"Action": "Login", "ActionID": loginID, "Username": c.cfg.User, "Secret": c.cfg.Secret, "Events": "call,cdr"}); err != nil {
+	if err := c.send(map[string]string{"Action": "Login", "ActionID": loginID, "Username": c.cfg.User, "Secret": c.cfg.Secret, "Events": "call,cdr,dialplan"}); err != nil {
 		return err
 	}
 	go func() {

@@ -79,64 +79,133 @@ func customerByPhone(ctx context.Context, number string) (id, name string, ok bo
 	return id, name, err == nil
 }
 
-// WatchCalls turns "a phone is ringing" events into a pop-up for the owner of that extension.
+// callers remembers who is calling, by the id of the channel (older phone systems name the caller only when the channel
+// is created, not again when the dialplan reaches «Dial»).
+var (
+	callerMu sync.Mutex
+	callers  = map[string][2]string{} // channel id -> {number, name}
+	callerAt = map[string]time.Time{}
+)
+
+func rememberCaller(ev Event) {
+	id := pick(ev, "Uniqueid", "UniqueID")
+	num := pick(ev, "CallerIDNum")
+	if id == "" || num == "" {
+		return
+	}
+	callerMu.Lock()
+	defer callerMu.Unlock()
+	now := time.Now()
+	for k, t := range callerAt {
+		if now.Sub(t) > 3*time.Minute {
+			delete(callerAt, k)
+			delete(callers, k)
+		}
+	}
+	callers[id], callerAt[id] = [2]string{num, pick(ev, "CallerIDName")}, now
+}
+
+func callerOf(ev Event) (number, name string) {
+	number, name = pick(ev, "CallerIDNum", "ConnectedLineNum"), pick(ev, "CallerIDName")
+	if number != "" {
+		return
+	}
+	callerMu.Lock()
+	defer callerMu.Unlock()
+	if c, ok := callers[pick(ev, "Uniqueid", "UniqueID")]; ok {
+		return c[0], c[1]
+	}
+	return
+}
+
+// appDataExt: the extensions in what «Dial» was told to call, e.g. «SIP/500&SIP/501,30,tT» or «Local/500@from-internal/n».
+var appDataExt = regexp.MustCompile(`^(?:(?:SIP|PJSIP|IAX2)/|Local/)([0-9]{2,8})(?:@.*)?$`)
+
+func dialedExts(appData string) []string {
+	first := appData
+	if i := strings.Index(first, ","); i >= 0 {
+		first = first[:i]
+	}
+	var out []string
+	for _, tok := range strings.Split(first, "&") {
+		if m := appDataExt.FindStringSubmatch(strings.TrimSpace(tok)); m != nil {
+			out = append(out, m[1])
+		}
+	}
+	return out
+}
+
+// popup tells the owner of an extension that a call is coming in.
+func popup(ev Event, ext string) {
+	// the same call can reach one extension in several ways (the dialplan, a ring group, the phone itself): one pop-up
+	if !firstTime("call|" + ext + "|" + pick(ev, "Linkedid", "LinkedID", "Uniqueid", "UniqueID")) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	uid, _, ok := userByExtension(ctx, ext)
+	if !ok {
+		if digitsOnly.MatchString(ext) {
+			Logf("داخلی %s زنگ می‌خورد اما هیچ کاربری این شمارهٔ داخلی را ندارد (در پنل مدیریت، فرم کاربر، داخلی را وارد کنید).", ext)
+		}
+		return
+	}
+	Logf("داخلی %s برای کاربر %s زنگ می‌خورد.", ext, uid)
+	number, callerName := callerOf(ev)
+	if number == ext { // the first leg of a call the person started from the app rings their own phone
+		Logf("داخلی %s برای تماسی که خودش از برنامه شروع کرده زنگ می‌خورد؛ پاپ‌آپ لازم نیست.", ext)
+		return
+	}
+	who := number
+	if who == "" {
+		who = "شمارهٔ ناشناس"
+	}
+	if _, name, ok := userByExtension(ctx, number); ok && name != "" {
+		who = name + " (" + number + ")"
+	} else if callerName != "" && callerName != number {
+		who = callerName + " (" + number + ")"
+	}
+	note := notify.Note{Kind: "call", Label: "تماس ورودی", Title: "تماس ورودی از " + who, Body: "داخلی " + ext, Repeat: true}
+	if cid, cname, found := customerByPhone(ctx, number); found {
+		note.Title = "تماس ورودی از مشتری: " + cname
+		note.Body = number + " · داخلی " + ext
+		note.Ref = map[string]any{"type": "customer", "id": cid}
+	} else {
+		// an unknown number: the pop-up offers «ذخیره به‌عنوان مشتری»
+		note.Ref = map[string]any{"type": "phone", "id": number}
+	}
+	notify.Notify(ctx, []string{uid}, note, "")
+	Logf("پاپ‌آپ برای کاربر %s فرستاده شد: %s", uid, note.Title)
+}
+
+// WatchCalls turns "a phone is ringing" events into a pop-up for the owner of that extension. It reacts to
+//   - «DialBegin»: a phone really starts to ring,
+//   - «Newexten» with the application «Dial»: the phone system TRIES to call the extension, even when its phone (the
+//     softphone on the computer) is switched off and therefore never rings. This needs the event class «dialplan».
 func WatchCalls(c *Client) {
 	c.OnEvent = func(ev Event) {
 		journalEvent(ev)
 		sampleRinging(ev)
-		if ev["Event"] == "Cdr" {
+		switch ev["Event"] {
+		case "Newchannel":
+			rememberCaller(ev)
+		case "Cdr":
 			// the journal needs a moment to write its own row first; the phone system's record is only the second source
 			go func() { time.Sleep(3 * time.Second); recordCdr(ev) }()
-		}
-		if ev["Event"] != "DialBegin" {
-			return
-		}
-		extNum := ringingExt(ev["DestChannel"])
-		if extNum == "" {
-			return
-		}
-		if !firstTime(pick(ev, "DestUniqueID", "DestUniqueid")) {
-			return
-		}
-		// the same call can ring one extension twice (a ring group or follow-me dials «Local/500@…» and then the phone itself)
-		if !firstTime("call|" + extNum + "|" + pick(ev, "Linkedid", "LinkedID", "Uniqueid", "UniqueID")) {
-			return
-		}
-		go func(ext string) {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			uid, _, ok := userByExtension(ctx, ext)
-			if !ok {
-				Logf("داخلی %s زنگ می‌خورد اما هیچ کاربری این شمارهٔ داخلی را ندارد (در پنل مدیریت، فرم کاربر، داخلی را وارد کنید).", ext)
+		case "DialBegin":
+			extNum := ringingExt(ev["DestChannel"])
+			if extNum == "" || !firstTime(pick(ev, "DestUniqueID", "DestUniqueid")) {
 				return
 			}
-			Logf("داخلی %s برای کاربر %s زنگ می‌خورد.", ext, uid)
-			number := pick(ev, "CallerIDNum", "ConnectedLineNum")
-			if number == ext { // the first leg of a call the person started from the app rings their own phone
-				Logf("داخلی %s برای تماسی که خودش از برنامه شروع کرده زنگ می‌خورد؛ پاپ‌آپ لازم نیست.", ext)
+			go popup(ev, extNum)
+		case "Newexten":
+			if !strings.EqualFold(ev["Application"], "Dial") {
 				return
 			}
-			who := number
-			if who == "" {
-				who = "شمارهٔ ناشناس"
+			for _, e := range dialedExts(ev["AppData"]) {
+				go popup(ev, e)
 			}
-			if _, name, ok := userByExtension(ctx, number); ok && name != "" {
-				who = name + " (" + number + ")"
-			} else if cn := pick(ev, "CallerIDName"); cn != "" && cn != number {
-				who = cn + " (" + number + ")"
-			}
-			note := notify.Note{Kind: "call", Label: "تماس ورودی", Title: "تماس ورودی از " + who, Body: "داخلی " + ext, Repeat: true}
-			if cid, cname, found := customerByPhone(ctx, number); found {
-				note.Title = "تماس ورودی از مشتری: " + cname
-				note.Body = number + " · داخلی " + ext
-				note.Ref = map[string]any{"type": "customer", "id": cid}
-			} else {
-				// an unknown number: the pop-up offers «ذخیره به‌عنوان مشتری»
-				note.Ref = map[string]any{"type": "phone", "id": number}
-			}
-			notify.Notify(ctx, []string{uid}, note, "")
-			Logf("پاپ‌آپ برای کاربر %s فرستاده شد: %s", uid, note.Title)
-		}(extNum)
+		}
 	}
 }
 

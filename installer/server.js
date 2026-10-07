@@ -531,7 +531,7 @@ class Session {
       },
       ami: async () => {
         if (!ip4.test(appHost)) return { ok: false, note: 'آدرس سرور برنامه (که اجازهٔ اتصال می‌گیرد) درست نیست؛ مثلاً 192.168.2.248.' };
-        const block = '[' + user + ']\nsecret = ' + secret + '\ndeny = 0.0.0.0/0.0.0.0\npermit = ' + appHost + '/255.255.255.255\nread = system,call,cdr,agent,user\nwrite = originate,call,command\n';
+        const block = '[' + user + ']\nsecret = ' + secret + '\ndeny = 0.0.0.0/0.0.0.0\npermit = ' + appHost + '/255.255.255.255\nread = system,call,cdr,dialplan,agent,user\nwrite = originate,call,command\n';
         const b64 = Buffer.from(block).toString('base64');
         const f = '/etc/asterisk/manager_custom.conf';
         const script = [

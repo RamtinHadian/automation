@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"automation/server/internal/notify"
 	"automation/server/internal/store"
 )
 
@@ -95,6 +96,20 @@ func recordCdr(ev Event) {
 		id, started, answeredAt, ended, direction, status, ext, []string{ext}, userID, other, otherName, custID, custName, billable); err != nil {
 		Logf("ثبت تماس از روی سوابق تلفن‌سانتر نشد: %v", err)
 		return
+	}
+	// an incoming call nobody answered (also when the extension's phone was switched off) is reported to its owner
+	if direction == "in" && status != "answered" && userID != "" {
+		who := other
+		if custName != "" {
+			who = custName + " (" + other + ")"
+		} else if otherName != "" {
+			who = otherName + " (" + other + ")"
+		}
+		note := notify.Note{Kind: "call", Label: "تماس بی‌پاسخ", Title: "تماس بی‌پاسخ از " + who, Body: "داخلی " + ext, Repeat: true}
+		if custID != "" {
+			note.Ref = map[string]any{"type": "customer", "id": custID}
+		}
+		notify.Notify(ctx, []string{userID}, note, "")
 	}
 	Logf("تماس از روی سوابق تلفن‌سانتر ثبت شد: %s %s ↔ %s (%s)", map[string]string{"in": "ورودی", "out": "خروجی", "internal": "داخلی"}[direction], ext, other, map[string]string{"answered": "پاسخ داده شد", "missed": "بی‌پاسخ", "busy": "مشغول", "failed": "ناموفق"}[status])
 }
