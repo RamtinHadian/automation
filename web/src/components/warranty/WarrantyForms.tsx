@@ -4,7 +4,7 @@ import { Customer, User, Warranty, WarrantySettings } from '../../types';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { todayIso } from '../../lib/taskDates';
-import { daysBetween, remainingText, shrinkImage, STATE_LABEL, warrantyEnd, warrantyState } from '../../lib/warranty';
+import { daysBetween, remainingText, shrinkImage, STATE_LABEL, warrantyEnd, warrantyState, codeText } from '../../lib/warranty';
 import { Modal, field, label } from '../crm/crmUi';
 import { JalaliDateField } from '../tasks/TasksView';
 import { dayText } from '../../lib/warranty';
@@ -94,7 +94,7 @@ export const WarrantyForm: React.FC<{
 
   return (
     <Modal
-      title={isNew ? 'ثبت گارانتی جدید' : `ویرایش گارانتی ${toPersianDigits(initial!.warrantyNo)}`}
+      title={isNew ? 'ثبت گارانتی جدید' : `ویرایش گارانتی ${codeText(initial!.warrantyNo)}`}
       onClose={onClose}
       onTop
       footer={
@@ -246,7 +246,7 @@ export const ClaimForm: React.FC<{
           <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-teal-50 border border-teal-200 rounded-xl text-xs font-bold text-teal-900">
             <span className="min-w-0">
               <b className="font-black">{chosen.productName}</b> · {chosen.customerName}
-              <span className="block text-[10px] font-medium text-teal-700">{toPersianDigits(chosen.warrantyNo)}{chosen.serial ? ` · سریال ${toPersianDigits(chosen.serial)}` : ''} · {STATE_LABEL[warrantyState(chosen)].label} ({remainingText(chosen)})</span>
+              <span className="block text-[10px] font-medium text-teal-700">{codeText(chosen.warrantyNo)}{chosen.serial ? ` · سریال ${toPersianDigits(chosen.serial)}` : ''} · {STATE_LABEL[warrantyState(chosen)].label} ({remainingText(chosen)})</span>
             </span>
             {!presetWarrantyId && <button type="button" onClick={() => setWarrantyId('')} className="shrink-0 text-teal-700 hover:underline cursor-pointer text-[11px]">تغییر</button>}
           </div>
@@ -259,7 +259,7 @@ export const ClaimForm: React.FC<{
                 {hits.map((w) => (
                   <button key={w.id} type="button" onClick={() => setWarrantyId(w.id)} className="w-full text-right px-3.5 py-2 hover:bg-[#FAF5F1] cursor-pointer">
                     <div className="text-xs font-black text-[#3A241F]">{w.productName} · {w.customerName}</div>
-                    <div className="text-[10px] text-[#8C6F66]">{toPersianDigits(w.warrantyNo)}{w.serial ? ` · سریال ${toPersianDigits(w.serial)}` : ''} · {STATE_LABEL[warrantyState(w)].label}</div>
+                    <div className="text-[10px] text-[#8C6F66]">{codeText(w.warrantyNo)}{w.serial ? ` · سریال ${toPersianDigits(w.serial)}` : ''} · {STATE_LABEL[warrantyState(w)].label}</div>
                   </button>
                 ))}
               </div>

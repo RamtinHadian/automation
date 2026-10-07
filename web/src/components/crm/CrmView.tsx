@@ -40,7 +40,7 @@ import { ProformaSection } from './ProformaSection';
 import { QuickProformaDialog } from './QuickProformaDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
 import { callerNameOnly, normPhone, normText } from '../../lib/customerImport';
-import { remainingText, STATE_LABEL, warrantyState } from '../../lib/warranty';
+import { remainingText, STATE_LABEL, warrantyState, codeText } from '../../lib/warranty';
 import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
 import { CustomerReportModal } from './CustomerReportModal';
 import { Modal, field, label, SOURCES } from './crmUi';
@@ -1274,7 +1274,7 @@ const CustomerDetail: React.FC<{
                 <button key={w.id} type="button" onClick={() => openWarranty({ type: 'customer', customerId: c.id })} className="w-full flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
                   <span className="min-w-0">
                     <span className="block text-xs font-black text-[#3A241F] truncate">{w.productName}</span>
-                    <span className="block text-[10px] text-[#8C6F66]">{toPersianDigits(w.warrantyNo)} · {remainingText(w)}</span>
+                    <span className="block text-[10px] text-[#8C6F66]">{codeText(w.warrantyNo)} · {remainingText(w)}</span>
                   </span>
                   <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${STATE_LABEL[sst].cls}`}>{STATE_LABEL[sst].label}</span>
                 </button>

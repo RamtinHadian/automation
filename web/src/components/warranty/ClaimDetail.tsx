@@ -4,7 +4,7 @@ import { ClaimResolution, ClaimStatus, User, WarrantyClaim } from '../../types';
 import { api } from '../../lib/api';
 import { formatMoney, fromDisplay, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
-import { CLAIM_STATUS, COVERAGE_TEXT, dayText, NEXT_BUTTON, NEXT_STATUS, RESOLUTION } from '../../lib/warranty';
+import { CLAIM_STATUS, COVERAGE_TEXT, dayText, NEXT_BUTTON, NEXT_STATUS, RESOLUTION, codeText } from '../../lib/warranty';
 import { Modal, field, label } from '../crm/crmUi';
 
 const when = (iso: string) => {
@@ -54,7 +54,7 @@ export const ClaimDetail: React.FC<{
   return (
     <>
       <Modal
-        title={`درخواست گارانتی ${toPersianDigits(claim.claimNo)}`}
+        title={`درخواست گارانتی ${codeText(claim.claimNo)}`}
         onClose={onClose}
         onTop
         wide
@@ -73,7 +73,7 @@ export const ClaimDetail: React.FC<{
             ['مشتری', claim.customerName],
             ['کالا', claim.productName + (claim.productCode ? ` (${toPersianDigits(claim.productCode)})` : '')],
             ['سریال', claim.serial ? toPersianDigits(claim.serial) : '—'],
-            ['شمارهٔ گارانتی', toPersianDigits(claim.warrantyNo)],
+            ['شمارهٔ گارانتی', codeText(claim.warrantyNo)],
             ['تاریخ گزارش', dayText(claim.reportedAt)],
             ['خودرو', [claim.vehicle?.model, claim.vehicle?.plate ? `پلاک ${toPersianDigits(claim.vehicle.plate)}` : '', claim.vehicle?.km ? `${toPersianDigits(claim.vehicle.km)} کیلومتر` : ''].filter(Boolean).join(' · ') || '—'],
             ['مسئول پیگیری', claim.handlerName || 'تعیین نشده'],

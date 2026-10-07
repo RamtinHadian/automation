@@ -4,7 +4,7 @@ import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { todayIso } from '../../lib/taskDates';
-import { CLAIM_STATUS, COVERAGE_TEXT, dayText, daysBetween, isOpenClaim, remainingText, SOON_DAYS, STATE_LABEL, warrantyState, WarrantyState } from '../../lib/warranty';
+import { CLAIM_STATUS, COVERAGE_TEXT, dayText, daysBetween, isOpenClaim, remainingText, SOON_DAYS, STATE_LABEL, warrantyState, WarrantyState, codeText } from '../../lib/warranty';
 import { Warranty, WarrantyClaim, WarrantySettings } from '../../types';
 import { C, ChartCard, Donut, HBars, Kpi } from '../admin/charts';
 import { Modal, field, label } from '../crm/crmUi';
@@ -163,7 +163,7 @@ export const WarrantyView: React.FC = () => {
           <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
         </div>
         <div className="text-[11px] font-bold text-[#503730] leading-6">
-          <div><span className="text-[#8C6F66] font-medium">شمارهٔ گارانتی: </span>{toPersianDigits(w.warrantyNo)}</div>
+          <div><span className="text-[#8C6F66] font-medium">شمارهٔ گارانتی: </span>{codeText(w.warrantyNo)}</div>
           {w.serial && <div><span className="text-[#8C6F66] font-medium">سریال: </span><span dir="ltr">{toPersianDigits(w.serial)}</span></div>}
           <div><span className="text-[#8C6F66] font-medium">از </span>{dayText(w.startDate)}<span className="text-[#8C6F66] font-medium"> تا </span>{dayText(w.endDate)}</div>
           <div className={s === 'SOON' ? 'text-amber-700' : s === 'ACTIVE' ? 'text-emerald-700' : 'text-[#8C6F66]'}>{remainingText(w, today)}{n > 0 && ` · ${toPersianDigits(n)} درخواست خرابی`}</div>
@@ -194,7 +194,7 @@ export const WarrantyView: React.FC = () => {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="font-black text-[13px] text-[#3A241F] truncate">{c.productName}</div>
-            <div className="text-[11px] text-[#8C6F66] truncate">{c.customerName} · {toPersianDigits(c.claimNo)}</div>
+            <div className="text-[11px] text-[#8C6F66] truncate">{c.customerName} · {codeText(c.claimNo)}</div>
           </div>
           <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
         </div>
@@ -354,7 +354,7 @@ export const WarrantyView: React.FC = () => {
           onError={fail}
           onSaved={(w) => {
             setEditing(null);
-            showToast(editing.w ? 'گارانتی ذخیره شد.' : `گارانتی ${toPersianDigits(w.warrantyNo)} ثبت شد.`);
+            showToast(editing.w ? 'گارانتی ذخیره شد.' : `گارانتی ${codeText(w.warrantyNo)} ثبت شد.`);
             load();
           }}
         />
@@ -390,7 +390,7 @@ export const WarrantyView: React.FC = () => {
       )}
       {voiding && (
         <Modal
-          title={`باطل‌کردن گارانتی ${toPersianDigits(voiding.warrantyNo)}`}
+          title={`باطل‌کردن گارانتی ${codeText(voiding.warrantyNo)}`}
           onClose={() => setVoiding(null)}
           onTop
           footer={

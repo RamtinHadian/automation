@@ -95,6 +95,9 @@ export const COVERAGE_TEXT: Record<WarrantyClaim['coverage'], string> = {
 
 export const isOpenClaim = (c: WarrantyClaim) => c.status !== 'CLOSED' && c.status !== 'REJECTED' && c.status !== 'RESOLVED';
 
+/** A code like G-1405-0007 isolated as left-to-right, so its parts keep their order inside right-to-left text. */
+export const codeText = (s: string) => '⁦' + toPersianDigits(s) + '⁩';
+
 export const dayText = (iso?: string) => (iso ? formatTaskDate(iso.slice(0, 10)) : '');
 
 /** Compress a photo to at most 1280 px on its long side as a JPEG data URL (so a claim stays light). */

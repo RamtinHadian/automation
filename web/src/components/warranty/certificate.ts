@@ -1,6 +1,6 @@
 import { Warranty, WarrantySettings } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
-import { dayText } from '../../lib/warranty';
+import { dayText, codeText } from '../../lib/warranty';
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
@@ -9,7 +9,7 @@ export const printCertificate = (w: Warranty, settings: WarrantySettings, compan
   const win = window.open('', '_blank');
   if (!win) return false;
   const row = (k: string, v: string) => (v ? `<tr><th>${k}</th><td>${esc(v)}</td></tr>` : '');
-  const km = w.maxKm && w.maxKm > 0 ? `${toPersianDigits(w.maxKm.toLocaleString('en-US'))} کیلومتر` : '';
+  const km = w.maxKm && w.maxKm > 0 ? `${toPersianDigits(w.maxKm.toLocaleString('en-US')).replace(/,/g, '٬')} کیلومتر` : '';
   const terms = (settings.terms || '').split(/\r?\n/).filter((l) => l.trim()).map((l) => `<li>${esc(l.trim())}</li>`).join('');
   win.document.write(`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گواهی گارانتی ${esc(w.warrantyNo)}</title>
 <style>
@@ -38,7 +38,7 @@ export const printCertificate = (w: Warranty, settings: WarrantySettings, compan
 <div class="sheet">
   <div class="top"><img src="/images/logo-full.png" alt=""><div class="co">${esc(company)}</div></div>
   <h1>گواهی گارانتی</h1>
-  <div class="no">شمارهٔ گارانتی: <b>${esc(toPersianDigits(w.warrantyNo))}</b></div>
+  <div class="no">شمارهٔ گارانتی: <b>${esc(codeText(w.warrantyNo))}</b></div>
   <table>
     ${row('نام مشتری', w.customerName)}
     ${row('نام کالا', w.productName)}
