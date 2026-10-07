@@ -62,16 +62,28 @@ export const Avatar: React.FC<{ user?: User; size?: number }> = ({ user, size = 
 );
 
 /** Jalali date picker (day / month / year selects) that stores a Gregorian yyyy-mm-dd string. */
-export const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string | undefined) => void; disabled?: boolean }> = ({
+export const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string | undefined) => void; disabled?: boolean; minYear?: number; maxYear?: number }> = ({
   value,
   onChange,
   disabled,
+  minYear,
+  maxYear,
 }) => {
   const parts = value ? isoToJalaliParts(value) : null;
   const today = isoToJalaliParts(todayIso())!;
   const [jy, jm, jd] = parts || [today[0], today[1], today[2]];
   const set = (y: number, m: number, d: number) => onChange(jalaliPartsToIso(y, m, Math.min(d, m <= 6 ? 31 : m <= 11 ? 30 : 29)));
   const sel = 'px-2 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] outline-hidden focus:ring-2 focus:ring-[#6E1B1B]/20 disabled:opacity-60';
+  // by default last year .. six years ahead (due dates); with minYear / maxYear (birth dates) the years run from the newest down to the oldest
+  let years: number[];
+  if (minYear !== undefined) {
+    const hi = Math.max(maxYear ?? today[0], parts ? jy : 0);
+    const lo = Math.min(minYear, parts ? jy : minYear);
+    years = Array.from({ length: hi - lo + 1 }, (_, i) => hi - i);
+  } else {
+    years = Array.from({ length: 8 }, (_, i) => today[0] - 1 + i);
+    if (parts && !years.includes(jy)) years = [...years, jy].sort((a, b) => a - b);
+  }
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       <select disabled={disabled} className={sel} value={parts ? jd : ''} onChange={(e) => set(jy, jm, +e.target.value)}>
@@ -88,7 +100,7 @@ export const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string 
       </select>
       <select disabled={disabled} className={sel} value={parts ? jy : ''} onChange={(e) => set(+e.target.value, jm, jd)}>
         {!parts && <option value="">سال</option>}
-        {Array.from({ length: 8 }, (_, i) => today[0] - 1 + i).map((y) => (
+        {years.map((y) => (
           <option key={y} value={y}>{toPersianDigits(y)}</option>
         ))}
       </select>

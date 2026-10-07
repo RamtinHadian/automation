@@ -248,7 +248,7 @@ export const CustomerForm: React.FC<{
               </div>
               <div className="sm:col-span-2">
                 <label className={label}>تاریخ تولد</label>
-                <JalaliDateField value={c.birthDate} onChange={(v) => patch({ birthDate: v })} />
+                <JalaliDateField value={c.birthDate} minYear={1300} onChange={(v) => patch({ birthDate: v })} />
               </div>
               <div>
                 <label className={label}>شغل / محل کار</label>
@@ -288,7 +288,7 @@ export const CustomerForm: React.FC<{
               </div>
               <div className="sm:col-span-3">
                 <label className={label}>تاریخ ثبت</label>
-                <JalaliDateField value={c.registrationDate} onChange={(v) => patch({ registrationDate: v })} />
+                <JalaliDateField value={c.registrationDate} minYear={1380} onChange={(v) => patch({ registrationDate: v })} />
               </div>
             </div>
             <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3.5 space-y-3">
