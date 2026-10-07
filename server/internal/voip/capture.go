@@ -58,5 +58,5 @@ func CaptureState() (running bool, secondsLeft int, lines []string) {
 	if left < 0 {
 		left = 0
 	}
-	return left > 0, left, append([]string(nil), capLines...)
+	return left > 0, left, append([]string{}, capLines...)
 }

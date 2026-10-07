@@ -132,8 +132,8 @@ export const VoipStatusCard: React.FC = () => {
             {log?.capture?.running ? 'در حال ثبت… ' + toPersianDigits(log.capture.secondsLeft) + ' ثانیه' : 'ثبت رویدادهای خام (۶۰ ثانیه)'}
           </button>
         </div>
-        {log?.capture && (log.capture.running || log.capture.lines.length > 0) && (
-          <pre dir="ltr" className="bg-white border border-[#EBDBCE] rounded-xl p-3 text-[10px] leading-5 overflow-auto max-h-72 whitespace-pre-wrap select-all">{log.capture.lines.length ? log.capture.lines.join('\n') : 'هنوز رویدادی نیامده است…'}</pre>
+        {log?.capture && (log.capture.running || (log.capture.lines ?? []).length > 0) && (
+          <pre dir="ltr" className="bg-white border border-[#EBDBCE] rounded-xl p-3 text-[10px] leading-5 overflow-auto max-h-72 whitespace-pre-wrap select-all">{(log.capture.lines ?? []).length ? (log.capture.lines ?? []).join('\n') : 'هنوز رویدادی نیامده است…'}</pre>
         )}
       </div>
       {error && <div className="text-rose-600 font-bold">{error}</div>}
@@ -155,7 +155,7 @@ export const VoipStatusCard: React.FC = () => {
             </div>
           </div>
 
-          {stats && stats.byDay.length > 0 && (
+          {stats && (stats.byDay ?? []).length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <div className="rounded-2xl border border-[#EBDBCE] overflow-hidden">
                 <div className="px-3 py-2 bg-[#FAF5F1] font-black">تماس‌های ۷ روز اخیر</div>
@@ -208,7 +208,7 @@ export const VoipStatusCard: React.FC = () => {
           </p>
 
           <div className="rounded-2xl border border-[#EBDBCE] max-h-64 overflow-y-auto divide-y divide-[#EBDBCE]/60">
-            {log.entries.length === 0 ? (
+            {(log.entries ?? []).length === 0 ? (
               <div className="py-6 text-center text-gray-400 font-bold">هنوز چیزی ثبت نشده است.</div>
             ) : (
               log.entries.map((e, i) => (
