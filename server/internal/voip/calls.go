@@ -158,7 +158,7 @@ func sampleRinging(ev Event) {
 		return
 	}
 	sampleN++
-	Logf("نمونهٔ رویداد زنگ از ایزابل: Event=%s Channel=%s DestChannel=%s Caller=%s", ev["Event"], ev["Channel"], pick(ev, "DestChannel", "Destination"), pick(ev, "CallerIDNum", "ConnectedLineNum"))
+	Logf("نمونهٔ رویداد زنگ از ایزابل: Event=%s Channel=%s DestChannel=%s Caller=%s Context=%s Exten=%s DestExten=%s DialString=%s", ev["Event"], ev["Channel"], pick(ev, "DestChannel", "Destination"), pick(ev, "CallerIDNum", "ConnectedLineNum"), ev["Context"], ev["Exten"], ev["DestExten"], pick(ev, "DialString", "Dialstring"))
 }
 
 // localExt is «Local/500@from-internal-0000;1»: how ring groups, follow-me and queues call an extension.
