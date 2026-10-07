@@ -132,6 +132,15 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		}
 	}
 	doc["createdAt"], doc["updatedAt"] = created, now()
+	// who created the opportunity: written once by the server when it is created, never changed by a later save
+	if !exists {
+		doc["createdById"], doc["createdByName"] = me.ID(), me.Name()
+	} else if jsonx.Str(before, "createdById") != "" {
+		doc["createdById"], doc["createdByName"] = before["createdById"], before["createdByName"]
+	} else {
+		delete(doc, "createdById")
+		delete(doc, "createdByName")
+	}
 	stage := jsonx.Str(doc, "stage")
 	if stage == "WON" || stage == "LOST" {
 		if jsonx.Str(before, "closedAt") != "" && jsonx.Str(before, "stage") == stage {

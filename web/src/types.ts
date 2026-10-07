@@ -152,6 +152,9 @@ export interface Deal {
   /** More people in charge of the same deal (besides the main owner). */
   coOwnerIds?: string[];
   coOwnerNames?: string[];
+  /** Who created the opportunity (set by the server once; older opportunities have none). */
+  createdById?: string;
+  createdByName?: string;
   /** Expected closing day, yyyy-mm-dd. */
   expectedClose?: string;
   notes?: string;

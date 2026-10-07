@@ -365,6 +365,11 @@ export const CrmView: React.FC = () => {
             </div>
           ) : null;
         })()}
+        {/* who created this opportunity (the full name, written by the server when it was created) */}
+        <div className="text-[11px] font-bold text-[#503730] leading-5 break-words" title="ایجادکنندهٔ این فرصت">
+          <span className="text-[#8C6F66] font-medium">ایجاد شده توسط: </span>
+          {userById.get(d.createdById || '')?.fullName || d.createdByName || <span className="text-[#8C6F66] font-medium">نامشخص (قبل از ثبت این مورد)</span>}
+        </div>
         {d.expectedClose && (
           <div className={`text-[10px] font-bold flex items-center gap-1 ${overdue ? 'text-rose-600' : 'text-[#8C6F66]'}`}>
             <CalendarDays className="w-3 h-3" />
@@ -888,6 +893,13 @@ const DealForm: React.FC<{
           </>
         }
       >
+        {!isNew && (
+          <div className="rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] px-3 py-2 text-[11px] font-bold text-[#503730]" data-deal-creator>
+            <span className="text-[#8C6F66] font-medium">ایجاد شده توسط: </span>
+            {d.createdByName || 'نامشخص (قبل از ثبت این مورد)'}
+            {d.createdAt && <span className="text-[#8C6F66] font-medium"> · {formatTaskDate(d.createdAt.slice(0, 10))}</span>}
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-2">
             <label className={label}>عنوان فرصت *</label>
