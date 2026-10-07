@@ -12,6 +12,7 @@ interface VoipLog {
   eventCount: number;
   lastEvent: string | null;
   entries: { at: string; text: string }[];
+  capture?: { running: boolean; secondsLeft: number; lines: string[] };
 }
 
 const time = (iso: string) => toPersianDigits(new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -121,6 +122,20 @@ export const VoipStatusCard: React.FC = () => {
       </div>
 
       <RecordingSetup />
+      <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-4 space-y-2" data-voip-capture>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="font-black text-[#3A241F]">اگر پاپ‌آپ نمی‌آید: ببینید تلفن‌سانتر چه می‌فرستد</div>
+            <div className="text-[11px] text-[#8C6F66] leading-6">دکمه را بزنید و در یک دقیقه یک تماس آزمایشی بگیرید؛ همهٔ رویدادهایی که تلفن‌سانتر می‌فرستد این‌جا نوشته می‌شود. اگر چیزی نیامد یعنی تلفن‌سانتر رویدادی نمی‌فرستد. عکس این بخش را برای پشتیبانی بفرستید.</div>
+          </div>
+          <button type="button" disabled={!!log?.capture?.running} onClick={() => api.voipCapture().then(() => { showToast('ثبت یک‌دقیقه‌ای شروع شد؛ حالا تماس آزمایشی بگیرید.'); load(); }).catch(() => showToast('شروع ثبت ممکن نشد.'))} className="px-4 py-2 min-h-[44px] sm:min-h-0 rounded-xl text-[11px] font-black text-white bg-[#6E1B1B] hover:bg-[#D34A32] disabled:opacity-60 cursor-pointer">
+            {log?.capture?.running ? 'در حال ثبت… ' + toPersianDigits(log.capture.secondsLeft) + ' ثانیه' : 'ثبت رویدادهای خام (۶۰ ثانیه)'}
+          </button>
+        </div>
+        {log?.capture && (log.capture.running || log.capture.lines.length > 0) && (
+          <pre dir="ltr" className="bg-white border border-[#EBDBCE] rounded-xl p-3 text-[10px] leading-5 overflow-auto max-h-72 whitespace-pre-wrap select-all">{log.capture.lines.length ? log.capture.lines.join('\n') : 'هنوز رویدادی نیامده است…'}</pre>
+        )}
+      </div>
       {error && <div className="text-rose-600 font-bold">{error}</div>}
 
       {log && (

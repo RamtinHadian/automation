@@ -184,6 +184,7 @@ func popup(ev Event, ext string) {
 //     softphone on the computer) is switched off and therefore never rings. This needs the event class «dialplan».
 func WatchCalls(c *Client) {
 	c.OnEvent = func(ev Event) {
+		captureEvent(ev)
 		journalEvent(ev)
 		sampleRinging(ev)
 		switch ev["Event"] {

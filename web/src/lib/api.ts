@@ -353,7 +353,8 @@ export const api = {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   },
   voipStats: () => request<{ byDay: VoipStatRow[]; byExt: VoipStatRow[] }>('GET', '/api/voip/stats'),
-  voipLog: () => request<{ enabled: boolean; connected: boolean; eventCount: number; lastEvent: string | null; entries: { at: string; text: string }[] }>('GET', '/api/voip/log'),
+  voipLog: () => request<{ enabled: boolean; connected: boolean; eventCount: number; lastEvent: string | null; entries: { at: string; text: string }[]; capture?: { running: boolean; secondsLeft: number; lines: string[] } }>('GET', '/api/voip/log'),
+  voipCapture: () => request<{ ok: true }>('POST', '/api/voip/capture'),
   voipTestPopup: () => request<{ ok: true }>('POST', '/api/voip/test-popup'),
   voipCall: (to: string) => request<{ ok: true }>('POST', '/api/voip/call', { to }),
   notifications: () => request<{ notifications: AppNotification[] }>('GET', '/api/notifications'),

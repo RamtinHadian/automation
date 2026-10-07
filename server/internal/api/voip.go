@@ -50,7 +50,23 @@ func voipLog(w http.ResponseWriter, r *http.Request) {
 		"eventCount": count,
 		"lastEvent":  lastAt,
 		"entries":    voip.Recent(),
+		"capture":    captureInfo(),
 	})
+}
+
+func captureInfo() map[string]any {
+	running, left, lines := voip.CaptureState()
+	return map[string]any{"running": running, "secondsLeft": left, "lines": lines}
+}
+
+// voipCapture starts a one-minute recording of the raw phone-system events (admins only).
+func voipCapture(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	voip.StartCapture()
+	httpx.OK(w)
 }
 
 // voipTestPopup sends the user an example incoming-call notification, to check the pop-up, sound and desktop window without a real call.

@@ -83,6 +83,7 @@ func Router(cfg config.Config) http.Handler {
 
 	mux.HandleFunc("GET /api/voip/status", auth.Require(voipStatus))
 	mux.HandleFunc("GET /api/voip/log", auth.Require(voipLog))
+	mux.HandleFunc("POST /api/voip/capture", auth.Require(voipCapture))
 	mux.HandleFunc("POST /api/voip/test-popup", auth.Require(voipTestPopup))
 	mux.HandleFunc("GET /api/announcements", auth.Require(announcementList))
 	mux.HandleFunc("POST /api/announcements", auth.Require(announcementCreate))
