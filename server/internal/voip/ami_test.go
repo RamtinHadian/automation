@@ -134,3 +134,11 @@ func TestRingingExt(t *testing.T) {
 		}
 	}
 }
+
+func TestCdrStatus(t *testing.T) {
+	for in, want := range map[string]string{"ANSWERED": "answered", "NO ANSWER": "missed", "BUSY": "busy", "FAILED": "failed", "CONGESTION": "failed", "": "missed"} {
+		if got := cdrStatus(in); got != want {
+			t.Errorf("%q -> %q, want %q", in, got, want)
+		}
+	}
+}

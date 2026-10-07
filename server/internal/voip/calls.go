@@ -84,6 +84,10 @@ func WatchCalls(c *Client) {
 	c.OnEvent = func(ev Event) {
 		journalEvent(ev)
 		sampleRinging(ev)
+		if ev["Event"] == "Cdr" {
+			// the journal needs a moment to write its own row first; the phone system's record is only the second source
+			go func() { time.Sleep(3 * time.Second); recordCdr(ev) }()
+		}
 		if ev["Event"] != "DialBegin" {
 			return
 		}
