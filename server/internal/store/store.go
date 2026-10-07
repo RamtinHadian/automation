@@ -249,6 +249,11 @@ var schema = []string{
 	)`,
 	`CREATE INDEX IF NOT EXISTS voip_calls_started_idx ON voip_calls (started_at DESC)`,
 	`CREATE INDEX IF NOT EXISTS voip_calls_exts_idx ON voip_calls USING GIN (exts)`,
+	// the user approved removing the fake outgoing calls that follow-me helper channels (FMGL / FMPR) left in the history,
+	// together with the rows made in the very same seconds; it does nothing once they are gone
+	`DELETE FROM voip_calls v WHERE v.direction = 'out' AND (v.other_num ~ '^FM(PR|GL)-' OR v.other_num = 'n'
+	   OR EXISTS (SELECT 1 FROM voip_calls f WHERE f.direction = 'out' AND (f.other_num ~ '^FM(PR|GL)-' OR f.other_num = 'n')
+	              AND abs(extract(epoch FROM (f.started_at - v.started_at))) < 3 AND f.id <> v.id))`,
 	`CREATE TABLE IF NOT EXISTS settings (
 	  key TEXT PRIMARY KEY,
 	  data JSONB NOT NULL
