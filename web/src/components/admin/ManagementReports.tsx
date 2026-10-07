@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Banknote, CalendarCheck, ClipboardCheck, FileSignature, PackageX, Phone, Send, TrendingUp, UserPlus, Users, Lightbulb, AlertTriangle } from 'lucide-react';
+import { Banknote, CalendarCheck, ClipboardCheck, FileSignature, PackageX, Phone, ShieldCheck, Send, TrendingUp, UserPlus, Users, Lightbulb, AlertTriangle } from 'lucide-react';
 import { api, VoipStatRow } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { computeStats, shortDay, STAGE_LABEL } from '../../lib/adminStats';
 import { toDisplay, unitName } from '../../lib/money';
 import { C, ChartCard, Columns, compact, Donut, fa, HBars, Kpi, RAMP, TrendChart } from './charts';
 import { missingStats } from '../../lib/missingItems';
+import { CLAIM_STATUS, daysBetween, isOpenClaim, warrantyState } from '../../lib/warranty';
+import { todayIso } from '../../lib/taskDates';
 
 const compactM = (n: number) => compact(toDisplay(n));
 
@@ -38,6 +40,26 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
   const reports = data?.reports ?? [];
   const customers = data?.customers ?? [];
   const deals = data?.deals ?? [];
+  // warranty numbers (the whole company; the lists come from the server like the rest of this report)
+  const warr = useMemo(() => {
+    const ws = data?.warranties ?? [];
+    const cs = (data?.warrantyClaims ?? []).filter((c) => new Date(c.createdAt).getTime() >= Date.now() - range * 86400000);
+    const today = todayIso();
+    const byProduct = new Map<string, number>();
+    for (const c of cs) byProduct.set(c.productName, (byProduct.get(c.productName) || 0) + 1);
+    const done = cs.filter((c) => c.closedAt);
+    const days = done.map((c) => Math.max(0, daysBetween(c.createdAt.slice(0, 10), c.closedAt!.slice(0, 10))));
+    return {
+      active: ws.filter((w) => ['ACTIVE', 'SOON'].includes(warrantyState(w, today))).length,
+      total: ws.length,
+      claims: cs.length,
+      open: (data?.warrantyClaims ?? []).filter(isOpenClaim).length,
+      outside: cs.filter((c) => c.coverage !== 'IN').length,
+      avgDays: days.length ? Math.round((days.reduce((a, b) => a + b, 0) / days.length) * 10) / 10 : null,
+      byProduct: [...byProduct.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8),
+      byStatus: (Object.keys(CLAIM_STATUS) as (keyof typeof CLAIM_STATUS)[]).map((k) => ({ k, n: cs.filter((c) => c.status === k).length })).filter((x) => x.n > 0),
+    };
+  }, [data?.warranties, data?.warrantyClaims, range]);
   const missing = useMemo(() => missingStats(data?.missing ?? [], customers, range), [data?.missing, customers, range]);
   // the chart over time: a column per day up to a month, then per week (90 days) or per month (a year)
   const missingBuckets = useMemo(() => {
@@ -213,6 +235,27 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
             </div>
           </div>
         )}
+      </section>
+
+      <section className="space-y-3" data-warranty-report>
+        <div>
+          <h3 className="font-black text-[14px] text-[#3A241F] flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-teal-600" />گارانتی</h3>
+          <p className="text-[11px] text-[#8C6F66] mt-0.5">گارانتی‌های ثبت‌شده و درخواست‌های خرابی ({rangeLabel} اخیر).</p>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Kpi accent={C.green} icon={<ShieldCheck className="w-5 h-5" />} label="گارانتی فعال" value={fa(warr.active)} sub={`از ${toPersianDigits(warr.total)} گارانتی ثبت‌شده`} />
+          <Kpi accent={C.red} icon={<PackageX className="w-5 h-5" />} label={`درخواست خرابی (${rangeLabel})`} value={fa(warr.claims)} sub={warr.outside ? `${toPersianDigits(warr.outside)} مورد خارج از گارانتی` : undefined} />
+          <Kpi accent={C.orange} icon={<ClipboardCheck className="w-5 h-5" />} label="درخواست باز (الان)" value={fa(warr.open)} />
+          <Kpi accent={C.blue} icon={<CalendarCheck className="w-5 h-5" />} label="میانگین روز تا حل" value={warr.avgDays === null ? '—' : toPersianDigits(warr.avgDays)} />
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <ChartCard title="کدام کالاها بیشتر گارانتی می‌خورند؟" subtitle="تعداد درخواست خرابی برای هر کالا">
+            <HBars empty="در این دوره درخواست خرابی ثبت نشده است." rows={warr.byProduct.map(([name, n]) => ({ label: name, segments: [{ value: n, color: C.red, name: 'درخواست' }] }))} />
+          </ChartCard>
+          <ChartCard title="وضعیت درخواست‌ها" subtitle={`درخواست‌های ${rangeLabel} اخیر`}>
+            <Donut centerLabel="درخواست" data={warr.byStatus.map((x, i) => ({ label: CLAIM_STATUS[x.k].label, value: x.n, color: [C.blue, C.yellow, C.violet, C.red, C.green, C.magenta][i % 6] }))} />
+          </ChartCard>
+        </div>
       </section>
 
       <p className="text-[10px] text-[#8C6F66] text-center">همهٔ عددها از اطلاعات ثبت‌شده در سامانه حساب می‌شود و با هر ورود تازه به‌روز است. «{STAGE_LABEL.WON}» یعنی فرصت‌هایی که در مرحلهٔ فروش موفق بسته شده‌اند.</p>

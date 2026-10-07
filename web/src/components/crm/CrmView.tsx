@@ -17,6 +17,7 @@ import {
   PhoneCall,
   Smartphone,
   Plus,
+  ShieldCheck,
   Search,
   Trash2,
   TrendingUp,
@@ -29,7 +30,7 @@ import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, isOverdue, todayIso } from '../../lib/taskDates';
-import { ActivityType, CrmActivity, Customer, CustomerStatus, Deal, DealStage, User } from '../../types';
+import { ActivityType, CrmActivity, Customer, CustomerStatus, Deal, DealStage, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
@@ -39,6 +40,7 @@ import { ProformaSection } from './ProformaSection';
 import { QuickProformaDialog } from './QuickProformaDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
 import { callerNameOnly, normPhone, normText } from '../../lib/customerImport';
+import { remainingText, STATE_LABEL, warrantyState } from '../../lib/warranty';
 import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
 import { CustomerReportModal } from './CustomerReportModal';
 import { Modal, field, label, SOURCES } from './crmUi';
@@ -1042,6 +1044,23 @@ const CustomerDetail: React.FC<{
   const [smsOn, setSmsOn] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  // this customer's warranties (only for people who may use the warranty menu; the server refuses the others)
+  const [warr, setWarr] = useState<Warranty[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.warrantyList().then((r) => alive && setWarr(r.warranties.filter((w) => w.customerId === c.id))).catch(() => alive && setWarr(null));
+    return () => { alive = false; };
+  }, [c.id]);
+  const openWarranty = (o: { type: string; customerId?: string }) => {
+    try {
+      sessionStorage.setItem('warranty_open', JSON.stringify(o));
+    } catch {
+      /* storage unavailable */
+    }
+    window.dispatchEvent(new Event('goto-warranty'));
+    window.dispatchEvent(new Event('open-warranty-item'));
+    onClose();
+  };
   useEffect(() => {
     api.smsStatus().then((s) => setSmsOn(s.enabled)).catch(() => {});
   }, []);
@@ -1239,6 +1258,31 @@ const CustomerDetail: React.FC<{
           })
         )}
       </section>
+
+      {warr !== null && (
+        <section className="space-y-2" data-customer-warranties>
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="font-black text-xs text-[#3A241F] flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-teal-600" />گارانتی‌ها ({toPersianDigits(warr.length)})</h4>
+            <button type="button" onClick={() => openWarranty({ type: 'new', customerId: c.id })} className="text-[11px] font-black text-teal-700 hover:underline cursor-pointer flex items-center gap-1"><Plus className="w-3.5 h-3.5" />ثبت گارانتی</button>
+          </div>
+          {warr.length === 0 ? (
+            <div className="text-center text-[11px] text-gray-400 font-bold py-3 bg-white border border-[#EBDBCE] rounded-xl">برای این مشتری هنوز گارانتی ثبت نشده است.</div>
+          ) : (
+            warr.map((w) => {
+              const sst = warrantyState(w);
+              return (
+                <button key={w.id} type="button" onClick={() => openWarranty({ type: 'customer', customerId: c.id })} className="w-full flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-black text-[#3A241F] truncate">{w.productName}</span>
+                    <span className="block text-[10px] text-[#8C6F66]">{toPersianDigits(w.warrantyNo)} · {remainingText(w)}</span>
+                  </span>
+                  <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${STATE_LABEL[sst].cls}`}>{STATE_LABEL[sst].label}</span>
+                </button>
+              );
+            })
+          )}
+        </section>
+      )}
 
       {/* timeline */}
       <section className="space-y-2.5">

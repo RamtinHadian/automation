@@ -28,6 +28,8 @@ export interface User {
   canUseTasks?: boolean;
   /** Access to the customer (CRM) menu; admins always have it. */
   canUseCrm?: boolean;
+  /** Warranty menu (also open to everybody who works with customers). */
+  canUseWarranty?: boolean;
   /** Access to the management statistics page (admins always have it). */
   canViewStats?: boolean;
   /** May publish on the bulletin board (admins always may). */
@@ -635,4 +637,87 @@ export interface ProformaIssuer {
   approverId?: string;
   /** شمارهٔ مجوز کسب‌وکار (for an individual with a business licence). */
   licenseNumber?: string;
+}
+
+// ---------- warranty («گارانتی») ----------
+
+export type WarrantyStatus = 'ACTIVE' | 'VOID';
+export type ClaimStatus = 'RECEIVED' | 'REVIEW' | 'APPROVED' | 'REJECTED' | 'RESOLVED' | 'CLOSED';
+export type ClaimResolution = 'REPLACE' | 'REPAIR' | 'CREDIT' | 'OTHER';
+
+/** One sold product with its warranty period. Never deleted, only made void. */
+export interface Warranty {
+  id: string;
+  /** G-1405-0007, made by the server */
+  warrantyNo: string;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string;
+  productName: string;
+  productCode?: string;
+  serial?: string;
+  invoiceNumber?: string;
+  /** Gregorian yyyy-mm-dd, shown in the Persian calendar */
+  saleDate: string;
+  startDate: string;
+  endDate: string;
+  months: number;
+  /** 0 = no limit */
+  maxKm?: number;
+  notes?: string;
+  status: WarrantyStatus;
+  voidReason?: string;
+  voidedAt?: string;
+  voidedByName?: string;
+  createdAt: string;
+  createdById: string;
+  createdByName: string;
+}
+
+export interface ClaimLogEntry {
+  at: string;
+  kind: 'create' | 'status' | 'note' | 'assign';
+  byId: string;
+  byName: string;
+  from?: ClaimStatus;
+  to?: ClaimStatus;
+  note?: string;
+  resolution?: ClaimResolution;
+}
+
+/** A customer's report that a warranted product failed, and what was done about it. */
+export interface WarrantyClaim {
+  id: string;
+  /** C-1405-0003, made by the server */
+  claimNo: string;
+  warrantyId: string;
+  warrantyNo: string;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string;
+  productName: string;
+  productCode?: string;
+  serial?: string;
+  description: string;
+  reportedAt: string;
+  vehicle?: { model?: string; plate?: string; km?: number };
+  /** IN = inside the warranty, EXPIRED = after its end date, KM = over the kilometre limit */
+  coverage: 'IN' | 'EXPIRED' | 'KM';
+  status: ClaimStatus;
+  handlerId?: string;
+  handlerName?: string;
+  photos?: string[];
+  resolution?: ClaimResolution;
+  replacementSerial?: string;
+  cost?: number;
+  closedAt?: string;
+  log: ClaimLogEntry[];
+  createdAt: string;
+  createdById: string;
+  createdByName: string;
+}
+
+export interface WarrantySettings {
+  defaultMonths: number;
+  terms: string;
 }

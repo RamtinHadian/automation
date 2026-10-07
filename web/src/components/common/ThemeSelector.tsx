@@ -3,13 +3,15 @@ import { Check, Palette, Sparkles } from 'lucide-react';
 import { COLOR_THEMES } from '../../lib/theme';
 import { useAppContext } from '../../context/AppContext';
 
-export const ThemeSelector: React.FC = () => {
+/** `onPicked`: called right after a colour is chosen (the window that holds this list closes itself; no confirmation button). */
+export const ThemeSelector: React.FC<{ onPicked?: () => void }> = ({ onPicked }) => {
   const { currentTheme, setTheme, showToast } = useAppContext();
 
   const handleSelectTheme = (themeId: string) => {
     setTheme(themeId);
     const chosen = COLOR_THEMES.find((t) => t.id === themeId);
     showToast(`پالت رنگی حساب کاربری شما به "${chosen?.name}" تغییر یافت.`);
+    onPicked?.();
   };
 
   return (

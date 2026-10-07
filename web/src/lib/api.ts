@@ -1,5 +1,5 @@
 import type { AppNotification } from './notifications';
-import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport, Customer, Deal, CrmActivity } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport, Customer, Deal, CrmActivity, Warranty, WarrantyClaim, WarrantySettings, ClaimStatus, ClaimResolution } from '../types';
 
 const TOKEN_KEY = 'app_token_v6';
 
@@ -261,6 +261,14 @@ export const api = {
   leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string) => request<{ ok: true }>('POST', `/api/leaves/${encodeURIComponent(id)}/decide`, { status, note }),
   leaveCancel: (id: string) => request<{ ok: true }>('DELETE', `/api/leaves/${encodeURIComponent(id)}`),
   netWatch: () => request<any>('GET', '/api/admin/netwatch'),
+  warrantyList: () => request<{ warranties: Warranty[]; claims: WarrantyClaim[]; settings: WarrantySettings; canManage: boolean }>('GET', '/api/warranty'),
+  warrantySaveSettings: (b: WarrantySettings) => request<WarrantySettings>('PUT', '/api/warranty/settings', b),
+  warrantyPut: (id: string, b: Partial<Warranty>) => request<Warranty>('PUT', `/api/warranty/items/${encodeURIComponent(id)}`, b),
+  warrantyVoid: (id: string, reason: string) => request<{ ok: true }>('POST', `/api/warranty/items/${encodeURIComponent(id)}/void`, { reason }),
+  claimCreate: (b: { warrantyId: string; description: string; reportedAt: string; vehicle: { model: string; plate: string; km: number }; handlerId?: string; photos: string[] }) => request<WarrantyClaim>('POST', '/api/warranty/claims', b),
+  claimStatus: (id: string, b: { status: ClaimStatus; note?: string; resolution?: ClaimResolution; replacementSerial?: string; cost?: number }) => request<WarrantyClaim>('POST', `/api/warranty/claims/${encodeURIComponent(id)}/status`, b),
+  claimNote: (id: string, text: string) => request<WarrantyClaim>('POST', `/api/warranty/claims/${encodeURIComponent(id)}/note`, { text }),
+  claimAssign: (id: string, handlerId: string) => request<WarrantyClaim>('POST', `/api/warranty/claims/${encodeURIComponent(id)}/assign`, { handlerId }),
   voipRecordingSetup: () => request<{ key: string; mountedDir: string; mountedFiles: number }>('GET', '/api/voip/recording-setup'),
   /** The recording of a call as a playable blob (the request carries the login, so a plain <audio src> cannot be used). */
   voipRecording: async (id: string): Promise<Blob> => {
@@ -314,7 +322,7 @@ export const api = {
   smsLog: () => request<{ log: SmsLogRow[] }>('GET', '/api/sms/log'),
   smsTest: (to: string) => request<{ ok: true }>('POST', '/api/sms/test', { to }),
   smsSend: (b: { to: string; text: string; customerId?: string }) => request<{ ok: true }>('POST', '/api/sms/send', b),
-  statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[]; missing?: CrmActivity[] }>('GET', '/api/stats-data'),
+  statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[]; missing?: CrmActivity[]; warranties?: Warranty[]; warrantyClaims?: WarrantyClaim[] }>('GET', '/api/stats-data'),
   backups: () => request<BackupInfo>('GET', '/api/backups'),
   backupSettings: () => request<BackupSettings>('GET', '/api/backups/settings'),
   backupSaveSettings: (b: BackupSettings & { netPassword: string; cloudToken?: string }) => request<BackupSettings>('PUT', '/api/backups/settings', b),

@@ -215,7 +215,7 @@ func exec(ctx context.Context, sql string, args ...any) error {
 // Reset empties every table and fills it with the demo data.
 func Reset(ctx context.Context) error {
 	if err := exec(ctx, `TRUNCATE users, departments, transfers, transfer_hidden, audit_logs, tasks, notifications, push_subscriptions,
-		daily_reports, crm_customers, crm_deals, crm_activities, voip_calls, chat_messages`); err != nil {
+		daily_reports, crm_customers, crm_deals, crm_activities, voip_calls, chat_messages, warranties, warranty_claims`); err != nil {
 		return err
 	}
 	if err := exec(ctx, `DELETE FROM settings WHERE key = 'main'`); err != nil { // other rows hold the push keys
@@ -484,6 +484,9 @@ func Reset(ctx context.Context) error {
 		if err := exec(ctx, `INSERT INTO notifications (id, user_id, data) VALUES ($1, $2, $3::jsonb)`, id, n.user, jsonx.Encode(doc)); err != nil {
 			return err
 		}
+	}
+	if err := addWarranty(ctx, now, by); err != nil {
+		return err
 	}
 	if err := addBulk(ctx, now, string(hash), by); err != nil {
 		return err

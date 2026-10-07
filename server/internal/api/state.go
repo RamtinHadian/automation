@@ -157,6 +157,8 @@ func statsData(w http.ResponseWriter, r *http.Request) {
 		"reports":   `SELECT data FROM daily_reports ORDER BY report_date DESC LIMIT 1500`,
 		"customers": `SELECT data FROM crm_customers`,
 		"deals":     `SELECT data FROM crm_deals`,
+		"warranties": `SELECT data FROM warranties ORDER BY created_at DESC LIMIT 5000`,
+		"warrantyClaims": `SELECT data FROM warranty_claims ORDER BY created_at DESC LIMIT 5000`,
 		"missing":   `SELECT data FROM crm_activities WHERE data->>'type' = 'MISSING' ORDER BY created_at DESC LIMIT 5000`,
 	} {
 		rows, err := store.RawList(ctx, q)

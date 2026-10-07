@@ -727,16 +727,7 @@ export default function AdminPanel() {
               </button>
             </div>
 
-            <ThemeSelector />
-
-            <div className="flex justify-end pt-3 border-t border-[#EBDBCE]">
-              <button
-                onClick={() => setShowThemeModal(false)}
-                className="px-5 py-2 text-xs font-bold bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-xl shadow-xs transition-all"
-              >
-                بستن و بازگشت
-              </button>
-            </div>
+            <ThemeSelector onPicked={() => setShowThemeModal(false)} />
           </div>
         </div>
       )}

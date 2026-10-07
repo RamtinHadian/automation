@@ -18,6 +18,7 @@ import {
   ClipboardList,
   BarChart3,
   Megaphone,
+  ShieldCheck,
   Users
 } from 'lucide-react';
 import { User, UserRole, Department } from '../../types';
@@ -41,6 +42,7 @@ interface UserManagementViewProps {
     canUseCrm?: boolean;
     canViewStats?: boolean;
     canPostAnnouncements?: boolean;
+    canUseWarranty?: boolean;
     extension?: string;
   }) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
@@ -85,6 +87,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     canUseCrm: false,
     canViewStats: false,
     canPostAnnouncements: false,
+    canUseWarranty: false,
     extension: '',
   });
   const [newForm, setNewForm] = useState<UserForm>(emptyForm);
@@ -115,6 +118,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       canUseCrm: newForm.canUseCrm,
       canViewStats: newForm.canViewStats,
       canPostAnnouncements: newForm.canPostAnnouncements,
+      canUseWarranty: newForm.canUseWarranty,
       extension: (newForm.extension || '').trim(),
     });
 
@@ -242,6 +246,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           [user.canUseCrm, Users, 'مشتریان (CRM)', 'bg-violet-100 text-violet-700 border-violet-300'],
                           [user.canViewStats, BarChart3, 'گزارشات آماری مدیریتی', 'bg-orange-100 text-orange-700 border-orange-300'],
                           [user.canPostAnnouncements, Megaphone, 'تابلو اعلانات', 'bg-amber-100 text-amber-800 border-amber-300'],
+                          [user.canUseWarranty, ShieldCheck, 'گارانتی', 'bg-teal-100 text-teal-700 border-teal-300'],
                         ] as const).map(([on, Icon, label, cls]) =>
                           on ? (
                             <span key={label} title={label} className={`w-6 h-6 inline-flex items-center justify-center rounded-lg border ${cls}`}>
@@ -249,7 +254,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                             </span>
                           ) : null
                         )}
-                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && !user.canUseTasks && !user.canUseCrm && !user.canViewStats && !user.canPostAnnouncements && (
+                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && !user.canUseTasks && !user.canUseCrm && !user.canViewStats && !user.canPostAnnouncements && !user.canUseWarranty && (
                           <span className="text-[10px] text-gray-400">عادی</span>
                         )}
                       </div>
