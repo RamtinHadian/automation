@@ -725,3 +725,92 @@ export interface WarrantySettings {
   stampImage?: string;
   signatureImage?: string;
 }
+
+// ---------- support plans («پشتیبانی») ----------
+export type PlanColor = 'slate' | 'teal' | 'amber' | 'rose' | 'indigo' | 'emerald';
+
+export interface SupportPlan {
+  id: string;
+  name: string;
+  price: number;
+  months: number;
+  /** hours until the first answer, and until the problem is solved */
+  responseHours: number;
+  resolveHours: number;
+  /** site visits included in the period (0 = none) */
+  visits: number;
+  features: string;
+  color: PlanColor;
+  active: boolean;
+}
+
+/** One customer on one plan for a period. Never deleted, only cancelled. */
+export interface SupportSub {
+  id: string;
+  subNo: string;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string;
+  planId: string;
+  planName: string;
+  planColor: PlanColor;
+  responseHours: number;
+  resolveHours: number;
+  visits: number;
+  startDate: string;
+  endDate: string;
+  months: number;
+  price: number;
+  notes?: string;
+  status: 'ACTIVE' | 'CANCELLED';
+  cancelReason?: string;
+  createdAt: string;
+  createdById: string;
+  createdByName: string;
+}
+
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'WAITING' | 'RESOLVED' | 'CLOSED';
+export type TicketPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+export type TicketChannel = 'PHONE' | 'CHAT' | 'EMAIL' | 'VISIT' | 'OTHER';
+
+export interface TicketLogEntry {
+  at: string;
+  kind: 'create' | 'status' | 'note' | 'assign';
+  byId: string;
+  byName: string;
+  from?: TicketStatus;
+  to?: TicketStatus;
+  note?: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  ticketNo: string;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string;
+  subId?: string;
+  subNo?: string;
+  planName?: string;
+  /** IN = covered by a running plan, EXPIRED = the chosen plan had ended, NONE = no plan */
+  coverage: 'IN' | 'EXPIRED' | 'NONE';
+  subject: string;
+  description: string;
+  priority: TicketPriority;
+  channel: TicketChannel;
+  status: TicketStatus;
+  handlerId?: string;
+  handlerName?: string;
+  responseDue: string;
+  resolveDue: string;
+  firstResponseAt?: string;
+  resolvedAt?: string;
+  closedAt?: string;
+  resolution?: string;
+  minutes?: number;
+  visit?: boolean;
+  createdAt: string;
+  createdById: string;
+  createdByName: string;
+  log?: TicketLogEntry[];
+}

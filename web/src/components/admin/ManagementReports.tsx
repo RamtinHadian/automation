@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Banknote, CalendarCheck, ClipboardCheck, FileSignature, PackageX, Phone, ShieldCheck, Send, TrendingUp, UserPlus, Users, Lightbulb, AlertTriangle } from 'lucide-react';
+import { Banknote, CalendarCheck, ClipboardCheck, FileSignature, PackageX, Phone, ShieldCheck, Send, TrendingUp, UserPlus, Users, Lightbulb, AlertTriangle, Headset } from 'lucide-react';
 import { api, VoipStatRow } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { computeStats, shortDay, STAGE_LABEL } from '../../lib/adminStats';
-import { toDisplay, unitName } from '../../lib/money';
+import { formatMoney, toDisplay, unitName } from '../../lib/money';
 import { C, ChartCard, Columns, compact, Donut, fa, HBars, Kpi, RAMP, TrendChart } from './charts';
 import { missingStats } from '../../lib/missingItems';
+import { hoursText, isOpenTicket, resolveSla, responseSla, subState, TICKET_STATUS } from '../../lib/support';
 import { CLAIM_STATUS, daysBetween, isOpenClaim, warrantyState } from '../../lib/warranty';
 import { todayIso } from '../../lib/taskDates';
 
@@ -60,6 +61,29 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
       byStatus: (Object.keys(CLAIM_STATUS) as (keyof typeof CLAIM_STATUS)[]).map((k) => ({ k, n: cs.filter((c) => c.status === k).length })).filter((x) => x.n > 0),
     };
   }, [data?.warranties, data?.warrantyClaims, range]);
+  const sup = useMemo(() => {
+    const subs = data?.supportSubs ?? [];
+    const today = todayIso();
+    const all = data?.supportTickets ?? [];
+    const ts = all.filter((t) => new Date(t.createdAt).getTime() >= Date.now() - range * 86400000);
+    const answered = ts.filter((t) => t.firstResponseAt);
+    const onTime = answered.filter((t) => new Date(t.firstResponseAt!).getTime() <= new Date(t.responseDue).getTime());
+    const waits = answered.map((t) => new Date(t.firstResponseAt!).getTime() - new Date(t.createdAt).getTime());
+    const running = subs.filter((s) => ['ACTIVE', 'SOON'].includes(subState(s, today)));
+    const byCustomer = new Map<string, number>();
+    for (const t of ts) byCustomer.set(t.customerName, (byCustomer.get(t.customerName) || 0) + 1);
+    return {
+      running: running.length,
+      value: running.reduce((a, s) => a + (s.price || 0), 0),
+      tickets: ts.length,
+      open: all.filter(isOpenTicket).length,
+      late: all.filter((t) => isOpenTicket(t) && (responseSla(t).kind === 'late' || resolveSla(t).kind === 'late')).length,
+      onTimePct: answered.length ? Math.round((onTime.length / answered.length) * 100) : null,
+      avgWait: waits.length ? waits.reduce((a, b) => a + b, 0) / waits.length : null,
+      byCustomer: [...byCustomer.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8),
+      byStatus: (Object.keys(TICKET_STATUS) as (keyof typeof TICKET_STATUS)[]).map((k) => ({ k, n: ts.filter((t) => t.status === k).length })).filter((x) => x.n > 0),
+    };
+  }, [data?.supportSubs, data?.supportTickets, range]);
   const missing = useMemo(() => missingStats(data?.missing ?? [], customers, range), [data?.missing, customers, range]);
   // the chart over time: a column per day up to a month, then per week (90 days) or per month (a year)
   const missingBuckets = useMemo(() => {
@@ -254,6 +278,27 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
           </ChartCard>
           <ChartCard title="وضعیت درخواست‌ها" subtitle={`درخواست‌های ${rangeLabel} اخیر`}>
             <Donut centerLabel="درخواست" data={warr.byStatus.map((x, i) => ({ label: CLAIM_STATUS[x.k].label, value: x.n, color: [C.blue, C.yellow, C.violet, C.red, C.green, C.magenta][i % 6] }))} />
+          </ChartCard>
+        </div>
+      </section>
+
+      <section className="space-y-3" data-support-report>
+        <div>
+          <h3 className="font-black text-[14px] text-[#3A241F] flex items-center gap-2"><Headset className="w-4 h-4 text-teal-600" />پشتیبانی</h3>
+          <p className="text-[11px] text-[#8C6F66] mt-0.5">اشتراک‌ها و درخواست‌های پشتیبانی ({rangeLabel} اخیر).</p>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Kpi accent={C.green} icon={<ShieldCheck className="w-5 h-5" />} label="اشتراک فعال" value={fa(sup.running)} sub={sup.value ? `ارزش ${formatMoney(sup.value)} ${unitName()}` : undefined} />
+          <Kpi accent={C.red} icon={<Headset className="w-5 h-5" />} label={`درخواست (${rangeLabel})`} value={fa(sup.tickets)} sub={`${toPersianDigits(sup.open)} باز${sup.late ? ` · ${toPersianDigits(sup.late)} از مهلت گذشته` : ''}`} />
+          <Kpi accent={C.blue} icon={<CalendarCheck className="w-5 h-5" />} label="پاسخ به‌موقع" value={sup.onTimePct === null ? '—' : `${toPersianDigits(sup.onTimePct)}٪`} />
+          <Kpi accent={C.orange} icon={<ClipboardCheck className="w-5 h-5" />} label="میانگین انتظار تا پاسخ" value={sup.avgWait === null ? '—' : hoursText(sup.avgWait)} />
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <ChartCard title="مشتریانی که بیشتر پشتیبانی خواسته‌اند" subtitle="تعداد درخواست هر مشتری">
+            <HBars empty="در این دوره درخواستی ثبت نشده است." rows={sup.byCustomer.map(([name, n]) => ({ label: name, segments: [{ value: n, color: C.blue, name: 'درخواست' }] }))} />
+          </ChartCard>
+          <ChartCard title="وضعیت درخواست‌ها" subtitle={`درخواست‌های ${rangeLabel} اخیر`}>
+            <Donut centerLabel="درخواست" data={sup.byStatus.map((x, i) => ({ label: TICKET_STATUS[x.k].label, value: x.n, color: [C.blue, C.yellow, C.violet, C.green, C.magenta][i % 5] }))} />
           </ChartCard>
         </div>
       </section>

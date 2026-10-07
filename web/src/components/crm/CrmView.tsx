@@ -18,6 +18,7 @@ import {
   Smartphone,
   Plus,
   ShieldCheck,
+  Headset,
   Search,
   Trash2,
   TrendingUp,
@@ -30,7 +31,7 @@ import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, isOverdue, todayIso } from '../../lib/taskDates';
-import { ActivityType, CrmActivity, Customer, CustomerStatus, Deal, DealStage, User, Warranty } from '../../types';
+import { ActivityType, CrmActivity, Customer, CustomerStatus, Deal, DealStage, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
@@ -41,6 +42,7 @@ import { QuickProformaDialog } from './QuickProformaDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
 import { callerNameOnly, normPhone, normText } from '../../lib/customerImport';
 import { remainingText, STATE_LABEL, warrantyState, codeText } from '../../lib/warranty';
+import { subRemaining, subState, SUB_STATE, isOpenTicket } from '../../lib/support';
 import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
 import { CustomerReportModal } from './CustomerReportModal';
 import { Modal, field, label, SOURCES } from './crmUi';
@@ -1051,6 +1053,22 @@ const CustomerDetail: React.FC<{
     api.warrantyList().then((r) => alive && setWarr(r.warranties.filter((w) => w.customerId === c.id))).catch(() => alive && setWarr(null));
     return () => { alive = false; };
   }, [c.id]);
+  const [sup, setSup] = useState<{ subs: SupportSub[]; tickets: SupportTicket[] } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.supportList().then((r) => alive && setSup({ subs: r.subs.filter((x) => x.customerId === c.id), tickets: r.tickets.filter((x) => x.customerId === c.id) })).catch(() => alive && setSup(null));
+    return () => { alive = false; };
+  }, [c.id]);
+  const openSupport = (o: { type: string; customerId?: string }) => {
+    try {
+      sessionStorage.setItem('support_open', JSON.stringify(o));
+    } catch {
+      /* storage unavailable */
+    }
+    window.dispatchEvent(new Event('goto-support'));
+    window.dispatchEvent(new Event('open-support-item'));
+    onClose();
+  };
   const openWarranty = (o: { type: string; customerId?: string }) => {
     try {
       sessionStorage.setItem('warranty_open', JSON.stringify(o));
@@ -1278,6 +1296,34 @@ const CustomerDetail: React.FC<{
                   </span>
                   <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${STATE_LABEL[sst].cls}`}>{STATE_LABEL[sst].label}</span>
                 </button>
+              );
+            })
+          )}
+        </section>
+      )}
+
+      {sup !== null && (
+        <section className="space-y-2" data-customer-support>
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="font-black text-xs text-[#3A241F] flex items-center gap-1.5"><Headset className="w-4 h-4 text-teal-600" />پشتیبانی ({toPersianDigits(sup.subs.length)} اشتراک · {toPersianDigits(sup.tickets.filter(isOpenTicket).length)} درخواست باز)</h4>
+            <span className="flex items-center gap-3">
+              <button type="button" onClick={() => openSupport({ type: 'newTicket', customerId: c.id })} className="text-[11px] font-black text-teal-700 hover:underline cursor-pointer">درخواست</button>
+              <button type="button" onClick={() => openSupport({ type: 'newSub', customerId: c.id })} className="text-[11px] font-black text-teal-700 hover:underline cursor-pointer flex items-center gap-1"><Plus className="w-3.5 h-3.5" />اشتراک</button>
+            </span>
+          </div>
+          {sup.subs.length === 0 ? (
+            <div className="text-center text-[11px] text-gray-400 font-bold py-3 bg-white border border-[#EBDBCE] rounded-xl">این مشتری پلن پشتیبانی ندارد.</div>
+          ) : (
+            sup.subs.map((x) => {
+              const sst = subState(x);
+              return (
+                <div key={x.id} className="flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-black text-[#3A241F] truncate">{x.planName}</span>
+                    <span className="block text-[10px] text-[#8C6F66]">{codeText(x.subNo)} · {subRemaining(x)}</span>
+                  </span>
+                  <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${SUB_STATE[sst].cls}`}>{SUB_STATE[sst].label}</span>
+                </div>
               );
             })
           )}

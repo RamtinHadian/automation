@@ -13,7 +13,7 @@ const uid = (p: string) => p + '-' + Math.random().toString(36).substring(2, 10)
 const MONTH_CHOICES = [3, 6, 12, 18, 24, 36, 48, 60];
 
 /** Pick a customer by typing part of the name, company or phone number. */
-const CustomerPicker: React.FC<{ customers: Customer[]; value: string; onPick: (id: string) => void; disabled?: boolean }> = ({ customers, value, onPick, disabled }) => {
+export const CustomerPicker: React.FC<{ customers: Customer[]; value: string; onPick: (id: string) => void; disabled?: boolean }> = ({ customers, value, onPick, disabled }) => {
   const [q, setQ] = useState('');
   const chosen = customers.find((c) => c.id === value);
   const hits = useMemo(() => {
@@ -162,7 +162,7 @@ export const WarrantyForm: React.FC<{
   );
 };
 
-const toEn = (v: string) => v.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[^0-9]/g, '');
+export const toEn = (v: string) => v.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[^0-9]/g, '');
 
 /** A customer reports that a product failed. */
 export const ClaimForm: React.FC<{

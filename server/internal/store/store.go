@@ -125,6 +125,31 @@ var schema = []string{
 	  data JSONB NOT NULL
 	)`,
 	`CREATE INDEX IF NOT EXISTS warranty_claims_warranty_idx ON warranty_claims (warranty_id)`,
+	`CREATE TABLE IF NOT EXISTS support_plans (
+	  id TEXT PRIMARY KEY,
+	  sort INT NOT NULL DEFAULT 0,
+	  active BOOLEAN NOT NULL DEFAULT true,
+	  data JSONB NOT NULL
+	)`,
+	`CREATE TABLE IF NOT EXISTS support_subs (
+	  id TEXT PRIMARY KEY,
+	  customer_id TEXT NOT NULL DEFAULT '',
+	  status TEXT NOT NULL DEFAULT 'ACTIVE',
+	  year INT NOT NULL DEFAULT 0,
+	  seq INT NOT NULL DEFAULT 0,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  data JSONB NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS support_subs_customer_idx ON support_subs (customer_id)`,
+	`CREATE TABLE IF NOT EXISTS support_tickets (
+	  id TEXT PRIMARY KEY,
+	  sub_id TEXT NOT NULL DEFAULT '',
+	  status TEXT NOT NULL DEFAULT 'OPEN',
+	  year INT NOT NULL DEFAULT 0,
+	  seq INT NOT NULL DEFAULT 0,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  data JSONB NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS net_events (
 	  id BIGSERIAL PRIMARY KEY,
 	  at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -8,6 +8,7 @@ import { BoardView } from '../components/board/BoardView';
 import { BannerStrip } from '../components/board/BannerStrip';
 import { CrmView } from '../components/crm/CrmView';
 import { WarrantyView } from '../components/warranty/WarrantyView';
+import { SupportView } from '../components/support/SupportView';
 import { TasksView } from '../components/tasks/TasksView';
 import { CallMenu } from '../components/common/CallMenu';
 import { NotificationBell } from '../components/common/NotificationBell';
@@ -48,6 +49,7 @@ import {
   Lock,
   Mail,
   ShieldCheck,
+  Headset,
   FolderOpen,
   PenTool,
   Sparkles,
@@ -113,7 +115,7 @@ export default function UserPanel() {
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
   const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board'>('files');
   const [chatPeer, setChatPeer] = useState('');
-  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty'>('files');
+  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support'>('files');
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -201,9 +203,10 @@ export default function UserPanel() {
   }, [canAccessLettersMenu, mainMenuTab]);
   // Unread notifications per menu (only for the menus this person may use). Opening a menu marks its notifications as read.
   const { notifications, markNotificationsRead } = useAppContext();
-  const menuOfNotification = (n: AppNotification): 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | null => {
+  const menuOfNotification = (n: AppNotification): 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | null => {
     const t = n.ref?.type;
     if (t === 'warranty') return 'warranty';
+    if (t === 'support') return 'support';
     if (t === 'customer' || t === 'deal') return 'crm';
     if (t === 'task' || t === 'report') return 'tasks';
     if (t === 'letter') return 'letters';
@@ -213,7 +216,7 @@ export default function UserPanel() {
     if (n.kind === 'task') return 'tasks';
     return null;
   };
-  const unreadByMenu = { files: 0, letters: 0, tasks: 0, crm: 0, warranty: 0 };
+  const unreadByMenu = { files: 0, letters: 0, tasks: 0, crm: 0, warranty: 0, support: 0 };
   for (const n of notifications) {
     if (n.read) continue;
     const m = menuOfNotification(n);
@@ -230,9 +233,9 @@ export default function UserPanel() {
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications, mainMenuTab]);
-  const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'warranty') =>
-    (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) || (m === 'warranty' && !canAccessWarrantyMenu) ? 0 : unreadByMenu[m];
-  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty') => {
+  const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support') =>
+    (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) || (m === 'warranty' && !canAccessWarrantyMenu) || (m === 'support' && !canAccessWarrantyMenu) ? 0 : unreadByMenu[m];
+  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support') => {
     setMainMenuTab(m);
     setSearchQuery('');
     const ids = notifications.filter((n) => !n.read && n.kind !== 'chat' && menuOfNotification(n) === m).map((n) => n.id);
@@ -258,6 +261,14 @@ export default function UserPanel() {
       }
       window.dispatchEvent(new Event('open-warranty-item'));
       setMainMenuTab('warranty');
+    } else if (type === 'support' && canAccessWarrantyMenu) {
+      try {
+        sessionStorage.setItem('support_open', JSON.stringify({ type: 'ticket', id: n.ref?.id }));
+      } catch {
+        /* storage unavailable */
+      }
+      window.dispatchEvent(new Event('open-support-item'));
+      setMainMenuTab('support');
     } else if (type === 'report' && canAccessTasksMenu) {
       try {
         sessionStorage.setItem('tasks_subtab', 'reports');
@@ -284,13 +295,18 @@ export default function UserPanel() {
   // the warranty menu: admins, people with the warranty switch, and everybody who works with customers
   const canAccessWarrantyMenu = Boolean(currentUser.canUseWarranty === true || canAccessCrmMenu);
   useEffect(() => {
-    if (!canAccessWarrantyMenu && mainMenuTab === 'warranty') setMainMenuTab('files');
+    if (!canAccessWarrantyMenu && (mainMenuTab === 'warranty' || mainMenuTab === 'support')) setMainMenuTab('files');
   }, [canAccessWarrantyMenu, mainMenuTab]);
   // «ثبت گارانتی» on a customer's page jumps here
   useEffect(() => {
     const go = () => canAccessWarrantyMenu && setMainMenuTab('warranty');
+    const goSupport = () => canAccessWarrantyMenu && setMainMenuTab('support');
     window.addEventListener('goto-warranty', go);
-    return () => window.removeEventListener('goto-warranty', go);
+    window.addEventListener('goto-support', goSupport);
+    return () => {
+      window.removeEventListener('goto-warranty', go);
+      window.removeEventListener('goto-support', goSupport);
+    };
   }, [canAccessWarrantyMenu]);
   // «Save as customer» in the call history jumps here.
   useEffect(() => {
@@ -800,6 +816,26 @@ export default function UserPanel() {
               </button>
             )}
 
+            {/* Menu: پشتیبانی */}
+            {canAccessWarrantyMenu && (
+              <button
+                onClick={() => openMenu('support')}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                  mainMenuTab === 'support'
+                    ? 'bg-teal-600 text-white shadow-md shadow-teal-600/25 scale-[1.02]'
+                    : 'bg-white text-[#3A241F] hover:bg-teal-50 border border-[#EBDBCE]'
+                }`}
+              >
+                <Headset className="w-4 h-4" />
+                <span>پشتیبانی</span>
+                {menuBadge('support') > 0 && (
+                  <span className="bg-rose-600 text-white text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full font-black shadow-sm">
+                    {toPersianDigits(menuBadge('support') > 99 ? '99+' : menuBadge('support'))}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Menu 5: گزارشات آماری (مدیر ارشد یا دارندهٔ مجوز) */}
             {canAccessStatsMenu && (
               <button
@@ -851,6 +887,11 @@ export default function UserPanel() {
               <span className="flex items-center gap-1 text-teal-800">
                 <ShieldCheck className="w-4 h-4 text-teal-600" />
                 گارانتی کالاها و پیگیری درخواست‌های خرابی
+              </span>
+            ) : mainMenuTab === 'support' ? (
+              <span className="flex items-center gap-1 text-teal-800">
+                <Headset className="w-4 h-4 text-teal-600" />
+                پلن‌های پشتیبانی و درخواست‌های مشتریان
               </span>
             ) : mainMenuTab === 'stats' ? (
               <span className="flex items-center gap-1 text-orange-800">
@@ -1238,6 +1279,7 @@ export default function UserPanel() {
         {mainMenuTab === 'tasks' && canAccessTasksMenu && <TasksView />}
         {mainMenuTab === 'crm' && canAccessCrmMenu && <CrmView />}
         {mainMenuTab === 'warranty' && canAccessWarrantyMenu && <WarrantyView />}
+        {mainMenuTab === 'support' && canAccessWarrantyMenu && <SupportView />}
         {mainMenuTab === 'stats' && canAccessStatsMenu && (
           <div className="p-3 sm:p-6">
             <ManagementReports remote />
@@ -1903,20 +1945,20 @@ export default function UserPanel() {
       {/* ========================================================================= */}
       <nav
         aria-label="منوی شناور موبایل"
-        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] inset-x-3 sm:hidden z-40 max-w-md mx-auto bg-white/95 backdrop-blur-2xl border border-[#EBDBCE] shadow-[0_16px_48px_rgba(58,36,31,0.28)] rounded-[28px] p-1.5 flex items-center justify-between gap-1 transition-all select-none"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] inset-x-3 sm:hidden z-40 max-w-md mx-auto bg-white/95 backdrop-blur-2xl border border-[#EBDBCE] shadow-[0_16px_48px_rgba(58,36,31,0.28)] rounded-[28px] p-1.5 flex items-center justify-between gap-0.5 transition-all select-none"
       >
         {/* Tab 1: ارسال فایل */}
         <button
           type="button"
           onClick={() => openMenu('files')}
-          className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+          className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
             mainMenuTab === 'files'
               ? 'bg-[#6E1B1B] text-white shadow-md'
               : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
           }`}
         >
           <ArrowLeftRight className="w-4 h-4" />
-          <span className="text-[10px] font-black">امور اداری</span>
+          <span className="text-[9px] leading-tight font-black whitespace-nowrap">امور اداری</span>
           {menuBadge('files') > 0 && (
             <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
               {toPersianDigits(menuBadge('files') > 99 ? '99+' : menuBadge('files'))}
@@ -1929,14 +1971,14 @@ export default function UserPanel() {
           <button
             type="button"
             onClick={() => openMenu('letters')}
-            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
               mainMenuTab === 'letters'
                 ? 'bg-amber-600 text-white shadow-md'
                 : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
             }`}
           >
             <Stamp className="w-4 h-4" />
-            <span className="text-[10px] font-black">نامه‌ها</span>
+            <span className="text-[9px] leading-tight font-black whitespace-nowrap">نامه‌ها</span>
             {menuBadge('letters') > 0 && (
               <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
                 {toPersianDigits(menuBadge('letters') > 99 ? '99+' : menuBadge('letters'))}
@@ -1950,14 +1992,14 @@ export default function UserPanel() {
           <button
             type="button"
             onClick={() => openMenu('tasks')}
-            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
               mainMenuTab === 'tasks'
                 ? 'bg-sky-600 text-white shadow-md'
                 : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
             }`}
           >
             <ClipboardList className="w-4 h-4" />
-            <span className="text-[10px] font-black">وظایف</span>
+            <span className="text-[9px] leading-tight font-black whitespace-nowrap">وظایف</span>
             {menuBadge('tasks') > 0 && (
               <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
                 {toPersianDigits(menuBadge('tasks') > 99 ? '99+' : menuBadge('tasks'))}
@@ -1971,14 +2013,14 @@ export default function UserPanel() {
           <button
             type="button"
             onClick={() => openMenu('crm')}
-            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
               mainMenuTab === 'crm'
                 ? 'bg-violet-600 text-white shadow-md'
                 : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span className="text-[10px] font-black">مشتریان</span>
+            <span className="text-[9px] leading-tight font-black whitespace-nowrap">مشتریان</span>
             {menuBadge('crm') > 0 && (
               <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
                 {toPersianDigits(menuBadge('crm') > 99 ? '99+' : menuBadge('crm'))}
@@ -1992,17 +2034,38 @@ export default function UserPanel() {
           <button
             type="button"
             onClick={() => openMenu('warranty')}
-            className={`flex-1 min-h-[50px] min-w-[44px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
               mainMenuTab === 'warranty'
                 ? 'bg-teal-600 text-white shadow-md'
                 : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
-            <span className="text-[10px] font-black">گارانتی</span>
+            <span className="text-[9px] leading-tight font-black whitespace-nowrap">گارانتی</span>
             {menuBadge('warranty') > 0 && (
               <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
                 {toPersianDigits(menuBadge('warranty') > 99 ? '99+' : menuBadge('warranty'))}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Tab: پشتیبانی */}
+        {canAccessWarrantyMenu && (
+          <button
+            type="button"
+            onClick={() => openMenu('support')}
+            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+              mainMenuTab === 'support'
+                ? 'bg-teal-600 text-white shadow-md'
+                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
+            }`}
+          >
+            <Headset className="w-4 h-4" />
+            <span className="text-[9px] leading-tight font-black whitespace-nowrap">پشتیبانی</span>
+            {menuBadge('support') > 0 && (
+              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
+                {toPersianDigits(menuBadge('support') > 99 ? '99+' : menuBadge('support'))}
               </span>
             )}
           </button>
@@ -2012,14 +2075,14 @@ export default function UserPanel() {
           <button
             type="button"
             onClick={() => openMenu('stats')}
-            className={`flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
               mainMenuTab === 'stats'
                 ? 'bg-orange-600 text-white shadow-md'
                 : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            <span className="text-[10px] font-black">گزارشات</span>
+            <span className="text-[9px] leading-tight font-black whitespace-nowrap">گزارشات</span>
           </button>
         )}
 
@@ -2029,13 +2092,13 @@ export default function UserPanel() {
         <button
           type="button"
           onClick={() => setShowMobileMenu(true)}
-          className="flex-1 min-h-[50px] min-w-[50px] flex flex-col items-center justify-center gap-0.5 rounded-2xl text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1] transition-all active:scale-95 cursor-pointer"
+          className="flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1] transition-all active:scale-95 cursor-pointer"
           title="منوی کاربری"
         >
           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6E1B1B] to-[#D34A32] text-white flex items-center justify-center shadow-2xs">
             <UserIcon className="w-3.5 h-3.5" />
           </div>
-          <span className="text-[10px] font-black">پروفایل</span>
+          <span className="text-[9px] leading-tight font-black whitespace-nowrap">پروفایل</span>
         </button>
       </nav>
 

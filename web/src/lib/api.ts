@@ -1,5 +1,5 @@
 import type { AppNotification } from './notifications';
-import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport, Customer, Deal, CrmActivity, Warranty, WarrantyClaim, WarrantySettings, ClaimStatus, ClaimResolution } from '../types';
+import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport, Customer, Deal, CrmActivity, Warranty, WarrantyClaim, SupportPlan, SupportSub, SupportTicket, TicketStatus, WarrantySettings, ClaimStatus, ClaimResolution } from '../types';
 
 const TOKEN_KEY = 'app_token_v6';
 
@@ -269,6 +269,14 @@ export const api = {
   claimStatus: (id: string, b: { status: ClaimStatus; note?: string; resolution?: ClaimResolution; replacementSerial?: string; cost?: number }) => request<WarrantyClaim>('POST', `/api/warranty/claims/${encodeURIComponent(id)}/status`, b),
   claimNote: (id: string, text: string) => request<WarrantyClaim>('POST', `/api/warranty/claims/${encodeURIComponent(id)}/note`, { text }),
   claimAssign: (id: string, handlerId: string) => request<WarrantyClaim>('POST', `/api/warranty/claims/${encodeURIComponent(id)}/assign`, { handlerId }),
+  supportList: () => request<{ plans: SupportPlan[]; subs: SupportSub[]; tickets: SupportTicket[]; canManage: boolean }>('GET', '/api/support'),
+  supportPlanPut: (id: string, b: Partial<SupportPlan>) => request<SupportPlan>('PUT', `/api/support/plans/${encodeURIComponent(id)}`, b),
+  supportSubPut: (id: string, b: Record<string, unknown>) => request<SupportSub>('PUT', `/api/support/subs/${encodeURIComponent(id)}`, b),
+  supportSubCancel: (id: string, reason: string) => request<{ ok: true }>('POST', `/api/support/subs/${encodeURIComponent(id)}/cancel`, { reason }),
+  ticketCreate: (b: Record<string, unknown>) => request<SupportTicket>('POST', '/api/support/tickets', b),
+  ticketStatus: (id: string, b: { status: TicketStatus; note?: string; minutes?: number; visit?: boolean }) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/status`, b),
+  ticketNote: (id: string, text: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/note`, { text }),
+  ticketAssign: (id: string, handlerId: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/assign`, { handlerId }),
   voipRecordingSetup: () => request<{ key: string; mountedDir: string; mountedFiles: number }>('GET', '/api/voip/recording-setup'),
   /** The recording of a call as a playable blob (the request carries the login, so a plain <audio src> cannot be used). */
   voipRecording: async (id: string): Promise<Blob> => {
@@ -322,7 +330,7 @@ export const api = {
   smsLog: () => request<{ log: SmsLogRow[] }>('GET', '/api/sms/log'),
   smsTest: (to: string) => request<{ ok: true }>('POST', '/api/sms/test', { to }),
   smsSend: (b: { to: string; text: string; customerId?: string }) => request<{ ok: true }>('POST', '/api/sms/send', b),
-  statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[]; missing?: CrmActivity[]; warranties?: Warranty[]; warrantyClaims?: WarrantyClaim[] }>('GET', '/api/stats-data'),
+  statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[]; missing?: CrmActivity[]; warranties?: Warranty[]; warrantyClaims?: WarrantyClaim[]; supportSubs?: SupportSub[]; supportTickets?: SupportTicket[] }>('GET', '/api/stats-data'),
   backups: () => request<BackupInfo>('GET', '/api/backups'),
   backupSettings: () => request<BackupSettings>('GET', '/api/backups/settings'),
   backupSaveSettings: (b: BackupSettings & { netPassword: string; cloudToken?: string }) => request<BackupSettings>('PUT', '/api/backups/settings', b),
