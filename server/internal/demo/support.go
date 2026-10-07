@@ -5,13 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"automation/server/internal/auth"
 	"automation/server/internal/jalali"
 	"automation/server/internal/jsonx"
 )
-
-// DemoPortalCode is the access code of every demo subscription (shown on the demo's customer page).
-const DemoPortalCode = "12345678"
 
 // addSupport puts sample support plans, subscriptions and tickets in the demo: a running one, one ending soon, one that ended,
 // and tickets in different steps (one of them already late to answer).
@@ -56,10 +52,6 @@ func addSupport(ctx context.Context, now time.Time, by map[string]account) error
 			"createdAt": iso(start), "createdById": owner, "createdByName": by[owner].Name,
 		}
 		if err := exec(ctx, `INSERT INTO support_subs (id, customer_id, status, year, seq, created_at, data) VALUES ($1, $2, 'ACTIVE', $3, $4, $5, $6::jsonb)`, x.id, x.cust, jy, seq, start, jsonx.Encode(doc)); err != nil {
-			return err
-		}
-		// the demo's customer page signs in with the number of the customer and this code
-		if err := exec(ctx, `UPDATE support_subs SET portal_hash = $2 WHERE id = $1`, x.id, auth.PortalHash(x.id, DemoPortalCode)); err != nil {
 			return err
 		}
 	}

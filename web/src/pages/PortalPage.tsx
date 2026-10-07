@@ -164,7 +164,7 @@ export const PortalPage: React.FC = () => {
         <div className="text-center space-y-2">
           <div className="mx-auto w-14 h-14 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-lg shadow-teal-600/25"><Headset className="w-7 h-7" /></div>
           <h1 className="text-xl font-black">پشتیبانی {info.company}</h1>
-          <p className="text-xs font-bold text-[#8C6F66] leading-6">ویژهٔ مشتریانی که پلن پشتیبانی فعال دارند. با شمارهٔ موبایل ثبت‌شده و کد ورودی که شرکت به شما داده وارد شوید.</p>
+          <p className="text-xs font-bold text-[#8C6F66] leading-6">ویژهٔ مشتریانی که پلن پشتیبانی فعال دارند. با شمارهٔ موبایل ثبت‌شده در پروندهٔ خود و چهار رقم آخر کد ملی‌تان وارد شوید.</p>
         </div>
         {!info.enabled ? (
           <div className="bg-white border border-[#EBDBCE] rounded-3xl p-5 text-center text-sm font-bold text-[#8C6F66]">ورود مشتریان فعلاً بسته است. با شرکت تماس بگیرید.</div>
@@ -181,15 +181,15 @@ export const PortalPage: React.FC = () => {
               <input className={inputCls} inputMode="tel" autoComplete="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09123456789" />
             </div>
             <div>
-              <label className="block text-xs font-black mb-1.5">کد ورود</label>
-              <input className={inputCls} inputMode="numeric" autoComplete="one-time-code" dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} placeholder="********" />
+              <label className="block text-xs font-black mb-1.5">چهار رقم آخر کد ملی</label>
+              <input className={inputCls} inputMode="numeric" autoComplete="off" dir="ltr" maxLength={4} value={code} onChange={(e) => setCode(e.target.value)} placeholder="••••" />
             </div>
             {err && <div className="text-xs font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{err}</div>}
-            <button type="submit" disabled={busy || !phone.trim() || !code.trim()} className="w-full min-h-[48px] rounded-2xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-black cursor-pointer">{busy ? 'در حال بررسی…' : 'ورود'}</button>
+            <button type="submit" disabled={busy || !phone.trim() || code.trim().length !== 4} className="w-full min-h-[48px] rounded-2xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-black cursor-pointer">{busy ? 'در حال بررسی…' : 'ورود'}</button>
             {info.demoHint && <div className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{info.demoHint}</div>}
           </form>
         )}
-        <p className="text-center text-[11px] font-bold text-[#8C6F66] flex items-center justify-center gap-1.5"><ShieldCheck className="w-4 h-4" />کد ورود را به کسی ندهید.</p>
+        <p className="text-center text-[11px] font-bold text-[#8C6F66] flex items-center justify-center gap-1.5"><ShieldCheck className="w-4 h-4" />اطلاعات ورود خود را به کسی ندهید.</p>
       </div>
     );
   }

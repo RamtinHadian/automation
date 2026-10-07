@@ -414,8 +414,8 @@ func Reset(ctx context.Context) error {
 	// ---- CRM ----
 	owner := "demo-sales"
 	customers := []jsonx.M{
-		{"id": "demo-c1", "name": "حسین کاظمی", "company": "شرکت آرمان صنعت", "phones": []string{"09121234567"}, "email": "kazemi@arman.example", "address": "تهران، خیابان آزادی", "status": "ACTIVE", "source": "معرفی دوستان", "tags": []string{"صنعتی"}},
-		{"id": "demo-c2", "name": "نرگس موسوی", "company": "گروه بازرگانی ستاره", "phones": []string{"09351112233"}, "email": "mousavi@setareh.example", "status": "LEAD", "source": "وب‌سایت", "tags": []string{"بازرگانی"}},
+		{"id": "demo-c1", "name": "حسین کاظمی", "company": "شرکت آرمان صنعت", "nationalCode": "0012341234", "phones": []string{"09121234567"}, "email": "kazemi@arman.example", "address": "تهران، خیابان آزادی", "status": "ACTIVE", "source": "معرفی دوستان", "tags": []string{"صنعتی"}},
+		{"id": "demo-c2", "name": "نرگس موسوی", "company": "گروه بازرگانی ستاره", "nationalCode": "0023455678", "phones": []string{"09351112233"}, "email": "mousavi@setareh.example", "status": "LEAD", "source": "وب‌سایت", "tags": []string{"بازرگانی"}},
 		{"id": "demo-c3", "name": "رضا حیدری", "company": "داروسازی سلامت", "phones": []string{"09124445566"}, "status": "LEAD", "source": "نمایشگاه", "tags": []string{}},
 		{"id": "demo-c4", "name": "لیلا صادقی", "company": "فناوران پارس", "phones": []string{"09370001122"}, "status": "INACTIVE", "source": "شبکه‌های اجتماعی", "tags": []string{}},
 	}

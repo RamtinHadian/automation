@@ -3,13 +3,11 @@ package api
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"math/big"
 	"net/http"
 	"strings"
 	"sync"
@@ -19,12 +17,11 @@ import (
 	"automation/server/internal/httpx"
 	"automation/server/internal/jsonx"
 	"automation/server/internal/notify"
-	"automation/server/internal/sms"
 	"automation/server/internal/store"
 )
 
 // The customer portal. A customer who has a running support subscription proves who they are with their mobile number and
-// the access code the company gave them, then sends requests that land in the support menu as tickets. The code is shown to the
+// the last four digits of the national code in their customer file, then sends requests that land in the support menu as tickets. The code is shown to the
 // company once (when the subscription is made or a new code is issued); only a keyed hash of it is stored, outside the
 // subscription document, so the support menu never carries it. Everything a customer can see is filtered by their token.
 //
@@ -50,14 +47,6 @@ func phoneKey(s string) string {
 		return ""
 	}
 	return string(d[len(d)-10:])
-}
-
-func newPortalCode() string {
-	n, err := rand.Int(rand.Reader, big.NewInt(100000000))
-	if err != nil {
-		return "73910482"
-	}
-	return fmt.Sprintf("%08d", n.Int64())
 }
 
 // ---- guessing protection: 6 wrong codes for one number (or 30 from one address) block it for 15 minutes ----
@@ -317,56 +306,6 @@ func answerWithAI(ticketID string) {
 	_ = tx.Commit(ctx)
 }
 
-// ---- staff side: codes ----
-
-// issuePortalCode makes a new code for the subscription and keeps only its hash.
-func issuePortalCode(ctx context.Context, subID string) (string, error) {
-	code := newPortalCode()
-	_, err := store.Pool.Exec(ctx, `UPDATE support_subs SET portal_hash = $2 WHERE id = $1`, subID, auth.PortalHash(subID, code))
-	return code, err
-}
-
-// POST /api/support/subs/{id}/portal-code  {sms}: a new access code (the old one stops working); optionally sent by SMS
-func supportPortalCode(w http.ResponseWriter, r *http.Request) {
-	me := auth.Current(r)
-	if !canUseSupport(me) {
-		httpx.Forbidden(w)
-		return
-	}
-	body, _ := httpx.ReadBody(w, r)
-	id := r.PathValue("id")
-	var raw []byte
-	if err := store.Pool.QueryRow(r.Context(), `SELECT data FROM support_subs WHERE id = $1`, id).Scan(&raw); err != nil {
-		httpx.Error(w, http.StatusNotFound, "اشتراک پیدا نشد.")
-		return
-	}
-	doc := jsonx.Decode(raw)
-	if jsonx.Str(doc, "status") != "ACTIVE" {
-		httpx.Error(w, http.StatusBadRequest, "این اشتراک لغو شده است.")
-		return
-	}
-	code, err := issuePortalCode(r.Context(), id)
-	if err != nil {
-		internalError(w)
-		return
-	}
-	out := map[string]any{"code": code, "sms": ""}
-	if v, _ := body["sms"].(bool); v {
-		phone := jsonx.Str(doc, "customerPhone")
-		if phoneKey(phone) == "" {
-			out["sms"] = "این مشتری شمارهٔ موبایل ندارد."
-		} else {
-			text := "کد ورود به صفحهٔ پشتیبانی " + companyName(r.Context()) + ": " + code + "\nآدرس: https://" + r.Host + "/support\nشمارهٔ ورود: موبایل شما"
-			if err := sms.SendAndLog(r.Context(), me.Name(), []string{phone}, text); err != nil {
-				out["sms"] = "پیامک ارسال نشد: " + err.Error()
-			} else {
-				out["sms"] = "ok"
-			}
-		}
-	}
-	httpx.JSON(w, http.StatusOK, out)
-}
-
 // ---- customer side ----
 
 // GET /api/portal/info (public)
@@ -375,7 +314,24 @@ func portalInfo(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": s["portalEnabled"], "company": companyName(r.Context()), "ai": jsonx.Bool(s, "aiEnabled"), "demo": DemoMode, "demoHint": demoHint()})
 }
 
-// POST /api/portal/login {phone, code}
+// the secret of a customer: the last four digits of the national code (a company: its national id) kept in their file
+func lastFour(cust jsonx.M) string {
+	for _, k := range []string{"nationalCode", "nationalId"} {
+		d := faDigits.Replace(jsonx.Str(cust, k))
+		var only []byte
+		for i := 0; i < len(d); i++ {
+			if d[i] >= '0' && d[i] <= '9' {
+				only = append(only, d[i])
+			}
+		}
+		if len(only) >= 8 {
+			return string(only[len(only)-4:])
+		}
+	}
+	return ""
+}
+
+// POST /api/portal/login {phone, code}: the mobile number of the customer and the last four digits of their national code
 func portalLogin(w http.ResponseWriter, r *http.Request) {
 	if !jsonx.Bool(supportSettings(r.Context()), "portalEnabled") {
 		httpx.Error(w, http.StatusForbidden, "ورود مشتریان فعلاً بسته است.")
@@ -397,42 +353,42 @@ func portalLogin(w http.ResponseWriter, r *http.Request) {
 		if key != "" {
 			pFail("ph:" + key)
 		}
-		httpx.Error(w, http.StatusUnauthorized, "شمارهٔ موبایل یا کد ورود درست نیست، یا پشتیبانی شما فعال نیست.")
+		httpx.Error(w, http.StatusUnauthorized, "شمارهٔ موبایل یا چهار رقم آخر کد ملی درست نیست، یا پشتیبانی شما فعال نیست.")
 	}
-	if key == "" || code == "" || len(code) > 20 {
+	if key == "" || len(code) != 4 {
 		fail()
 		return
 	}
-	// running subscriptions whose customer has this number
-	rows, err := store.Pool.Query(r.Context(), `SELECT s.id, s.customer_id, s.portal_hash FROM support_subs s
-		WHERE s.status = 'ACTIVE' AND s.portal_hash <> '' AND s.data->>'startDate' <= $1 AND s.data->>'endDate' >= $1`, time.Now().Format("2006-01-02"))
+	// customers with a running support subscription
+	rows, err := store.Pool.Query(r.Context(), `SELECT DISTINCT s.customer_id FROM support_subs s
+		WHERE s.status = 'ACTIVE' AND s.data->>'startDate' <= $1 AND s.data->>'endDate' >= $1`, time.Now().Format("2006-01-02"))
 	if err != nil {
 		internalError(w)
 		return
 	}
-	type cand struct{ id, cust, hash string }
-	var cands []cand
+	var ids []string
 	for rows.Next() {
-		var c cand
-		if rows.Scan(&c.id, &c.cust, &c.hash) == nil {
-			cands = append(cands, c)
+		var id string
+		if rows.Scan(&id) == nil {
+			ids = append(ids, id)
 		}
 	}
 	rows.Close()
 	customer := ""
-	for _, c := range cands {
-		if subtle.ConstantTimeCompare([]byte(auth.PortalHash(c.id, code)), []byte(c.hash)) != 1 {
-			continue
-		}
+	for _, id := range ids {
 		var raw []byte
-		if store.Pool.QueryRow(r.Context(), `SELECT data FROM crm_customers WHERE id = $1`, c.cust).Scan(&raw) != nil {
+		if store.Pool.QueryRow(r.Context(), `SELECT data FROM crm_customers WHERE id = $1`, id).Scan(&raw) != nil {
 			continue
 		}
 		cust := jsonx.Decode(raw)
+		secret := lastFour(cust)
+		if secret == "" || subtle.ConstantTimeCompare([]byte(secret), []byte(code)) != 1 {
+			continue
+		}
 		phones, _ := cust["phones"].([]any)
 		for _, p := range phones {
 			if ps, _ := p.(string); phoneKey(ps) == key {
-				customer = c.cust
+				customer = id
 			}
 		}
 		if customer != "" {
@@ -678,5 +634,5 @@ func demoHint() string {
 	if !DemoMode {
 		return ""
 	}
-	return "نمونهٔ آزمایشی: موبایل ۰۹۱۲۱۲۳۴۵۶۷ و کد ۱۲۳۴۵۶۷۸"
+	return "نمونهٔ آزمایشی: موبایل ۰۹۱۲۱۲۳۴۵۶۷ و چهار رقم آخر کد ملی: ۵۹۴۸"
 }

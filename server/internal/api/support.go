@@ -260,14 +260,7 @@ func supportSubPut(w http.ResponseWriter, r *http.Request) {
 		internalError(w)
 		return
 	}
-	out := jsonx.M{}
-	for k, v := range doc {
-		out[k] = v
-	}
-	if code, err := issuePortalCode(ctx, id); err == nil {
-		out["portalCode"] = code // shown to the staff once; only its hash is kept
-	}
-	httpx.JSON(w, http.StatusOK, out)
+	httpx.JSON(w, http.StatusOK, doc)
 }
 
 // POST /api/support/subs/{id}/cancel  {reason}

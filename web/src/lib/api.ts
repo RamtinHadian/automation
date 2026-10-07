@@ -276,7 +276,6 @@ export const api = {
   ticketCreate: (b: Record<string, unknown>) => request<SupportTicket>('POST', '/api/support/tickets', b),
   ticketStatus: (id: string, b: { status: TicketStatus; note?: string; minutes?: number; visit?: boolean }) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/status`, b),
   ticketNote: (id: string, text: string, pub = false) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/note`, { text, public: pub }),
-  supportPortalCode: (id: string, sms: boolean) => request<{ code: string; sms: string }>('POST', `/api/support/subs/${encodeURIComponent(id)}/portal-code`, { sms }),
   supportGetSettings: () => request<SupportSettings>('GET', '/api/support/settings'),
   supportSaveSettings: (b: Record<string, unknown>) => request<SupportSettings>('PUT', '/api/support/settings', b),
   supportAiTest: () => request<{ reply: string }>('POST', '/api/support/ai-test', {}),

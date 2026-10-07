@@ -119,7 +119,6 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/support/settings", auth.Require(supportGetSettings))
 	mux.HandleFunc("PUT /api/support/settings", auth.Require(supportSaveSettings))
 	mux.HandleFunc("POST /api/support/ai-test", auth.Require(supportAiTest))
-	mux.HandleFunc("POST /api/support/subs/{id}/portal-code", auth.Require(supportPortalCode))
 	mux.HandleFunc("GET /api/portal/info", portalInfo)
 	mux.HandleFunc("POST /api/portal/login", portalLogin)
 	mux.HandleFunc("GET /api/portal/me", portalMe)

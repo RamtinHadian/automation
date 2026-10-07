@@ -230,7 +230,7 @@ export const CustomerForm: React.FC<{
                 <input className={field} value={c.fatherName || ''} onChange={(e) => patch({ fatherName: e.target.value })} />
               </div>
               <div>
-                <label className={label}>کد ملی</label>
+                <label className={label}>کد ملی <span className="font-medium text-[#8C6F66]">(چهار رقم آخر، رمز ورود به صفحهٔ پشتیبانی مشتری است)</span></label>
                 <input className={field} dir="ltr" inputMode="numeric" maxLength={10} value={c.nationalCode || ''} onChange={(e) => patch({ nationalCode: e.target.value })} />
                 {hint(nationalCodeBad, 'کد ملی معتبر نیست.')}
               </div>
