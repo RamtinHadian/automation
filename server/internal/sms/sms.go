@@ -28,6 +28,7 @@ type Config struct {
 	Provider string   `json:"provider"` // always "kavenegar" (older settings of other panels are dropped when loaded)
 	APIKey   string   `json:"apiKey"`
 	Sender   string   `json:"sender"` // line number
+	Auto     []string `json:"auto"`   // kinds of automatic messages to customers that are switched on (see Templates)
 	Footer   string   `json:"footer"` // the line every message ends with (website or company name); empty = the company name
 	Enabled  bool     `json:"enabled"`
 	Labels   []string `json:"labels"` // notification labels that are also sent as SMS to people who have a mobile number
@@ -94,7 +95,7 @@ func (c Config) Masked() map[string]any {
 	if len(c.APIKey) > 4 {
 		tail = c.APIKey[len(c.APIKey)-4:]
 	}
-	return map[string]any{"provider": c.Provider, "sender": c.Sender, "enabled": c.Enabled, "labels": append([]string{}, c.Labels...), "hasKey": c.APIKey != "", "keyTail": tail, "footer": c.Footer}
+	return map[string]any{"provider": c.Provider, "sender": c.Sender, "enabled": c.Enabled, "labels": append([]string{}, c.Labels...), "hasKey": c.APIKey != "", "keyTail": tail, "footer": c.Footer, "auto": append([]string{}, c.Auto...)}
 }
 
 var nonDigit = regexp.MustCompile(`\D`)

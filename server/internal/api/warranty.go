@@ -291,7 +291,18 @@ func warrantyPut(w http.ResponseWriter, r *http.Request) {
 		internalError(w)
 		return
 	}
+	smsAutoCustomerID("warranty_issued", customerID, map[string]string{"product": product, "number": jsonx.Str(doc, "warrantyNo"), "end": jalaliDay(end)})
 	httpx.JSON(w, http.StatusOK, doc)
+}
+
+// jalaliDay writes an ISO date (2027-08-07) as a Persian date (1406/05/16).
+func jalaliDay(iso string) string {
+	t, err := time.Parse("2006-01-02", iso)
+	if err != nil {
+		return iso
+	}
+	y, m, d := jalali.FromGregorian(t.Year(), int(t.Month()), t.Day())
+	return fmt.Sprintf("%d/%02d/%02d", y, m, d)
 }
 
 func firstPhone(cust jsonx.M) string {

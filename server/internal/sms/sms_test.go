@@ -86,3 +86,18 @@ func TestBalance(t *testing.T) {
 		t.Fatalf("kavenegar balance %q %v", s, err)
 	}
 }
+
+func TestTemplatesRender(t *testing.T) {
+	for _, tpl := range Templates {
+		txt := SampleText(tpl)
+		if strings.Contains(txt, "{") || strings.TrimSpace(txt) == "" {
+			t.Errorf("%s: unfilled or empty sample: %q", tpl.Key, txt)
+		}
+		if strings.ContainsAny(txt, "0123456789") {
+			t.Errorf("%s: digits must be Persian: %q", tpl.Key, txt)
+		}
+	}
+	if got := Render(Templates[2], map[string]string{"name": "علی", "number": "P-1405-0007"}); got != "علی عزیز، پیش‌فاکتور شما به شمارهٔ P-۱۴۰۵-۰۰۰۷ صادر شد." {
+		t.Fatalf("got %q", got)
+	}
+}

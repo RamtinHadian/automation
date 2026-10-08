@@ -516,6 +516,9 @@ func ticketStatus(w http.ResponseWriter, r *http.Request) {
 		internalError(w)
 		return
 	}
+	if to == "RESOLVED" {
+		smsAutoCustomerID("ticket_resolved", jsonx.Str(doc, "customerId"), map[string]string{"number": jsonx.Str(doc, "ticketNo")})
+	}
 	notify.Notify(ctx, ticketAudience(ctx, doc), notify.Note{
 		Kind: "task", Label: "پشتیبانی", Title: "درخواست " + jsonx.Str(doc, "ticketNo") + ": " + ticketLabel[to], Body: strings.TrimSpace(jsonx.Str(doc, "subject") + " · " + jsonx.Str(doc, "customerName")), Ref: ref("support", jsonx.Str(doc, "id")), Repeat: true,
 	}, me.ID())

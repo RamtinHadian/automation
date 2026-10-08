@@ -50,6 +50,7 @@ func smsPutSettings(w http.ResponseWriter, r *http.Request) {
 		Enabled:  jsonx.Bool(body, "enabled"),
 		Labels:   jsonx.Strings(body, "labels"),
 		Footer:   strings.TrimSpace(jsonx.Str(body, "footer")),
+		Auto:     validAuto(jsonx.Strings(body, "auto")),
 	}
 	if len([]rune(c.Footer)) > 100 {
 		httpx.Error(w, http.StatusBadRequest, "متن پایان پیامک باید کوتاه باشد (حداکثر ۱۰۰ نویسه).")
@@ -162,4 +163,59 @@ func smsSend(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httpx.OK(w)
+}
+
+// validAuto keeps only the kinds of automatic messages that exist.
+func validAuto(in []string) []string {
+	out := []string{}
+	for _, k := range in {
+		for _, t := range sms.Templates {
+			if t.Key == k && !jsonx.Contains(out, k) {
+				out = append(out, k)
+			}
+		}
+	}
+	return out
+}
+
+// GET /api/sms/templates (admins): the automatic messages to customers with a sample of their text, for the «مشاهده» buttons.
+func smsTemplates(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	out := []map[string]string{}
+	for _, t := range sms.Templates {
+		out = append(out, map[string]string{"key": t.Key, "title": t.Title, "when": t.When, "sample": sms.SampleText(t)})
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"templates": out})
+}
+
+// smsAutoCustomer sends an automatic message to a customer (a stored customer document) without making the caller wait.
+func smsAutoCustomer(event string, cust jsonx.M, extra map[string]string) {
+	vars := map[string]string{"name": jsonx.Str(cust, "name")}
+	for k, v := range extra {
+		vars[k] = v
+	}
+	phones := []string{}
+	if arr, ok := cust["phones"].([]any); ok {
+		for _, p := range arr {
+			if s, ok := p.(string); ok {
+				phones = append(phones, s)
+			}
+		}
+	}
+	sms.AutoBackground(event, phones, vars)
+}
+
+// smsAutoCustomerID is the same for a customer that is known by its id.
+func smsAutoCustomerID(event, customerID string, extra map[string]string) {
+	if customerID == "" {
+		return
+	}
+	var raw []byte
+	if store.Pool.QueryRow(context.Background(), `SELECT data FROM crm_customers WHERE id = $1`, customerID).Scan(&raw) != nil {
+		return
+	}
+	smsAutoCustomer(event, jsonx.Decode(raw), extra)
 }

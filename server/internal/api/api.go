@@ -99,6 +99,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("PUT /api/voip/recordings/{id}", voipRecordingUpload)
 	mux.HandleFunc("POST /api/voip/recordings/{id}", voipRecordingUpload)
 	mux.HandleFunc("GET /api/sms/status", auth.Require(smsStatus))
+	mux.HandleFunc("GET /api/sms/templates", auth.Require(smsTemplates))
 	mux.HandleFunc("GET /api/sms/settings", auth.Require(smsGetSettings))
 	mux.HandleFunc("PUT /api/sms/settings", auth.Require(smsPutSettings))
 	mux.HandleFunc("GET /api/sms/balance", auth.Require(smsBalance))

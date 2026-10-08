@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -76,6 +77,9 @@ func putCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		return
 	}
 	notifyNewOwner(r, me, owner, oldOwner, "customer", "مشتری جدید", "مشتری «"+jsonx.Str(doc, "name")+"» به شما سپرده شد", id)
+	if !exists {
+		smsAutoCustomer("customer_new", doc, nil) // the welcome message (only when the admin switched it on)
+	}
 	httpx.OK(w)
 }
 
@@ -153,6 +157,16 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	}
 	owner := jsonx.Str(doc, "ownerId")
 	approvalEvent := proformaApprovalGate(r.Context(), me, before, doc)
+	// the customer is told about a proforma once per proforma number, when it may reach the customer (after the CEO's
+	// approval when the company asks for it); the server remembers the number it told about
+	sentNo, no := jsonx.Str(before, "proformaSmsNumber"), jsonx.Str(doc, "proformaNumber")
+	if sentNo != "" {
+		doc["proformaSmsNumber"] = sentNo
+	}
+	tellProforma := no != "" && sentNo != no && proformaReadyForCustomer(r.Context(), doc)
+	if tellProforma {
+		doc["proformaSmsNumber"] = no
+	}
 	if _, err := store.Pool.Exec(r.Context(),
 		`INSERT INTO crm_deals (id, customer_id, owner_id, data) VALUES ($1, $2, $3, $4::jsonb)
 		 ON CONFLICT (id) DO UPDATE SET customer_id = $2, owner_id = $3, data = $4::jsonb`,
@@ -162,6 +176,15 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	}
 	notifyNewOwner(r, me, owner, oldOwner, "deal", "فرصت فروش", "فرصت «"+jsonx.Str(doc, "title")+"» به شما سپرده شد", id)
 	notifyProformaApproval(r, me, approvalEvent, doc, id)
+	if !exists {
+		smsAutoCustomerID("deal_new", jsonx.Str(doc, "customerId"), nil)
+	}
+	if tellProforma {
+		smsAutoCustomerID("proforma_issued", jsonx.Str(doc, "customerId"), map[string]string{"number": no})
+	}
+	if stage == "WON" && jsonx.Str(before, "stage") != "WON" {
+		smsAutoCustomerID("deal_won", jsonx.Str(doc, "customerId"), nil)
+	}
 	// Besides the main owner a deal can have more people in charge («coOwnerIds»): they are told when they are added
 	// and follow the deal's changes like the owner does.
 	coOwners := []string{}
@@ -353,4 +376,10 @@ func removeActivity(w http.ResponseWriter, r *http.Request, me auth.User, id str
 	}
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM crm_activities WHERE id = $1`, id)
 	httpx.OK(w)
+}
+
+// proformaReadyForCustomer is true when the proforma may be told to the customer: no approval is asked for, or the CEO approved it.
+func proformaReadyForCustomer(ctx context.Context, doc jsonx.M) bool {
+	required, _ := proformaApprovalConfig(ctx, jsonx.Str(doc, "proformaIssuerId"))
+	return !required || jsonx.Str(jsonx.Sub(doc, "proformaApproval"), "status") == "approved"
 }
