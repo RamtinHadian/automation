@@ -21,3 +21,7 @@ installer/bundle/
 
 # temporary dev-proxy config used for phone tests
 web/vite.tmp.config.ts
+
+# the introduction video project (large pictures and voice files) stays on the owner's computer
+video/
+landing/
