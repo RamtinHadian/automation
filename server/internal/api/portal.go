@@ -118,10 +118,11 @@ func companyName(ctx context.Context) string {
 	var raw []byte
 	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
 	m := jsonx.Decode(raw)
-	if n := jsonx.Str(m, "proformaCompanyName"); n != "" {
+	// «نام رسمی شرکت / سازمان» of the settings first
+	if n := jsonx.Str(m, "companyName"); n != "" {
 		return n
 	}
-	if n := jsonx.Str(m, "companyName"); n != "" {
+	if n := jsonx.Str(m, "proformaCompanyName"); n != "" {
 		return n
 	}
 	return "شرکت"

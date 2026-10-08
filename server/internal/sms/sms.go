@@ -152,9 +152,9 @@ func withFooter(ctx context.Context, c Config, text string) string {
 		var raw []byte
 		_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
 		m := jsonx.Decode(raw)
-		f = strings.TrimSpace(jsonx.Str(m, "proformaCompanyName"))
+		f = strings.TrimSpace(jsonx.Str(m, "companyName"))
 		if f == "" {
-			f = strings.TrimSpace(jsonx.Str(m, "companyName"))
+			f = strings.TrimSpace(jsonx.Str(m, "proformaCompanyName"))
 		}
 	}
 	if f == "" || strings.HasSuffix(strings.TrimSpace(text), f) {

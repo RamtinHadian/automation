@@ -9,6 +9,7 @@ import { BannerStrip } from '../components/board/BannerStrip';
 import { CrmView } from '../components/crm/CrmView';
 import { WarrantyView } from '../components/warranty/WarrantyView';
 import { SupportView } from '../components/support/SupportView';
+import { useCompanyName } from '../lib/useCompanyName';
 import { TasksView } from '../components/tasks/TasksView';
 import { CallMenu } from '../components/common/CallMenu';
 import { NotificationBell } from '../components/common/NotificationBell';
@@ -92,6 +93,7 @@ const renderCategoryIcon = (category: FileCategory) => {
 };
 
 export default function UserPanel() {
+  const headerCompany = useCompanyName();
   const {
     staffList,
     currentUser,
@@ -664,6 +666,7 @@ export default function UserPanel() {
                   </span>
                 )}
               </div>
+              {headerCompany && <div className="mt-1 text-xs sm:text-sm font-black text-[#6E1B1B] truncate" data-company-name>{headerCompany}</div>}
               <p className="text-[10px] sm:text-[11px] text-[#8C6F66] font-medium truncate sm:whitespace-normal">
                 سامانه هوشمند تبادل فایل، نگارش اسناد Word، گردش ارجاعات و امضای اسکن‌شده مدیرعامل
               </p>

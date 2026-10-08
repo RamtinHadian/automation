@@ -6,6 +6,7 @@ import UserPanel from './pages/UserPanel';
 import AdminPanel from './pages/AdminPanel';
 import { LoginPage } from './pages/LoginPage';
 import { PortalPage } from './pages/PortalPage';
+import { useCompanyName } from './lib/useCompanyName';
 import { NotificationPopups } from './components/common/NotificationPopups';
 import { DemoBanner } from './components/common/DemoBanner';
 import { DayNightToggle } from './components/common/DayNightToggle';
@@ -13,6 +14,11 @@ import { ErrorPopups } from './components/common/ErrorPopups';
 import { LicenseGate } from './components/common/LicenseGate';
 
 function AppRoutes() {
+  const companyName = useCompanyName();
+  // the browser tab says whose automation this is
+  React.useEffect(() => {
+    if (companyName) document.title = `${companyName} | سامانه اتوماسیون`;
+  }, [companyName]);
   const { loggedInUser, staffList, ready, loginWithCredentials } = useAppContext();
 
   const handleAdminLogin = () => {

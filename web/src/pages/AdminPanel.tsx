@@ -33,6 +33,7 @@ import { UserManagementView } from '../components/admin/UserManagementView';
 import { AnalyticsView } from '../components/admin/AnalyticsView';
 import { NetWatchCard } from '../components/admin/NetWatchCard';
 import { SupportAdmin } from '../components/admin/SupportAdmin';
+import { useCompanyName } from '../lib/useCompanyName';
 import { AuditLogsView } from '../components/admin/AuditLogsView';
 import { SettingsView } from '../components/admin/SettingsView';
 import { LetterManagementAdminView } from '../components/admin/LetterManagementAdminView';
@@ -55,6 +56,7 @@ const normalizeDigits = (str: string) => {
 };
 
 export default function AdminPanel() {
+  const headerCompany = useCompanyName();
   const {
     staffList,
     currentUser,
@@ -431,6 +433,7 @@ export default function AdminPanel() {
                 </span>
                 <VersionBadge withDate className="text-[10px] font-bold text-[#EBDBCE]" />
               </div>
+              {headerCompany && <div className="mt-0.5 text-sm font-black text-white" data-company-name>{headerCompany}</div>}
               <p className="text-[11px] text-[#EBDBCE] font-medium">
                 سامانه پایش نقل و انتقالات، امنیت دسترسی، سهمیه‌ها و پیکربندی سازمان
               </p>

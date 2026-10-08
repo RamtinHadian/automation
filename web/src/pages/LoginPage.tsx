@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, Lock, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
 import { useDemoInfo } from '../components/common/DemoBanner';
+import { useCompanyName } from '../lib/useCompanyName';
 
 interface LoginPageProps {
   staffList: User[];
@@ -11,6 +12,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdminLogin }) => {
+  const companyName = useCompanyName();
   const demo = useDemoInfo();
   const [usernameQuery, setUsernameQuery] = useState('');
   const [password, setPassword] = useState('');
@@ -81,6 +83,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
         <h1>
           <img src="/images/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="brand-logo w-44 sm:w-52 mx-auto" draggable={false} />
         </h1>
+
+        {companyName && <div className="-mt-3 text-center text-base font-black text-[#6E1B1B]" data-company-name>{companyName}</div>}
 
         {/* Login Card */}
         <div className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
