@@ -726,7 +726,7 @@ export const CrmView: React.FC = () => {
           isNew={!customers.some((c) => c.id === editingCustomer.id)}
           customers={customers}
           staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))}
-          canDelete={canDelete(editingCustomer.ownerId) && customers.some((c) => c.id === editingCustomer.id)}
+          canDelete={isAdmin && customers.some((c) => c.id === editingCustomer.id)}
           onClose={() => {
             setEditingCustomer(null);
             setCustomerCb(null);

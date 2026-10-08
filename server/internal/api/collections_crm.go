@@ -97,8 +97,10 @@ func removeCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id str
 		internalError(w)
 		return
 	}
-	if !me.IsAdmin() && owner != me.ID() {
-		httpx.Forbidden(w)
+	// only a system administrator deletes a customer (with all the deals and history that go with it): not even its owner
+	_ = owner
+	if !me.IsAdmin() {
+		httpx.Error(w, http.StatusForbidden, "حذف مشتری فقط با مدیر سیستم است.")
 		return
 	}
 	// The customer's deals and history go with it.
