@@ -156,8 +156,11 @@ export interface VoipStatRow {
 }
 
 export interface SmsSettings {
-  provider: '' | 'smsir' | 'kavenegar';
+  provider?: string;
   sender: string;
+  footer: string;
+  /** shown while no footer is written: the company's name */
+  defaultFooter?: string;
   enabled: boolean;
   labels: string[];
   hasKey: boolean;
@@ -328,7 +331,7 @@ export const api = {
   notifyTest: (kind: string, label: string) => request<{ ok: true }>('POST', '/api/notify/test', { kind, label }),
   smsStatus: () => request<{ enabled: boolean }>('GET', '/api/sms/status'),
   smsSettings: () => request<SmsSettings>('GET', '/api/sms/settings'),
-  smsSave: (b: { provider: string; sender: string; enabled: boolean; labels: string[]; apiKey: string }) => request<SmsSettings>('PUT', '/api/sms/settings', b),
+  smsSave: (b: { footer: string; sender: string; enabled: boolean; labels: string[]; apiKey: string }) => request<SmsSettings>('PUT', '/api/sms/settings', b),
   smsBalance: () => request<{ balance: string }>('GET', '/api/sms/balance'),
   smsLog: () => request<{ log: SmsLogRow[] }>('GET', '/api/sms/log'),
   smsTest: (to: string) => request<{ ok: true }>('POST', '/api/sms/test', { to }),

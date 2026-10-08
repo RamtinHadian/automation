@@ -43,7 +43,7 @@ export const SmsSettingsCard: React.FC = () => {
   const save = async () => {
     setBusy(true);
     try {
-      const r = await api.smsSave({ provider: s.provider, sender: s.sender, enabled: s.enabled, labels: s.labels, apiKey });
+      const r = await api.smsSave({ footer: s.footer, sender: s.sender, enabled: s.enabled, labels: s.labels, apiKey });
       setS(r);
       setApiKey('');
       showToast('تنظیمات پیامک ذخیره شد.');
@@ -95,15 +95,11 @@ export const SmsSettingsCard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={lab}>سرویس‌دهنده:</label>
-          <select className={box} value={s.provider} onChange={(e) => patch({ provider: e.target.value as SmsSettings['provider'] })}>
-            <option value="">انتخاب کنید...</option>
-            <option value="smsir">sms.ir</option>
-            <option value="kavenegar">کاوه‌نگار</option>
-          </select>
+          <div className={`${box} opacity-80`}>کاوه‌نگار (kavenegar.com)</div>
         </div>
         <div>
           <label className={lab}>شمارهٔ خط ارسال‌کننده:</label>
-          <input className={box} dir="ltr" value={s.sender} onChange={(e) => patch({ sender: e.target.value })} placeholder={s.provider === 'smsir' ? 'مثلاً 30007732000000' : 'مثلاً 10004346'} />
+          <input className={box} dir="ltr" value={s.sender} onChange={(e) => patch({ sender: e.target.value })} placeholder="مثلاً 10004346 (فقط عدد)" />
         </div>
         <div className="md:col-span-2">
           <label className={lab}>
@@ -116,10 +112,17 @@ export const SmsSettingsCard: React.FC = () => {
             autoComplete="off"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={s.hasKey ? 'برای نگه‌داشتن کلید فعلی خالی بگذارید' : s.provider === 'smsir' ? 'کلید API را از بخش «توسعه‌دهندگان» sms.ir بردارید' : 'کلید API را از پنل کاوه‌نگار بردارید'}
+            placeholder={s.hasKey ? 'برای نگه‌داشتن کلید فعلی خالی بگذارید' : 'کلید API را از پنل کاوه‌نگار بردارید'}
           />
           <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">کلید فقط روی سرور نگه‌داری می‌شود و دوباره نمایش داده نمی‌شود.</p>
         </div>
+      </div>
+
+      <div>
+        <label className={lab}>خط پایانی همهٔ پیامک‌ها (نشانی وب‌سایت یا نام شرکت):</label>
+        <input className={box} value={s.footer} maxLength={100} onChange={(e) => patch({ footer: e.target.value })} placeholder={s.defaultFooter || 'نام شرکت'} />
+        <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">این خط زیر متن هر پیامکی که سامانه می‌فرستد (اعلان‌ها، پیامک مشتریان، آزمایشی و …) خودکار اضافه می‌شود. اگر خالی بگذارید، نام شرکت نوشته می‌شود.</p>
+        {(s.footer || s.defaultFooter) && <div className="mt-2 rounded-xl border border-dashed border-[#EBDBCE] bg-[#FDFAF7] px-3 py-2 text-[11px] font-bold text-[#503730] leading-6 whitespace-pre-line">{'نمونه: متن پیامک' + '\n' + (s.footer || s.defaultFooter)}</div>}
       </div>
 
       <label className="flex items-center gap-2 font-bold text-[#3A241F]">

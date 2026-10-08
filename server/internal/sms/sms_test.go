@@ -2,8 +2,6 @@ package sms
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -23,40 +21,6 @@ func TestMobile(t *testing.T) {
 		if _, ok := Mobile(bad); ok {
 			t.Errorf("Mobile(%q) should be invalid", bad)
 		}
-	}
-}
-
-func TestSmsIrRequest(t *testing.T) {
-	var gotKey, gotPath string
-	var body map[string]any
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotKey, gotPath = r.Header.Get("X-API-KEY"), r.URL.Path
-		b, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(b, &body)
-		w.Write([]byte(`{"status":1,"message":"موفق","data":{"packId":"x","messageIds":[111,222],"cost":1}}`))
-	}))
-	defer srv.Close()
-	smsirBase = srv.URL + "/v1"
-	ids, err := Send(context.Background(), Config{Provider: "smsir", APIKey: "KEY", Sender: "3000"}, []string{"09121234567"}, "سلام")
-	if err != nil || len(ids) != 2 || ids[0] != "111" {
-		t.Fatalf("ids=%v err=%v", ids, err)
-	}
-	if gotKey != "KEY" || gotPath != "/v1/send/bulk" || body["messageText"] != "سلام" || body["lineNumber"] != float64(3000) {
-		t.Fatalf("bad request: key=%q path=%q body=%v", gotKey, gotPath, body)
-	}
-	if m := body["mobiles"].([]any); m[0] != "9121234567" {
-		t.Fatalf("sms.ir wants the number without the leading zero, got %v", m)
-	}
-}
-
-func TestSmsIrError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"status":104,"message":"اعتبار کافی نیست","data":null}`))
-	}))
-	defer srv.Close()
-	smsirBase = srv.URL
-	if _, err := Send(context.Background(), Config{Provider: "smsir", APIKey: "K"}, []string{"09121234567"}, "x"); err == nil || !strings.Contains(err.Error(), "اعتبار") {
-		t.Fatalf("expected the panel's message, got %v", err)
 	}
 }
 
@@ -89,19 +53,35 @@ func TestKavenegarError(t *testing.T) {
 	}
 }
 
+func TestFooterIsAppended(t *testing.T) {
+	var q string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q = r.URL.Query().Get("message")
+		w.Write([]byte(`{"return":{"status":200,"message":"ok"},"entries":[{"messageid":1}]}`))
+	}))
+	defer srv.Close()
+	kavenegarBase = srv.URL + "/v1"
+	if _, err := Send(context.Background(), Config{Provider: "kavenegar", APIKey: "K", Footer: "www.hoormand.ir"}, []string{"09121234567"}, "سلام"); err != nil {
+		t.Fatal(err)
+	}
+	if q != "سلام\nwww.hoormand.ir" {
+		t.Fatalf("the footer must be the last line, got %q", q)
+	}
+	// a text that already ends with the footer is not given a second one
+	if _, err := Send(context.Background(), Config{Provider: "kavenegar", APIKey: "K", Footer: "www.hoormand.ir"}, []string{"09121234567"}, "سلام\nwww.hoormand.ir"); err != nil {
+		t.Fatal(err)
+	}
+	if q != "سلام\nwww.hoormand.ir" {
+		t.Fatalf("no double footer, got %q", q)
+	}
+}
+
 func TestBalance(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/credit") {
-			w.Write([]byte(`{"status":1,"message":"موفق","data":250}`))
-			return
-		}
 		w.Write([]byte(`{"return":{"status":200,"message":"ok"},"entries":{"remaincredit":1500000}}`))
 	}))
 	defer srv.Close()
-	smsirBase, kavenegarBase = srv.URL+"/v1", srv.URL+"/v1"
-	if s, err := Balance(context.Background(), Config{Provider: "smsir", APIKey: "K"}); err != nil || s != "250 پیامک" {
-		t.Fatalf("smsir balance %q %v", s, err)
-	}
+	kavenegarBase = srv.URL + "/v1"
 	if s, err := Balance(context.Background(), Config{Provider: "kavenegar", APIKey: "K"}); err != nil || s != "1500000 ریال" {
 		t.Fatalf("kavenegar balance %q %v", s, err)
 	}

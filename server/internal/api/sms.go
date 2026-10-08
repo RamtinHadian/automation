@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -23,7 +24,14 @@ func smsGetSettings(w http.ResponseWriter, r *http.Request) {
 		httpx.Forbidden(w)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, sms.Load(r.Context()).Masked())
+	httpx.JSON(w, http.StatusOK, smsMasked(r.Context()))
+}
+
+// smsMasked is the saved settings without the key, plus the footer that is used while none is written (the company's name).
+func smsMasked(ctx context.Context) map[string]any {
+	m := sms.Load(ctx).Masked()
+	m["defaultFooter"] = companyName(ctx)
+	return m
 }
 
 func smsPutSettings(w http.ResponseWriter, r *http.Request) {
@@ -36,21 +44,22 @@ func smsPutSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := sms.Config{
-		Provider: jsonx.Str(body, "provider"),
+		Provider: "kavenegar",
 		APIKey:   strings.TrimSpace(jsonx.Str(body, "apiKey")),
 		Sender:   strings.TrimSpace(jsonx.Str(body, "sender")),
 		Enabled:  jsonx.Bool(body, "enabled"),
 		Labels:   jsonx.Strings(body, "labels"),
+		Footer:   strings.TrimSpace(jsonx.Str(body, "footer")),
 	}
-	if c.Provider != "" && c.Provider != "smsir" && c.Provider != "kavenegar" {
-		httpx.Error(w, http.StatusBadRequest, "سرویس‌دهندهٔ پیامک نامعتبر است.")
+	if len([]rune(c.Footer)) > 100 {
+		httpx.Error(w, http.StatusBadRequest, "متن پایان پیامک باید کوتاه باشد (حداکثر ۱۰۰ نویسه).")
 		return
 	}
 	if err := sms.Save(r.Context(), c); err != nil {
 		internalError(w)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, sms.Load(r.Context()).Masked())
+	httpx.JSON(w, http.StatusOK, smsMasked(r.Context()))
 }
 
 func smsBalance(w http.ResponseWriter, r *http.Request) {

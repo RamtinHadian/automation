@@ -1,4 +1,4 @@
-// Package sms sends text messages through an SMS panel (sms.ir or Kavenegar).
+// Package sms sends text messages through the Kavenegar panel (the only supported one).
 //
 // The panel's API key is a secret: it lives in its own row of the settings table (key "sms"), is only readable by the server
 // and is never sent to the browser (admins only see the last four characters).
@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,16 +25,16 @@ import (
 
 // Config is what an admin sets up in the panel.
 type Config struct {
-	Provider string   `json:"provider"` // "smsir" | "kavenegar" | ""
+	Provider string   `json:"provider"` // always "kavenegar" (older settings of other panels are dropped when loaded)
 	APIKey   string   `json:"apiKey"`
 	Sender   string   `json:"sender"` // line number
+	Footer   string   `json:"footer"` // the line every message ends with (website or company name); empty = the company name
 	Enabled  bool     `json:"enabled"`
 	Labels   []string `json:"labels"` // notification labels that are also sent as SMS to people who have a mobile number
 }
 
 // Base URLs (variables so tests can point them at a fake server).
 var (
-	smsirBase     = "https://api.sms.ir/v1"
 	kavenegarBase = "https://api.kavenegar.com/v1"
 	client        = &http.Client{Timeout: 12 * time.Second}
 )
@@ -43,9 +42,6 @@ var (
 const settingsKey = "sms"
 
 func init() { // only for tests against a fake panel
-	if v := os.Getenv("SMSIR_BASE"); v != "" {
-		smsirBase = v
-	}
 	if v := os.Getenv("KAVENEGAR_BASE"); v != "" {
 		kavenegarBase = v
 	}
@@ -69,12 +65,18 @@ func Load(ctx context.Context) Config {
 	if err := store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = $1`, settingsKey).Scan(&raw); err == nil {
 		_ = json.Unmarshal(raw, &c)
 	}
+	if c.Provider != "" && c.Provider != "kavenegar" { // a key of another panel (sms.ir was removed) is useless here
+		c.APIKey, c.Enabled, c.Sender = "", false, ""
+	}
+	c.Provider = "kavenegar"
 	cached, cachedAt = c, time.Now()
 	return c
 }
 
 // Save stores the configuration; an empty API key keeps the old one.
 func Save(ctx context.Context, c Config) error {
+	c.Provider = "kavenegar"
+	c.Footer = strings.TrimSpace(c.Footer)
 	if c.APIKey == "" {
 		c.APIKey = Load(ctx).APIKey
 	}
@@ -92,7 +94,7 @@ func (c Config) Masked() map[string]any {
 	if len(c.APIKey) > 4 {
 		tail = c.APIKey[len(c.APIKey)-4:]
 	}
-	return map[string]any{"provider": c.Provider, "sender": c.Sender, "enabled": c.Enabled, "labels": append([]string{}, c.Labels...), "hasKey": c.APIKey != "", "keyTail": tail}
+	return map[string]any{"provider": c.Provider, "sender": c.Sender, "enabled": c.Enabled, "labels": append([]string{}, c.Labels...), "hasKey": c.APIKey != "", "keyTail": tail, "footer": c.Footer}
 }
 
 var nonDigit = regexp.MustCompile(`\D`)
@@ -142,6 +144,25 @@ func post(ctx context.Context, rawURL string, headers map[string]string, body an
 	return b, resp.StatusCode, nil
 }
 
+// withFooter puts the line every message of this company ends with under the text: the footer from the settings, else
+// the company's name, so that no message leaves without saying who sent it.
+func withFooter(ctx context.Context, c Config, text string) string {
+	f := strings.TrimSpace(c.Footer)
+	if f == "" && store.Pool != nil {
+		var raw []byte
+		_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
+		m := jsonx.Decode(raw)
+		f = strings.TrimSpace(jsonx.Str(m, "proformaCompanyName"))
+		if f == "" {
+			f = strings.TrimSpace(jsonx.Str(m, "companyName"))
+		}
+	}
+	if f == "" || strings.HasSuffix(strings.TrimSpace(text), f) {
+		return text
+	}
+	return text + "\n" + f
+}
+
 // Send sends one text to one or more mobile numbers and returns the panel's message ids.
 func Send(ctx context.Context, c Config, to []string, text string) ([]string, error) {
 	if c.Provider == "" || c.APIKey == "" {
@@ -162,56 +183,7 @@ func Send(ctx context.Context, c Config, to []string, text string) ([]string, er
 	if len(mobiles) == 0 {
 		return nil, errors.New("گیرنده‌ای انتخاب نشده است.")
 	}
-	switch c.Provider {
-	case "smsir":
-		return sendSmsIr(ctx, c, mobiles, text)
-	case "kavenegar":
-		return sendKavenegar(ctx, c, mobiles, text)
-	}
-	return nil, errors.New("سرویس‌دهندهٔ پیامک ناشناخته است.")
-}
-
-func sendSmsIr(ctx context.Context, c Config, mobiles []string, text string) ([]string, error) {
-	nums := make([]string, len(mobiles))
-	for i, m := range mobiles {
-		nums[i] = m[1:] // sms.ir wants 9xxxxxxxxx
-	}
-	body := map[string]any{"messageText": text, "mobiles": nums}
-	if c.Sender != "" {
-		// sms.ir wants the line number as a NUMBER ("lineNumber": 30007732...), not as text
-		line, perr := strconv.ParseInt(strings.TrimSpace(c.Sender), 10, 64)
-		if perr != nil {
-			return nil, errors.New("شمارهٔ خط ارسال‌کننده برای sms.ir باید فقط عدد باشد (همان شمارهٔ خط در پنل sms.ir، بدون فاصله و حروف).")
-		}
-		body["lineNumber"] = line
-	}
-	b, status, err := post(ctx, smsirBase+"/send/bulk", map[string]string{"X-API-KEY": c.APIKey}, body)
-	if err != nil {
-		return nil, err
-	}
-	var r struct {
-		Status  int    `json:"status"`
-		Message string `json:"message"`
-		Data    struct {
-			MessageIDs []json.Number `json:"messageIds"`
-		} `json:"data"`
-	}
-	_ = json.Unmarshal(b, &r)
-	if status == 401 || status == 403 {
-		return nil, errors.New("کلید API پنل sms.ir پذیرفته نشد.")
-	}
-	if status != 200 || r.Status != 1 {
-		msg := r.Message
-		if msg == "" {
-			msg = fmt.Sprintf("پاسخ نامعتبر (%d)", status)
-		}
-		return nil, errors.New("sms.ir: " + msg)
-	}
-	ids := []string{}
-	for _, id := range r.Data.MessageIDs {
-		ids = append(ids, id.String())
-	}
-	return ids, nil
+	return sendKavenegar(ctx, c, mobiles, withFooter(ctx, c, text))
 }
 
 func sendKavenegar(ctx context.Context, c Config, mobiles []string, text string) ([]string, error) {
@@ -253,24 +225,6 @@ func Balance(ctx context.Context, c Config) (string, error) {
 		return "", errors.New("پنل پیامک هنوز تنظیم نشده است.")
 	}
 	switch c.Provider {
-	case "smsir":
-		b, status, err := post(ctx, smsirBase+"/credit", map[string]string{"X-API-KEY": c.APIKey}, nil)
-		if err != nil {
-			return "", err
-		}
-		var r struct {
-			Status  int     `json:"status"`
-			Message string  `json:"message"`
-			Data    float64 `json:"data"`
-		}
-		_ = json.Unmarshal(b, &r)
-		if status == 401 || status == 403 {
-			return "", errors.New("کلید API پنل sms.ir پذیرفته نشد.")
-		}
-		if status != 200 || r.Status != 1 {
-			return "", errors.New("sms.ir: " + r.Message)
-		}
-		return fmt.Sprintf("%.0f پیامک", r.Data), nil
 	case "kavenegar":
 		b, _, err := post(ctx, kavenegarBase+"/"+url.PathEscape(c.APIKey)+"/account/info.json", nil, nil)
 		if err != nil {
