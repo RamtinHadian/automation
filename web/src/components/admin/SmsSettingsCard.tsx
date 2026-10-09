@@ -31,8 +31,6 @@ export const SmsSettingsCard: React.FC = () => {
   const [log, setLog] = useState<SmsLogRow[]>([]);
   const [templates, setTemplates] = useState<{ key: string; title: string; when: string; sample: string }[]>([]);
   const [preview, setPreview] = useState<string | null>(null);
-  const [newTitle, setNewTitle] = useState('');
-  const [newText, setNewText] = useState('');
 
   const loadLog = useCallback(() => api.smsLog().then((r) => setLog(r.log)).catch(() => {}), []);
   useEffect(() => {
@@ -46,19 +44,13 @@ export const SmsSettingsCard: React.FC = () => {
   const patch = (u: Partial<SmsSettings>) => setS((p) => (p ? { ...p, ...u } : p));
   const chosen = s.library ?? DEFAULT_SMS_KEYS;
   const toggleReady = (k: string) => patch({ library: chosen.includes(k) ? chosen.filter((x) => x !== k) : [...chosen, k] });
-  const addCustom = () => {
-    if (!newTitle.trim() || !newText.trim()) return;
-    patch({ custom: [...(s.custom || []), { id: 'c-' + Date.now().toString(36), title: newTitle.trim(), text: newText.trim() }] });
-    setNewTitle('');
-    setNewText('');
-  };
   const toggleAuto = (k: string) => patch({ auto: (s.auto || []).includes(k) ? (s.auto || []).filter((x) => x !== k) : [...(s.auto || []), k] });
   const toggleLabel = (l: string) => patch({ labels: s.labels.includes(l) ? s.labels.filter((x) => x !== l) : [...s.labels, l] });
 
   const save = async () => {
     setBusy(true);
     try {
-      const r = await api.smsSave({ footer: s.footer, auto: s.auto || [], library: s.library ?? DEFAULT_SMS_KEYS, custom: s.custom || [], sender: s.sender, enabled: s.enabled, labels: s.labels, apiKey });
+      const r = await api.smsSave({ footer: s.footer, auto: s.auto || [], library: s.library ?? DEFAULT_SMS_KEYS, custom: [], sender: s.sender, enabled: s.enabled, labels: s.labels, apiKey });
       setS(r);
       setApiKey('');
       showToast('تنظیمات پیامک ذخیره شد.');
@@ -165,7 +157,7 @@ export const SmsSettingsCard: React.FC = () => {
           <button type="button" onClick={() => patch({ library: SMS_LIBRARY.map((t) => t.key) })} className="px-3 py-1.5 min-h-[34px] rounded-lg bg-white border border-[#EBDBCE] text-[11px] font-black cursor-pointer">انتخاب همه</button>
           <button type="button" onClick={() => patch({ library: [] })} className="px-3 py-1.5 min-h-[34px] rounded-lg bg-white border border-[#EBDBCE] text-[11px] font-black cursor-pointer">برداشتن همه</button>
           <button type="button" onClick={() => patch({ library: DEFAULT_SMS_KEYS })} className="px-3 py-1.5 min-h-[34px] rounded-lg bg-white border border-[#EBDBCE] text-[11px] font-black cursor-pointer">فقط چهار قالب اصلی</button>
-          <span className="self-center text-[11px] font-bold text-[#8C6F66]">{toPersianDigits(chosen.length + (s.custom || []).length)} دکمه در پنجرهٔ ارسال</span>
+          <span className="self-center text-[11px] font-bold text-[#8C6F66]">{toPersianDigits(chosen.length)} دکمه در پنجرهٔ ارسال</span>
         </div>
         <div className="space-y-3">
           {SMS_GROUPS.map((g) => (
@@ -187,22 +179,6 @@ export const SmsSettingsCard: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-2">
-          <div className="font-black text-[#3A241F]">قالب شخصی شرکت شما</div>
-          {(s.custom || []).map((c) => (
-            <div key={c.id} className="flex items-start gap-2 rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
-              <div className="flex-1 min-w-0">
-                <div className="font-black text-[#3A241F] truncate">{c.title}</div>
-                <div className="text-[11px] text-[#8C6F66] leading-5">{c.text}</div>
-              </div>
-              <button type="button" onClick={() => patch({ custom: (s.custom || []).filter((x) => x.id !== c.id) })} className="shrink-0 px-2.5 py-1 min-h-[30px] rounded-lg text-[10px] font-black text-rose-600 cursor-pointer">حذف</button>
-            </div>
-          ))}
-          <input className={box} value={newTitle} maxLength={40} onChange={(e) => setNewTitle(e.target.value)} placeholder="عنوان کوتاه دکمه (مثلاً: ساعت کاری)" />
-          <textarea className={`${box} min-h-[70px] leading-6`} value={newText} maxLength={500} onChange={(e) => setNewText(e.target.value)} placeholder="متن پیامک؛ «{name}» به نام مشتری تبدیل می‌شود" />
-          <button type="button" onClick={addCustom} disabled={!newTitle.trim() || !newText.trim()} className="px-4 py-2 min-h-[36px] rounded-xl bg-white border border-[#EBDBCE] text-[11px] font-black text-[#6E1B1B] disabled:opacity-40 cursor-pointer">افزودن به دکمه‌های ارسال</button>
         </div>
       </div>
 

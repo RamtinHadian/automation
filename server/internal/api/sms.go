@@ -18,7 +18,7 @@ import (
 // smsStatus tells the page whether it may offer «send SMS» (the panel is set up and switched on).
 func smsStatus(w http.ResponseWriter, r *http.Request) {
 	c := sms.Load(r.Context())
-	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": c.Enabled && c.Provider != "" && c.APIKey != "", "canSend": auth.Current(r).CanUseCrm() && auth.Current(r).CanSendSms(), "library": c.Library, "custom": append([]sms.Custom{}, c.Custom...)})
+	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": c.Enabled && c.Provider != "" && c.APIKey != "", "canSend": auth.Current(r).CanUseCrm() && auth.Current(r).CanSendSms(), "library": c.Library, "custom": []sms.Custom{}})
 }
 
 func smsGetSettings(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +54,7 @@ func smsPutSettings(w http.ResponseWriter, r *http.Request) {
 		Footer:   strings.TrimSpace(jsonx.Str(body, "footer")),
 		Auto:     validAuto(jsonx.Strings(body, "auto")),
 		Library:  validLibrary(body["library"]),
-		Custom:   validCustom(body["custom"]),
+		Custom:   []sms.Custom{},
 	}
 	if len([]rune(c.Footer)) > 100 {
 		httpx.Error(w, http.StatusBadRequest, "متن پایان پیامک باید کوتاه باشد (حداکثر ۱۰۰ نویسه).")
