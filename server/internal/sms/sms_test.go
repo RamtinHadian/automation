@@ -180,3 +180,32 @@ func TestEveryTemplateIsConsistent(t *testing.T) {
 		}
 	}
 }
+
+func TestSendTemplateRetriesTheSpaceWriting(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if strings.Contains(r.URL.Query().Get("token"), string(rune(0x200c))) { // this panel refuses a half-space
+			w.Write([]byte(`{"return":{"status":431,"message":"ساختار کد صحیح نمی باشد"}}`))
+			return
+		}
+		w.Write([]byte(`{"return":{"status":200,"message":"ok"}}`))
+	}))
+	defer srv.Close()
+	kavenegarBase = srv.URL + "/v1"
+	if _, err := SendTemplate(context.Background(), Config{APIKey: "K"}, "09121234567", "customer_new", map[string]string{"name": "علی رضایی", "company": "شرکت"}); err != nil || calls != 2 {
+		t.Fatalf("calls=%d err=%v", calls, err)
+	}
+}
+
+func TestSendTemplateRefusalExplainsWhatWasSent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"return":{"status":431,"message":"ساختار کد صحیح نمی باشد"}}`))
+	}))
+	defer srv.Close()
+	kavenegarBase = srv.URL + "/v1"
+	_, err := SendTemplate(context.Background(), Config{APIKey: "SECRETKEY"}, "09121234567", "customer_new", map[string]string{"name": "علی", "company": "شرکت نمونه"})
+	if err == nil || !strings.Contains(err.Error(), "431") || !strings.Contains(err.Error(), "token20=شرکت نمونه") || strings.Contains(err.Error(), "SECRETKEY") || strings.Contains(err.Error(), "09121234567") {
+		t.Fatalf("bad message: %v", err)
+	}
+}

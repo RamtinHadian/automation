@@ -46,12 +46,16 @@ func RenderKV(t KVTemplate, vars map[string]string) string {
 	return strings.TrimSpace(out)
 }
 
-// tokenValue makes a value fit its parameter: no line breaks; the three short parameters take no spaces (a half-space takes their place).
-func tokenValue(name, v string) string {
+// joiners are what takes the place of a space in the three short parameters (a half-space, an underscore or nothing): the first one the
+// panel accepts is used. A refused message is never sent, so trying the next one is safe.
+var joiners = []string{string(rune(0x200c)), "_", ""}
+
+// tokenValue makes a value fit its parameter: no line breaks; the three short parameters take no spaces (joiner takes their place).
+func tokenValue(name, v, joiner string) string {
 	v = ToFa(strings.TrimSpace(v))
 	v = strings.NewReplacer("\r", " ", "\n", " ", "\t", " ").Replace(v)
 	if name == "token" || name == "token2" || name == "token3" {
-		v = strings.Join(strings.Fields(v), "‌")
+		v = strings.Join(strings.Fields(v), joiner)
 	} else if r := []rune(v); len(r) > 100 {
 		v = string(r[:100])
 	}
@@ -75,38 +79,57 @@ func SendTemplate(ctx context.Context, c Config, mobile, key string, vars map[st
 		vars = copyVars(vars)
 		vars["name"] = "مشتری"
 	}
-	q := url.Values{"receptor": {m}, "template": {t.Name}}
-	for k, p := range slot {
-		if !strings.Contains(t.Text, "{"+k+"}") {
-			continue
+	var last error
+	for _, joiner := range joiners {
+		q := url.Values{"receptor": {m}, "template": {t.Name}}
+		for k, p := range slot {
+			if !strings.Contains(t.Text, "{"+k+"}") {
+				continue
+			}
+			v := tokenValue(p, vars[k], joiner)
+			if v == "" {
+				return "", fmt.Errorf("مقدار «%s» برای قالب پیامک خالی است.", k)
+			}
+			q.Set(p, v)
 		}
-		v := tokenValue(p, vars[k])
-		if v == "" {
-			return "", fmt.Errorf("مقدار «%s» برای قالب پیامک خالی است.", k)
+		b, status, err := post(ctx, kavenegarBase+"/"+url.PathEscape(c.APIKey)+"/verify/lookup.json?"+q.Encode(), nil, nil)
+		if err != nil {
+			return "", err
 		}
-		q.Set(p, v)
-	}
-	b, status, err := post(ctx, kavenegarBase+"/"+url.PathEscape(c.APIKey)+"/verify/lookup.json?"+q.Encode(), nil, nil)
-	if err != nil {
-		return "", err
-	}
-	var r struct {
-		Return struct {
-			Status  int    `json:"status"`
-			Message string `json:"message"`
-		} `json:"return"`
-	}
-	_ = json.Unmarshal(b, &r)
-	if r.Return.Status != 200 {
+		var r struct {
+			Return struct {
+				Status  int    `json:"status"`
+				Message string `json:"message"`
+			} `json:"return"`
+		}
+		_ = json.Unmarshal(b, &r)
+		if r.Return.Status == 200 {
+			return RenderKV(t, vars), nil
+		}
 		switch r.Return.Status {
 		case 424:
 			return "", fmt.Errorf("قالب «%s» در کاوه‌نگار ساخته یا تأیید نشده است.", t.Name)
 		case 0:
 			return "", fmt.Errorf("کاوه‌نگار: پاسخ نامعتبر (%d)", status)
 		}
-		return "", errors.New("کاوه‌نگار: " + r.Return.Message)
+		// the message says what was sent (no key, no number) so that a refusal can be understood
+		last = fmt.Errorf("کاوه‌نگار: %s (کد %d؛ قالب %s؛ پارامترها: %s)", r.Return.Message, r.Return.Status, t.Name, describe(q))
+		if r.Return.Status != 431 { // only «structure of the code» can depend on how the spaces were written
+			break
+		}
 	}
-	return RenderKV(t, vars), nil
+	return "", last
+}
+
+// describe lists the parameters of a request without the receptor.
+func describe(q url.Values) string {
+	var parts []string
+	for _, k := range []string{"token", "token2", "token3", "token10", "token20"} {
+		if v := q.Get(k); v != "" {
+			parts = append(parts, k+"="+strings.ReplaceAll(v, string(rune(0x200c)), "[نیم‌فاصله]"))
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 func copyVars(v map[string]string) map[string]string {
