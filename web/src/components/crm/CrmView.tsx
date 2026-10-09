@@ -36,6 +36,7 @@ import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
+import { BulkSms } from './BulkSms';
 import { CustomerForm } from './CustomerForm';
 import { ProformaSection } from './ProformaSection';
 import { QuickProformaDialog } from './QuickProformaDialog';
@@ -90,7 +91,7 @@ export const CrmView: React.FC = () => {
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'proformas'>('overview');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas'>('overview');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -106,6 +107,10 @@ export const CrmView: React.FC = () => {
   const [dragId, setDragId] = useState<string | null>(null);
   const [mobileStage, setMobileStage] = useState<DealStage>('NEW');
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
+  const [smsEnabled, setSmsEnabled] = useState(false);
+  useEffect(() => {
+    api.smsStatus().then((r) => setSmsEnabled(r.enabled)).catch(() => {});
+  }, []);
 
   const userById = useMemo(() => new Map(staffList.map((u) => [u.id, u])), [staffList]);
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
@@ -276,6 +281,7 @@ export const CrmView: React.FC = () => {
     ['customers', 'مشتریان', Users],
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
     ['followups', 'پیگیری‌ها', ListChecks],
+    ['sms', 'پیامک گروهی', MessageSquare],
   ] as const;
   // the CEO also has «پیش‌فاکتورهای ارسالی»: what waits for the signature and what was signed
   const tabs = isAnyApprover(currentUser, settings) ? ([...baseTabs, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : baseTabs;
@@ -650,6 +656,8 @@ export const CrmView: React.FC = () => {
       )}
 
       {/* ---------- follow-ups ---------- */}
+      {tab === 'sms' && <BulkSms customers={customers} deals={deals} me={currentUser} isAdmin={isAdmin} enabled={smsEnabled} />}
+
       {tab === 'proformas' && isAnyApprover(currentUser, settings) && (
         <div className="space-y-4">
           {([
