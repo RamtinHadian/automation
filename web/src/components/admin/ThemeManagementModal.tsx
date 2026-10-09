@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React from 'react';
 import {
   X,
@@ -32,7 +33,8 @@ export const ThemeManagementModal: React.FC<ThemeManagementModalProps> = ({
 
   const activeThemeObj = COLOR_THEMES.find((t) => t.id === currentTheme) || COLOR_THEMES[0];
 
-  return (
+  // Rendered on the page itself, not inside the settings form: a button inside it would submit that form.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in select-none font-sans">
       <div className="bg-white rounded-3xl border border-[#EBDBCE] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Modal Header */}
@@ -151,6 +153,7 @@ export const ThemeManagementModal: React.FC<ThemeManagementModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

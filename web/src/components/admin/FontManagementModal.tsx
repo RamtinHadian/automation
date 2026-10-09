@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useState, useRef } from 'react';
 import { Type, Upload, Trash2, Check, Sparkles, AlertCircle, FileText, CheckCircle2, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
@@ -85,6 +86,7 @@ export const FontManagementModal: React.FC<FontManagementModalProps> = ({ isOpen
 
   const handleUploadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // the dialog is inside the settings form (React events cross portals): do not also save that form
     if (!selectedFile || !fileDataUrl) {
       setUploadError('لطفاً یک فایل فونت معتبر انتخاب کنید.');
       return;
@@ -128,7 +130,8 @@ export const FontManagementModal: React.FC<FontManagementModalProps> = ({ isOpen
     }
   };
 
-  return (
+  // Rendered on the page itself, not inside the settings form: a button inside it would submit that form.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-5 overflow-y-auto animate-in fade-in select-none font-sans">
       <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full border border-[#EBDBCE] flex flex-col max-h-[90vh] overflow-hidden">
         
@@ -343,6 +346,7 @@ export const FontManagementModal: React.FC<FontManagementModalProps> = ({ isOpen
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
