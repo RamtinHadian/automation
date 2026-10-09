@@ -134,8 +134,8 @@ func TestSendTemplateParameters(t *testing.T) {
 	if path != "/v1/K/verify/lookup.json" || q["template"][0] != "hmwarrantyissued" || q["receptor"][0] != "09121234567" {
 		t.Fatalf("bad request: %s %v", path, q)
 	}
-	// %token (name) takes no space: the space becomes a half-space; token10 (company) and token20 (product) keep theirs
-	if q["token"][0] != "علی‌رضایی" || q["token10"][0] != "شرکت نمونه ۱۲" || q["token20"][0] != "میل لنگ" || q["token2"][0] != "G-۱۴۰۵-۱۲" {
+	// %token (name) takes no space: the space becomes a half-space; token20 (company) and token10 (product) keep theirs
+	if q["token"][0] != "علی‌رضایی" || q["token20"][0] != "شرکت نمونه ۱۲" || q["token10"][0] != "میل لنگ" || q["token2"][0] != "G-۱۴۰۵-۱۲" {
 		t.Fatalf("bad tokens: %v", q)
 	}
 	if !strings.HasSuffix(text, "اتوماسیون هورمند") || !strings.Contains(text, "شرکت نمونه ۱۲") || strings.Contains(text, "{") {

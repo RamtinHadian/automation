@@ -5,7 +5,7 @@ Reads the automatic messages (server/internal/sms/auto.go) and the ready-made te
   2. sms-kavenegar-templates.md               the same list, for copying by hand
   3. <autofill folder>/kavenegar-autofill.user.js   the panel that registers them in the Kavenegar console
 
-Every text ends with the fixed line «اتوماسیون هورمند»; the company name is a variable ({company} -> %token10).
+Every text ends with the fixed line «اتوماسیون هورمند»; the company name is a variable ({company} -> %token20 (several words, so a parameter that accepts spaces)).
 Run:  python tools/kavenegar/gen_templates.py [folder-of-the-autofill-tool]
 """
 import json
@@ -17,7 +17,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SIGN = 'اتوماسیون هورمند'
 FA = str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹')
 # variable -> Kavenegar parameter (%token is required in every template; only token10/token20 accept spaces)
-TOKEN = {'name': '%token', 'number': '%token2', 'end': '%token3', 'company': '%token10', 'product': '%token20'}
+TOKEN = {'name': '%token', 'number': '%token2', 'end': '%token3', 'company': '%token20', 'product': '%token10'}
 LABEL = {'name': 'نام مشتری', 'number': 'شماره', 'end': 'تاریخ', 'company': 'نام شرکت', 'product': 'نام کالا'}
 
 

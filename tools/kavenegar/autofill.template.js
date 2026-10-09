@@ -49,14 +49,20 @@
       '<button id="hmgo" style="' + btn + '">' + (S.running ? 'ادامه' : 'شروع') + '</button>' +
       '<button id="hmst2" style="' + btn + ';background:#666">توقف</button>' +
       '<button id="hmsk" style="' + btn + ';background:#666">رد کردن این یکی</button>' +
-      '<button id="hmrs" style="' + btn + ';background:#999">از اول</button>';
+      '<button id="hmrs" style="' + btn + ';background:#999">از اول</button>' +
+      '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #ddd"><b>پاک‌سازی (در صفحهٔ فهرست الگوها)</b><br>' +
+      '<button id="hmdl" style="' + btn + ';background:#c0392b">حذف الگوهای «در حال بررسی»</button>' +
+      '<button id="hmdx" style="' + btn + ';background:#666">توقف حذف</button></div>';
     q('#hmgo', box).onclick = () => { readFields(); S.running = true; S.paused = ''; if (formPresent() || !S.url) S.url = location.href; save(S); run(); };
     q('#hmst2', box).onclick = () => { S.running = false; save(S); render('متوقف شد.'); };
     q('#hmsk', box).onclick = () => { S.i++; S.paused = ''; save(S); go(); };
+    q('#hmdl', box).onclick = () => purgePending();
+    q('#hmdx', box).onclick = () => { stopPurge = true; };
     q('#hmrs', box).onclick = () => { S.i = 0; S.running = false; S.paused = ''; save(S); render(); };
   };
   const readFields = () => { S.product = q('#hmpr', box).value.trim(); S.link = q('#hmlk', box).value.trim(); S.desc = q('#hmds', box).value.trim(); S.auto = q('#hmau', box).checked; save(S); };
   const go = () => { if (S.url && location.href !== S.url) location.href = S.url; else location.reload(); };
+  const status = (m) => { const e = q('#hmst', box); if (e) e.textContent = m; };
   const pause = (why) => { S.running = false; S.paused = why; save(S); render(why); };
 
   async function waitFor(fn, ms) { const t = Date.now(); while (Date.now() - t < ms) { const v = fn(); if (v) return v; await sleep(250); } return null; }
@@ -67,7 +73,7 @@
     await sleep(200);
     const r = el.getBoundingClientRect();
     if (typeof window.hmRealClick === 'function') await window.hmRealClick(r.x + r.width / 2, r.y + r.height / 2);
-    else el.click();
+    else el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await sleep(500);
   }
   const productEl = () => q('input[name=productName]');
@@ -110,6 +116,44 @@
     if (done) { await sleep(1200); go(); return; }
     S.i--; save(S);
     pause('بعد از زدن «ساخت الگو» صفحه تغییر نکرد؛ احتمالاً خطایی روی فرم هست. آن را درست کنید و «ادامه» بزنید، یا «رد کردن این یکی».');
+  }
+
+  // ---------- delete the templates that are still «در حال بررسی» (only the ones this tool made: names starting with hm) ----------
+  let stopPurge = false;
+  const pendingRows = () => all('tbody tr').filter((r) => /در حال بررسی/.test(r.innerText || '') && /\bhm[a-z0-9]+\b/.test(r.innerText || ''));
+  const rowName = (r) => ((r.innerText || '').match(/\bhm[a-z0-9]+\b/) || [''])[0];
+  const dlgBtn = (sel, label) => all(sel + ' button').find((b) => (b.textContent || '').trim() === label);
+  async function purgePending() {
+    const n = pendingRows().length;
+    if (!n) { status('در این صفحه الگوی «در حال بررسی» که نامش با hm شروع شود پیدا نشد (فهرست الگوها را باز کنید).'); return; }
+    if (!confirm(n + ' الگوی «در حال بررسی» (فقط با نام hm...) یکی‌یکی حذف می‌شود و قابل بازیابی نیست. ادامه می‌دهید؟')) return;
+    stopPurge = false;
+    let done = 0;
+    for (;;) {
+      if (stopPurge) { status('حذف متوقف شد. ' + fa(done) + ' الگو حذف شد.'); return; }
+      const row = pendingRows()[0];
+      if (!row) break;
+      const name = rowName(row);
+      status('در حال حذف ' + name + ' ... (' + fa(done) + ' تا اینجا)');
+      const eye = q('svg[data-icon=eye]', row);
+      if (!eye) { status('دکمهٔ چشم برای ' + name + ' پیدا نشد؛ متوقف شد.'); return; }
+      await realClick(eye);
+      const dlg = await waitFor(() => q('[role=dialog]'), 4000);
+      if (!dlg || !(dlg.innerText || '').includes(name) || !/در حال بررسی/.test(dlg.innerText || '')) { status('پنجرهٔ ' + name + ' درست باز نشد؛ متوقف شد.'); return; }
+      const del = await waitFor(() => dlgBtn('[role=dialog]', 'حذف الگو'), 3000);
+      if (!del) { status('دکمهٔ «حذف الگو» پیدا نشد؛ متوقف شد.'); return; }
+      await realClick(del);
+      const ok = await waitFor(() => dlgBtn('[role=alertdialog]', 'حذف'), 3000);
+      if (!ok) { status('پنجرهٔ تأیید حذف باز نشد؛ متوقف شد.'); return; }
+      await realClick(ok);
+      const gone = await waitFor(() => !all('tbody tr').some((r) => rowName(r) === name), 10000);
+      if (!gone) { status(name + ' حذف نشد؛ متوقف شد.'); return; }
+      done++;
+      await sleep(600);
+      const close = await waitFor(() => dlgBtn('[role=dialog]', 'Close'), 600);
+      if (close) await realClick(close);
+    }
+    status('تمام شد. ' + fa(done) + ' الگوی «در حال بررسی» حذف شد.');
   }
 
   render();

@@ -24,8 +24,8 @@ type KVTemplate struct {
 // DefaultLibrary are the ready-made texts that are offered while the admin has not chosen any.
 var DefaultLibrary = []string{"proforma-sent", "proforma-expiring", "thanks-trust", "meeting"}
 
-// slot is the parameter of the panel that carries each variable. Only token10 and token20 accept spaces.
-var slot = map[string]string{"name": "token", "number": "token2", "end": "token3", "company": "token10", "product": "token20"}
+// slot is the parameter of the panel that carries each variable. Only token10 and token20 accept spaces (company names have several words).
+var slot = map[string]string{"name": "token", "number": "token2", "end": "token3", "company": "token20", "product": "token10"}
 
 // KVFind returns the template with this key.
 func KVFind(key string) (KVTemplate, bool) {
