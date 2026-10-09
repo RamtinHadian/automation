@@ -159,6 +159,9 @@ export interface SmsSettings {
   provider?: string;
   sender: string;
   footer: string;
+  /** ready-made texts shown in the send window (null = the four originals) and the company's own texts */
+  library: string[] | null;
+  custom: { id: string; title: string; text: string }[];
   /** kinds of automatic messages to customers that are switched on */
   auto: string[];
   /** shown while no footer is written: the company's name */
@@ -331,10 +334,10 @@ export const api = {
   },
   soundDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/sounds/${encodeURIComponent(id)}`),
   notifyTest: (kind: string, label: string) => request<{ ok: true }>('POST', '/api/notify/test', { kind, label }),
-  smsStatus: () => request<{ enabled: boolean }>('GET', '/api/sms/status'),
+  smsStatus: () => request<{ enabled: boolean; library: string[] | null; custom: { id: string; title: string; text: string }[] }>('GET', '/api/sms/status'),
   smsTemplates: () => request<{ templates: { key: string; title: string; when: string; sample: string }[] }>('GET', '/api/sms/templates'),
   smsSettings: () => request<SmsSettings>('GET', '/api/sms/settings'),
-  smsSave: (b: { footer: string; auto: string[]; sender: string; enabled: boolean; labels: string[]; apiKey: string }) => request<SmsSettings>('PUT', '/api/sms/settings', b),
+  smsSave: (b: { footer: string; auto: string[]; library: string[] | null; custom: { id: string; title: string; text: string }[]; sender: string; enabled: boolean; labels: string[]; apiKey: string }) => request<SmsSettings>('PUT', '/api/sms/settings', b),
   smsBalance: () => request<{ balance: string }>('GET', '/api/sms/balance'),
   smsLog: () => request<{ log: SmsLogRow[] }>('GET', '/api/sms/log'),
   smsTest: (to: string) => request<{ ok: true }>('POST', '/api/sms/test', { to }),

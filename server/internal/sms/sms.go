@@ -23,13 +23,22 @@ import (
 	"automation/server/internal/store"
 )
 
+// Custom is one SMS text the company wrote itself.
+type Custom struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Text  string `json:"text"`
+}
+
 // Config is what an admin sets up in the panel.
 type Config struct {
 	Provider string   `json:"provider"` // always "kavenegar" (older settings of other panels are dropped when loaded)
 	APIKey   string   `json:"apiKey"`
-	Sender   string   `json:"sender"` // line number
-	Auto     []string `json:"auto"`   // kinds of automatic messages to customers that are switched on (see Templates)
-	Footer   string   `json:"footer"` // the line every message ends with (website or company name); empty = the company name
+	Sender   string   `json:"sender"`  // line number
+	Auto     []string `json:"auto"`    // kinds of automatic messages to customers that are switched on (see Templates)
+	Library  []string `json:"library"` // ready-made texts shown as buttons in the send window (nil = the four originals)
+	Custom   []Custom `json:"custom"`  // the company's own texts
+	Footer   string   `json:"footer"`  // the line every message ends with (website or company name); empty = the company name
 	Enabled  bool     `json:"enabled"`
 	Labels   []string `json:"labels"` // notification labels that are also sent as SMS to people who have a mobile number
 }
@@ -95,7 +104,7 @@ func (c Config) Masked() map[string]any {
 	if len(c.APIKey) > 4 {
 		tail = c.APIKey[len(c.APIKey)-4:]
 	}
-	return map[string]any{"provider": c.Provider, "sender": c.Sender, "enabled": c.Enabled, "labels": append([]string{}, c.Labels...), "hasKey": c.APIKey != "", "keyTail": tail, "footer": c.Footer, "auto": append([]string{}, c.Auto...)}
+	return map[string]any{"provider": c.Provider, "sender": c.Sender, "enabled": c.Enabled, "labels": append([]string{}, c.Labels...), "hasKey": c.APIKey != "", "keyTail": tail, "footer": c.Footer, "auto": append([]string{}, c.Auto...), "library": c.Library, "custom": append([]Custom{}, c.Custom...)}
 }
 
 var nonDigit = regexp.MustCompile(`\D`)

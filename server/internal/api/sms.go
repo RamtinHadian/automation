@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,7 +18,7 @@ import (
 // smsStatus tells the page whether it may offer «send SMS» (the panel is set up and switched on).
 func smsStatus(w http.ResponseWriter, r *http.Request) {
 	c := sms.Load(r.Context())
-	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": c.Enabled && c.Provider != "" && c.APIKey != ""})
+	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": c.Enabled && c.Provider != "" && c.APIKey != "", "library": c.Library, "custom": append([]sms.Custom{}, c.Custom...)})
 }
 
 func smsGetSettings(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +53,8 @@ func smsPutSettings(w http.ResponseWriter, r *http.Request) {
 		Labels:   jsonx.Strings(body, "labels"),
 		Footer:   strings.TrimSpace(jsonx.Str(body, "footer")),
 		Auto:     validAuto(jsonx.Strings(body, "auto")),
+		Library:  validLibrary(body["library"]),
+		Custom:   validCustom(body["custom"]),
 	}
 	if len([]rune(c.Footer)) > 100 {
 		httpx.Error(w, http.StatusBadRequest, "متن پایان پیامک باید کوتاه باشد (حداکثر ۱۰۰ نویسه).")
@@ -218,4 +222,41 @@ func smsAutoCustomerID(event, customerID string, extra map[string]string) {
 		return
 	}
 	smsAutoCustomer(event, jsonx.Decode(raw), extra)
+}
+
+var libKey = regexp.MustCompile(`^[a-z0-9-]{1,40}$`)
+
+// validLibrary keeps the chosen ready-made text keys (nil when the admin has not chosen yet).
+func validLibrary(v any) []string {
+	arr, ok := v.([]any)
+	if !ok {
+		return nil
+	}
+	out := []string{}
+	for _, x := range arr {
+		if s, ok := x.(string); ok && libKey.MatchString(s) && !jsonx.Contains(out, s) && len(out) < 120 {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// validCustom keeps the company's own texts (at most 40, a title of 40 and a text of 500 characters).
+func validCustom(v any) []sms.Custom {
+	arr, _ := v.([]any)
+	out := []sms.Custom{}
+	for _, x := range arr {
+		m, _ := x.(map[string]any)
+		title := strings.TrimSpace(jsonx.Str(m, "title"))
+		text := strings.TrimSpace(jsonx.Str(m, "text"))
+		id := strings.TrimSpace(jsonx.Str(m, "id"))
+		if title == "" || text == "" || len(out) >= 40 {
+			continue
+		}
+		if !libKey.MatchString(id) {
+			id = "c-" + strconv.Itoa(len(out)+1)
+		}
+		out = append(out, sms.Custom{ID: id, Title: clean(title, 40), Text: clean(text, 500)})
+	}
+	return out
 }

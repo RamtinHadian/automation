@@ -1,15 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MessageSquare, Send, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
+import { smsButtons } from '../../lib/smsLibrary';
 
-const TEMPLATES: { label: string; text: string }[] = [
-  { label: 'ارسال پیش‌فاکتور', text: 'با سلام و احترام؛ پیش‌فاکتور درخواستی برای شما ارسال شد. لطفاً پس از بررسی اعلام نظر بفرمایید.' },
-  { label: 'یادآوری اعتبار پیش‌فاکتور', text: 'با سلام؛ یادآوری می‌کنیم که اعتبار پیش‌فاکتور ارسالی در حال اتمام است.' },
-  { label: 'تشکر از اعتماد', text: 'با سلام؛ از اعتماد شما سپاسگزاریم. در صورت نیاز به راهنمایی با ما تماس بگیرید.' },
-  { label: 'هماهنگی جلسه', text: 'با سلام؛ جلسهٔ هماهنگی فردا در ساعت مقرر برگزار می‌شود. منتظر شما هستیم.' },
-];
 
 /** Write and send an SMS to a customer (it is also noted in the customer's history). */
 export const SmsModal: React.FC<{ customerId: string; customerName: string; phones: string[]; onClose: () => void }> = ({ customerId, customerName, phones, onClose }) => {
@@ -18,6 +13,10 @@ export const SmsModal: React.FC<{ customerId: string; customerName: string; phon
   const [to, setTo] = useState(mobiles[0] || phones[0] || '');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [buttons, setButtons] = useState(() => smsButtons(null, []));
+  useEffect(() => {
+    api.smsStatus().then((r) => setButtons(smsButtons(r.library, r.custom))).catch(() => {});
+  }, []);
 
   const send = async () => {
     setBusy(true);
@@ -61,8 +60,8 @@ export const SmsModal: React.FC<{ customerId: string; customerName: string; phon
             )}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {TEMPLATES.map((t, i) => (
-              <button key={i} type="button" title={t.text} onClick={() => setText(t.text)} className="px-3 py-1.5 min-h-[34px] rounded-lg bg-sky-50 text-sky-800 border border-sky-200 text-[11px] font-bold cursor-pointer">
+            {buttons.map((t) => (
+              <button key={t.id} type="button" title={t.text} onClick={() => setText(t.text.replace(/\{name\}/g, customerName))} className="px-3 py-1.5 min-h-[34px] rounded-lg bg-sky-50 text-sky-800 border border-sky-200 text-[11px] font-bold cursor-pointer">
                 {t.label}
               </button>
             ))}
