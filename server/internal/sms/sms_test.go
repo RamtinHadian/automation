@@ -116,3 +116,67 @@ func TestBirthdayTomorrow(t *testing.T) {
 		t.Fatal("a bad date never matches")
 	}
 }
+
+func TestSendTemplateParameters(t *testing.T) {
+	var path string
+	var q map[string][]string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path, q = r.URL.Path, r.URL.Query()
+		w.Write([]byte(`{"return":{"status":200,"message":"ok"}}`))
+	}))
+	defer srv.Close()
+	kavenegarBase = srv.URL + "/v1"
+	text, err := SendTemplate(context.Background(), Config{APIKey: "K"}, "0912 123 4567", "warranty_issued",
+		map[string]string{"name": "علی رضایی", "company": "شرکت نمونه ۱۲", "product": "میل لنگ", "number": "G-1405-12", "end": "1406/05/16"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "/v1/K/verify/lookup.json" || q["template"][0] != "hmwarrantyissued" || q["receptor"][0] != "09121234567" {
+		t.Fatalf("bad request: %s %v", path, q)
+	}
+	// %token (name) takes no space: the space becomes a half-space; token10 (company) and token20 (product) keep theirs
+	if q["token"][0] != "علی‌رضایی" || q["token10"][0] != "شرکت نمونه ۱۲" || q["token20"][0] != "میل لنگ" || q["token2"][0] != "G-۱۴۰۵-۱۲" {
+		t.Fatalf("bad tokens: %v", q)
+	}
+	if !strings.HasSuffix(text, "اتوماسیون هورمند") || !strings.Contains(text, "شرکت نمونه ۱۲") || strings.Contains(text, "{") {
+		t.Fatalf("bad text: %q", text)
+	}
+}
+
+func TestSendTemplateNotApproved(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"return":{"status":424,"message":"الگوی مورد نظر پیدا نشد"}}`))
+	}))
+	defer srv.Close()
+	kavenegarBase = srv.URL + "/v1"
+	_, err := SendTemplate(context.Background(), Config{APIKey: "K"}, "09121234567", "customer_new", map[string]string{"name": "علی", "company": "شرکت"})
+	if err == nil || !strings.Contains(err.Error(), "hmcustomernew") {
+		t.Fatalf("expected the template name in the message, got %v", err)
+	}
+	if _, err := SendTemplate(context.Background(), Config{APIKey: "K"}, "09121234567", "nope", nil); err == nil {
+		t.Fatal("an unknown template must be refused")
+	}
+}
+
+func TestEveryTemplateIsConsistent(t *testing.T) {
+	seen := map[string]bool{}
+	for _, k := range KVTemplates {
+		if seen[k.Name] || seen[k.Key] {
+			t.Errorf("duplicate template %s/%s", k.Key, k.Name)
+		}
+		seen[k.Name], seen[k.Key] = true, true
+		if !strings.Contains(k.Text, "{name}") || !strings.Contains(k.Text, "{company}") || !strings.HasSuffix(k.Text, "اتوماسیون هورمند") {
+			t.Errorf("%s must carry the customer, the company and end with the fixed line: %q", k.Key, k.Text)
+		}
+	}
+	for _, a := range Templates {
+		if kv, ok := KVFind(a.Key); !ok || !kv.Auto {
+			t.Errorf("automatic message %s has no template", a.Key)
+		}
+	}
+	for _, k := range DefaultLibrary {
+		if kv, ok := KVFind(k); !ok || kv.Auto {
+			t.Errorf("default library text %s is missing", k)
+		}
+	}
+}

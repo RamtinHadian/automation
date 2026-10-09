@@ -113,18 +113,52 @@ func smsTest(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	text := strings.TrimSpace(jsonx.Str(body, "text"))
-	if text == "" {
-		text = "هورمند: این یک پیامک آزمایشی است."
-	}
-	if err := sms.SendAndLog(r.Context(), me.ID(), []string{jsonx.Str(body, "to")}, text); err != nil {
+	if _, err := sms.SendTemplateAndLog(r.Context(), me.ID(), jsonx.Str(body, "to"), "customer_new", map[string]string{"name": "آزمایش", "company": companyName(r.Context())}); err != nil {
 		httpx.Error(w, http.StatusBadGateway, err.Error())
 		return
 	}
 	httpx.OK(w)
 }
 
-// smsSend sends a message to a customer (or a number) from the CRM. At most 40 per person per hour.
+// allowedTemplate says whether staff may send this ready-made text: it exists, is not an automatic message and is among the
+// texts the admin switched on (the four originals while nothing was chosen).
+func allowedTemplate(c sms.Config, key string) bool {
+	t, ok := sms.KVFind(key)
+	if !ok || t.Auto {
+		return false
+	}
+	list := c.Library
+	if list == nil {
+		list = sms.DefaultLibrary
+	}
+	return jsonx.Contains(list, key)
+}
+
+// customerMobile is the mobile number to write to: the asked one when it is a number of the customer, else the first mobile.
+func customerMobile(cust jsonx.M, want string) string {
+	first := ""
+	wm, _ := sms.Mobile(want)
+	if arr, ok := cust["phones"].([]any); ok {
+		for _, p := range arr {
+			if s, ok := p.(string); ok {
+				if m, ok := sms.Mobile(s); ok {
+					if wm != "" && m == wm {
+						return m
+					}
+					if first == "" {
+						first = m
+					}
+				}
+			}
+		}
+	}
+	if wm != "" {
+		return ""
+	}
+	return first
+}
+
+// smsSend sends a ready-made text (a Kavenegar template) to a customer from the CRM. At most 40 per person per hour.
 func smsSend(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
 	if !me.CanUseCrm() || !me.CanSendSms() {
@@ -140,9 +174,9 @@ func smsSend(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	text := strings.TrimSpace(jsonx.Str(body, "text"))
-	if text == "" || len([]rune(text)) > 700 {
-		httpx.Error(w, http.StatusBadRequest, "متن پیامک خالی یا بیش از حد طولانی است.")
+	key := jsonx.Str(body, "templateKey")
+	if !allowedTemplate(c, key) {
+		httpx.Error(w, http.StatusBadRequest, "این قالب پیامک برای ارسال فعال نیست؛ یکی از قالب‌های آماده را انتخاب کنید.")
 		return
 	}
 	var sent int
@@ -151,21 +185,28 @@ func smsSend(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusTooManyRequests, "سقف ارسال پیامک در هر ساعت پر شده است.")
 		return
 	}
-	to := jsonx.Str(body, "to")
 	cust := jsonx.Str(body, "customerId")
-	if err := sms.SendAndLog(r.Context(), me.ID(), []string{to}, text); err != nil {
+	var raw []byte
+	var owner, ownerName string
+	if cust == "" || store.Pool.QueryRow(r.Context(), `SELECT data, COALESCE(owner_id, ''), COALESCE(data->>'ownerName', '') FROM crm_customers WHERE id = $1`, cust).Scan(&raw, &owner, &ownerName) != nil {
+		httpx.Error(w, http.StatusBadRequest, "مشتری پیدا نشد.")
+		return
+	}
+	doc0 := jsonx.Decode(raw)
+	to := customerMobile(doc0, jsonx.Str(body, "to"))
+	if to == "" {
+		httpx.Error(w, http.StatusBadRequest, "این مشتری شمارهٔ موبایل معتبر ندارد.")
+		return
+	}
+	text, err := sms.SendTemplateAndLog(r.Context(), me.ID(), to, key, map[string]string{"name": jsonx.Str(doc0, "name"), "company": companyName(r.Context())})
+	if err != nil {
 		httpx.Error(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	if cust != "" {
-		var owner, ownerName string
-		if store.Pool.QueryRow(r.Context(), `SELECT COALESCE(owner_id, ''), COALESCE(data->>'ownerName', '') FROM crm_customers WHERE id = $1`, cust).Scan(&owner, &ownerName) == nil {
-			id := "sms-" + time.Now().Format("20060102150405.000000")
-			doc := jsonx.M{"id": id, "customerId": cust, "type": "NOTE", "text": "پیامک ارسال شد: " + text, "ownerId": owner, "ownerName": ownerName,
-				"authorId": me.ID(), "authorName": me.Name(), "createdAt": now()}
-			_, _ = store.Pool.Exec(r.Context(), `INSERT INTO crm_activities (id, customer_id, owner_id, data) VALUES ($1, $2, $3, $4::jsonb) ON CONFLICT (id) DO NOTHING`, id, cust, owner, jsonx.Encode(doc))
-		}
-	}
+	id := "sms-" + time.Now().Format("20060102150405.000000")
+	doc := jsonx.M{"id": id, "customerId": cust, "type": "NOTE", "text": "پیامک ارسال شد: " + text, "ownerId": owner, "ownerName": ownerName,
+		"authorId": me.ID(), "authorName": me.Name(), "createdAt": now()}
+	_, _ = store.Pool.Exec(r.Context(), `INSERT INTO crm_activities (id, customer_id, owner_id, data) VALUES ($1, $2, $3, $4::jsonb) ON CONFLICT (id) DO NOTHING`, id, cust, owner, jsonx.Encode(doc))
 	httpx.OK(w)
 }
 

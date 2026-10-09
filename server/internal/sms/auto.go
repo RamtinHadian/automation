@@ -80,8 +80,17 @@ func Render(t Template, vars map[string]string) string {
 	return strings.TrimSpace(out)
 }
 
-// SampleText is the message as the preview shows it (without the footer).
-func SampleText(t Template) string { return Render(t, t.Sample) }
+// SampleText is the message as the preview shows it: the registered template with sample values.
+func SampleText(t Template) string {
+	vars := map[string]string{"company": "شرکت نمونه"}
+	for k, v := range t.Sample {
+		vars[k] = v
+	}
+	if kv, ok := KVFind(t.Key); ok {
+		return RenderKV(kv, vars)
+	}
+	return Render(t, vars)
+}
 
 // Auto sends the automatic message of one kind to the first mobile number among `phones`, when the admin switched that
 // kind on. The same text goes to the same number only once in ten minutes. Meant to be called in its own goroutine.
@@ -96,7 +105,7 @@ func Auto(ctx context.Context, event string, phones []string, vars map[string]st
 			on = true
 		}
 	}
-	t, ok := find(event)
+	_, ok := find(event)
 	if !on || !ok {
 		return
 	}
@@ -113,13 +122,17 @@ func Auto(ctx context.Context, event string, phones []string, vars map[string]st
 	if _, has := vars["company"]; !has {
 		vars["company"] = Company(ctx)
 	}
-	text := Render(t, vars)
+	kv, ok := KVFind(event)
+	if !ok {
+		return
+	}
+	text := RenderKV(kv, vars)
 	var dup int
 	_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM sms_log WHERE to_num = $1 AND text = $2 AND created_at > now() - interval '10 minutes'`, mobile, text).Scan(&dup)
 	if dup > 0 {
 		return
 	}
-	if err := SendAndLog(ctx, "system", []string{mobile}, text); err != nil {
+	if _, err := SendTemplateAndLog(ctx, "system", mobile, event, vars); err != nil {
 		fmt.Printf("sms auto %s: %v\n", event, err)
 	}
 }

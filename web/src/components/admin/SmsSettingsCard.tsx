@@ -4,7 +4,7 @@ import { api, SmsLogRow, SmsSettings } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
-import { DEFAULT_SMS_KEYS, SMS_GROUPS, SMS_LIBRARY } from '../../lib/smsLibrary';
+import { DEFAULT_SMS_KEYS, SMS_GROUPS, SMS_LIBRARY, smsFinalText, smsTemplateName } from '../../lib/smsLibrary';
 
 /** Which notifications may also arrive as an SMS (for people who have a mobile number). */
 const EVENTS: { label: string; title: string }[] = [
@@ -125,11 +125,9 @@ export const SmsSettingsCard: React.FC = () => {
         </div>
       </div>
 
-      <div>
-        <label className={lab}>خط پایانی همهٔ پیامک‌ها (نشانی وب‌سایت یا نام شرکت):</label>
-        <input className={box} value={s.footer} maxLength={100} onChange={(e) => patch({ footer: e.target.value })} placeholder={s.defaultFooter || 'نام شرکت'} />
-        <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">این خط زیر متن هر پیامکی که سامانه می‌فرستد (اعلان‌ها، پیامک مشتریان، آزمایشی و …) خودکار اضافه می‌شود. اگر خالی بگذارید، نام شرکت نوشته می‌شود.</p>
-        {(s.footer || s.defaultFooter) && <div className="mt-2 rounded-xl border border-dashed border-[#EBDBCE] bg-[#FDFAF7] px-3 py-2 text-[11px] font-bold text-[#503730] leading-6 whitespace-pre-line">{'نمونه: متن پیامک' + '\n' + (s.footer || s.defaultFooter)}</div>}
+      <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3.5 py-3 text-[11px] font-bold text-sky-900 leading-6" data-sms-templates-note>
+        پیامک‌های مشتریان با «الگوی کاوه‌نگار» فرستاده می‌شوند: متن هر پیامک ثابت است و آخرش همیشه «اتوماسیون هورمند» می‌آید؛ فقط نام مشتری و نام شرکت (همان «نام رسمی شرکت» در تنظیمات سازمان) در آن می‌نشیند.
+        هر الگو باید یک‌بار در پنل کاوه‌نگار، با همان نامی که پایین هر قالب نوشته شده، ساخته و تأیید شود (فایل آمادهٔ همهٔ الگوها و ابزار ثبت خودکار را از ما بگیرید).
       </div>
 
       <label className="flex items-center gap-2 font-bold text-[#3A241F]">
@@ -152,7 +150,7 @@ export const SmsSettingsCard: React.FC = () => {
 
       <div data-sms-library>
         <div className="font-bold text-[#3A241F] mb-1">قالب‌های آمادهٔ پیامک (برای پنجرهٔ «ارسال پیامک» در پروندهٔ مشتری):</div>
-        <p className="text-[10px] text-[#8C6F66] mb-2 leading-5">هر قالبی را که تیک بزنید، به‌صورت یک دکمه در پنجرهٔ ارسال پیامک می‌آید و همکار با یک لمس متنش را برمی‌دارد (می‌تواند قبل از ارسال ویرایشش کند). در متن، «{'{name}'}» با نام مشتری عوض می‌شود. نیازی به ذخیره‌ی جدا نیست؛ همان دکمهٔ «ذخیرهٔ تنظیمات پیامک» بالای کارت.</p>
+        <p className="text-[10px] text-[#8C6F66] mb-2 leading-5">هر قالبی را که تیک بزنید، به‌صورت یک دکمه در پنجرهٔ ارسال پیامک و در «پیامک گروهی» می‌آید. همکار فقط نوع پیامک را انتخاب می‌کند و متن را نمی‌تواند تغییر دهد. نام مشتری و نام شرکت خودکار در متن می‌نشیند. نیازی به ذخیرهٔ جدا نیست؛ همان دکمهٔ «ذخیرهٔ تنظیمات پیامک» بالای کارت.</p>
         <div className="flex flex-wrap gap-2 mb-3">
           <button type="button" onClick={() => patch({ library: SMS_LIBRARY.map((t) => t.key) })} className="px-3 py-1.5 min-h-[34px] rounded-lg bg-white border border-[#EBDBCE] text-[11px] font-black cursor-pointer">انتخاب همه</button>
           <button type="button" onClick={() => patch({ library: [] })} className="px-3 py-1.5 min-h-[34px] rounded-lg bg-white border border-[#EBDBCE] text-[11px] font-black cursor-pointer">برداشتن همه</button>
@@ -169,11 +167,14 @@ export const SmsSettingsCard: React.FC = () => {
                     <div className="flex items-center gap-2 px-3 py-2">
                       <label className="flex-1 min-w-0 flex items-center gap-2 font-bold text-[#3A241F] cursor-pointer">
                         <input type="checkbox" checked={chosen.includes(t.key)} onChange={() => toggleReady(t.key)} />
-                        <span className="truncate">{t.label}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate">{t.label}</span>
+                          <span className="block text-[10px] font-mono font-medium text-sky-800" dir="ltr">{smsTemplateName(t.key)}</span>
+                        </span>
                       </label>
                       <button type="button" onClick={() => setPreview(preview === 'lib-' + t.key ? null : 'lib-' + t.key)} className="shrink-0 px-2.5 py-1 min-h-[30px] rounded-lg bg-white border border-[#EBDBCE] text-[10px] font-black text-[#6E1B1B] cursor-pointer">{preview === 'lib-' + t.key ? 'بستن' : 'مشاهده'}</button>
                     </div>
-                    {preview === 'lib-' + t.key && <div className="mx-3 mb-2.5 rounded-lg border border-dashed border-[#C98B6A] bg-white px-3 py-2 text-[11.5px] font-bold text-[#3A241F] leading-6">{t.text}</div>}
+                    {preview === 'lib-' + t.key && <div className="mx-3 mb-2.5 rounded-lg border border-dashed border-[#C98B6A] bg-white px-3 py-2 text-[11.5px] font-bold text-[#3A241F] leading-6 whitespace-pre-line">{smsFinalText(t.key, 'علی رضایی', 'شرکت نمونه')}</div>}
                   </div>
                 ))}
               </div>
@@ -187,7 +188,6 @@ export const SmsSettingsCard: React.FC = () => {
         <div className="space-y-1.5">
           {templates.map((t) => {
             const on = (s.auto || []).includes(t.key);
-            const footer = s.footer || s.defaultFooter || '';
             return (
               <div key={t.key} className="rounded-xl bg-[#FAF5F1] border border-[#EBDBCE]">
                 <div className="flex items-center gap-2 px-3 py-2">
@@ -196,6 +196,7 @@ export const SmsSettingsCard: React.FC = () => {
                     <span className="min-w-0">
                       {t.title}
                       <span className="block text-[10px] font-medium text-[#8C6F66] leading-5">{t.when}</span>
+                      <span className="block text-[10px] font-mono text-sky-800" dir="ltr">{'hm' + t.key.replace(/_/g, '')}</span>
                     </span>
                   </label>
                   <button type="button" onClick={() => setPreview(preview === t.key ? null : t.key)} className="shrink-0 px-3 py-1.5 min-h-[36px] rounded-lg bg-white border border-[#EBDBCE] text-[11px] font-black text-[#6E1B1B] cursor-pointer">
@@ -205,8 +206,7 @@ export const SmsSettingsCard: React.FC = () => {
                 {preview === t.key && (
                   <div className="mx-3 mb-3 rounded-xl border border-dashed border-[#C98B6A] bg-white px-3 py-2.5 text-[12px] font-bold text-[#3A241F] leading-7 whitespace-pre-line" data-sms-preview>
                     {t.sample}
-                    {footer ? String.fromCharCode(10) + footer : ''}
-                    <span className="block mt-1 text-[10px] font-medium text-[#8C6F66]">نمونه با مشخصات فرضی؛ هنگام ارسال، نام و شمارهٔ واقعی می‌نشیند و خط پایانی تنظیمات زیرش می‌آید.</span>
+                    <span className="block mt-1 text-[10px] font-medium text-[#8C6F66]">نمونه با مشخصات فرضی؛ هنگام ارسال، نام و شمارهٔ واقعی و نام شرکت می‌نشیند.</span>
                   </div>
                 )}
               </div>

@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Loader2, MessageSquare, Search, Send, Users } from 'lucide-react';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
-import { smsButtons } from '../../lib/smsLibrary';
+import { smsButtons, smsFinalText } from '../../lib/smsLibrary';
+import { useCompanyName } from '../../lib/useCompanyName';
 import { useAppContext } from '../../context/AppContext';
 import { Customer, CustomerStatus, Deal, User } from '../../types';
 
@@ -13,7 +14,7 @@ const sel = 'px-3 py-2 min-h-[40px] bg-white border border-[#EBDBCE] rounded-xl 
 
 interface Progress { id: string; total: number; sent: number; failed: number; skipped: number; done: boolean; error: string }
 
-/** Group SMS: choose customers by their type, choose or write the text, check the preview, confirm, follow the progress. */
+/** Group SMS: choose customers by their type, choose a ready-made text, check the preview, confirm, follow the progress. */
 export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User; isAdmin: boolean; enabled: boolean }> = ({ customers, deals, me, isAdmin, enabled }) => {
   const { showToast, staffList } = useAppContext();
   const [q, setQ] = useState('');
@@ -25,7 +26,8 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
   const [dealsF, setDealsF] = useState<'ALL' | 'OPEN' | 'WON' | 'NONE'>('ALL');
   const [owner, setOwner] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [text, setText] = useState('');
+  const [key, setKey] = useState('');
+  const company = useCompanyName();
   const [buttons, setButtons] = useState(() => smsButtons(null, []));
   const [confirming, setConfirming] = useState(false);
   const [job, setJob] = useState<Progress | null>(null);
@@ -72,14 +74,13 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
   const chosen = mine.filter((c) => picked.has(c.id) && hasMobile(c));
   const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const sample = chosen[0]?.name || 'نام مشتری';
-  const len = [...text].length;
   const MAX = 300;
   const busy = !!job && !job.done;
 
   const start = async () => {
     setConfirming(false);
     try {
-      const j = await api.smsBulkStart({ customerIds: chosen.map((c) => c.id), text: text.trim() });
+      const j = await api.smsBulkStart({ customerIds: chosen.map((c) => c.id), templateKey: key });
       setJob(j);
       window.clearInterval(timer.current);
       timer.current = window.setInterval(async () => {
@@ -181,15 +182,16 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
         <div className="flex items-center gap-2 font-black text-sm text-[#3A241F]"><MessageSquare className="w-4 h-4 text-sky-700" />۲. نوع و متن پیامک</div>
         <div className="flex flex-wrap gap-1.5">
           {buttons.map((t) => (
-            <button key={t.id} type="button" title={t.text} onClick={() => setText(t.text)} className={`px-3 py-1.5 min-h-[34px] rounded-lg border text-[11px] font-bold cursor-pointer ${text === t.text ? 'bg-sky-600 text-white border-sky-600' : 'bg-sky-50 text-sky-800 border-sky-200'}`}>{t.label}</button>
+            <button key={t.id} type="button" onClick={() => setKey(t.id)} className={`px-3 py-1.5 min-h-[34px] rounded-lg border text-[11px] font-bold cursor-pointer ${key === t.id ? 'bg-sky-600 text-white border-sky-600' : 'bg-sky-50 text-sky-800 border-sky-200'}`}>
+              {t.label}
+            </button>
           ))}
         </div>
-        <textarea className="w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs leading-6 min-h-[110px] outline-hidden" value={text} onChange={(e) => setText(e.target.value)} maxLength={700} placeholder="یکی از نوع‌های بالا را بزنید یا متن را خودتان بنویسید. «{name}» به نام هر مشتری تبدیل می‌شود." />
-        <div className="text-[10px] text-[#8C6F66]">{toPersianDigits(len)} نویسه · حدود {toPersianDigits(Math.max(1, Math.ceil(len / 70)))} پیامک برای هر نفر · زیر هر پیامک «خط پایانی» تنظیمات (نام شرکت یا نشانی سایت) خودکار اضافه می‌شود</div>
-        {text.trim() && (
+        <div className="text-[10px] text-[#8C6F66]">متن هر پیامک ثابت است (قالب تأییدشده)؛ نام مشتری و نام شرکت خودکار در آن می‌نشیند.</div>
+        {key && (
           <div className="rounded-xl border border-dashed border-[#C98B6A] bg-[#FDFAF7] px-3 py-2.5 text-[12px] font-bold text-[#3A241F] leading-7 whitespace-pre-line" data-bulk-preview>
             <span className="block text-[10px] text-[#8C6F66] font-medium">پیش‌نمایش برای «{sample}»</span>
-            {text.replace(/\{name\}/g, sample)}
+            {toPersianDigits(smsFinalText(key, sample, company || 'نام شرکت'))}
           </div>
         )}
       </div>
@@ -216,7 +218,7 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
             </div>
           </div>
         ) : (
-          <button type="button" disabled={busy || chosen.length === 0 || chosen.length > MAX || !text.trim()} onClick={() => setConfirming(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 min-h-[44px] rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-black cursor-pointer" data-bulk-send>
+          <button type="button" disabled={busy || chosen.length === 0 || chosen.length > MAX || !key} onClick={() => setConfirming(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 min-h-[44px] rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-black cursor-pointer" data-bulk-send>
             <Send className="w-4 h-4" />
             ارسال به {toPersianDigits(chosen.length)} نفر
           </button>

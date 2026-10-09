@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 	"automation/server/internal/store"
 )
 
-// Group SMS from the customers menu: the sender picks customers (by type, tag, status…), a text (a ready-made one or their own) and
+// Group SMS from the customers menu: the sender picks customers (by type, tag, status…), a ready-made text (a Kavenegar template) and
 // confirms. The server checks every customer again (a person can only write to their own customers, an admin to all), takes the
 // first mobile number of each, puts the customer's name in place of {name}, and sends them one by one in the background; the page
 // follows the progress. Every message is also written in the sms log and in the customer's history.
@@ -53,7 +52,7 @@ func bulkSnapshot(id, by string) (bulkJob, bool) {
 	return *j, true
 }
 
-// POST /api/sms/bulk {customerIds, text}
+// POST /api/sms/bulk {customerIds, templateKey}
 func smsBulkStart(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
 	if !me.CanUseCrm() || !me.CanSendSms() {
@@ -69,11 +68,12 @@ func smsBulkStart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	text := strings.TrimSpace(jsonx.Str(body, "text"))
-	if text == "" || len([]rune(text)) > 700 {
-		httpx.Error(w, http.StatusBadRequest, "متن پیامک خالی یا بیش از حد طولانی است.")
+	key := jsonx.Str(body, "templateKey")
+	if !allowedTemplate(c, key) {
+		httpx.Error(w, http.StatusBadRequest, "این قالب پیامک برای ارسال فعال نیست؛ یکی از قالب‌های آماده را انتخاب کنید.")
 		return
 	}
+	company := companyName(r.Context())
 	ids := jsonx.Strings(body, "customerIds")
 	if len(ids) == 0 {
 		httpx.Error(w, http.StatusBadRequest, "هیچ مشتری‌ای انتخاب نشده است.")
@@ -147,9 +147,8 @@ func smsBulkStart(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		ctx := context.Background()
 		for _, t := range targets {
-			msg := strings.ReplaceAll(text, "{name}", t.name)
 			cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-			err := sms.SendAndLog(cctx, by, []string{t.mobile}, msg)
+			msg, err := sms.SendTemplateAndLog(cctx, by, t.mobile, key, map[string]string{"name": t.name, "company": company})
 			cancel()
 			bulkMu.Lock()
 			if err != nil {

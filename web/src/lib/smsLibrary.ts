@@ -68,3 +68,15 @@ export const smsButtons = (library: string[] | null | undefined, custom: CustomS
   const own = (custom || []).map((c) => ({ id: c.id, label: c.title, text: c.text }));
   return [...ready, ...own];
 };
+
+/** The name this text has in the Kavenegar panel (the server sends it by this name; see tools/kavenegar). */
+export const smsTemplateName = (key: string) => 'hm' + key.replace(/-/g, '');
+
+/** The text the customer receives: «{name} عزیز، …», then the company name (a variable of the template) and the fixed line of the product. */
+export const smsFinalText = (key: string, name: string, company: string) => {
+  const t = SMS_LIBRARY.find((x) => x.key === key);
+  if (!t) return '';
+  return `${name} عزیز، ${t.text.replace(/^با سلام( و احترام)?[؛،]?\s*/, '')}
+${company}
+اتوماسیون هورمند`;
+};
