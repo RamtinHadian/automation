@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, BarChart3, Megaphone, ClipboardList, FileCheck, HardDrive, KeyRound, Lock, Phone, ShieldCheck, Smartphone, UserPlus, Users, X } from 'lucide-react';
+import { Award, BarChart3, Megaphone, ClipboardList, FileCheck, HardDrive, KeyRound, Lock, Phone, MessageSquare, ShieldCheck, Smartphone, UserPlus, Users, X } from 'lucide-react';
 import { Department, UserRole } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 
@@ -13,6 +13,7 @@ export interface UserForm {
   canViewStats?: boolean;
   canPostAnnouncements?: boolean;
   canUseWarranty?: boolean;
+  canSendSms?: boolean;
   canUseTasks?: boolean;
   canSignOfficialLetters?: boolean;
   canSendOfficialLetters?: boolean;
@@ -175,6 +176,7 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
               <Tile icon={<BarChart3 className="w-[18px] h-[18px]" />} title="گزارشات آماری مدیریتی" hint="نمودارهای کار، نامه، فروش و تلفن شرکت." on={!!form.canViewStats} color="#EA580C" tint="#FFF1E8" border="#F8C3A0" onChange={(v) => set({ canViewStats: v })} />
               <Tile icon={<Megaphone className="w-[18px] h-[18px]" />} title="تابلو اعلانات" hint="می‌تواند اخبار و اطلاعیه را برای همه منتشر کند." on={!!form.canPostAnnouncements} color="#B45309" tint="#FEF5E7" border="#F3D29B" onChange={(v) => set({ canPostAnnouncements: v })} />
               <Tile icon={<ShieldCheck className="w-[18px] h-[18px]" />} title="گارانتی و پشتیبانی" hint="منوهای «گارانتی» و «پشتیبانی» (ثبت گارانتی، درخواست‌های خرابی، اشتراک و درخواست‌های پشتیبانی). کسانی که به مشتریان دسترسی دارند، بدون این سوئیچ هم آن را می‌بینند." on={!!form.canUseWarranty} color="#0D9488" tint="#E8F7F5" border="#9ADAD3" onChange={(v) => set({ canUseWarranty: v })} />
+              <Tile icon={<MessageSquare className="w-[18px] h-[18px]" />} title="ارسال پیامک به مشتری" hint="می‌تواند از پروندهٔ مشتری و از «پیامک گروهی» برای مشتری‌های خودش پیامک بفرستد (به مشتریان هم دسترسی داشته باشد). پنل پیامک باید در تنظیمات فعال باشد." on={!!form.canSendSms} color="#0369A1" tint="#EAF6FD" border="#A9D8F0" onChange={(v) => set({ canSendSms: v })} />
             </div>
             <p className="text-[10px] text-[#8C6F66] leading-5 pt-1">مدیران ارشد و مدیران واحد بدون نیاز به این سوئیچ‌ها به وظایف و مشتریان دسترسی دارند؛ فقط «مدیرعامل» با سوئیچ اول تعیین می‌شود.</p>
           </section>

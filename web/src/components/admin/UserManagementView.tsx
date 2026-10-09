@@ -19,7 +19,8 @@ import {
   BarChart3,
   Megaphone,
   ShieldCheck,
-  Users
+  Users,
+  MessageSquare,
 } from 'lucide-react';
 import { User, UserRole, Department } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
@@ -43,6 +44,7 @@ interface UserManagementViewProps {
     canViewStats?: boolean;
     canPostAnnouncements?: boolean;
     canUseWarranty?: boolean;
+    canSendSms?: boolean;
     extension?: string;
   }) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
@@ -88,6 +90,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     canViewStats: false,
     canPostAnnouncements: false,
     canUseWarranty: false,
+    canSendSms: false,
     extension: '',
   });
   const [newForm, setNewForm] = useState<UserForm>(emptyForm);
@@ -119,6 +122,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       canViewStats: newForm.canViewStats,
       canPostAnnouncements: newForm.canPostAnnouncements,
       canUseWarranty: newForm.canUseWarranty,
+      canSendSms: newForm.canSendSms,
       extension: (newForm.extension || '').trim(),
     });
 
@@ -247,6 +251,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           [user.canViewStats, BarChart3, 'گزارشات آماری مدیریتی', 'bg-orange-100 text-orange-700 border-orange-300'],
                           [user.canPostAnnouncements, Megaphone, 'تابلو اعلانات', 'bg-amber-100 text-amber-800 border-amber-300'],
                           [user.canUseWarranty, ShieldCheck, 'گارانتی', 'bg-teal-100 text-teal-700 border-teal-300'],
+                          [user.canSendSms, MessageSquare, 'ارسال پیامک', 'bg-sky-100 text-sky-700 border-sky-300'],
                         ] as const).map(([on, Icon, label, cls]) =>
                           on ? (
                             <span key={label} title={label} className={`w-6 h-6 inline-flex items-center justify-center rounded-lg border ${cls}`}>
@@ -254,7 +259,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                             </span>
                           ) : null
                         )}
-                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && !user.canUseTasks && !user.canUseCrm && !user.canViewStats && !user.canPostAnnouncements && !user.canUseWarranty && (
+                        {!user.canSignOfficialLetters && !user.canSendOfficialLetters && !user.canUseTasks && !user.canUseCrm && !user.canViewStats && !user.canPostAnnouncements && !user.canUseWarranty && !user.canSendSms && (
                           <span className="text-[10px] text-gray-400">عادی</span>
                         )}
                       </div>

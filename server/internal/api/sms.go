@@ -18,7 +18,7 @@ import (
 // smsStatus tells the page whether it may offer «send SMS» (the panel is set up and switched on).
 func smsStatus(w http.ResponseWriter, r *http.Request) {
 	c := sms.Load(r.Context())
-	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": c.Enabled && c.Provider != "" && c.APIKey != "", "library": c.Library, "custom": append([]sms.Custom{}, c.Custom...)})
+	httpx.JSON(w, http.StatusOK, map[string]any{"enabled": c.Enabled && c.Provider != "" && c.APIKey != "", "canSend": auth.Current(r).CanUseCrm() && auth.Current(r).CanSendSms(), "library": c.Library, "custom": append([]sms.Custom{}, c.Custom...)})
 }
 
 func smsGetSettings(w http.ResponseWriter, r *http.Request) {
@@ -127,8 +127,8 @@ func smsTest(w http.ResponseWriter, r *http.Request) {
 // smsSend sends a message to a customer (or a number) from the CRM. At most 40 per person per hour.
 func smsSend(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	if !me.CanUseCrm() {
-		httpx.Forbidden(w)
+	if !me.CanUseCrm() || !me.CanSendSms() {
+		httpx.Error(w, http.StatusForbidden, "اجازهٔ ارسال پیامک برای شما فعال نشده است؛ از مدیر بخواهید در کنسول مدیریت به شما اجازه بدهد.")
 		return
 	}
 	c := sms.Load(r.Context())

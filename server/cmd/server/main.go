@@ -11,11 +11,12 @@ import (
 	"automation/server/internal/auth"
 	"automation/server/internal/config"
 	"automation/server/internal/crm"
-	"automation/server/internal/license"
-	"automation/server/internal/push"
-	"automation/server/internal/store"
 	"automation/server/internal/demo"
+	"automation/server/internal/license"
 	"automation/server/internal/msgr"
+	"automation/server/internal/push"
+	"automation/server/internal/sms"
+	"automation/server/internal/store"
 	"automation/server/internal/voip"
 	"automation/server/internal/work"
 )
@@ -59,6 +60,9 @@ func main() {
 		go demo.Run(ctx, cfg.DemoResetHours)
 	}
 	go crm.RunReminders(ctx)
+	if !cfg.Demo {
+		go sms.RunOccasions(ctx) // birthday messages the day before
+	}
 	go msgr.Run(ctx)
 	go work.RunTaskReminders(ctx)
 	go api.RunFileRetention(ctx)

@@ -30,6 +30,8 @@ export interface User {
   canUseCrm?: boolean;
   /** Warranty menu (also open to everybody who works with customers). */
   canUseWarranty?: boolean;
+  /** The admin allowed this person to send SMS to customers (admins always may). */
+  canSendSms?: boolean;
   /** Access to the management statistics page (admins always have it). */
   canViewStats?: boolean;
   /** May publish on the bulletin board (admins always may). */

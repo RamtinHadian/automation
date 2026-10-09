@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMobile(t *testing.T) {
@@ -99,5 +100,19 @@ func TestTemplatesRender(t *testing.T) {
 	}
 	if got := Render(Templates[2], map[string]string{"name": "علی", "number": "P-1405-0007"}); got != "علی عزیز، پیش‌فاکتور شما به شمارهٔ P-۱۴۰۵-۰۰۰۷ صادر شد." {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestBirthdayTomorrow(t *testing.T) {
+	// born 21 March 1984 = 1 Farvardin 1363 (Nowruz); 21 March 2026 is 1 Farvardin 1405, so it matches
+	day := func(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 9, 0, 0, 0, time.UTC) }
+	if !birthdayTomorrow("1984-03-21", day(2026, 3, 21)) {
+		t.Fatal("1 Farvardin must match")
+	}
+	if birthdayTomorrow("1984-03-21", day(2026, 3, 22)) {
+		t.Fatal("2 Farvardin must not match")
+	}
+	if birthdayTomorrow("not a date", day(2026, 3, 22)) {
+		t.Fatal("a bad date never matches")
 	}
 }

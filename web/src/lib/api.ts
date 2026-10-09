@@ -334,7 +334,7 @@ export const api = {
   },
   soundDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/sounds/${encodeURIComponent(id)}`),
   notifyTest: (kind: string, label: string) => request<{ ok: true }>('POST', '/api/notify/test', { kind, label }),
-  smsStatus: () => request<{ enabled: boolean; library: string[] | null; custom: { id: string; title: string; text: string }[] }>('GET', '/api/sms/status'),
+  smsStatus: () => request<{ enabled: boolean; canSend: boolean; library: string[] | null; custom: { id: string; title: string; text: string }[] }>('GET', '/api/sms/status'),
   smsBulkStart: (b: { customerIds: string[]; text: string }) => request<{ id: string; total: number; sent: number; failed: number; skipped: number; done: boolean; error: string }>('POST', '/api/sms/bulk', b),
   smsBulkProgress: (id: string) => request<{ id: string; total: number; sent: number; failed: number; skipped: number; done: boolean; error: string }>('GET', `/api/sms/bulk/${encodeURIComponent(id)}`),
   smsTemplates: () => request<{ templates: { key: string; title: string; when: string; sample: string }[] }>('GET', '/api/sms/templates'),

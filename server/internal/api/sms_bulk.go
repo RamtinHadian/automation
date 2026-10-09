@@ -56,8 +56,8 @@ func bulkSnapshot(id, by string) (bulkJob, bool) {
 // POST /api/sms/bulk {customerIds, text}
 func smsBulkStart(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	if !me.CanUseCrm() {
-		httpx.Forbidden(w)
+	if !me.CanUseCrm() || !me.CanSendSms() {
+		httpx.Error(w, http.StatusForbidden, "اجازهٔ ارسال پیامک برای شما فعال نشده است؛ از مدیر بخواهید در کنسول مدیریت به شما اجازه بدهد.")
 		return
 	}
 	c := sms.Load(r.Context())

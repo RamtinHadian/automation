@@ -32,6 +32,8 @@ func (u User) IsAdmin() bool    { return u.Role() == "SUPER_ADMIN" || u.Role() =
 func (u User) CanUseTasks() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canUseTasks") }
 // CanViewStats: the management statistics (all admins, or anyone given the permission).
 func (u User) CanViewStats() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canViewStats") }
+// CanSendSms: the admin gave this person the right to send SMS to customers (admins always have it).
+func (u User) CanSendSms() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canSendSms") }
 func (u User) CanUseCrm() bool   { return u.IsAdmin() || jsonx.Bool(u.M, "canUseCrm") }
 
 // FromRow builds the public user document from a users row.

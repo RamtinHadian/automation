@@ -109,7 +109,7 @@ export const CrmView: React.FC = () => {
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
   const [smsEnabled, setSmsEnabled] = useState(false);
   useEffect(() => {
-    api.smsStatus().then((r) => setSmsEnabled(r.enabled)).catch(() => {});
+    api.smsStatus().then((r) => setSmsEnabled(r.enabled && r.canSend)).catch(() => {});
   }, []);
 
   const userById = useMemo(() => new Map(staffList.map((u) => [u.id, u])), [staffList]);
@@ -281,10 +281,11 @@ export const CrmView: React.FC = () => {
     ['customers', 'مشتریان', Users],
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
     ['followups', 'پیگیری‌ها', ListChecks],
-    ['sms', 'پیامک گروهی', MessageSquare],
   ] as const;
+  const smsTab = ['sms', 'پیامک گروهی', MessageSquare] as const;
   // the CEO also has «پیش‌فاکتورهای ارسالی»: what waits for the signature and what was signed
-  const tabs = isAnyApprover(currentUser, settings) ? ([...baseTabs, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : baseTabs;
+  const withSms = smsEnabled ? ([...baseTabs, smsTab] as const) : baseTabs;
+  const tabs = isAnyApprover(currentUser, settings) ? ([...withSms, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : withSms;
 
   const customerCard = (c: Customer) => {
     const st = STATUS[c.status];
@@ -1088,7 +1089,7 @@ const CustomerDetail: React.FC<{
     onClose();
   };
   useEffect(() => {
-    api.smsStatus().then((s) => setSmsOn(s.enabled)).catch(() => {});
+    api.smsStatus().then((s) => setSmsOn(s.enabled && s.canSend)).catch(() => {});
   }, []);
   useEffect(() => {
     let alive = true;
