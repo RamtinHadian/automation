@@ -293,9 +293,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [stampOffset, setStampOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.stampOffset));
   const [showSigImg, setShowSigImg] = useState<boolean>(() => prefs.showSignatureImage !== false);
   const [showStampImg, setShowStampImg] = useState<boolean>(() => prefs.showStampImage !== false);
-  const [showNo, setShowNo] = useState<boolean>(() => (editInit ? prefs.showLetterNumber !== false : true)); // per letter: a new letter always starts ticked
-  const [showDate, setShowDate] = useState<boolean>(() => (editInit ? prefs.showLetterDate !== false : true));
-  const [showAtt, setShowAtt] = useState<boolean>(() => (editInit ? prefs.showLetterAttachment !== false : true));
+  const [showNo, setShowNo] = useState<boolean>(() => prefs.showLetterNumber !== false); // saved with the layout: a new letter starts the way it was saved last
+  const [showDate, setShowDate] = useState<boolean>(() => prefs.showLetterDate !== false);
+  const [showAtt, setShowAtt] = useState<boolean>(() => prefs.showLetterAttachment !== false);
   // the logo belongs to the saved layout: a new letter starts the way the layout / template was saved last
   const [showLogo, setShowLogo] = useState<boolean>(() => prefs.showLogo !== false);
   const [showOrgName, setShowOrgName] = useState<boolean>(() => prefs.showOrgName !== false); // the name beside the logo, saved with the layout like the logo
@@ -316,7 +316,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
     orgOffset, bodyOffsetY, layoutLocked,
     showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo, showOrgName,
-    // the ticks «شماره / تاریخ / پیوست» belong to one letter only: they are never saved as the person's or the organisation's settings
+    // the ticks of the header (number, date, attachment, logo, name) are part of the layout: what was saved is what the next letter starts with
+    showLetterNumber: showNo, showLetterDate: showDate, showLetterAttachment: showAtt,
   });
 
   // The person's own letter settings are saved only when they press «ذخیره تنظیمات»; until then every change belongs to
@@ -367,6 +368,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setLayoutLocked(false);
     setShowSigImg(base.showSignatureImage !== false);
     setShowStampImg(base.showStampImage !== false);
+    setShowNo(base.showLetterNumber !== false);
+    setShowDate(base.showLetterDate !== false);
+    setShowAtt(base.showLetterAttachment !== false);
     setShowLogo(base.showLogo !== false);
     setShowOrgName(base.showOrgName !== false);
     // null (not undefined) so that the server forgets the saved settings too
