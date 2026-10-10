@@ -308,7 +308,7 @@ func whSave(table string, w http.ResponseWriter, r *http.Request, build func(bod
 // PUT /api/warehouse/products/{id}
 func whProductPut(w http.ResponseWriter, r *http.Request) {
 	if whMode(r.Context()) == "sepidar" {
-		whLimitedUpdate("wh_products", []string{"minQty", "note"}, w, r)
+		whLimitedUpdate("wh_products", []string{"minQty", "note", "prices"}, w, r)
 		return
 	}
 	whSave("wh_products", w, r, func(b jsonx.M) (jsonx.M, string, string) {
@@ -329,8 +329,39 @@ func whProductPut(w http.ResponseWriter, r *http.Request) {
 		if unit == "" {
 			unit = "عدد"
 		}
-		return jsonx.M{"code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500), "active": active}, code, ""
+		prices, msg := whPrices(b)
+		if msg != "" {
+			return nil, "", msg
+		}
+		return jsonx.M{"code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500), "active": active, "prices": prices}, code, ""
 	})
+}
+
+// whPrices: a product can have several named prices (retail, wholesale, agent…).
+func whPrices(b jsonx.M) ([]jsonx.M, string) {
+	out := []jsonx.M{}
+	raw := jsonx.Arr(b, "prices")
+	if len(raw) > 12 {
+		return nil, "حداکثر ۱۲ قیمت برای هر کالا ممکن است."
+	}
+	seen := map[string]bool{}
+	for _, x := range raw {
+		m, _ := x.(map[string]any)
+		title := whText(m, "title", 40)
+		amount, ok := whNum(m, "amount")
+		if title == "" && !ok {
+			continue
+		}
+		if title == "" || !ok || amount < 0 || amount > 1e13 {
+			return nil, "برای هر قیمت، عنوان و مبلغ درست بنویسید."
+		}
+		if seen[title] {
+			return nil, "عنوان قیمت «" + title + "» تکراری است."
+		}
+		seen[title] = true
+		out = append(out, jsonx.M{"title": title, "amount": amount})
+	}
+	return out, ""
 }
 
 // PUT /api/warehouse/warehouses/{id}
@@ -770,6 +801,15 @@ func whLimitedUpdate(table string, keep []string, w http.ResponseWriter, r *http
 		if _, has := body[k]; !has {
 			continue
 		}
+		if k == "prices" {
+				prices, msg := whPrices(body)
+				if msg != "" {
+					httpx.Error(w, http.StatusBadRequest, msg)
+					return
+				}
+				d[k] = prices
+				continue
+			}
 		if k == "minQty" {
 			v, ok := whNum(body, k)
 			if !ok || v < 0 {

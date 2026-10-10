@@ -247,6 +247,8 @@ export interface WhProduct {
   group?: string;
   barcode?: string;
   minQty?: number;
+  /** several named prices (retail, wholesale…) */
+  prices?: { title: string; amount: number }[];
   note?: string;
   active?: boolean;
   total: number;

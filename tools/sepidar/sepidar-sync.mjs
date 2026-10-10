@@ -6,6 +6,8 @@
 //   node sepidar-sync.mjs sync            نشان می‌دهد چه چیزهایی ثبت می‌شود (چیزی نمی‌نویسد)
 //   node sepidar-sync.mjs sync --apply    ثبت واقعی در سپیدار
 //   node sepidar-sync.mjs watch --apply   هر چند دقیقه همین کار را تکرار می‌کند
+//   node sepidar-sync.mjs stock           نشان می‌دهد چه کالا و موجودی‌ای به هورمند می‌رود (چیزی نمی‌نویسد)
+//   node sepidar-sync.mjs stock --apply   کالاها و موجودی انبارهای سپیدار را به هورمند می‌فرستد
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,7 +39,7 @@ function loadConfig() {
       process.exit(1);
     }
   }
-  return { sync: {}, ...c, sync: { customers: true, quotations: true, currencyRef: 1, saleTypeRef: 1, stockRef: null, priceMultiplier: 1, expireDays: 30, intervalMinutes: 10, ...(c.sync || {}) } };
+  return { sync: {}, ...c, sync: { customers: true, quotations: true, stock: true, inventoryPath: '/api/Items/Inventories', currencyRef: 1, saleTypeRef: 1, stockRef: null, priceMultiplier: 1, expireDays: 30, intervalMinutes: 10, ...(c.sync || {}) } };
 }
 
 const loadState = () => {
@@ -54,6 +56,13 @@ async function hoormand(cfg, p) {
   const res = await fetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`هورمند (${res.status}): ${j.error || res.statusText}`);
+  return j;
+}
+
+async function hoormandPost(cfg, p, body) {
+  const res = await fetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { method: 'POST', headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`هورمند (${res.status}): ${res.status === 403 ? 'این کلید دسترسی «همگام‌سازی انبار» ندارد؛ در کنسول هورمند آن را برای کلید تیک بزنید.' : j.error || res.statusText}`);
   return j;
 }
 
@@ -134,6 +143,43 @@ export function quotationBody(deal, customerRef, itemsByCode, sync) {
     },
     total: price - discount + tax,
   };
+}
+
+/** The catalogue and the stock of Sepidar's warehouses in the shape Hoormand's warehouse sync takes. */
+export function stockPayload(stocks, items, units, inventories) {
+  const unitTitle = new Map(units.map((u) => [u.UnitID, u.Title]));
+  const stockCode = new Map(stocks.map((w) => [w.StockID, String(w.Code ?? w.StockID).trim()]));
+  const goods = items.filter((i) => (i.Type === undefined || i.Type === 1) && String(i.Code ?? '').trim());
+  const codeOf = new Map(goods.map((i) => [i.ItemID, String(i.Code).trim()]));
+  const sums = new Map(); // "product|warehouse" -> quantity (a product with tracings has one row per tracing)
+  for (const r of inventories) {
+    const pc = codeOf.get(r.ItemRef ?? r.ItemID);
+    const wc = stockCode.get(r.StockRef ?? r.StockID);
+    const q = Number(r.Quantity ?? r.Qty ?? 0);
+    if (!pc || !wc || !Number.isFinite(q)) continue;
+    sums.set(pc + '|' + wc, (sums.get(pc + '|' + wc) || 0) + q);
+  }
+  return {
+    complete: true,
+    warehouses: stocks.map((w) => ({ code: String(w.Code ?? w.StockID).trim(), title: w.Title || String(w.Code), active: w.IsActive !== false })),
+    products: goods.map((i) => ({ code: String(i.Code).trim(), title: i.Title || String(i.Code), unit: unitTitle.get(i.UnitRef) || '', barcode: i.Barcode || '', active: i.IsActive !== false })),
+    stock: [...sums].map(([k, qty]) => { const [productCode, warehouseCode] = k.split('|'); return { productCode, warehouseCode, qty: Math.max(0, Math.round(qty * 1000) / 1000) }; }),
+  };
+}
+
+async function cmdStock(cfg) {
+  const state = loadState();
+  const sp = client(cfg, state);
+  const [stocks, items, units, inventories] = await Promise.all([sp.get('/api/Stocks'), sp.get('/api/Items'), sp.get('/api/Units'), sp.get(cfg.sync.inventoryPath)]);
+  const pay = stockPayload(stocks, items, units, inventories);
+  log(`موجودی: ${pay.warehouses.length} انبار، ${pay.products.length} کالا، ${pay.stock.length} ردیف موجودی در سپیدار`);
+  if (!apply) {
+    log('(فقط نمایش؛ برای فرستادن به هورمند --apply را اضافه کنید)');
+    return pay;
+  }
+  const r = await hoormandPost(cfg, '/warehouse/sync', pay);
+  log(`به هورمند فرستاده شد: انبار تازه ${r.warehousesNew}، کالای تازه ${r.productsNew}، سند تعدیل ${r.docs}، ردیف تغییرکرده ${r.changed}`);
+  return r;
 }
 
 // ---------- commands ----------
@@ -243,6 +289,13 @@ async function cmdSync(cfg) {
       }
     }
   }
+  if (sync.stock && apply) {
+    try {
+      await cmdStock(cfg);
+    } catch (e) {
+      log(`  خطا در فرستادن موجودی انبار: ${e.message}`);
+    }
+  }
   saveState(state);
   log(`خلاصه: مشتری تازه ${report.customersNew}، پیش‌فاکتور تازه ${report.quotationsNew}، ردشده ${report.quotationsSkip}، خطا ${report.customersFail + report.quotationsFail}`);
   return report;
@@ -250,13 +303,14 @@ async function cmdSync(cfg) {
 
 async function main() {
   if (cmd === 'help' || cmd === '--help') {
-    log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 9).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+    log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 11).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     return;
   }
   const cfg = loadConfig();
   if (cmd === 'register') return cmdRegister(cfg);
   if (cmd === 'test') return cmdTest(cfg);
   if (cmd === 'sync') return cmdSync(cfg);
+  if (cmd === 'stock') return cmdStock(cfg);
   if (cmd === 'watch') {
     for (;;) {
       try {

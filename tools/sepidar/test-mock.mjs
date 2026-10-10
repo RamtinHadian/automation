@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aesDecrypt, aesEncrypt, md5, guidFrom } from './sepidar-client.mjs';
-import { customerBody, quotationBody } from './sepidar-sync.mjs';
+import { customerBody, quotationBody, stockPayload } from './sepidar-sync.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 let failed = 0;
@@ -24,7 +24,10 @@ const std = (u) => Buffer.from(u, 'base64url').toString('base64');
 const xml = `<RSAKeyValue><Modulus>${std(jwk.n)}</Modulus><Exponent>${std(jwk.e)}</Exponent></RSAKeyValue>`;
 const used = new Set();
 const sp = { customers: [], quotations: [], registered: false, logins: 0 };
-const items = [{ ItemID: 7, Code: '1001', Title: 'کالای یک', IsActive: true, IsSellable: true }, { ItemID: 8, Code: '1002', Title: 'کالای دو', IsActive: true, IsSellable: true }];
+const items = [{ ItemID: 7, Code: '1001', Title: 'کالای یک', Type: 1, UnitRef: 1, IsActive: true, IsSellable: true }, { ItemID: 8, Code: '1002', Title: 'کالای دو', Type: 1, UnitRef: 2, IsActive: true, IsSellable: true }, { ItemID: 9, Code: '2001', Title: 'خدمت نصب', Type: 2, UnitRef: 1, IsActive: true, IsSellable: true }];
+const stocks = [{ StockID: 1, Code: 'A1', Title: 'انبار مرکزی', IsActive: true }, { StockID: 2, Code: 'B1', Title: 'انبار فروشگاه', IsActive: true }];
+const units = [{ UnitID: 1, Title: 'عدد' }, { UnitID: 2, Title: 'لیتر' }];
+const inventories = [{ ItemRef: 7, StockRef: 1, TracingRef: null, Quantity: 5 }, { ItemRef: 7, StockRef: 1, TracingRef: 3, Quantity: 2.5 }, { ItemRef: 8, StockRef: 2, Quantity: 4 }, { ItemRef: 9, StockRef: 1, Quantity: 99 }];
 
 const readBody = (req) => new Promise((r) => { let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => r(b ? JSON.parse(b) : null)); });
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
@@ -61,6 +64,9 @@ const sepidarServer = http.createServer(async (req, res) => {
   }
   if (!/^Bearer tok-/.test(req.headers.authorization || '')) return send(res, 401, { Message: 'token' });
   if (req.method === 'GET' && url === '/api/Items') return send(res, 200, items);
+  if (req.method === 'GET' && url === '/api/Stocks') return send(res, 200, stocks);
+  if (req.method === 'GET' && url === '/api/Units') return send(res, 200, units);
+  if (req.method === 'GET' && url === '/api/Items/Inventories') return send(res, 200, inventories);
   if (req.method === 'GET' && url === '/api/Customers') return send(res, 200, sp.customers);
   if (req.method === 'POST' && url === '/api/Customers') {
     if (sp.customers.some((c) => c.GUID === body.GUID)) return send(res, 400, { Message: 'duplicate' });
@@ -88,8 +94,13 @@ const deals = [
   { id: 'd-2', customerId: 'c-2', customerName: 'شرکت نمونه', stage: 'WON', proformaNumber: 'P-1405-2', items: [{ title: 'ناشناخته', code: '9999', qty: 1, unitPrice: 10 }] },
   { id: 'd-3', customerId: 'c-1', customerName: 'علی رضایی', stage: 'NEW', items: [] },
 ];
-const hoormandServer = http.createServer((req, res) => {
+const hoormandPosts = [];
+const hoormandServer = http.createServer(async (req, res) => {
   if (req.headers.authorization !== 'Bearer hk_testkey') return send(res, 401, { error: 'bad key' });
+  if (req.method === 'POST' && req.url === '/api/ext/v1/warehouse/sync') {
+    hoormandPosts.push(await readBody(req));
+    return send(res, 200, { warehousesNew: 2, productsNew: 2, productsUpdated: 0, docs: 2, changed: 3 });
+  }
   const u = new URL(req.url, 'http://x');
   if (u.pathname === '/api/ext/v1/ping') return send(res, 200, { ok: true, key: 'آزمایش', actAs: 'همکار', scopes: ['customers.read', 'deals.read'] });
   if (u.pathname === '/api/ext/v1/customers') return send(res, 200, { customers: customers.slice(Number(u.searchParams.get('offset')) || 0) });
@@ -112,6 +123,11 @@ ok(q.body.Price === 25000 && q.body.Discount === 2950 && q.body.Tax === 2205 && 
 ok(q.body.Items.length === 2 && q.body.Items[0].ItemRef === 7 && q.body.Items[1].Discount === 950, 'quotation rows map to Sepidar items');
 ok(quotationBody(deals[1], 500, map, { priceMultiplier: 1 }).skip?.includes('9999'), 'unknown item code is skipped with the reason');
 
+// the stock payload: goods only, tracings summed, units by title
+const pl = stockPayload(stocks, items, units, inventories);
+ok(pl.products.length === 2 && pl.products[1].unit === 'لیتر' && pl.warehouses.length === 2 && pl.complete === true, 'stock payload: goods only (the service is left out), units by title');
+ok(pl.stock.length === 2 && pl.stock.find((x) => x.productCode === '1001' && x.warehouseCode === 'A1').qty === 7.5, 'stock payload: the tracings of one product are summed');
+
 // the whole program
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sepidar-test-'));
 const cfg = path.join(tmp, 'config.json');
@@ -132,7 +148,11 @@ ok(r.code !== 0 && /register/.test(r.out), 'test before register explains what t
 r = await runAsync('register');
 ok(r.code === 0 && sp.registered && /ثبت شد/.test(r.out), 'register: AES cypher accepted, public key received');
 r = await runAsync('test');
-ok(r.code === 0 && /ورود موفق/.test(r.out) && /2 کالا|۲ کالا/.test(r.out), 'test: encrypted headers + login accepted by the pretend Sepidar\n' + r.out.split('\n').map((l) => '      ' + l).join('\n'));
+ok(r.code === 0 && /ورود موفق/.test(r.out) && /3 کالا|۳ کالا/.test(r.out), 'test: encrypted headers + login accepted by the pretend Sepidar\n' + r.out.split('\n').map((l) => '      ' + l).join('\n'));
+r = await runAsync('stock');
+ok(r.code === 0 && hoormandPosts.length === 0 && /فقط نمایش/.test(r.out), 'stock without --apply sends nothing');
+r = await runAsync('stock', '--apply');
+ok(r.code === 0 && hoormandPosts.length === 1 && hoormandPosts[0].stock.length === 2 && /به هورمند فرستاده شد/.test(r.out), 'stock --apply sends the catalogue and the stock to Hoormand\n' + r.out.split('\n').map((l) => '      ' + l).join('\n'));
 r = await runAsync('sync');
 ok(r.code === 0 && sp.customers.length === 0 && sp.quotations.length === 0 && /فقط نمایش/.test(r.out) && /پیش‌فاکتور تازه: .*P-1405-1/.test(r.out), 'sync without --apply writes nothing\n' + r.out.split('\n').map((l) => '      ' + l).join('\n'));
 r = await runAsync('sync', '--apply');

@@ -12,6 +12,7 @@
   "sync": {
     "customers": true,
     "quotations": true,
+    "stock": true,
     "currencyRef": 1,
     "saleTypeRef": 1,
     "stockRef": null,
