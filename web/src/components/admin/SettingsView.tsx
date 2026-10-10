@@ -118,7 +118,8 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
     letterNumbering: {
       ...DEFAULT_LETTER_NUMBERING,
       ...(s.letterNumbering || {}),
-      prefix: s.letterNumbering?.prefix ? toPersianDigits(s.letterNumbering.prefix) : DEFAULT_LETTER_NUMBERING.prefix,
+      // an empty prefix is a choice (numbers without prefix): only a company that never saved numbering settings gets the default
+      prefix: s.letterNumbering ? toPersianDigits(s.letterNumbering.prefix ?? '') : DEFAULT_LETTER_NUMBERING.prefix,
       year: s.letterNumbering?.year ? toPersianDigits(s.letterNumbering.year) : DEFAULT_LETTER_NUMBERING.year,
       defaultFooterNote: s.letterNumbering?.defaultFooterNote ? toPersianDigits(s.letterNumbering.defaultFooterNote) : DEFAULT_LETTER_NUMBERING.defaultFooterNote,
     },
@@ -638,7 +639,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               dir="rtl"
               value={currentNumbering.prefix ? toPersianDigits(currentNumbering.prefix) : ''}
               onChange={(e) => handleNumberingChange({ prefix: toPersianDigits(e.target.value) })}
-              placeholder="مثال: ۱۰ یا ات یا الف"
+              placeholder="خالی = بدون پیشوند (مثال: ۱۰ یا ات)"
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
             />
           </div>
@@ -684,7 +685,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
             />
             <label className="mt-2 flex items-start gap-2 font-bold text-[#3A241F] cursor-pointer" data-month-number>
-              <input type="checkbox" className="mt-0.5" checked={!!currentNumbering.includeMonth} onChange={(e) => handleNumberingChange({ includeMonth: e.target.checked })} />
+              <input type="checkbox" className="mt-0.5 w-5 h-5 shrink-0 accent-[#6E1B1B] cursor-pointer" checked={!!currentNumbering.includeMonth} onChange={(e) => handleNumberingChange({ includeMonth: e.target.checked })} />
               <span>
                 شمارهٔ ماه شمسی هم در شمارهٔ نامه بیاید
                 <span className="block text-[10px] font-medium text-[#8C6F66] leading-5">مثلاً در مهر به‌جای «۱۴۰۵» نوشته می‌شود «۱۴۰۵/۰۷» و در آبان «۱۴۰۵/۰۸»؛ هر ماه خودکار عوض می‌شود.</span>
