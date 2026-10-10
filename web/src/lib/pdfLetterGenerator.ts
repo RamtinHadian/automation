@@ -45,6 +45,7 @@ export interface LetterPrintOverrides {
   showLetterNumber?: boolean;
   showLetterDate?: boolean;
   showLetterAttachment?: boolean;
+  showLogo?: boolean;
   signatureImgOffsetX?: number;
   signatureImgOffsetY?: number;
 }
@@ -65,6 +66,7 @@ export function generateOfficialLetterHtml(
   const showNo = (overrides?.showLetterNumber ?? transfer.showLetterNumber) !== false;
   const showDate = (overrides?.showLetterDate ?? transfer.showLetterDate) !== false;
   const showAtt = (overrides?.showLetterAttachment ?? transfer.showLetterAttachment) !== false;
+  const showLogo = (overrides?.showLogo ?? transfer.showLogo) !== false;
   const signatureImg = showSig ? transfer.signatureImageUrl || settings.ceoSignatureUrl : undefined;
   const stampImg = showStamp ? transfer.companyStampImageUrl || settings.companyStampUrl : undefined;
 
@@ -87,7 +89,7 @@ export function generateOfficialLetterHtml(
 
   const companyName = overrides?.customCompanyTitle !== undefined ? overrides.customCompanyTitle : (transfer.customHeaderCompanyTitle !== undefined ? transfer.customHeaderCompanyTitle : (settings.companyName || ''));
   const companySubtitle = overrides?.customCompanySubtitle !== undefined ? overrides.customCompanySubtitle : (transfer.customHeaderCompanySubtitle !== undefined ? transfer.customHeaderCompanySubtitle : (settings.companySubtitle || ''));
-  const companyLogo = settings.companyLogoUrl;
+  const companyLogo = showLogo ? settings.companyLogoUrl : undefined;
 
   const rawLetterNo = overrides?.customNumber || transfer.customHeaderNumber || transfer.letterNumber || transfer.fileName.replace(/\.[^/.]+$/, '').replace(/^نامه_/, '');
   const letterNo = toPersianDigits(rawLetterNo);

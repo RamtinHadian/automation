@@ -362,16 +362,21 @@ export default function UserPanel() {
   });
 
   // Official Letters
-  const officialLetters = transfers.filter((t) => t.isOfficialLetter);
+  // Only the letters this person takes part in (an admin receives every transfer of the system but sees, and counts, only these):
+  // the numbers on the tabs must be the numbers of the letters the list can show.
+  const officialLetters = transfers.filter(
+    (t) =>
+      t.isOfficialLetter &&
+      (t.sender.id === currentUser.id ||
+        t.recipients.some((r) => r.id === currentUser.id) ||
+        (t.referrals && t.referrals.some((ref) => ref.toUser.id === currentUser.id || ref.fromUser.id === currentUser.id)) ||
+        canSignOfficial)
+  );
   const activeLettersCount = officialLetters.filter((t) => !t.isArchived).length;
   const archivedLettersCount = officialLetters.filter((t) => t.isArchived).length;
 
   const userOfficialLetters = officialLetters.filter((t) => {
-    const isRelated =
-      t.sender.id === currentUser.id ||
-      t.recipients.some((r) => r.id === currentUser.id) ||
-      (t.referrals && t.referrals.some((ref) => ref.toUser.id === currentUser.id || ref.fromUser.id === currentUser.id)) ||
-      canSignOfficial;
+    const isRelated = true; // officialLetters already holds only the related ones
 
     const matchesSearch =
       t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -492,6 +497,7 @@ export default function UserPanel() {
     showLetterNumber?: boolean;
     showLetterDate?: boolean;
     showLetterAttachment?: boolean;
+    showLogo?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
@@ -585,6 +591,7 @@ export default function UserPanel() {
       showLetterNumber: letterData.showLetterNumber,
       showLetterDate: letterData.showLetterDate,
       showLetterAttachment: letterData.showLetterAttachment,
+      showLogo: letterData.showLogo,
       customFooterNote: letterData.customFooterNote,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyOffsetY: letterData.bodyOffsetY,

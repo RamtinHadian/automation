@@ -416,6 +416,7 @@ interface LetterPreviewModalProps {
       showLetterNumber?: boolean;
       showLetterDate?: boolean;
       showLetterAttachment?: boolean;
+      showLogo?: boolean;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -471,6 +472,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [showNo, setShowNo] = useState(true);
   const [showDate, setShowDate] = useState(true);
   const [showAtt, setShowAtt] = useState(true);
+  const [showLogo, setShowLogo] = useState(true);
   const signatureImg = showSig ? letter?.signatureImageUrl || settings?.ceoSignatureUrl : undefined;
   const stampImg = showStamp ? letter?.companyStampImageUrl || settings?.companyStampUrl : undefined;
 
@@ -569,6 +571,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setShowNo(letter.showLetterNumber !== false);
       setShowDate(letter.showLetterDate !== false);
       setShowAtt(letter.showLetterAttachment !== false);
+      setShowLogo(letter.showLogo !== false);
       setHeaderCenterOffset({ x: letter.headerCenterOffsetX || 0, y: letter.headerCenterOffsetY || 0 });
       setSubjectOffset({ x: letter.subjectOffsetX || 0, y: letter.subjectOffsetY || 0 });
       setMetaOffset({ x: letter.metaOffsetX || 0, y: letter.metaOffsetY || 0 });
@@ -759,6 +762,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       showLetterNumber: showNo,
       showLetterDate: showDate,
       showLetterAttachment: showAtt,
+      showLogo,
       customBody: convertNumbersInHtmlToPersian(customBody),
       customHeaderNumber: headerNumber,
       customHeaderDate: headerDate,
@@ -854,6 +858,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       showLetterNumber: showNo,
       showLetterDate: showDate,
       showLetterAttachment: showAtt,
+      showLogo,
     });
   };
 
@@ -1283,6 +1288,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   <input type="checkbox" checked={showAtt} onChange={(e) => setShowAtt(e.target.checked)} className="accent-[#6E1B1B]" />
                   پیوست
                 </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} className="accent-[#6E1B1B]" />
+                  لوگو
+                </label>
               </div>
 
               <div className="flex items-center gap-4 font-bold text-[#3A241F] pt-1">
@@ -1609,7 +1618,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 {/* Right: Company Info & Emblem */}
                 <div style={{ transform: `translate(${orgOffset.x}px, ${orgOffset.y}px)` }} className={`space-y-0.5 min-w-0 ${pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
                   <div className="flex items-center gap-2">
-                    {settings.companyLogoUrl ? (
+                    {settings.companyLogoUrl && showLogo ? (
                       <div
                         style={{
                           width: `${pageSize === 'A5' ? Math.min(settings.companyLogoWidth || 44, 44) : (settings.companyLogoWidth || 64)}px`,
