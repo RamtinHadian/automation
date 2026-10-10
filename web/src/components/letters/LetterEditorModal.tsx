@@ -90,6 +90,7 @@ interface LetterEditorModalProps {
     showLetterDate?: boolean;
     showLetterAttachment?: boolean;
     showLogo?: boolean;
+    showOrgName?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
@@ -204,6 +205,7 @@ function parseLetterForEdit(t: FileTransfer) {
   if (t.showLetterDate === false) layout.showLetterDate = false;
   if (t.showLetterAttachment === false) layout.showLetterAttachment = false;
   if (t.showLogo === false) layout.showLogo = false;
+  if (t.showOrgName === false) layout.showOrgName = false;
   const subject = (t.fileName || '').replace(/^نامه_/, '').replace(/_(A4|A5|Letter|Letterhead)\.html$/, '').replace(/_/g, ' ');
   return { bodyHtml, layout, subject, signerName: t.customSignerName, signerTitle: t.customSignerTitle };
 }
@@ -296,6 +298,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [showAtt, setShowAtt] = useState<boolean>(() => (editInit ? prefs.showLetterAttachment !== false : true));
   // the logo belongs to the saved layout: a new letter starts the way the layout / template was saved last
   const [showLogo, setShowLogo] = useState<boolean>(() => prefs.showLogo !== false);
+  const [showOrgName, setShowOrgName] = useState<boolean>(() => prefs.showOrgName !== false); // the name beside the logo, saved with the layout like the logo
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(() => (typeof prefs.stampHeightOverride === 'number' ? prefs.stampHeightOverride : null));
   const effectiveStampHeight =
     stampHeightOverride ?? (pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05));
@@ -312,7 +315,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
     orgOffset, bodyOffsetY, layoutLocked,
-    showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo,
+    showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo, showOrgName,
     // the ticks «شماره / تاریخ / پیوست» belong to one letter only: they are never saved as the person's or the organisation's settings
   });
 
@@ -365,6 +368,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setShowSigImg(base.showSignatureImage !== false);
     setShowStampImg(base.showStampImage !== false);
     setShowLogo(base.showLogo !== false);
+    setShowOrgName(base.showOrgName !== false);
     // null (not undefined) so that the server forgets the saved settings too
     setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: null as unknown as undefined } : u)));
     setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: null as unknown as undefined } : u));
@@ -622,6 +626,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       showLetterDate: showDate ? undefined : false,
       showLetterAttachment: showAtt ? undefined : false,
       showLogo: showLogo ? undefined : false,
+      showOrgName: showOrgName ? undefined : false,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
       bodyOffsetX,
       bodyOffsetY,
@@ -874,7 +879,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                         />
                       </div>
                     ) : null}
-                    {(settings.companyName || settings.companySubtitle) && (
+                    {(settings.companyName || settings.companySubtitle) && showOrgName && (
                       <div>
                         {settings.companyName && (
                           <h1 className="font-black text-sm text-[#3A241F]">
@@ -1468,6 +1473,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               <label className="flex items-center gap-1 cursor-pointer" title="لوگوی شرکت در سربرگ نامه؛ با «ذخیرهٔ تنظیمات» یا ثبت قالب، همین وضعیت برای نامه‌های بعدی می‌ماند">
                 <input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} className="accent-amber-700" />
                 لوگو
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer" title="نام و عنوان سازمان کنار لوگو؛ مثل لوگو با «ذخیرهٔ تنظیمات» یا ثبت قالب ذخیره می‌شود">
+                <input type="checkbox" checked={showOrgName} onChange={(e) => setShowOrgName(e.target.checked)} className="accent-amber-700" />
+                نام سازمان
               </label>
             </div>
 

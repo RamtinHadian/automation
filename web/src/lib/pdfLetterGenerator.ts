@@ -46,6 +46,7 @@ export interface LetterPrintOverrides {
   showLetterDate?: boolean;
   showLetterAttachment?: boolean;
   showLogo?: boolean;
+  showOrgName?: boolean;
   signatureImgOffsetX?: number;
   signatureImgOffsetY?: number;
 }
@@ -67,6 +68,7 @@ export function generateOfficialLetterHtml(
   const showDate = (overrides?.showLetterDate ?? transfer.showLetterDate) !== false;
   const showAtt = (overrides?.showLetterAttachment ?? transfer.showLetterAttachment) !== false;
   const showLogo = (overrides?.showLogo ?? transfer.showLogo) !== false;
+  const showOrgName = (overrides?.showOrgName ?? transfer.showOrgName) !== false;
   const signatureImg = showSig ? transfer.signatureImageUrl || settings.ceoSignatureUrl : undefined;
   const stampImg = showStamp ? transfer.companyStampImageUrl || settings.companyStampUrl : undefined;
 
@@ -447,10 +449,10 @@ export function generateOfficialLetterHtml(
     <div class="header">
       <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);">
         ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" />` : ''}
-        <div>
+        ${showOrgName ? `<div>
           ${companyName ? `<h1 class="org-title">${companyName}</h1>` : ''}
           ${companySubtitle ? `<div class="org-sub">${companySubtitle}</div>` : ''}
-        </div>
+        </div>` : ''}
       </div>
       <div class="letter-title">
         ${headerTitle ? `<span>${headerTitle}</span>` : ''}

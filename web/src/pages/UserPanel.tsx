@@ -498,6 +498,7 @@ export default function UserPanel() {
     showLetterDate?: boolean;
     showLetterAttachment?: boolean;
     showLogo?: boolean;
+    showOrgName?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
@@ -592,6 +593,7 @@ export default function UserPanel() {
       showLetterDate: letterData.showLetterDate,
       showLetterAttachment: letterData.showLetterAttachment,
       showLogo: letterData.showLogo,
+      showOrgName: letterData.showOrgName,
       customFooterNote: letterData.customFooterNote,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyOffsetY: letterData.bodyOffsetY,

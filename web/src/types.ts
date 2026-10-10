@@ -446,6 +446,8 @@ export interface FileTransfer {
   showLetterAttachment?: boolean;
   /** the company logo in the letterhead (false = hidden) */
   showLogo?: boolean;
+  /** the organisation name and subtitle beside the logo (false = hidden) */
+  showOrgName?: boolean;
   headerCenterOffsetX?: number;
   headerCenterOffsetY?: number;
   subjectOffsetX?: number;
