@@ -25,3 +25,7 @@ web/vite.tmp.config.ts
 # the introduction video project (large pictures and voice files) stays on the owner's computer
 video/
 landing/
+
+# tools that hold passwords or keys of a company
+tools/sepidar/config.json
+tools/sepidar/state.json

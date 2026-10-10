@@ -1,0 +1,22 @@
+{
+  "hoormand": {
+    "url": "https://office.example.com",
+    "apiKey": "hk_کلید-ساخته-شده-در-کنسول-هورمند"
+  },
+  "sepidar": {
+    "url": "http://localhost:7373",
+    "serial": "سریال هشت حرفی دستگاه در سپیدار",
+    "userName": "نام کاربری دستگاه در سپیدار",
+    "password": "رمز همان کاربر"
+  },
+  "sync": {
+    "customers": true,
+    "quotations": true,
+    "currencyRef": 1,
+    "saleTypeRef": 1,
+    "stockRef": null,
+    "priceMultiplier": 1,
+    "expireDays": 30,
+    "intervalMinutes": 10
+  }
+}
