@@ -172,11 +172,6 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                   </span>
                   {activeSubTab === 'inbox' ? (
                     <div className="flex items-center gap-1.5 font-bold text-[#3A241F]">
-                      <img
-                        src={transfer.sender.avatarUrl}
-                        alt={transfer.sender.fullName}
-                        className="w-5 h-5 rounded-full object-cover"
-                      />
                       <span>{transfer.sender.fullName}</span>
                       <span className="text-[10px] text-[#8C6F66] font-normal">
                         ({transfer.sender.departmentName})
@@ -184,17 +179,8 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                     </div>
                   ) : (
                     <div className="avatar-stack flex items-center">
-                      {transfer.recipients.map((r, idx) => (
-                        <img
-                          key={idx}
-                          src={r.avatarUrl}
-                          alt={r.fullName}
-                          title={`${r.fullName} (${r.departmentName})`}
-                          className="w-5 h-5 rounded-full object-cover border-2 border-white"
-                        />
-                      ))}
-                      <span className="text-[11px] text-[#8C6F66] font-medium mr-2">
-                        {transfer.recipients.length} گیرنده
+                      <span className="text-[11px] text-[#3A241F] font-bold" title={transfer.recipients.map((r) => `${r.fullName} (${r.departmentName})`).join('، ')}>
+                        {transfer.recipients.map((r) => r.fullName).join('، ')}
                       </span>
                     </div>
                   )}

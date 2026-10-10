@@ -99,11 +99,6 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                   key={idx}
                   className="flex items-center gap-2 bg-[#FAF5F1] px-3 py-1.5 rounded-full border border-[#EBDBCE]"
                 >
-                  <img
-                    src={owner.avatarUrl}
-                    alt={owner.name}
-                    className="w-5 h-5 rounded-full object-cover"
-                  />
                   <span className="font-semibold text-[#3A241F]">{owner.name}</span>
                 </div>
               ))}

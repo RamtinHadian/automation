@@ -49,13 +49,8 @@ const prio = (p: TaskPriority) => PRIORITIES.find((x) => x.id === p) || PRIORITI
 const uid = (p: string) => p + '-' + Math.random().toString(36).substring(2, 10);
 const nowIso = () => new Date().toISOString();
 
-/** A person's photo, when one was uploaded. There is no more circle with the first letters of the name: names are always written in full. */
-export const Avatar: React.FC<{ user?: User; size?: number }> = ({ user, size = 24 }) =>
-  user?.avatarUrl && !user.avatarUrl.includes('unsplash') ? (
-    <span title={user.fullName} style={{ width: size, height: size }} className="inline-flex rounded-full border-2 border-white shrink-0 overflow-hidden">
-      <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-    </span>
-  ) : null;
+/** No person has a picture anywhere in the system: names are always written in full. (Kept so the places that call it need no change.) */
+export const Avatar: React.FC<{ user?: User; size?: number }> = () => null;
 
 /** Jalali date picker (day / month / year selects) that stores a Gregorian yyyy-mm-dd string. */
 export const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string | undefined) => void; disabled?: boolean; minYear?: number; maxYear?: number }> = ({

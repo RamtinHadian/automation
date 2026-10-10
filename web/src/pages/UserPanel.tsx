@@ -1880,7 +1880,7 @@ export default function UserPanel() {
             {/* Target Colleague / Unit (ANY PERSON IN SYSTEM) */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-bold text-[#3A241F]">ارجاع به کارمند / واحد:</label>
-              <PersonPicker title="ارجاع به کارمند" items={referralStaff.map((u) => ({ id: u.id, name: u.fullName, sub: `${u.departmentName} (${u.role === 'SUPER_ADMIN' ? 'مدیر ارشد' : u.role === 'DEPT_ADMIN' ? 'مدیر واحد' : 'پرسنل'})`, avatar: u.avatarUrl || undefined }))} value={referralTargetUserId} onChange={setReferralTargetUserId} placeholder={referralStaff.length === 0 ? 'کسی با مجوز نامه‌نگاری پیدا نشد' : 'انتخاب کنید…'} />
+              <PersonPicker title="ارجاع به کارمند" items={referralStaff.map((u) => ({ id: u.id, name: u.fullName, sub: `${u.departmentName} (${u.role === 'SUPER_ADMIN' ? 'مدیر ارشد' : u.role === 'DEPT_ADMIN' ? 'مدیر واحد' : 'پرسنل'})` }))} value={referralTargetUserId} onChange={setReferralTargetUserId} placeholder={referralStaff.length === 0 ? 'کسی با مجوز نامه‌نگاری پیدا نشد' : 'انتخاب کنید…'} />
             </div>
 
             {/* Referral Note / Paraph */}

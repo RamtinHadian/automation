@@ -8,10 +8,7 @@ export interface PickerItem {
   name: string;
   /** second line: department, company, phone… */
   sub?: string;
-  avatar?: string;
 }
-
-const initials = (n: string) => (n.trim()[0] || '؟');
 
 interface Common {
   items: PickerItem[];
@@ -76,7 +73,6 @@ const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, on
         <div className="p-3 overflow-y-auto flex-1 space-y-1" data-picker-list>
           {!multiple && emptyLabel !== undefined && (
             <button type="button" onClick={() => choose('')} className={`w-full flex items-center gap-3 px-3 py-2.5 min-h-[46px] rounded-xl text-xs font-bold text-right cursor-pointer ${selected.length === 0 ? 'bg-[#F6D9CD]' : 'hover:bg-[#FAF5F1]'}`}>
-              <span className="w-8 h-8 rounded-full bg-[#EBDBCE] text-[#8C6F66] flex items-center justify-center shrink-0">—</span>
               <span className="flex-1 text-[#8C6F66]">{emptyLabel}</span>
               {selected.length === 0 && <Check className="w-4 h-4 text-[#6E1B1B]" />}
             </button>
@@ -88,11 +84,6 @@ const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, on
               const on = (multiple ? draft : selected).includes(i.id);
               return (
                 <button key={i.id} type="button" onClick={() => choose(i.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 min-h-[46px] rounded-xl text-right cursor-pointer ${on ? 'bg-[#F6D9CD]' : 'hover:bg-[#FAF5F1]'}`}>
-                  {i.avatar ? (
-                    <img src={i.avatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-                  ) : (
-                    <span className="w-8 h-8 rounded-full bg-[#6E1B1B] text-white text-xs font-black flex items-center justify-center shrink-0">{initials(i.name)}</span>
-                  )}
                   <span className="flex-1 min-w-0">
                     <span className="block text-xs font-black text-[#3A241F] truncate">{i.name}</span>
                     {i.sub && <span className="block text-[10px] text-[#8C6F66] truncate">{i.sub}</span>}
@@ -156,7 +147,7 @@ export const PersonPickerMulti: React.FC<Common & { values: string[]; onChange: 
 
 /** Colleagues as picker items. */
 export const staffItems = (list: { id: string; fullName: string; departmentName?: string; avatarUrl?: string }[]): PickerItem[] =>
-  list.map((u) => ({ id: u.id, name: u.fullName, sub: u.departmentName, avatar: u.avatarUrl || undefined }));
+  list.map((u) => ({ id: u.id, name: u.fullName, sub: u.departmentName }));
 
 /** Customers as picker items. */
 export const customerItems = (list: { id: string; name: string; company?: string; phones?: string[] }[]): PickerItem[] =>

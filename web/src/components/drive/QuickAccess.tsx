@@ -42,13 +42,6 @@ export const QuickAccess: React.FC<QuickAccessProps> = ({
                       {item.title}
                     </div>
                   </div>
-                  {item.sharedWith[0] && (
-                    <img
-                      src={item.sharedWith[0].avatarUrl}
-                      alt={item.sharedWith[0].name}
-                      className="w-7 h-7 rounded-full object-cover ring-2 ring-white shrink-0"
-                    />
-                  )}
                 </div>
 
                 <div className="pt-2 border-t border-[#EBDBCE]">
@@ -89,19 +82,7 @@ export const QuickAccess: React.FC<QuickAccessProps> = ({
                 >
                   اشتراک‌گذاری شده با
                 </div>
-                <div className="avatar-stack flex items-center">
-                  {item.sharedWith.map((person, idx) => (
-                    <img
-                      key={idx}
-                      src={person.avatarUrl}
-                      alt={person.name}
-                      title={person.name}
-                      className={`w-7 h-7 rounded-full object-cover border-2 shadow-xs transition-transform ${
-                        isActive ? 'border-[#6E1B1B]' : 'border-[#FAF5F1]'
-                      }`}
-                    />
-                  ))}
-                </div>
+                <span className="text-[11px] font-bold text-[#3A241F] truncate">{item.sharedWith.map((person) => person.name).join('، ')}</span>
               </div>
 
               {/* Folder metadata footer */}

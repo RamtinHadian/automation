@@ -146,17 +146,7 @@ export const FileList: React.FC<FileListProps> = ({
 
                   {/* Owners Avatar Stack */}
                   <td className="py-3.5 px-4">
-                    <div className="avatar-stack flex items-center">
-                      {file.owners.map((owner, i) => (
-                        <img
-                          key={i}
-                          src={owner.avatarUrl}
-                          alt={owner.name}
-                          title={owner.name}
-                          className="w-6 h-6 rounded-full object-cover border-2 border-white shadow-2xs"
-                        />
-                      ))}
-                    </div>
+                    <span className="text-xs font-bold text-[#3A241F]">{file.owners.map((owner) => owner.name).join('، ')}</span>
                   </td>
 
                   {/* Last Modified */}
