@@ -143,6 +143,8 @@ export default function UserPanel() {
   const [previewingLetter, setPreviewingLetter] = useState<FileTransfer | null>(null);
 
   const [activeBoxTab, setActiveBoxTab] = useState<'received' | 'sent' | 'archive'>('received');
+  // the archive has two parts: files received and files sent
+  const [archiveSub, setArchiveSub] = useState<'received' | 'sent'>('received');
   const [letterFilter, setLetterFilter] = useState<'ALL' | 'PENDING' | 'SIGNED' | 'REJECTED' | 'ARCHIVED'>('ALL');
 
   // File Transfer Form State
@@ -369,8 +371,15 @@ export default function UserPanel() {
     const matchesSearch =
       t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.recipients.some((r) => r.fullName.toLowerCase().includes(searchQuery.toLowerCase()));
-    return isSender && matchesSearch;
+    return isSender && !isArchivedByMe(t) && matchesSearch;
   });
+  const archivedSentFiles = regularTransfers.filter(
+    (t) =>
+      t.sender.id === currentUser.id &&
+      isArchivedByMe(t) &&
+      (t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) || t.recipients.some((r) => r.fullName.toLowerCase().includes(searchQuery.toLowerCase())))
+  );
+  const archiveShown = archiveSub === 'sent' ? archivedSentFiles : archivedFiles;
 
   // Official Letters
   // Only the letters this person takes part in (an admin receives every transfer of the system but sees, and counts, only these):
@@ -1153,7 +1162,7 @@ export default function UserPanel() {
                         <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                           activeBoxTab === 'archive' ? 'bg-white/20 text-white' : 'bg-[#EBDBCE] text-[#3A241F]'
                         }`}>
-                          {toPersianDigits(archivedFiles.length)}
+                          {toPersianDigits(archivedFiles.length + archivedSentFiles.length)}
                         </span>
                       </button>
                     </div>
@@ -1173,7 +1182,24 @@ export default function UserPanel() {
                 </div>
 
                 {/* TAB 1: RECEIVED FILES */}
-                {(activeBoxTab === 'received' || activeBoxTab === 'archive') && (
+                {activeBoxTab === 'archive' && (
+                  <div className="flex items-center gap-2 mb-3" data-archive-sub>
+                    {([['received', 'بایگانی دریافتی‌ها', archivedFiles.length], ['sent', 'بایگانی ارسالی‌ها', archivedSentFiles.length]] as const).map(([id, label, n]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setArchiveSub(id)}
+                        className={`flex items-center gap-1.5 px-4 py-2 min-h-[40px] rounded-xl border text-xs font-black cursor-pointer ${archiveSub === id ? 'bg-[#F6D9CD] text-[#6E1B1B] border-[#C98B6A]' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}
+                        data-archive-sub-btn={id}
+                      >
+                        {label}
+                        <span className="text-[10px] px-1.5 rounded-full bg-white/70 border border-[#EBDBCE]">{toPersianDigits(n)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {(activeBoxTab === 'received' || (activeBoxTab === 'archive' && archiveSub === 'received')) && (
                   <div>
                     {(activeBoxTab === 'archive' ? archivedFiles : receivedFiles).length === 0 ? (
                       <div className="text-center py-16 bg-[#FAF5F1]/60 rounded-3xl border border-dashed border-[#EBDBCE]">
@@ -1248,21 +1274,21 @@ export default function UserPanel() {
                 )}
 
                 {/* TAB 2: SENT FILES */}
-                {activeBoxTab === 'sent' && (
+                {(activeBoxTab === 'sent' || (activeBoxTab === 'archive' && archiveSub === 'sent')) && (
                   <div>
-                    {sentFiles.length === 0 ? (
+                    {(activeBoxTab === 'archive' ? archivedSentFiles : sentFiles).length === 0 ? (
                       <div className="text-center py-16 bg-[#FAF5F1]/60 rounded-3xl border border-dashed border-[#EBDBCE]">
                         <div className="w-12 h-12 rounded-full bg-[#F6D9CD] text-[#6E1B1B] flex items-center justify-center mx-auto mb-2.5">
                           <SendHorizonal className="w-6 h-6" />
                         </div>
-                        <h3 className="text-xs font-bold text-[#3A241F]">هنوز فایلی ارسال نکرده‌اید</h3>
+                        <h3 className="text-xs font-bold text-[#3A241F]">{activeBoxTab === 'archive' ? 'بایگانی فایل‌های ارسالی شما خالی است' : 'هنوز فایلی ارسال نکرده‌اید'}</h3>
                         <p className="text-[11px] text-[#8C6F66] max-w-xs mx-auto mt-1">
                           هر فایلی که از بخش سمت راست ارسال کنید، در این بخش قابل مشاهده و دانلود مجدد خواهد بود.
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-[500px] overflow-y-auto pl-1">
-                        {sentFiles.map((t) => (
+                        {(activeBoxTab === 'archive' ? archivedSentFiles : sentFiles).map((t) => (
                           <div
                             key={t.id}
                             className="p-4 bg-white rounded-2xl border border-[#EBDBCE] hover:border-[#C98B6A] hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
@@ -1307,6 +1333,16 @@ export default function UserPanel() {
                               >
                                 <Download className="w-3.5 h-3.5" />
                                 <span>دانلود</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFileArchived(t.id, activeBoxTab !== 'archive')}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-[#FAF5F1] text-[#3A241F] border border-[#EBDBCE] font-bold text-xs rounded-xl transition-all cursor-pointer"
+                                title={activeBoxTab === 'archive' ? 'بازگرداندن به فایل‌های ارسالی' : 'بایگانی فایل (فقط برای شما)'}
+                                data-file-archive-btn
+                              >
+                                <Archive className="w-3.5 h-3.5" />
+                                <span>{activeBoxTab === 'archive' ? 'خروج از بایگانی' : 'بایگانی'}</span>
                               </button>
                             </div>
                           </div>

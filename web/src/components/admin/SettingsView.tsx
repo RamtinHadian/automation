@@ -29,12 +29,14 @@ import {
   PhoneCall,
   MessageSquare,
   Send,
+  Plug,
   Bell,
   DatabaseBackup,
   KeyRound,
 } from 'lucide-react';
 import { SystemSettings, LetterNumberingSettings } from '../../types';
 import { FontManagementModal } from './FontManagementModal';
+import { ApiKeysCard } from './ApiKeysCard';
 import { ThemeManagementModal } from './ThemeManagementModal';
 import { COLOR_THEMES } from '../../lib/theme';
 import { buildProformaHtml, sampleProforma } from '../../lib/proformaPdf';
@@ -126,7 +128,7 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
-type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'notify' | 'proforma' | 'letters' | 'signature' | 'look' | 'policies' | 'backup' | 'license';
+type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'api' | 'notify' | 'proforma' | 'letters' | 'signature' | 'look' | 'policies' | 'backup' | 'license';
 
 /** Each group of settings has its own tab under the page title. */
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -140,6 +142,7 @@ const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.Compo
   { id: 'phone', label: 'تلفن شرکت (ویپ)', Icon: PhoneCall },
   { id: 'sms', label: 'پیامک', Icon: MessageSquare },
   { id: 'msgr', label: 'تلگرام و بله', Icon: Send },
+  { id: 'api', label: 'اتصال برنامه‌ها (API)', Icon: Plug },
   { id: 'backup', label: 'پشتیبان‌گیری', Icon: DatabaseBackup },
   { id: 'license', label: 'مجوز و فعال‌سازی', Icon: KeyRound },
 ];
@@ -550,6 +553,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {section === 'sms' && <SmsSettingsCard />}
 
       {section === 'msgr' && <MessengerSettingsCard />}
+
+      {section === 'api' && <ApiKeysCard />}
 
       {section === 'backup' && <BackupSettingsCard />}
 

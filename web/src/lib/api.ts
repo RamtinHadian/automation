@@ -36,6 +36,20 @@ export const setToken = (token: string | null) => {
   }
 };
 
+/** A key given to another program (the secret itself is never sent again after it was made). */
+export interface ApiKeyRow {
+  id: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  actAs: string;
+  actAsName: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  uses: number;
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -358,6 +372,9 @@ export const api = {
   smsSave: (b: { footer: string; auto: string[]; library: string[] | null; custom: { id: string; title: string; text: string }[]; sender: string; enabled: boolean; labels: string[]; apiKey: string }) => request<SmsSettings>('PUT', '/api/sms/settings', b),
   smsBalance: () => request<{ balance: string }>('GET', '/api/sms/balance'),
   smsLog: () => request<{ log: SmsLogRow[] }>('GET', '/api/sms/log'),
+  apiKeys: () => request<{ keys: ApiKeyRow[]; scopes: Record<string, string> }>('GET', '/api/apikeys'),
+  apiKeyCreate: (b: { name: string; scopes: string[]; actAs: string; expiresDays: number }) => request<{ key: string; id: string }>('POST', '/api/apikeys', b),
+  apiKeyDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/apikeys/${encodeURIComponent(id)}`),
   smsTest: (to: string) => request<{ ok: true }>('POST', '/api/sms/test', { to }),
   smsSend: (b: { to: string; templateKey: string; customerId: string }) => request<{ ok: true }>('POST', '/api/sms/send', b),
   statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[]; missing?: CrmActivity[]; warranties?: Warranty[]; warrantyClaims?: WarrantyClaim[]; supportSubs?: SupportSub[]; supportTickets?: SupportTicket[] }>('GET', '/api/stats-data'),

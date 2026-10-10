@@ -183,6 +183,20 @@ var schema = []string{
 	`CREATE INDEX IF NOT EXISTS daily_reports_user_idx ON daily_reports (user_id, report_date DESC)`,
 	`CREATE INDEX IF NOT EXISTS daily_reports_date_idx ON daily_reports (report_date DESC)`,
 	`CREATE INDEX IF NOT EXISTS daily_reports_recipients_idx ON daily_reports USING GIN (recipient_ids)`,
+	// keys for other programs (the secret itself is never stored, only its hash)
+	`CREATE TABLE IF NOT EXISTS api_keys (
+	  id TEXT PRIMARY KEY,
+	  name TEXT NOT NULL,
+	  key_hash TEXT NOT NULL UNIQUE,
+	  prefix TEXT NOT NULL,
+	  scopes TEXT[] NOT NULL DEFAULT '{}',
+	  act_as TEXT NOT NULL,
+	  created_by TEXT,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  last_used_at TIMESTAMPTZ,
+	  expires_at TIMESTAMPTZ,
+	  uses BIGINT NOT NULL DEFAULT 0
+	)`,
 	`CREATE TABLE IF NOT EXISTS crm_customers (
 	  id TEXT PRIMARY KEY,
 	  owner_id TEXT,
