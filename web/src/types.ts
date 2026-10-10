@@ -425,6 +425,8 @@ export interface FileTransfer {
   companyStampImageUrl?: string;
   referrals?: LetterReferral[];
   isArchived?: boolean;
+  /** received files: the people who put it in their own archive (each person's archive is theirs only) */
+  archivedBy?: string[];
   archivedAt?: string;
   /** Set when the author edited the letter before it was signed. */
   editedAt?: string;
@@ -448,6 +450,8 @@ export interface FileTransfer {
   showLogo?: boolean;
   /** the organisation name and subtitle beside the logo (false = hidden) */
   showOrgName?: boolean;
+  /** the subject line of the letter (false = hidden) */
+  showSubject?: boolean;
   headerCenterOffsetX?: number;
   headerCenterOffsetY?: number;
   subjectOffsetX?: number;

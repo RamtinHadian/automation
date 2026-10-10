@@ -418,6 +418,7 @@ interface LetterPreviewModalProps {
       showLetterAttachment?: boolean;
       showLogo?: boolean;
       showOrgName?: boolean;
+      showSubject?: boolean;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -475,6 +476,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [showAtt, setShowAtt] = useState(true);
   const [showLogo, setShowLogo] = useState(true);
   const [showOrgName, setShowOrgName] = useState(true);
+  const [showSubject, setShowSubject] = useState(true);
   const signatureImg = showSig ? letter?.signatureImageUrl || settings?.ceoSignatureUrl : undefined;
   const stampImg = showStamp ? letter?.companyStampImageUrl || settings?.companyStampUrl : undefined;
 
@@ -575,6 +577,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setShowAtt(letter.showLetterAttachment !== false);
       setShowLogo(letter.showLogo !== false);
       setShowOrgName(letter.showOrgName !== false);
+      setShowSubject(letter.showSubject !== false);
       setHeaderCenterOffset({ x: letter.headerCenterOffsetX || 0, y: letter.headerCenterOffsetY || 0 });
       setSubjectOffset({ x: letter.subjectOffsetX || 0, y: letter.subjectOffsetY || 0 });
       setMetaOffset({ x: letter.metaOffsetX || 0, y: letter.metaOffsetY || 0 });
@@ -767,6 +770,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       showLetterAttachment: showAtt,
       showLogo,
       showOrgName,
+      showSubject,
       customBody: convertNumbersInHtmlToPersian(customBody),
       customHeaderNumber: headerNumber,
       customHeaderDate: headerDate,
@@ -864,6 +868,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       showLetterAttachment: showAtt,
       showLogo,
       showOrgName,
+      showSubject,
     });
   };
 
@@ -1300,6 +1305,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={showOrgName} onChange={(e) => setShowOrgName(e.target.checked)} className="accent-[#6E1B1B]" />
                   نام سازمان
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={showSubject} onChange={(e) => setShowSubject(e.target.checked)} className="accent-[#6E1B1B]" />
+                  موضوع
                 </label>
               </div>
 
@@ -1795,7 +1804,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
               {/* Subject Field (Draggable) */}
               <div
-                className="pt-2 flex items-center gap-2 text-xs font-bold relative"
+                className={`pt-2 flex items-center gap-2 text-xs font-bold relative ${showSubject ? '' : 'hidden'}`}
                 style={{
                   transform: `translate(${subjectOffset.x}px, ${subjectOffset.y}px)`,
                 }}

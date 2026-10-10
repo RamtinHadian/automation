@@ -2,6 +2,7 @@ import { FileTransfer, SystemSettings, User } from '../types';
 import { resolveSignatureHeight, signatureAreaHeight, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
+import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
 
 export interface LetterPrintOverrides {
   pageSize?: string;
@@ -47,6 +48,7 @@ export interface LetterPrintOverrides {
   showLetterAttachment?: boolean;
   showLogo?: boolean;
   showOrgName?: boolean;
+  showSubject?: boolean;
   signatureImgOffsetX?: number;
   signatureImgOffsetY?: number;
 }
@@ -69,6 +71,7 @@ export function generateOfficialLetterHtml(
   const showAtt = (overrides?.showLetterAttachment ?? transfer.showLetterAttachment) !== false;
   const showLogo = (overrides?.showLogo ?? transfer.showLogo) !== false;
   const showOrgName = (overrides?.showOrgName ?? transfer.showOrgName) !== false;
+  const showSubject = (overrides?.showSubject ?? transfer.showSubject) !== false;
   const signatureImg = showSig ? transfer.signatureImageUrl || settings.ceoSignatureUrl : undefined;
   const stampImg = showStamp ? transfer.companyStampImageUrl || settings.companyStampUrl : undefined;
 
@@ -157,22 +160,14 @@ export function generateOfficialLetterHtml(
 <head>
   <meta charset="UTF-8">
   <title>${letterSubject} - سند رسمی اداری (${isA5 ? 'A5' : isLetter ? 'Letter' : 'A4'})</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&family=Sahel:wght@400;700&family=Shabnam:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    @font-face {
-      font-family: 'B Nazanin';
-      src: local('B Nazanin'), local('BNazanin'), url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Regular.woff2') format('woff2');
-    }
-    @font-face {
-      font-family: 'B Titr';
-      src: local('B Titr'), local('BTitr'), local('B Titr Bold'), url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Bold.woff2') format('woff2');
-    }
-    @font-face {
-      font-family: 'B Yekan';
-      src: local('B Yekan'), local('BYekan'), url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Medium.woff2') format('woff2');
-    }
+    /* The letter opens in its own page: it must carry its fonts itself. Vazirmatn comes from this very server (the office network
+       often cannot reach Google Fonts or jsdelivr, and then the letter printed in another font than the one in the editor).
+       Fonts the person installed on the computer (B Nazanin, B Titr, B Yekan, IranNastaliq) are used when present, else Vazirmatn. */
+    @font-face { font-family: 'Vazirmatn'; src: url('${location.origin}${fontUrl}') format('woff2'); font-weight: 100 900; }
+    @font-face { font-family: 'B Nazanin'; src: local('B Nazanin'), local('BNazanin'), url('${location.origin}${fontUrl}') format('woff2'); font-weight: 100 900; }
+    @font-face { font-family: 'B Titr'; src: local('B Titr'), local('BTitr'), local('B Titr Bold'), url('${location.origin}${fontUrl}') format('woff2'); font-weight: 100 900; }
+    @font-face { font-family: 'B Yekan'; src: local('B Yekan'), local('BYekan'), url('${location.origin}${fontUrl}') format('woff2'); font-weight: 100 900; }
     @font-face {
       font-family: 'IranNastaliq';
       src: local('IranNastaliq'), local('Iran Nastaliq'), local('Iran-Nastaliq');
@@ -475,9 +470,9 @@ export function generateOfficialLetterHtml(
       </div>
     </div>
 
-    <div class="subject-line">
+    ${showSubject ? `<div class="subject-line">
       <span style="color: #6E1B1B;">موضوع:</span> ${letterSubject}
-    </div>
+    </div>` : ''}
 
     <div class="content-body" style="padding-left: ${bodyPaddingX}px; padding-right: ${bodyPaddingX}px; transform: translate(${bodyOffsetX}px, ${bodyOffsetY}px);">
       ${letterBody}

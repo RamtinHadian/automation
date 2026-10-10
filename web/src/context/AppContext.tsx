@@ -132,6 +132,7 @@ interface AppContextType {
     showLetterAttachment?: boolean;
     showLogo?: boolean;
     showOrgName?: boolean;
+    showSubject?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
@@ -163,6 +164,7 @@ interface AppContextType {
       showLetterAttachment?: boolean;
       showLogo?: boolean;
       showOrgName?: boolean;
+      showSubject?: boolean;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -716,6 +718,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showLetterAttachment,
       showLogo,
       showOrgName,
+      showSubject,
       customFooterNote,
       bodyOffsetX,
       bodyOffsetY,
@@ -765,6 +768,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showLetterAttachment?: boolean;
       showLogo?: boolean;
       showOrgName?: boolean;
+      showSubject?: boolean;
       customFooterNote?: string;
       bodyOffsetX?: number;
       bodyOffsetY?: number;
@@ -859,6 +863,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             showLetterAttachment,
             showLogo,
             showOrgName,
+            showSubject,
             customFooterNote,
             bodyOffsetX,
             bodyOffsetY,
@@ -1112,6 +1117,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showLetterAttachment?: boolean;
         showLogo?: boolean;
         showOrgName?: boolean;
+        showSubject?: boolean;
         pageSize?: string;
         customBody?: string;
         customHeaderNumber?: string;
@@ -1164,6 +1170,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               showLetterAttachment: signatureOptions?.showLetterAttachment ?? t.showLetterAttachment,
               showLogo: signatureOptions?.showLogo ?? t.showLogo,
               showOrgName: signatureOptions?.showOrgName ?? t.showOrgName,
+              showSubject: signatureOptions?.showSubject ?? t.showSubject,
               pageSize: signatureOptions?.pageSize || t.pageSize,
               letterContentHtml: convertNumbersInHtmlToPersian(signatureOptions?.customBody || t.letterContentHtml || ''),
               customHeaderNumber: signatureOptions?.customHeaderNumber || t.customHeaderNumber,

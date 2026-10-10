@@ -426,19 +426,16 @@ export const CustomerForm: React.FC<{
               {refKind === 'STAFF' && (
                 <>
                   <label className={label}>همکار معرف</label>
-                  <select
-                    className={field}
+                  <PersonPicker
+                    title="همکار معرف"
+                    items={staffItems(staff)}
                     value={c.referrer?.id || ''}
-                    onChange={(e) => {
-                      const u = staff.find((x) => x.id === e.target.value);
+                    onChange={(id) => {
+                      const u = staff.find((x) => x.id === id);
                       patch({ referrer: { kind: 'STAFF', id: u?.id, name: u?.fullName || '' } });
                     }}
-                  >
-                    <option value="">انتخاب کنید</option>
-                    {staff.map((u) => (
-                      <option key={u.id} value={u.id}>{u.fullName}</option>
-                    ))}
-                  </select>
+                    emptyLabel="انتخاب کنید"
+                  />
                 </>
               )}
               {refKind === 'OTHER' && (

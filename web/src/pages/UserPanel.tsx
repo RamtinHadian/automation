@@ -104,6 +104,7 @@ export default function UserPanel() {
     settings,
     toastMessage,
     showToast,
+    setTransfers,
     handleSendTransfer,
     handleDownload,
     handleDeleteTransfer,
@@ -141,7 +142,7 @@ export default function UserPanel() {
   const [editingLetter, setEditingLetter] = useState<FileTransfer | null>(null);
   const [previewingLetter, setPreviewingLetter] = useState<FileTransfer | null>(null);
 
-  const [activeBoxTab, setActiveBoxTab] = useState<'received' | 'sent'>('received');
+  const [activeBoxTab, setActiveBoxTab] = useState<'received' | 'sent' | 'archive'>('received');
   const [letterFilter, setLetterFilter] = useState<'ALL' | 'PENDING' | 'SIGNED' | 'REJECTED' | 'ARCHIVED'>('ALL');
 
   // File Transfer Form State
@@ -345,13 +346,23 @@ export default function UserPanel() {
 
   // Regular Files (non-official)
   const regularTransfers = transfers.filter((t) => !t.isOfficialLetter);
-  const receivedFiles = regularTransfers.filter((t) => {
-    const isRecipient = t.recipients.some((r) => r.id === currentUser.id);
-    const matchesSearch =
-      t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.sender.fullName.toLowerCase().includes(searchQuery.toLowerCase());
-    return isRecipient && matchesSearch;
-  });
+  const isArchivedByMe = (t: FileTransfer) => (t.archivedBy || []).includes(currentUser.id);
+  const matchesFileSearch = (t: FileTransfer) =>
+    t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.sender.fullName.toLowerCase().includes(searchQuery.toLowerCase());
+  const receivedFiles = regularTransfers.filter((t) => t.recipients.some((r) => r.id === currentUser.id) && !isArchivedByMe(t) && matchesFileSearch(t));
+  // the archive of received files is the person's own: putting a file there does not change anybody else's list
+  const archivedFiles = regularTransfers.filter((t) => t.recipients.some((r) => r.id === currentUser.id) && isArchivedByMe(t) && matchesFileSearch(t));
+  const setFileArchived = (id: string, archive: boolean) => {
+    setTransfers((prev) =>
+      prev.map((t) =>
+        t.id === id
+          ? { ...t, archivedBy: archive ? [...new Set([...(t.archivedBy || []), currentUser.id])] : (t.archivedBy || []).filter((x) => x !== currentUser.id) }
+          : t
+      )
+    );
+    showToast(archive ? 'فایل به بایگانی شما رفت.' : 'فایل از بایگانی بیرون آمد.');
+  };
 
   const sentFiles = regularTransfers.filter((t) => {
     const isSender = t.sender.id === currentUser.id;
@@ -499,6 +510,7 @@ export default function UserPanel() {
     showLetterAttachment?: boolean;
     showLogo?: boolean;
     showOrgName?: boolean;
+    showSubject?: boolean;
     customFooterNote?: string;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
@@ -594,6 +606,7 @@ export default function UserPanel() {
       showLetterAttachment: letterData.showLetterAttachment,
       showLogo: letterData.showLogo,
       showOrgName: letterData.showOrgName,
+      showSubject: letterData.showSubject,
       customFooterNote: letterData.customFooterNote,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyOffsetY: letterData.bodyOffsetY,
@@ -1029,22 +1042,14 @@ export default function UserPanel() {
                 {/* Recipient */}
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-bold text-[#3A241F]">انتخاب گیرنده (همکار / واحد):</label>
-                  <select
+                  <PersonPicker
+                    title="انتخاب گیرنده فایل"
+                    items={otherStaff.map((user) => ({ id: user.id, name: user.fullName, sub: `${user.departmentName} (${user.email})` }))}
                     value={activeRecipientId}
-                    onChange={(e) => setRecipientId(e.target.value)}
+                    onChange={setRecipientId}
                     disabled={otherStaff.length === 0}
-                    className="w-full px-3.5 py-2.5 bg-white border border-[#EBDBCE] rounded-2xl text-xs font-bold text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none shadow-xs cursor-pointer disabled:bg-gray-100 disabled:text-gray-400"
-                  >
-                    {otherStaff.length === 0 ? (
-                      <option value="">همکار دیگری ثبت نشده (از پنل مدیریت کارمند جدید اضافه کنید)</option>
-                    ) : (
-                      otherStaff.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.fullName} — {user.departmentName} ({user.email})
-                        </option>
-                      ))
-                    )}
-                  </select>
+                    placeholder={otherStaff.length === 0 ? 'همکار دیگری ثبت نشده (از پنل مدیریت کارمند جدید اضافه کنید)' : 'انتخاب کنید…'}
+                  />
                 </div>
 
                 {/* Note */}
@@ -1133,6 +1138,24 @@ export default function UserPanel() {
                           {toPersianDigits(sentFiles.length)}
                         </span>
                       </button>
+
+                      <button
+                        onClick={() => setActiveBoxTab('archive')}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                          activeBoxTab === 'archive'
+                            ? 'bg-[#6E1B1B] text-white shadow-xs'
+                            : 'text-[#8C6F66] hover:text-[#3A241F]'
+                        }`}
+                        data-files-archive-tab
+                      >
+                        <Archive className="w-3.5 h-3.5" />
+                        <span>بایگانی</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                          activeBoxTab === 'archive' ? 'bg-white/20 text-white' : 'bg-[#EBDBCE] text-[#3A241F]'
+                        }`}>
+                          {toPersianDigits(archivedFiles.length)}
+                        </span>
+                      </button>
                     </div>
 
                     {/* Search Box */}
@@ -1142,7 +1165,7 @@ export default function UserPanel() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={activeBoxTab === 'received' ? 'جستجو در دریافتی‌ها...' : 'جستجو در ارسالی‌ها...'}
+                        placeholder={activeBoxTab === 'received' ? 'جستجو در دریافتی‌ها...' : activeBoxTab === 'archive' ? 'جستجو در بایگانی...' : 'جستجو در ارسالی‌ها...'}
                         className="w-full pr-8 pl-3 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
                       />
                     </div>
@@ -1150,21 +1173,21 @@ export default function UserPanel() {
                 </div>
 
                 {/* TAB 1: RECEIVED FILES */}
-                {activeBoxTab === 'received' && (
+                {(activeBoxTab === 'received' || activeBoxTab === 'archive') && (
                   <div>
-                    {receivedFiles.length === 0 ? (
+                    {(activeBoxTab === 'archive' ? archivedFiles : receivedFiles).length === 0 ? (
                       <div className="text-center py-16 bg-[#FAF5F1]/60 rounded-3xl border border-dashed border-[#EBDBCE]">
                         <div className="w-12 h-12 rounded-full bg-[#F6D9CD] text-[#6E1B1B] flex items-center justify-center mx-auto mb-2.5">
                           <Inbox className="w-6 h-6" />
                         </div>
-                        <h3 className="text-xs font-bold text-[#3A241F]">صندوق فایل‌های دریافتی خالی است</h3>
+                        <h3 className="text-xs font-bold text-[#3A241F]">{activeBoxTab === 'archive' ? 'بایگانی فایل‌های شما خالی است' : 'صندوق فایل‌های دریافتی خالی است'}</h3>
                         <p className="text-[11px] text-[#8C6F66] max-w-xs mx-auto mt-1">
-                          فایل‌هایی که سایر همکاران برای حساب شما ارسال کنند در این بخش قرار می‌گیرند.
+                          {activeBoxTab === 'archive' ? 'فایل دریافتی را با دکمهٔ «بایگانی» اینجا بگذارید؛ بایگانی فقط برای خود شماست.' : 'فایل‌هایی که سایر همکاران برای حساب شما ارسال کنند در این بخش قرار می‌گیرند.'}
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-[500px] overflow-y-auto pl-1">
-                        {receivedFiles.map((t) => (
+                        {(activeBoxTab === 'archive' ? archivedFiles : receivedFiles).map((t) => (
                           <div
                             key={t.id}
                             className="p-4 bg-white rounded-2xl border border-[#EBDBCE] hover:border-[#C98B6A] hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
@@ -1205,6 +1228,16 @@ export default function UserPanel() {
                               >
                                 <Download className="w-3.5 h-3.5" />
                                 <span>دانلود</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFileArchived(t.id, activeBoxTab !== 'archive')}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-[#FAF5F1] text-[#3A241F] border border-[#EBDBCE] font-bold text-xs rounded-xl transition-all cursor-pointer"
+                                title={activeBoxTab === 'archive' ? 'بازگرداندن به فایل‌های دریافتی' : 'بایگانی فایل (فقط برای شما)'}
+                                data-file-archive-btn
+                              >
+                                <Archive className="w-3.5 h-3.5" />
+                                <span>{activeBoxTab === 'archive' ? 'خروج از بایگانی' : 'بایگانی'}</span>
                               </button>
                             </div>
                           </div>

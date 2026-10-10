@@ -1,11 +1,6 @@
+import { getToken } from './api';
 // Every file that is sent is also kept on the server, so the receiver can fetch it even when the sender's computer is off.
-const token = () => {
-  try {
-    return localStorage.getItem('app_token_v6') || '';
-  } catch {
-    return '';
-  }
-};
+const token = () => getToken() || '';
 const auth = () => ({ Authorization: `Bearer ${token()}` });
 const url = (id: string, kind: string) => `/api/files/${encodeURIComponent(id)}?kind=${kind}`;
 

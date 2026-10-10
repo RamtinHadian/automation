@@ -975,20 +975,13 @@ const DealForm: React.FC<{
               </span>
             ))}
           </div>
-          <select
-            className={field}
+          <PersonPicker
+            title="مسئول همراه"
+            items={staffItems(staff.filter((u) => u.id !== d.ownerId && !(d.coOwnerIds || []).includes(u.id)))}
             value=""
-            onChange={(e) => {
-              if (e.target.value) patch({ coOwnerIds: [...(d.coOwnerIds || []), e.target.value] });
-            }}
-          >
-            <option value="">+ افزودن مسئول همراه...</option>
-            {staff
-              .filter((u) => u.id !== d.ownerId && !(d.coOwnerIds || []).includes(u.id))
-              .map((u) => (
-                <option key={u.id} value={u.id}>{u.fullName}</option>
-              ))}
-          </select>
+            onChange={(id) => { if (id) patch({ coOwnerIds: [...(d.coOwnerIds || []), id] }); }}
+            emptyLabel="+ افزودن مسئول همراه..."
+          />
         </div>
         <ProformaSection
           deal={d}

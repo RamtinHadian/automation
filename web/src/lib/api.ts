@@ -3,18 +3,34 @@ import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyRe
 
 const TOKEN_KEY = 'app_token_v6';
 
+// Every browser tab keeps ITS OWN login (sessionStorage); localStorage only hands the last login to tabs opened later.
+// With one shared token, signing in as somebody else in a second tab silently changed who the first tab acted as: the admin console
+// then saved as an ordinary employee and the server answered «forbidden».
 export const getToken = (): string | null => {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const own = sessionStorage.getItem(TOKEN_KEY);
+    if (own) return own;
+    const shared = localStorage.getItem(TOKEN_KEY);
+    if (shared) sessionStorage.setItem(TOKEN_KEY, shared); // this tab now belongs to that login
+    return shared;
   } catch {
-    return null;
+    try {
+      return localStorage.getItem(TOKEN_KEY);
+    } catch {
+      return null;
+    }
   }
 };
 
 export const setToken = (token: string | null) => {
   try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    if (token) {
+      sessionStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+    }
   } catch {
     /* storage unavailable */
   }
