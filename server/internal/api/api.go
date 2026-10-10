@@ -153,6 +153,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/voip/stats", auth.Require(voipStats))
 	mux.HandleFunc("POST /api/voip/call", auth.Require(voipCall))
 	registerExtAPI(mux)
+	registerWarehouse(mux)
 
 	mux.HandleFunc("GET /api/config", iceConfig(cfg))
 	mux.HandleFunc("GET /api/health", health)

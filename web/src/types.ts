@@ -32,6 +32,8 @@ export interface User {
   canUseWarranty?: boolean;
   /** The admin allowed this person to send SMS to customers (admins always may). */
   canSendSms?: boolean;
+  /** the warehouse module (admins always have it) */
+  canUseWarehouse?: boolean;
   /** Access to the management statistics page (admins always have it). */
   canViewStats?: boolean;
   /** May publish on the bulletin board (admins always may). */

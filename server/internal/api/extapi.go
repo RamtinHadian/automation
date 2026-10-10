@@ -32,6 +32,7 @@ var apiScopes = map[string]string{
 	"deals.read":      "خواندن فرصت‌های فروش",
 	"deals.write":     "ثبت فرصت فروش",
 	"notes.write":     "افزودن یادداشت به پروندهٔ مشتری",
+	"warehouse.write": "همگام‌سازی کالا و موجودی انبار از برنامهٔ حسابداری",
 }
 
 func hashKey(k string) string {
@@ -470,7 +471,22 @@ func extNoteCreate(w http.ResponseWriter, r *http.Request, k extKey, user auth.U
 }
 
 // registerExtAPI adds the routes of the door for other programs.
+// POST /api/ext/v1/warehouse/sync {warehouses:[{code,title,active}], products:[{code,title,unit,group,barcode,active}], stock:[{productCode,warehouseCode,qty}], complete}
+func extWarehouseSync(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	res, err := whSync(r.Context(), user, k.Name, body)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	httpx.JSON(w, http.StatusOK, res)
+}
+
 func registerExtAPI(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/ext/v1/warehouse/sync", extAuth("warehouse.write", extWarehouseSync))
 	mux.HandleFunc("GET /api/apikeys", auth.Require(apiKeysList))
 	mux.HandleFunc("POST /api/apikeys", auth.Require(apiKeysCreate))
 	mux.HandleFunc("DELETE /api/apikeys/{id}", auth.Require(apiKeysDelete))

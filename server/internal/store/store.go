@@ -183,6 +183,38 @@ var schema = []string{
 	`CREATE INDEX IF NOT EXISTS daily_reports_user_idx ON daily_reports (user_id, report_date DESC)`,
 	`CREATE INDEX IF NOT EXISTS daily_reports_date_idx ON daily_reports (report_date DESC)`,
 	`CREATE INDEX IF NOT EXISTS daily_reports_recipients_idx ON daily_reports USING GIN (recipient_ids)`,
+	// warehouse: products, warehouses, documents and the movements that make up the stock
+	`CREATE TABLE IF NOT EXISTS wh_warehouses (
+	  id TEXT PRIMARY KEY,
+	  data JSONB NOT NULL,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
+	`CREATE TABLE IF NOT EXISTS wh_products (
+	  id TEXT PRIMARY KEY,
+	  code TEXT NOT NULL UNIQUE,
+	  data JSONB NOT NULL,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
+	`CREATE TABLE IF NOT EXISTS wh_docs (
+	  id TEXT PRIMARY KEY,
+	  kind TEXT NOT NULL,
+	  number INT NOT NULL,
+	  data JSONB NOT NULL,
+	  voided BOOLEAN NOT NULL DEFAULT false,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  UNIQUE (kind, number)
+	)`,
+	`CREATE TABLE IF NOT EXISTS wh_moves (
+	  id BIGSERIAL PRIMARY KEY,
+	  doc_id TEXT NOT NULL,
+	  product_id TEXT NOT NULL,
+	  warehouse_id TEXT NOT NULL,
+	  qty NUMERIC(18,3) NOT NULL,
+	  doc_date DATE NOT NULL,
+	  voided BOOLEAN NOT NULL DEFAULT false
+	)`,
+	`CREATE INDEX IF NOT EXISTS wh_moves_stock_idx ON wh_moves (product_id, warehouse_id) WHERE NOT voided`,
+	`CREATE INDEX IF NOT EXISTS wh_moves_doc_idx ON wh_moves (doc_id)`,
 	// keys for other programs (the secret itself is never stored, only its hash)
 	`CREATE TABLE IF NOT EXISTS api_keys (
 	  id TEXT PRIMARY KEY,

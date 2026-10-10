@@ -8,6 +8,7 @@ import { BoardView } from '../components/board/BoardView';
 import { BannerStrip } from '../components/board/BannerStrip';
 import { CrmView } from '../components/crm/CrmView';
 import { WarrantyView } from '../components/warranty/WarrantyView';
+import { WarehouseView } from '../components/warehouse/WarehouseView';
 import { SupportView } from '../components/support/SupportView';
 import { useCompanyName } from '../lib/useCompanyName';
 import { TasksView } from '../components/tasks/TasksView';
@@ -66,6 +67,7 @@ import {
   User as UserIcon,
   BarChart3,
   MessageCircle,
+  Warehouse,
 } from 'lucide-react';
 import { FileCategory, FileTransfer, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
@@ -120,7 +122,7 @@ export default function UserPanel() {
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
   const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board'>('files');
   const [chatPeer, setChatPeer] = useState('');
-  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support'>('files');
+  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse'>('files');
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -210,8 +212,9 @@ export default function UserPanel() {
   }, [canAccessLettersMenu, mainMenuTab]);
   // Unread notifications per menu (only for the menus this person may use). Opening a menu marks its notifications as read.
   const { notifications, markNotificationsRead } = useAppContext();
-  const menuOfNotification = (n: AppNotification): 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | null => {
+  const menuOfNotification = (n: AppNotification): 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | 'warehouse' | null => {
     const t = n.ref?.type;
+    if (t === 'warehouse') return 'warehouse';
     if (t === 'warranty') return 'warranty';
     if (t === 'support') return 'support';
     if (t === 'customer' || t === 'deal') return 'crm';
@@ -223,7 +226,7 @@ export default function UserPanel() {
     if (n.kind === 'task') return 'tasks';
     return null;
   };
-  const unreadByMenu = { files: 0, letters: 0, tasks: 0, crm: 0, warranty: 0, support: 0 };
+  const unreadByMenu = { files: 0, letters: 0, tasks: 0, crm: 0, warranty: 0, support: 0, warehouse: 0 };
   for (const n of notifications) {
     if (n.read) continue;
     const m = menuOfNotification(n);
@@ -240,9 +243,9 @@ export default function UserPanel() {
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications, mainMenuTab]);
-  const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support') =>
-    (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) || (m === 'warranty' && !canAccessWarrantyMenu) || (m === 'support' && !canAccessWarrantyMenu) ? 0 : unreadByMenu[m];
-  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support') => {
+  const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | 'warehouse') =>
+    (m === 'warehouse' && !canAccessWarehouseMenu) || (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) || (m === 'warranty' && !canAccessWarrantyMenu) || (m === 'support' && !canAccessWarrantyMenu) ? 0 : unreadByMenu[m];
+  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse') => {
     setMainMenuTab(m);
     setSearchQuery('');
     const ids = notifications.filter((n) => !n.read && n.kind !== 'chat' && menuOfNotification(n) === m).map((n) => n.id);
@@ -277,6 +280,8 @@ export default function UserPanel() {
       }
       window.dispatchEvent(new Event('open-warranty-item'));
       setMainMenuTab('warranty');
+    } else if (type === 'warehouse' && canAccessWarehouseMenu) {
+      setMainMenuTab('warehouse');
     } else if (type === 'support' && canAccessWarrantyMenu) {
       try {
         sessionStorage.setItem('support_open', JSON.stringify({ type: 'ticket', id: n.ref?.id }));
@@ -309,6 +314,10 @@ export default function UserPanel() {
   };
   const canAccessCrmMenu = Boolean(currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
   // the warranty menu: admins, people with the warranty switch, and everybody who works with customers
+  const canAccessWarehouseMenu = Boolean(currentUser.canUseWarehouse === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
+  useEffect(() => {
+    if (!canAccessWarehouseMenu && mainMenuTab === 'warehouse') setMainMenuTab('files');
+  }, [canAccessWarehouseMenu, mainMenuTab]);
   const canAccessWarrantyMenu = Boolean(currentUser.canUseWarranty === true || canAccessCrmMenu);
   useEffect(() => {
     if (!canAccessWarrantyMenu && (mainMenuTab === 'warranty' || mainMenuTab === 'support')) setMainMenuTab('files');
@@ -841,6 +850,26 @@ export default function UserPanel() {
               </button>
             )}
 
+            {/* Menu: انبار */}
+            {canAccessWarehouseMenu && (
+              <button
+                onClick={() => openMenu('warehouse')}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                  mainMenuTab === 'warehouse'
+                    ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25 scale-[1.02]'
+                    : 'bg-white text-[#3A241F] hover:bg-amber-50 border border-[#EBDBCE]'
+                }`}
+              >
+                <Warehouse className="w-4 h-4" />
+                <span>انبار</span>
+                {menuBadge('warehouse') > 0 && (
+                  <span className="bg-rose-600 text-white text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full font-black shadow-sm">
+                    {toPersianDigits(menuBadge('warehouse') > 99 ? '99+' : menuBadge('warehouse'))}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Menu: گارانتی */}
             {canAccessWarrantyMenu && (
               <button
@@ -927,6 +956,11 @@ export default function UserPanel() {
               <span className="flex items-center gap-1 text-violet-800">
                 <Users className="w-4 h-4 text-violet-600" />
                 مشتریان، فرصت‌های فروش و پیگیری‌ها
+              </span>
+            ) : mainMenuTab === 'warehouse' ? (
+              <span className="flex items-center gap-1 text-amber-800">
+                <Warehouse className="w-4 h-4 text-amber-600" />
+                موجودی کالا، رسید و حواله و انبارگردانی
               </span>
             ) : mainMenuTab === 'warranty' ? (
               <span className="flex items-center gap-1 text-teal-800">
@@ -1371,6 +1405,7 @@ export default function UserPanel() {
         {mainMenuTab === 'tasks' && canAccessTasksMenu && <TasksView />}
         {mainMenuTab === 'crm' && canAccessCrmMenu && <CrmView />}
         {mainMenuTab === 'warranty' && canAccessWarrantyMenu && <WarrantyView />}
+        {mainMenuTab === 'warehouse' && canAccessWarehouseMenu && <WarehouseView />}
         {mainMenuTab === 'support' && canAccessWarrantyMenu && <SupportView />}
         {mainMenuTab === 'stats' && canAccessStatsMenu && (
           <div className="p-3 sm:p-6">
@@ -2105,6 +2140,27 @@ export default function UserPanel() {
             {menuBadge('crm') > 0 && (
               <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
                 {toPersianDigits(menuBadge('crm') > 99 ? '99+' : menuBadge('crm'))}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Tab: انبار */}
+        {canAccessWarehouseMenu && (
+          <button
+            type="button"
+            onClick={() => openMenu('warehouse')}
+            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+              mainMenuTab === 'warehouse'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
+            }`}
+          >
+            <Warehouse className="w-4 h-4" />
+            <span className="text-[9px] leading-tight font-black whitespace-nowrap">انبار</span>
+            {menuBadge('warehouse') > 0 && (
+              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
+                {toPersianDigits(menuBadge('warehouse') > 99 ? '99+' : menuBadge('warehouse'))}
               </span>
             )}
           </button>

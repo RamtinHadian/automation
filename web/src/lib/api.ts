@@ -239,6 +239,73 @@ export interface DemoInfo {
   accounts?: { name: string; title: string; identifier: string; password: string }[];
 }
 
+export interface WhProduct {
+  id: string;
+  code: string;
+  title: string;
+  unit: string;
+  group?: string;
+  barcode?: string;
+  minQty?: number;
+  note?: string;
+  active?: boolean;
+  total: number;
+  byWarehouse: Record<string, number>;
+}
+export interface WhWarehouse {
+  id: string;
+  title: string;
+  code?: string;
+  location?: string;
+  keeperId?: string;
+  note?: string;
+  active?: boolean;
+}
+export type WhKind = 'receipt' | 'issue' | 'transfer' | 'adjust';
+export interface WhDocLine {
+  productId: string;
+  code: string;
+  title: string;
+  unit: string;
+  qty: number;
+  before?: number;
+  delta?: number;
+}
+export interface WhDoc {
+  id: string;
+  kind: WhKind;
+  number: number;
+  date: string;
+  warehouseId: string;
+  warehouseName: string;
+  toWarehouseId?: string;
+  toWarehouseName?: string;
+  party?: string;
+  customerId?: string;
+  note?: string;
+  reason?: string;
+  lines: WhDocLine[];
+  createdByName?: string;
+  createdAt?: string;
+  voided?: boolean;
+  voidReason?: string;
+  voidedByName?: string;
+}
+export interface WhState {
+  warehouses: WhWarehouse[];
+  products: WhProduct[];
+  recent: WhDoc[];
+  kinds: Record<WhKind, string>;
+  mode: 'standalone' | 'sepidar';
+  lastSyncAt?: string;
+  source?: string;
+}
+export interface WhCard {
+  product: WhProduct;
+  rows: { date: string; kind: WhKind; number: number; docId: string; warehouseId: string; party: string; note: string; in: number; out: number; balance: number }[];
+  balance: number;
+}
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const token = getToken();
   const res = await fetch(url, {
@@ -424,6 +491,16 @@ export const api = {
   voipCall: (to: string) => request<{ ok: true }>('POST', '/api/voip/call', { to }),
   notifications: () => request<{ notifications: AppNotification[] }>('GET', '/api/notifications'),
   markNotificationsRead: (ids?: string[]) => request<{ ok: true }>('POST', '/api/notifications/read', { ids }),
+  warehouse: () => request<WhState>('GET', '/api/warehouse'),
+  warehouseDocs: (q: Record<string, string>) => request<{ docs: WhDoc[] }>('GET', '/api/warehouse/docs?' + new URLSearchParams(q).toString()),
+  warehouseCard: (product: string, warehouse = '') => request<WhCard>('GET', `/api/warehouse/card?product=${encodeURIComponent(product)}&warehouse=${encodeURIComponent(warehouse)}`),
+  whProductSave: (id: string, b: Record<string, unknown>) => request<{ ok: true }>('PUT', `/api/warehouse/products/${encodeURIComponent(id)}`, b),
+  whProductDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/warehouse/products/${encodeURIComponent(id)}`),
+  whWarehouseSave: (id: string, b: Record<string, unknown>) => request<{ ok: true }>('PUT', `/api/warehouse/warehouses/${encodeURIComponent(id)}`, b),
+  whWarehouseDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/warehouse/warehouses/${encodeURIComponent(id)}`),
+  whDocCreate: (b: Record<string, unknown>) => request<WhDoc>('POST', '/api/warehouse/docs', b),
+  whDocVoid: (id: string, reason: string) => request<{ ok: true }>('POST', `/api/warehouse/docs/${encodeURIComponent(id)}/void`, { reason }),
+  whSetMode: (mode: 'standalone' | 'sepidar') => request<{ ok: true }>('PUT', '/api/warehouse/mode', { mode }),
   clearNotifications: () => request<{ ok: true }>('DELETE', '/api/notifications'),
   remove: (collection: CollectionName, id: string) =>
     request<{ ok: true }>('DELETE', `/api/${collection}/${encodeURIComponent(id)}`),
