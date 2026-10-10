@@ -12,6 +12,7 @@ import { SupportView } from '../components/support/SupportView';
 import { useCompanyName } from '../lib/useCompanyName';
 import { TasksView } from '../components/tasks/TasksView';
 import { CallMenu } from '../components/common/CallMenu';
+import { normPhone } from '../lib/customerImport';
 import { NotificationBell } from '../components/common/NotificationBell';
 import type { AppNotification } from '../lib/notifications';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../lib/letterDefaults';
@@ -76,6 +77,7 @@ import { CustomerReportModal } from '../components/crm/CustomerReportModal';
 import { LetterEditorModal } from '../components/letters/LetterEditorModal';
 import { LetterThumbnail } from '../components/letters/LetterThumbnail';
 import { LetterPreviewModal } from '../components/letters/LetterPreviewModal';
+import { PersonPicker } from '../components/common/PersonPicker';
 
 const renderCategoryIcon = (category: FileCategory) => {
   switch (category) {
@@ -250,6 +252,15 @@ export default function UserPanel() {
     if ((type === 'customer' || type === 'deal') && canAccessCrmMenu) {
       try {
         sessionStorage.setItem('crm_open', JSON.stringify({ type, id: n.ref?.id }));
+      } catch {
+        /* storage unavailable */
+      }
+      window.dispatchEvent(new Event('open-crm-item'));
+      setMainMenuTab('crm');
+    } else if (type === 'phone' && canAccessCrmMenu) {
+      // a call from a number that is not in the phone bank: go to «new customer» with the number filled in
+      try {
+        sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: normPhone(n.ref?.id || '') || n.ref?.id || '', name: '' }));
       } catch {
         /* storage unavailable */
       }
@@ -1869,18 +1880,7 @@ export default function UserPanel() {
             {/* Target Colleague / Unit (ANY PERSON IN SYSTEM) */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-bold text-[#3A241F]">ارجاع به کارمند / واحد:</label>
-              <select
-                value={referralTargetUserId}
-                onChange={(e) => setReferralTargetUserId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none cursor-pointer"
-              >
-                {referralStaff.length === 0 && <option value="">کسی با مجوز نامه‌نگاری پیدا نشد</option>}
-                {referralStaff.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.fullName} — {u.departmentName} ({u.role === 'SUPER_ADMIN' ? 'مدیر ارشد' : u.role === 'DEPT_ADMIN' ? 'مدیر واحد' : 'پرسنل'})
-                  </option>
-                ))}
-              </select>
+              <PersonPicker title="ارجاع به کارمند" items={referralStaff.map((u) => ({ id: u.id, name: u.fullName, sub: `${u.departmentName} (${u.role === 'SUPER_ADMIN' ? 'مدیر ارشد' : u.role === 'DEPT_ADMIN' ? 'مدیر واحد' : 'پرسنل'})`, avatar: u.avatarUrl || undefined }))} value={referralTargetUserId} onChange={setReferralTargetUserId} placeholder={referralStaff.length === 0 ? 'کسی با مجوز نامه‌نگاری پیدا نشد' : 'انتخاب کنید…'} />
             </div>
 
             {/* Referral Note / Paraph */}

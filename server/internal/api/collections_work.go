@@ -42,22 +42,33 @@ func putReport(w http.ResponseWriter, r *http.Request, me auth.User, id string, 
 		httpx.Error(w, http.StatusBadRequest, "bad date")
 		return
 	}
-	if id != me.ID()+"_"+date {
+	var exists int
+	var ownerID, ownerName string
+	_ = store.Pool.QueryRow(ctx, `SELECT count(*), COALESCE(max(user_id), ''), COALESCE(max(data->>'authorName'), '') FROM daily_reports WHERE id = $1`, id).Scan(&exists, &ownerID, &ownerName)
+	super := me.Role() == "SUPER_ADMIN"
+	if exists > 0 && !super {
+		// a report that was sent is final: only the top admin can change it
+		httpx.Error(w, http.StatusForbidden, "گزارش ارسال‌شده قابل ویرایش نیست؛ فقط مدیر ارشد سامانه می‌تواند آن را تغییر دهد.")
+		return
+	}
+	if id != me.ID()+"_"+date && !(super && exists > 0) {
 		httpx.Forbidden(w)
 		return
 	}
-	recipients := without(jsonx.Strings(data, "recipientIds"), me.ID())
-	var exists int
-	_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM daily_reports WHERE id = $1`, id).Scan(&exists)
+	authorID, authorName := me.ID(), me.Name()
+	if exists > 0 && ownerID != "" {
+		authorID, authorName = ownerID, ownerName // the top admin's change does not make the report his own
+	}
+	recipients := without(jsonx.Strings(data, "recipientIds"), authorID)
 
 	doc := jsonx.Copy(data)
-	doc["id"], doc["userId"], doc["authorName"], doc["date"] = id, me.ID(), me.Name(), date
+	doc["id"], doc["userId"], doc["authorName"], doc["date"] = id, authorID, authorName, date
 	doc["recipientIds"] = recipients
 	doc["updatedAt"] = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
 	if _, err := store.Pool.Exec(ctx,
 		`INSERT INTO daily_reports (id, user_id, report_date, recipient_ids, data) VALUES ($1, $2, $3, $4, $5::jsonb)
 		 ON CONFLICT (id) DO UPDATE SET recipient_ids = $4, data = $5::jsonb, updated_at = now()`,
-		id, me.ID(), date, recipients, jsonx.Encode(doc)); err != nil {
+		id, authorID, date, recipients, jsonx.Encode(doc)); err != nil {
 		internalError(w)
 		return
 	}
@@ -85,8 +96,9 @@ func removeReport(w http.ResponseWriter, r *http.Request, me auth.User, id strin
 		internalError(w)
 		return
 	}
-	if !me.IsAdmin() && owner != me.ID() {
-		httpx.Forbidden(w)
+	// deleting would be a way round «sent reports cannot be edited» (delete, write again): the top admin only
+	if me.Role() != "SUPER_ADMIN" {
+		httpx.Error(w, http.StatusForbidden, "حذف گزارش ارسال‌شده فقط با مدیر ارشد سامانه است.")
 		return
 	}
 	if _, err := store.Pool.Exec(r.Context(), `DELETE FROM daily_reports WHERE id = $1`, id); err != nil {
@@ -128,7 +140,7 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	case jsonx.Contains(assignees, me.ID()):
 		// Assignees may move the task along, tick the checklist and comment; nothing else.
 		doc = jsonx.Copy(before)
-		for _, k := range []string{"status", "checklist", "comments"} {
+		for _, k := range []string{"status", "checklist", "comments", "archived"} {
 			if v, ok := data[k]; ok && v != nil {
 				doc[k] = v
 			}
@@ -146,6 +158,10 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		return
 	}
 
+	// only finished work can be archived (and a task that moves again leaves the archive)
+	if jsonx.Bool(doc, "archived") && jsonx.Str(doc, "status") != "DONE" {
+		delete(doc, "archived")
+	}
 	newAssignees := jsonx.Strings(doc, "assigneeIds")
 	if _, err := store.Pool.Exec(ctx,
 		`INSERT INTO tasks (id, creator_id, assignee_ids, data) VALUES ($1, $2, $3, $4::jsonb)
@@ -213,8 +229,9 @@ func removeTask(w http.ResponseWriter, r *http.Request, me auth.User, id string)
 		internalError(w)
 		return
 	}
-	if !me.IsAdmin() && creator != me.ID() {
-		httpx.Forbidden(w)
+	// nobody deletes a task except the top admin; finished work is archived instead
+	if me.Role() != "SUPER_ADMIN" {
+		httpx.Error(w, http.StatusForbidden, "حذف وظیفه فقط با مدیر ارشد سامانه است؛ کار پایان‌یافته را بایگانی کنید.")
 		return
 	}
 	if _, err := store.Pool.Exec(r.Context(), `DELETE FROM tasks WHERE id = $1`, id); err != nil {

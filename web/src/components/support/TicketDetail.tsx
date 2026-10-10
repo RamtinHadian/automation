@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { CHANNEL, codeText, dayText, PRIORITY, resolveSla, responseSla, SLA_CLS, TICKET_BUTTON, TICKET_NEXT, TICKET_STATUS } from '../../lib/support';
 import { Modal, field, label } from '../crm/crmUi';
+import { PersonPicker, staffItems } from '../common/PersonPicker';
 
 const when = (iso: string) => {
   const d = new Date(iso);
@@ -143,10 +144,7 @@ export const TicketDetail: React.FC<{
         <div>
           <label className={label}>مسئول پیگیری</label>
           <div className="flex gap-2">
-            <select className={field} value={ticket.handlerId || ''} onChange={(e) => run(() => api.ticketAssign(ticket.id, e.target.value))}>
-              <option value="">(تعیین نشده)</option>
-              {staff.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-            </select>
+            <PersonPicker title="مسئول پیگیری" items={staffItems(staff)} value={ticket.handlerId || ''} onChange={(id) => run(() => api.ticketAssign(ticket.id, id))} emptyLabel="(تعیین نشده)" />
             <span className="self-center text-[#8C6F66]"><UserCog className="w-4 h-4" /></span>
           </div>
         </div>

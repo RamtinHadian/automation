@@ -273,6 +273,16 @@ func putSettings(w http.ResponseWriter, r *http.Request, me auth.User, _ string,
 		if v, ok := data["letterNumbering"]; ok && v != nil {
 			cur["letterNumbering"] = v
 		}
+		// whoever may write letters defines the organisation's letter layout and ready-made texts, like an admin; absent = removed
+		if jsonx.Bool(me.M, "canSendOfficialLetters") || jsonx.Bool(me.M, "canSignOfficialLetters") {
+			for _, k := range []string{"letterTemplate", "letterTextTemplates"} {
+				if v, ok := data[k]; ok && v != nil {
+					cur[k] = v
+				} else {
+					delete(cur, k)
+				}
+			}
+		}
 		merged = cur
 	}
 	notify.ForgetRules()

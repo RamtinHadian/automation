@@ -5,6 +5,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label, SOURCES } from './crmUi';
+import { PersonPicker, staffItems } from '../common/PersonPicker';
 
 const STATUS_LABEL: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
 const COMPANY_TYPES = ['سهامی خاص', 'سهامی عام', 'مسئولیت محدود', 'تضامنی', 'نسبی', 'تعاونی', 'مؤسسه / انجمن', 'شخص حقیقی با کد اقتصادی', 'سایر'];
@@ -468,11 +469,7 @@ export const CustomerForm: React.FC<{
             </div>
             <div>
               <label className={label}>مسئول پیگیری</label>
-              <select className={field} value={c.ownerId} onChange={(e) => patch({ ownerId: e.target.value })}>
-                {staff.map((u) => (
-                  <option key={u.id} value={u.id}>{u.fullName}</option>
-                ))}
-              </select>
+              <PersonPicker title="مسئول پیگیری" items={staffItems(staff)} value={c.ownerId} onChange={(id) => patch({ ownerId: id })} />
             </div>
           </div>
           <div>

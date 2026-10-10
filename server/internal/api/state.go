@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"automation/server/internal/auth"
@@ -70,7 +71,11 @@ func state(w http.ResponseWriter, r *http.Request) {
 	}
 	if me.CanUseTasks() {
 		if admin {
-			tasks, err = store.RawList(ctx, `SELECT data FROM tasks ORDER BY created_at DESC`)
+			if me.Role() == "SUPER_ADMIN" {
+				tasks, err = store.RawList(ctx, `SELECT data FROM tasks ORDER BY created_at DESC`)
+			} else { // the archive is seen by the top admin and by the people who had a part in the task only
+				tasks, err = store.RawList(ctx, `SELECT data FROM tasks WHERE COALESCE(data->>'archived', '') <> 'true' OR creator_id = $1 OR $1 = ANY(assignee_ids) ORDER BY created_at DESC`, id)
+			}
 			if !fail(err) {
 				reports, err = store.RawList(ctx, `SELECT data FROM daily_reports ORDER BY report_date DESC LIMIT 1500`)
 			}
@@ -163,7 +168,13 @@ func statsData(w http.ResponseWriter, r *http.Request) {
 		"supportTickets": `SELECT data FROM support_tickets ORDER BY created_at DESC LIMIT 5000`,
 		"missing":   `SELECT data FROM crm_activities WHERE data->>'type' = 'MISSING' ORDER BY created_at DESC LIMIT 5000`,
 	} {
-		rows, err := store.RawList(ctx, q)
+		var rows []json.RawMessage
+		var err error
+		if key == "tasks" && auth.Current(r).Role() != "SUPER_ADMIN" { // archived tasks: top admin and the people involved only
+			rows, err = store.RawList(ctx, `SELECT data FROM tasks WHERE COALESCE(data->>'archived', '') <> 'true' OR creator_id = $1 OR $1 = ANY(assignee_ids) ORDER BY created_at DESC`, auth.Current(r).ID())
+		} else {
+			rows, err = store.RawList(ctx, q)
+		}
 		if fail(err) {
 			return
 		}

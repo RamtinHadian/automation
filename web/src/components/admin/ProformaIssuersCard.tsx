@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, Upload, UserSquare2 } from 'lucide-react';
 import { ProformaIssuer, SystemSettings } from '../../types';
+import { PersonPicker } from '../common/PersonPicker';
 
 const input = 'w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none';
 const lab = 'block font-bold text-[#3A241F] mb-1.5';
@@ -60,12 +61,7 @@ const ApprovalTick: React.FC<{ checked: boolean; onChange: (v: boolean) => void;
   {checked && (
     <div className="flex flex-wrap items-center gap-2 pr-6">
       <span className="font-black text-[#3A241F]">با تایید چه کسی مهر و امضا شود؟</span>
-      <select className="p-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F]" value={approverId || ''} onChange={(e) => onApprover(e.target.value)}>
-        <option value="">هر کسی که اجازهٔ امضای نامهٔ رسمی دارد</option>
-        {staff.map((u) => (
-          <option key={u.id} value={u.id}>{u.name}</option>
-        ))}
-      </select>
+      <PersonPicker title="تأیید‌کنندهٔ مهر و امضا" items={staff.map((u) => ({ id: u.id, name: u.name }))} value={approverId || ''} onChange={onApprover} emptyLabel="هر کسی که اجازهٔ امضای نامهٔ رسمی دارد" className="min-w-[240px]" />
     </div>
   )}
   </div>

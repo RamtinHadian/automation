@@ -341,6 +341,8 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  /** finished work put away: seen only by the top admin and the people who had a part in it */
+  archived?: boolean;
 }
 
 export interface LetterReferral {
@@ -508,6 +510,8 @@ export interface LetterNumberingSettings {
   allowUniversalReferral?: boolean;
   defaultFooterNote?: string;
   showFooterNote?: boolean;
+  /** put the Persian month number (۰۱ … ۱۲) after the year; it changes by itself every month */
+  includeMonth?: boolean;
 }
 
 export interface CustomFont {

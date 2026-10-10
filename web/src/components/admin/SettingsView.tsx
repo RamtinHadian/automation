@@ -683,6 +683,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               placeholder="۱۴۰۵"
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
             />
+            <label className="mt-2 flex items-start gap-2 font-bold text-[#3A241F] cursor-pointer" data-month-number>
+              <input type="checkbox" className="mt-0.5" checked={!!currentNumbering.includeMonth} onChange={(e) => handleNumberingChange({ includeMonth: e.target.checked })} />
+              <span>
+                شمارهٔ ماه شمسی هم در شمارهٔ نامه بیاید
+                <span className="block text-[10px] font-medium text-[#8C6F66] leading-5">مثلاً در مهر به‌جای «۱۴۰۵» نوشته می‌شود «۱۴۰۵/۰۷» و در آبان «۱۴۰۵/۰۸»؛ هر ماه خودکار عوض می‌شود.</span>
+              </span>
+            </label>
           </div>
         </div>
 

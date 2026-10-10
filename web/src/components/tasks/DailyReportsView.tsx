@@ -47,6 +47,7 @@ export const DailyReportsView: React.FC = () => {
   const { reports, setReports, tasks, staffList, currentUser, showToast } = useAppContext();
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isSuper = currentUser.role === 'SUPER_ADMIN';
 
   const [tab, setTab] = useState<'mine' | 'team'>('mine');
   const [date, setDate] = useState(todayIso());
@@ -92,7 +93,9 @@ export const DailyReportsView: React.FC = () => {
     setDraftStatus('DONE');
   };
 
-  const canSave = form.summary.trim() !== '' || form.items.length > 0;
+  // a report that was sent is final: only the top admin can change or delete it
+  const locked = !!current && !isSuper;
+  const canSave = !locked && (form.summary.trim() !== '' || form.items.length > 0);
   const save = () => {
     if (!canSave) return;
     const now = new Date().toISOString();
@@ -219,10 +222,11 @@ export const DailyReportsView: React.FC = () => {
                 }`}
               >
                 {current ? <CheckCircle2 className="w-3.5 h-3.5" /> : <CalendarCheck className="w-3.5 h-3.5" />}
-                {current ? 'ثبت شده؛ می‌توانید ویرایش کنید' : isToday ? 'گزارش امروز هنوز ثبت نشده' : 'برای این روز گزارشی ثبت نشده'}
+                {current ? (locked ? 'ثبت و ارسال شده؛ قابل ویرایش نیست' : 'ثبت شده؛ می‌توانید ویرایش کنید') : isToday ? 'گزارش امروز هنوز ثبت نشده' : 'برای این روز گزارشی ثبت نشده'}
               </span>
             </div>
 
+            <fieldset disabled={locked} className="contents" data-report-fields>
             <div>
               <label className={label}>خلاصهٔ کار امروز</label>
               <textarea className={`${field} min-h-[84px] leading-6`} value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="امروز چه کارهایی انجام دادید؟" />
@@ -325,8 +329,10 @@ export const DailyReportsView: React.FC = () => {
               </div>
             </div>
 
+            </fieldset>
+
             <div className="flex items-center justify-between gap-2 pt-1">
-              {current ? (
+              {current && isSuper ? (
                 <button type="button" onClick={() => remove(current)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-50 cursor-pointer">
                   <Trash2 className="w-4 h-4" />
                   حذف گزارش
@@ -463,7 +469,7 @@ export const DailyReportsView: React.FC = () => {
               )}
             </div>
             <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-[#EBDBCE]">
-              {isAdmin || viewing.userId === me ? (
+              {isSuper ? (
                 <button type="button" onClick={() => remove(viewing)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-50 cursor-pointer">
                   <Trash2 className="w-4 h-4" />
                   حذف
@@ -472,7 +478,7 @@ export const DailyReportsView: React.FC = () => {
                 <span />
               )}
               <div className="flex items-center gap-2">
-                {viewing.userId === me && (
+                {viewing.userId === me && isSuper && (
                   <button
                     type="button"
                     onClick={() => {

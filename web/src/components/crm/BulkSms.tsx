@@ -6,6 +6,7 @@ import { smsButtons, smsFinalText } from '../../lib/smsLibrary';
 import { useCompanyName } from '../../lib/useCompanyName';
 import { useAppContext } from '../../context/AppContext';
 import { Customer, CustomerStatus, Deal, User } from '../../types';
+import { PersonPicker, staffItems } from '../common/PersonPicker';
 
 const STATUS: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
 const faToEn = (s: string) => s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
@@ -147,10 +148,7 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
             </select>
           )}
           {isAdmin && (
-            <select className={sel} value={owner} onChange={(e) => setOwner(e.target.value)}>
-              <option value="">همهٔ مسئول‌ها</option>
-              {staffList.filter((u) => u.isActive).map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-            </select>
+            <PersonPicker title="مسئول مشتری" items={staffItems(staffList.filter((u) => u.isActive))} value={owner} onChange={setOwner} emptyLabel="همهٔ مسئول‌ها" className="min-w-[160px] !min-h-[40px]" />
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-black">

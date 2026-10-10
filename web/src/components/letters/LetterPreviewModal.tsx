@@ -64,6 +64,7 @@ import { toPersianDigits,
   convertNumbersInHtmlToPersian, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { DEFAULT_FONTS } from '../../lib/fonts';
 import { openAndDownloadPdfLetter } from '../../lib/pdfLetterGenerator';
+import { PersonPicker, staffItems } from '../common/PersonPicker';
 
 /* =========================================================================
    WORD-LIKE POPUP EDITOR — opens as a full-screen popup with Word ribbon
@@ -1464,18 +1465,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <label className="block text-[11px] font-bold text-amber-950">
                   ارجاع به کاربر / همکار:
                 </label>
-                <select
-                  value={referToUserId}
-                  onChange={(e) => setReferToUserId(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-amber-300 rounded-xl text-xs text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-amber-500/20 font-bold"
-                >
-                  {referralCandidates.length === 0 && <option value="">کسی با مجوز نامه‌نگاری پیدا نشد</option>}
-                  {referralCandidates.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName} ({u.departmentName})
-                    </option>
-                  ))}
-                </select>
+                <PersonPicker title="ارجاع به کاربر / همکار" items={staffItems(referralCandidates)} value={referToUserId} onChange={setReferToUserId} placeholder={referralCandidates.length === 0 ? 'کسی با مجوز نامه‌نگاری پیدا نشد' : 'انتخاب کنید…'} />
               </div>
 
               <div className="sm:col-span-8 space-y-1">

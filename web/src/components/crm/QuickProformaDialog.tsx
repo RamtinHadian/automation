@@ -6,6 +6,7 @@ import { issuersOf, MAIN_ISSUER_ID } from '../../lib/proformaIssuer';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, unitName } from '../../lib/money';
 import { Modal, field, label } from './crmUi';
+import { PersonPicker, customerItems } from '../common/PersonPicker';
 
 const STAGE_TEXT: Record<string, string> = { NEW: 'جدید', CONTACTED: 'تماس گرفته شد', PROPOSAL: 'پیشنهاد ارسال شد', NEGOTIATION: 'مذاکره', WON: 'فروش موفق', LOST: 'از دست رفت' };
 
@@ -147,15 +148,7 @@ export const QuickProformaDialog: React.FC<{
                   + مشتری جدید (اگر در فهرست نیست)
                 </button>
               </label>
-              <select className={field} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                <option value="">انتخاب مشتری...</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.company && c.company !== c.name ? ` — ${c.company}` : ''}
-                  </option>
-                ))}
-              </select>
+              <PersonPicker title="انتخاب مشتری" items={customerItems(customers)} value={customerId} onChange={setCustomerId} emptyLabel="انتخاب مشتری..." />
             </div>
             <p className="sm:col-span-2 text-[11px] text-[#8C6F66] font-medium leading-6">یک فرصت فروش با همین عنوان ساخته می‌شود و پیش‌فاکتور به آن وصل می‌شود.</p>
           </div>

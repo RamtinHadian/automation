@@ -45,6 +45,7 @@ import { FileTransfer, User, LetterNumberingSettings } from '../../types';
 import { formatCurrentJalaliDateTime, toPersianDigits, convertNumbersInHtmlToPersian } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 import { formatLetterNumber } from '../../lib/letterNumbering';
+import { PersonPicker, staffItems } from '../common/PersonPicker';
 
 interface LetterEditorModalProps {
   /** Edit mode: the author's own unsigned letter to change. */
@@ -215,7 +216,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   onSendLetter,
 }) => {
   const { fonts, settings, setSettings, setStaffList, setCurrentUser, showToast } = useAppContext();
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  // whoever may write letters defines the organisation's letter layout and ready-made texts, like an admin
+  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN' || !!currentUser.canSendOfficialLetters || !!currentUser.canSignOfficialLetters;
   const orgTpl = settings.letterTemplate;
   const defaultFont = fonts.find((f) => f.id === settings.defaultLetterFontId) || fonts[0] || { fontFamily: 'Vazirmatn', name: 'وزیرمتن' };
   // The user's saved letter settings (restored every time the editor opens).
@@ -287,9 +289,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [stampOffset, setStampOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.stampOffset));
   const [showSigImg, setShowSigImg] = useState<boolean>(() => prefs.showSignatureImage !== false);
   const [showStampImg, setShowStampImg] = useState<boolean>(() => prefs.showStampImage !== false);
-  const [showNo, setShowNo] = useState<boolean>(() => prefs.showLetterNumber !== false);
-  const [showDate, setShowDate] = useState<boolean>(() => prefs.showLetterDate !== false);
-  const [showAtt, setShowAtt] = useState<boolean>(() => prefs.showLetterAttachment !== false);
+  const [showNo, setShowNo] = useState<boolean>(() => (editInit ? prefs.showLetterNumber !== false : true)); // per letter: a new letter always starts ticked
+  const [showDate, setShowDate] = useState<boolean>(() => (editInit ? prefs.showLetterDate !== false : true));
+  const [showAtt, setShowAtt] = useState<boolean>(() => (editInit ? prefs.showLetterAttachment !== false : true));
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(() => (typeof prefs.stampHeightOverride === 'number' ? prefs.stampHeightOverride : null));
   const effectiveStampHeight =
     stampHeightOverride ?? (pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05));
@@ -306,7 +308,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
     orgOffset, bodyOffsetY, layoutLocked,
-    showSignatureImage: showSigImg, showStampImage: showStampImg, showLetterNumber: showNo, showLetterDate: showDate, showLetterAttachment: showAtt,
+    showSignatureImage: showSigImg, showStampImage: showStampImg,
+    // the ticks «شماره / تاریخ / پیوست» belong to one letter only: they are never saved as the person's or the organisation's settings
   });
 
   // The person's own letter settings are saved only when they press «ذخیره تنظیمات»; until then every change belongs to
@@ -357,9 +360,6 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setLayoutLocked(false);
     setShowSigImg(base.showSignatureImage !== false);
     setShowStampImg(base.showStampImage !== false);
-    setShowNo(base.showLetterNumber !== false);
-    setShowDate(base.showLetterDate !== false);
-    setShowAtt(base.showLetterAttachment !== false);
     // null (not undefined) so that the server forgets the saved settings too
     setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: null as unknown as undefined } : u)));
     setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: null as unknown as undefined } : u));
@@ -1526,17 +1526,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto flex-wrap min-w-0">
             <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
               <label className="text-xs font-bold text-[#3A241F] shrink-0">ارسال به:</label>
-              <select
-                value={recipientId}
-                onChange={(e) => setRecipientId(e.target.value)}
-                className="flex-1 sm:flex-initial min-w-0 px-3 py-2 sm:py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer"
-              >
-                {signers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    ★ {u.fullName}
-                  </option>
-                ))}
-              </select>
+              <PersonPicker title="ارسال نامه به" items={staffItems(signers)} value={recipientId} onChange={setRecipientId} className="flex-1 sm:flex-initial min-w-[180px]" />
               <button
                 type="button"
                 onClick={() => setShowNote((v) => !v)}

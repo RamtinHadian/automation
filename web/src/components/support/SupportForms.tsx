@@ -8,6 +8,7 @@ import { CHANNEL, PLAN_COLOR, PRIORITY, subRemaining, subState, SUB_STATE, subEn
 import { Modal, field, label } from '../crm/crmUi';
 import { JalaliDateField } from '../tasks/TasksView';
 import { CustomerPicker, toEn } from '../warranty/WarrantyForms';
+import { PersonPicker, staffItems } from '../common/PersonPicker';
 
 const uid = (p: string) => p + '-' + Math.random().toString(36).substring(2, 10);
 const MONTH_CHOICES = [1, 3, 6, 12, 24, 36];
@@ -221,10 +222,7 @@ export const TicketForm: React.FC<{
         </div>
         <div>
           <label className={label}>مسئول پیگیری</label>
-          <select className={field} value={handlerId} onChange={(e) => setHandlerId(e.target.value)}>
-            <option value="">(بعداً)</option>
-            {staff.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-          </select>
+          <PersonPicker title="مسئول پیگیری" items={staffItems(staff)} value={handlerId} onChange={setHandlerId} emptyLabel="(بعداً)" />
         </div>
       </div>
       {(priority === 'HIGH' || priority === 'URGENT') && <div className="text-[10px] font-bold text-[#8C6F66]">اولویت {PRIORITY[priority].label} مهلت‌ها را کوتاه‌تر می‌کند ({priority === 'HIGH' ? 'نصف' : 'یک‌چهارم'}).</div>}

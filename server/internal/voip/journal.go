@@ -295,6 +295,9 @@ func finalize(st *callState, ended time.Time) {
 		note := notify.Note{Kind: "call", Label: "تماس بی‌پاسخ", Title: "تماس بی‌پاسخ از " + who, Body: "داخلی " + strings.Join(st.legExts, "، "), Repeat: true}
 		if custID != "" {
 			note.Ref = map[string]any{"type": "customer", "id": custID}
+		} else if otherName == "" && other != "" {
+			// a number that is not in the phone bank: opening the notification offers «save the number»
+			note.Ref = map[string]any{"type": "phone", "id": other}
 		}
 		notify.Notify(ctx, uids, note, "")
 	}

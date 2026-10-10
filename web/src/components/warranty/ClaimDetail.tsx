@@ -6,6 +6,7 @@ import { formatMoney, fromDisplay, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
 import { CLAIM_STATUS, COVERAGE_TEXT, dayText, NEXT_BUTTON, NEXT_STATUS, RESOLUTION, codeText } from '../../lib/warranty';
 import { Modal, field, label } from '../crm/crmUi';
+import { PersonPicker, staffItems } from '../common/PersonPicker';
 
 const when = (iso: string) => {
   const d = new Date(iso);
@@ -145,10 +146,7 @@ export const ClaimDetail: React.FC<{
           <div>
             <label className={label}>مسئول پیگیری</label>
             <div className="flex gap-2">
-              <select className={field} value={claim.handlerId || ''} onChange={(e) => run(() => api.claimAssign(claim.id, e.target.value))}>
-                <option value="">(تعیین نشده)</option>
-                {staff.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-              </select>
+              <PersonPicker title="مسئول پیگیری" items={staffItems(staff)} value={claim.handlerId || ''} onChange={(id) => run(() => api.claimAssign(claim.id, id))} emptyLabel="(تعیین نشده)" />
               <span className="self-center text-[#8C6F66]"><UserCog className="w-4 h-4" /></span>
             </div>
           </div>

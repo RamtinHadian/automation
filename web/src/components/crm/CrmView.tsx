@@ -49,6 +49,7 @@ import { CustomerReportModal } from './CustomerReportModal';
 import { Modal, field, label, SOURCES } from './crmUi';
 import { CustomerImportModal } from './CustomerImportModal';
 import type { VoipCall } from '../../lib/api';
+import { PersonPicker, staffItems, customerItems } from '../common/PersonPicker';
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -931,12 +932,7 @@ const DealForm: React.FC<{
                 + مشتری جدید
               </button>
             </label>
-            <select className={field} value={d.customerId} onChange={(e) => patch({ customerId: e.target.value })}>
-              <option value="">انتخاب مشتری...</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.company ? ` — ${c.company}` : ''}</option>
-              ))}
-            </select>
+            <PersonPicker title="انتخاب مشتری" items={customerItems(customers)} value={d.customerId} onChange={(id) => patch({ customerId: id })} emptyLabel="انتخاب مشتری..." />
           </div>
           <div>
             <label className={label}>مبلغ ({unitName()})</label>
@@ -964,15 +960,7 @@ const DealForm: React.FC<{
           </div>
           <div>
             <label className={label}>مسئول اصلی</label>
-            <select
-              className={field}
-              value={d.ownerId}
-              onChange={(e) => patch({ ownerId: e.target.value, coOwnerIds: (d.coOwnerIds || []).filter((x) => x !== e.target.value) })}
-            >
-              {staff.map((u) => (
-                <option key={u.id} value={u.id}>{u.fullName}</option>
-              ))}
-            </select>
+            <PersonPicker title="مسئول اصلی" items={staffItems(staff)} value={d.ownerId} onChange={(id) => patch({ ownerId: id, coOwnerIds: (d.coOwnerIds || []).filter((x) => x !== id) })} />
           </div>
         </div>
         <div>
@@ -1380,11 +1368,7 @@ const CustomerDetail: React.FC<{
               </div>
               <div>
                 <label className={label}>مسئول پیگیری</label>
-                <select className={field} value={owner} onChange={(e) => setOwner(e.target.value)}>
-                  {staff.map((u) => (
-                    <option key={u.id} value={u.id}>{u.fullName}</option>
-                  ))}
-                </select>
+                <PersonPicker title="مسئول پیگیری" items={staffItems(staff)} value={owner} onChange={setOwner} />
               </div>
             </div>
           )}

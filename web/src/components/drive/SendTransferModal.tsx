@@ -1,3 +1,4 @@
+import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import React, { useState } from 'react';
 import {
   X,
@@ -139,70 +140,13 @@ export const SendTransferModal: React.FC<SendTransferModalProps> = ({
               <div className="text-[10px] text-[#8C6F66]">چندانتخابی مجاز است</div>
             </div>
 
-            {/* Department Filter & Search */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="w-3.5 h-3.5 text-[#B8A39C] absolute right-3 top-2.5" />
-                <input
-                  type="text"
-                  value={searchStaff}
-                  onChange={(e) => setSearchStaff(e.target.value)}
-                  placeholder="جستجو در همکاران..."
-                  className="w-full pr-8 pl-3 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
-                />
-              </div>
-              <select
-                value={selectedDept}
-                onChange={(e) => setSelectedDept(e.target.value)}
-                className="px-2.5 py-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-medium text-[#3A241F] focus:outline-none"
-              >
-                <option value="ALL">همه واحدها</option>
-                {DEPARTMENTS.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Staff list cards */}
-            <div className="max-h-40 overflow-y-auto space-y-1.5 p-1 bg-[#FAF5F1]/50 rounded-2xl border border-[#EBDBCE]">
-              {availableStaff.map((staff) => {
-                const isSelected = recipientIds.includes(staff.id);
-                return (
-                  <div
-                    key={staff.id}
-                    onClick={() => toggleRecipient(staff.id)}
-                    className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-[#F6D9CD] border border-[#C98B6A]/50 text-[#3A241F]'
-                        : 'bg-white hover:bg-[#FAF5F1] border border-transparent text-[#3A241F]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={staff.avatarUrl}
-                        alt={staff.fullName}
-                        className="w-6 h-6 rounded-full object-cover"
-                      />
-                      <div>
-                        <div className="font-bold text-[11px]">{staff.fullName}</div>
-                        <div className="text-[10px] text-[#8C6F66]">{staff.departmentName}</div>
-                      </div>
-                    </div>
-                    <div
-                      className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors ${
-                        isSelected
-                          ? 'bg-[#6E1B1B] text-white'
-                          : 'border border-[#EBDBCE]'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <PersonPickerMulti
+              title="انتخاب همکاران گیرنده"
+              placeholder="همکاران گیرنده را انتخاب کنید…"
+              items={staffItems(STAFF_USERS.filter((u) => u.id !== currentUser.id))}
+              values={recipientIds}
+              onChange={setRecipientIds}
+            />
           </div>
 
           {/* Message / Note */}

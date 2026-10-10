@@ -1,5 +1,5 @@
 import { LetterNumberingSettings } from '../types';
-import { toPersianDigits } from './jalali';
+import { gregorianToJalali, toPersianDigits } from './jalali';
 
 export const DEFAULT_LETTER_NUMBERING: LetterNumberingSettings = {
   prefix: '۱۰',
@@ -15,7 +15,13 @@ export function formatLetterNumber(settings?: LetterNumberingSettings): string {
   const cfg = settings || DEFAULT_LETTER_NUMBERING;
   const prefix = (cfg.prefix || '').trim();
   const num = toPersianDigits(cfg.nextNumber || 1001);
-  const year = toPersianDigits((cfg.year || '1405').trim());
+  let year = toPersianDigits((cfg.year || '1405').trim());
+  if (cfg.includeMonth) {
+    // the month of today's Persian date, always two digits, so every month brings its own number into the letter number
+    const d = new Date();
+    const [, jm] = gregorianToJalali(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    year = `${year}/${toPersianDigits(String(jm).padStart(2, '0'))}`;
+  }
 
   switch (cfg.formatPattern) {
     case 'PREFIX_YEAR_NUM':

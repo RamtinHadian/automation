@@ -1017,6 +1017,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       void deleteLocalFile(id).catch(() => {});
       void deleteLocalFile(`att:${id}`).catch(() => {});
       showToast('نامه حذف شد.');
+      // ask the server again once the removal has gone through: what the server still holds (if it refused) comes back instead of staying hidden
+      setTimeout(() => reloadRef.current(), 1800);
     },
     [transfers, currentUser, showToast]
   );

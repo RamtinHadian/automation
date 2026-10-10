@@ -8,6 +8,7 @@ import { daysBetween, remainingText, shrinkImage, STATE_LABEL, warrantyEnd, warr
 import { Modal, field, label } from '../crm/crmUi';
 import { JalaliDateField } from '../tasks/TasksView';
 import { dayText } from '../../lib/warranty';
+import { PersonPicker, staffItems } from '../common/PersonPicker';
 
 const uid = (p: string) => p + '-' + Math.random().toString(36).substring(2, 10);
 const MONTH_CHOICES = [3, 6, 12, 18, 24, 36, 48, 60];
@@ -280,10 +281,7 @@ export const ClaimForm: React.FC<{
         </div>
         <div className="sm:col-span-2">
           <label className={label}>مسئول پیگیری</label>
-          <select className={field} value={handlerId} onChange={(e) => setHandlerId(e.target.value)}>
-            <option value="">(بعداً تعیین می‌شود)</option>
-            {staff.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-          </select>
+          <PersonPicker title="مسئول پیگیری" items={staffItems(staff)} value={handlerId} onChange={setHandlerId} emptyLabel="(بعداً تعیین می‌شود)" />
         </div>
         <div className="sm:col-span-2">
           <label className={label}>خودرو (مدل)</label>

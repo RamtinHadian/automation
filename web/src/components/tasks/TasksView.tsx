@@ -1,3 +1,4 @@
+import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Plus,
@@ -15,6 +16,7 @@ import {
   ListChecks,
   User as UserIcon,
   FileText,
+  Archive,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { DailyReportsView } from './DailyReportsView';
@@ -125,9 +127,10 @@ const emptyTask = (me: User): Task => ({
 const TasksBoard: React.FC = () => {
   const { tasks, setTasks, staffList, currentUser, showToast } = useAppContext();
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isSuper = currentUser.role === 'SUPER_ADMIN'; // only the top admin deletes a task
 
   const [view, setView] = useState<'board' | 'list'>('board');
-  const [scope, setScope] = useState<'ALL' | 'MINE' | 'CREATED'>('ALL');
+  const [scope, setScope] = useState<'ALL' | 'MINE' | 'CREATED' | 'ARCHIVE'>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<'ALL' | TaskPriority>('ALL');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<{ task: Task; isNew: boolean } | null>(null);
@@ -144,6 +147,7 @@ const TasksBoard: React.FC = () => {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tasks.filter((t) => {
+      if (scope === 'ARCHIVE' ? !t.archived : t.archived) return false;
       if (scope === 'MINE' && !t.assigneeIds.includes(currentUser.id)) return false;
       if (scope === 'CREATED' && t.creatorId !== currentUser.id) return false;
       if (priorityFilter !== 'ALL' && t.priority !== priorityFilter) return false;
@@ -155,15 +159,15 @@ const TasksBoard: React.FC = () => {
     });
   }, [tasks, scope, priorityFilter, search, currentUser.id, userById]);
 
-  const stats = useMemo(
-    () => ({
-      total: tasks.length,
-      active: tasks.filter((t) => t.status === 'IN_PROGRESS').length,
-      overdue: tasks.filter((t) => isOverdue(t.dueDate, t.status === 'DONE')).length,
-      done: tasks.filter((t) => t.status === 'DONE').length,
-    }),
-    [tasks]
-  );
+  const stats = useMemo(() => {
+    const live = tasks.filter((t) => !t.archived);
+    return {
+      total: live.length,
+      active: live.filter((t) => t.status === 'IN_PROGRESS').length,
+      overdue: live.filter((t) => isOverdue(t.dueDate, t.status === 'DONE')).length,
+      done: live.filter((t) => t.status === 'DONE').length,
+    };
+  }, [tasks]);
 
   const saveTask = (t: Task) => {
     const next: Task = {
@@ -171,6 +175,7 @@ const TasksBoard: React.FC = () => {
       title: t.title.trim(),
       updatedAt: nowIso(),
       completedAt: t.status === 'DONE' ? t.completedAt || nowIso() : undefined,
+      archived: t.status === 'DONE' && t.archived ? true : undefined, // only finished work can be in the archive
     };
     setTasks((prev) => (prev.some((x) => x.id === next.id) ? prev.map((x) => (x.id === next.id ? next : x)) : [next, ...prev]));
   };
@@ -185,8 +190,14 @@ const TasksBoard: React.FC = () => {
     saveTask({ ...t, status });
   };
 
+  const archiveTask = (t: Task, archived: boolean) => {
+    saveTask({ ...t, archived });
+    setEditing(null);
+    showToast(archived ? 'وظیفه بایگانی شد.' : 'وظیفه از بایگانی بیرون آمد.');
+  };
+
   const deleteTask = (t: Task) => {
-    if (!isCreatorOrAdmin(t)) return;
+    if (!isSuper) return;
     if (!window.confirm(`وظیفهٔ «${t.title}» حذف شود؟`)) return;
     setTasks((prev) => prev.filter((x) => x.id !== t.id));
     setEditing(null);
@@ -307,6 +318,7 @@ const TasksBoard: React.FC = () => {
               ['ALL', isAdmin ? 'همه' : 'همهٔ من'],
               ['MINE', 'واگذار شده به من'],
               ['CREATED', 'ساخته‌ام'],
+              ['ARCHIVE', 'بایگانی'],
             ] as const).map(([id, label]) => (
               <button
                 key={id}
@@ -458,7 +470,9 @@ const TasksBoard: React.FC = () => {
           me={currentUser}
           fullEdit={editing.isNew || isCreatorOrAdmin(editing.task)}
           canMove={editing.isNew || canMove(editing.task)}
-          canDelete={!editing.isNew && isCreatorOrAdmin(editing.task)}
+          canDelete={!editing.isNew && isSuper}
+          canArchive={!editing.isNew && editing.task.status === 'DONE' && canMove(editing.task)}
+          onArchive={(a) => archiveTask(editing.task, a)}
           onClose={() => setEditing(null)}
           onSave={(t) => {
             saveTask(t);
@@ -481,12 +495,14 @@ interface TaskModalProps {
   fullEdit: boolean;
   canMove: boolean;
   canDelete: boolean;
+  canArchive: boolean;
+  onArchive: (archived: boolean) => void;
   onClose: () => void;
   onSave: (t: Task) => void;
   onDelete: () => void;
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEdit, canMove, canDelete, onClose, onSave, onDelete }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEdit, canMove, canDelete, canArchive, onArchive, onClose, onSave, onDelete }) => {
   const [t, setT] = useState<Task>(initial);
   const [newItem, setNewItem] = useState('');
   const [newComment, setNewComment] = useState('');
@@ -572,26 +588,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
 
           <div>
             <label className={label}>مسئول(ان) انجام</label>
-            <div className="flex flex-wrap gap-2">
-              {staff.map((u) => {
-                const on = t.assigneeIds.includes(u.id);
-                return (
-                  <button
-                    key={u.id}
-                    type="button"
-                    disabled={!fullEdit}
-                    onClick={() => patch({ assigneeIds: on ? t.assigneeIds.filter((x) => x !== u.id) : [...t.assigneeIds, u.id] })}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold transition-all ${
-                      on ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'
-                    } ${fullEdit ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
-                  >
-                    <Avatar user={u} size={22} />
-                    {u.fullName}
-                  </button>
-                );
-              })}
-              {staff.length === 0 && <span className="text-[11px] text-gray-400">کاربری وجود ندارد.</span>}
-            </div>
+            <PersonPickerMulti title="مسئول(ان) انجام" placeholder="انتخاب مسئول انجام…" items={staffItems(staff)} values={t.assigneeIds} disabled={!fullEdit} onChange={(ids) => patch({ assigneeIds: ids })} />
           </div>
 
           <div>
@@ -690,7 +687,13 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
         </div>
 
         <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-[#EBDBCE]">
-          <div>
+          <div className="flex items-center gap-1">
+            {canArchive && (
+              <button type="button" onClick={() => onArchive(!initial.archived)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-violet-700 hover:bg-violet-50 cursor-pointer" data-task-archive>
+                <Archive className="w-4 h-4" />
+                {initial.archived ? 'خروج از بایگانی' : 'بایگانی'}
+              </button>
+            )}
             {canDelete && (
               <button type="button" onClick={onDelete} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-50 cursor-pointer">
                 <Trash2 className="w-4 h-4" />
