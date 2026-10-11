@@ -9,6 +9,7 @@ import { BannerStrip } from '../components/board/BannerStrip';
 import { CrmView } from '../components/crm/CrmView';
 import { WarrantyView } from '../components/warranty/WarrantyView';
 import { WarehouseView } from '../components/warehouse/WarehouseView';
+import { SepidarView } from '../components/sepidar/SepidarView';
 import { SupportView } from '../components/support/SupportView';
 import { useCompanyName } from '../lib/useCompanyName';
 import { TasksView } from '../components/tasks/TasksView';
@@ -68,6 +69,7 @@ import {
   BarChart3,
   MessageCircle,
   Warehouse,
+  Landmark,
 } from 'lucide-react';
 import { FileCategory, FileTransfer, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
@@ -122,7 +124,7 @@ export default function UserPanel() {
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
   const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board'>('files');
   const [chatPeer, setChatPeer] = useState('');
-  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse'>('files');
+  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar'>('files');
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -212,8 +214,9 @@ export default function UserPanel() {
   }, [canAccessLettersMenu, mainMenuTab]);
   // Unread notifications per menu (only for the menus this person may use). Opening a menu marks its notifications as read.
   const { notifications, markNotificationsRead } = useAppContext();
-  const menuOfNotification = (n: AppNotification): 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | 'warehouse' | null => {
+  const menuOfNotification = (n: AppNotification): 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | 'warehouse' | 'sepidar' | null => {
     const t = n.ref?.type;
+    if (t === 'sepidar') return 'sepidar';
     if (t === 'warehouse') return 'warehouse';
     if (t === 'warranty') return 'warranty';
     if (t === 'support') return 'support';
@@ -226,7 +229,7 @@ export default function UserPanel() {
     if (n.kind === 'task') return 'tasks';
     return null;
   };
-  const unreadByMenu = { files: 0, letters: 0, tasks: 0, crm: 0, warranty: 0, support: 0, warehouse: 0 };
+  const unreadByMenu = { files: 0, letters: 0, tasks: 0, crm: 0, warranty: 0, support: 0, warehouse: 0, sepidar: 0 };
   for (const n of notifications) {
     if (n.read) continue;
     const m = menuOfNotification(n);
@@ -243,9 +246,9 @@ export default function UserPanel() {
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications, mainMenuTab]);
-  const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | 'warehouse') =>
-    (m === 'warehouse' && !canAccessWarehouseMenu) || (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) || (m === 'warranty' && !canAccessWarrantyMenu) || (m === 'support' && !canAccessWarrantyMenu) ? 0 : unreadByMenu[m];
-  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse') => {
+  const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | 'warehouse' | 'sepidar') =>
+    (m === 'sepidar' && !canAccessSepidarMenu) || (m === 'warehouse' && !canAccessWarehouseMenu) || (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) || (m === 'warranty' && !canAccessWarrantyMenu) || (m === 'support' && !canAccessWarrantyMenu) ? 0 : unreadByMenu[m];
+  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar') => {
     setMainMenuTab(m);
     setSearchQuery('');
     const ids = notifications.filter((n) => !n.read && n.kind !== 'chat' && menuOfNotification(n) === m).map((n) => n.id);
@@ -280,6 +283,8 @@ export default function UserPanel() {
       }
       window.dispatchEvent(new Event('open-warranty-item'));
       setMainMenuTab('warranty');
+    } else if (type === 'sepidar' && canAccessSepidarMenu) {
+      setMainMenuTab('sepidar');
     } else if (type === 'warehouse' && canAccessWarehouseMenu) {
       setMainMenuTab('warehouse');
     } else if (type === 'support' && canAccessWarrantyMenu) {
@@ -314,6 +319,10 @@ export default function UserPanel() {
   };
   const canAccessCrmMenu = Boolean(currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
   // the warranty menu: admins, people with the warranty switch, and everybody who works with customers
+  const canAccessSepidarMenu = Boolean(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN' || (currentUser.sepidarPerms || []).length > 0);
+  useEffect(() => {
+    if (!canAccessSepidarMenu && mainMenuTab === 'sepidar') setMainMenuTab('files');
+  }, [canAccessSepidarMenu, mainMenuTab]);
   const canAccessWarehouseMenu = Boolean(currentUser.canUseWarehouse === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
   useEffect(() => {
     if (!canAccessWarehouseMenu && mainMenuTab === 'warehouse') setMainMenuTab('files');
@@ -850,6 +859,26 @@ export default function UserPanel() {
               </button>
             )}
 
+            {/* Menu: سپیدار */}
+            {canAccessSepidarMenu && (
+              <button
+                onClick={() => openMenu('sepidar')}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                  mainMenuTab === 'sepidar'
+                    ? 'bg-rose-700 text-white shadow-md shadow-rose-700/25 scale-[1.02]'
+                    : 'bg-white text-[#3A241F] hover:bg-rose-50 border border-[#EBDBCE]'
+                }`}
+              >
+                <Landmark className="w-4 h-4" />
+                <span>سپیدار</span>
+                {menuBadge('sepidar') > 0 && (
+                  <span className="bg-rose-600 text-white text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full font-black shadow-sm">
+                    {toPersianDigits(menuBadge('sepidar') > 99 ? '99+' : menuBadge('sepidar'))}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Menu: انبار */}
             {canAccessWarehouseMenu && (
               <button
@@ -956,6 +985,11 @@ export default function UserPanel() {
               <span className="flex items-center gap-1 text-violet-800">
                 <Users className="w-4 h-4 text-violet-600" />
                 مشتریان، فرصت‌های فروش و پیگیری‌ها
+              </span>
+            ) : mainMenuTab === 'sepidar' ? (
+              <span className="flex items-center gap-1 text-rose-800">
+                <Landmark className="w-4 h-4 text-rose-700" />
+                اتصال به حسابداری سپیدار: پیش‌فاکتور، فاکتور و دریافتی
               </span>
             ) : mainMenuTab === 'warehouse' ? (
               <span className="flex items-center gap-1 text-amber-800">
@@ -1406,6 +1440,7 @@ export default function UserPanel() {
         {mainMenuTab === 'crm' && canAccessCrmMenu && <CrmView />}
         {mainMenuTab === 'warranty' && canAccessWarrantyMenu && <WarrantyView />}
         {mainMenuTab === 'warehouse' && canAccessWarehouseMenu && <WarehouseView />}
+        {mainMenuTab === 'sepidar' && canAccessSepidarMenu && <SepidarView />}
         {mainMenuTab === 'support' && canAccessWarrantyMenu && <SupportView />}
         {mainMenuTab === 'stats' && canAccessStatsMenu && (
           <div className="p-3 sm:p-6">
@@ -2140,6 +2175,27 @@ export default function UserPanel() {
             {menuBadge('crm') > 0 && (
               <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
                 {toPersianDigits(menuBadge('crm') > 99 ? '99+' : menuBadge('crm'))}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Tab: سپیدار */}
+        {canAccessSepidarMenu && (
+          <button
+            type="button"
+            onClick={() => openMenu('sepidar')}
+            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
+              mainMenuTab === 'sepidar'
+                ? 'bg-rose-700 text-white shadow-md'
+                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
+            }`}
+          >
+            <Landmark className="w-4 h-4" />
+            <span className="text-[9px] leading-tight font-black whitespace-nowrap">سپیدار</span>
+            {menuBadge('sepidar') > 0 && (
+              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
+                {toPersianDigits(menuBadge('sepidar') > 99 ? '99+' : menuBadge('sepidar'))}
               </span>
             )}
           </button>

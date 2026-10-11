@@ -34,6 +34,8 @@ export interface User {
   canSendSms?: boolean;
   /** the warehouse module (admins always have it) */
   canUseWarehouse?: boolean;
+  /** what the person may ask of the accounting program (Sepidar): view, customer, quotation, invoice, receipt */
+  sepidarPerms?: string[];
   /** Access to the management statistics page (admins always have it). */
   canViewStats?: boolean;
   /** May publish on the bulletin board (admins always may). */

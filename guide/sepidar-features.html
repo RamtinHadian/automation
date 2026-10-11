@@ -1,0 +1,83 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>امکانات اتصال هورمند به سپیدار</title>
+<style>
+@font-face { font-family: V; font-weight: 400; src: url('Vazirmatn-Regular.woff2'); }
+@font-face { font-family: V; font-weight: 500; src: url('Vazirmatn-Medium.woff2'); }
+@font-face { font-family: V; font-weight: 700; src: url('Vazirmatn-Bold.woff2'); }
+@font-face { font-family: V; font-weight: 900; src: url('Vazirmatn-Black.woff2'); }
+@page { size: A4; margin: 20mm 17mm 20mm 17mm; @bottom-center { content: counter(page, persian); font-family: V; font-size: 10pt; color: #8C6F66; } }
+@page :first { margin: 0; @bottom-center { content: none; } }
+:root { --maroon:#6E1B1B; --orange:#D34A32; --ink:#3A241F; --muted:#7d6159; --line:#EBDBCE; --teal:#0D9488; --bg:#FAF5F1; }
+* { box-sizing: border-box; }
+body { font-family: V, Tahoma, sans-serif; color: var(--ink); font-size: 11.2pt; line-height: 2; margin: 0; }
+.cover { height: 297mm; page-break-after: always; background: linear-gradient(160deg,#fff 0%, var(--bg) 55%, #F6D9CD 140%); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20mm; position: relative; overflow: hidden; }
+.cover .orb { position: absolute; border-radius: 50%; }
+.cover .o1 { width: 420px; height: 420px; background: rgba(211,74,50,.10); top: -140px; left: -120px; }
+.cover .o2 { width: 520px; height: 520px; background: rgba(110,27,27,.08); bottom: -200px; right: -160px; }
+.cover img { width: 330px; position: relative; }
+.cover h1 { font-size: 40pt; font-weight: 900; color: var(--maroon); margin: 30px 0 4px; line-height: 1.4; position: relative; }
+.cover .sub { font-size: 17pt; color: var(--muted); position: relative; }
+.cover .bar { width: 140px; height: 6px; background: var(--orange); border-radius: 6px; margin: 26px 0; position: relative; }
+.cover .ver { position: relative; font-size: 12pt; color: var(--muted); margin-top: 8px; }
+.tocpage { page-break-after: always; }
+.tocpage h1 { font-size: 26pt; font-weight: 900; color: var(--maroon); margin: 0 0 18px; }
+.toc { list-style: none; padding: 0; margin: 0; counter-reset: x; }
+.toc li { border-bottom: 1px solid var(--line); }
+.toc .t { flex: 1; }
+.toc .pg { color: var(--muted); font-size: 12pt; font-weight: 500; min-width: 30px; text-align: left; }
+.toc a { display: flex; align-items: center; gap: 16px; padding: 7px 4px; text-decoration: none; color: var(--ink); font-size: 13pt; font-weight: 500; }
+.toc .n { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--maroon); color: #fff; font-weight: 700; font-size: 12pt; }
+.how { margin-top: 18px; padding: 12px 20px; border-radius: 16px; background: var(--bg); border: 1px solid var(--line); font-size: 10.5pt; color: var(--muted); }
+.chap { page-break-before: always; }
+.chap-head { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+.chap-head .num { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, var(--maroon), var(--orange)); color: #fff; font-weight: 900; font-size: 22pt; flex-shrink: 0; }
+h1 { font-size: 25pt; font-weight: 900; color: var(--maroon); margin: 0; line-height: 1.5; }
+.intro { font-size: 12.2pt; color: var(--muted); margin: 6px 0 14px; padding-bottom: 12px; border-bottom: 3px solid var(--line); }
+h2 { font-size: 16pt; font-weight: 900; margin: 22px 0 6px; padding-right: 14px; border-right: 5px solid var(--orange); line-height: 1.6; page-break-after: avoid; }
+h3 { font-size: 13pt; font-weight: 700; margin: 14px 0 4px; page-break-after: avoid; }
+p { margin: 6px 0; text-align: justify; }
+ul { margin: 6px 0; padding: 0 22px 0 0; }
+li { margin: 3px 0; }
+.steps { list-style: none; counter-reset: s; padding: 0; margin: 10px 0; }
+.steps li { counter-increment: s; display: flex; gap: 12px; align-items: flex-start; margin: 7px 0; break-inside: avoid; }
+.steps li::before { content: counter(s, persian); flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--teal); color: #fff; font-weight: 700; font-size: 11pt; display: grid; place-items: center; margin-top: 4px; }
+figure { margin: 12px 0 16px; break-inside: avoid; text-align: center; }
+figure img { width: 100%; border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(58,36,31,.12); }
+figure.narrow img { width: 62%; }
+figcaption { margin-top: 6px; font-size: 9.6pt; color: var(--muted); line-height: 1.7; }
+.phones { display: flex; gap: 16px; justify-content: center; margin: 12px 0 16px; break-inside: avoid; direction: ltr; }
+.phones figure { margin: 0; width: 31%; }
+.phones img { border-radius: 18px; border: 3px solid #1d1411; box-shadow: 0 6px 18px rgba(58,36,31,.2); }
+table { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 10.4pt; break-inside: auto; }
+th { background: var(--maroon); color: #fff; font-weight: 700; padding: 7px 12px; text-align: right; }
+td { padding: 7px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr { break-inside: avoid; }
+tbody tr:nth-child(even) td { background: #FCF8F5; }
+td:first-child { font-weight: 700; white-space: nowrap; }
+.box { display: flex; gap: 12px; padding: 11px 16px; margin: 12px 0; border-radius: 12px; break-inside: avoid; font-size: 10.6pt; line-height: 1.9; }
+.box b { flex: 0 0 auto; font-weight: 900; padding-top: 1px; }
+.tip { background: #E6F6F4; border: 1px solid #A7DDD6; } .tip b { color: #0B6F66; }
+.warn { background: #FFF5E0; border: 1px solid #F1D08A; } .warn b { color: #A15C00; }
+b { font-weight: 700; }
+
+.flow { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 18px 0 8px; }
+.fb { border-radius: 14px; padding: 12px 16px; text-align: center; min-width: 150px; border: 2px solid var(--line); background: #fff; }
+.fb b { display: block; font-size: 13pt; font-weight: 900; }
+.fb span { font-size: 9.5pt; color: var(--muted); }
+.f1 { border-color: var(--maroon); } .f1 b { color: var(--maroon); }
+.f2 { border-color: var(--orange); } .f2 b { color: var(--orange); }
+.f3 { border-color: var(--teal); } .f3 b { color: var(--teal); }
+.fa { font-size: 22pt; color: var(--muted); }
+pre.code { background: #3A241F; color: #F6D9CD; border-radius: 10px; padding: 10px 14px; font-size: 10pt; line-height: 1.7; direction: ltr; text-align: left; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10.2pt; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: right; vertical-align: top; }
+th { background: var(--bg); color: var(--ink); font-weight: 700; }
+</style></head><body>
+<div class="cover"><i class="orb o1"></i><i class="orb o2"></i>
+<img src="img/logo.png" alt="">
+<h1>هورمند و سپیدار</h1><div class="sub">با اتصال به حسابداری سپیدار چه کارهایی ممکن می‌شود</div>
+<div class="bar"></div><div class="ver">فروش در هورمند · حسابداری در سپیدار</div></div>
+<div class="tocpage"><h1>فهرست مطالب</h1><ol class="toc"><li><a href="#c1"><span class="n">۱</span><span class="t">هورمند و سپیدار، یک‌جا</span></a></li><li><a href="#c2"><span class="n">۲</span><span class="t">چه کارهایی از هورمند در سپیدار انجام می‌شود</span></a></li><li><a href="#c3"><span class="n">۳</span><span class="t">چه چیزهایی از سپیدار در هورمند دیده می‌شود</span></a></li><li><a href="#c4"><span class="n">۴</span><span class="t">هر کس فقط همان کاری را می‌کند که به او داده‌اید</span></a></li><li><a href="#c5"><span class="n">۵</span><span class="t">ایمنی و کنترل مالی</span></a></li><li><a href="#c6"><span class="n">۶</span><span class="t">آنچه این اتصال انجام نمی‌دهد</span></a></li><li><a href="#c7"><span class="n">۷</span><span class="t">برای راه‌اندازی چه لازم است</span></a></li><li><a href="#c8"><span class="n">۸</span><span class="t">پرسش‌های رایج</span></a></li></ol></div>
+<section class="chap" id="c1"><div class="chap-head"><span class="num">1</span><h1>هورمند و سپیدار، یک‌جا</h1></div><p class="intro">فروش و پیگیری مشتری در هورمند انجام می‌شود و حسابداری در سپیدار. با این اتصال لازم نیست هر چیز را دو بار تایپ کنید.</p><div class="flow"><div class="fb f1"><b>هورمند</b><span>مشتری، فرصت فروش، پیش‌فاکتور</span></div><div class="fa">⇄</div>
+<div class="fb f2"><b>برنامهٔ واسط</b><span>روی کامپیوتر سپیدار</span></div><div class="fa">⇄</div>
+<div class="fb f3"><b>سپیدار</b><span>مشتری، فاکتور، دریافتی، انبار</span></div></div><p>همکار فروش در هورمند پیش‌فاکتور می‌نویسد و با یک کلیک آن را به سپیدار می‌فرستد. بعد از تأیید مشتری، فاکتور فروش با یک کلیک از روی همان پیش‌فاکتور صادر می‌شود و وقتی پول رسید، همان‌جا «دریافتی» ثبت می‌شود. موجودی انبار و قیمت‌ها هم از سپیدار به هورمند می‌آید تا فروشنده عدد درست را ببیند.</p><div class="box tip"><b>نکته</b><div>این اتصال با «وب‌سرویس رسمی سپیدار» کار می‌کند؛ یعنی از راه‌های مجاز خود سپیدار استفاده می‌کند و به دیتابیس سپیدار دست نمی‌زند.</div></div></section><section class="chap" id="c2"><div class="chap-head"><span class="num">2</span><h1>چه کارهایی از هورمند در سپیدار انجام می‌شود</h1></div><p class="intro">این کارها را همکار مجاز در صفحهٔ «سپیدار» هورمند انجام می‌دهد.</p><table><thead><tr><th>کار</th><th>نتیجه در سپیدار</th></tr></thead><tbody><tr><td>ثبت مشتری</td><td>مشتری با نام، تلفن، کد ملی یا شناسهٔ ملی، کد اقتصادی و تاریخ تولد در سپیدار ساخته می‌شود</td></tr><tr><td>بروزرسانی مشتری</td><td>تغییر تلفن، کد ملی، کد اقتصادی یا تاریخ تولد در هورمند، در سپیدار هم اعمال می‌شود</td></tr><tr><td>ارسال پیش‌فاکتور</td><td>پیش‌فاکتور شماره‌دار هورمند با همهٔ ردیف‌ها، تخفیف و مالیات در سپیدار ثبت می‌شود (کالاها با «کد کالا» به هم وصل می‌شوند)</td></tr><tr><td>بستن، بازکردن و حذف پیش‌فاکتور</td><td>وضعیت پیش‌فاکتور در سپیدار با همان کلیک عوض می‌شود. پیش‌فاکتوری که فاکتور شده باشد حذف نمی‌شود</td></tr><tr><td>صدور فاکتور فروش</td><td>از روی پیش‌فاکتور ثبت‌شده، فاکتور فروش در سپیدار صادر می‌شود و شمارهٔ آن در هورمند دیده می‌شود</td></tr><tr><td>ثبت دریافتی</td><td>مبلغ، تاریخ و حساب بانکی را انتخاب می‌کنید و رسید دریافت برای همان فاکتور در سپیدار ثبت می‌شود</td></tr></tbody></table><p>هر کار یک «درخواست» است. همکار آن را می‌زند، درخواست در صف می‌رود، برنامهٔ سپیدار آن را انجام می‌دهد و نتیجه (موفق یا دلیل خطا) به همان همکار برمی‌گردد. اگر خطایی باشد، اعلان می‌گیرد.</p></section><section class="chap" id="c3"><div class="chap-head"><span class="num">3</span><h1>چه چیزهایی از سپیدار در هورمند دیده می‌شود</h1></div><p class="intro">اطلاعات سپیدار در هورمند «فقط‌خواندنی» نمایش داده می‌شود و هر چند دقیقه یا با دکمهٔ «بروزرسانی» تازه می‌شود.</p><table><thead><tr><th>اطلاعات</th><th>کاربرد در هورمند</th></tr></thead><tbody><tr><td>کالاها و موجودی انبارها</td><td>ماژول «انبار» هورمند: موجودی هر کالا در هر انبار، هشدار کمبود، کاردکس. کالای تازه‌ای که در سپیدار ساخته شود، خودکار در هورمند هم ساخته می‌شود</td></tr><tr><td>فاکتورهای صادرشده</td><td>فروشنده می‌بیند برای هر مشتری چه فاکتورهایی صادر شده</td></tr><tr><td>لیست قیمت‌ها</td><td>قیمت هر کالا بر اساس «نوع فروش» سپیدار، هنگام نوشتن پیش‌فاکتور</td></tr><tr><td>مانده حساب مشتری</td><td>کنار نام مشتری، مانده حسابش در سپیدار دیده می‌شود (برای تصمیم‌گیری قبل از فروش اعتباری)</td></tr><tr><td>حساب‌های بانکی</td><td>هنگام ثبت دریافتی، حساب بانکی از همان فهرست سپیدار انتخاب می‌شود</td></tr><tr><td>پیش‌فاکتورها</td><td>فهرست پیش‌فاکتورهای ثبت‌شده در سپیدار</td></tr></tbody></table></section><section class="chap" id="c4"><div class="chap-head"><span class="num">4</span><h1>هر کس فقط همان کاری را می‌کند که به او داده‌اید</h1></div><p class="intro">مدیر سیستم در «کنسول مدیریت ← کاربران ← ویرایش همکار» تعیین می‌کند چه کسی چه کاری با سپیدار بکند.</p><table><thead><tr><th>دسترسی</th><th>همکار با این دسترسی چه می‌کند</th></tr></thead><tbody><tr><td>دیدن اطلاعات سپیدار</td><td>فاکتورها، قیمت‌ها، مانده مشتری، وضعیت اتصال را می‌بیند و می‌تواند «بروزرسانی اطلاعات» بزند</td></tr><tr><td>ثبت و بروزرسانی مشتری</td><td>مشتری را در سپیدار می‌سازد یا اطلاعاتش را بروز می‌کند</td></tr><tr><td>پیش‌فاکتور</td><td>پیش‌فاکتور را می‌فرستد، می‌بندد، باز می‌کند و حذف می‌کند</td></tr><tr><td>صدور فاکتور</td><td>از روی پیش‌فاکتور فاکتور فروش صادر می‌کند</td></tr><tr><td>ثبت دریافتی</td><td>برای فاکتور رسید دریافت ثبت می‌کند</td></tr></tbody></table><ul><li>مثلاً فروشنده فقط «پیش‌فاکتور» دارد، مسئول مالی «صدور فاکتور» و «ثبت دریافتی» را، و مدیر فروش «دیدن اطلاعات».</li><li>اگر هیچ دسترسی داده نشود، منوی «سپیدار» برای آن همکار اصلاً دیده نمی‌شود.</li><li>مدیران ارشد و مدیران واحد همهٔ این کارها را دارند.</li><li>دسترسی در لحظهٔ زدن دکمه روی سرور هم بررسی می‌شود؛ یعنی با دستکاری صفحه هم کسی کاری فراتر از دسترسی‌اش نمی‌تواند بکند.</li><li>اتصال با یک «کلید» جداگانه انجام می‌شود که مدیر می‌سازد و هر لحظه می‌تواند قطعش کند. کلید فقط اجازهٔ همین اتصال را دارد.</li></ul></section><section class="chap" id="c5"><div class="chap-head"><span class="num">5</span><h1>ایمنی و کنترل مالی</h1></div><p class="intro">چون این کارها روی حسابداری اثر می‌گذارد، چند قفل دارد.</p><ul><li><b>پیش‌نمایش:</b> برنامهٔ واسط قبل از ثبت واقعی نشان می‌دهد چه چیزهایی ثبت خواهد شد.</li><li><b>ثبت تکراری نمی‌شود:</b> هر مشتری، پیش‌فاکتور و فاکتور فقط یک‌بار در سپیدار ثبت می‌شود، حتی اگر دکمه دوبار زده شود.</li><li><b>ترتیب درست:</b> فاکتور فقط بعد از ثبت پیش‌فاکتور و دریافتی فقط بعد از صدور فاکتور ممکن است.</li><li><b>اگر کالایی در سپیدار نباشد:</b> پیش‌فاکتور ثبت نمی‌شود و دلیل (کد کالای ناشناخته) به همکار گفته می‌شود.</li><li><b>رد پا:</b> هر درخواست با نام درخواست‌کننده و زمانش در صفحهٔ «درخواست‌ها» می‌ماند.</li><li><b>لغو:</b> درخواستی که هنوز در صف است را می‌شود لغو کرد.</li><li><b>اگر کامپیوتر سپیدار خاموش باشد:</b> درخواست‌ها در صف می‌مانند و وقتی برنامه روشن شد انجام می‌شوند. هورمند وضعیت اتصال را بالای صفحه نشان می‌دهد.</li></ul></section><section class="chap" id="c6"><div class="chap-head"><span class="num">6</span><h1>آنچه این اتصال انجام نمی‌دهد</h1></div><p class="intro">برای اینکه انتظار درست داشته باشید.</p><ul><li>ثبت سند حسابداری، گزارش مالی و ترازنامه. وب‌سرویس سپیدار این کارها را در اختیار برنامه‌های بیرونی نمی‌گذارد؛ آن‌ها در خود سپیدار انجام می‌شود.</li><li>ثبت رسید و حوالهٔ انبار در سپیدار از روی هورمند. موجودی از سپیدار به هورمند می‌آید، نه برعکس.</li><li>آدرس مشتری. سپیدار برای آدرس، شمارهٔ شهر خودش را می‌خواهد و مشتری بدون آدرس ثبت می‌شود.</li><li>ثبت فاکتور آزاد بدون پیش‌فاکتور.</li><li>کار از راه دور بدون برنامهٔ واسط. سرویس سپیدار فقط روی کامپیوتر خودش باز است و به اینترنت وصل نمی‌شود؛ پس برنامهٔ واسط باید همان‌جا روشن باشد.</li></ul></section><section class="chap" id="c7"><div class="chap-head"><span class="num">7</span><h1>برای راه‌اندازی چه لازم است</h1></div><p class="intro">راه‌اندازی یک‌بار انجام می‌شود و راهنمای قدم‌به‌قدم همراه آن داده می‌شود.</p><ol class="steps"><li><span>سپیدار شما مجوز «وب‌سرویس» داشته باشد (مثلاً ارتباط با فروشگاه اینترنتی یا سفارش‌گیری). بدون آن، سپیدار وب‌سرویس ندارد.</span></li><li><span>یک کامپیوتر که سپیدار روی آن است و بیشتر ساعت‌های کاری روشن می‌ماند.</span></li><li><span>نصب یک برنامهٔ رایگان کمکی روی همان کامپیوتر (راهنما توضیح می‌دهد).</span></li><li><span>ثبت یک «دستگاه» در سپیدار، ساخت کلید در هورمند و پر کردن یک فایل تنظیمات.</span></li><li><span>یک دورهٔ آزمایشی با «پیش‌نمایش» و چند مشتری و پیش‌فاکتور نمونه، سپس استفادهٔ روزمره.</span></li></ol><div class="box tip"><b>نکته</b><div>راهنمای راه‌اندازی جداگانه («اتصال هورمند به سپیدار») همین مراحل را با جزئیات دارد.</div></div></section><section class="chap" id="c8"><div class="chap-head"><span class="num">8</span><h1>پرسش‌های رایج</h1></div><table><thead><tr><th>پرسش</th><th>پاسخ</th></tr></thead><tbody><tr><td>اگر فاکتور را اشتباه صادر کنیم؟</td><td>ابطال و اصلاح فاکتور در خود سپیدار انجام می‌شود؛ هورمند فاکتور را پاک نمی‌کند.</td></tr><tr><td>قیمت‌ها در هورمند تومان است و در سپیدار ریال؟</td><td>در تنظیمات برنامه یک «ضریب» گذاشته می‌شود (مثلاً ۱۰) و مبلغ‌ها خودکار تبدیل می‌شود.</td></tr><tr><td>می‌شود هورمند را بدون سپیدار هم استفاده کرد؟</td><td>بله. همه‌چیز مستقل کار می‌کند؛ انبار هم می‌تواند موجودی را خودش نگه دارد.</td></tr><tr><td>می‌شود بعداً از سپیدار جدا شد؟</td><td>بله. مدیر انبار را به حالت مستقل برمی‌گرداند و موجودی از همان عدد ادامه پیدا می‌کند.</td></tr><tr><td>اطلاعات حساب چه کسی می‌بیند؟</td><td>فقط همکارانی که مدیر به آن‌ها «دیدن اطلاعات سپیدار» داده است.</td></tr></tbody></table></section>
+</body></html>

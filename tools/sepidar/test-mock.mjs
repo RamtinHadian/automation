@@ -64,10 +64,21 @@ const sepidarServer = http.createServer(async (req, res) => {
   }
   if (!/^Bearer tok-/.test(req.headers.authorization || '')) return send(res, 401, { Message: 'token' });
   if (req.method === 'GET' && url === '/api/Items') return send(res, 200, items);
+  sp.calls ||= [];
+  if (req.method === 'POST' && (url.startsWith('/api/Quotations/') && (url.endsWith('/Close') || url.endsWith('/UnClose')))) { sp.calls.push(url); return send(res, 200, {}); }
+  if (req.method === 'DELETE' && (url.startsWith('/api/Quotations/') && !url.slice(15).includes('/') && url.length > 15)) { sp.calls.push('DELETE ' + url); return send(res, 200, {}); }
+  if (req.method === 'POST' && url === '/api/Invoices/BasedOnQuotation') { sp.calls.push('invoice from ' + JSON.stringify(body)); return send(res, 200, { InvoiceID: 700, Number: 31 }); }
+  if (req.method === 'POST' && url === '/api/Receipts/BasedOnInvoice') { sp.receipt = body; return send(res, 200, { ReceiptID: 55 }); }
+  if (req.method === 'GET' && url.startsWith('/api/Customers/') && url.length > 15) return send(res, 200, { ...(sp.customers.find((c) => '/api/Customers/' + c.CustomerID === url) || {}), Version: 'v1' });
+  if (req.method === 'PUT' && url.startsWith('/api/Customers/')) { sp.put = body; return send(res, 200, {}); }
+  if (req.method === 'GET' && url === '/api/Invoices') return send(res, 200, [{ InvoiceID: 700, Number: 31, CustomerRef: 500, NetPrice: 1000 }]);
+  if (req.method === 'GET' && url === '/api/banks') return send(res, 200, [{ BankID: 1, Title: 'ملت' }]);
+  if (req.method === 'GET' && url === '/api/BankAccounts') return send(res, 200, [{ BankAccountID: 9, DlCode: '1', DlTitle: 'حساب ملت', CurrencyRef: 1 }]);
+  if (req.method === 'GET' && url === '/api/Customers') return send(res, 200, sp.customers.map((c) => ({ ...c, Remainder: 1234, Title: c.Name })));
+  if (req.method === 'GET' && url === '/api/PriceNoteItems') return send(res, 200, [{ SaleTypeRef: 1, ItemRef: 7, Fee: 500 }]);
   if (req.method === 'GET' && url === '/api/Stocks') return send(res, 200, stocks);
   if (req.method === 'GET' && url === '/api/Units') return send(res, 200, units);
   if (req.method === 'GET' && url === '/api/Items/Inventories') return send(res, 200, inventories);
-  if (req.method === 'GET' && url === '/api/Customers') return send(res, 200, sp.customers);
   if (req.method === 'POST' && url === '/api/Customers') {
     if (sp.customers.some((c) => c.GUID === body.GUID)) return send(res, 400, { Message: 'duplicate' });
     const c = { ...body, CustomerID: 500 + sp.customers.length };
@@ -95,14 +106,24 @@ const deals = [
   { id: 'd-3', customerId: 'c-1', customerName: 'علی رضایی', stage: 'NEW', items: [] },
 ];
 const hoormandPosts = [];
+const hoormandJobs = [];
+const hoormandResults = {};
+const hoormandCaches = {};
+const hoormandLinks = [];
 const hoormandServer = http.createServer(async (req, res) => {
   if (req.headers.authorization !== 'Bearer hk_testkey') return send(res, 401, { error: 'bad key' });
+  const u0 = new URL(req.url, 'http://x');
+  if (req.method === 'GET' && u0.pathname === '/api/ext/v1/sepidar/jobs') { const jobs = hoormandJobs.splice(0); return send(res, 200, { jobs }); }
+  if (req.method === 'POST' && u0.pathname.startsWith('/api/ext/v1/sepidar/jobs/')) { hoormandResults[u0.pathname.split('/')[6]] = await readBody(req); return send(res, 200, { ok: true }); }
+  if (req.method === 'POST' && u0.pathname === '/api/ext/v1/sepidar/push') { const b = await readBody(req); if (b.cache) hoormandCaches[b.cache] = b.items; if (b.links) hoormandLinks.push(...b.links); return send(res, 200, { ok: true }); }
   if (req.method === 'POST' && req.url === '/api/ext/v1/warehouse/sync') {
     hoormandPosts.push(await readBody(req));
     return send(res, 200, { warehousesNew: 2, productsNew: 2, productsUpdated: 0, docs: 2, changed: 3 });
   }
   const u = new URL(req.url, 'http://x');
   if (u.pathname === '/api/ext/v1/ping') return send(res, 200, { ok: true, key: 'آزمایش', actAs: 'همکار', scopes: ['customers.read', 'deals.read'] });
+  if ((u.pathname.startsWith('/api/ext/v1/customers/') && u.pathname.length > 22)) return send(res, 200, customers.find((c) => u.pathname.endsWith('/' + c.id)) || {});
+  if ((u.pathname.startsWith('/api/ext/v1/deals/') && u.pathname.length > 18)) return send(res, 200, deals.find((d) => u.pathname.endsWith('/' + d.id)) || {});
   if (u.pathname === '/api/ext/v1/customers') return send(res, 200, { customers: customers.slice(Number(u.searchParams.get('offset')) || 0) });
   if (u.pathname === '/api/ext/v1/deals') return send(res, 200, { deals: deals.slice(Number(u.searchParams.get('offset')) || 0) });
   return send(res, 404, {});
@@ -113,7 +134,7 @@ const [sPort, hPort] = [await listen(sepidarServer), await listen(hoormandServer
 
 // pure functions first
 const cb = customerBody(customers[0]);
-ok(cb.Name === 'علی' && cb.LastName === 'رضایی' && cb.PhoneNumber === '09121234567' && cb.CustomerType === 1 && cb.GUID === guidFrom('customer:c-1'), 'customer body: person, Latin digits, stable GUID');
+ok(cb.Name === 'علی' && cb.LastName === 'رضایی' && cb.PhoneNumber === '09121234567' && cb.CustomerType === 1 && cb.GUID === guidFrom('customer:c-1'), 'customer body: person, Latin digits, stable GUID (amount times the unit multiplier)');
 const cc = customerBody(customers[1]);
 ok(cc.CustomerType === 2 && cc.Name === 'شرکت نمونه' && cc.LastName === '' && cc.NationalID === '10100000000' && cc.EconomicCode === '411111111111', 'customer body: company');
 const map = new Map(items.map((i) => [i.Code, i]));
@@ -162,6 +183,31 @@ ok(r.code === 0 && sp.customers.length === 2 && sp.quotations.length === 1, 'a s
 ok(new Set(sp.quotations.map((x) => x.GUID)).size === sp.quotations.length && sp.quotations[0].CustomerRef === 500, 'quotation belongs to the customer that was just registered');
 const st = JSON.parse(fs.readFileSync(state, 'utf8'));
 ok(st.customers['c-1'] === 500 && st.quotations['d-1'] === 900 && !JSON.stringify(st).includes('secret'), 'state file keeps the mapping and no password');
+
+// requests from people (jobs): the program does them in Sepidar and reports
+hoormandJobs.push({ id: 'sj-1', kind: 'quotation.send', data: { dealId: 'd-1' } }, { id: 'sj-2', kind: 'quotation.send', data: { dealId: 'd-2' } });
+r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+ok(r.code === 0 && hoormandResults['sj-2']?.ok === false && /9999/.test(hoormandResults['sj-2'].message), 'a job that cannot be done reports the reason to the person (unknown item code)');
+sp.quotations.length = 0; // pretend nothing was sent by the automatic run, so this job registers the quotation itself
+const st2 = JSON.parse(fs.readFileSync(state, 'utf8')); delete st2.quotations['d-1']; fs.writeFileSync(state, JSON.stringify(st2));
+hoormandJobs.push({ id: 'sj-3', kind: 'quotation.send', data: { dealId: 'd-1' } });
+r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+ok(hoormandResults['sj-3']?.ok === true && hoormandResults['sj-3'].sepidarId === 900 && sp.quotations.length === 1, 'job quotation.send registers the quotation and reports its id and number');
+hoormandJobs.push({ id: 'sj-4', kind: 'quotation.close', data: { dealId: 'd-1', sepidarId: 900 } }, { id: 'sj-5', kind: 'invoice.fromProforma', data: { dealId: 'd-1', sepidarId: 900 } });
+r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice from 900') && hoormandResults['sj-5'].number === 31 && hoormandResults['sj-5'].sepidarId === 700, 'close and invoice-from-quotation (the body is the plain quotation number)');
+hoormandJobs.push({ id: 'sj-6', kind: 'receipt.add', data: { dealId: 'd-1', sepidarId: 700, bankAccountId: '9', amount: 250, date: '2026-10-10', description: 'بیعانه' } });
+r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+ok(hoormandResults['sj-6']?.ok === true && sp.receipt.InvoiceID === 700 && sp.receipt.Drafts[0].BankAccountID === 9 && sp.receipt.Drafts[0].Amount === 2500 && sp.receipt.Guid === guidFrom('receipt:sj-6'), 'receipt.add posts the draft against the invoice with a stable GUID (amount times the unit multiplier)');
+hoormandJobs.push({ id: 'sj-7', kind: 'customer.send', data: { customerId: 'c-1' } });
+r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+ok(hoormandResults['sj-7']?.ok === true && sp.put?.Version === 'v1' && sp.put.NationalID === '0012345678', 'customer.send updates a customer that is already in Sepidar (with its Version)');
+hoormandJobs.push({ id: 'sj-8', kind: 'refresh', data: {} });
+r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+ok(hoormandResults['sj-8']?.ok === true && hoormandCaches.invoices?.length === 1 && hoormandCaches.bankAccounts?.[0].BankAccountID === 9 && hoormandCaches.balances?.[0].Remainder === 1234 && hoormandCaches.priceNotes?.[0].code === '1001' && hoormandLinks.some((l) => l.kind === 'customer'), 'refresh sends invoices, bank accounts, balances, price lists and the links');
+hoormandJobs.push({ id: 'sj-9', kind: 'nonsense', data: {} });
+r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+ok(hoormandResults['sj-9']?.ok === false, 'an unknown job kind is reported, not ignored');
 
 sepidarServer.close();
 hoormandServer.close();

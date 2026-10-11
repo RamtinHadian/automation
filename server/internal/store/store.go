@@ -229,6 +229,35 @@ var schema = []string{
 	  expires_at TIMESTAMPTZ,
 	  uses BIGINT NOT NULL DEFAULT 0
 	)`,
+	// the bridge to the accounting program Sepidar: asks (jobs), what is known about each record there (links) and copies of its data (cache)
+	`CREATE TABLE IF NOT EXISTS sepidar_jobs (
+	  id TEXT PRIMARY KEY,
+	  kind TEXT NOT NULL,
+	  ref TEXT NOT NULL DEFAULT '',
+	  data JSONB NOT NULL DEFAULT '{}',
+	  status TEXT NOT NULL DEFAULT 'pending',
+	  created_by TEXT,
+	  created_by_name TEXT NOT NULL DEFAULT '',
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  started_at TIMESTAMPTZ,
+	  finished_at TIMESTAMPTZ,
+	  result JSONB NOT NULL DEFAULT '{}'
+	)`,
+	`CREATE INDEX IF NOT EXISTS sepidar_jobs_status_idx ON sepidar_jobs (status, created_at)`,
+	`CREATE TABLE IF NOT EXISTS sepidar_links (
+	  kind TEXT NOT NULL,
+	  ref TEXT NOT NULL,
+	  sepidar_id BIGINT NOT NULL,
+	  number BIGINT,
+	  data JSONB NOT NULL DEFAULT '{}',
+	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  PRIMARY KEY (kind, ref)
+	)`,
+	`CREATE TABLE IF NOT EXISTS sepidar_cache (
+	  key TEXT PRIMARY KEY,
+	  data JSONB NOT NULL DEFAULT '[]',
+	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
 	`CREATE TABLE IF NOT EXISTS crm_customers (
 	  id TEXT PRIMARY KEY,
 	  owner_id TEXT,

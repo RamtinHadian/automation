@@ -7,6 +7,8 @@
 //   node sepidar-sync.mjs sync --apply    ثبت واقعی در سپیدار
 //   node sepidar-sync.mjs watch --apply   هر چند دقیقه همین کار را تکرار می‌کند
 //   node sepidar-sync.mjs stock           نشان می‌دهد چه کالا و موجودی‌ای به هورمند می‌رود (چیزی نمی‌نویسد)
+//   node sepidar-sync.mjs jobs            درخواست‌های همکاران هورمند (صدور فاکتور، ثبت دریافتی…) را یک‌بار انجام می‌دهد
+//   node sepidar-sync.mjs cache           فاکتورها، قیمت‌ها، حساب‌های بانکی و مانده مشتری‌ها را برای هورمند می‌فرستد
 //   node sepidar-sync.mjs stock --apply   کالاها و موجودی انبارهای سپیدار را به هورمند می‌فرستد
 import fs from 'node:fs';
 import path from 'node:path';
@@ -301,9 +303,176 @@ async function cmdSync(cfg) {
   return report;
 }
 
+// ---------- requests from Hoormand's people (the «jobs») ----------
+async function hoormandGetOne(cfg, p) {
+  return hoormand(cfg, p);
+}
+
+async function sepidarCustomerRef(cfg, sp, state, c) {
+  state.customers ||= {};
+  if (state.customers[c.id]) return state.customers[c.id];
+  const body = customerBody(c);
+  const list = await sp.get('/api/Customers');
+  const found = list.find((x) => String(x.GUID || '').toLowerCase() === body.GUID.toLowerCase());
+  if (found) {
+    state.customers[c.id] = found.CustomerID;
+    return found.CustomerID;
+  }
+  if (!body.Name) throw new Error('مشتری نام ندارد.');
+  const r = await sp.post('/api/Customers', body);
+  state.customers[c.id] = r.CustomerID;
+  return r.CustomerID;
+}
+
+/** Each handler returns { sepidarId, number, message, data } or throws an Error whose text is shown to the person who asked. */
+export const jobHandlers = {
+  async 'customer.send'(cfg, sp, state, job) {
+    const c = await hoormandGetOne(cfg, '/customers/' + encodeURIComponent(job.data.customerId));
+    const body = customerBody(c);
+    const list = await sp.get('/api/Customers');
+    const found = list.find((x) => String(x.GUID || '').toLowerCase() === body.GUID.toLowerCase()) || (state.customers?.[c.id] ? list.find((x) => x.CustomerID === state.customers[c.id]) : null);
+    state.customers ||= {};
+    if (!found) {
+      if (!body.Name) throw new Error('مشتری نام ندارد.');
+      const r = await sp.post('/api/Customers', body);
+      state.customers[c.id] = r.CustomerID;
+      return { sepidarId: r.CustomerID, message: 'مشتری در سپیدار ثبت شد.' };
+    }
+    state.customers[c.id] = found.CustomerID;
+    const cur = await sp.get('/api/Customers/' + found.CustomerID);
+    const upd = { PhoneNumber: body.PhoneNumber, Version: cur.Version };
+    if (body.NationalID) upd.NationalID = body.NationalID;
+    if (body.EconomicCode) upd.EconomicCode = body.EconomicCode;
+    if (body.BirthDate) upd.BirthDate = body.BirthDate;
+    await sp.call('PUT', '/api/Customers/' + found.CustomerID, upd);
+    return { sepidarId: found.CustomerID, message: 'اطلاعات مشتری در سپیدار بروزرسانی شد.' };
+  },
+
+  async 'quotation.send'(cfg, sp, state, job) {
+    const deal = await hoormandGetOne(cfg, '/deals/' + encodeURIComponent(job.data.dealId));
+    const c = await hoormandGetOne(cfg, '/customers/' + encodeURIComponent(deal.customerId));
+    const customerRef = await sepidarCustomerRef(cfg, sp, state, c);
+    const items = await sp.get('/api/Items');
+    const itemsByCode = new Map(items.filter((i) => i.IsActive !== false && i.IsSellable !== false).map((i) => [String(i.Code).trim(), i]));
+    const q = quotationBody(deal, customerRef, itemsByCode, cfg.sync);
+    if (q.skip) throw new Error(q.skip);
+    const r = await sp.post('/api/Quotations', q.body);
+    state.quotations ||= {};
+    state.quotations[deal.id] = r.ID;
+    return { sepidarId: r.ID, number: r.Number, message: `پیش‌فاکتور با شمارهٔ ${r.Number} در سپیدار ثبت شد.` };
+  },
+
+  async 'quotation.close'(cfg, sp, state, job) {
+    await sp.post(`/api/Quotations/${job.data.sepidarId}/Close/`);
+    return { sepidarId: job.data.sepidarId, message: 'پیش‌فاکتور در سپیدار بسته شد.' };
+  },
+
+  async 'quotation.unclose'(cfg, sp, state, job) {
+    await sp.post(`/api/Quotations/${job.data.sepidarId}/UnClose/`);
+    return { sepidarId: job.data.sepidarId, message: 'پیش‌فاکتور در سپیدار باز شد.' };
+  },
+
+  async 'quotation.delete'(cfg, sp, state, job) {
+    await sp.call('DELETE', `/api/Quotations/${job.data.sepidarId}`);
+    if (state.quotations) delete state.quotations[job.data.dealId];
+    return { sepidarId: job.data.sepidarId, message: 'پیش‌فاکتور از سپیدار حذف شد.' };
+  },
+
+  async 'invoice.fromProforma'(cfg, sp, state, job) {
+    const r = await sp.post('/api/Invoices/BasedOnQuotation/', Number(job.data.sepidarId));
+    return { sepidarId: r.InvoiceID, number: r.Number, message: `فاکتور فروش با شمارهٔ ${r.Number} صادر شد.` };
+  },
+
+  async 'receipt.add'(cfg, sp, state, job) {
+    const mult = Number(cfg.sync.priceMultiplier) || 1;
+    const d = job.data;
+    const date = new Date(`${d.date}T08:00:00.000Z`).toISOString();
+    const r = await sp.post('/api/Receipts/BasedOnInvoice/', {
+      Guid: guidFrom('receipt:' + job.id), Date: date, Description: d.description || '', Discount: 0, InvoiceID: Number(d.sepidarId),
+      Drafts: [{ Date: date, Description: d.description || '', Number: job.id.slice(-8), BankAccountID: Number(d.bankAccountId), Amount: Math.round(Number(d.amount) * mult) }],
+    });
+    return { sepidarId: r.ReceiptID ?? r.ID ?? 0, message: 'دریافتی در سپیدار ثبت شد.' };
+  },
+
+  async refresh(cfg, sp, state) {
+    await pushCaches(cfg, sp, state);
+    return { sepidarId: 0, message: 'اطلاعات سپیدار بروز شد.' };
+  },
+};
+
+/** Takes the waiting requests from Hoormand, does them in Sepidar and reports each result. */
+export async function cmdJobs(cfg) {
+  const { jobs } = await hoormand(cfg, '/sepidar/jobs');
+  if (!jobs.length) return 0;
+  const state = loadState();
+  const sp = client(cfg, state);
+  for (const job of jobs) {
+    const handler = jobHandlers[job.kind];
+    let result;
+    try {
+      if (!handler) throw new Error('این نوع درخواست را برنامه نمی‌شناسد؛ برنامهٔ واسط را بروز کنید.');
+      const out = await handler(cfg, sp, state, job);
+      result = { ok: true, ...out };
+      log(`  انجام شد: ${job.kind} ${job.data.dealId || job.data.customerId || ''} ← ${out.message}`);
+    } catch (e) {
+      result = { ok: false, message: String(e.message || e).slice(0, 380) };
+      log(`  انجام نشد: ${job.kind}: ${result.message}`);
+    }
+    saveState(state);
+    try {
+      await hoormandPost(cfg, `/sepidar/jobs/${encodeURIComponent(job.id)}/result`, result);
+    } catch (e) {
+      log(`  خطا در گزارش نتیجه به هورمند: ${e.message}`);
+    }
+  }
+  return jobs.length;
+}
+
+const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
+
+/** Sends copies of what Sepidar knows (invoices, banks, price lists, balances…) and the links between Hoormand's records and Sepidar's. */
+export async function pushCaches(cfg, sp, state) {
+  const push = (cache, items) => hoormandPost(cfg, '/sepidar/push', { cache, items });
+  const tryPush = async (cache, path, map) => {
+    try {
+      const list = await sp.get(path);
+      await push(cache, (Array.isArray(list) ? list : []).map(map));
+    } catch (e) {
+      log(`  ${cache}: خوانده نشد (${e.message})`);
+    }
+  };
+  await tryPush('invoices', '/api/Invoices', (x) => pick(x, ['InvoiceID', 'ID', 'Number', 'Date', 'CustomerRef', 'QuotationRef', 'Price', 'Discount', 'Tax', 'NetPrice']));
+  await tryPush('quotations', '/api/Quotations', (x) => pick(x, ['ID', 'Number', 'Date', 'CustomerRef', 'Price', 'NetPrice']));
+  await tryPush('banks', '/api/banks', (x) => pick(x, ['BankID', 'Title']));
+  await tryPush('bankAccounts', '/api/BankAccounts', (x) => pick(x, ['BankAccountID', 'DlCode', 'DlTitle', 'CurrencyRef']));
+  await tryPush('saleTypes', '/api/SaleTypes', (x) => pick(x, ['SaleTypeID', 'Title']));
+  await tryPush('currencies', '/api/Currencies', (x) => pick(x, ['CurrencyID', 'Title', 'IsMain']));
+  await tryPush('customerGroups', '/api/CustomerGroupings', (x) => pick(x, ['CustomerGroupingID', 'Title']));
+  await tryPush('balances', '/api/Customers', (x) => pick(x, ['CustomerID', 'Title', 'Remainder', 'CreditRemainder']));
+  try {
+    const [notes, items] = await Promise.all([sp.get('/api/PriceNoteItems'), sp.get('/api/Items')]);
+    const byId = new Map(items.map((i) => [i.ItemID, i]));
+    await push('priceNotes', notes.map((n) => ({ saleTypeRef: n.SaleTypeRef, itemRef: n.ItemRef, code: byId.get(n.ItemRef)?.Code, title: byId.get(n.ItemRef)?.Title, fee: n.Fee, groupingRef: n.CustomerGroupingRef })));
+  } catch (e) {
+    log(`  priceNotes: خوانده نشد (${e.message})`);
+  }
+  const links = [];
+  for (const [ref, id] of Object.entries(state.customers || {})) links.push({ kind: 'customer', ref, sepidarId: id });
+  for (const [ref, id] of Object.entries(state.quotations || {})) links.push({ kind: 'quotation', ref, sepidarId: id });
+  if (links.length) await hoormandPost(cfg, '/sepidar/push', { links });
+}
+
+async function cmdCache(cfg) {
+  const state = loadState();
+  const sp = client(cfg, state);
+  await pushCaches(cfg, sp, state);
+  saveState(state);
+  log('اطلاعات سپیدار برای هورمند فرستاده شد.');
+}
+
 async function main() {
   if (cmd === 'help' || cmd === '--help') {
-    log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 11).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+    log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 13).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     return;
   }
   const cfg = loadConfig();
@@ -311,14 +480,23 @@ async function main() {
   if (cmd === 'test') return cmdTest(cfg);
   if (cmd === 'sync') return cmdSync(cfg);
   if (cmd === 'stock') return cmdStock(cfg);
+  if (cmd === 'jobs') return log(`${await cmdJobs(cfg)} درخواست انجام شد.`);
+  if (cmd === 'cache') return cmdCache(cfg);
   if (cmd === 'watch') {
+    // requests from Hoormand's people are looked at every few seconds; the full synchronisation runs every intervalMinutes
+    let nextFull = 0;
     for (;;) {
       try {
-        await cmdSync(cfg);
+        if (Date.now() >= nextFull) {
+          await cmdSync(cfg);
+          await cmdCache(cfg);
+          nextFull = Date.now() + cfg.sync.intervalMinutes * 60000;
+        }
+        await cmdJobs(cfg);
       } catch (e) {
         log('خطا:', e.message);
       }
-      await new Promise((r) => setTimeout(r, cfg.sync.intervalMinutes * 60000));
+      await new Promise((r) => setTimeout(r, (cfg.sync.jobSeconds || 15) * 1000));
     }
   }
   console.error('دستور نامعتبر. help را اجرا کنید.');

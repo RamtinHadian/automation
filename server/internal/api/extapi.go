@@ -32,6 +32,7 @@ var apiScopes = map[string]string{
 	"deals.read":      "خواندن فرصت‌های فروش",
 	"deals.write":     "ثبت فرصت فروش",
 	"notes.write":     "افزودن یادداشت به پروندهٔ مشتری",
+	"sepidar.connect": "اتصال برنامهٔ سپیدار (گرفتن درخواست‌ها و فرستادن اطلاعات سپیدار)",
 	"warehouse.write": "همگام‌سازی کالا و موجودی انبار از برنامهٔ حسابداری",
 }
 
@@ -485,7 +486,19 @@ func extWarehouseSync(w http.ResponseWriter, r *http.Request, k extKey, user aut
 	httpx.JSON(w, http.StatusOK, res)
 }
 
+func extDealGet(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
+	var raw []byte
+	if store.Pool.QueryRow(r.Context(), `SELECT data FROM crm_deals WHERE id = $1`, r.PathValue("id")).Scan(&raw) != nil {
+		httpx.Error(w, http.StatusNotFound, "فرصت فروش پیدا نشد.")
+		return
+	}
+	d := jsonx.Decode(raw)
+	d["id"] = r.PathValue("id")
+	httpx.JSON(w, http.StatusOK, d)
+}
+
 func registerExtAPI(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/ext/v1/deals/{id}", extAuth("deals.read", extDealGet))
 	mux.HandleFunc("POST /api/ext/v1/warehouse/sync", extAuth("warehouse.write", extWarehouseSync))
 	mux.HandleFunc("GET /api/apikeys", auth.Require(apiKeysList))
 	mux.HandleFunc("POST /api/apikeys", auth.Require(apiKeysCreate))
