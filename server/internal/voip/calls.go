@@ -129,6 +129,58 @@ func callerOf(ev Event) (number, name string) {
 	return
 }
 
+// shortLabel is true for a short all-digit "number" (up to five digits) that no person owns: the phone system's own labels
+// (ring group, queue, IVR, trunk) look like this, and some legs of a call carry such a label instead of the caller's number.
+func shortLabel(ctx context.Context, n string) bool {
+	if n == "" || len(n) > 5 || !digitsOnly.MatchString(n) {
+		return false
+	}
+	_, _, isUser := userByExtension(ctx, n)
+	return !isUser
+}
+
+// realCaller replaces a phone-system label (like 8003) by the number of the person who is really calling: the number the
+// first channel of the call carried, or a number written in the caller's name field.
+func realCaller(ctx context.Context, ev Event, ext, number, name string) (string, string) {
+	if !shortLabel(ctx, number) || number == ext {
+		return number, name
+	}
+	candidates := []string{name}
+	callerMu.Lock()
+	for _, id := range []string{pick(ev, "Linkedid", "LinkedID"), pick(ev, "Uniqueid", "UniqueID")} {
+		if c, ok := callers[id]; ok && id != "" {
+			candidates = append(candidates, c[0], c[1])
+		}
+	}
+	callerMu.Unlock()
+	candidates = append(candidates, pick(ev, "ConnectedLineNum"))
+	for _, c := range candidates {
+		var d []byte
+		for i := 0; i < len(c); i++ {
+			if c[i] >= '0' && c[i] <= '9' {
+				d = append(d, c[i])
+			}
+		}
+		if len(d) >= 7 && sameLenNumber(c) {
+			Logf("شمارهٔ کوتاه «%s» برچسب سیستم تلفن است، نه شمارهٔ تماس‌گیرنده؛ به‌جای آن %s نشان داده شد.", number, string(d))
+			return string(d), ""
+		}
+	}
+	Logf("هشدار: شمارهٔ تماس‌گیرنده «%s» کوتاه است و شمارهٔ دیگری برای تماس‌گیرنده پیدا نشد (ممکن است برچسب گروه/صف/آی‌وی‌آر باشد). از «ضبط رویدادها» برای دیدن رویدادهای خام استفاده کنید.", number)
+	return number, name
+}
+
+// sameLenNumber: the text is a phone number and not a sentence that happens to contain digits.
+func sameLenNumber(s string) bool {
+	letters := 0
+	for _, r := range s {
+		if r > 127 || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			letters++
+		}
+	}
+	return letters == 0
+}
+
 // arrivalContext: where the dialplan hands a call to an extension (directly, or from an inbound route / IVR).
 var arrivalContext = regexp.MustCompile(`^(ext-local|from-did-direct)$`)
 
@@ -193,6 +245,7 @@ func popup(ev Event, ext string) {
 		time.Sleep(400 * time.Millisecond)
 		number, callerName = callerOf(ev)
 	}
+	number, callerName = realCaller(ctx, ev, ext, number, callerName)
 	if number == ext { // the first leg of a call the person started from the app rings their own phone
 		Logf("داخلی %s برای تماسی که خودش از برنامه شروع کرده زنگ می‌خورد؛ پاپ‌آپ لازم نیست.", ext)
 		return

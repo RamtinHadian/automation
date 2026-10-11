@@ -718,7 +718,45 @@ func whVoidDoc(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w)
 }
 
+// GET /api/crm/products: the product list as the sales people need it (name, code, unit, stock, the named prices) when they quote a price;
+// people with customer access can read it without the warehouse right (no warehouse details, no documents).
+func crmProducts(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if !me.CanUseCrm() && !canUseWarehouse(me) {
+		httpx.Forbidden(w)
+		return
+	}
+	ctx := r.Context()
+	bal, err := whBalances(ctx, store.Pool)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	rows, err := store.Pool.Query(ctx, `SELECT id, data FROM wh_products WHERE COALESCE(data->>'active', 'true') <> 'false' ORDER BY (data->>'title') LIMIT 5000`)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	defer rows.Close()
+	out := []jsonx.M{}
+	for rows.Next() {
+		var id string
+		var raw []byte
+		if rows.Scan(&id, &raw) != nil {
+			continue
+		}
+		d := jsonx.Decode(raw)
+		total := 0.0
+		for _, n := range bal[id] {
+			total += n
+		}
+		out = append(out, jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "total": math.Round(total*1000) / 1000, "prices": d["prices"]})
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"products": out})
+}
+
 func registerWarehouse(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/crm/products", auth.Require(crmProducts))
 	mux.HandleFunc("PUT /api/warehouse/mode", auth.Require(whSetMode))
 	mux.HandleFunc("GET /api/warehouse", auth.Require(whState))
 	mux.HandleFunc("GET /api/warehouse/docs", auth.Require(whDocs))

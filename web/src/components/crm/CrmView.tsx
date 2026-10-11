@@ -26,6 +26,8 @@ import {
   Users,
   X,
   BarChart3,
+  BookUser,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
@@ -50,6 +52,12 @@ import { Modal, field, label, SOURCES } from './crmUi';
 import { CustomerImportModal } from './CustomerImportModal';
 import type { VoipCall } from '../../lib/api';
 import { PersonPicker, staffItems, customerItems } from '../common/PersonPicker';
+import { PhraseChips } from '../common/PhraseChips';
+import { PhoneBook } from './PhoneBook';
+import { CrmReports } from './CrmReports';
+import { QuoteForm } from './QuoteForm';
+import { CustomerSummaryStrip } from './CustomerSummary';
+import { buildCustomerIndex, matchesQuery } from '../../lib/customerSearch';
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -74,6 +82,7 @@ const ACTIVITY: Record<ActivityType, { label: string; cls: string }> = {
   MEETING: { label: 'جلسه', cls: 'bg-sky-100 text-sky-700' },
   FOLLOWUP: { label: 'پیگیری', cls: 'bg-violet-100 text-violet-700' },
   MISSING: { label: 'کالای ناموجود', cls: 'bg-rose-100 text-rose-700' },
+  QUOTE: { label: 'قیمت داده شد', cls: 'bg-amber-100 text-amber-800' },
 };
 
 
@@ -92,7 +101,7 @@ export const CrmView: React.FC = () => {
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas'>('overview');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports'>('overview');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -109,6 +118,9 @@ export const CrmView: React.FC = () => {
   const [mobileStage, setMobileStage] = useState<DealStage>('NEW');
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
   const [smsEnabled, setSmsEnabled] = useState(false);
+  const [phoneBook, setPhoneBook] = useState(false);
+  const [showAdv, setShowAdv] = useState(false);
+  const [adv, setAdv] = useState({ province: '', city: '', source: '', tag: '', owner: '', kind: '', bought: '', quiet: '' });
   useEffect(() => {
     api.smsStatus().then((r) => setSmsEnabled(r.enabled && r.canSend)).catch(() => {});
   }, []);
@@ -155,14 +167,25 @@ export const CrmView: React.FC = () => {
   }, [activities]);
   const openValueOf = (cid: string) => deals.filter((d) => d.customerId === cid && OPEN_STAGES.includes(d.stage)).reduce((s, d) => s + d.amount, 0);
 
+  // one searchable line per customer: every field it is stored with, its opportunities, notes, quotes… (digits and letters unified)
+  const searchIndex = useMemo(() => buildCustomerIndex(customers, deals, activities), [customers, deals, activities]);
+  const boughtIds = useMemo(() => new Set(deals.filter((d) => d.stage === 'WON').map((d) => d.customerId)), [deals]);
   const filteredCustomers = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const quietLimit = adv.quiet ? Date.now() - Number(adv.quiet) * 86400000 : 0;
     return customers
       .filter((c) => (statusFilter === 'ALL' ? true : c.status === statusFilter))
       .filter((c) => (mineOnly ? c.ownerId === me : true))
-      .filter((c) => !q || `${c.name} ${c.company || ''} ${c.phones.join(' ')} ${c.email || ''} ${c.tags.join(' ')} ${c.nationalCode || ''} ${c.nationalId || ''} ${c.economicCode || ''} ${c.city || ''} ${c.referrer?.name || ''}`.toLowerCase().includes(q))
+      .filter((c) => matchesQuery(searchIndex.get(c.id), search))
+      .filter((c) => (!adv.province || c.province === adv.province) && (!adv.city || c.city === adv.city) && (!adv.source || c.source === adv.source) && (!adv.tag || c.tags.includes(adv.tag)) && (!adv.owner || c.ownerId === adv.owner) && (!adv.kind || (c.kind || 'PERSON') === adv.kind))
+      .filter((c) => (adv.bought === 'yes' ? boughtIds.has(c.id) : adv.bought === 'no' ? !boughtIds.has(c.id) : true))
+      .filter((c) => !quietLimit || new Date(lastActivity.get(c.id) || c.updatedAt).getTime() < quietLimit)
       .sort((a, b) => (lastActivity.get(b.id) || b.updatedAt).localeCompare(lastActivity.get(a.id) || a.updatedAt));
-  }, [customers, statusFilter, mineOnly, search, me, lastActivity]);
+  }, [customers, statusFilter, mineOnly, search, me, lastActivity, searchIndex, adv, boughtIds]);
+  const advCount = Object.values(adv).filter(Boolean).length;
+  const facets = useMemo(() => {
+    const uniq = (f: (c: Customer) => string | undefined) => [...new Set(customers.map(f).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'fa'));
+    return { provinces: uniq((c) => c.province), cities: uniq((c) => (!adv.province || c.province === adv.province ? c.city : undefined)), sources: uniq((c) => c.source), tags: [...new Set(customers.flatMap((c) => c.tags))].sort((a, b) => a.localeCompare(b, 'fa')) };
+  }, [customers, adv.province]);
 
   // Marketing: who brought how many customers and how much sale (won deals) came from them.
   const referrerStats = useMemo(() => {
@@ -282,6 +305,7 @@ export const CrmView: React.FC = () => {
     ['customers', 'مشتریان', Users],
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
     ['followups', 'پیگیری‌ها', ListChecks],
+    ['reports', 'گزارش‌ها', BarChart3],
   ] as const;
   const smsTab = ['sms', 'پیامک گروهی', MessageSquare] as const;
   // the CEO also has «پیش‌فاکتورهای ارسالی»: what waits for the signature and what was signed
@@ -422,6 +446,14 @@ export const CrmView: React.FC = () => {
           <p className="text-xs text-[#8C6F66] mt-0.5">مشتری‌ها، فرصت‌های فروش و پیگیری‌ها؛ همه در یک‌جا.</p>
         </div>
         <div className="grid grid-cols-2 sm:flex gap-2">
+          <button
+            onClick={() => setPhoneBook(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-sky-200 text-sky-700 hover:bg-sky-50 text-xs font-black cursor-pointer"
+            data-phonebook-btn
+          >
+            <BookUser className="w-4 h-4" />
+            دفتر تلفن
+          </button>
           <button
             onClick={() => setImporting(true)}
             className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
@@ -590,7 +622,7 @@ export const CrmView: React.FC = () => {
           <div className="flex flex-col lg:flex-row lg:items-center gap-3">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-[#8C6F66] absolute right-3.5 top-1/2 -translate-y-1/2" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجوی نام، شرکت، شماره تلفن، ایمیل یا برچسب..." className="w-full pr-10 pl-4 py-2.5 bg-white border border-[#EBDBCE] rounded-2xl text-xs outline-hidden focus:ring-2 focus:ring-violet-500/20" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجو در همهٔ اطلاعات مشتری: نام، شماره، شهر، کالا، یادداشت، قیمت، برچسب…" className="w-full pr-10 pl-4 py-2.5 bg-white border border-[#EBDBCE] rounded-2xl text-xs outline-hidden focus:ring-2 focus:ring-violet-500/20" />
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'ALL' | CustomerStatus)} className="px-3 py-2 bg-white border border-[#EBDBCE] rounded-2xl text-[11px] font-black text-[#3A241F] outline-hidden cursor-pointer">
@@ -599,12 +631,66 @@ export const CrmView: React.FC = () => {
                   <option key={k} value={k}>{STATUS[k].label}</option>
                 ))}
               </select>
+              <button type="button" onClick={() => setShowAdv((v) => !v)} className={`flex items-center gap-1.5 text-[11px] font-black rounded-2xl px-3 py-2 border cursor-pointer ${showAdv || advCount ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`} data-adv-toggle>
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                جستجوی پیشرفته{advCount ? ` (${toPersianDigits(advCount)})` : ''}
+              </button>
               <label className="flex items-center gap-1.5 text-[11px] font-black text-[#3A241F] cursor-pointer bg-white border border-[#EBDBCE] rounded-2xl px-3 py-2">
                 <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} className="accent-violet-600" />
                 فقط مشتریان من
               </label>
             </div>
           </div>
+          {showAdv && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 bg-white border border-[#EBDBCE] rounded-2xl p-3.5" data-adv-panel>
+              {([
+                ['استان', 'province', facets.provinces],
+                ['شهر', 'city', facets.cities],
+                ['منبع آشنایی', 'source', facets.sources],
+                ['برچسب', 'tag', facets.tags],
+              ] as const).map(([t, k, list]) => (
+                <div key={k}>
+                  <span className={label}>{t}</span>
+                  <select className={field} value={adv[k]} onChange={(e) => setAdv((v) => ({ ...v, [k]: e.target.value, ...(k === 'province' ? { city: '' } : {}) }))}>
+                    <option value="">همه</option>
+                    {list.map((x) => <option key={x} value={x}>{x}</option>)}
+                  </select>
+                </div>
+              ))}
+              <div>
+                <span className={label}>مسئول پیگیری</span>
+                <select className={field} value={adv.owner} onChange={(e) => setAdv((v) => ({ ...v, owner: e.target.value }))}>
+                  <option value="">همه</option>
+                  {staffList.filter((u) => u.isActive).map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+                </select>
+              </div>
+              <div>
+                <span className={label}>نوع مشتری</span>
+                <select className={field} value={adv.kind} onChange={(e) => setAdv((v) => ({ ...v, kind: e.target.value }))}>
+                  <option value="">همه</option>
+                  <option value="PERSON">شخص حقیقی</option>
+                  <option value="COMPANY">شرکت</option>
+                </select>
+              </div>
+              <div>
+                <span className={label}>سابقهٔ خرید</span>
+                <select className={field} value={adv.bought} onChange={(e) => setAdv((v) => ({ ...v, bought: e.target.value }))}>
+                  <option value="">همه</option>
+                  <option value="yes">خرید کرده</option>
+                  <option value="no">هنوز خرید نکرده</option>
+                </select>
+              </div>
+              <div>
+                <span className={label}>بدون تعامل در</span>
+                <select className={field} value={adv.quiet} onChange={(e) => setAdv((v) => ({ ...v, quiet: e.target.value }))}>
+                  <option value="">—</option>
+                  {[30, 60, 90, 180].map((d) => <option key={d} value={d}>{toPersianDigits(d)} روز اخیر</option>)}
+                </select>
+              </div>
+              {advCount > 0 && <button type="button" onClick={() => setAdv({ province: '', city: '', source: '', tag: '', owner: '', kind: '', bought: '', quiet: '' })} className="col-span-2 lg:col-span-4 text-[11px] font-black text-rose-600 underline cursor-pointer text-right">پاک‌کردن فیلترهای پیشرفته</button>}
+            </div>
+          )}
+          <div className="text-[11px] font-bold text-[#8C6F66]">{toPersianDigits(filteredCustomers.length)} مشتری از {toPersianDigits(customers.length)}</div>
           {filteredCustomers.length === 0 ? (
             <div className="text-center text-xs font-bold text-gray-400 py-14 bg-white border border-[#EBDBCE] rounded-3xl">
               {customers.length === 0 ? 'هنوز مشتری ثبت نشده است. با «مشتری جدید» شروع کنید.' : 'مشتری با این جستجو پیدا نشد.'}
@@ -616,6 +702,8 @@ export const CrmView: React.FC = () => {
       )}
 
       {/* ---------- pipeline ---------- */}
+      {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} index={searchIndex} onOpenCustomer={(id) => setOpenCustomer(id)} />}
+
       {tab === 'pipeline' && (
         <div className="space-y-3">
           <div className="md:hidden flex gap-1.5 overflow-x-auto pb-1">
@@ -826,6 +914,8 @@ export const CrmView: React.FC = () => {
         />
       )}
 
+      {phoneBook && <PhoneBook customers={customers} canCall={canCall} onCall={call} onOpenCustomer={(id) => { setPhoneBook(false); setOpenCustomer(id); }} onClose={() => setPhoneBook(false)} />}
+
       {openCustomer && customerById.get(openCustomer) && (
         <CustomerDetail
           customer={customerById.get(openCustomer)!}
@@ -835,6 +925,7 @@ export const CrmView: React.FC = () => {
           me={currentUser}
           referred={customers.filter((x) => x.referrer?.kind === 'CUSTOMER' && x.referrer.id === openCustomer)}
           allDeals={deals}
+          allTexts={[...activities.map((a) => (a.type === 'QUOTE' ? '' : a.text)), ...customers.map((x) => x.notes || '')]}
           canCall={canCall}
           onCall={call}
           onClose={() => setOpenCustomer(null)}
@@ -1012,6 +1103,7 @@ const CustomerDetail: React.FC<{
   me: User;
   referred: Customer[];
   allDeals: Deal[];
+  allTexts: string[];
   canCall: boolean;
   onCall: (number: string, name: string) => void;
   onClose: () => void;
@@ -1021,7 +1113,7 @@ const CustomerDetail: React.FC<{
   onAddActivity: (type: ActivityType, text: string, extra?: Partial<CrmActivity>) => void;
   onToggle: (a: CrmActivity) => void;
   onDeleteActivity: (a: CrmActivity) => void;
-}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, canCall, onCall, onClose, onEdit, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
+}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
   const [type, setType] = useState<ActivityType>('NOTE');
   const [text, setText] = useState('');
   // «the customer looked for a product we did not have»: ticked, then the product's name (and how many, if known)
@@ -1122,6 +1214,7 @@ const CustomerDetail: React.FC<{
         </>
       }
     >
+      <CustomerSummaryStrip customer={c} deals={allDeals.filter((d) => d.customerId === c.id)} activities={activities} calls={calls} />
       <div className="flex flex-wrap items-center gap-2">
         <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${st.cls}`}>{st.label}</span>
         {c.company && c.company !== c.name && (
@@ -1151,9 +1244,9 @@ const CustomerDetail: React.FC<{
                 </div>
                 {list.map((p) => (
                   <div key={p} className="flex items-center justify-between gap-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2">
-                    <span className="text-xs font-black text-[#3A241F]" dir="ltr">{toPersianDigits(p)}</span>
+                    <span className="text-xs font-black text-[#3A241F] flex items-center gap-1.5" dir="ltr">{toPersianDigits(p)}{c.phones[0] === p && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800" dir="rtl">اصلی</span>}{c.faxNumber === p && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-sky-600 text-white" dir="rtl">فکس</span>}</span>
                     <span className="flex items-center gap-3">
-                      {canCall && (
+                      {canCall && c.faxNumber !== p && (
                         <button type="button" onClick={() => onCall(p, c.name)} className="flex items-center gap-1 text-[11px] font-black text-emerald-700 hover:underline cursor-pointer">
                           <PhoneCall className="w-3.5 h-3.5" />
                           تماس
@@ -1209,7 +1302,8 @@ const CustomerDetail: React.FC<{
                 ['جنسیت', c.gender === 'M' ? 'آقا' : c.gender === 'F' ? 'خانم' : undefined],
               ];
         const loc = [c.province, c.city].filter(Boolean).join('، ');
-        const all: [string, string | undefined][] = [...rows, ['استان / شهر', loc || undefined], ['کد پستی', c.postalCode], ['وب‌سایت', c.website], ['معرف', c.referrer?.name ? `${c.referrer.name}${c.referrer.phone ? ` (${c.referrer.phone})` : ''}` : undefined]];
+        const all: [string, string | undefined][] = [...rows, ['دنبال چه کالایی است', c.interest],
+          ['استان / شهر', loc || undefined], ['کد پستی', c.postalCode], ['وب‌سایت', c.website], ['معرف', c.referrer?.name ? `${c.referrer.name}${c.referrer.phone ? ` (${c.referrer.phone})` : ''}` : undefined]];
         const shown = all.filter(([, v]) => v);
         return shown.length === 0 ? null : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -1352,7 +1446,12 @@ const CustomerDetail: React.FC<{
               </button>
             ))}
           </div>
-          <textarea className={`${field} min-h-[64px] leading-6`} value={text} onChange={(e) => setText(e.target.value)} placeholder={type === 'FOLLOWUP' ? 'چه کاری باید پیگیری شود؟' : type === 'CALL' ? 'خلاصهٔ تماس...' : type === 'MEETING' ? 'خلاصهٔ جلسه...' : 'یادداشت...'} />
+          {type === 'QUOTE' ? (
+            <QuoteForm onSave={(t, extra) => onAddActivity('QUOTE', t, extra)} />
+          ) : (
+            <PhraseChips sources={allTexts} onPick={(t) => setText((cur) => (cur ? cur.replace(/\s+$/, '') + ' ' : '') + t)} />
+          )}
+          {type !== 'QUOTE' && <textarea className={`${field} min-h-[64px] leading-6`} value={text} onChange={(e) => setText(e.target.value)} placeholder={type === 'FOLLOWUP' ? 'چه کاری باید پیگیری شود؟' : type === 'CALL' ? 'خلاصهٔ تماس...' : type === 'MEETING' ? 'خلاصهٔ جلسه...' : 'یادداشت...'} />}
           {type === 'FOLLOWUP' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -1365,10 +1464,10 @@ const CustomerDetail: React.FC<{
               </div>
             </div>
           )}
-          <button type="button" onClick={add} disabled={!text.trim()} className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-xs font-black cursor-pointer">
+          {type !== 'QUOTE' && <button type="button" onClick={add} disabled={!text.trim()} className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-xs font-black cursor-pointer">
             <MessageSquare className="w-4 h-4" />
             ثبت در سابقه
-          </button>
+          </button>}
         </div>
 
         <div className="space-y-2">
@@ -1385,7 +1484,14 @@ const CustomerDetail: React.FC<{
                   <span className={`mt-0.5 shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${t.cls}`}>{t.label}</span>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs leading-6 whitespace-pre-wrap ${a.done ? 'line-through text-gray-400' : 'text-[#3A241F]'}`}>{a.text}</p>
+                  {a.type === 'QUOTE' ? (
+                    <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs leading-6">
+                      <div className="font-black text-amber-900">{a.itemName}{a.spec ? <span className="font-bold"> ({a.spec})</span> : null}</div>
+                      <div className="font-bold text-[#3A241F]">{a.qty ? `${toPersianDigits(a.qty)}${a.unit ? ' ' + a.unit : ''} × ` : ''}{formatMoney(a.price || 0)} {unitName()}{a.askedPrice ? <span className="text-[#8C6F66]"> · مشتری {formatMoney(a.askedPrice)} می‌خواست</span> : null}</div>
+                    </div>
+                  ) : (
+                    <p className={`text-xs leading-6 whitespace-pre-wrap ${a.done ? 'line-through text-gray-400' : 'text-[#3A241F]'}`}>{a.text}</p>
+                  )}
                   <div className="text-[10px] text-[#8C6F66] font-bold flex flex-wrap gap-x-3">
                     <span>{a.authorName}</span>
                     <span>{timeText(a.createdAt)}</span>

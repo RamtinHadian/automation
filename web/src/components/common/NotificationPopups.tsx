@@ -23,7 +23,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const Icon = k.icon || FileText;
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(() => !isAudioReady() && isSoundEnabled());
-  const { deals, customers } = useAppContext();
+  const { deals, customers, activities } = useAppContext();
   const isCall = n.kind === 'call';
   const cust = isCall && n.ref?.type === 'customer' ? customers.find((c) => c.id === n.ref!.id) : undefined;
   const summary = React.useMemo(() => {
@@ -32,8 +32,20 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
     const won = deals.filter((d) => d.customerId === cust.id && d.stage === 'WON');
     return { bought: won.reduce((s, d) => s + (d.amount || 0), 0), wonCount: won.length, quotes: mine.length, status: cust.status };
   }, [cust, deals]);
+  // what we know about the caller: the last prices given, the last talks and the open opportunities
+  const history = React.useMemo(() => {
+    if (!cust) return null;
+    const mine = activities.filter((a) => a.customerId === cust.id);
+    const byNew = (a: { createdAt: string }, b: { createdAt: string }) => b.createdAt.localeCompare(a.createdAt);
+    return {
+      quotes: mine.filter((a) => a.type === 'QUOTE').sort(byNew).slice(0, 3),
+      talks: mine.filter((a) => a.type !== 'QUOTE' && a.type !== 'MISSING').sort(byNew).slice(0, 3),
+      open: deals.filter((d) => d.customerId === cust.id && d.stage !== 'WON' && d.stage !== 'LOST').length,
+      interest: (cust.interest || '').trim(),
+    };
+  }, [cust, activities, deals]);
   const unknownNumber = isCall && n.ref?.type === 'phone' ? n.ref.id : '';
-  const total = useRef(showMs());
+  const total = useRef(showMs() * (cust ? 3 : 1)); // a known caller's card stays longer: there is something to read
   const left = useRef(total.current);
   const startedAt = useRef(Date.now());
 
@@ -83,6 +95,22 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
             گزارش
           </button>
         </div>
+      )}
+      {isCall && cust && history && (history.quotes.length > 0 || history.talks.length > 0 || history.interest || history.open > 0) && (
+        <button type="button" onClick={onOpen} className="w-full text-right px-3.5 py-2.5 bg-violet-50 border-t border-violet-100 space-y-1.5 cursor-pointer hover:bg-violet-100/70" data-call-history>
+          <div className="text-[10px] font-black text-violet-800">سابقهٔ این مشتری (برای جزئیات بزنید)</div>
+          {history.interest && <div className="text-[11px] font-bold text-[#3A241F]">دنبال: {history.interest}</div>}
+          {history.quotes.map((a) => (
+            <div key={a.id} className="flex items-center justify-between gap-2 text-[11px] font-bold text-[#3A241F]">
+              <span className="truncate">قیمت «{a.itemName}»{a.spec ? ` (${a.spec})` : ''}</span>
+              <span className="shrink-0 text-amber-800 font-black">{formatMoney(a.price || 0)} {unitName()}</span>
+            </div>
+          ))}
+          {history.talks.map((a) => (
+            <div key={a.id} className="text-[11px] text-[#5A4640] truncate">• {a.text}</div>
+          ))}
+          {history.open > 0 && <div className="text-[11px] font-bold text-violet-800">{toPersianDigits(history.open)} فرصت فروش باز</div>}
+        </button>
       )}
       {unknownNumber && (
         <div className="px-3.5 py-2 bg-amber-50 border-t border-amber-100 flex items-center justify-between gap-2 text-[11px] font-bold text-amber-900">

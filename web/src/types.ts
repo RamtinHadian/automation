@@ -94,7 +94,7 @@ export interface DailyReport {
 
 export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE';
 export type DealStage = 'NEW' | 'CONTACTED' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST';
-export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP' | 'MISSING';
+export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP' | 'MISSING' | 'QUOTE';
 
 export interface Customer {
   id: string;
@@ -131,8 +131,12 @@ export interface Customer {
   website?: string;
   /** Who introduced this customer (for marketing figures). */
   referrer?: { kind: 'CUSTOMER' | 'STAFF' | 'OTHER'; id?: string; name: string; phone?: string };
-  /** Every mobile and landline number, unlimited (mobiles start with 09). */
+  /** Every mobile and landline number, unlimited (mobiles start with 09). The main number comes first. */
   phones: string[];
+  /** The one landline that is a fax machine. */
+  faxNumber?: string;
+  /** What the customer is looking for (product, kind, budget…). */
+  interest?: string;
   email?: string;
   address?: string;
   status: CustomerStatus;
@@ -306,6 +310,14 @@ export interface CrmActivity {
   /** «MISSING»: the product the customer asked for and the shop did not have (feeds the missing-products report). */
   itemName?: string;
   qty?: number;
+  /** «QUOTE»: a price given to the customer without a proforma. productId / productCode tie it to the warehouse's product. */
+  productId?: string;
+  productCode?: string;
+  spec?: string;
+  /** The price the company gave (Toman, per unit) and the price the customer wished for. */
+  price?: number;
+  askedPrice?: number;
+  unit?: string;
   /** Follow-ups: the day it is due, yyyy-mm-dd. */
   dueDate?: string;
   done?: boolean;

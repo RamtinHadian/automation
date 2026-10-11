@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -73,6 +74,15 @@ func voipCapture(w http.ResponseWriter, r *http.Request) {
 func voipTestPopup(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
 	note := notify.Note{Kind: "call", Label: "تماس ورودی", Title: "تماس ورودی آزمایشی", Body: "این یک آزمایش است؛ تماس واقعی نیست.", Repeat: true}
+	// {customerId}: the test call comes from that customer, so the pop-up shows the customer's history like a real call
+	body := jsonx.M{}
+	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&body) // the body is optional
+	if cid := jsonx.Str(body, "customerId"); cid != "" {
+		var name string
+		if store.Pool.QueryRow(r.Context(), `SELECT COALESCE(data->>'name', '') FROM crm_customers WHERE id = $1`, cid).Scan(&name) == nil {
+			note.Title, note.Ref = "تماس ورودی از مشتری: "+name, ref("customer", cid)
+		}
+	}
 	notify.Notify(r.Context(), []string{me.ID()}, note, "")
 	httpx.OK(w)
 }

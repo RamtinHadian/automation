@@ -1,19 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Landmark, Phone, Smartphone, Trash2, User as UserIcon, X } from 'lucide-react';
+import { Building2, Landmark, Printer, Phone, Smartphone, Star, Trash2, User as UserIcon, X } from 'lucide-react';
 import { Customer, CustomerStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label, SOURCES } from './crmUi';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
+import { IRAN_CITIES, PROVINCE_LIST } from '../../lib/iranCities';
+import { PhraseChips } from '../common/PhraseChips';
 
 const STATUS_LABEL: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
 const COMPANY_TYPES = ['سهامی خاص', 'سهامی عام', 'مسئولیت محدود', 'تضامنی', 'نسبی', 'تعاونی', 'مؤسسه / انجمن', 'شخص حقیقی با کد اقتصادی', 'سایر'];
-const PROVINCES = [
-  'آذربایجان شرقی', 'آذربایجان غربی', 'اردبیل', 'اصفهان', 'البرز', 'ایلام', 'بوشهر', 'تهران', 'چهارمحال و بختیاری', 'خراسان جنوبی', 'خراسان رضوی',
-  'خراسان شمالی', 'خوزستان', 'زنجان', 'سمنان', 'سیستان و بلوچستان', 'فارس', 'قزوین', 'قم', 'کردستان', 'کرمان', 'کرمانشاه', 'کهگیلویه و بویراحمد',
-  'گلستان', 'گیلان', 'لرستان', 'مازندران', 'مرکزی', 'هرمزگان', 'همدان', 'یزد',
-];
 
 const digits = (v: string) => normText(v).replace(/\D/g, '');
 /** Iranian national code check (10 digits + checksum). */
@@ -27,7 +24,7 @@ const isMobile = (p: string) => isMobileNumber(p);
 const cleanNumber = (v: string) => normPhone(v) || normText(v).replace(/[^0-9+]/g, '');
 
 /** Any number of phone numbers of one sort (mobile or landline). */
-const NumberList: React.FC<{ title: string; icon: React.ReactNode; items: string[]; placeholder: string; onChange: (items: string[]) => void; draft: string; setDraft: (v: string) => void }> = ({
+const NumberList: React.FC<{ title: string; icon: React.ReactNode; items: string[]; placeholder: string; onChange: (items: string[]) => void; draft: string; setDraft: (v: string) => void; main?: string; onMain: (p: string) => void; fax?: string; onFax?: (p: string) => void }> = ({
   title,
   icon,
   items,
@@ -35,6 +32,10 @@ const NumberList: React.FC<{ title: string; icon: React.ReactNode; items: string
   onChange,
   draft,
   setDraft,
+  main,
+  onMain,
+  fax,
+  onFax,
 }) => {
   const add = () => {
     const v = cleanNumber(draft);
@@ -50,8 +51,17 @@ const NumberList: React.FC<{ title: string; icon: React.ReactNode; items: string
       </div>
       <div className="flex flex-wrap gap-1.5 mb-2.5 empty:hidden">
         {items.map((p) => (
-          <span key={p} className="flex items-center gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-full pl-1.5 pr-3 py-1 text-xs font-bold text-[#3A241F]" dir="ltr">
+          <span key={p} className={`flex items-center gap-1 border rounded-full pl-1.5 pr-2 py-1 text-xs font-bold text-[#3A241F] ${main === p ? 'bg-amber-50 border-amber-300' : 'bg-[#FAF5F1] border-[#EBDBCE]'}`} dir="ltr">
+            <button type="button" onClick={() => onMain(p)} title={main === p ? 'شمارهٔ اصلی' : 'اصلی کن'} className={`cursor-pointer ${main === p ? 'text-amber-500' : 'text-[#C9B8AE] hover:text-amber-500'}`}>
+              <Star className={`w-3.5 h-3.5 ${main === p ? 'fill-amber-400' : ''}`} />
+            </button>
             {toPersianDigits(p)}
+            {onFax && (
+              <button type="button" onClick={() => onFax(fax === p ? '' : p)} title={fax === p ? 'این شماره فکس است' : 'این شماره فکس است؟'} className={`flex items-center gap-0.5 rounded-full px-1.5 text-[10px] font-black cursor-pointer ${fax === p ? 'bg-sky-600 text-white' : 'text-[#8C6F66] border border-[#EBDBCE] hover:bg-sky-50'}`}>
+                <Printer className="w-3 h-3" />
+                {fax === p ? 'فکس' : ''}
+              </button>
+            )}
             <button type="button" onClick={() => onChange(items.filter((x) => x !== p))} className="text-rose-500 cursor-pointer">
               <X className="w-3 h-3" />
             </button>
@@ -112,6 +122,7 @@ export const CustomerForm: React.FC<{
       lastName: initial.lastName ?? (kind === 'PERSON' ? parts.slice(1).join(' ') : ''),
     };
   });
+  const [mainPhone, setMainPhone] = useState<string>(initial.phones?.[0] || '');
   const [mobileDraft, setMobileDraft] = useState('');
   const [landlineDraft, setLandlineDraft] = useState('');
   const [tagDraft, setTagDraft] = useState('');
@@ -160,7 +171,9 @@ export const CustomerForm: React.FC<{
       economicCode: digits(c.economicCode || '') || undefined,
       registrationNumber: digits(c.registrationNumber || '') || undefined,
       postalCode: digits(c.postalCode || '') || undefined,
-      phones: [...new Set([...m, ...l].filter(Boolean))],
+      phones: ((all) => (mainPhone && all.includes(mainPhone) ? [mainPhone, ...all.filter((x) => x !== mainPhone)] : all))([...new Set([...m, ...l].filter(Boolean))]),
+      faxNumber: c.faxNumber && l.includes(c.faxNumber) ? c.faxNumber : undefined,
+      interest: (c.interest || '').trim() || undefined,
       ownerName: owner?.fullName || c.ownerName,
     };
     if (out.referrer && !out.referrer.name.trim()) delete out.referrer;
@@ -325,6 +338,8 @@ export const CustomerForm: React.FC<{
               draft={mobileDraft}
               setDraft={setMobileDraft}
               onChange={(m) => setNumbers(m, landlines)}
+              main={mainPhone}
+              onMain={setMainPhone}
             />
             <NumberList
               title="تلفن‌های ثابت"
@@ -334,6 +349,10 @@ export const CustomerForm: React.FC<{
               draft={landlineDraft}
               setDraft={setLandlineDraft}
               onChange={(l) => setNumbers(mobiles, l)}
+              main={mainPhone}
+              onMain={setMainPhone}
+              fax={c.faxNumber}
+              onFax={(p) => patch({ faxNumber: p || undefined })}
             />
           </div>
         </Section>
@@ -342,16 +361,22 @@ export const CustomerForm: React.FC<{
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className={label}>استان</label>
-              <input className={field} list="crm-provinces" value={c.province || ''} onChange={(e) => patch({ province: e.target.value })} />
-              <datalist id="crm-provinces">
-                {PROVINCES.map((p) => (
-                  <option key={p} value={p} />
+              <select className={field} value={c.province || ''} onChange={(e) => patch({ province: e.target.value, city: IRAN_CITIES[e.target.value]?.includes(c.city || '') ? c.city : '' })}>
+                <option value="">انتخاب استان</option>
+                {PROVINCE_LIST.map((p) => (
+                  <option key={p} value={p}>{p}</option>
                 ))}
-              </datalist>
+                {c.province && !PROVINCE_LIST.includes(c.province) && <option value={c.province}>{c.province}</option>}
+              </select>
             </div>
             <div>
               <label className={label}>شهر</label>
-              <input className={field} value={c.city || ''} onChange={(e) => patch({ city: e.target.value })} />
+              <input className={field} list="crm-cities" value={c.city || ''} onChange={(e) => patch({ city: e.target.value })} placeholder={c.province ? 'شهرستان را انتخاب یا بنویسید' : 'اول استان را انتخاب کنید'} />
+              <datalist id="crm-cities">
+                {(IRAN_CITIES[c.province || ''] || []).map((x) => (
+                  <option key={x} value={x} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label className={label}>کد پستی (۱۰ رقم)</label>
@@ -454,6 +479,18 @@ export const CustomerForm: React.FC<{
           </div>
         </Section>
 
+        <Section title="نیاز مشتری">
+          <div>
+            <label className={label}>مشتری دنبال چه کالایی می‌گردد؟</label>
+            <input className={field} list="crm-interests" value={c.interest || ''} onChange={(e) => patch({ interest: e.target.value })} placeholder="مثلاً کولر گازی ۲۴ هزار، بودجه ۴۰ میلیون" />
+            <datalist id="crm-interests">
+              {[...new Set(customers.map((x) => (x.interest || '').trim()).filter(Boolean))].slice(0, 60).map((x) => (
+                <option key={x} value={x} />
+              ))}
+            </datalist>
+          </div>
+        </Section>
+
         <Section title="پیگیری">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -497,6 +534,7 @@ export const CustomerForm: React.FC<{
           </div>
           <div>
             <label className={label}>توضیحات</label>
+            <PhraseChips sources={customers.map((x) => x.notes || '')} onPick={(t) => patch({ notes: (c.notes ? c.notes.replace(/\s+$/, '') + '\n' : '') + t })} />
             <textarea className={`${field} min-h-[80px] leading-6`} value={c.notes || ''} onChange={(e) => patch({ notes: e.target.value })} />
           </div>
         </Section>
