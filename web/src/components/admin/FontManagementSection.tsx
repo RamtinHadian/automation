@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Type, Upload, Trash2, Check, Sparkles, AlertCircle, FileText, CheckCircle2 } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { CustomFont } from '../../types';
 import { formatBytes } from '../../lib/utils';
@@ -300,9 +301,9 @@ export const FontManagementSection: React.FC = () => {
                     {!font.isDefault && (
                       <button
                         type="button"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          if (confirm(`آیا از حذف فونت "${font.name}" اطمینان دارید؟`)) {
+                          if (await askConfirm(`فونت «${font.name}» حذف شود؟`)) {
                             handleDeleteCustomFont(font.id);
                           }
                         }}

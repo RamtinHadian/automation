@@ -1,5 +1,6 @@
 import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import React, { useEffect, useMemo, useState } from 'react';
+import { askConfirm } from '../../lib/confirmDialog';
 import {
   Plus,
   Search,
@@ -191,9 +192,9 @@ const TasksBoard: React.FC = () => {
     showToast(archived ? 'وظیفه بایگانی شد.' : 'وظیفه از بایگانی بیرون آمد.');
   };
 
-  const deleteTask = (t: Task) => {
+  const deleteTask = async (t: Task) => {
     if (!isSuper) return;
-    if (!window.confirm(`وظیفهٔ «${t.title}» حذف شود؟`)) return;
+    if (!(await askConfirm(`وظیفهٔ «${t.title}» حذف شود؟`))) return;
     setTasks((prev) => prev.filter((x) => x.id !== t.id));
     setEditing(null);
     showToast('وظیفه حذف شد.');

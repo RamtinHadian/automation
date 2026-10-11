@@ -15,6 +15,7 @@ import {
   Check,
   File
 } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { FileItem, FileCategory } from '../../types';
 
 interface FileListProps {
@@ -237,9 +238,9 @@ export const FileList: React.FC<FileListProps> = ({
                           </button>
                           <div className="h-px bg-[#EBDBCE] my-1" />
                           <button
-                            onClick={() => {
-                              onDeleteFile(file.id);
+                            onClick={async () => {
                               setOpenMenuId(null);
+                              if (await askConfirm(`فایل «${file.name}» حذف شود؟`)) onDeleteFile(file.id);
                             }}
                             className="w-full px-3.5 py-2 hover:bg-[#F6D9CD]/50 text-[#6E1B1B] flex items-center gap-2.5 transition-colors"
                           >

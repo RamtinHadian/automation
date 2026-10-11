@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Megaphone, Pin, PinOff, Plus, Send, Trash2, X } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { Announcement, api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -64,7 +65,7 @@ export const BoardView: React.FC = () => {
     }
   };
   const remove = async (a: Announcement) => {
-    if (!window.confirm(`اعلان «${a.title}» حذف شود؟`)) return;
+    if (!(await askConfirm(`اعلان «${a.title}» حذف شود؟`))) return;
     await api.announcementDelete(a.id).catch((e) => showToast(e instanceof Error ? e.message : 'حذف نشد.'));
     load();
   };

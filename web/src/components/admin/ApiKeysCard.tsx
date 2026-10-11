@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Check, Copy, KeyRound, Plug, Trash2 } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { api, ApiKeyRow } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
@@ -46,7 +47,7 @@ export const ApiKeysCard: React.FC = () => {
   };
 
   const revoke = async (k: ApiKeyRow) => {
-    if (!window.confirm(`کلید «${k.name}» غیرفعال و حذف شود؟ برنامه‌ای که از آن استفاده می‌کند فوراً دسترسی‌اش را از دست می‌دهد.`)) return;
+    if (!(await askConfirm(`کلید «${k.name}» غیرفعال و حذف شود؟ برنامه‌ای که از آن استفاده می‌کند فوراً دسترسی‌اش را از دست می‌دهد.`, { confirmText: 'بله، کلید حذف شود' }))) return;
     try {
       await api.apiKeyDelete(k.id);
       load();

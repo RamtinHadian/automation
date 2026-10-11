@@ -23,6 +23,7 @@ import {
   MessageSquare,
   Warehouse,
 } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { User, UserRole, Department } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
@@ -343,7 +344,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                         </button>
                         <button
-                          onClick={() => onDeleteUser(user.id)}
+                          onClick={async () => (await askConfirm(`حساب «${user.fullName}» حذف شود؟ دسترسی این همکار به سامانه همین لحظه قطع می‌شود و این کار قابل بازگشت نیست.`, { title: 'حذف حساب کارمند؟', confirmText: 'بله، حساب حذف شود' })) && onDeleteUser(user.id)}
                           className="p-1.5 text-[#8C6F66] hover:text-[#D34A32] hover:bg-[#F6D9CD]/40 rounded-lg transition-colors cursor-pointer"
                           title="حذف حساب کارمند"
                         >

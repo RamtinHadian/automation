@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Save, Trash2, Upload, X } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { buildProformaHtml, formatProformaNumber, sampleProforma } from '../../lib/proformaPdf';
 import { HEADER_LABELS, normalizeTemplate, presetTemplate, PROFORMA_PALETTES, PROFORMA_PRESETS, SECTION_LABELS } from '../../lib/proformaTemplates';
 import { ProformaHeaderItem, ProformaSectionId, ProformaTemplate, SystemSettings } from '../../types';
@@ -251,7 +252,7 @@ export const ProformaDesigner: React.FC<{
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} />
               </label>
               {tpl.logoUrl && (
-                <button type="button" onClick={() => patch({ logoUrl: undefined })} className="flex items-center gap-1 px-3 py-2 rounded-xl text-[11px] font-black text-rose-600 bg-rose-50 cursor-pointer">
+                <button type="button" onClick={async () => (await askConfirm('لوگوی پیش‌فاکتور حذف شود؟', { confirmText: 'بله، لوگو حذف شود' })) && patch({ logoUrl: undefined })} className="flex items-center gap-1 px-3 py-2 rounded-xl text-[11px] font-black text-rose-600 bg-rose-50 cursor-pointer">
                   <Trash2 className="w-4 h-4" />
                   حذف
                 </button>

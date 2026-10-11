@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { LetterTextTemplate } from '../../types';
 
 const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
@@ -57,8 +58,8 @@ export const LetterTextTemplatesModal: React.FC<{
     onChange(editing && editing !== 'new' ? templates.map((t) => (t.id === editing ? item : t)) : [...templates, item]);
     setEditing(null);
   };
-  const remove = (t: LetterTextTemplate) => {
-    if (window.confirm(`قالب «${t.title}» حذف شود؟`)) onChange(templates.filter((x) => x.id !== t.id));
+  const remove = async (t: LetterTextTemplate) => {
+    if (await askConfirm(`قالب «${t.title}» حذف شود؟`)) onChange(templates.filter((x) => x.id !== t.id));
   };
 
   return (

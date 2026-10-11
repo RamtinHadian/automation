@@ -1,5 +1,6 @@
 import { DemoAdminHint, useDemoInfo } from '../components/common/DemoBanner';
 import { DayNightToggle } from '../components/common/DayNightToggle';
+import { askConfirm } from '../lib/confirmDialog';
 import { IconTab } from '../components/common/IconTab';
 import { VersionBadge } from '../components/common/VersionBadge';
 import { ManagementReports } from '../components/admin/ManagementReports';
@@ -645,7 +646,7 @@ export default function AdminPanel() {
                                     <button
                                       type="button"
                                       onClick={async () => {
-                                        if (!window.confirm(`فایل «${t.fileName}» از سرور حذف شود؟ سابقهٔ ارسال و دانلود می‌ماند و برای کاربران می‌نویسد «توسط مدیر کل سیستم حذف شد».`)) return;
+                                        if (!(await askConfirm(`فایل «${t.fileName}» از سرور حذف شود؟ سابقهٔ ارسال و دانلود می‌ماند و برای کاربران می‌نویسد «توسط مدیر کل سیستم حذف شد».`))) return;
                                         try { await api.adminFilePurge(t.id); showToast('فایل از سرور حذف شد؛ سابقه نگه داشته شد.'); await reloadState(); loadFileSizes(); } catch (e) { showToast(e instanceof Error ? e.message : 'حذف نشد.'); }
                                       }}
                                       className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black cursor-pointer"
@@ -663,8 +664,8 @@ export default function AdminPanel() {
                                 )}
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    if (window.confirm(`رکورد «${t.fileName}» (با تاریخچه) برای همیشه پاک شود؟ قابل بازگشت نیست.`)) handleAdminDeleteTransfer(t.id);
+                                  onClick={async () => {
+                                    if (await askConfirm(`رکورد «${t.fileName}» (با تاریخچه) برای همیشه پاک شود؟ قابل بازگشت نیست.`, { title: 'پاک‌کردن کامل رکورد؟', confirmText: 'بله، برای همیشه پاک شود' })) handleAdminDeleteTransfer(t.id);
                                   }}
                                   className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                   title="پاک کردن کامل رکورد و تاریخچه"

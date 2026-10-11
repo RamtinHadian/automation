@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import React, { useState, useRef } from 'react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { Type, Upload, Trash2, Check, Sparkles, AlertCircle, FileText, CheckCircle2, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { CustomFont } from '../../types';
@@ -258,9 +259,9 @@ export const FontManagementModal: React.FC<FontManagementModalProps> = ({ isOpen
                       {f.dataUrl && (
                         <button
                           type="button"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            if (confirm(`آیا از حذف فونت "${f.name}" اطمینان دارید؟`)) {
+                            if (await askConfirm(`فونت «${f.name}» حذف شود؟`)) {
                               handleDeleteCustomFont(f.id);
                             }
                           }}

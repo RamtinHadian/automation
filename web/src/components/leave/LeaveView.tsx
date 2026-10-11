@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Briefcase, CalendarCheck2, CheckCircle2, Clock, HeartPulse, Hourglass, MoreHorizontal, Send, Trash2, Wallet, XCircle } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { api, LeaveRequest } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -111,7 +112,7 @@ export const LeaveView: React.FC = () => {
     }
   };
   const cancel = async (id: string) => {
-    if (!window.confirm('این درخواست پس گرفته شود؟')) return;
+    if (!(await askConfirm('این درخواست پس گرفته شود؟', { tone: 'warning', title: 'درخواست پس گرفته شود؟', confirmText: 'بله، پس گرفته شود' }))) return;
     try {
       await api.leaveCancel(id);
       load();

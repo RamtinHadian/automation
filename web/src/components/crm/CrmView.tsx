@@ -29,6 +29,7 @@ import {
   BookUser,
   SlidersHorizontal,
 } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
@@ -226,8 +227,8 @@ export const CrmView: React.FC = () => {
     // keep the customer's name on its deals in sync
     setDeals((prev) => prev.map((d) => (d.customerId === next.id && d.customerName !== next.name ? { ...d, customerName: next.name } : d)));
   };
-  const removeCustomer = (c: Customer) => {
-    if (!window.confirm(`«${c.name}» با همهٔ فرصت‌ها و سابقه‌اش حذف شود؟ این کار قابل بازگشت نیست.`)) return;
+  const removeCustomer = async (c: Customer) => {
+    if (!(await askConfirm(`«${c.name}» با همهٔ فرصت‌ها و سابقه‌اش حذف شود؟ این کار قابل بازگشت نیست.`, { title: 'حذف مشتری و تمام سابقه‌اش؟', confirmText: 'بله، مشتری حذف شود' }))) return;
     setCustomers((prev) => prev.filter((x) => x.id !== c.id));
     setDeals((prev) => prev.filter((x) => x.customerId !== c.id));
     setActivities((prev) => prev.filter((x) => x.customerId !== c.id));
@@ -251,8 +252,8 @@ export const CrmView: React.FC = () => {
       if (stage === 'PROPOSAL' && !d.proformaNumber) setProformaFor({ ...d, stage });
     }
   };
-  const removeDeal = (d: Deal) => {
-    if (!window.confirm(`فرصت «${d.title}» حذف شود؟`)) return;
+  const removeDeal = async (d: Deal) => {
+    if (!(await askConfirm(`فرصت «${d.title}» حذف شود؟`))) return;
     setDeals((prev) => prev.filter((x) => x.id !== d.id));
     setEditingDeal(null);
   };
@@ -1505,7 +1506,7 @@ const CustomerDetail: React.FC<{
                   </div>
                 </div>
                 {(isAdmin || a.authorId === me.id) && (
-                  <button type="button" onClick={() => window.confirm('این مورد حذف شود؟') && onDeleteActivity(a)} className="text-gray-300 hover:text-rose-500 cursor-pointer shrink-0">
+                  <button type="button" onClick={async () => (await askConfirm('این مورد از سابقهٔ مشتری حذف شود؟')) && onDeleteActivity(a)} className="text-gray-300 hover:text-rose-500 cursor-pointer shrink-0">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}

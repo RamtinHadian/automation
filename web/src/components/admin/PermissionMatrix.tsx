@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Check, Lock, Search, ShieldCheck } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { Department, User } from '../../types';
 import { PERMISSIONS, PERM_GROUPS, hasPerm, isAdminUser, permPatch, permPatchMany } from '../../lib/permissions';
 import { toPersianDigits } from '../../lib/jalali';
@@ -35,11 +36,11 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
     onUpdateUser(u.id, permPatchMany(u, PERMISSIONS, on));
     showToast(`همهٔ مجوزهای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
   };
-  const colAll = (id: string) => {
+  const colAll = async (id: string) => {
     const p = PERMISSIONS.find((x) => x.id === id)!;
     const every = people.length > 0 && people.every((u) => hasPerm(u, p));
     if (people.length === 0) return;
-    if (!window.confirm(`«${p.label}» برای ${toPersianDigits(people.length)} نفر ${every ? 'گرفته' : 'داده'} شود؟`)) return;
+    if (!(await askConfirm(`«${p.label}» برای ${toPersianDigits(people.length)} نفر ${every ? 'گرفته' : 'داده'} شود؟`, { tone: 'warning', title: 'تغییر مجوز برای همه؟', confirmText: 'بله، اعمال شود' }))) return;
     people.forEach((u) => onUpdateUser(u.id, permPatch(u, p, !every)));
     showToast(`«${p.label}» برای ${toPersianDigits(people.length)} نفر ${every ? 'گرفته' : 'داده'} شد.`);
   };

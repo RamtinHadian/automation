@@ -12,6 +12,7 @@ import { DemoBanner } from './components/common/DemoBanner';
 import { DayNightToggle } from './components/common/DayNightToggle';
 import { ErrorPopups } from './components/common/ErrorPopups';
 import { LicenseGate } from './components/common/LicenseGate';
+import { ConfirmHost } from './lib/confirmDialog';
 
 function AppRoutes() {
   const companyName = useCompanyName();
@@ -63,6 +64,7 @@ export function App() {
   return (
     <LicenseGate>
       <ErrorPopups />
+      <ConfirmHost />
       <AppProvider>
         <AppRoutes />
       </AppProvider>

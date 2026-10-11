@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ProformaIssuersCard } from './ProformaIssuersCard';
+import { askConfirm } from '../../lib/confirmDialog';
 import { DEFAULT_SIGNATURE_HEIGHT, MIN_SIGNATURE_HEIGHT, MAX_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
 import {
   Save,
@@ -892,7 +893,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {settings.ceoSignatureUrl && (
                 <button
                   type="button"
-                  onClick={() => applyImage('ceoSignatureUrl', undefined)}
+                  onClick={async () => (await askConfirm('امضای اسکن‌شدهٔ مدیرعامل حذف شود؟ نامه‌های بعدی بدون امضا صادر می‌شوند.', { confirmText: 'بله، امضا حذف شود' })) && applyImage('ceoSignatureUrl', undefined)}
                   className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                   title="حذف امضا"
                 >
@@ -944,7 +945,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {settings.companyStampUrl && (
                 <button
                   type="button"
-                  onClick={() => applyImage('companyStampUrl', undefined)}
+                  onClick={async () => (await askConfirm('مهر شرکت حذف شود؟ نامه‌های بعدی بدون مهر صادر می‌شوند.', { confirmText: 'بله، مهر حذف شود' })) && applyImage('companyStampUrl', undefined)}
                   className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                   title="حذف مهر"
                 >

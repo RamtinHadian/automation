@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { askConfirm } from '../../lib/confirmDialog';
 import { MessageCircle, Phone, Bell, BellRing, CheckCheck, ClipboardList, FileText, Send, Stamp, Trash2, Volume2, VolumeX, AlertTriangle } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { AppNotification, isAudioReady, osPermission, playChime, requestOsPermission } from '../../lib/notifications';
@@ -155,8 +156,8 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm('همهٔ اعلان‌ها پاک شود؟')) clearNotifications();
+                onClick={async () => {
+                  if (await askConfirm('همهٔ اعلان‌ها پاک شود؟', { confirmText: 'بله، همه پاک شود' })) clearNotifications();
                 }}
                 title="پاک کردن همه"
                 className="p-1.5 rounded-lg text-rose-600 hover:bg-white cursor-pointer"

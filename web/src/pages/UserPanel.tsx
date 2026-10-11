@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DayNightToggle } from '../components/common/DayNightToggle';
+import { askConfirm } from '../lib/confirmDialog';
 import { ManagementReports } from '../components/admin/ManagementReports';
 import { VersionBadge } from '../components/common/VersionBadge';
 import { ChatView } from '../components/chat/ChatView';
@@ -1757,8 +1758,8 @@ export default function UserPanel() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    if (window.confirm(`نامهٔ «${t.fileName}» حذف شود؟ این کار قابل بازگشت نیست.`)) handleDeleteOwnLetter(t.id);
+                                  onClick={async () => {
+                                    if (await askConfirm(`نامهٔ «${t.fileName}» حذف شود؟ این کار قابل بازگشت نیست.`)) handleDeleteOwnLetter(t.id);
                                   }}
                                   className="p-2 text-[#8C6F66] hover:text-[#D34A32] hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                                   title="حذف نامه تا قبل از امضا"

@@ -14,6 +14,7 @@ import {
   X,
   FileText,
 } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { DailyReport, DailyReportItem, ReportItemStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
@@ -116,8 +117,8 @@ export const DailyReportsView: React.FC = () => {
     showToast(current ? 'گزارش به‌روز شد.' : 'گزارش روزانه ثبت شد.');
   };
 
-  const remove = (r: DailyReport) => {
-    if (!window.confirm(`گزارش ${formatTaskDate(r.date)} حذف شود؟`)) return;
+  const remove = async (r: DailyReport) => {
+    if (!(await askConfirm(`گزارش ${formatTaskDate(r.date)} حذف شود؟`))) return;
     setReports((prev) => prev.filter((x) => x.id !== r.id));
     setViewing(null);
     showToast('گزارش حذف شد.');

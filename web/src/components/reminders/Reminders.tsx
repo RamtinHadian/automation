@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { askConfirm } from '../../lib/confirmDialog';
 import { Bell, BellRing, Check, Clock, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
 import { api, Reminder } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
@@ -221,7 +222,7 @@ export const RemindersView: React.FC = () => {
   const active = (list || []).filter((r) => r.status !== 'done');
   const done = (list || []).filter((r) => r.status === 'done');
   const remove = async (r: Reminder) => {
-    if (!window.confirm(`یادآور «${r.title}» حذف شود؟`)) return;
+    if (!(await askConfirm(`یادآور «${r.title}» حذف شود؟`))) return;
     try {
       await api.reminderDelete(r.id);
       reload();

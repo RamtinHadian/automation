@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Banknote, FileCheck2, FileText, RefreshCw, Search, Send, Unplug, Users, X } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -187,13 +188,13 @@ export const SepidarView: React.FC = () => {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {!qt && can('quotation') && <button type="button" disabled={wait('quotation.send')} onClick={() => ask({ kind: 'quotation.send', dealId: d.id }, 'پیش‌فاکتور برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-rose-700 text-white border-rose-700`}><Send className="w-3.5 h-3.5 inline ml-1" />ارسال به سپیدار</button>}
-                  {qt && !inv && can('invoice') && <button type="button" disabled={wait('invoice.fromProforma')} onClick={() => window.confirm('فاکتور فروش در سپیدار صادر شود؟') && ask({ kind: 'invoice.fromProforma', dealId: d.id }, 'صدور فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-emerald-700 text-white border-emerald-700`}><FileCheck2 className="w-3.5 h-3.5 inline ml-1" />صدور فاکتور</button>}
+                  {qt && !inv && can('invoice') && <button type="button" disabled={wait('invoice.fromProforma')} onClick={async () => (await askConfirm('فاکتور فروش در سپیدار صادر شود؟', { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' })) && ask({ kind: 'invoice.fromProforma', dealId: d.id }, 'صدور فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-emerald-700 text-white border-emerald-700`}><FileCheck2 className="w-3.5 h-3.5 inline ml-1" />صدور فاکتور</button>}
                   {inv && can('receipt') && <button type="button" onClick={() => setReceiptFor(d)} className={`${BtnS} bg-sky-700 text-white border-sky-700`}><Banknote className="w-3.5 h-3.5 inline ml-1" />ثبت دریافتی</button>}
                   {qt && !inv && can('quotation') && (
                     <>
                       <button type="button" disabled={wait('quotation.close')} onClick={() => ask({ kind: 'quotation.close', dealId: d.id }, 'بستن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بستن پیش‌فاکتور</button>
                       <button type="button" disabled={wait('quotation.unclose')} onClick={() => ask({ kind: 'quotation.unclose', dealId: d.id }, 'بازکردن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بازکردن</button>
-                      <button type="button" disabled={wait('quotation.delete')} onClick={() => window.confirm('پیش‌فاکتور از سپیدار حذف شود؟') && ask({ kind: 'quotation.delete', dealId: d.id }, 'حذف پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-rose-200 text-rose-700`}>حذف از سپیدار</button>
+                      <button type="button" disabled={wait('quotation.delete')} onClick={async () => (await askConfirm('پیش‌فاکتور از سپیدار حذف شود؟')) && ask({ kind: 'quotation.delete', dealId: d.id }, 'حذف پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-rose-200 text-rose-700`}>حذف از سپیدار</button>
                     </>
                   )}
                 </div>
@@ -265,7 +266,7 @@ export const SepidarView: React.FC = () => {
                 <div className="text-[10px] font-bold text-[#8C6F66] truncate">{j.by} · {timeOf(j.createdAt)}{j.result?.message ? ` · ${j.result.message}` : ''}</div>
               </div>
               {j.status === 'pending' && (
-                <button type="button" onClick={() => api.sepidarCancel(j.id).then(load).catch((e) => showToast(e.message))} className="p-1.5 text-[#8C6F66] cursor-pointer" aria-label="لغو"><X className="w-4 h-4" /></button>
+                <button type="button" onClick={async () => (await askConfirm('این درخواست از صف برداشته شود؟', { tone: 'warning', title: 'لغو درخواست', confirmText: 'بله، لغو شود' })) && api.sepidarCancel(j.id).then(load).catch((e) => showToast(e.message))} className="p-1.5 text-[#8C6F66] cursor-pointer" aria-label="لغو"><X className="w-4 h-4" /></button>
               )}
             </div>
           ))}

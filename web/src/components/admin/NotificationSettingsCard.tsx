@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, Play, RotateCcw, Save, Send, Trash2, Upload, VolumeX } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { api, UploadedSound } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -73,8 +74,8 @@ export const NotificationSettingsCard: React.FC<{ settings: SystemSettings; onSa
     showToast('تنظیمات ناتیفیکیشن ذخیره شد و برای همهٔ کاربران اعمال می‌شود.');
   };
 
-  const reset = () => {
-    if (!window.confirm('همهٔ تنظیمات ناتیفیکیشن به حالت پیش‌فرض برگردد؟ صداهای آپلودشده پاک نمی‌شوند.')) return;
+  const reset = async () => {
+    if (!(await askConfirm('همهٔ تنظیمات ناتیفیکیشن به حالت پیش‌فرض برگردد؟ صداهای آپلودشده پاک نمی‌شوند.', { tone: 'warning', title: 'بازگشت به تنظیمات پیش‌فرض؟', confirmText: 'بله، برگردان' }))) return;
     setCfg({});
     setDirty(true);
   };
@@ -109,7 +110,7 @@ export const NotificationSettingsCard: React.FC<{ settings: SystemSettings; onSa
 
   const removeSound = async (s: UploadedSound) => {
     const used = [...Object.values(cfg.kinds || {}), ...Object.values(cfg.events || {})].some((r) => r?.sound === 'custom:' + s.id);
-    if (!window.confirm(used ? `«${s.name}» در تنظیمات استفاده شده؛ با پاک کردنش آن بخش‌ها بی‌صدا می‌شوند. پاک شود؟` : `«${s.name}» پاک شود؟`)) return;
+    if (!(await askConfirm(used ? `«${s.name}» در تنظیمات استفاده شده؛ با پاک کردنش آن بخش‌ها بی‌صدا می‌شوند. پاک شود؟` : `«${s.name}» پاک شود؟`))) return;
     await api.soundDelete(s.id).catch(() => {});
     forgetCustomSound(s.id);
     await loadSounds();

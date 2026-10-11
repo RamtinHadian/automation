@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Ban, Download, FileText, Package, Plus, Search, Warehouse as WarehouseIcon, X } from 'lucide-react';
+import { askConfirm } from '../../lib/confirmDialog';
 import { api, WhCard, WhDoc, WhKind, WhProduct, WhState, WhWarehouse } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -58,7 +59,7 @@ export const WarehouseView: React.FC = () => {
   ];
 
   const setMode = async (mode: 'standalone' | 'sepidar') => {
-    if (!window.confirm(mode === 'standalone' ? 'موجودی از این پس در خود هورمند نگهداری شود و سندها را همین‌جا ثبت کنید؟' : 'حالت «متصل به سپیدار» فعال شود؟ ثبت دستی سند بسته می‌شود.')) return;
+    if (!(await askConfirm(mode === 'standalone' ? 'موجودی از این پس در خود هورمند نگهداری شود و سندها را همین‌جا ثبت کنید؟' : 'حالت «متصل به سپیدار» فعال شود؟ ثبت دستی سند بسته می‌شود.', { tone: 'warning', title: 'حالت انبار عوض شود؟', confirmText: 'بله، عوض شود' }))) return;
     try {
       await api.whSetMode(mode);
       showToast('حالت انبار تغییر کرد.');
@@ -626,7 +627,7 @@ const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin:
     }
   };
   const del = async () => {
-    if (!p.id || !window.confirm('این کالا حذف شود؟')) return;
+    if (!p.id || !(await askConfirm(`کالای «${p.title || ''}» حذف شود؟`))) return;
     try {
       await api.whProductDelete(p.id);
       showToast('کالا حذف شد.');
@@ -720,7 +721,7 @@ const WarehouseModal: React.FC<{ w: Partial<WhWarehouse>; sepidar: boolean; isAd
     }
   };
   const del = async () => {
-    if (!w.id || !window.confirm('این انبار حذف شود؟')) return;
+    if (!w.id || !(await askConfirm(`انبار «${w.title || ''}» حذف شود؟`))) return;
     try {
       await api.whWarehouseDelete(w.id);
       showToast('انبار حذف شد.');
