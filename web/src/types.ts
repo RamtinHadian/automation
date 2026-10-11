@@ -104,7 +104,12 @@ export interface Customer {
   baleChatId?: string;
   company?: string;
   /** Real person (default) or legal entity. */
-  kind?: 'PERSON' | 'COMPANY';
+  kind?: 'PERSON' | 'COMPANY' | 'SHOP';
+  // --- shop («SHOP»): the shop's name is name / company; the owner is firstName / lastName
+  /** What the shop sells or does (guild / line of business). */
+  shopType?: string;
+  /** Business licence (پروانهٔ کسب) or guild number. */
+  licenseNumber?: string;
   // --- real person
   firstName?: string;
   lastName?: string;

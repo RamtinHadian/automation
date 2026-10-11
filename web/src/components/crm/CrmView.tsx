@@ -328,6 +328,12 @@ export const CrmView: React.FC = () => {
                 {c.company}
               </div>
             )}
+            {c.kind === 'SHOP' && (c.firstName || c.lastName) && (
+              <div className="text-[11px] text-[#8C6F66] flex items-center gap-1 truncate">
+                <Users className="w-3 h-3 shrink-0" />
+                مالک: {`${c.firstName || ''} ${c.lastName || ''}`.trim()}
+              </div>
+            )}
           </div>
           <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
         </div>
@@ -671,6 +677,7 @@ export const CrmView: React.FC = () => {
                   <option value="">همه</option>
                   <option value="PERSON">شخص حقیقی</option>
                   <option value="COMPANY">شرکت</option>
+                  <option value="SHOP">فروشگاه</option>
                 </select>
               </div>
               <div>
@@ -1285,7 +1292,16 @@ const CustomerDetail: React.FC<{
       </div>
       {(() => {
         const rows: [string, string | undefined][] =
-          c.kind === 'COMPANY'
+          c.kind === 'SHOP'
+            ? [
+                ['نوع فعالیت', c.shopType],
+                ['شمارهٔ پروانهٔ کسب', c.licenseNumber],
+                ['مالک', `${c.firstName || ''} ${c.lastName || ''}`.trim() || undefined],
+                ['کد ملی مالک', c.nationalCode],
+                ['کد اقتصادی', c.economicCode],
+                ['تاریخ تولد مالک', c.birthDate ? formatTaskDate(c.birthDate) : undefined],
+              ]
+            : c.kind === 'COMPANY'
             ? [
                 ['نوع شرکت', c.companyType],
                 ['شناسهٔ ملی', c.nationalId],
@@ -1307,7 +1323,7 @@ const CustomerDetail: React.FC<{
           ['استان / شهر', loc || undefined], ['کد پستی', c.postalCode], ['وب‌سایت', c.website], ['معرف', c.referrer?.name ? `${c.referrer.name}${c.referrer.phone ? ` (${c.referrer.phone})` : ''}` : undefined]];
         const shown = all.filter(([, v]) => v);
         return shown.length === 0 ? null : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
             {shown.map(([k, v]) => (
               <div key={k} className="bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 min-w-0">
                 <div className="text-[10px] font-black text-[#8C6F66]">{k}</div>

@@ -14,7 +14,7 @@ export const fold = (s: unknown): string =>
     .replace(/[‌‏‎]/g, '')
     .toLowerCase();
 
-const KIND_TEXT: Record<string, string> = { PERSON: 'شخص حقیقی', COMPANY: 'شرکت حقوقی' };
+const KIND_TEXT: Record<string, string> = { PERSON: 'شخص حقیقی', COMPANY: 'شرکت حقوقی', SHOP: 'فروشگاه مغازه' };
 const STATUS_TEXT: Record<string, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
 const ACT_TEXT: Record<string, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد استعلام' };
 

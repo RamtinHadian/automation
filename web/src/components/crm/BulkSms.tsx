@@ -20,7 +20,7 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
   const { showToast, staffList } = useAppContext();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<'ALL' | CustomerStatus>('ALL');
-  const [kind, setKind] = useState<'ALL' | 'PERSON' | 'COMPANY'>('ALL');
+  const [kind, setKind] = useState<'ALL' | 'PERSON' | 'COMPANY' | 'SHOP'>('ALL');
   const [tag, setTag] = useState('');
   const [source, setSource] = useState('');
   const [province, setProvince] = useState('');
@@ -118,7 +118,7 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
             <option value="ALL">همهٔ وضعیت‌ها</option>
             {(Object.keys(STATUS) as CustomerStatus[]).map((k) => <option key={k} value={k}>{STATUS[k]}</option>)}
           </select>
-          <select className={sel} value={kind} onChange={(e) => setKind(e.target.value as 'ALL' | 'PERSON' | 'COMPANY')}>
+          <select className={sel} value={kind} onChange={(e) => setKind(e.target.value as 'ALL' | 'PERSON' | 'COMPANY' | 'SHOP')}>
             <option value="ALL">شخص و شرکت</option>
             <option value="PERSON">فقط اشخاص</option>
             <option value="COMPANY">فقط شرکت‌ها</option>

@@ -312,3 +312,51 @@ html.night .brand-word {
 html.night [data-error-popups] > div {
   filter: invert(1) hue-rotate(180deg);
 }
+
+/* ======================= Phones: windows become bottom sheets, fields share one size =======================
+   Every pop-up window of the application is an overlay (.fixed.inset-0.flex) with a white card as its child. On a phone the card is
+   a sheet that rises from the bottom edge and uses the whole width (no floating card with margins), as tall as the screen allows
+   (dvh follows the browser bar) and clear of the home indicator. The centred question window and the reminder window keep their look. */
+@keyframes sheetUp {
+  from { transform: translateY(40px); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+@media (max-width: 639px) {
+  .fixed.inset-0.flex:not([data-confirm-dialog]):not([data-reminder-popup]) {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .fixed.inset-0.flex:not([data-confirm-dialog]):not([data-reminder-popup]) > .bg-white[class*='rounded-'] {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 94dvh !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 1.5rem 1.5rem 0 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: sheetUp 0.22s ease-out;
+  }
+  /* one height for every field of a form (inputs, selects, the chooser buttons), and a finger-sized footer */
+  .fixed.inset-0 .bg-white :is(input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):not([type='color']), select) {
+    min-height: 48px;
+    border-radius: 0.875rem;
+  }
+  .fixed.inset-0 .bg-white [data-person-trigger] {
+    min-height: 48px;
+    border-radius: 0.875rem;
+    background: #faf5f1;
+    font-size: 15px;
+  }
+  .fixed.inset-0 .bg-white [data-modal-footer] {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+  .fixed.inset-0 .bg-white [data-modal-footer] button {
+    min-height: 46px;
+  }
+  /* the body of a window scrolls by itself and does not drag the page behind it */
+  .fixed.inset-0 .bg-white .overflow-y-auto {
+    overscroll-behavior: contain;
+  }
+}

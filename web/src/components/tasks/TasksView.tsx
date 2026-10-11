@@ -65,7 +65,7 @@ export const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string 
   const today = isoToJalaliParts(todayIso())!;
   const [jy, jm, jd] = parts || [today[0], today[1], today[2]];
   const set = (y: number, m: number, d: number) => onChange(jalaliPartsToIso(y, m, Math.min(d, m <= 6 ? 31 : m <= 11 ? 30 : 29)));
-  const sel = 'px-2 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] outline-hidden focus:ring-2 focus:ring-[#6E1B1B]/20 disabled:opacity-60';
+  const sel = 'flex-1 min-w-[68px] px-2 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] outline-hidden focus:ring-2 focus:ring-[#6E1B1B]/20 disabled:opacity-60';
   // by default last year .. six years ahead (due dates); with minYear / maxYear (birth dates) the years run from the newest down to the oldest
   let years: number[];
   if (minYear !== undefined) {
@@ -97,7 +97,7 @@ export const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string 
         ))}
       </select>
       {parts && !disabled && (
-        <button type="button" onClick={() => onChange(undefined)} className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer">
+        <button type="button" onClick={() => onChange(undefined)} className="basis-full sm:basis-auto text-right text-[11px] font-bold text-rose-600 hover:underline cursor-pointer">
           حذف تاریخ
         </button>
       )}
@@ -532,7 +532,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
       <form
         onSubmit={submit}
         onMouseDown={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col border border-[#EBDBCE] text-right"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92dvh] flex flex-col border border-[#EBDBCE] text-right"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#EBDBCE]">
           <h3 className="font-black text-sm text-[#3A241F]">{isNew ? 'تعریف وظیفه جدید' : 'جزئیات وظیفه'}</h3>

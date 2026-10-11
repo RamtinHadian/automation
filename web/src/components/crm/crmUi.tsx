@@ -9,7 +9,7 @@ export const SOURCES = ['معرفی دوستان', 'وب‌سایت', 'تماس 
 
 export const Modal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode; wide?: boolean; onTop?: boolean | 'max' }> = ({ title, onClose, children, footer, wide, onTop }) => (
   <div className={`fixed inset-0 ${onTop === 'max' ? 'z-[300]' : onTop ? 'z-[70]' : 'z-50'} flex items-center justify-center bg-black/50 backdrop-blur-xs p-3`} onMouseDown={onClose}>
-    <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className={`bg-white rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} max-h-[92vh] flex flex-col border border-[#EBDBCE] text-right`}>
+    <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className={`bg-white rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} max-h-[92dvh] flex flex-col border border-[#EBDBCE] text-right`}>
       <div className="flex items-center justify-between px-5 py-4 border-b border-[#EBDBCE]">
         <h3 className="font-black text-sm text-[#3A241F] truncate">{title}</h3>
         <button type="button" onClick={onClose} className="p-1.5 text-[#8C6F66] hover:text-[#3A241F] rounded-xl cursor-pointer">
@@ -17,7 +17,7 @@ export const Modal: React.FC<{ title: string; onClose: () => void; children: Rea
         </button>
       </div>
       <div className="p-5 space-y-4 overflow-y-auto">{children}</div>
-      <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-[#EBDBCE]">{footer}</div>
+      <div data-modal-footer className="flex items-center justify-between gap-2 px-5 py-4 border-t border-[#EBDBCE]">{footer}</div>
     </div>
   </div>
 );

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Landmark, Printer, Phone, Smartphone, Star, Trash2, User as UserIcon, X } from 'lucide-react';
+import { Building2, Landmark, Printer, Phone, Smartphone, Star, Store, Trash2, User as UserIcon, X } from 'lucide-react';
 import { Customer, CustomerStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { isMobileNumber, normPhone, normText } from '../../lib/customerImport';
@@ -128,12 +128,13 @@ export const CustomerForm: React.FC<{
   const [tagDraft, setTagDraft] = useState('');
   const patch = (u: Partial<Customer>) => setC((p) => ({ ...p, ...u }));
   const isCompany = c.kind === 'COMPANY';
+  const isShop = c.kind === 'SHOP';
 
   const mobiles = c.phones.filter(isMobile);
   const landlines = c.phones.filter((p) => !isMobile(p));
   const setNumbers = (m: string[], l: string[]) => patch({ phones: [...new Set([...m, ...l])] });
 
-  const displayName = isCompany ? (c.company || '').trim() : `${c.firstName || ''} ${c.lastName || ''}`.trim();
+  const displayName = isCompany || isShop ? (c.company || '').trim() : `${c.firstName || ''} ${c.lastName || ''}`.trim();
   const nationalCodeBad = !isCompany && !!c.nationalCode && !validNationalCode(digits(c.nationalCode));
   const nationalIdBad = isCompany && !!c.nationalId && digits(c.nationalId).length !== 11;
   const economicBad = !!c.economicCode && digits(c.economicCode).length !== 12;
@@ -162,7 +163,9 @@ export const CustomerForm: React.FC<{
     const out: Customer = {
       ...c,
       name: displayName,
-      company: isCompany ? displayName : (c.company || '').trim(),
+      company: isCompany || isShop ? displayName : (c.company || '').trim(),
+      shopType: isShop ? (c.shopType || '').trim() || undefined : undefined,
+      licenseNumber: isShop ? (c.licenseNumber || '').trim() || undefined : undefined,
       firstName: isCompany ? undefined : (c.firstName || '').trim(),
       lastName: isCompany ? undefined : (c.lastName || '').trim(),
       nationalCode: digits(c.nationalCode || '') || undefined,
@@ -180,11 +183,11 @@ export const CustomerForm: React.FC<{
     onSave(out);
   };
 
-  const typeBtn = (k: 'PERSON' | 'COMPANY', text: string, Icon: React.ElementType) => (
+  const typeBtn = (k: 'PERSON' | 'COMPANY' | 'SHOP', text: string, Icon: React.ElementType) => (
     <button
       type="button"
       onClick={() => patch({ kind: k })}
-      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black cursor-pointer border transition-colors ${
+      className={`flex-1 min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 px-1 rounded-xl text-[11px] sm:text-xs leading-4 text-center font-black cursor-pointer border transition-colors ${
         c.kind === k ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-violet-50'
       }`}
     >
@@ -226,9 +229,60 @@ export const CustomerForm: React.FC<{
         <div className="flex gap-2">
           {typeBtn('PERSON', 'شخص حقیقی', UserIcon)}
           {typeBtn('COMPANY', 'شرکت / شخص حقوقی', Building2)}
+          {typeBtn('SHOP', 'فروشگاه / مغازه', Store)}
         </div>
 
-        {!isCompany ? (
+        {isShop ? (
+          <>
+            <Section title="مشخصات فروشگاه">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2">
+                  <label className={label}>نام فروشگاه *</label>
+                  <input className={field} value={c.company || ''} onChange={(e) => patch({ company: e.target.value })} autoFocus={isNew} placeholder="مثلاً لوازم یدکی نمونه" data-shop-name />
+                </div>
+                <div>
+                  <label className={label}>نوع فعالیت / صنف</label>
+                  <input className={field} list="crm-shop-types" value={c.shopType || ''} onChange={(e) => patch({ shopType: e.target.value })} placeholder="مثلاً لوازم یدکی" />
+                  <datalist id="crm-shop-types">
+                    {[...new Set(customers.map((x) => (x.shopType || '').trim()).filter(Boolean))].map((x) => (
+                      <option key={x} value={x} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="sm:col-span-3 sm:max-w-sm">
+                  <label className={label}>شمارهٔ پروانهٔ کسب / شناسهٔ صنفی</label>
+                  <input className={field} dir="ltr" value={c.licenseNumber || ''} onChange={(e) => patch({ licenseNumber: e.target.value })} />
+                </div>
+              </div>
+            </Section>
+            <Section title="مالک یا مسئول فروشگاه">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className={label}>نام</label>
+                  <input className={field} value={c.firstName || ''} onChange={(e) => patch({ firstName: e.target.value })} />
+                </div>
+                <div>
+                  <label className={label}>نام خانوادگی</label>
+                  <input className={field} value={c.lastName || ''} onChange={(e) => patch({ lastName: e.target.value })} />
+                </div>
+                <div>
+                  <label className={label}>کد ملی مالک</label>
+                  <input className={field} dir="ltr" inputMode="numeric" maxLength={10} value={c.nationalCode || ''} onChange={(e) => patch({ nationalCode: e.target.value })} />
+                  {hint(nationalCodeBad, 'کد ملی معتبر نیست.')}
+                </div>
+                <div>
+                  <label className={label}>کد اقتصادی (اگر دارد)</label>
+                  <input className={field} dir="ltr" inputMode="numeric" maxLength={12} value={c.economicCode || ''} onChange={(e) => patch({ economicCode: e.target.value })} />
+                  {hint(economicBad, 'کد اقتصادی باید ۱۲ رقم باشد.')}
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={label}>تاریخ تولد مالک</label>
+                  <JalaliDateField value={c.birthDate} minYear={1300} onChange={(v) => patch({ birthDate: v })} />
+                </div>
+              </div>
+            </Section>
+          </>
+        ) : !isCompany ? (
           <Section title="مشخصات شخص">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
