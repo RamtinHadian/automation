@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BookUser, Copy, Download, PhoneCall, Printer, Search, Smartphone, Phone, Star } from 'lucide-react';
+import { BookUser, Check, Copy, Download, PhoneCall, Printer, Search, Smartphone, Phone, Star } from 'lucide-react';
 import { Customer } from '../../types';
 import { fold } from '../../lib/customerSearch';
 import { downloadCsv } from '../../lib/csv';
@@ -75,12 +75,12 @@ export const PhoneBook: React.FC<{ customers: Customer[]; canCall: boolean; onCa
         ))}
       </div>
       {shown.length === 0 ? (
-        <div className="text-center text-xs font-bold text-gray-400 py-12 border border-dashed border-[#EBDBCE] rounded-2xl">
+        <div className="h-[52vh] flex flex-col items-center justify-center text-center text-xs font-bold text-gray-400 border border-dashed border-[#EBDBCE] rounded-2xl">
           <BookUser className="w-8 h-8 mx-auto mb-2 opacity-40" />
           شماره‌ای پیدا نشد.
         </div>
       ) : (
-        <div className="border border-[#EBDBCE] rounded-2xl overflow-hidden divide-y divide-[#F3E8DF] max-h-[52vh] overflow-y-auto bg-white">
+        <div className="border border-[#EBDBCE] rounded-2xl overflow-hidden divide-y divide-[#F3E8DF] h-[52vh] overflow-y-auto bg-white">
           {shown.slice(0, 600).map((r) => {
             const letter = (r.customer.name.trim()[0] || '').toUpperCase();
             const head = letter !== lastLetter ? ((lastLetter = letter), letter) : '';
@@ -98,11 +98,11 @@ export const PhoneBook: React.FC<{ customers: Customer[]; canCall: boolean; onCa
                   </button>
                   <span className={`shrink-0 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border ${K.cls}`}><K.icon className="w-3 h-3" />{K.label}</span>
                   <span className="shrink-0 text-xs font-black text-[#3A241F]" dir="ltr">{toPersianDigits(r.number)}</span>
-                  <button type="button" onClick={() => copy(r.number)} title="کپی شماره" className="shrink-0 p-1.5 rounded-lg text-[#8C6F66] hover:bg-[#FAF5F1] cursor-pointer">
-                    {copied === r.number ? <span className="text-[10px] font-black text-emerald-700">کپی شد</span> : <Copy className="w-4 h-4" />}
+                  <button type="button" onClick={() => copy(r.number)} title="کپی شماره" className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[#8C6F66] hover:bg-[#FAF5F1] cursor-pointer">
+                    {copied === r.number ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                   </button>
                   {canCall && r.kind !== 'fax' && (
-                    <button type="button" onClick={() => onCall(r.number, r.customer.name)} title="تماس با یک کلیک" className="shrink-0 p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-50 cursor-pointer">
+                    <button type="button" onClick={() => onCall(r.number, r.customer.name)} title="تماس با یک کلیک" className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-emerald-700 hover:bg-emerald-50 cursor-pointer">
                       <PhoneCall className="w-4 h-4" />
                     </button>
                   )}
