@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Check, CornerDownLeft, Lock, Search, ShieldCheck } from 'lucide-react';
+import { Check, Lock, Search, ShieldCheck } from 'lucide-react';
 import { Department, User } from '../../types';
 import { COLUMNS, Column, MENUS, colOn, colPatch, colPatchMany, isAdminUser } from '../../lib/permissions';
 import { toPersianDigits } from '../../lib/jalali';
@@ -80,98 +80,154 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
         <span className="flex items-center gap-1"><span className="w-4 h-4 rounded-md border-2 border-[#D9C7BC] inline-block" />بسته است</span>
         <span className="flex items-center gap-1"><span className="w-4 h-4 rounded-md bg-[#6E1B1B]/30 inline-flex items-center justify-center"><Check className="w-3 h-3 text-white" /></span>خود منو بسته است؛ زیرمنو دیده نمی‌شود</span>
         <span className="flex items-center gap-1"><Lock className="w-3.5 h-3.5" />مدیران همه‌چیز را دارند</span>
-        <span>ستون‌ها: اول خود منو، بعد زیرمنوهایش. با کلیک روی نام ستون برای همه تیک زده یا برداشته می‌شود.</span>
+        <span>ستون‌ها: اول خود منو، بعد زیرمنوهایش (↳). با کلیک روی نام ستون برای همه تیک زده یا برداشته می‌شود.</span>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#EBDBCE] overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="text-right text-xs border-collapse" style={{ minWidth: 260 + COLUMNS.length * 86 }}>
-            <thead>
-              <tr>
-                <th rowSpan={2} className="sticky right-0 z-20 bg-[#FAF5F1] border-b border-l border-[#EBDBCE] py-3 px-4 text-[11px] font-black text-[#8C6F66] min-w-[190px]">کارمند</th>
-                {menuCols.map(({ m, cols }) => (
-                  <th key={m.id} colSpan={cols.length} className="border-b border-l-2 border-white/60 py-2 px-2 text-center text-[11px] font-black text-white" style={{ background: m.tone }}>
-                    {m.title}
+      {/* wide screens: one table that fits the page (no sideways scrolling): the column titles stand upright */}
+      <div className="hidden md:block bg-white rounded-2xl border border-[#EBDBCE] overflow-hidden shadow-xs">
+        <table className="w-full table-fixed text-right text-xs border-collapse">
+          <colgroup>
+            <col style={{ width: 168 }} />
+            {COLUMNS.map((c) => (
+              <col key={c.id} />
+            ))}
+            <col style={{ width: 92 }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th rowSpan={2} className="bg-[#FAF5F1] border-b border-l border-[#EBDBCE] py-3 px-3 text-[11px] font-black text-[#8C6F66]">کارمند</th>
+              {menuCols.map(({ m, cols }) => (
+                <th key={m.id} colSpan={cols.length} className="border-b border-l-2 border-white/60 py-2 px-1 text-center text-[10px] font-black text-white leading-4" style={{ background: m.tone }}>
+                  {m.title}
+                </th>
+              ))}
+              <th rowSpan={2} className="bg-[#FAF5F1] border-b border-[#EBDBCE] py-3 px-1 text-[11px] font-black text-[#8C6F66]">همه / هیچ</th>
+            </tr>
+            <tr className="bg-[#FAF5F1]">
+              {menuCols.flatMap(({ m, cols }) =>
+                cols.map((c, i) => (
+                  <th key={c.id} className={`border-b border-[#EBDBCE] px-0 pt-2 pb-1 text-center align-bottom ${i === 0 ? 'border-r-2 border-r-white' : 'border-l border-l-[#F3E8DF]'}`} style={{ background: c.isMain ? `${m.tone}14` : undefined }}>
+                    <button type="button" title={c.hint} onClick={() => colAll(c)} className="mx-auto block h-[112px] text-[10.5px] font-black leading-4 cursor-pointer hover:underline whitespace-nowrap" style={{ color: m.tone, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                      {c.isMain ? '' : '↳ '}
+                      {c.label}
+                    </button>
+                    <div className="text-[9px] font-bold text-[#B8A39C] pb-1" title="چند نفر دارند">{toPersianDigits(people.filter((u) => colOn(u, c)).length)}</div>
                   </th>
-                ))}
-                <th rowSpan={2} className="bg-[#FAF5F1] border-b border-[#EBDBCE] py-3 px-3 text-[11px] font-black text-[#8C6F66] whitespace-nowrap">همه / هیچ</th>
-              </tr>
-              <tr className="bg-[#FAF5F1]">
-                {menuCols.flatMap(({ m, cols }) =>
-                  cols.map((c, i) => (
-                    <th key={c.id} className={`border-b border-[#EBDBCE] px-1.5 py-2 text-center align-bottom w-[86px] ${i === 0 ? 'border-r-2 border-r-white' : 'border-l border-l-[#F3E8DF]'}`} style={{ background: c.isMain ? `${m.tone}14` : undefined }}>
-                      <button type="button" title={c.hint} onClick={() => colAll(c)} className="text-[10.5px] font-black leading-4 cursor-pointer hover:underline" style={{ color: m.tone }}>
-                        {!c.isMain && <CornerDownLeft className="w-3 h-3 inline-block ml-0.5 opacity-60" />}
-                        {c.label}
-                      </button>
-                      <div className="text-[9px] font-bold text-[#B8A39C] mt-0.5">{toPersianDigits(people.filter((u) => colOn(u, c)).length)} از {toPersianDigits(people.length)}</div>
-                    </th>
-                  )),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((u) => {
-                const admin = isAdminUser(u);
-                const given = COLUMNS.filter((c) => colOn(u, c)).length;
-                return (
-                  <tr key={u.id} className="border-b border-[#F3E8DF] last:border-0 hover:bg-[#FFFBF8]">
-                    <td className="sticky right-0 z-10 bg-white border-l border-[#EBDBCE] py-2.5 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-[11px] font-black text-white shrink-0 ${admin ? 'bg-[#6E1B1B]' : 'bg-[#8C6F66]'}`}>{(u.fullName || '؟').trim().slice(0, 1)}</span>
-                        <span className="min-w-0">
-                          <span className="block text-xs font-black text-[#3A241F] truncate max-w-[140px]">{u.fullName}</span>
-                          <span className="block text-[10px] font-bold text-[#8C6F66] truncate max-w-[140px]">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</span>
+                )),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((u) => {
+              const admin = isAdminUser(u);
+              const given = COLUMNS.filter((c) => colOn(u, c)).length;
+              return (
+                <tr key={u.id} className="border-b border-[#F3E8DF] last:border-0 hover:bg-[#FFFBF8]">
+                  <td className="bg-white border-l border-[#EBDBCE] py-2 px-3">
+                    <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
+                    <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</span>
+                  </td>
+                  {COLUMNS.map((c) => {
+                    const tone = toneOf(c.menuId);
+                    const on = admin || colOn(u, c);
+                    const dim = !admin && !c.isMain && !menuOpen(u, c.menuId);
+                    return (
+                      <td key={c.id} className="border-l border-[#F3E8DF] text-center py-1.5 px-0">
+                        {admin ? (
+                          <span title="مدیران همه‌چیز را دارند" className="inline-flex w-5 h-5 rounded-md items-center justify-center opacity-40" style={{ background: tone }}>
+                            <Check className="w-3.5 h-3.5 text-white" />
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={on}
+                            aria-label={`${c.label} برای ${u.fullName}`}
+                            title={dim ? 'خود منو برای این کارمند بسته است' : `${c.label}: ${u.fullName}`}
+                            onClick={() => toggle(u, c)}
+                            className={`inline-flex w-5 h-5 rounded-md items-center justify-center cursor-pointer transition-all active:scale-90 border-2 ${dim ? 'opacity-45' : ''}`}
+                            style={on ? { background: tone, borderColor: tone } : { background: '#fff', borderColor: '#D9C7BC' }}
+                            data-perm={c.id}
+                            data-user={u.id}
+                          >
+                            {on && <Check className="w-3.5 h-3.5 text-white" />}
+                          </button>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="py-1.5 px-1 text-center">
+                    {admin ? (
+                      <ShieldCheck className="w-4 h-4 text-[#6E1B1B] inline" />
+                    ) : (
+                      <span className="inline-flex flex-col items-center gap-0.5">
+                        <span className="inline-flex gap-1">
+                          <button type="button" onClick={() => rowAll(u, true)} className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
+                          <button type="button" onClick={() => rowAll(u, false)} className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-white text-[#8C6F66] border border-[#EBDBCE] cursor-pointer">هیچ</button>
                         </span>
-                      </div>
-                    </td>
-                    {COLUMNS.map((c) => {
-                      const tone = toneOf(c.menuId);
-                      const on = admin || colOn(u, c);
-                      const dim = !admin && !c.isMain && !menuOpen(u, c.menuId);
-                      return (
-                        <td key={c.id} className="border-l border-[#F3E8DF] text-center py-2">
-                          {admin ? (
-                            <span title="مدیران همه‌چیز را دارند" className="inline-flex w-6 h-6 rounded-lg items-center justify-center opacity-40" style={{ background: tone }}>
-                              <Check className="w-4 h-4 text-white" />
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              role="checkbox"
-                              aria-checked={on}
-                              aria-label={`${c.label} برای ${u.fullName}`}
-                              title={dim ? 'خود منو برای این کارمند بسته است' : undefined}
-                              onClick={() => toggle(u, c)}
-                              className={`inline-flex w-7 h-7 rounded-lg items-center justify-center cursor-pointer transition-all active:scale-90 border-2 ${dim ? 'opacity-45' : ''}`}
-                              style={on ? { background: tone, borderColor: tone } : { background: '#fff', borderColor: '#D9C7BC' }}
-                              data-perm={c.id}
-                              data-user={u.id}
-                            >
-                              {on && <Check className="w-4 h-4 text-white" />}
-                            </button>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="py-2 px-3 text-center whitespace-nowrap">
-                      {admin ? (
-                        <ShieldCheck className="w-4 h-4 text-[#6E1B1B] inline" />
-                      ) : (
-                        <span className="inline-flex items-center gap-1">
-                          <button type="button" onClick={() => rowAll(u, true)} className="px-2 py-1 rounded-lg text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
-                          <button type="button" onClick={() => rowAll(u, false)} className="px-2 py-1 rounded-lg text-[10px] font-black bg-white text-[#8C6F66] border border-[#EBDBCE] cursor-pointer">هیچ</button>
-                          <span className="text-[10px] font-bold text-[#B8A39C] w-10 text-left">{toPersianDigits(given)}/{toPersianDigits(COLUMNS.length)}</span>
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        <span className="text-[9px] font-bold text-[#B8A39C]">{toPersianDigits(given)}/{toPersianDigits(COLUMNS.length)}</span>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
         {rows.length === 0 && <div className="text-center text-xs font-bold text-gray-400 py-12">کارمندی پیدا نشد.</div>}
+      </div>
+
+      {/* phones: a card per employee, the menus one under the other, no sideways scrolling either */}
+      <div className="md:hidden space-y-3">
+        {rows.length === 0 && <div className="text-center text-xs font-bold text-gray-400 py-12 bg-white border border-[#EBDBCE] rounded-2xl">کارمندی پیدا نشد.</div>}
+        {rows.map((u) => {
+          const admin = isAdminUser(u);
+          return (
+            <div key={u.id} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 space-y-3">
+              <div className="flex items-center gap-2.5">
+                <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white shrink-0 ${admin ? 'bg-[#6E1B1B]' : 'bg-[#8C6F66]'}`}>{(u.fullName || '؟').trim().slice(0, 1)}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-black text-[#3A241F] truncate">{u.fullName}</div>
+                  <div className="text-[11px] font-bold text-[#8C6F66] truncate">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</div>
+                </div>
+                {admin ? (
+                  <span className="flex items-center gap-1 text-[11px] font-black text-[#6E1B1B]"><ShieldCheck className="w-4 h-4" />همه‌چیز</span>
+                ) : (
+                  <span className="flex gap-1.5">
+                    <button type="button" onClick={() => rowAll(u, true)} className="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
+                    <button type="button" onClick={() => rowAll(u, false)} className="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-white text-[#8C6F66] border border-[#EBDBCE] cursor-pointer">هیچ</button>
+                  </span>
+                )}
+              </div>
+              {!admin &&
+                menuCols.map(({ m, cols }) => (
+                  <div key={m.id} className="space-y-1.5">
+                    <div className="text-[11px] font-black" style={{ color: m.tone }}>{m.title}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cols.map((c) => {
+                        const on = colOn(u, c);
+                        const dim = !c.isMain && !menuOpen(u, c.menuId);
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={on}
+                            onClick={() => toggle(u, c)}
+                            className={`flex items-center gap-1.5 px-2.5 py-2 min-h-[40px] rounded-xl border text-[11px] font-black cursor-pointer ${dim ? 'opacity-50' : ''}`}
+                            style={on ? { background: m.tone, borderColor: m.tone, color: '#fff' } : { background: '#fff', borderColor: '#D9C7BC', color: '#6B5650' }}
+                          >
+                            {on && <Check className="w-3.5 h-3.5" />}
+                            {c.isMain ? 'ورود به منو' : c.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          );
+        })}
       </div>
       <p className="text-[11px] leading-6 text-[#8C6F66]">
         «مدیرعامل / صاحب امضای مجاز» فقط یک نفر است و از «ویرایش کاربر» تعیین می‌شود. هر تیک همان لحظه ذخیره می‌شود و کارمند از تغییر مجوزهایش با یک اعلان باخبر می‌شود. هر منو یا زیرمنوی تازه‌ای که به سامانه اضافه شود، یک ستون در همین جدول می‌گیرد.
