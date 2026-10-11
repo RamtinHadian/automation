@@ -59,6 +59,7 @@ import { CrmReports } from './CrmReports';
 import { QuoteForm } from './QuoteForm';
 import { CustomerSummaryStrip } from './CustomerSummary';
 import { buildCustomerIndex, matchesQuery } from '../../lib/customerSearch';
+import { canSub } from '../../lib/permissions';
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -311,7 +312,13 @@ export const CrmView: React.FC = () => {
   const smsTab = ['sms', 'پیامک گروهی', MessageSquare] as const;
   // the CEO also has «پیش‌فاکتورهای ارسالی»: what waits for the signature and what was signed
   const withSms = smsEnabled ? ([...baseTabs, smsTab] as const) : baseTabs;
-  const tabs = isAnyApprover(currentUser, settings) ? ([...withSms, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : withSms;
+  const allTabs = isAnyApprover(currentUser, settings) ? ([...withSms, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : withSms;
+  // the sub-menus the administrator switched off for this person are not drawn (sms and proformas have their own rights)
+  const tabs = allTabs.filter(([id]) => id === 'sms' || id === 'proformas' || canSub(currentUser, 'crm.' + id));
+  useEffect(() => {
+    if (!tabs.some(([id]) => id === tab) && tabs[0]) setTab(tabs[0][0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.hiddenSub]);
 
   const customerCard = (c: Customer) => {
     const st = STATUS[c.status];
@@ -453,21 +460,21 @@ export const CrmView: React.FC = () => {
           <p className="text-xs text-[#8C6F66] mt-0.5">مشتری‌ها، فرصت‌های فروش و پیگیری‌ها؛ همه در یک‌جا.</p>
         </div>
         <div className="grid grid-cols-2 sm:flex gap-2">
-          <button
+          {canSub(currentUser, 'crm.phonebook') && <button
             onClick={() => setPhoneBook(true)}
             className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-sky-200 text-sky-700 hover:bg-sky-50 text-xs font-black cursor-pointer"
             data-phonebook-btn
           >
             <BookUser className="w-4 h-4" />
             دفتر تلفن
-          </button>
-          <button
+          </button>}
+          {canSub(currentUser, 'crm.import') && <button
             onClick={() => setImporting(true)}
             className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4" />
             ورود از اکسل
-          </button>
+          </button>}
           <button
             onClick={() => setEditingDeal({ deal: newDeal(), isNew: true })}
             className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 text-xs font-black cursor-pointer"
@@ -475,13 +482,13 @@ export const CrmView: React.FC = () => {
             <Briefcase className="w-4 h-4" />
             فرصت جدید
           </button>
-          <button
+          {canSub(currentUser, 'crm.proforma') && <button
             onClick={() => setQuickProforma(true)}
             className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
           >
             <FileText className="w-4 h-4" />
             صدور پیش‌فاکتور
-          </button>
+          </button>}
           <button
             onClick={() => setEditingCustomer(newCustomer())}
             className="order-first sm:order-none col-span-2 sm:col-span-1 flex items-center justify-center gap-2 px-5 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/25 transition-all active:scale-95 cursor-pointer"

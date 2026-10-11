@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Ban, Download, FileText, Package, Plus, Search, Warehouse as WarehouseIcon, X } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
+import { canSub } from '../../lib/permissions';
 import { api, WhCard, WhDoc, WhKind, WhProduct, WhState, WhWarehouse } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -53,12 +54,14 @@ export const WarehouseView: React.FC = () => {
 
   const sepidar = st.mode === 'sepidar';
   const low = st.products.filter((p) => (p.minQty || 0) > 0 && p.total < (p.minQty || 0));
-  const tabs: [Tab, string][] = [
+  const tabs = ([
     ['stock', 'موجودی'],
     ['docs', 'اسناد'],
     ['products', 'کالاها'],
     ['warehouses', 'انبارها'],
-  ];
+  ] as [Tab, string][]).filter(([k]) => canSub(currentUser, 'warehouse.' + k));
+  const shownTab: Tab | null = tabs.some(([k]) => k === tab) ? tab : tabs[0]?.[0] ?? null;
+  const mayWrite = canSub(currentUser, 'warehouse.write');
 
   const setMode = async (mode: 'standalone' | 'sepidar') => {
     if (!(await askConfirm(mode === 'standalone' ? 'موجودی از این پس در خود هورمند نگهداری شود و سندها را همین‌جا ثبت کنید؟' : 'حالت «متصل به سپیدار» فعال شود؟ ثبت دستی سند بسته می‌شود.', { tone: 'warning', title: 'حالت انبار عوض شود؟', confirmText: 'بله، عوض شود' }))) return;
@@ -114,7 +117,7 @@ export const WarehouseView: React.FC = () => {
             </button>
           ))}
         </div>
-        {!sepidar && (
+        {!sepidar && mayWrite && (
           <div className="mr-auto flex flex-wrap gap-1.5">
             {(Object.keys(KIND_LABEL) as WhKind[]).map((k) => (
               <button key={k} type="button" onClick={() => setDocForm(k)} className={`px-3 py-2 min-h-[40px] rounded-xl text-[11px] font-black border cursor-pointer ${KIND_COLOR[k]}`}>
@@ -125,10 +128,10 @@ export const WarehouseView: React.FC = () => {
         )}
       </div>
 
-      {tab === 'stock' && <StockTab st={st} onCard={setCardOf} />}
-      {tab === 'docs' && <DocsTab st={st} onOpen={setDocOpen} />}
-      {tab === 'products' && <ProductsTab st={st} sepidar={sepidar} onEdit={setProdEdit} onCard={setCardOf} />}
-      {tab === 'warehouses' && <WarehousesTab st={st} sepidar={sepidar} onEdit={setWhEdit} />}
+      {shownTab === 'stock' && <StockTab st={st} onCard={setCardOf} />}
+      {shownTab === 'docs' && <DocsTab st={st} onOpen={setDocOpen} />}
+      {shownTab === 'products' && <ProductsTab st={st} sepidar={sepidar} onEdit={setProdEdit} onCard={setCardOf} />}
+      {shownTab === 'warehouses' && <WarehousesTab st={st} sepidar={sepidar} onEdit={setWhEdit} />}
 
       {docForm && (
         <DocForm

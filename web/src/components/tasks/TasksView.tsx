@@ -1,6 +1,7 @@
 import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import React, { useEffect, useMemo, useState } from 'react';
 import { askConfirm } from '../../lib/confirmDialog';
+import { canSub } from '../../lib/permissions';
 import {
   Plus,
   Search,
@@ -713,6 +714,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
 
 /** Tasks area: the task board and the daily report system, switched by tabs. */
 export const TasksView: React.FC = () => {
+  const { currentUser: me } = useAppContext();
   const [tab, setTab] = useState<'tasks' | 'reports'>(() => {
     try {
       return sessionStorage.getItem('tasks_subtab') === 'reports' ? 'reports' : 'tasks';
@@ -741,7 +743,7 @@ export const TasksView: React.FC = () => {
           {([
             ['tasks', 'وظایف', ListChecks],
             ['reports', 'گزارش روزانه', FileText],
-          ] as const).map(([id, label, Icon]) => (
+          ] as const).filter(([id]) => canSub(me, id === 'tasks' ? 'tasks.list' : 'tasks.reports')).map(([id, label, Icon]) => (
             <button
               key={id}
               type="button"
@@ -756,7 +758,7 @@ export const TasksView: React.FC = () => {
           ))}
         </div>
       </div>
-      {tab === 'tasks' ? <TasksBoard /> : <DailyReportsView />}
+      {tab === 'tasks' && canSub(me, 'tasks.list') ? <TasksBoard /> : tab === 'reports' && canSub(me, 'tasks.reports') ? <DailyReportsView /> : canSub(me, 'tasks.list') ? <TasksBoard /> : canSub(me, 'tasks.reports') ? <DailyReportsView /> : <div className="p-10 text-center text-xs font-bold text-[#8C6F66]">دسترسی شما به زیرمنوهای این بخش بسته است؛ از مدیر بخواهید در «جدول مجوزها» باز کند.</div>}
     </div>
   );
 };

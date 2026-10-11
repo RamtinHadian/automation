@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DayNightToggle } from '../components/common/DayNightToggle';
 import { askConfirm } from '../lib/confirmDialog';
+import { canSub } from '../lib/permissions';
 import { ManagementReports } from '../components/admin/ManagementReports';
 import { VersionBadge } from '../components/common/VersionBadge';
 import { ChatView } from '../components/chat/ChatView';
@@ -330,6 +331,14 @@ export default function UserPanel() {
   useEffect(() => {
     if (!canAccessSepidarMenu && mainMenuTab === 'sepidar') setMainMenuTab('files');
   }, [canAccessSepidarMenu, mainMenuTab]);
+  useEffect(() => {
+    const order = ['files', 'chat', 'leave', 'board', 'reminders'] as const;
+    const sub = (id: string) => 'files.' + (id === 'files' ? 'transfer' : id);
+    if (!canSub(currentUser, sub(filesSection))) {
+      const first = order.find((id) => canSub(currentUser, sub(id)));
+      if (first) setFilesSection(first);
+    }
+  }, [currentUser, filesSection]);
   const canAccessWarehouseMenu = Boolean(currentUser.canUseWarehouse === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
   useEffect(() => {
     if (!canAccessWarehouseMenu && mainMenuTab === 'warehouse') setMainMenuTab('files');
@@ -908,7 +917,7 @@ export default function UserPanel() {
             )}
 
             {/* Menu: گارانتی */}
-            {canAccessWarrantyMenu && (
+            {canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty') && (
               <button
                 onClick={() => openMenu('warranty')}
                 className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
@@ -928,7 +937,7 @@ export default function UserPanel() {
             )}
 
             {/* Menu: پشتیبانی */}
-            {canAccessWarrantyMenu && (
+            {canAccessWarrantyMenu && canSub(currentUser, 'warranty.support') && (
               <button
                 onClick={() => openMenu('support')}
                 className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
@@ -1039,7 +1048,7 @@ export default function UserPanel() {
         {mainMenuTab === 'files' && (
           <div className="flex-1 flex flex-col">
             <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 px-4 sm:px-6 pt-4 pb-2">
-              {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing]] as const).map(([id, label, Icon]) => (
+              {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => (
                 <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative shrink-0 whitespace-nowrap min-h-[44px] sm:min-h-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
                   <Icon className="w-4 h-4" />
                   {label}
@@ -1448,10 +1457,10 @@ export default function UserPanel() {
         {/* ========================================================================= */}
         {mainMenuTab === 'tasks' && canAccessTasksMenu && <TasksView />}
         {mainMenuTab === 'crm' && canAccessCrmMenu && <CrmView />}
-        {mainMenuTab === 'warranty' && canAccessWarrantyMenu && <WarrantyView />}
+        {mainMenuTab === 'warranty' && canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty') && <WarrantyView />}
         {mainMenuTab === 'warehouse' && canAccessWarehouseMenu && <WarehouseView />}
         {mainMenuTab === 'sepidar' && canAccessSepidarMenu && <SepidarView />}
-        {mainMenuTab === 'support' && canAccessWarrantyMenu && <SupportView />}
+        {mainMenuTab === 'support' && canAccessWarrantyMenu && canSub(currentUser, 'warranty.support') && <SupportView />}
         {mainMenuTab === 'stats' && canAccessStatsMenu && (
           <div className="p-3 sm:p-6">
             <ManagementReports remote />
@@ -2233,7 +2242,7 @@ export default function UserPanel() {
         )}
 
         {/* Tab: گارانتی */}
-        {canAccessWarrantyMenu && (
+        {canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty') && (
           <button
             type="button"
             onClick={() => openMenu('warranty')}
@@ -2254,7 +2263,7 @@ export default function UserPanel() {
         )}
 
         {/* Tab: پشتیبانی */}
-        {canAccessWarrantyMenu && (
+        {canAccessWarrantyMenu && canSub(currentUser, 'warranty.support') && (
           <button
             type="button"
             onClick={() => openMenu('support')}

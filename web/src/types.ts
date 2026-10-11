@@ -36,6 +36,8 @@ export interface User {
   canUseWarehouse?: boolean;
   /** what the person may ask of the accounting program (Sepidar): view, customer, quotation, invoice, receipt */
   sepidarPerms?: string[];
+  /** sub-menus the administrator switched off for this person (see lib/permissions.ts); everything else of the menus they may enter is open */
+  hiddenSub?: string[];
   /** Access to the management statistics page (admins always have it). */
   canViewStats?: boolean;
   /** May publish on the bulletin board (admins always may). */
