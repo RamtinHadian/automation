@@ -192,7 +192,7 @@ func svg(s string) string {
 
 var (
 	logoSVG  = brandLogo()
-	stampSVG = svg(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><circle cx="100" cy="100" r="88" fill="none" stroke="#1D4ED8" stroke-width="6"/><circle cx="100" cy="100" r="70" fill="none" stroke="#1D4ED8" stroke-width="2"/><text x="100" y="95" font-size="22" text-anchor="middle" fill="#1D4ED8" font-family="Tahoma">هورمند</text><text x="100" y="125" font-size="16" text-anchor="middle" fill="#1D4ED8" font-family="Tahoma">مهر رسمی</text></svg>`)
+	stampSVG = svg(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><circle cx="100" cy="100" r="88" fill="none" stroke="#1D4ED8" stroke-width="6"/><circle cx="100" cy="100" r="70" fill="none" stroke="#1D4ED8" stroke-width="2"/><text x="100" y="82" font-size="17" text-anchor="middle" fill="#1D4ED8" font-family="Tahoma">داده پرداز</text><text x="100" y="106" font-size="22" text-anchor="middle" fill="#1D4ED8" font-family="Tahoma">هورمند</text><text x="100" y="134" font-size="15" text-anchor="middle" fill="#1D4ED8" font-family="Tahoma">مهر رسمی</text></svg>`)
 	signSVG  = svg(`<svg xmlns="http://www.w3.org/2000/svg" width="260" height="110" viewBox="0 0 260 110"><path d="M10 80 C40 10 70 110 100 50 S150 20 170 70 S220 90 250 30" fill="none" stroke="#0B2A6F" stroke-width="4" stroke-linecap="round"/><path d="M30 95 L230 88" stroke="#0B2A6F" stroke-width="2.5" stroke-linecap="round"/></svg>`)
 )
 
@@ -251,11 +251,11 @@ func Reset(ctx context.Context) error {
 		}
 	}
 	settings := jsonx.M{
-		"companyName": "هورمند", "companySubtitle": "سامانه اتوماسیون اداری و بازرگانی",
+		"companyName": "داده پرداز هورمند", "companySubtitle": "سامانه اتوماسیون اداری و بازرگانی",
 		"systemTitle": "سامانه اتوماسیون اداری", "companyLogoUrl": logoSVG, "companyStampUrl": stampSVG, "ceoSignatureUrl": signSVG,
 		"ceoName": by["demo-ceo"].Name, "ceoTitle": "مدیرعامل",
 		"companyAddress": "تهران، خیابان ولیعصر، پلاک ۱۲۳", "companyPhone": "۰۲۱-۱۲۳۴۵۶۷۸", "companyWebsite": "www.example.ir",
-		"proformaCompanyName": "هورمند", "proformaBankInfo": "شمارهٔ شبا: IR000000000000000000000000",
+		"proformaCompanyName": "داده پرداز هورمند", "proformaBankInfo": "شمارهٔ شبا: IR000000000000000000000000",
 	}
 	if err := exec(ctx, `INSERT INTO settings (key, data) VALUES ('main', $1::jsonb)`, jsonx.Encode(settings)); err != nil {
 		return err
