@@ -732,7 +732,7 @@ export const CrmView: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3 items-start">
             {STAGES.map((s) => {
-              const list = deals.filter((d) => d.stage === s.id);
+              const list = deals.filter((d) => d.stage === s.id).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); // oldest first: the newest opportunity is at the bottom
               return (
                 <div
                   key={s.id}
