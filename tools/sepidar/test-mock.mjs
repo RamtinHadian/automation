@@ -76,6 +76,8 @@ const sepidarServer = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url === '/api/BankAccounts') return send(res, 200, [{ BankAccountID: 9, DlCode: '1', DlTitle: 'حساب ملت', CurrencyRef: 1 }]);
   if (req.method === 'GET' && url === '/api/Customers') return send(res, 200, sp.customers.map((c) => ({ ...c, Remainder: 1234, Title: c.Name })));
   if (req.method === 'GET' && url === '/api/PriceNoteItems') return send(res, 200, [{ SaleTypeRef: 1, ItemRef: 7, Fee: 500 }]);
+  if (req.method === 'GET' && url === '/api/Currencies') return send(res, 200, [{ CurrencyID: 2, Title: 'دلار', IsMain: false }, { CurrencyID: 1, Title: 'ریال', IsMain: true }]);
+  if (req.method === 'GET' && url === '/api/SaleTypes') return send(res, 200, [{ SaleTypeID: 4, Title: 'فروش نقدی' }]);
   if (req.method === 'GET' && url === '/api/Stocks') return send(res, 200, stocks);
   if (req.method === 'GET' && url === '/api/Units') return send(res, 200, units);
   if (req.method === 'GET' && url === '/api/Items/Inventories') return send(res, 200, inventories);
@@ -111,6 +113,7 @@ const hoormandResults = {};
 const hoormandCaches = {};
 const hoormandLinks = [];
 const hoormandServer = http.createServer(async (req, res) => {
+  if (req.method === 'POST' && req.url === '/api/ext/v1/pair') { const b = await readBody(req); return b.code === 'ABCD-2345' ? send(res, 200, { key: 'hk_testkey' }) : send(res, 403, { error: 'کد اتصال درست نیست' }); }
   if (req.headers.authorization !== 'Bearer hk_testkey') return send(res, 401, { error: 'bad key' });
   const u0 = new URL(req.url, 'http://x');
   if (req.method === 'GET' && u0.pathname === '/api/ext/v1/sepidar/jobs') { const jobs = hoormandJobs.splice(0); return send(res, 200, { jobs }); }
@@ -121,7 +124,7 @@ const hoormandServer = http.createServer(async (req, res) => {
     return send(res, 200, { warehousesNew: 2, productsNew: 2, productsUpdated: 0, docs: 2, changed: 3 });
   }
   const u = new URL(req.url, 'http://x');
-  if (u.pathname === '/api/ext/v1/ping') return send(res, 200, { ok: true, key: 'آزمایش', actAs: 'همکار', scopes: ['customers.read', 'deals.read'] });
+  if (u.pathname === '/api/ext/v1/ping') return send(res, 200, { ok: true, key: 'آزمایش', actAs: 'همکار', scopes: ['customers.read', 'deals.read', 'warehouse.write', 'sepidar.connect'] });
   if ((u.pathname.startsWith('/api/ext/v1/customers/') && u.pathname.length > 22)) return send(res, 200, customers.find((c) => u.pathname.endsWith('/' + c.id)) || {});
   if ((u.pathname.startsWith('/api/ext/v1/deals/') && u.pathname.length > 18)) return send(res, 200, deals.find((d) => u.pathname.endsWith('/' + d.id)) || {});
   if (u.pathname === '/api/ext/v1/customers') return send(res, 200, { customers: customers.slice(Number(u.searchParams.get('offset')) || 0) });
@@ -208,6 +211,28 @@ ok(hoormandResults['sj-8']?.ok === true && hoormandCaches.invoices?.length === 1
 hoormandJobs.push({ id: 'sj-9', kind: 'nonsense', data: {} });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-9']?.ok === false, 'an unknown job kind is reported, not ignored');
+
+// the automatic setup: a pairing code instead of a key, everything it can find out is not asked
+const cfg2 = path.join(tmp, 'auto-config.json');
+const state2 = path.join(tmp, 'auto-state.json');
+const runSetup = (...a) => new Promise((resolve) => {
+  const pp = spawn(process.execPath, [path.join(dir, 'sepidar-sync.mjs'), 'setup', '--config', cfg2, '--state', state2, '--yes', '--no-autostart', ...a]);
+  let out = '';
+  pp.stdout.on('data', (d) => (out += d));
+  pp.stderr.on('data', (d) => (out += d));
+  pp.on('close', (code) => resolve({ code, out }));
+});
+const setupArgs = ['--hoormand', `http://127.0.0.1:${hPort}`, '--sepidar', `http://127.0.0.1:${sPort}`, '--serial', SERIAL, '--user', 'admin', '--password', 'secret'];
+r = await runSetup(...setupArgs, '--code', 'WRONG-CODE');
+ok(r.code !== 0 && /کد اتصال/.test(r.out) && !fs.existsSync(cfg2), 'setup with a wrong pairing code stops and writes nothing');
+sp.registered = false;
+r = await runSetup(...setupArgs, '--code', 'ABCD-2345');
+const c2 = fs.existsSync(cfg2) ? JSON.parse(fs.readFileSync(cfg2, 'utf8')) : {};
+ok(r.code === 0 && c2.hoormand?.apiKey === 'hk_testkey' && c2.sepidar?.serial === SERIAL && sp.registered, 'setup trades the code for the key, registers the device and logs in');
+ok(c2.sync?.currencyRef === 1 && c2.sync?.saleTypeRef === 4 && c2.sync?.priceMultiplier === 10, 'setup finds the main currency and the sale type by itself, and asks the price unit (default: toman to rial)');
+ok(hoormandCaches.invoices?.length === 1, 'setup sends the first copy of Sepidar data to Hoormand');
+r = await runSetup(...setupArgs);
+ok(r.code === 0 && /از قبل کار می‌کند/.test(r.out), 'running setup again keeps the key that still works (no new code needed)');
 
 sepidarServer.close();
 hoormandServer.close();

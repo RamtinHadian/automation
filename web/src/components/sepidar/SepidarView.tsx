@@ -53,6 +53,9 @@ export const SepidarView: React.FC = () => {
   const [tab, setTab] = useState<Tab>('deals');
   const [q, setQ] = useState('');
   const [receiptFor, setReceiptFor] = useState<any | null>(null);
+  const [pair, setPair] = useState<{ code: string; expiresAt: string } | null>(null);
+  const { currentUser } = useAppContext();
+  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
   const load = useCallback(async () => {
     try {
@@ -123,6 +126,21 @@ export const SepidarView: React.FC = () => {
               ? `برنامهٔ سپیدار چند دقیقه است جواب نمی‌دهد (آخرین تماس: ${timeOf(st.connectorSeenAt)}). درخواست‌ها تا روشن‌شدنش در صف می‌مانند.`
               : 'برنامهٔ سپیدار هنوز به هورمند وصل نشده است (راهنمای اتصال را ببینید).'}
         </span>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                setPair(await api.sepidarPair());
+              } catch (e) {
+                showToast(e instanceof Error ? e.message : 'خطا');
+              }
+            }}
+            className="mr-auto underline font-black cursor-pointer"
+          >
+            ساخت کد اتصال
+          </button>
+        )}
         {can('view') && (
           <button type="button" onClick={() => ask({ kind: 'refresh' }, 'درخواست بروزرسانی فرستاده شد.')} className="mr-auto underline font-black cursor-pointer">
             بروزرسانی اطلاعات سپیدار
@@ -252,6 +270,15 @@ export const SepidarView: React.FC = () => {
             </div>
           ))}
         </List>
+      )}
+
+      {pair && (
+        <Modal title="کد اتصال برنامهٔ سپیدار" onClose={() => setPair(null)} onTop footer={<button type="button" onClick={() => setPair(null)} className="px-4 py-2.5 rounded-xl border border-[#EBDBCE] text-xs font-black cursor-pointer">بستن</button>}>
+          <div className="text-center space-y-3">
+            <div dir="ltr" data-keep-digits className="inline-block px-6 py-3 rounded-2xl bg-[#FAF5F1] border border-[#EBDBCE] text-3xl font-black tracking-widest text-[#3A241F] select-all">{pair.code}</div>
+            <p className="text-xs font-bold text-[#3A241F] leading-7">این کد را روی کامپیوتر سپیدار، وقتی فایل «۰-راه‌اندازی-خودکار» می‌پرسد، بنویسید. فقط ۱۵ دقیقه و فقط یک‌بار معتبر است.</p>
+          </div>
+        </Modal>
       )}
 
       {receiptFor && <ReceiptModal deal={receiptFor} accounts={st.cache?.bankAccounts?.items || []} onClose={() => setReceiptFor(null)} onAsk={async (b) => { await ask({ kind: 'receipt.add', dealId: receiptFor.id, ...b }, 'ثبت دریافتی در صف قرار گرفت.'); setReceiptFor(null); }} />}

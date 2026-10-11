@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/rand"
+	"math/big"
 	"encoding/json"
 	"context"
 	"net/http"
@@ -424,7 +426,97 @@ func extSepidarPush(w http.ResponseWriter, r *http.Request, k extKey, user auth.
 	httpx.OK(w)
 }
 
+// ---------- pairing: the program on the accounting computer gets its key by a short one-time code, so nobody copies a long key by hand ----------
+
+const pairAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789" // no look-alike letters or digits
+
+func pairCode() string {
+	out := make([]byte, 8)
+	for i := range out {
+		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(pairAlphabet))))
+		out[i] = pairAlphabet[n.Int64()]
+	}
+	return string(out[:4]) + "-" + string(out[4:])
+}
+
+func pairNormalize(c string) string {
+	return strings.ToUpper(strings.NewReplacer("-", "", " ", "").Replace(strings.TrimSpace(c)))
+}
+
+// POST /api/sepidar/pair (administrators): makes a code that is valid for fifteen minutes and can be used once.
+func sepidarPairCreate(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if !me.IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	if DemoMode {
+		httpx.Error(w, http.StatusForbidden, "در نسخهٔ آزمایشی اتصال ساخته نمی‌شود.")
+		return
+	}
+	code := pairCode()
+	exp := time.Now().Add(15 * time.Minute)
+	d := jsonx.M{"hash": hashKey(pairNormalize(code)), "expiresAt": exp.Format(time.RFC3339), "by": me.ID(), "fails": 0}
+	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO settings (key, data) VALUES ('sepidarPairing', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`, jsonx.Encode(d)); err != nil {
+		internalError(w)
+		return
+	}
+	auditLine(r, me, "WARNING", "ساخت کد اتصال برنامهٔ سپیدار")
+	httpx.JSON(w, http.StatusOK, map[string]any{"code": code, "expiresAt": exp.Format(time.RFC3339)})
+}
+
+// POST /api/ext/v1/pair {code, name}: the program trades the code for its key (once). Eight wrong tries burn the code.
+func extPair(w http.ResponseWriter, r *http.Request) {
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	var raw []byte
+	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarPairing'`).Scan(&raw)
+	d := jsonx.Decode(raw)
+	exp, _ := time.Parse(time.RFC3339, jsonx.Str(d, "expiresAt"))
+	wrong := func() {
+		fails := jsonx.Int(d, "fails") + 1
+		if fails >= 8 {
+			_, _ = store.Pool.Exec(ctx, `DELETE FROM settings WHERE key = 'sepidarPairing'`)
+		} else if jsonx.Str(d, "hash") != "" {
+			d["fails"] = fails
+			_, _ = store.Pool.Exec(ctx, `UPDATE settings SET data = $1::jsonb WHERE key = 'sepidarPairing'`, jsonx.Encode(d))
+		}
+		httpx.Error(w, http.StatusForbidden, "کد اتصال درست نیست یا منقضی شده است؛ در هورمند کد تازه بسازید.")
+	}
+	if jsonx.Str(d, "hash") == "" || time.Now().After(exp) || hashKey(pairNormalize(jsonx.Str(body, "code"))) != jsonx.Str(d, "hash") {
+		wrong()
+		return
+	}
+	actAs := jsonx.Str(d, "by")
+	var active string
+	if store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'isActive', 'true') FROM users WHERE id = $1`, actAs).Scan(&active) != nil || active == "false" {
+		httpx.Error(w, http.StatusConflict, "مدیری که کد را ساخته دیگر فعال نیست.")
+		return
+	}
+	// the code is spent before the key is made, so two programs cannot both get one
+	tag, err := store.Pool.Exec(ctx, `DELETE FROM settings WHERE key = 'sepidarPairing' AND data->>'hash' = $1`, jsonx.Str(d, "hash"))
+	if err != nil || tag.RowsAffected() == 0 {
+		wrong()
+		return
+	}
+	scopes := []string{"customers.read", "deals.read", "warehouse.write", "sepidar.connect"}
+	key := "hk_" + randomHex(24)
+	id := "ak-" + randomHex(6)
+	exp2 := time.Now().Add(3650 * 24 * time.Hour)
+	if _, err := store.Pool.Exec(ctx, `INSERT INTO api_keys (id, name, key_hash, prefix, scopes, act_as, created_by, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		id, "سپیدار", hashKey(key), key[:8], scopes, actAs, actAs, exp2); err != nil {
+		internalError(w)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"key": key})
+}
+
 func registerSepidar(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/sepidar/pair", auth.Require(sepidarPairCreate))
+	mux.HandleFunc("POST /api/ext/v1/pair", extPair)
 	mux.HandleFunc("GET /api/sepidar", auth.Require(sepidarState))
 	mux.HandleFunc("POST /api/sepidar/jobs", auth.Require(sepidarJobCreate))
 	mux.HandleFunc("POST /api/sepidar/jobs/{id}/cancel", auth.Require(sepidarJobCancel))

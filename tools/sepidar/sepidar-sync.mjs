@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // هورمند ← سپیدار: مشتری‌های تازه و پیش‌فاکتورهای هورمند را در سپیدار ثبت می‌کند.
 //
+//   node sepidar-sync.mjs setup           راه‌اندازی خودکار (کد اتصال هورمند، سریال سپیدار، اجرای خودکار)
 //   node sepidar-sync.mjs register        یک‌بار: معرفی این برنامه به سپیدار
 //   node sepidar-sync.mjs test            آزمایش اتصال به هورمند و سپیدار (چیزی نمی‌نویسد)
 //   node sepidar-sync.mjs sync            نشان می‌دهد چه چیزهایی ثبت می‌شود (چیزی نمی‌نویسد)
@@ -470,11 +471,149 @@ async function cmdCache(cfg) {
   log('اطلاعات سپیدار برای هورمند فرستاده شد.');
 }
 
+// ---------- one-time automatic setup ----------
+import readline from 'node:readline';
+import { execFileSync, spawn } from 'node:child_process';
+
+function makePrompter() {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  let muted = false;
+  const orig = rl._writeToOutput;
+  rl._writeToOutput = function (s) {
+    if (muted && s !== '\r\n' && s !== '\n') return; // the password is not shown while it is typed
+    orig.call(rl, s);
+  };
+  return {
+    ask: (q, def = '', secret = false) =>
+      new Promise((resolve) => {
+        const hint = def && !secret ? ` [${def}]` : secret && def ? ' [همان قبلی: Enter]' : '';
+        rl.question(`${q}${hint}: `, (a) => {
+          muted = false;
+          if (secret) process.stdout.write('\n');
+          resolve(a.trim() || def);
+        });
+        muted = secret;
+      }),
+    close: () => rl.close(),
+  };
+}
+
+async function hoormandPing(url, key) {
+  const res = await fetch(url.replace(/\/+$/, '') + '/api/ext/v1/ping', { headers: { Authorization: 'Bearer ' + key } });
+  return res.ok ? res.json() : null;
+}
+
+async function cmdSetup() {
+  const cur = fs.existsSync(cfgPath) ? JSON.parse(fs.readFileSync(cfgPath, 'utf8')) : {};
+  const pr = makePrompter();
+  const val = async (flagName, q, def, secret) => (flag(flagName) !== '' && flag(flagName) !== undefined ? flag(flagName) : args.includes('--yes') && def ? def : pr.ask(q, def, secret));
+  try {
+    log('راه‌اندازی خودکار اتصال هورمند و سپیدار\n');
+    const hUrl = (await val('--hoormand', 'نشانی هورمند', cur.hoormand?.url || '')).replace(/\/+$/, '');
+    if (!hUrl) throw new Error('نشانی هورمند لازم است.');
+    let key = cur.hoormand?.apiKey || '';
+    const code = flag('--code');
+    if (code || !key || !(await hoormandPing(hUrl, key).catch(() => null))) {
+      const c = code || (await pr.ask('کد اتصال (در هورمند: منوی «سپیدار» ← «ساخت کد اتصال»)'));
+      const res = await fetch(hUrl + '/api/ext/v1/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: c }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || `هورمند جواب نداد (${res.status})`);
+      key = j.key;
+      log('  کلید اتصال از هورمند گرفته شد.');
+    } else {
+      log('  کلید هورمند از قبل کار می‌کند.');
+    }
+    log('\nحالا اطلاعات سپیدار (فقط روی همین کامپیوتر ذخیره می‌شود):');
+    const sUrl = await val('--sepidar', 'نشانی سرویس سپیدار', cur.sepidar?.url || 'http://localhost:7373');
+    const serial = await val('--serial', 'سریال دستگاه (کد هشت‌حرفی که سپیدار داده)', cur.sepidar?.serial || '');
+    const user = await val('--user', 'نام کاربری سپیدار', cur.sepidar?.userName || '');
+    const pass = flag('--password') || (await pr.ask('رمز سپیدار', cur.sepidar?.password || '', true));
+    if (!serial || !user || !pass) throw new Error('سریال، نام کاربری و رمز سپیدار لازم است.');
+    const cfg = { hoormand: { url: hUrl, apiKey: key }, sepidar: { url: sUrl, serial, userName: user, password: pass }, sync: { ...(cur.sync || {}) } };
+    const state = loadState();
+    const probe = { ...cfg, sync: { customers: true, quotations: true, stock: true, inventoryPath: '/api/Items/Inventories', ...cfg.sync } };
+    const sp = client(probe, state);
+    if (!state.publicKeyXml) {
+      log('\nمعرفی این برنامه به سپیدار…');
+      try {
+        await sp.register();
+        saveState(state);
+      } catch (e) {
+        throw new Error(`ثبت دستگاه در سپیدار نشد (${e.message}). در سپیدار «دستگاه جدید» تعریف کنید، سریال را از آن بردارید و دوباره اجرا کنید؛ و مطمئن شوید دکمهٔ سبز «شروع» سرویس سپیدار روشن است.`);
+      }
+    }
+    const r = await sp.login();
+    saveState(state);
+    log(`  ورود به سپیدار موفق بود (کاربر «${r.Title}»).`);
+    // what can be found by itself is not asked
+    try {
+      const cur2 = await sp.get('/api/Currencies');
+      const main = cur2.find((x) => x.IsMain) || cur2[0];
+      if (main && cfg.sync.currencyRef === undefined) cfg.sync.currencyRef = main.CurrencyID;
+    } catch {
+      /* the default stays */
+    }
+    try {
+      const types = await sp.get('/api/SaleTypes');
+      if (types.length && cfg.sync.saleTypeRef === undefined) {
+        let pick = types[0];
+        if (types.length > 1 && !args.includes('--yes')) {
+          log('\nنوع‌های فروش در سپیدار:');
+          types.forEach((t, i) => log(`  ${i + 1}) ${t.Title}`));
+          const n = Number(await pr.ask('پیش‌فاکتورها با کدام نوع فروش ثبت شود؟ (شماره)', '1'));
+          pick = types[(Number.isInteger(n) && n >= 1 && n <= types.length ? n : 1) - 1];
+        }
+        cfg.sync.saleTypeRef = pick.SaleTypeID;
+        log(`  نوع فروش: «${pick.Title}»`);
+      }
+    } catch {
+      /* the default stays */
+    }
+    if (cfg.sync.priceMultiplier === undefined) {
+      const m = flag('--multiplier');
+      if (m) cfg.sync.priceMultiplier = Number(m) || 1;
+      else {
+        const a = args.includes('--yes') ? 'بله' : await pr.ask('قیمت‌ها در هورمند «تومان» است و در سپیدار «ریال»؟ (بله/خیر)', 'بله');
+        cfg.sync.priceMultiplier = /^(بله|y|yes|آره)/i.test(a) ? 10 : 1;
+      }
+    }
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+    log('\nتنظیمات روی این کامپیوتر ذخیره شد.');
+    const full = loadConfig();
+    const h = await hoormand(full, '/ping');
+    log(`هورمند: اتصال برقرار است (دسترسی‌ها: ${h.scopes.join('، ')})`);
+    if (!h.scopes.includes('sepidar.connect')) log('  هشدار: این کلید دسترسی «اتصال برنامهٔ سپیدار» ندارد؛ با کد اتصال تازه دوباره راه‌اندازی کنید.');
+    await pushCaches(full, sp, state);
+    saveState(state);
+    log('اطلاعات سپیدار (فاکتورها، قیمت‌ها، حساب‌های بانکی…) برای هورمند فرستاده شد.');
+
+    if (!args.includes('--no-autostart') && process.platform === 'win32') {
+      const yes = args.includes('--yes') ? true : /^(بله|y|yes|آره)/i.test(await pr.ask('\nبرنامه هر بار که کامپیوتر روشن شد خودکار اجرا شود؟ (بله/خیر)', 'بله'));
+      if (yes) {
+        const vbs = path.join(dir, 'اجرای-پنهان.vbs');
+        const q = (s) => '""' + s + '""';
+        fs.writeFileSync(vbs, `CreateObject("Wscript.Shell").Run "cmd /c cd /d ${q(dir)} && ${q(process.execPath)} ${q(path.join(dir, 'sepidar-sync.mjs'))} watch --apply >> ${q(path.join(dir, 'sepidar.log'))} 2>&1", 0, False\r\n`);
+        try {
+          execFileSync('schtasks', ['/Create', '/TN', 'HoormandSepidar', '/SC', 'ONLOGON', '/RL', 'LIMITED', '/F', '/TR', `wscript.exe "${vbs}"`], { stdio: 'pipe' });
+          spawn('wscript.exe', [vbs], { detached: true, stdio: 'ignore' }).unref();
+          log('اجرای خودکار فعال شد و همین الان هم شروع به کار کرد (بی‌صدا، در پس‌زمینه). گزارش کارها در فایل sepidar.log است.');
+        } catch (e) {
+          log(`ساخت اجرای خودکار نشد (${String(e.message).slice(0, 120)}). فایل «۵-اجرای-خودکار» را باز بگذارید.`);
+        }
+      }
+    }
+    log('\nتمام شد. از حالا فقط کافی است سپیدار روشن باشد (و دکمهٔ سبز «شروع» سرویسش).');
+  } finally {
+    pr.close();
+  }
+}
+
 async function main() {
   if (cmd === 'help' || cmd === '--help') {
-    log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 13).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+    log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 14).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     return;
   }
+  if (cmd === 'setup') return cmdSetup();
   const cfg = loadConfig();
   if (cmd === 'register') return cmdRegister(cfg);
   if (cmd === 'test') return cmdTest(cfg);
