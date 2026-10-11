@@ -27,6 +27,7 @@ import { User, UserRole, Department } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 import { UserEditorDialog, UserForm } from './UserEditorDialog';
+import { PermissionMatrix } from './PermissionMatrix';
 
 interface UserManagementViewProps {
   users: User[];
@@ -74,6 +75,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     window.setTimeout(reloadState, 3000);
   };
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [view, setView] = useState<'list' | 'matrix'>('list');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -162,6 +164,18 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         </button>
       </div>
 
+      {/* two views of the same people: the list, and the table of permissions (a tick for each section of each employee) */}
+      <div className="inline-flex gap-1 p-1 rounded-2xl bg-[#FAF5F1] border border-[#EBDBCE]">
+        {([['list', 'فهرست کاربران'], ['matrix', 'جدول مجوزها']] as const).map(([id, text]) => (
+          <button key={id} type="button" onClick={() => setView(id)} data-users-view={id} className={`px-5 py-2 rounded-xl text-xs font-black cursor-pointer transition-all ${view === id ? 'bg-[#6E1B1B] text-white shadow-md' : 'text-[#8C6F66] hover:text-[#3A241F]'}`}>
+            {text}
+          </button>
+        ))}
+      </div>
+
+      {view === 'matrix' && <PermissionMatrix users={users} departments={departments} onUpdateUser={onUpdateUser} />}
+
+      {view === 'list' && (<>
       {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -344,6 +358,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           </table>
         </div>
       </div>
+      </>)}
 
       {editingUser && (
         <UserEditorDialog
