@@ -36,14 +36,6 @@ interface Props {
   quotaMax: number;
 }
 
-export const SEPIDAR_PERMS: [string, string][] = [
-  ['view', 'دیدن اطلاعات سپیدار (فاکتور، قیمت، مانده مشتری)'],
-  ['customer', 'ثبت و بروزرسانی مشتری در سپیدار'],
-  ['quotation', 'ارسال، بستن و حذف پیش‌فاکتور در سپیدار'],
-  ['invoice', 'صدور فاکتور فروش از روی پیش‌فاکتور'],
-  ['receipt', 'ثبت دریافتی (رسید) برای فاکتور'],
-];
-
 const field = 'w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-semibold text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none';
 const label = 'block text-[11px] font-black text-[#3A241F] mb-1.5';
 
@@ -176,37 +168,12 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
           <section className="lg:col-span-3 space-y-3">
             <h4 className="font-black text-[12px] text-[#6E1B1B] flex items-center gap-1.5">
               <Award className="w-4 h-4" />
-              دسترسی‌ها و مجوزها
+              مدیرعامل (صاحب امضای مجاز)
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Tile wide icon={<Award className="w-[18px] h-[18px]" />} title="مدیرعامل / صاحب امضای مجاز" hint="فقط یک نفر؛ تنها او نامه رسمی را امضا می‌کند و نامش روی نامه‌ها می‌نشیند." on={!!form.canSignOfficialLetters} color="#B45309" tint="#FFF7E6" border="#F3D08A" onChange={onToggleCeo} />
-              <Tile icon={<FileCheck className="w-[18px] h-[18px]" />} title="نگارش و ارسال نامه رسمی" hint="نامه می‌نویسد و برای امضا می‌فرستد." on={!!form.canSendOfficialLetters} color="#6E1B1B" tint="#FBEFEA" border="#E5B8A4" onChange={(v) => set({ canSendOfficialLetters: v })} />
-              <Tile icon={<ClipboardList className="w-[18px] h-[18px]" />} title="مدیریت وظایف" hint="منوی «وظایف» برای او فعال می‌شود." on={!!form.canUseTasks} color="#0284C7" tint="#EAF6FD" border="#A9D8F0" onChange={(v) => set({ canUseTasks: v })} />
-              <Tile icon={<Users className="w-[18px] h-[18px]" />} title="مشتریان و فروش (CRM)" hint="مشتری، فرصت فروش و پیگیری." on={!!form.canUseCrm} color="#7C3AED" tint="#F3EEFE" border="#CDB8F7" onChange={(v) => set({ canUseCrm: v })} />
-              <Tile icon={<BarChart3 className="w-[18px] h-[18px]" />} title="گزارشات آماری مدیریتی" hint="نمودارهای کار، نامه، فروش و تلفن شرکت." on={!!form.canViewStats} color="#EA580C" tint="#FFF1E8" border="#F8C3A0" onChange={(v) => set({ canViewStats: v })} />
-              <Tile icon={<Megaphone className="w-[18px] h-[18px]" />} title="تابلو اعلانات" hint="می‌تواند اخبار و اطلاعیه را برای همه منتشر کند." on={!!form.canPostAnnouncements} color="#B45309" tint="#FEF5E7" border="#F3D29B" onChange={(v) => set({ canPostAnnouncements: v })} />
-              <Tile icon={<ShieldCheck className="w-[18px] h-[18px]" />} title="گارانتی و پشتیبانی" hint="منوهای «گارانتی» و «پشتیبانی» (ثبت گارانتی، درخواست‌های خرابی، اشتراک و درخواست‌های پشتیبانی). کسانی که به مشتریان دسترسی دارند، بدون این سوئیچ هم آن را می‌بینند." on={!!form.canUseWarranty} color="#0D9488" tint="#E8F7F5" border="#9ADAD3" onChange={(v) => set({ canUseWarranty: v })} />
-              <Tile icon={<MessageSquare className="w-[18px] h-[18px]" />} title="ارسال پیامک به مشتری" hint="می‌تواند از پروندهٔ مشتری و از «پیامک گروهی» برای مشتری‌های خودش پیامک بفرستد (به مشتریان هم دسترسی داشته باشد). پنل پیامک باید در تنظیمات فعال باشد." on={!!form.canSendSms} color="#0369A1" tint="#EAF6FD" border="#A9D8F0" onChange={(v) => set({ canSendSms: v })} />
-              <Tile icon={<Warehouse className="w-[18px] h-[18px]" />} title="انبارداری" hint="منوی «انبار»: کالاها و انبارها، رسید و حواله و انتقال و تعدیل، موجودی و کاردکس. ابطال سند و حذف کالا فقط با مدیر است." on={!!form.canUseWarehouse} color="#B45309" tint="#FEF3E2" border="#F3C98B" onChange={(v) => set({ canUseWarehouse: v })} />
             </div>
-            {mode === 'edit' && (
-              <div className="sm:col-span-2 rounded-2xl border border-[#EBDBCE] p-3 space-y-2">
-                <div className="text-[11px] font-black text-[#3A241F]">اتصال به حسابداری سپیدار: این همکار چه کارهایی می‌تواند بکند؟</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {SEPIDAR_PERMS.map(([k, t]) => {
-                    const on = (form.sepidarPerms || []).includes(k);
-                    return (
-                      <label key={k} className="flex items-center gap-2 text-[11px] font-bold text-[#3A241F] cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4" checked={on} onChange={() => set({ sepidarPerms: on ? (form.sepidarPerms || []).filter((x) => x !== k) : [...(form.sepidarPerms || []), k] })} />
-                        {t}
-                      </label>
-                    );
-                  })}
-                </div>
-                <p className="text-[10px] text-[#8C6F66] leading-5">اگر هیچ‌کدام تیک نخورد، منوی «سپیدار» برای او نمی‌آید. مدیران ارشد و مدیران واحد همهٔ این کارها را دارند.</p>
-              </div>
-            )}
-            <p className="text-[10px] text-[#8C6F66] leading-5 pt-1">مدیران ارشد و مدیران واحد بدون نیاز به این سوئیچ‌ها به وظایف و مشتریان دسترسی دارند؛ فقط «مدیرعامل» با سوئیچ اول تعیین می‌شود.</p>
+            <p className="text-[11px] text-[#8C6F66] leading-6 pt-1">همهٔ مجوزهای دیگر (منوها و زیرمنوها) از «جدول مجوزها» در بالای همین صفحه تعیین می‌شود. مدیران ارشد و مدیران واحد بدون نیاز به آن‌ها همه‌چیز را دارند؛ فقط «مدیرعامل» با سوئیچ بالا جدا انتخاب می‌شود.</p>
           </section>
         </div>
 

@@ -96,15 +96,25 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
           <thead>
             <tr>
               <th rowSpan={2} className="bg-[#FAF5F1] border-b border-l border-[#EBDBCE] py-3 px-3 text-[11px] font-black text-[#8C6F66]">کارمند</th>
-              {menuCols.map(({ m, cols }) => (
-                <th key={m.id} colSpan={cols.length} className="border-b border-l-2 border-white/60 py-2 px-1 text-center text-[10px] font-black text-white leading-4" style={{ background: m.tone }}>
-                  {m.title}
-                </th>
-              ))}
+              {menuCols.map(({ m, cols }) =>
+                cols.length === 1 ? (
+                  // a menu with one column only (no sub-menus): its title stands upright over the whole header height, there is no room for it across
+                  <th key={m.id} rowSpan={2} className="border-b border-l-2 border-white/60 px-0 py-2 text-center align-bottom text-white" style={{ background: m.tone }}>
+                    <button type="button" title={cols[0].hint} onClick={() => colAll(cols[0])} className="mx-auto block h-[112px] text-[11px] font-black leading-4 cursor-pointer whitespace-nowrap text-white" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                      {m.title}
+                    </button>
+                    <div className="text-[9px] font-bold text-white/80 pb-1" title="چند نفر دارند">{toPersianDigits(people.filter((u) => colOn(u, cols[0])).length)}</div>
+                  </th>
+                ) : (
+                  <th key={m.id} colSpan={cols.length} className="border-b border-l-2 border-white/60 py-2 px-1 text-center text-[10px] font-black text-white leading-4" style={{ background: m.tone }}>
+                    {m.title}
+                  </th>
+                ),
+              )}
               <th rowSpan={2} className="bg-[#FAF5F1] border-b border-[#EBDBCE] py-3 px-1 text-[11px] font-black text-[#8C6F66]">همه / هیچ</th>
             </tr>
             <tr className="bg-[#FAF5F1]">
-              {menuCols.flatMap(({ m, cols }) =>
+              {menuCols.filter(({ cols }) => cols.length > 1).flatMap(({ m, cols }) =>
                 cols.map((c, i) => (
                   <th key={c.id} className={`border-b border-[#EBDBCE] px-0 pt-2 pb-1 text-center align-bottom ${i === 0 ? 'border-r-2 border-r-white' : 'border-l border-l-[#F3E8DF]'}`} style={{ background: c.isMain ? `${m.tone}14` : undefined }}>
                     <button type="button" title={c.hint} onClick={() => colAll(c)} className="mx-auto block h-[112px] text-[10.5px] font-black leading-4 cursor-pointer hover:underline whitespace-nowrap" style={{ color: m.tone, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
