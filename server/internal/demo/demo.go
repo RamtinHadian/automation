@@ -5,6 +5,7 @@
 package demo
 
 import (
+	"fmt"
 	"strconv"
 	"context"
 	_ "embed"
@@ -163,6 +164,7 @@ func Run(ctx context.Context, resetHours int) {
 	if resetHours < 1 {
 		resetHours = 1
 	}
+	go keepSepidarAlive(ctx)
 	for {
 		nextReset.Store(time.Now().Add(time.Duration(resetHours) * time.Hour))
 		if err := Reset(ctx); err != nil {
@@ -214,6 +216,16 @@ func exec(ctx context.Context, sql string, args ...any) error {
 
 // Reset empties every table and fills it with the demo data.
 func Reset(ctx context.Context) error {
+	// whoever calls this, a database with real data (another server, a company's own) is never emptied
+	if !safeToWipe(ctx) {
+		return fmt.Errorf("demo: refusing to wipe a database that holds real data")
+	}
+	if err := exec(ctx, `TRUNCATE wh_moves, wh_docs, wh_products, wh_warehouses, reminders, sepidar_jobs, sepidar_links, sepidar_cache`); err != nil {
+		return err
+	}
+	if err := exec(ctx, `DELETE FROM settings WHERE key IN ('warehouse', 'sepidarConnector', 'sepidarPairing')`); err != nil {
+		return err
+	}
 	if err := exec(ctx, `TRUNCATE users, departments, transfers, transfer_hidden, audit_logs, tasks, notifications, push_subscriptions,
 		daily_reports, crm_customers, crm_deals, crm_activities, voip_calls, chat_messages, warranties, warranty_claims, support_subs, support_tickets, support_plans`); err != nil {
 		return err
@@ -492,6 +504,9 @@ func Reset(ctx context.Context) error {
 		return err
 	}
 	if err := addBulk(ctx, now, string(hash), by); err != nil {
+		return err
+	}
+	if err := addModules(ctx, now, by); err != nil {
 		return err
 	}
 	store.BackfillDealCreators(ctx) // the sample opportunities also say who made them
