@@ -4,6 +4,8 @@ import { askConfirm } from '../../lib/confirmDialog';
 import { api, WhCard, WhDoc, WhKind, WhProduct, WhState, WhWarehouse } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
+import { formatMoney, fromDisplay, toDisplay, unitName } from '../../lib/money';
+import { MoneyInput, digitsOf } from '../common/MoneyInput';
 import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
 import { PersonPicker, customerItems } from '../common/PersonPicker';
@@ -590,7 +592,7 @@ const ProductsTab: React.FC<{ st: WhState; sepidar: boolean; onEdit: (p: Partial
               <FileText className="w-4 h-4 text-amber-600 shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-black text-[#3A241F] truncate">{p.title}</div>
-                <div className="text-[10px] font-bold text-[#8C6F66] truncate">{toPersianDigits(p.code)} · {p.unit}{p.group ? ` · ${p.group}` : ''}{p.minQty ? ` · حداقل ${fmt(p.minQty)}` : ''}{(p.prices || []).map((x) => ` · ${x.title}: ${fmt(x.amount)}`).join('')}</div>
+                <div className="text-[10px] font-bold text-[#8C6F66] truncate">{toPersianDigits(p.code)} · {p.unit}{p.group ? ` · ${p.group}` : ''}{p.minQty ? ` · حداقل ${fmt(p.minQty)}` : ''}{(p.prices || []).map((x) => ` · ${x.title}: ${formatMoney(x.amount)} ${unitName()}`).join('')}</div>
               </div>
               <div className="text-xs font-black whitespace-nowrap">{fmt(p.total)}</div>
             </button>
@@ -607,15 +609,15 @@ const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin:
   const { showToast } = useAppContext();
   const isNew = !p.id;
   const [f, setF] = useState({ code: p.code || '', title: p.title || '', unit: p.unit || 'عدد', group: p.group || '', barcode: p.barcode || '', minQty: p.minQty ? String(p.minQty) : '', note: p.note || '', active: p.active !== false });
-  const [prices, setPrices] = useState<{ title: string; amount: string }[]>((p.prices || []).map((x) => ({ title: x.title, amount: String(x.amount) })));
+  const [prices, setPrices] = useState<{ title: string; amount: string }[]>((p.prices || []).map((x) => ({ title: x.title, amount: String(toDisplay(x.amount)) })));
   const [busy, setBusy] = useState(false);
   const lockBase = sepidar; // code, name and unit belong to the accounting program
   const save = async () => {
     if (!f.code.trim() || !f.title.trim()) return showToast('کد و نام کالا را بنویسید.');
     const minQty = f.minQty.trim() ? parseNum(f.minQty) : 0;
     if (!Number.isFinite(minQty) || minQty < 0) return showToast('حداقل موجودی درست نیست.');
-    const pr = prices.filter((x) => x.title.trim() || x.amount.trim()).map((x) => ({ title: x.title.trim(), amount: parseNum(x.amount) }));
-    if (pr.some((x) => !x.title || !Number.isFinite(x.amount) || x.amount < 0)) return showToast('برای هر قیمت، عنوان و مبلغ را درست بنویسید.');
+    const pr = prices.filter((x) => x.title.trim() || x.amount.trim()).map((x) => ({ title: x.title.trim(), amount: fromDisplay(Number(digitsOf(x.amount)) || 0) }));
+    if (pr.some((x) => !x.title || !Number.isFinite(x.amount) || x.amount <= 0)) return showToast('برای هر قیمت، عنوان و مبلغ (بیشتر از صفر) را درست بنویسید.');
     setBusy(true);
     try {
       await api.whProductSave(p.id || newId('p'), { ...f, minQty, prices: pr });
@@ -661,7 +663,7 @@ const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin:
           {prices.map((x, i) => (
             <div key={i} className="flex items-center gap-2">
               <input value={x.title} onChange={(e) => setPrices((r) => r.map((y, j) => (j === i ? { ...y, title: e.target.value } : y)))} placeholder="عنوان قیمت" className={field} />
-              <input value={x.amount} onChange={(e) => setPrices((r) => r.map((y, j) => (j === i ? { ...y, amount: e.target.value } : y)))} inputMode="decimal" placeholder="مبلغ" className={field + ' !w-36'} />
+              <div className="w-52 shrink-0"><MoneyInput value={x.amount} onChange={(v) => setPrices((r) => r.map((y, j) => (j === i ? { ...y, amount: v } : y)))} placeholder="مبلغ" className={field} /></div>
               <button type="button" onClick={() => setPrices((r) => r.filter((_, j) => j !== i))} className="p-1.5 text-[#8C6F66] cursor-pointer" aria-label="حذف قیمت"><X className="w-4 h-4" /></button>
             </div>
           ))}

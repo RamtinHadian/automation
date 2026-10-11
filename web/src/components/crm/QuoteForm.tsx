@@ -6,6 +6,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, fromDisplay, toDisplay, unitName } from '../../lib/money';
 import { CrmActivity } from '../../types';
 import { field, label } from './crmUi';
+import { MoneyInput } from '../common/MoneyInput';
 
 type Product = { id: string; code: string; title: string; unit: string; group?: string; total: number; prices?: { title: string; amount: number }[] };
 
@@ -123,12 +124,12 @@ export const QuoteForm: React.FC<{ onSave: (text: string, extra: Partial<CrmActi
           <input className={field} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
         </div>
         <div>
-          <label className={label}>قیمتی که شرکت داد ({unitName()}، هر واحد)</label>
-          <input className={field} inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="مثلاً ۱۲۰۰۰۰" />
+          <label className={label}>قیمتی که شرکت داد (هر واحد)</label>
+          <MoneyInput className={field} value={price} onChange={setPrice} placeholder="مثلاً ۱۲۰۰۰۰" />
         </div>
         <div className="col-span-2 sm:col-span-1">
           <label className={label}>قیمت مورد نظر مشتری (اختیاری)</label>
-          <input className={field} inputMode="numeric" value={asked} onChange={(e) => setAsked(e.target.value)} />
+          <MoneyInput className={field} value={asked} onChange={setAsked} />
         </div>
       </div>
       {picked?.prices && picked.prices.length > 0 && (
