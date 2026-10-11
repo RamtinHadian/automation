@@ -420,6 +420,11 @@ export const CrmView: React.FC = () => {
           <span className="text-[#8C6F66] font-medium">ایجاد شده توسط: </span>
           {userById.get(d.createdById || '')?.fullName || d.createdByName || d.ownerName || <span className="text-[#8C6F66] font-medium">نامشخص</span>}
         </div>
+        {d.createdAt && (
+          <div className="text-[10px] font-medium text-[#8C6F66] leading-5" title="تاریخ و ساعت ایجاد">
+            ایجاد: {timeText(d.createdAt)}
+          </div>
+        )}
         {d.expectedClose && (
           <div className={`text-[10px] font-bold flex items-center gap-1 ${overdue ? 'text-rose-600' : 'text-[#8C6F66]'}`}>
             <CalendarDays className="w-3 h-3" />
