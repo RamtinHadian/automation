@@ -5,6 +5,7 @@ import { api, Reminder } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, todayIso } from '../../lib/taskDates';
+import { isAudioReady, isSoundEnabled, playSound } from '../../lib/notifications';
 import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label } from '../crm/crmUi';
 
@@ -47,6 +48,26 @@ export const ReminderPopup: React.FC = () => {
   }, [lastNote]);
   const fired = useMemo(() => (list || []).filter((r) => r.status === 'fired' && !hidden.has(r.id)), [list, hidden]);
   const r = fired[0];
+  const rid = r?.id;
+  const [audioOk, setAudioOk] = useState(true);
+  // the chime repeats every eight seconds (up to ten times) until the person answers, and phones vibrate; a reminder is something the person asked for, so quiet hours do not mute it
+  useEffect(() => {
+    if (!rid) return;
+    let n = 0;
+    const ring = () => {
+      if (isSoundEnabled()) playSound('bell', 1);
+      try {
+        navigator.vibrate?.([250, 120, 250]);
+      } catch {
+        /* not supported */
+      }
+      setAudioOk(!isSoundEnabled() || isAudioReady());
+      n++;
+    };
+    ring();
+    const t = window.setInterval(() => (n < 10 ? ring() : window.clearInterval(t)), 8000);
+    return () => window.clearInterval(t);
+  }, [rid]);
   if (!r) return null;
 
   const act = async (fn: () => Promise<unknown>, ok: string) => {
@@ -59,7 +80,7 @@ export const ReminderPopup: React.FC = () => {
     }
   };
   return createPortal(
-    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-[radial-gradient(circle_at_50%_30%,rgba(124,58,237,.55),rgba(20,6,31,.88))] backdrop-blur-md" dir="rtl" data-reminder-popup>
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-[radial-gradient(circle_at_50%_30%,rgba(124,58,237,.55),rgba(20,6,31,.88))] backdrop-blur-md" dir="rtl" data-reminder-popup onPointerDown={() => { if (!audioOk && isSoundEnabled()) { playSound('bell', 1); setAudioOk(true); } }}>
       <div className="relative w-full max-w-md rounded-[2rem] bg-white shadow-[0_30px_90px_rgba(0,0,0,.55)] border border-white/60 overflow-hidden text-center animate-[remIn_.35s_ease-out]">
         <style>{`@keyframes remIn{from{opacity:0;transform:translateY(20px) scale(.94)}to{opacity:1;transform:none}}@keyframes remRing{0%{transform:scale(.8);opacity:.7}100%{transform:scale(1.9);opacity:0}}@keyframes remShake{0%,100%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-12deg)}45%{transform:rotate(9deg)}60%{transform:rotate(-6deg)}75%{transform:rotate(3deg)}}`}</style>
         <div className="bg-gradient-to-br from-[#7C3AED] via-[#BE123C] to-[#F97316] pt-9 pb-12 px-6 text-white relative">
@@ -78,6 +99,7 @@ export const ReminderPopup: React.FC = () => {
           {formatTaskDate(r.date)} · {toPersianDigits(r.time)}
           {r.repeat !== 'none' && <span className="text-[#7C3AED]">· {REPEAT_LABEL[r.repeat]}</span>}
         </div>
+        {!audioOk && <div className="mx-5 mt-4 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] font-black text-amber-900">برای شنیدن صدای یادآور، یک‌بار روی همین پنجره بزنید.</div>}
         {r.note && <p className="px-6 pt-4 text-[13px] leading-7 font-semibold text-[#3A241F] whitespace-pre-wrap break-words">{r.note}</p>}
         <div className="px-5 pt-5 pb-2">
           <button type="button" onClick={() => act(() => api.reminderDone(r.id), r.repeat === 'none' ? 'یادآور انجام‌شده ثبت شد.' : 'یادآور انجام شد؛ نوبت بعدی ثبت است.')} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-l from-[#0D9488] to-[#16A34A] text-white text-sm font-black shadow-lg cursor-pointer active:scale-[.98]">
