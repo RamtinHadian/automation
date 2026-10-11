@@ -155,6 +155,7 @@ func Router(cfg config.Config) http.Handler {
 	registerExtAPI(mux)
 	registerWarehouse(mux)
 	registerSepidar(mux)
+	registerReminders(mux)
 
 	mux.HandleFunc("GET /api/config", iceConfig(cfg))
 	mux.HandleFunc("GET /api/health", health)

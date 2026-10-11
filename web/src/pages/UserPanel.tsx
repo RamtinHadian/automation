@@ -10,6 +10,7 @@ import { CrmView } from '../components/crm/CrmView';
 import { WarrantyView } from '../components/warranty/WarrantyView';
 import { WarehouseView } from '../components/warehouse/WarehouseView';
 import { SepidarView } from '../components/sepidar/SepidarView';
+import { ReminderPopup, RemindersView } from '../components/reminders/Reminders';
 import { SupportView } from '../components/support/SupportView';
 import { useCompanyName } from '../lib/useCompanyName';
 import { TasksView } from '../components/tasks/TasksView';
@@ -70,6 +71,7 @@ import {
   MessageCircle,
   Warehouse,
   Landmark,
+  BellRing,
 } from 'lucide-react';
 import { FileCategory, FileTransfer, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
@@ -122,7 +124,7 @@ export default function UserPanel() {
   } = useAppContext();
 
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
-  const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board'>('files');
+  const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders'>('files');
   const [chatPeer, setChatPeer] = useState('');
   const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar'>('files');
 
@@ -217,6 +219,7 @@ export default function UserPanel() {
   const menuOfNotification = (n: AppNotification): 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | 'warehouse' | 'sepidar' | null => {
     const t = n.ref?.type;
     if (t === 'sepidar') return 'sepidar';
+    if (t === 'reminder') return 'files';
     if (t === 'warehouse') return 'warehouse';
     if (t === 'warranty') return 'warranty';
     if (t === 'support') return 'support';
@@ -283,6 +286,9 @@ export default function UserPanel() {
       }
       window.dispatchEvent(new Event('open-warranty-item'));
       setMainMenuTab('warranty');
+    } else if (type === 'reminder') {
+      setFilesSection('reminders');
+      setMainMenuTab('files');
     } else if (type === 'sepidar' && canAccessSepidarMenu) {
       setMainMenuTab('sepidar');
     } else if (type === 'warehouse' && canAccessWarehouseMenu) {
@@ -699,6 +705,7 @@ export default function UserPanel() {
       className="min-h-screen bg-gradient-to-br from-[#3A241F] via-[#4A2620] to-[#2E1A16] p-0 sm:p-1 pb-28 sm:pb-1 flex items-stretch justify-center font-sans antialiased text-[#3A241F]"
       dir="rtl"
     >
+      <ReminderPopup />
       <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 sm:min-h-[calc(100vh-0.5rem)]">
 
         {/* Top Header */}
@@ -1031,7 +1038,7 @@ export default function UserPanel() {
         {mainMenuTab === 'files' && (
           <div className="flex-1 flex flex-col">
             <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 px-4 sm:px-6 pt-4 pb-2">
-              {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone]] as const).map(([id, label, Icon]) => (
+              {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing]] as const).map(([id, label, Icon]) => (
                 <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative shrink-0 whitespace-nowrap min-h-[44px] sm:min-h-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
                   <Icon className="w-4 h-4" />
                   {label}
@@ -1039,7 +1046,9 @@ export default function UserPanel() {
                 </button>
               ))}
             </div>
-            {filesSection === 'board' ? (
+            {filesSection === 'reminders' ? (
+              <RemindersView />
+            ) : filesSection === 'board' ? (
               <BoardView />
             ) : filesSection === 'leave' ? (
               <LeaveView />

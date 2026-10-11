@@ -229,6 +229,21 @@ var schema = []string{
 	  expires_at TIMESTAMPTZ,
 	  uses BIGINT NOT NULL DEFAULT 0
 	)`,
+	// personal reminders
+	`CREATE TABLE IF NOT EXISTS reminders (
+	  id TEXT PRIMARY KEY,
+	  user_id TEXT NOT NULL,
+	  title TEXT NOT NULL,
+	  note TEXT NOT NULL DEFAULT '',
+	  due_at TIMESTAMPTZ NOT NULL,
+	  repeat TEXT NOT NULL DEFAULT 'none',
+	  status TEXT NOT NULL DEFAULT 'pending',
+	  fired_at TIMESTAMPTZ,
+	  done_at TIMESTAMPTZ,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
+	`CREATE INDEX IF NOT EXISTS reminders_user_idx ON reminders (user_id, status, due_at)`,
+	`CREATE INDEX IF NOT EXISTS reminders_due_idx ON reminders (status, due_at)`,
 	// the bridge to the accounting program Sepidar: asks (jobs), what is known about each record there (links) and copies of its data (cache)
 	`CREATE TABLE IF NOT EXISTS sepidar_jobs (
 	  id TEXT PRIMARY KEY,

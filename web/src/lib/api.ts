@@ -308,6 +308,19 @@ export interface WhCard {
   balance: number;
 }
 
+export interface Reminder {
+  id: string;
+  title: string;
+  note: string;
+  dueAt: string;
+  /** the day and the clock in Tehran */
+  date: string;
+  time: string;
+  repeat: 'none' | 'daily' | 'weekly';
+  status: 'pending' | 'fired' | 'done';
+  firedAt?: string;
+}
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const token = getToken();
   const res = await fetch(url, {
@@ -493,6 +506,12 @@ export const api = {
   voipCall: (to: string) => request<{ ok: true }>('POST', '/api/voip/call', { to }),
   notifications: () => request<{ notifications: AppNotification[] }>('GET', '/api/notifications'),
   markNotificationsRead: (ids?: string[]) => request<{ ok: true }>('POST', '/api/notifications/read', { ids }),
+  reminders: () => request<{ reminders: Reminder[]; now: string }>('GET', '/api/reminders'),
+  reminderCreate: (b: Record<string, unknown>) => request<Reminder>('POST', '/api/reminders', b),
+  reminderUpdate: (id: string, b: Record<string, unknown>) => request<{ ok: true }>('PUT', `/api/reminders/${encodeURIComponent(id)}`, b),
+  reminderDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/reminders/${encodeURIComponent(id)}`),
+  reminderDone: (id: string) => request<{ ok: true }>('POST', `/api/reminders/${encodeURIComponent(id)}/done`, {}),
+  reminderSnooze: (id: string, minutes: number) => request<{ ok: true }>('POST', `/api/reminders/${encodeURIComponent(id)}/snooze`, { minutes }),
   sepidar: () => request<Record<string, unknown>>('GET', '/api/sepidar'),
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),
