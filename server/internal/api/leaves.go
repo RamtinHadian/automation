@@ -13,9 +13,9 @@ import (
 	"automation/server/internal/store"
 )
 
-// Leave requests («درخواست مرخصی»). An employee sends a request and it goes straight to the CEO (the person who holds the
-// «can sign official letters» tick); nobody else approves. The server keeps this honest: only the CEO can decide,
-// only a pending request can be decided, and an employee can only cancel his own pending request.
+// Leave requests («درخواست مرخصی»). An employee's request goes to the manager of their unit; when the unit has no manager (or the employee is
+// the manager) it goes to the CEO (the person who holds the «can sign official letters» tick). The CEO can always decide too. The server keeps
+// this honest: only the CEO or the unit's manager can decide, only a pending request can be decided, and an employee can only cancel his own pending request.
 
 var leaveTypes = map[string]string{
 	"ANNUAL":  "مرخصی استحقاقی",
@@ -97,10 +97,21 @@ func leaveCreate(w http.ResponseWriter, r *http.Request) {
 	if to != from {
 		span += " تا " + to
 	}
-	notify.Notify(r.Context(), ceoIDs(r), notify.Note{
+	notifyTo := ceoIDs(r)
+	if m := unitManagerOf(r.Context(), me.ID()); m != "" {
+		notifyTo = []string{m}
+	}
+	notify.Notify(r.Context(), notifyTo, notify.Note{
 		Kind: "task", Label: "درخواست مرخصی", Title: "درخواست " + label + " از " + me.Name(), Body: span, Ref: ref("leave", id), Repeat: true,
 	}, me.ID())
-	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true, "id": id})
+	names := []string{}
+	for _, uid := range notifyTo {
+		var n string
+		if store.Pool.QueryRow(r.Context(), `SELECT COALESCE(data->>'fullName', '') FROM users WHERE id = $1`, uid).Scan(&n) == nil && n != "" {
+			names = append(names, n)
+		}
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true, "id": id, "to": names})
 }
 
 // GET /api/leaves?scope=mine|all   («all» is for the CEO)
@@ -108,28 +119,29 @@ func leaveList(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
 	q := `SELECT data FROM leave_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 300`
 	args := []any{me.ID()}
+	managed := managedStaff(r.Context(), me.ID())
 	if r.URL.Query().Get("scope") == "all" {
-		if !isCEO(me) && me.Role() != "SUPER_ADMIN" {
+		switch {
+		case isCEO(me) || me.Role() == "SUPER_ADMIN":
+			q, args = `SELECT data FROM leave_requests ORDER BY (status = 'PENDING') DESC, created_at DESC LIMIT 500`, nil
+		case len(managed) > 0: // a unit manager sees the requests of the unit's people
+			q, args = `SELECT data FROM leave_requests WHERE user_id = ANY($1::text[]) ORDER BY (status = 'PENDING') DESC, created_at DESC LIMIT 500`, []any{managed}
+		default:
 			httpx.Forbidden(w)
 			return
 		}
-		q, args = `SELECT data FROM leave_requests ORDER BY (status = 'PENDING') DESC, created_at DESC LIMIT 500`, nil
 	}
 	list, err := store.RawList(r.Context(), q, args...)
 	if err != nil {
 		internalError(w)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"leaves": list, "canDecide": isCEO(me)})
+	httpx.JSON(w, http.StatusOK, map[string]any{"leaves": list, "canDecide": isCEO(me) || len(managed) > 0})
 }
 
 // POST /api/leaves/{id}/decide  {status: APPROVED|REJECTED, note}
 func leaveDecide(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	if !isCEO(me) {
-		httpx.Error(w, http.StatusForbidden, "فقط مدیرعامل می‌تواند مرخصی را تایید یا رد کند.")
-		return
-	}
 	body, ok := httpx.ReadBody(w, r)
 	if !ok {
 		return
@@ -146,6 +158,10 @@ func leaveDecide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	doc := jsonx.Decode(raw)
+	if !isCEO(me) && !isManagerOf(managedStaff(r.Context(), me.ID()), jsonx.Str(doc, "userId")) {
+		httpx.Error(w, http.StatusForbidden, "فقط مدیرعامل یا مدیر واحدِ همین همکار می‌تواند مرخصی را تایید یا رد کند.")
+		return
+	}
 	doc["status"], doc["decidedBy"], doc["decidedByName"], doc["decidedAt"] = status, me.ID(), me.Name(), time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
 	if note := strings.TrimSpace(jsonx.Str(body, "note")); note != "" {
 		doc["note"] = note

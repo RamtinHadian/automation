@@ -6,6 +6,8 @@ export interface Department {
   code: string;
   color: string;
   defaultQuotaGB: number;
+  /** The manager of the unit: what the unit's people do in the automation comes to this person. */
+  managerId?: string;
 }
 
 export interface User {

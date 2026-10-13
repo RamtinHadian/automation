@@ -12,13 +12,13 @@ import (
 // administrators, and anybody an administrator ticked «مشتریان همکاران» for, see everything. The filter lives here (on the server) so the
 // data of other people's customers is never sent to the page, not just hidden on it.
 
-// crmMyDeals: opportunities this person owns or shares ($1 is their id).
-const crmMyDeals = `(owner_id = $1 OR data->'coOwnerIds' @> to_jsonb($1::text))`
+// crmMyDeals: opportunities this person owns or shares, and those of the people of the units they manage ($1 is their id, $2 the managed people).
+const crmMyDeals = `(owner_id = $1 OR owner_id = ANY($2::text[]) OR data->'coOwnerIds' @> to_jsonb($1::text))`
 
 // crmMyCustomerIDs: customers this person owns, customers of opportunities they work on, and customers they were given a follow-up for ($1 is their id).
-const crmMyCustomerIDs = `(SELECT id FROM crm_customers WHERE owner_id = $1
+const crmMyCustomerIDs = `(SELECT id FROM crm_customers WHERE owner_id = $1 OR owner_id = ANY($2::text[])
 	UNION SELECT customer_id FROM crm_deals WHERE ` + crmMyDeals + `
-	UNION SELECT customer_id FROM crm_activities WHERE owner_id = $1)`
+	UNION SELECT customer_id FROM crm_activities WHERE owner_id = $1 OR owner_id = ANY($2::text[]))`
 
 // crmSeesAll: administrators and people with the «مشتریان همکاران» right see every customer.
 func crmSeesAll(me auth.User) bool { return me.SeesTeamCrm() }
@@ -35,6 +35,6 @@ func crmOwnsCustomer(r *http.Request, me auth.User, customerID string) bool {
 		return true
 	}
 	var ok bool
-	_ = store.Pool.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM `+crmMyCustomerIDs+` m WHERE m.id = $2)`, me.ID(), customerID).Scan(&ok)
+	_ = store.Pool.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM `+crmMyCustomerIDs+` m WHERE m.id = $3)`, me.ID(), managedStaff(r.Context(), me.ID()), customerID).Scan(&ok)
 	return ok
 }

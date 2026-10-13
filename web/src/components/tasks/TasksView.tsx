@@ -1,3 +1,4 @@
+import { managedStaffIds } from '../../lib/unit';
 import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import React, { useEffect, useMemo, useState } from 'react';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -122,8 +123,10 @@ const emptyTask = (me: User): Task => ({
 });
 
 const TasksBoard: React.FC = () => {
-  const { tasks, setTasks, staffList, currentUser, showToast } = useAppContext();
+  const { tasks, setTasks, staffList, currentUser, showToast, departments } = useAppContext();
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  // a unit manager manages the tasks of the unit's people like their creator
+  const unitStaff = managedStaffIds(departments, staffList, currentUser.id);
   const isSuper = currentUser.role === 'SUPER_ADMIN'; // only the top admin deletes a task
 
   const [view, setView] = useState<'board' | 'list'>('board');
@@ -155,7 +158,7 @@ const TasksBoard: React.FC = () => {
 
   const userById = useMemo(() => new Map(staffList.map((u) => [u.id, u])), [staffList]);
 
-  const isCreatorOrAdmin = (t: Task) => isAdmin || t.creatorId === currentUser.id;
+  const isCreatorOrAdmin = (t: Task) => isAdmin || t.creatorId === currentUser.id || unitStaff.includes(t.creatorId) || t.assigneeIds.some((a) => unitStaff.includes(a));
   const isAssignee = (t: Task) => t.assigneeIds.includes(currentUser.id);
   const canMove = (t: Task) => isCreatorOrAdmin(t) || isAssignee(t);
 

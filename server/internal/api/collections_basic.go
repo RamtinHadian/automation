@@ -240,6 +240,14 @@ func putDepartment(w http.ResponseWriter, r *http.Request, me auth.User, id stri
 	}
 	doc := jsonx.Copy(data)
 	doc["id"] = id
+	// the manager of a unit is a real, active person
+	if m := jsonx.Str(doc, "managerId"); m != "" {
+		var active string
+		if store.Pool.QueryRow(r.Context(), `SELECT COALESCE(data->>'isActive', 'true') FROM users WHERE id = $1`, m).Scan(&active) != nil || active == "false" {
+			httpx.Error(w, http.StatusBadRequest, "مدیر واحد باید یک کاربر فعال باشد.")
+			return
+		}
+	}
 	if _, err := store.Pool.Exec(r.Context(),
 		`INSERT INTO departments (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO UPDATE SET data = $2::jsonb`,
 		id, jsonx.Encode(doc)); err != nil {

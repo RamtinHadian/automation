@@ -89,8 +89,8 @@ export const LeaveView: React.FC = () => {
     }
     setBusy(true);
     try {
-      await api.leaveCreate({ type, fromDate: from, toDate: hourly ? from : to, fromTime: hourly ? fromTime : undefined, toTime: hourly ? toTime : undefined, reason: reason.trim() });
-      showToast('درخواست مرخصی برای مدیرعامل ارسال شد.');
+      const r = await api.leaveCreate({ type, fromDate: from, toDate: hourly ? from : to, fromTime: hourly ? fromTime : undefined, toTime: hourly ? toTime : undefined, reason: reason.trim() });
+      showToast(`درخواست مرخصی برای ${(r.to && r.to.length ? r.to.join(' و ') : 'مدیرعامل')} ارسال شد.`);
       setReason('');
       load();
     } catch (e) {

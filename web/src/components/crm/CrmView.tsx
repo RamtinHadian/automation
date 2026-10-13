@@ -63,6 +63,7 @@ import { TodayView } from './TodayView';
 import { TeamView } from './TeamView';
 import { Rules, Targets, ruleViolation } from '../../lib/team';
 import { MergeButton, MergeModal, TransferButton, TransferModal } from './CrmAdminTools';
+import { managedStaffIds } from '../../lib/unit';
 import { CustomerFiles } from './CustomerFiles';
 import { CalendarView } from './CalendarView';
 import { LOST_REASONS } from '../../lib/lostReasons';
@@ -109,7 +110,7 @@ const timeText = (iso: string) => `${formatTaskDate(iso.slice(0, 10))} · ${toPe
 
 
 export const CrmView: React.FC = () => {
-  const { customers, setCustomers, deals, setDeals, activities, setActivities, staffList, currentUser, showToast, settings } = useAppContext();
+  const { customers, setCustomers, deals, setDeals, activities, setActivities, staffList, currentUser, showToast, settings, departments } = useAppContext();
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
@@ -131,6 +132,11 @@ export const CrmView: React.FC = () => {
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
   const [smsEnabled, setSmsEnabled] = useState(false);
   const [phoneBook, setPhoneBook] = useState(false);
+  // a unit manager looks after the customers of the people of the unit, so they get the team views for those people
+  const unitIds = useMemo(() => managedStaffIds(departments, staffList, me), [departments, staffList, me]);
+  const isUnitManager = departments.some((d) => d.managerId === me);
+  const seesAllTeam = isAdmin || !!currentUser.canSeeTeamCrm;
+  const seesTeamUI = seesAllTeam || isUnitManager;
   const [targets, setTargets] = useState<Targets | null>(null);
   const [rules, setRules] = useState<Rules | null>(null);
   const loadTeamSettings = () => {
@@ -345,7 +351,7 @@ export const CrmView: React.FC = () => {
   const withSms = smsEnabled ? ([...baseTabs, smsTab] as const) : baseTabs;
   const allTabs = isAnyApprover(currentUser, settings) ? ([...withSms, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : withSms;
   // the sub-menus the administrator switched off for this person are not drawn (sms and proformas have their own rights)
-  const tabs = allTabs.filter(([id]) => (id === 'board' ? isAdmin || !!currentUser.canSeeTeamCrm : true) && (id === 'sms' || id === 'proformas' || canSub(currentUser, 'crm.' + id)));
+  const tabs = allTabs.filter(([id]) => (id === 'board' ? seesTeamUI : true) && (id === 'sms' || id === 'proformas' || canSub(currentUser, 'crm.' + id)));
   useEffect(() => {
     if (!tabs.some(([id]) => id === tab) && tabs[0]) setTab(tabs[0][0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -757,9 +763,9 @@ export const CrmView: React.FC = () => {
       )}
 
       {/* ---------- pipeline ---------- */}
-      {tab === 'today' && <TodayView me={me} myName={currentUser.fullName} customers={customers} deals={deals} isAdmin={isAdmin} seesTeam={isAdmin || !!currentUser.canSeeTeamCrm} targets={targets} followups={openFollowups} renderFollow={followRow} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onOpenCustomer={(id) => setOpenCustomer(id)} />}
-      {tab === 'calendar' && <CalendarView customers={customers} deals={deals} followups={openFollowups} me={me} seesTeam={isAdmin || !!currentUser.canSeeTeamCrm} onOpenCustomer={(id) => setOpenCustomer(id)} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onAddAppointment={(cid, text, dueDate) => { addActivity(cid, 'FOLLOWUP', text, { dueDate }); showToast('در تقویم ثبت شد.'); }} />}
-      {tab === 'board' && <TeamView staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} deals={deals} activities={activities} targets={targets} rules={rules} isAdmin={isAdmin} onSaved={loadTeamSettings} />}
+      {tab === 'today' && <TodayView me={me} myName={currentUser.fullName} customers={customers} deals={deals} isAdmin={isAdmin} seesTeam={seesTeamUI} targets={targets} followups={openFollowups} renderFollow={followRow} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onOpenCustomer={(id) => setOpenCustomer(id)} />}
+      {tab === 'calendar' && <CalendarView customers={customers} deals={deals} followups={openFollowups} me={me} seesTeam={seesTeamUI} onOpenCustomer={(id) => setOpenCustomer(id)} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onAddAppointment={(cid, text, dueDate) => { addActivity(cid, 'FOLLOWUP', text, { dueDate }); showToast('در تقویم ثبت شد.'); }} />}
+      {tab === 'board' && <TeamView staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN') && (seesAllTeam || u.id === me || unitIds.includes(u.id)))} deals={deals} activities={activities} targets={targets} rules={rules} isAdmin={isAdmin} onSaved={loadTeamSettings} />}
       {tab === 'club' && <ClubView customers={customers} deals={deals} isAdmin={isAdmin} smsEnabled={smsEnabled} onOpenCustomer={(id) => setOpenCustomer(id)} />}
       {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} index={searchIndex} isAdmin={isAdmin} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 

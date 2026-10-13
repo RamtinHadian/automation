@@ -41,11 +41,11 @@ var accounts = []account{
 }
 
 var departments = []jsonx.M{
-	{"id": "dept-general", "name": "مدیریت", "code": "HQ", "color": "#6E1B1B", "defaultQuotaGB": 100},
-	{"id": "dept-sales", "name": "فروش و بازاریابی", "code": "SALES", "color": "#1D4ED8", "defaultQuotaGB": 50},
-	{"id": "dept-fin", "name": "مالی و اداری", "code": "FIN", "color": "#166534", "defaultQuotaGB": 50},
-	{"id": "dept-it", "name": "فناوری اطلاعات", "code": "IT", "color": "#7C3AED", "defaultQuotaGB": 80},
-	{"id": "dept-hr", "name": "منابع انسانی", "code": "HR", "color": "#B45309", "defaultQuotaGB": 40},
+	{"id": "dept-general", "name": "مدیریت", "code": "HQ", "color": "#6E1B1B", "defaultQuotaGB": 100, "managerId": "demo-ceo"},
+	{"id": "dept-sales", "name": "فروش و بازاریابی", "code": "SALES", "color": "#1D4ED8", "defaultQuotaGB": 50, "managerId": "demo-sales2"},
+	{"id": "dept-fin", "name": "مالی و اداری", "code": "FIN", "color": "#166534", "defaultQuotaGB": 50, "managerId": "demo-fin2"},
+	{"id": "dept-it", "name": "فناوری اطلاعات", "code": "IT", "color": "#7C3AED", "defaultQuotaGB": 80, "managerId": "demo-it1"},
+	{"id": "dept-hr", "name": "منابع انسانی", "code": "HR", "color": "#B45309", "defaultQuotaGB": 40, "managerId": "demo-hr1"},
 }
 
 var tehran = func() *time.Location {

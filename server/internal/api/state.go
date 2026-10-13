@@ -80,10 +80,11 @@ func state(w http.ResponseWriter, r *http.Request) {
 				reports, err = store.RawList(ctx, `SELECT data FROM daily_reports ORDER BY report_date DESC LIMIT 1500`)
 			}
 		} else {
-			tasks, err = store.RawList(ctx, `SELECT data FROM tasks WHERE creator_id = $1 OR $1 = ANY(assignee_ids) ORDER BY created_at DESC`, id)
+			mgd := managedStaff(ctx, id)
+			tasks, err = store.RawList(ctx, `SELECT data FROM tasks WHERE creator_id = $1 OR $1 = ANY(assignee_ids) OR creator_id = ANY($2::text[]) OR assignee_ids && $2::text[] ORDER BY created_at DESC`, id, mgd)
 			if !fail(err) {
 				reports, err = store.RawList(ctx,
-					`SELECT data FROM daily_reports WHERE user_id = $1 OR $1 = ANY(recipient_ids) ORDER BY report_date DESC LIMIT 600`, id)
+					`SELECT data FROM daily_reports WHERE user_id = $1 OR $1 = ANY(recipient_ids) OR user_id = ANY($2::text[]) ORDER BY report_date DESC LIMIT 600`, id, mgd)
 			}
 		}
 		if fail(err) {
@@ -105,13 +106,15 @@ func state(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			// a salesperson gets only their own customers, the opportunities they work on and the history of those customers
-			if customers, err = store.RawList(ctx, `SELECT data FROM crm_customers WHERE id IN `+crmMyCustomerIDs+` ORDER BY (data->>'name')`, id); fail(err) {
+			// (a unit manager also gets those of the people of the unit)
+			managed := managedStaff(ctx, id)
+			if customers, err = store.RawList(ctx, `SELECT data FROM crm_customers WHERE id IN `+crmMyCustomerIDs+` ORDER BY (data->>'name')`, id, managed); fail(err) {
 				return
 			}
-			if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals WHERE `+crmMyDeals+` ORDER BY id`, id); fail(err) {
+			if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals WHERE `+crmMyDeals+` ORDER BY id`, id, managed); fail(err) {
 				return
 			}
-			if activities, err = store.RawList(ctx, `SELECT data FROM crm_activities WHERE customer_id IN `+crmMyCustomerIDs+` OR owner_id = $1 ORDER BY created_at DESC LIMIT 2000`, id); fail(err) {
+			if activities, err = store.RawList(ctx, `SELECT data FROM crm_activities WHERE customer_id IN `+crmMyCustomerIDs+` OR owner_id = $1 OR owner_id = ANY($2::text[]) ORDER BY created_at DESC LIMIT 2000`, id, managed); fail(err) {
 				return
 			}
 		}

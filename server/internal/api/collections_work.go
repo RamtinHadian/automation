@@ -60,6 +60,10 @@ func putReport(w http.ResponseWriter, r *http.Request, me auth.User, id string, 
 		authorID, authorName = ownerID, ownerName // the top admin's change does not make the report his own
 	}
 	recipients := without(jsonx.Strings(data, "recipientIds"), authorID)
+	// the report of a person also goes to the manager of their unit
+	if m := unitManagerOf(ctx, authorID); m != "" && !jsonx.Contains(recipients, m) {
+		recipients = append(recipients, m)
+	}
 
 	doc := jsonx.Copy(data)
 	doc["id"], doc["userId"], doc["authorName"], doc["date"] = id, authorID, authorName, date
@@ -134,7 +138,7 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	case !exists:
 		doc = jsonx.Copy(data)
 		doc["id"], doc["creatorId"], doc["creatorName"] = id, me.ID(), me.Name()
-	case me.IsAdmin() || creator == me.ID():
+	case me.IsAdmin() || creator == me.ID() || isManagerOf(managedStaff(ctx, me.ID()), append([]string{creator}, assignees...)...):
 		doc = jsonx.Copy(data)
 		doc["id"], doc["creatorId"], doc["creatorName"] = id, creator, before["creatorName"]
 	case jsonx.Contains(assignees, me.ID()):

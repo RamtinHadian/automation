@@ -379,7 +379,7 @@ export const api = {
   announcementDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/announcements/${encodeURIComponent(id)}`),
   announcementPin: (id: string, pinned: boolean) => request<{ ok: true }>('POST', `/api/announcements/${encodeURIComponent(id)}/pin`, { pinned }),
   leaves: (scope: 'mine' | 'all') => request<{ leaves: LeaveRequest[]; canDecide: boolean }>('GET', '/api/leaves?scope=' + scope),
-  leaveCreate: (b: { type: string; fromDate: string; toDate: string; fromTime?: string; toTime?: string; reason: string }) => request<{ ok: true; id: string }>('POST', '/api/leaves', b),
+  leaveCreate: (b: { type: string; fromDate: string; toDate: string; fromTime?: string; toTime?: string; reason: string }) => request<{ ok: true; to?: string[]; id: string }>('POST', '/api/leaves', b),
   leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string) => request<{ ok: true }>('POST', `/api/leaves/${encodeURIComponent(id)}/decide`, { status, note }),
   leaveCancel: (id: string) => request<{ ok: true }>('DELETE', `/api/leaves/${encodeURIComponent(id)}`),
   netWatch: () => request<any>('GET', '/api/admin/netwatch'),

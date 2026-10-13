@@ -92,6 +92,7 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
             code: editingDept.code.toUpperCase(),
             color: editingDept.color,
             defaultQuotaGB: editingDept.defaultQuotaGB,
+            managerId: editingDept.managerId || '',
         });
         setEditingDept(null);
     };
@@ -182,6 +183,9 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
                                             <div className="font-black text-sm text-[#3A241F] leading-tight">{dept.name}</div>
                                             <div className="text-[11px] text-[#8C6F66] font-mono font-bold mt-0.5">
                                                 کد: {dept.code}
+                                            </div>
+                                            <div className="text-[11px] font-bold mt-0.5 text-[#6E1B1B]" data-dept-manager>
+                                                {staffList.find((u) => u.id === dept.managerId)?.fullName ? `مدیر واحد: ${staffList.find((u) => u.id === dept.managerId)!.fullName}` : <span className="text-[#B8A39C] font-medium">مدیر واحد تعیین نشده</span>}
                                             </div>
                                         </div>
                                     </div>
@@ -433,6 +437,32 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
                                     onChange={(e) => setEditingDept({ ...editingDept, code: e.target.value.toUpperCase() })}
                                     className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-[#3A241F] font-mono focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
                                 />
+                            </div>
+
+                            {/* Manager of the unit */}
+                            <div>
+                                <label className="block text-[11px] font-bold text-[#3A241F] uppercase mb-1.5">
+                                    مدیر واحد
+                                </label>
+                                <select
+                                    value={editingDept.managerId || ''}
+                                    onChange={(e) => setEditingDept({ ...editingDept, managerId: e.target.value || undefined })}
+                                    className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20"
+                                    data-dept-manager-select
+                                >
+                                    <option value="">بدون مدیر</option>
+                                    <optgroup label="کارکنان همین واحد">
+                                        {staffList.filter((u) => u.isActive && u.departmentId === editingDept.id).map((u) => (
+                                            <option key={u.id} value={u.id}>{u.fullName}</option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="سایر کارکنان">
+                                        {staffList.filter((u) => u.isActive && u.departmentId !== editingDept.id).map((u) => (
+                                            <option key={u.id} value={u.id}>{u.fullName}</option>
+                                        ))}
+                                    </optgroup>
+                                </select>
+                                <p className="text-[10px] text-[#8C6F66] mt-1.5 leading-5">درخواست مرخصی، گزارش روزانه، وظایف و مشتریان کارکنان این واحد پیش این مدیر می‌آید.</p>
                             </div>
 
                             {/* Default Quota */}
