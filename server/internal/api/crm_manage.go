@@ -120,7 +120,7 @@ func dealRuleViolation(r *http.Request, me auth.User, fromStage, toStage string,
 	if jsonx.Bool(rules, "proposalNeedsProforma") && proformaNumber == "" {
 		return "طبق قوانین فرایند فروش، این فرصت باید اول پیش‌فاکتور داشته باشد."
 	}
-	if limit, _ := rules["bigDealAdminOnly"].(float64); toStage == "WON" && limit > 0 && amount >= limit && !me.IsAdmin() {
+	if limit := jsonx.Num(rules["bigDealAdminOnly"]); toStage == "WON" && limit > 0 && amount >= limit && !me.IsAdmin() {
 		return "بستن فروش‌های بالای سقف تعیین‌شده را مدیر انجام می‌دهد."
 	}
 	return ""

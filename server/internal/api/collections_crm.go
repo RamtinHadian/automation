@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -111,6 +113,7 @@ func removeCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id str
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM crm_activities WHERE customer_id = $1`, id)
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM crm_deals WHERE customer_id = $1`, id)
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM crm_customers WHERE id = $1`, id)
+	_ = os.RemoveAll(filepath.Join(filesDir(), "crm", id))
 	httpx.OK(w)
 }
 
@@ -160,7 +163,7 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		delete(doc, "createdByName")
 	}
 	stage := jsonx.Str(doc, "stage")
-	if msg := dealRuleViolation(r, me, jsonx.Str(before, "stage"), stage, func() float64 { f, _ := doc["amount"].(float64); return f }(), jsonx.Str(doc, "proformaNumber")); msg != "" {
+	if msg := dealRuleViolation(r, me, jsonx.Str(before, "stage"), stage, jsonx.Num(doc["amount"]), jsonx.Str(doc, "proformaNumber")); msg != "" {
 		httpx.Error(w, http.StatusForbidden, msg)
 		return
 	}

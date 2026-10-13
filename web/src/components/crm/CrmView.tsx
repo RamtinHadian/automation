@@ -36,7 +36,7 @@ import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, isOverdue, todayIso } from '../../lib/taskDates';
-import { ActivityType, CrmActivity, Customer, CustomerStatus, Deal, DealStage, SupportSub, SupportTicket, User, Warranty } from '../../types';
+import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
@@ -63,6 +63,8 @@ import { TodayView } from './TodayView';
 import { TeamView } from './TeamView';
 import { Rules, Targets, ruleViolation } from '../../lib/team';
 import { MergeButton, MergeModal, TransferButton, TransferModal } from './CrmAdminTools';
+import { CustomerFiles } from './CustomerFiles';
+import { CalendarView } from './CalendarView';
 import { LOST_REASONS } from '../../lib/lostReasons';
 import { QuoteForm } from './QuoteForm';
 import { CustomerSummaryStrip } from './CustomerSummary';
@@ -111,7 +113,7 @@ export const CrmView: React.FC = () => {
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board'>('today');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar'>('today');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -334,6 +336,7 @@ export const CrmView: React.FC = () => {
     ['followups', 'پیگیری‌ها', ListChecks],
     ['reports', 'گزارش‌ها', BarChart3],
     ['club', 'باشگاه مشتریان', Gift],
+    ['calendar', 'تقویم', CalendarDays],
     ['board', 'تیم', Trophy],
   ] as const;
   const smsTab = ['sms', 'پیامک گروهی', MessageSquare] as const;
@@ -754,6 +757,7 @@ export const CrmView: React.FC = () => {
 
       {/* ---------- pipeline ---------- */}
       {tab === 'today' && <TodayView me={me} myName={currentUser.fullName} customers={customers} deals={deals} isAdmin={isAdmin} seesTeam={isAdmin || !!currentUser.canSeeTeamCrm} targets={targets} followups={openFollowups} renderFollow={followRow} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onOpenCustomer={(id) => setOpenCustomer(id)} />}
+      {tab === 'calendar' && <CalendarView customers={customers} deals={deals} followups={openFollowups} me={me} seesTeam={isAdmin || !!currentUser.canSeeTeamCrm} onOpenCustomer={(id) => setOpenCustomer(id)} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onAddAppointment={(cid, text, dueDate) => { addActivity(cid, 'FOLLOWUP', text, { dueDate }); showToast('در تقویم ثبت شد.'); }} />}
       {tab === 'board' && <TeamView staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} deals={deals} activities={activities} targets={targets} rules={rules} isAdmin={isAdmin} onSaved={loadTeamSettings} />}
       {tab === 'club' && <ClubView customers={customers} deals={deals} isAdmin={isAdmin} smsEnabled={smsEnabled} onOpenCustomer={(id) => setOpenCustomer(id)} />}
       {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} index={searchIndex} isAdmin={isAdmin} onOpenCustomer={(id) => setOpenCustomer(id)} />}
@@ -988,6 +992,7 @@ export const CrmView: React.FC = () => {
             setEditingCustomer(customerById.get(openCustomer)!);
           }}
           onMerge={isAdmin ? () => setMergeFor(customerById.get(openCustomer)!) : undefined}
+          onAttachments={(files) => saveCustomer({ ...customerById.get(openCustomer)!, attachments: files })}
           onNewDeal={() => setEditingDeal({ deal: newDeal(openCustomer), isNew: true })}
           onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })}
           onAddActivity={(type, text, extra) => addActivity(openCustomer, type, text, extra)}
@@ -1189,7 +1194,8 @@ const CustomerDetail: React.FC<{
   onToggle: (a: CrmActivity) => void;
   onDeleteActivity: (a: CrmActivity) => void;
   onMerge?: () => void;
-}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
+  onAttachments: (files: CustomerFile[]) => void;
+}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onAttachments, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
   const [type, setType] = useState<ActivityType>('NOTE');
   const [text, setText] = useState('');
   // «the customer looked for a product we did not have»: ticked, then the product's name (and how many, if known)
@@ -1292,6 +1298,7 @@ const CustomerDetail: React.FC<{
       }
     >
       <CustomerSummaryStrip customer={c} deals={allDeals.filter((d) => d.customerId === c.id)} activities={activities} calls={calls} />
+      <CustomerFiles customerId={c.id} files={c.attachments || []} me={me.id} isAdmin={isAdmin} onChange={onAttachments} />
       <div className="flex flex-wrap items-center gap-2">
         <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${st.cls}`}>{st.label}</span>
         {c.company && c.company !== c.name && (

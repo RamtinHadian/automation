@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -134,6 +136,10 @@ func crmMerge(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			merged[key] = list
+		case "attachments":
+			list, _ := merged[key].([]any)
+			other, _ := d[key].([]any)
+			merged[key] = append(append([]any{}, list...), other...)
 		case "notes":
 			a, b := strings.TrimSpace(jsonx.Str(merged, key)), strings.TrimSpace(jsonx.Str(d, key))
 			if b != "" && !strings.Contains(a, b) {
@@ -183,6 +189,14 @@ func crmMerge(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(ctx); err != nil {
 		internalError(w)
 		return
+	}
+	// the files kept on the second customer's page move to the first one
+	if entries, err := os.ReadDir(filepath.Join(filesDir(), "crm", drop)); err == nil {
+		_ = os.MkdirAll(filepath.Join(filesDir(), "crm", keep), 0o750)
+		for _, e := range entries {
+			_ = os.Rename(filepath.Join(filesDir(), "crm", drop, e.Name()), filepath.Join(filesDir(), "crm", keep, e.Name()))
+		}
+		_ = os.RemoveAll(filepath.Join(filesDir(), "crm", drop))
 	}
 	auditLine(r, me, "WARNING", "ادغام مشتری «"+dropName+"» در «"+name+"»")
 	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true, "keepId": keep})

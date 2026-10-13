@@ -100,9 +100,22 @@ export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE';
 export type DealStage = 'NEW' | 'CONTACTED' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST';
 export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP' | 'MISSING' | 'QUOTE';
 
+/** A file kept on a customer's page (contract, payment slip, photo). The bytes are on the server; this is its entry in the list. */
+export interface CustomerFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  at: string;
+  byId: string;
+  byName: string;
+}
+
 export interface Customer {
   id: string;
   name: string;
+  /** Files kept on the customer's page. */
+  attachments?: CustomerFile[];
   /** Set when the customer opened the company bot (Telegram / Bale) with his link. */
   telegramChatId?: string;
   baleChatId?: string;

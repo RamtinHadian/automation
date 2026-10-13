@@ -12,6 +12,7 @@ var KVTemplates = []KVTemplate{
 	{Key: "warranty_issued", Name: "hmwarrantyissued", Auto: true, Text: "{name} عزیز، گارانتی کالای «{product}» شما به شمارهٔ {number} ثبت شد و تا {end} معتبر است.\n{company}\nاتوماسیون هورمند"},
 	{Key: "birthday_eve", Name: "hmbirthdayeve", Auto: true, Text: "{name} عزیز، فردا تولد شماست؛ پیشاپیش تولدتان مبارک! از همراهی شما در {company} سپاسگزاریم.\nاتوماسیون هورمند"},
 	{Key: "ticket_resolved", Name: "hmticketresolved", Auto: true, Text: "{name} عزیز، درخواست پشتیبانی شما ({number}) انجام شد. اگر مشکل ادامه داشت، پاسخ بدهید تا دوباره بررسی شود.\n{company}\nاتوماسیون هورمند"},
+	{Key: "proforma_lastday", Name: "hmproformalastday", Auto: true, Text: "{name} عزیز، اعتبار پیش‌فاکتور شما به شمارهٔ {number} تا {end} است. برای نهایی‌کردن سفارش یا هر پرسشی در خدمت شما هستیم.\n{company}\nاتوماسیون هورمند"},
 	{Key: "proforma-sent", Name: "hmproformasent", Auto: false, Text: "{name} عزیز، پیش‌فاکتور درخواستی برای شما ارسال شد. لطفاً پس از بررسی اعلام نظر بفرمایید.\n{company}\nاتوماسیون هورمند"},
 	{Key: "proforma-expiring", Name: "hmproformaexpiring", Auto: false, Text: "{name} عزیز، یادآوری می‌کنیم که اعتبار پیش‌فاکتور ارسالی در حال اتمام است.\n{company}\nاتوماسیون هورمند"},
 	{Key: "proforma-expired", Name: "hmproformaexpired", Auto: false, Text: "{name} عزیز، اعتبار پیش‌فاکتور قبلی به پایان رسیده است. در صورت تمایل، پیش‌فاکتور تازه با قیمت روز برایتان صادر می‌کنیم.\n{company}\nاتوماسیون هورمند"},

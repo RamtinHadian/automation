@@ -59,7 +59,7 @@ func clubPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func clubNum(v any, lo, hi float64) float64 {
-	f, _ := v.(float64)
+	f := jsonx.Num(v)
 	if f < lo {
 		return lo
 	}

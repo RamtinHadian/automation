@@ -10,7 +10,8 @@ const inputCls = 'w-full px-4 py-3 bg-white border border-[#EBDBCE] rounded-2xl 
 
 interface PLog { at: string; kind: 'customer' | 'ai' | 'staff' | 'status'; byName?: string; note?: string; to?: TicketStatus }
 interface PTicket { id: string; ticketNo: string; subject: string; description: string; status: TicketStatus; createdAt: string; resolution?: string; log: PLog[] }
-interface Me { name: string; plan: string; endDate: string; responseHours: number; ai: boolean; tickets: PTicket[] }
+interface Club { total: number; points: number; tier: string; discountPercent: number; enabled: boolean; nextTier?: string; toNext?: number; purchases: { title: string; at: string; amount: number }[]; proformas: { number: string; title: string; at: string; amount: number; validUntil: string }[] }
+interface Me { name: string; plan: string; endDate: string; responseHours: number; ai: boolean; tickets: PTicket[]; club?: Club }
 interface Info { enabled: boolean; company: string; ai: boolean; demoHint?: string }
 
 class PErr extends Error {
@@ -219,6 +220,41 @@ export const PortalPage: React.FC = () => {
         <button type="button" onClick={logout} className="shrink-0 flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl bg-white border border-[#EBDBCE] text-xs font-black cursor-pointer"><LogOut className="w-4 h-4" />خروج</button>
       </div>
       {err && <div className="text-xs font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{err}</div>}
+
+      {!open && me.club && me.club.enabled && (me.club.points > 0 || me.club.purchases.length > 0 || me.club.proformas.length > 0) && (
+        <div className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-3" data-portal-club>
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-black text-sm">باشگاه مشتریان</div>
+            <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">سطح {me.club.tier}</span>
+          </div>
+          <div className="text-[12px] font-bold text-[#5A4640] leading-6">
+            امتیاز شما: <span className="font-black text-violet-700">{toPersianDigits(me.club.points)}</span>
+            {me.club.nextTier && me.club.toNext ? ` · ${toPersianDigits(me.club.toNext)} امتیاز تا سطح «${me.club.nextTier}»` : ' · بالاترین سطح'}
+          </div>
+          {me.club.proformas.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-black text-[#3A241F]">پیش‌فاکتورهای در انتظار تصمیم شما</div>
+              {me.club.proformas.map((p) => (
+                <div key={p.number} className="flex items-center justify-between gap-2 text-[11px] font-bold bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2">
+                  <span className="truncate">{toPersianDigits(p.number)} · {p.title}</span>
+                  <span className="shrink-0 text-violet-700">{toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(p.amount)))} تومان</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {me.club.purchases.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-black text-[#3A241F]">خریدهای اخیر شما</div>
+              {me.club.purchases.slice(0, 5).map((p, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 text-[11px] font-bold bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2">
+                  <span className="truncate">{p.title}{p.at ? ` · ${when(p.at).split(' ')[0]}` : ''}</span>
+                  <span className="shrink-0">{toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(p.amount)))} تومان</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {open ? (
         <div className="space-y-3">

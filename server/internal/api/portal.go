@@ -484,7 +484,7 @@ func portalMe(w http.ResponseWriter, r *http.Request) {
 	s := supportSettings(r.Context())
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"name": jsonx.Str(cust, "name"), "plan": jsonx.Str(sub, "planName"), "endDate": jsonx.Str(sub, "endDate"),
-		"responseHours": sub["responseHours"], "ai": jsonx.Bool(s, "aiEnabled"), "tickets": tickets,
+		"responseHours": sub["responseHours"], "ai": jsonx.Bool(s, "aiEnabled"), "tickets": tickets, "club": portalClub(r.Context(), id),
 	})
 }
 
@@ -636,4 +636,60 @@ func demoHint() string {
 		return ""
 	}
 	return "نمونهٔ آزمایشی: موبایل ۰۹۱۲۱۲۳۴۵۶۷ و چهار رقم آخر کد ملی: ۵۹۴۸"
+}
+
+// portalClub: the customer's own purchases, club points and the proformas still waiting for their decision (shown on their page).
+func portalClub(ctx context.Context, customerID string) jsonx.M {
+	cfg := settingDoc(ctx, "crmClub")
+	per := jsonx.Num(cfg["tomanPerPoint"])
+	if per <= 0 {
+		per = 1000000
+	}
+	type tier struct {
+		name string
+		min  float64
+		disc float64
+	}
+	tiers := []tier{{"نقره‌ای", 0, 0}, {"طلایی", 20, 3}, {"ویژه", 100, 5}}
+	if list, _ := cfg["tiers"].([]any); len(list) > 0 {
+		tiers = tiers[:0]
+		for _, t := range list {
+			if m, ok := t.(jsonx.M); ok {
+				mn := jsonx.Num(m["minPoints"])
+				dc := jsonx.Num(m["discountPercent"])
+				tiers = append(tiers, tier{jsonx.Str(m, "name"), mn, dc})
+			}
+		}
+	}
+	rows, _ := store.RawList(ctx, `SELECT data FROM crm_deals WHERE customer_id = $1 ORDER BY COALESCE(data->>'closedAt', data->>'createdAt') DESC`, customerID)
+	total := 0.0
+	purchases := []jsonx.M{}
+	proformas := []jsonx.M{}
+	for _, raw := range rows {
+		d := jsonx.Decode(raw)
+		amount := jsonx.Num(d["amount"])
+		switch jsonx.Str(d, "stage") {
+		case "WON":
+			total += amount
+			if len(purchases) < 10 {
+				purchases = append(purchases, jsonx.M{"title": jsonx.Str(d, "title"), "at": jsonx.Str(d, "closedAt"), "amount": amount})
+			}
+		case "PROPOSAL", "NEGOTIATION":
+			if n := jsonx.Str(d, "proformaNumber"); n != "" && len(proformas) < 10 {
+				proformas = append(proformas, jsonx.M{"number": n, "title": jsonx.Str(d, "title"), "at": jsonx.Str(d, "proformaAt"), "amount": amount, "validUntil": jsonx.Str(d, "validUntil")})
+			}
+		}
+	}
+	points := float64(int64(total / per))
+	cur := 0
+	for i, t := range tiers {
+		if points >= t.min {
+			cur = i
+		}
+	}
+	out := jsonx.M{"total": total, "points": points, "tier": tiers[cur].name, "discountPercent": tiers[cur].disc, "enabled": cfg["enabled"] != false, "purchases": purchases, "proformas": proformas}
+	if cur+1 < len(tiers) {
+		out["nextTier"], out["toNext"] = tiers[cur+1].name, tiers[cur+1].min-points
+	}
+	return out
 }

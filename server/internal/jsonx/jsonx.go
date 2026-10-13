@@ -97,6 +97,25 @@ func Int(m M, key string) int {
 	return 0
 }
 
+// Num reads any JSON number (kept as json.Number by this package) or numeric text as float64; 0 when it is none of them.
+func Num(v any) float64 {
+	switch n := v.(type) {
+	case json.Number:
+		f, _ := n.Float64()
+		return f
+	case float64:
+		return n
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case string:
+		f, _ := json.Number(n).Float64()
+		return f
+	}
+	return 0
+}
+
 // Contains reports whether list has value.
 func Contains(list []string, value string) bool {
 	for _, v := range list {
