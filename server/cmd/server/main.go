@@ -60,6 +60,7 @@ func main() {
 		go demo.Run(ctx, cfg.DemoResetHours)
 	}
 	go crm.RunReminders(ctx)
+	go crm.RunStalledDeals(ctx)
 	if !cfg.Demo {
 		go sms.RunOccasions(ctx) // birthday messages the day before
 	}

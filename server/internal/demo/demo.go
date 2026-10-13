@@ -456,11 +456,15 @@ func Reset(ctx context.Context) error {
 			"items": []jsonx.M{{"title": "پیاده‌سازی و راه‌اندازی", "qty": 1, "unit": "مورد", "unitPrice": 90000000}, {"title": "آموزش کاربران", "qty": 4, "unit": "جلسه", "unitPrice": 3000000}, {"title": "پشتیبانی سه‌ماهه", "qty": 3, "unit": "ماه", "unitPrice": 8000000}}},
 		{"id": "demo-d3", "title": "خرید لایسنس سازمانی", "customerId": "demo-c3", "customerName": "رضا حیدری", "amount": 30000000, "stage": "NEW"},
 		{"id": "demo-d4", "title": "تمدید قرارداد قبلی", "customerId": "demo-c1", "customerName": "حسین کاظمی", "amount": 18000000, "stage": "WON", "closedAt": iso(now.Add(-48 * time.Hour))},
-		{"id": "demo-d5", "title": "مشاورهٔ فناوری", "customerId": "demo-c4", "customerName": "لیلا صادقی", "amount": 9000000, "stage": "LOST", "closedAt": iso(now.Add(-96 * time.Hour))},
+		{"id": "demo-d5", "title": "مشاورهٔ فناوری", "customerId": "demo-c4", "customerName": "لیلا صادقی", "amount": 9000000, "stage": "LOST", "closedAt": iso(now.Add(-96 * time.Hour)), "lostReason": "قیمت بالاتر بود", "lostNote": "رقیب ۱۰٪ ارزان‌تر داد"},
+		{"id": "demo-stall1", "title": "تجهیز دفتر شعبه", "customerId": "demo-c3", "customerName": "رضا حیدری", "amount": 42000000, "stage": "CONTACTED", "expectedClose": day(now.AddDate(0, 0, 3)),
+			"createdAt": iso(now.Add(-14 * 24 * time.Hour)), "updatedAt": iso(now.Add(-9 * 24 * time.Hour))},
 	}
 	for _, d := range deals {
 		d["ownerId"], d["ownerName"], d["notes"] = owner, by[owner].Name, ""
-		d["createdAt"], d["updatedAt"] = iso(now.Add(-60*time.Hour)), iso(now.Add(-5*time.Hour))
+		if _, has := d["createdAt"]; !has {
+			d["createdAt"], d["updatedAt"] = iso(now.Add(-60*time.Hour)), iso(now.Add(-5*time.Hour))
+		}
 		if err := exec(ctx, `INSERT INTO crm_deals (id, customer_id, owner_id, data) VALUES ($1, $2, $3, $4::jsonb)`, jsonx.Str(d, "id"), jsonx.Str(d, "customerId"), owner, jsonx.Encode(d)); err != nil {
 			return err
 		}
@@ -469,6 +473,8 @@ func Reset(ctx context.Context) error {
 		{"id": "demo-a1", "customerId": "demo-c1", "type": "CALL", "text": "تماس گرفته شد؛ برای تمدید قرارداد علاقه‌مند است."},
 		{"id": "demo-a2", "customerId": "demo-c2", "type": "MEETING", "text": "جلسهٔ معرفی سامانه برگزار شد."},
 		{"id": "demo-a3", "customerId": "demo-c2", "type": "FOLLOWUP", "text": "ارسال پیش‌فاکتور و پیگیری تأیید", "dueDate": day(now.AddDate(0, 0, 2)), "done": false},
+		{"id": "demo-fu-today", "customerId": "demo-c1", "type": "FOLLOWUP", "text": "تماس برای نهایی‌کردن تمدید قرارداد", "dueDate": day(now), "done": false},
+		{"id": "demo-fu-late", "customerId": "demo-c3", "type": "FOLLOWUP", "text": "ارسال فهرست قیمت نمایشگاه", "dueDate": day(now.AddDate(0, 0, -1)), "done": false},
 		{"id": "demo-a4", "customerId": "demo-c3", "type": "NOTE", "text": "از نمایشگاه با ما آشنا شد؛ فهرست قیمت ارسال شود."},
 	}
 	for i, a := range acts {

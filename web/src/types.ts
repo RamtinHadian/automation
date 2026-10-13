@@ -182,6 +182,9 @@ export interface Deal {
   createdAt: string;
   updatedAt: string;
   closedAt?: string;
+  /** Why the opportunity was lost (required when the stage is «از دست رفت»). */
+  lostReason?: string;
+  lostNote?: string;
   /** Proforma invoice (created when the deal reaches «پیشنهاد ارسال شد»). */
   items?: ProformaItem[];
   discountPercent?: number;

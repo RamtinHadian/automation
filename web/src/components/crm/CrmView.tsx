@@ -27,6 +27,7 @@ import {
   X,
   BarChart3,
   Gift,
+  Sparkles,
   BookUser,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -58,6 +59,8 @@ import { PhraseChips } from '../common/PhraseChips';
 import { PhoneBook } from './PhoneBook';
 import { CrmReports } from './CrmReports';
 import { ClubView } from './ClubView';
+import { TodayView } from './TodayView';
+import { LOST_REASONS } from '../../lib/lostReasons';
 import { QuoteForm } from './QuoteForm';
 import { CustomerSummaryStrip } from './CustomerSummary';
 import { buildCustomerIndex, matchesQuery } from '../../lib/customerSearch';
@@ -105,7 +108,7 @@ export const CrmView: React.FC = () => {
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club'>('overview');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today'>('today');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -245,12 +248,14 @@ export const CrmView: React.FC = () => {
     const before = deals.find((x) => x.id === next.id);
     setDeals((prev) => (prev.some((x) => x.id === next.id) ? prev.map((x) => (x.id === next.id ? next : x)) : [next, ...prev]));
     if (before && before.stage !== next.stage) {
-      addActivity(next.customerId, 'NOTE', `مرحلهٔ فرصت «${next.title}» از «${stageOf(before.stage).label}» به «${stageOf(next.stage).label}» تغییر کرد.`, { dealId: next.id });
+      addActivity(next.customerId, 'NOTE', `مرحلهٔ فرصت «${next.title}» از «${stageOf(before.stage).label}» به «${stageOf(next.stage).label}» تغییر کرد.${next.stage === 'LOST' && next.lostReason ? ` دلیل: ${next.lostReason}.` : ''}`, { dealId: next.id });
     }
   };
   const moveDeal = (id: string, stage: DealStage) => {
     const d = deals.find((x) => x.id === id);
     if (d && d.stage !== stage) {
+      // a lost opportunity must say why: the edit window opens with the stage already set and asks for the reason
+      if (stage === 'LOST') return setEditingDeal({ deal: { ...d, stage }, isNew: false });
       saveDeal({ ...d, stage });
       if (stage === 'PROPOSAL' && !d.proformaNumber) setProformaFor({ ...d, stage });
     }
@@ -305,6 +310,7 @@ export const CrmView: React.FC = () => {
   const mine = (d: Deal) => canApproveProforma(currentUser, settings, d.proformaIssuerId);
   const pendingProformas = deals.filter((d) => d.proformaApproval?.status === 'PENDING' && mine(d));
   const baseTabs = [
+    ['today', 'امروز من', Sparkles],
     ['overview', 'خلاصه', TrendingUp],
     ['customers', 'مشتریان', Users],
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
@@ -423,6 +429,9 @@ export const CrmView: React.FC = () => {
           <span className="text-[#8C6F66] font-medium">ایجاد شده توسط: </span>
           {userById.get(d.createdById || '')?.fullName || d.createdByName || d.ownerName || <span className="text-[#8C6F66] font-medium">نامشخص</span>}
         </div>
+        {d.stage === 'LOST' && d.lostReason && (
+          <div className="text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-100 rounded-full px-2 py-0.5 w-fit" title={d.lostNote || ''}>دلیل: {d.lostReason}</div>
+        )}
         {d.createdAt && (
           <div className="text-[10px] font-medium text-[#8C6F66] leading-5" title="تاریخ و ساعت ایجاد">
             ایجاد: {timeText(d.createdAt)}
@@ -725,6 +734,7 @@ export const CrmView: React.FC = () => {
       )}
 
       {/* ---------- pipeline ---------- */}
+      {tab === 'today' && <TodayView me={me} myName={currentUser.fullName} customers={customers} deals={deals} isAdmin={isAdmin} followups={openFollowups} renderFollow={followRow} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onOpenCustomer={(id) => setOpenCustomer(id)} />}
       {tab === 'club' && <ClubView customers={customers} deals={deals} isAdmin={isAdmin} smsEnabled={smsEnabled} onOpenCustomer={(id) => setOpenCustomer(id)} />}
       {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} index={searchIndex} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 
@@ -986,7 +996,7 @@ const DealForm: React.FC<{
   const [d, setD] = useState<Deal>(initial);
   const [amountText, setAmountText] = useState(initial.amount ? toman(initial.amount) : '');
   const patch = (u: Partial<Deal>) => setD((p) => ({ ...p, ...u }));
-  const valid = d.title.trim() && d.customerId;
+  const valid = d.title.trim() && d.customerId && (d.stage !== 'LOST' || !!d.lostReason);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid) return;
@@ -1067,7 +1077,7 @@ const DealForm: React.FC<{
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={label}>مرحله</label>
-            <select className={field} value={d.stage} onChange={(e) => patch({ stage: e.target.value as DealStage })}>
+            <select className={field} value={d.stage} onChange={(e) => patch({ stage: e.target.value as DealStage, ...(e.target.value !== 'LOST' ? { lostReason: undefined, lostNote: undefined } : {}) })}>
               {STAGES.map((s) => (
                 <option key={s.id} value={s.id}>{s.label}</option>
               ))}
@@ -1078,6 +1088,23 @@ const DealForm: React.FC<{
             <PersonPicker title="مسئول اصلی" items={staffItems(staff)} value={d.ownerId} onChange={(id) => patch({ ownerId: id, coOwnerIds: (d.coOwnerIds || []).filter((x) => x !== id) })} />
           </div>
         </div>
+        {d.stage === 'LOST' && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-3.5 space-y-3" data-lost-reason>
+            <div>
+              <label className={label}>چرا این فروش از دست رفت؟ *</label>
+              <select className={field} value={d.lostReason || ''} onChange={(e) => patch({ lostReason: e.target.value || undefined })}>
+                <option value="">انتخاب کنید...</option>
+                {LOST_REASONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={label}>توضیح بیشتر (اختیاری)</label>
+              <input className={field} value={d.lostNote || ''} onChange={(e) => patch({ lostNote: e.target.value })} placeholder="مثلاً قیمت رقیب چقدر بود" />
+            </div>
+          </div>
+        )}
         <div>
           <label className={label}>مسئولان همراه (هر چند نفر)</label>
           <div className="flex flex-wrap gap-1.5 mb-2 empty:hidden">

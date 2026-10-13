@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BadgeDollarSign, Download, Filter, MessageSquare, Moon, Tag, Target, Users } from 'lucide-react';
+import { BadgeDollarSign, Download, Filter, MessageSquare, Moon, Tag, Target, Users, XCircle } from 'lucide-react';
 import { CrmActivity, Customer, Deal, User } from '../../types';
 import { downloadCsv } from '../../lib/csv';
 import { matchesQuery } from '../../lib/customerSearch';
@@ -9,7 +9,7 @@ import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
 import { field, label } from './crmUi';
 
-type Kind = 'buyers' | 'interactions' | 'quotes' | 'dormant' | 'needs';
+type Kind = 'buyers' | 'interactions' | 'quotes' | 'dormant' | 'needs' | 'lost';
 
 const REPORTS: [Kind, string, React.ElementType][] = [
   ['buyers', 'خریداران در بازه', BadgeDollarSign],
@@ -17,6 +17,7 @@ const REPORTS: [Kind, string, React.ElementType][] = [
   ['quotes', 'قیمت‌های داده‌شده', Tag],
   ['dormant', 'مشتریان بی‌پیگیری', Moon],
   ['needs', 'نیاز مشتریان', Target],
+  ['lost', 'دلایل ازدست‌رفتن فروش', XCircle],
 ];
 const ACT_LABEL: Record<string, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد' };
 
@@ -92,6 +93,22 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customers, activities, deals, dormantDays, q, who, index]);
 
+  // lost opportunities in the period, and how many were lost for each reason
+  const lost = useMemo(() => deals.filter((d) => d.stage === 'LOST' && inRange(d.closedAt || d.updatedAt) && okCustomer(d.customerId) && (!who || d.ownerId === who)).sort((a, b) => (b.closedAt || b.updatedAt).localeCompare(a.closedAt || a.updatedAt)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [deals, from, to, q, who, index]);
+  const lostByReason = useMemo(() => {
+    const m = new Map<string, { n: number; sum: number }>();
+    for (const d of lost) {
+      const k = d.lostReason || 'دلیل ثبت نشده';
+      const r = m.get(k) || { n: 0, sum: 0 };
+      r.n++;
+      r.sum += d.amount || 0;
+      m.set(k, r);
+    }
+    return [...m.entries()].sort((a, b) => b[1].n - a[1].n);
+  }, [lost]);
+
   const needs = useMemo(() => {
     const miss = new Map<string, string[]>();
     for (const a of activities) if (a.type === 'MISSING' && inRange(a.createdAt)) miss.set(a.customerId, [...(miss.get(a.customerId) || []), a.itemName || a.text]);
@@ -105,19 +122,20 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
     setFrom(dayIso(-days));
     setTo(todayIso());
   };
-  const needsRange = kind === 'buyers' || kind === 'interactions' || kind === 'quotes' || kind === 'needs';
+  const needsRange = kind === 'buyers' || kind === 'interactions' || kind === 'quotes' || kind === 'needs' || kind === 'lost';
   const chip = (on: boolean) => `px-3 py-1.5 rounded-xl text-[11px] font-black border cursor-pointer ${on ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`;
 
   const exportCsv = () => {
     if (kind === 'buyers') downloadCsv('خریداران.csv', [['مشتری', 'تعداد خرید', `مبلغ (${unitName()})`, 'آخرین خرید', 'کالاها'], ...buyers.map((r) => [nameOf(r.id), r.count, toDisplay(r.total), r.last ? localDay(r.last) : '', [...r.items].join('، ')])]);
     else if (kind === 'dormant') downloadCsv('مشتریان-بی-پیگیری.csv', [['مشتری', 'آخرین تعامل', 'مسئول'], ...dormant.map((r) => [r.c.name, localDay(r.last), r.c.ownerName])]);
+    else if (kind === 'lost') downloadCsv('دلایل-ازدست-رفتن-فروش.csv', [['تاریخ', 'مشتری', 'فرصت', `مبلغ (${unitName()})`, 'دلیل', 'توضیح', 'مسئول'], ...lost.map((d) => [localDay(d.closedAt || d.updatedAt), nameOf(d.customerId), d.title, toDisplay(d.amount), d.lostReason || '', d.lostNote || '', d.ownerName])]);
     else if (kind === 'needs') downloadCsv('نیاز-مشتریان.csv', [['مشتری', 'دنبال چه می‌گردد', 'کالاهای ناموجود'], ...needs.map((r) => [r.c.name, r.interest, r.missing.join('، ')])]);
     else downloadCsv(kind === 'quotes' ? 'قیمت-ها.csv' : 'تعامل-ها.csv', [['تاریخ', 'مشتری', 'نوع', 'کالا', 'مشخصات', 'تعداد', `قیمت (${unitName()})`, 'متن', 'ثبت‌کننده'], ...acts.map((a) => [localDay(a.createdAt), nameOf(a.customerId), ACT_LABEL[a.type], a.itemName || '', a.spec || '', a.qty || '', a.price ? toDisplay(a.price) : '', a.text, a.authorName])]);
   };
 
   const th = 'px-3 py-2 text-[10px] font-black text-[#8C6F66] text-right whitespace-nowrap';
   const total = kind === 'buyers' ? buyers.reduce((s, r) => s + r.total, 0) : 0;
-  const rowCount = kind === 'buyers' ? buyers.length : kind === 'dormant' ? dormant.length : kind === 'needs' ? needs.length : acts.length;
+  const rowCount = kind === 'buyers' ? buyers.length : kind === 'dormant' ? dormant.length : kind === 'needs' ? needs.length : kind === 'lost' ? lost.length : acts.length;
   const quoteAvg = useMemo(() => {
     if (kind !== 'quotes') return [];
     const m = new Map<string, { n: number; sum: number; min: number; max: number }>();
@@ -218,6 +236,15 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
         </button>
       </div>
 
+      {kind === 'lost' && lostByReason.length > 0 && (
+        <div className="flex flex-wrap gap-2" data-lost-summary>
+          {lostByReason.map(([reason, r]) => (
+            <span key={reason} className="text-[11px] font-black rounded-full border border-rose-200 bg-rose-50 text-rose-800 px-3 py-1.5">
+              {reason}: {toPersianDigits(r.n)} مورد · {formatMoney(r.sum)} {unitName()}
+            </span>
+          ))}
+        </div>
+      )}
       {kind === 'quotes' && quoteAvg.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
           {quoteAvg.map(([name, r]) => (
@@ -242,6 +269,7 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
             {kind === 'buyers' && <tr><th className={th}>مشتری</th><th className={th}>تعداد خرید</th><th className={th}>مبلغ ({unitName()})</th><th className={th}>آخرین خرید</th><th className={th}>کالاها</th></tr>}
             {(kind === 'interactions' || kind === 'quotes') && <tr><th className={th}>زمان</th><th className={th}>مشتری</th><th className={th}>{kind === 'quotes' ? 'کالا و مشخصات' : 'نوع'}</th><th className={th}>{kind === 'quotes' ? 'تعداد' : 'شرح'}</th>{kind === 'quotes' && <th className={th}>قیمت ({unitName()})</th>}<th className={th}>ثبت‌کننده</th></tr>}
             {kind === 'dormant' && <tr><th className={th}>مشتری</th><th className={th}>آخرین تعامل یا خرید</th><th className={th}>چند روز</th><th className={th}>مسئول</th></tr>}
+            {kind === 'lost' && <tr><th className={th}>تاریخ</th><th className={th}>مشتری</th><th className={th}>فرصت</th><th className={th}>مبلغ ({unitName()})</th><th className={th}>دلیل</th><th className={th}>مسئول</th></tr>}
             {kind === 'needs' && <tr><th className={th}>مشتری</th><th className={th}>دنبال چه کالایی می‌گردد</th><th className={th}>ناموجودهایی که خواسته</th></tr>}
           </thead>
           <tbody className="divide-y divide-[#F3E8DF]">
@@ -257,6 +285,11 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
                 {kind === 'quotes' ? <Cell>{a.qty ? toPersianDigits(a.qty) : '—'}</Cell> : <Cell className="max-w-[360px]">{a.text}</Cell>}
                 {kind === 'quotes' && <Cell strong>{formatMoney(a.price || 0)}{a.askedPrice ? ` (مشتری ${formatMoney(a.askedPrice)})` : ''}</Cell>}
                 <Cell>{a.authorName}</Cell>
+              </tr>
+            ))}
+            {kind === 'lost' && lost.slice(0, 500).map((d) => (
+              <tr key={d.id} onClick={() => onOpenCustomer(d.customerId)} className="hover:bg-[#FAF5F1] cursor-pointer align-top">
+                <Cell className="whitespace-nowrap">{formatTaskDate(localDay(d.closedAt || d.updatedAt))}</Cell><Cell strong>{nameOf(d.customerId)}</Cell><Cell>{d.title}</Cell><Cell>{formatMoney(d.amount)}</Cell><Cell className="max-w-[300px]">{d.lostReason || '—'}{d.lostNote ? ` (${d.lostNote})` : ''}</Cell><Cell>{d.ownerName}</Cell>
               </tr>
             ))}
             {kind === 'dormant' && dormant.slice(0, 500).map((r) => (

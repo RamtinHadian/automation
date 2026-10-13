@@ -86,6 +86,7 @@ export const MENUS: MenuDef[] = [
     tone: '#7C3AED',
     main: flag('crm', 'canUseCrm', 'ورود به منو', 'منوی «مشتریان»: مشتری، فرصت فروش و پیگیری.'),
     subs: [
+      { id: 'crm.today', label: 'امروز من', hint: 'کارهای امروز: پیگیری‌ها، فرصت‌های گیرکرده، تولدها.' },
       { id: 'crm.overview', label: 'خلاصه', hint: 'نمای کلی مشتری‌ها و فروش.' },
       { id: 'crm.customers', label: 'مشتریان', hint: 'فهرست، جستجو، ثبت و ویرایش مشتری.' },
       { id: 'crm.pipeline', label: 'فرصت‌های فروش', hint: 'تابلوی مراحل فروش و پیش‌فاکتور.' },
