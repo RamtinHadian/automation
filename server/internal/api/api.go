@@ -155,6 +155,7 @@ func Router(cfg config.Config) http.Handler {
 	registerExtAPI(mux)
 	registerWarehouse(mux)
 	registerClub(mux)
+	registerCrmTools(mux)
 	registerSepidar(mux)
 	registerReminders(mux)
 

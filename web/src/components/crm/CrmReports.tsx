@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BadgeDollarSign, Download, Filter, MessageSquare, Moon, Tag, Target, Users, XCircle } from 'lucide-react';
+import { BadgeDollarSign, Download, Filter, MessageSquare, Moon, Tag, Target, Users, XCircle, ShieldAlert } from 'lucide-react';
 import { CrmActivity, Customer, Deal, User } from '../../types';
 import { downloadCsv } from '../../lib/csv';
 import { matchesQuery } from '../../lib/customerSearch';
@@ -9,7 +9,7 @@ import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
 import { field, label } from './crmUi';
 
-type Kind = 'buyers' | 'interactions' | 'quotes' | 'dormant' | 'needs' | 'lost';
+type Kind = 'buyers' | 'interactions' | 'quotes' | 'dormant' | 'needs' | 'lost' | 'quality';
 
 const REPORTS: [Kind, string, React.ElementType][] = [
   ['buyers', 'خریداران در بازه', BadgeDollarSign],
@@ -18,6 +18,7 @@ const REPORTS: [Kind, string, React.ElementType][] = [
   ['dormant', 'مشتریان بی‌پیگیری', Moon],
   ['needs', 'نیاز مشتریان', Target],
   ['lost', 'دلایل ازدست‌رفتن فروش', XCircle],
+  ['quality', 'کیفیت اطلاعات', ShieldAlert],
 ];
 const ACT_LABEL: Record<string, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد' };
 
@@ -109,6 +110,27 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
     return [...m.entries()].sort((a, b) => b[1].n - a[1].n);
   }, [lost]);
 
+  // gaps in the file that a manager should have cleaned: a customer nobody can phone or nobody looks after, an opportunity without a price
+  const quality = useMemo(() => {
+    const rows: { id: string; customerId: string; what: string; issue: string; who: string }[] = [];
+    const touched = new Set(activities.map((a) => a.customerId));
+    for (const c of customers) {
+      if (!okCustomer(c.id) || (who && c.ownerId !== who)) continue;
+      if (!c.phones || c.phones.length === 0) rows.push({ id: 'p' + c.id, customerId: c.id, what: c.name, issue: 'مشتری بدون شمارهٔ تلفن', who: c.ownerName });
+      if (!c.ownerId) rows.push({ id: 'o' + c.id, customerId: c.id, what: c.name, issue: 'مشتری بدون مسئول', who: '—' });
+      else if (!touched.has(c.id)) rows.push({ id: 't' + c.id, customerId: c.id, what: c.name, issue: 'مشتری بدون هیچ سابقهٔ تعامل', who: c.ownerName });
+    }
+    for (const d of deals) {
+      if (!okCustomer(d.customerId) || (who && d.ownerId !== who)) continue;
+      const open = d.stage !== 'WON' && d.stage !== 'LOST';
+      if (open && !d.amount) rows.push({ id: 'a' + d.id, customerId: d.customerId, what: `${d.title} (${d.customerName})`, issue: 'فرصت باز بدون مبلغ', who: d.ownerName });
+      if (d.stage === 'PROPOSAL' && !d.proformaNumber) rows.push({ id: 'f' + d.id, customerId: d.customerId, what: `${d.title} (${d.customerName})`, issue: 'مرحلهٔ پیشنهاد بدون پیش‌فاکتور', who: d.ownerName });
+      if (open && d.expectedClose && d.expectedClose < todayIso()) rows.push({ id: 'e' + d.id, customerId: d.customerId, what: `${d.title} (${d.customerName})`, issue: 'تاریخ پیش‌بینی بستن گذشته است', who: d.ownerName });
+    }
+    return rows;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers, deals, activities, q, who, index]);
+
   const needs = useMemo(() => {
     const miss = new Map<string, string[]>();
     for (const a of activities) if (a.type === 'MISSING' && inRange(a.createdAt)) miss.set(a.customerId, [...(miss.get(a.customerId) || []), a.itemName || a.text]);
@@ -128,6 +150,7 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
   const exportCsv = () => {
     if (kind === 'buyers') downloadCsv('خریداران.csv', [['مشتری', 'تعداد خرید', `مبلغ (${unitName()})`, 'آخرین خرید', 'کالاها'], ...buyers.map((r) => [nameOf(r.id), r.count, toDisplay(r.total), r.last ? localDay(r.last) : '', [...r.items].join('، ')])]);
     else if (kind === 'dormant') downloadCsv('مشتریان-بی-پیگیری.csv', [['مشتری', 'آخرین تعامل', 'مسئول'], ...dormant.map((r) => [r.c.name, localDay(r.last), r.c.ownerName])]);
+    else if (kind === 'quality') downloadCsv('کیفیت-اطلاعات.csv', [['مورد', 'مشکل', 'مسئول'], ...quality.map((r) => [r.what, r.issue, r.who])]);
     else if (kind === 'lost') downloadCsv('دلایل-ازدست-رفتن-فروش.csv', [['تاریخ', 'مشتری', 'فرصت', `مبلغ (${unitName()})`, 'دلیل', 'توضیح', 'مسئول'], ...lost.map((d) => [localDay(d.closedAt || d.updatedAt), nameOf(d.customerId), d.title, toDisplay(d.amount), d.lostReason || '', d.lostNote || '', d.ownerName])]);
     else if (kind === 'needs') downloadCsv('نیاز-مشتریان.csv', [['مشتری', 'دنبال چه می‌گردد', 'کالاهای ناموجود'], ...needs.map((r) => [r.c.name, r.interest, r.missing.join('، ')])]);
     else downloadCsv(kind === 'quotes' ? 'قیمت-ها.csv' : 'تعامل-ها.csv', [['تاریخ', 'مشتری', 'نوع', 'کالا', 'مشخصات', 'تعداد', `قیمت (${unitName()})`, 'متن', 'ثبت‌کننده'], ...acts.map((a) => [localDay(a.createdAt), nameOf(a.customerId), ACT_LABEL[a.type], a.itemName || '', a.spec || '', a.qty || '', a.price ? toDisplay(a.price) : '', a.text, a.authorName])]);
@@ -135,7 +158,7 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
 
   const th = 'px-3 py-2 text-[10px] font-black text-[#8C6F66] text-right whitespace-nowrap';
   const total = kind === 'buyers' ? buyers.reduce((s, r) => s + r.total, 0) : 0;
-  const rowCount = kind === 'buyers' ? buyers.length : kind === 'dormant' ? dormant.length : kind === 'needs' ? needs.length : kind === 'lost' ? lost.length : acts.length;
+  const rowCount = kind === 'buyers' ? buyers.length : kind === 'dormant' ? dormant.length : kind === 'needs' ? needs.length : kind === 'lost' ? lost.length : kind === 'quality' ? quality.length : acts.length;
   const quoteAvg = useMemo(() => {
     if (kind !== 'quotes') return [];
     const m = new Map<string, { n: number; sum: number; min: number; max: number }>();
@@ -269,6 +292,7 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
             {kind === 'buyers' && <tr><th className={th}>مشتری</th><th className={th}>تعداد خرید</th><th className={th}>مبلغ ({unitName()})</th><th className={th}>آخرین خرید</th><th className={th}>کالاها</th></tr>}
             {(kind === 'interactions' || kind === 'quotes') && <tr><th className={th}>زمان</th><th className={th}>مشتری</th><th className={th}>{kind === 'quotes' ? 'کالا و مشخصات' : 'نوع'}</th><th className={th}>{kind === 'quotes' ? 'تعداد' : 'شرح'}</th>{kind === 'quotes' && <th className={th}>قیمت ({unitName()})</th>}<th className={th}>ثبت‌کننده</th></tr>}
             {kind === 'dormant' && <tr><th className={th}>مشتری</th><th className={th}>آخرین تعامل یا خرید</th><th className={th}>چند روز</th><th className={th}>مسئول</th></tr>}
+            {kind === 'quality' && <tr><th className={th}>مورد</th><th className={th}>مشکل</th><th className={th}>مسئول</th></tr>}
             {kind === 'lost' && <tr><th className={th}>تاریخ</th><th className={th}>مشتری</th><th className={th}>فرصت</th><th className={th}>مبلغ ({unitName()})</th><th className={th}>دلیل</th><th className={th}>مسئول</th></tr>}
             {kind === 'needs' && <tr><th className={th}>مشتری</th><th className={th}>دنبال چه کالایی می‌گردد</th><th className={th}>ناموجودهایی که خواسته</th></tr>}
           </thead>
@@ -285,6 +309,11 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
                 {kind === 'quotes' ? <Cell>{a.qty ? toPersianDigits(a.qty) : '—'}</Cell> : <Cell className="max-w-[360px]">{a.text}</Cell>}
                 {kind === 'quotes' && <Cell strong>{formatMoney(a.price || 0)}{a.askedPrice ? ` (مشتری ${formatMoney(a.askedPrice)})` : ''}</Cell>}
                 <Cell>{a.authorName}</Cell>
+              </tr>
+            ))}
+            {kind === 'quality' && quality.slice(0, 500).map((r) => (
+              <tr key={r.id} onClick={() => onOpenCustomer(r.customerId)} className="hover:bg-[#FAF5F1] cursor-pointer">
+                <Cell strong>{r.what}</Cell><Cell className="text-amber-800">{r.issue}</Cell><Cell>{r.who}</Cell>
               </tr>
             ))}
             {kind === 'lost' && lost.slice(0, 500).map((d) => (

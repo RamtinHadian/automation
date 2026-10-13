@@ -60,6 +60,7 @@ import { PhoneBook } from './PhoneBook';
 import { CrmReports } from './CrmReports';
 import { ClubView } from './ClubView';
 import { TodayView } from './TodayView';
+import { MergeButton, MergeModal, TransferButton, TransferModal } from './CrmAdminTools';
 import { LOST_REASONS } from '../../lib/lostReasons';
 import { QuoteForm } from './QuoteForm';
 import { CustomerSummaryStrip } from './CustomerSummary';
@@ -126,6 +127,8 @@ export const CrmView: React.FC = () => {
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
   const [smsEnabled, setSmsEnabled] = useState(false);
   const [phoneBook, setPhoneBook] = useState(false);
+  const [mergeFor, setMergeFor] = useState<Customer | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [showAdv, setShowAdv] = useState(false);
   const [adv, setAdv] = useState({ province: '', city: '', source: '', tag: '', owner: '', kind: '', bought: '', quiet: '' });
   useEffect(() => {
@@ -477,6 +480,7 @@ export const CrmView: React.FC = () => {
           <p className="text-xs text-[#8C6F66] mt-0.5">مشتری‌ها، فرصت‌های فروش و پیگیری‌ها؛ همه در یک‌جا.</p>
         </div>
         <div className="grid grid-cols-2 sm:flex gap-2">
+          {isAdmin && <TransferButton onClick={() => setTransferOpen(true)} />}
           {canSub(currentUser, 'crm.phonebook') && <button
             onClick={() => setPhoneBook(true)}
             className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-sky-200 text-sky-700 hover:bg-sky-50 text-xs font-black cursor-pointer"
@@ -966,6 +970,7 @@ export const CrmView: React.FC = () => {
           onEdit={() => {
             setEditingCustomer(customerById.get(openCustomer)!);
           }}
+          onMerge={isAdmin ? () => setMergeFor(customerById.get(openCustomer)!) : undefined}
           onNewDeal={() => setEditingDeal({ deal: newDeal(openCustomer), isNew: true })}
           onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })}
           onAddActivity={(type, text, extra) => addActivity(openCustomer, type, text, extra)}
@@ -973,6 +978,8 @@ export const CrmView: React.FC = () => {
           onDeleteActivity={(a) => setActivities((prev) => prev.filter((x) => x.id !== a.id))}
         />
       )}
+      {mergeFor && <MergeModal customer={mergeFor} customers={customers} onClose={() => setMergeFor(null)} onDone={(id) => { setMergeFor(null); setOpenCustomer(id); }} />}
+      {transferOpen && <TransferModal staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} customers={customers} deals={deals} activities={activities} onClose={() => setTransferOpen(false)} />}
     </div>
   );
 };
@@ -1164,7 +1171,8 @@ const CustomerDetail: React.FC<{
   onAddActivity: (type: ActivityType, text: string, extra?: Partial<CrmActivity>) => void;
   onToggle: (a: CrmActivity) => void;
   onDeleteActivity: (a: CrmActivity) => void;
-}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
+  onMerge?: () => void;
+}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
   const [type, setType] = useState<ActivityType>('NOTE');
   const [text, setText] = useState('');
   // «the customer looked for a product we did not have»: ticked, then the product's name (and how many, if known)
@@ -1260,6 +1268,7 @@ const CustomerDetail: React.FC<{
             <BarChart3 className="w-4 h-4" />
             گزارش مشتری
           </button>
+          {onMerge && <MergeButton onClick={onMerge} />}
           <button type="button" onClick={onEdit} className="px-4 py-2 rounded-xl text-xs font-black text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 cursor-pointer">ویرایش مشتری</button>
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">بستن</button>
         </>

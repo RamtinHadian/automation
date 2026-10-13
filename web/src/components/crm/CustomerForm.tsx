@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, Landmark, Printer, Phone, Smartphone, Star, Store, Trash2, User as UserIcon, X } from 'lucide-react';
 import { Customer, CustomerStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
@@ -8,6 +8,7 @@ import { Modal, field, label, SOURCES } from './crmUi';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { IRAN_CITIES, PROVINCE_LIST } from '../../lib/iranCities';
 import { PhraseChips } from '../common/PhraseChips';
+import { api } from '../../lib/api';
 
 const STATUS_LABEL: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
 const COMPANY_TYPES = ['سهامی خاص', 'سهامی عام', 'مسئولیت محدود', 'تضامنی', 'نسبی', 'تعاونی', 'مؤسسه / انجمن', 'شخص حقیقی با کد اقتصادی', 'سایر'];
@@ -196,6 +197,20 @@ export const CustomerForm: React.FC<{
     </button>
   );
 
+  // is this number / national code already in the file (even a colleague's customer that this person cannot see)?
+  const [dups, setDups] = useState<{ id: string; name: string; ownerName: string; mine: boolean }[]>([]);
+  const dupKey = JSON.stringify([c.phones, mobileDraft, landlineDraft, c.nationalCode]);
+  useEffect(() => {
+    const phones = [...c.phones, cleanNumber(mobileDraft), cleanNumber(landlineDraft)].filter((p) => p && digits(p).length >= 7);
+    const nat = digits(c.nationalCode || '');
+    if (phones.length === 0 && nat.length !== 10) return setDups([]);
+    const t = setTimeout(() => {
+      api.crmDuplicates({ phones, nationalCode: nat.length === 10 ? nat : undefined, exceptId: initial.id }).then((r) => setDups(r.matches)).catch(() => setDups([]));
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dupKey]);
+
   const hint = (bad: boolean, text: string) => (bad ? <div className="text-[10px] font-bold text-rose-600 mt-1">{text}</div> : null);
 
   return (
@@ -226,6 +241,15 @@ export const CustomerForm: React.FC<{
           </>
         }
       >
+        {dups.length > 0 && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-[11px] font-bold text-amber-900 space-y-1" data-duplicate-warning>
+            <div className="font-black">این مشتری شاید قبلاً ثبت شده باشد:</div>
+            {dups.map((d) => (
+              <div key={d.id}>«{d.name}»{d.ownerName ? ` · مسئول: ${d.ownerName}` : ''}{d.mine ? '' : ' (در پروندهٔ همکار شما)'}</div>
+            ))}
+            <div className="font-medium text-amber-800">اگر همان مشتری است، به‌جای ثبت دوباره، با مسئولش هماهنگ کنید.</div>
+          </div>
+        )}
         <div className="flex gap-2">
           {typeBtn('PERSON', 'شخص حقیقی', UserIcon)}
           {typeBtn('COMPANY', 'شرکت / شخص حقوقی', Building2)}
