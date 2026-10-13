@@ -56,7 +56,7 @@ const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, on
   // React events travel through portals to the windows underneath (that close on a press outside them): stop them here.
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { stop(e); onClose(); }} onClick={stop} onSubmit={stop} data-person-picker>
+    <div className="fixed inset-0 z-[350] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { stop(e); onClose(); }} onClick={stop} onSubmit={stop} data-person-picker>
       <div dir="rtl" onMouseDown={stop} className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col border border-[#EBDBCE] text-right max-h-[85vh]">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#EBDBCE]">
           <h3 className="font-black text-sm text-[#3A241F]">{title}</h3>

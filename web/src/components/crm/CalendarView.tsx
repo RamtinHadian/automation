@@ -30,6 +30,7 @@ export const CalendarView: React.FC<{
   const [picked, setPicked] = useState(todayIso());
   const [mineOnly, setMineOnly] = useState(!seesTeam);
   const [adding, setAdding] = useState(false);
+  const [dayOpen, setDayOpen] = useState(false);
   const only = !seesTeam || mineOnly;
 
   const [start, end] = monthRange(month);
@@ -87,7 +88,7 @@ export const CalendarView: React.FC<{
             const jd = isoToJalaliParts(iso)?.[2] || 0;
             const kinds = [...new Set(ev.map((e) => e.kind))];
             return (
-              <button key={iso} type="button" onClick={() => setPicked(iso)} className={`min-h-[52px] sm:min-h-[68px] rounded-xl border p-1.5 text-right flex flex-col justify-between cursor-pointer ${picked === iso ? 'border-violet-500 bg-violet-50' : 'border-[#EBDBCE] bg-[#FAF5F1]/60 hover:bg-violet-50/50'} ${iso === today ? 'ring-2 ring-amber-400' : ''}`}>
+              <button key={iso} type="button" onClick={() => { setPicked(iso); setDayOpen(true); }} className={`min-h-[52px] sm:min-h-[68px] rounded-xl border p-1.5 text-right flex flex-col justify-between cursor-pointer ${picked === iso ? 'border-violet-500 bg-violet-50' : 'border-[#EBDBCE] bg-[#FAF5F1]/60 hover:bg-violet-50/50'} ${iso === today ? 'ring-2 ring-amber-400' : ''}`}>
                 <span className={`text-[11px] font-black ${(i % 7) === 6 ? 'text-rose-600' : 'text-[#3A241F]'}`}>{toPersianDigits(jd)}</span>
                 <span className="flex items-center gap-1 flex-wrap">
                   {kinds.map((k) => <span key={k} className={`w-2 h-2 rounded-full ${TONE[k]}`} />)}
@@ -104,24 +105,34 @@ export const CalendarView: React.FC<{
         </div>
       </div>
 
-      <section className="bg-white border border-[#EBDBCE] rounded-3xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#EBDBCE] text-xs font-black text-[#3A241F] flex items-center gap-2"><CalendarDays className="w-4 h-4 text-violet-600" />{formatTaskDate(picked)}{picked === today ? ' (امروز)' : ''}</div>
-        <div className="p-3 space-y-2">
-          {list.length === 0 && <div className="text-center text-[11px] font-bold text-[#8C6F66] py-5">برای این روز چیزی ثبت نشده.</div>}
-          {list.map((e) => (
-            <button key={e.id} type="button" onClick={() => (e.deal ? onOpenDeal(e.deal) : e.customerId && onOpenCustomer(e.customerId))} className="w-full text-right flex items-center gap-3 bg-[#FAF5F1] hover:bg-[#F3E8DF] border border-[#EBDBCE] rounded-2xl px-3.5 py-2.5 cursor-pointer">
-              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${TONE[e.kind]}`} />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[12px] font-black text-[#3A241F] truncate">{e.text}</span>
-                {e.sub && <span className="block text-[10px] text-[#8C6F66] truncate">{e.sub}</span>}
-              </span>
-              {e.kind === 'birth' && <Cake className="w-4 h-4 text-rose-500 shrink-0" />}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {adding && <AppointmentModal customers={customers} date={picked} onClose={() => setAdding(false)} onSave={(cid, text, date) => { onAddAppointment(cid, text, date); setAdding(false); setPicked(date); }} />}
+      {dayOpen && (
+        <Modal
+          title={`${formatTaskDate(picked)}${picked === today ? ' (امروز)' : ''}`}
+          onClose={() => setDayOpen(false)}
+          onTop="max"
+          footer={
+            <>
+              <button type="button" onClick={() => setDayOpen(false)} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">بستن</button>
+              <button type="button" onClick={() => setAdding(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 cursor-pointer"><Plus className="w-4 h-4" />قرار یا بازدید برای این روز</button>
+            </>
+          }
+        >
+          <div className="space-y-2" data-day-list>
+            {list.length === 0 && <div className="text-center text-[11px] font-bold text-[#8C6F66] py-6">برای این روز چیزی ثبت نشده.</div>}
+            {list.map((e) => (
+              <button key={e.id} type="button" onClick={() => { setDayOpen(false); if (e.deal) onOpenDeal(e.deal); else if (e.customerId) onOpenCustomer(e.customerId); }} className="w-full text-right flex items-center gap-3 bg-[#FAF5F1] hover:bg-[#F3E8DF] border border-[#EBDBCE] rounded-2xl px-3.5 py-2.5 cursor-pointer">
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${TONE[e.kind]}`} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-black text-[#3A241F]">{e.text}</span>
+                  {e.sub && <span className="block text-[10px] text-[#8C6F66]">{e.sub}</span>}
+                </span>
+                {e.kind === 'birth' && <Cake className="w-4 h-4 text-rose-500 shrink-0" />}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+      {adding && <AppointmentModal customers={customers} date={picked} onClose={() => setAdding(false)} onSave={(cid, text, date) => { onAddAppointment(cid, text, date); setAdding(false); setPicked(date); setDayOpen(true); }} />}
     </div>
   );
 };
