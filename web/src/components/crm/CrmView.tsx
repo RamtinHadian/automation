@@ -734,7 +734,7 @@ export const CrmView: React.FC = () => {
       )}
 
       {/* ---------- pipeline ---------- */}
-      {tab === 'today' && <TodayView me={me} myName={currentUser.fullName} customers={customers} deals={deals} isAdmin={isAdmin} followups={openFollowups} renderFollow={followRow} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onOpenCustomer={(id) => setOpenCustomer(id)} />}
+      {tab === 'today' && <TodayView me={me} myName={currentUser.fullName} customers={customers} deals={deals} isAdmin={isAdmin} seesTeam={isAdmin || !!currentUser.canSeeTeamCrm} followups={openFollowups} renderFollow={followRow} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onOpenCustomer={(id) => setOpenCustomer(id)} />}
       {tab === 'club' && <ClubView customers={customers} deals={deals} isAdmin={isAdmin} smsEnabled={smsEnabled} onOpenCustomer={(id) => setOpenCustomer(id)} />}
       {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} index={searchIndex} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 

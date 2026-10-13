@@ -105,7 +105,7 @@ func smsBulkStart(w http.ResponseWriter, r *http.Request) {
 			skipped++
 			continue
 		}
-		if !me.IsAdmin() && owner != me.ID() {
+		if !crmSeesAll(me) && owner != me.ID() {
 			skipped++
 			continue
 		}

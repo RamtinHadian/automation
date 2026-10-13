@@ -93,14 +93,27 @@ func state(w http.ResponseWriter, r *http.Request) {
 
 	customers, deals, activities := empty(), empty(), empty()
 	if me.CanUseCrm() {
-		if customers, err = store.RawList(ctx, `SELECT data FROM crm_customers ORDER BY (data->>'name')`); fail(err) {
-			return
-		}
-		if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals ORDER BY id`); fail(err) {
-			return
-		}
-		if activities, err = store.RawList(ctx, `SELECT data FROM crm_activities ORDER BY created_at DESC LIMIT 2000`); fail(err) {
-			return
+		if crmSeesAll(me) {
+			if customers, err = store.RawList(ctx, `SELECT data FROM crm_customers ORDER BY (data->>'name')`); fail(err) {
+				return
+			}
+			if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals ORDER BY id`); fail(err) {
+				return
+			}
+			if activities, err = store.RawList(ctx, `SELECT data FROM crm_activities ORDER BY created_at DESC LIMIT 2000`); fail(err) {
+				return
+			}
+		} else {
+			// a salesperson gets only their own customers, the opportunities they work on and the history of those customers
+			if customers, err = store.RawList(ctx, `SELECT data FROM crm_customers WHERE id IN `+crmMyCustomerIDs+` ORDER BY (data->>'name')`, id); fail(err) {
+				return
+			}
+			if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals WHERE `+crmMyDeals+` ORDER BY id`, id); fail(err) {
+				return
+			}
+			if activities, err = store.RawList(ctx, `SELECT data FROM crm_activities WHERE customer_id IN `+crmMyCustomerIDs+` OR owner_id = $1 ORDER BY created_at DESC LIMIT 2000`, id); fail(err) {
+				return
+			}
 		}
 	}
 

@@ -192,6 +192,10 @@ func smsSend(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "مشتری پیدا نشد.")
 		return
 	}
+	if !crmOwnsCustomer(r, me, cust) {
+		httpx.Error(w, http.StatusForbidden, "این مشتری به شما سپرده نشده است.")
+		return
+	}
 	doc0 := jsonx.Decode(raw)
 	to := customerMobile(doc0, jsonx.Str(body, "to"))
 	if to == "" {

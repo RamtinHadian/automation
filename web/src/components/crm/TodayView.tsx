@@ -29,15 +29,17 @@ export const TodayView: React.FC<{
   customers: Customer[];
   deals: Deal[];
   isAdmin: boolean;
+  /** sees the whole team's customers (administrators, or people with the «مشتریان همکاران» right) */
+  seesTeam: boolean;
   followups: CrmActivity[];
   renderFollow: (a: CrmActivity) => React.ReactNode;
   onOpenDeal: (d: Deal) => void;
   onOpenCustomer: (id: string) => void;
-}> = ({ me, myName, customers, deals, isAdmin, followups, renderFollow, onOpenDeal, onOpenCustomer }) => {
+}> = ({ me, myName, customers, deals, isAdmin, seesTeam, followups, renderFollow, onOpenDeal, onOpenCustomer }) => {
   const today = todayIso();
   // managers can look at the whole team's day, everyone else sees only their own
   const [scope, setScope] = useState<'mine' | 'all'>(isAdmin ? 'all' : 'mine');
-  const all = isAdmin && scope === 'all';
+  const all = seesTeam && scope === 'all';
   const mineF = followups.filter((a) => (all || a.ownerId === me) && a.dueDate && a.dueDate <= today).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
   const myOpen = useMemo(() => deals.filter((d) => OPEN.includes(d.stage) && (all || d.ownerId === me || (d.coOwnerIds || []).includes(me))), [deals, me, all]);
   const stalled = useMemo(() => {
@@ -75,7 +77,7 @@ export const TodayView: React.FC<{
           <Sparkles className="w-5 h-5" />
           {myName}، امروز این‌ها را دارید
         </div>
-        {isAdmin && (
+        {seesTeam && (
           <div className="flex bg-white/15 rounded-xl p-1 w-fit mt-3">
             {([['all', 'همهٔ تیم'], ['mine', 'فقط من']] as const).map(([id, text]) => (
               <button key={id} type="button" onClick={() => setScope(id)} className={`px-3 py-1 rounded-lg text-[11px] font-black cursor-pointer ${scope === id ? 'bg-white text-violet-700' : 'text-white/90'}`}>

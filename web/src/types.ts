@@ -34,6 +34,8 @@ export interface User {
   canSendSms?: boolean;
   /** the warehouse module (admins always have it) */
   canUseWarehouse?: boolean;
+  /** Sees every customer, opportunity and follow-up of the team (otherwise only their own). Administrators always do. */
+  canSeeTeamCrm?: boolean;
   /** what the person may ask of the accounting program (Sepidar): view, customer, quotation, invoice, receipt */
   sepidarPerms?: string[];
   /** sub-menus the administrator switched off for this person (see lib/permissions.ts); everything else of the menus they may enter is open */

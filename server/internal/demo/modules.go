@@ -223,7 +223,7 @@ func addModules(ctx context.Context, now time.Time, by map[string]account) error
 		"demo-sales":     {"canSendSms": true, "canUseWarranty": true, "canUseWarehouse": true, "sepidarPerms": []string{"view", "customer", "quotation"}},
 		"demo-staff":     {"canUseWarehouse": true, "canViewStats": true, "sepidarPerms": []string{"view", "invoice", "receipt"}, "hiddenSub": []string{"warehouse.write"}},
 		"demo-sales2":    {"canSendSms": true, "canUseWarranty": true, "sepidarPerms": []string{"view", "quotation"}, "hiddenSub": []string{"crm.import"}},
-		"demo-sales3":    {"canSendSms": true, "canViewStats": true, "sepidarPerms": []string{"view", "customer", "quotation", "invoice"}, "hiddenSub": []string{"crm.import", "crm.proforma"}},
+		"demo-sales3":    {"canSeeTeamCrm": true, "canSendSms": true, "canViewStats": true, "sepidarPerms": []string{"view", "customer", "quotation", "invoice"}, "hiddenSub": []string{"crm.import", "crm.proforma"}},
 		"demo-sales4":    {"canSendSms": true, "hiddenSub": []string{"crm.reports", "crm.phonebook"}},
 		"demo-sales5":    {"canUseWarranty": true, "hiddenSub": []string{"files.chat"}},
 		"demo-fin2":      {"canUseWarehouse": true, "sepidarPerms": []string{"view", "invoice", "receipt"}},

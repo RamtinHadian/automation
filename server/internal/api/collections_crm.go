@@ -56,6 +56,10 @@ func putCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 	}
 	if exists {
 		createdAt = jsonx.Str(jsonx.Decode(raw), "createdAt")
+		if !crmOwnsCustomer(r, me, id) {
+			httpx.Error(w, http.StatusForbidden, "این مشتری به شما سپرده نشده است.")
+			return
+		}
 	}
 	doc := jsonx.Copy(data)
 	doc["id"] = id
@@ -125,6 +129,14 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		return
 	}
 	before := jsonx.Decode(raw)
+	if exists && !crmGate(r, me) && oldOwner != me.ID() && !jsonx.Contains(jsonx.Strings(before, "coOwnerIds"), me.ID()) {
+		httpx.Error(w, http.StatusForbidden, "این فرصت فروش به شما سپرده نشده است.")
+		return
+	}
+	if !exists && !crmOwnsCustomer(r, me, jsonx.Str(data, "customerId")) {
+		httpx.Error(w, http.StatusForbidden, "این مشتری به شما سپرده نشده است.")
+		return
+	}
 	doc := jsonx.Copy(data)
 	doc["id"] = id
 	if jsonx.Str(doc, "ownerId") == "" {
@@ -304,6 +316,16 @@ func putActivity(w http.ResponseWriter, r *http.Request, me auth.User, id string
 	exists := err == nil
 	if err != nil && err != pgx.ErrNoRows {
 		internalError(w)
+		return
+	}
+	if cid := jsonx.Str(data, "customerId"); exists && !crmGate(r, me) && author != me.ID() {
+		cid = jsonx.Str(jsonx.Decode(raw), "customerId")
+		if !crmOwnsCustomer(r, me, cid) {
+			httpx.Error(w, http.StatusForbidden, "این مشتری به شما سپرده نشده است.")
+			return
+		}
+	} else if !exists && !crmOwnsCustomer(r, me, cid) {
+		httpx.Error(w, http.StatusForbidden, "این مشتری به شما سپرده نشده است.")
 		return
 	}
 	var doc jsonx.M
