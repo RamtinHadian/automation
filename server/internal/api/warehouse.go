@@ -308,7 +308,7 @@ func whSave(table string, w http.ResponseWriter, r *http.Request, build func(bod
 // PUT /api/warehouse/products/{id}
 func whProductPut(w http.ResponseWriter, r *http.Request) {
 	if whMode(r.Context()) == "sepidar" {
-		whLimitedUpdate("wh_products", []string{"minQty", "note", "prices"}, w, r)
+		whLimitedUpdate("wh_products", []string{"minQty", "note", "prices", "cost"}, w, r)
 		return
 	}
 	whSave("wh_products", w, r, func(b jsonx.M) (jsonx.M, string, string) {
@@ -333,7 +333,11 @@ func whProductPut(w http.ResponseWriter, r *http.Request) {
 		if msg != "" {
 			return nil, "", msg
 		}
-		return jsonx.M{"code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500), "active": active, "prices": prices}, code, ""
+		cost, _ := whNum(b, "cost")
+		if cost < 0 {
+			return nil, "", "قیمت خرید نمی‌تواند منفی باشد."
+		}
+		return jsonx.M{"cost": cost, "code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500), "active": active, "prices": prices}, code, ""
 	})
 }
 
@@ -750,7 +754,7 @@ func crmProducts(w http.ResponseWriter, r *http.Request) {
 		for _, n := range bal[id] {
 			total += n
 		}
-		out = append(out, jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "total": math.Round(total*1000) / 1000, "prices": d["prices"]})
+		out = append(out, jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "total": math.Round(total*1000) / 1000, "prices": d["prices"], "cost": costFor(me, d)})
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"products": out})
 }
@@ -1031,4 +1035,12 @@ func whSync(ctx context.Context, by auth.User, keyName string, body jsonx.M) (js
 	}
 	whStoreMode(ctx, "sepidar", keyName, true) // a program that sends the stock is the one that keeps it
 	return jsonx.M{"warehousesNew": whNew, "productsNew": pNew, "productsUpdated": pUpd, "docs": docs, "changed": changed}, nil
+}
+
+// costFor: what a product costs the company is shown only to administrators (the profit report).
+func costFor(me auth.User, d jsonx.M) any {
+	if !me.IsAdmin() {
+		return nil
+	}
+	return d["cost"]
 }

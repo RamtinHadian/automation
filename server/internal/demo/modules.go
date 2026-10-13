@@ -174,6 +174,10 @@ func addModules(ctx context.Context, now time.Time, by map[string]account) error
 		at := now.Add(-time.Duration(b.ago) * 24 * time.Hour)
 		doc := jsonx.M{"id": fmt.Sprintf("demo-w%d", i+1), "title": b.title, "customerId": b.cid, "customerName": name, "amount": b.amount, "stage": "WON", "closedAt": iso(at),
 			"ownerId": "demo-sales", "ownerName": by["demo-sales"].Name, "notes": "", "createdAt": iso(at.Add(-72 * time.Hour)), "updatedAt": iso(at)}
+		// the shop sales carry the product lines (code, count, price) so the profit report has something to work out
+		if l, ok := map[int][3]int{0: {1001, 30, 1280000}, 1: {1006, 60, 360000}, 2: {1003, 20, 875000}, 3: {1004, 25, 1192000}, 6: {1002, 60, 160000}, 8: {1005, 15, 480000}}[i]; ok {
+			doc["items"] = []jsonx.M{{"title": b.title, "code": fmt.Sprint(l[0]), "qty": l[1], "unit": "عدد", "unitPrice": l[2]}}
+		}
 		if err := exec(ctx, `INSERT INTO crm_deals (id, customer_id, owner_id, data) VALUES ($1, $2, $3, $4::jsonb)`, jsonx.Str(doc, "id"), b.cid, "demo-sales", jsonx.Encode(doc)); err != nil {
 			return err
 		}

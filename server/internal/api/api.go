@@ -156,6 +156,7 @@ func Router(cfg config.Config) http.Handler {
 	registerWarehouse(mux)
 	registerClub(mux)
 	registerCrmTools(mux)
+	registerCrmManage(mux)
 	registerSepidar(mux)
 	registerReminders(mux)
 

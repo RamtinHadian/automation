@@ -60,6 +60,8 @@ import { PhoneBook } from './PhoneBook';
 import { CrmReports } from './CrmReports';
 import { ClubView } from './ClubView';
 import { TodayView } from './TodayView';
+import { TeamView } from './TeamView';
+import { Rules, Targets, ruleViolation } from '../../lib/team';
 import { MergeButton, MergeModal, TransferButton, TransferModal } from './CrmAdminTools';
 import { LOST_REASONS } from '../../lib/lostReasons';
 import { QuoteForm } from './QuoteForm';
@@ -109,7 +111,7 @@ export const CrmView: React.FC = () => {
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today'>('today');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board'>('today');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -127,6 +129,13 @@ export const CrmView: React.FC = () => {
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
   const [smsEnabled, setSmsEnabled] = useState(false);
   const [phoneBook, setPhoneBook] = useState(false);
+  const [targets, setTargets] = useState<Targets | null>(null);
+  const [rules, setRules] = useState<Rules | null>(null);
+  const loadTeamSettings = () => {
+    api.crmTargets().then((r) => setTargets(r as Targets)).catch(() => {});
+    api.crmRules().then((r) => setRules(r as Rules)).catch(() => {});
+  };
+  useEffect(loadTeamSettings, []);
   const [mergeFor, setMergeFor] = useState<Customer | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [showAdv, setShowAdv] = useState(false);
@@ -249,6 +258,11 @@ export const CrmView: React.FC = () => {
     const customer = customerById.get(d.customerId);
     const next = { ...d, title: d.title.trim(), customerName: customer?.name || d.customerName, updatedAt: nowIso() };
     const before = deals.find((x) => x.id === next.id);
+    const blocked = ruleViolation(rules, isAdmin, before?.stage, next.stage, next.amount, next.proformaNumber);
+    if (blocked) {
+      showToast(blocked);
+      return;
+    }
     setDeals((prev) => (prev.some((x) => x.id === next.id) ? prev.map((x) => (x.id === next.id ? next : x)) : [next, ...prev]));
     if (before && before.stage !== next.stage) {
       addActivity(next.customerId, 'NOTE', `مرحلهٔ فرصت «${next.title}» از «${stageOf(before.stage).label}» به «${stageOf(next.stage).label}» تغییر کرد.${next.stage === 'LOST' && next.lostReason ? ` دلیل: ${next.lostReason}.` : ''}`, { dealId: next.id });
@@ -320,13 +334,14 @@ export const CrmView: React.FC = () => {
     ['followups', 'پیگیری‌ها', ListChecks],
     ['reports', 'گزارش‌ها', BarChart3],
     ['club', 'باشگاه مشتریان', Gift],
+    ['board', 'تیم', Trophy],
   ] as const;
   const smsTab = ['sms', 'پیامک گروهی', MessageSquare] as const;
   // the CEO also has «پیش‌فاکتورهای ارسالی»: what waits for the signature and what was signed
   const withSms = smsEnabled ? ([...baseTabs, smsTab] as const) : baseTabs;
   const allTabs = isAnyApprover(currentUser, settings) ? ([...withSms, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : withSms;
   // the sub-menus the administrator switched off for this person are not drawn (sms and proformas have their own rights)
-  const tabs = allTabs.filter(([id]) => id === 'sms' || id === 'proformas' || canSub(currentUser, 'crm.' + id));
+  const tabs = allTabs.filter(([id]) => (id === 'board' ? isAdmin || !!currentUser.canSeeTeamCrm : true) && (id === 'sms' || id === 'proformas' || canSub(currentUser, 'crm.' + id)));
   useEffect(() => {
     if (!tabs.some(([id]) => id === tab) && tabs[0]) setTab(tabs[0][0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -738,9 +753,10 @@ export const CrmView: React.FC = () => {
       )}
 
       {/* ---------- pipeline ---------- */}
-      {tab === 'today' && <TodayView me={me} myName={currentUser.fullName} customers={customers} deals={deals} isAdmin={isAdmin} seesTeam={isAdmin || !!currentUser.canSeeTeamCrm} followups={openFollowups} renderFollow={followRow} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onOpenCustomer={(id) => setOpenCustomer(id)} />}
+      {tab === 'today' && <TodayView me={me} myName={currentUser.fullName} customers={customers} deals={deals} isAdmin={isAdmin} seesTeam={isAdmin || !!currentUser.canSeeTeamCrm} targets={targets} followups={openFollowups} renderFollow={followRow} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onOpenCustomer={(id) => setOpenCustomer(id)} />}
+      {tab === 'board' && <TeamView staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} deals={deals} activities={activities} targets={targets} rules={rules} isAdmin={isAdmin} onSaved={loadTeamSettings} />}
       {tab === 'club' && <ClubView customers={customers} deals={deals} isAdmin={isAdmin} smsEnabled={smsEnabled} onOpenCustomer={(id) => setOpenCustomer(id)} />}
-      {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} index={searchIndex} onOpenCustomer={(id) => setOpenCustomer(id)} />}
+      {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} index={searchIndex} isAdmin={isAdmin} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 
       {tab === 'pipeline' && (
         <div className="space-y-3">
@@ -944,6 +960,7 @@ export const CrmView: React.FC = () => {
           customer={customerById.get(proformaFor.customerId)}
           settings={settings}
           issuerName={currentUser.fullName}
+          defaultDiscount={rules?.kindDiscount?.[customerById.get(proformaFor.customerId)?.kind || 'PERSON']}
           onClose={() => setProformaFor(null)}
           onSave={(d) => {
             setDeals((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...d, updatedAt: nowIso() } : x)));

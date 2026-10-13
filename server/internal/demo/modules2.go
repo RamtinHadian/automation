@@ -54,7 +54,7 @@ func addWarehouse(ctx context.Context, now time.Time, by map[string]account) err
 	byID := map[string]prod{}
 	for _, p := range prods {
 		byID[p.id] = p
-		doc := jsonx.M{"id": p.id, "code": p.code, "title": p.title, "unit": p.unit, "group": p.group, "minQty": p.min, "barcode": "62" + p.code + "0001", "note": "", "active": true, "prices": p.prices}
+		doc := jsonx.M{"id": p.id, "code": p.code, "title": p.title, "unit": p.unit, "group": p.group, "minQty": p.min, "barcode": "62" + p.code + "0001", "note": "", "active": true, "prices": p.prices, "cost": map[string]int{"p-oil": 1000000, "p-filter": 120000, "p-belt": 600000, "p-pad": 900000, "p-plug": 380000, "p-coolant": 270000}[p.id]}
 		if err := exec(ctx, `INSERT INTO wh_products (id, code, data) VALUES ($1, $2, $3::jsonb)`, p.id, p.code, jsonx.Encode(doc)); err != nil {
 			return err
 		}
@@ -152,6 +152,13 @@ func addSepidar(ctx context.Context, now time.Time, by map[string]account) error
 		if err := cache(kv.k, kv.v); err != nil {
 			return err
 		}
+	}
+	// management's monthly targets and the sales-process rules (the team page and «امروز من» show them)
+	if err := exec(ctx, `INSERT INTO settings (key, data) VALUES ('crmTargets', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data`, jsonx.Encode(jsonx.M{"defaultTarget": 60000000, "perUser": jsonx.M{"demo-sales": 120000000}, "probabilities": jsonx.M{}})); err != nil {
+		return err
+	}
+	if err := exec(ctx, `INSERT INTO settings (key, data) VALUES ('crmRules', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data`, jsonx.Encode(jsonx.M{"proposalNeedsProforma": false, "bigDealAdminOnly": 200000000, "kindDiscount": jsonx.M{"SHOP": 5}})); err != nil {
+		return err
 	}
 	if err := exec(ctx, `INSERT INTO settings (key, data) VALUES ('sepidarConnector', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data`, jsonx.Encode(jsonx.M{"lastSeenAt": iso(now), "name": "سپیدار"})); err != nil {
 		return err

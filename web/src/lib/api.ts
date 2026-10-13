@@ -250,6 +250,8 @@ export interface WhProduct {
   /** several named prices (retail, wholesale…) */
   prices?: { title: string; amount: number }[];
   note?: string;
+  /** what the product costs the company (Toman, per unit); used for the profit report */
+  cost?: number;
   active?: boolean;
   total: number;
   byWarehouse: Record<string, number>;
@@ -449,6 +451,10 @@ export const api = {
   crmDuplicates: (b: { phones: string[]; nationalCode?: string; exceptId?: string }) => request<{ matches: { id: string; name: string; ownerName: string; mine: boolean }[] }>('POST', '/api/crm/duplicates', b),
   crmMerge: (keepId: string, dropId: string) => request<{ ok: true; keepId: string }>('POST', '/api/crm/merge', { keepId, dropId }),
   crmTransfer: (b: { fromId: string; toId: string; customers: boolean; deals: boolean; followups: boolean }) => request<{ ok: true; customers: number; deals: number; followups: number }>('POST', '/api/crm/transfer', b),
+  crmTargets: () => request<Record<string, unknown>>('GET', '/api/crm/targets'),
+  crmTargetsSave: (b: unknown) => request<{ ok: true }>('PUT', '/api/crm/targets', b),
+  crmRules: () => request<Record<string, unknown>>('GET', '/api/crm/rules'),
+  crmRulesSave: (b: unknown) => request<{ ok: true }>('PUT', '/api/crm/rules', b),
   clubGet: () => request<Record<string, unknown>>('GET', '/api/crm/club'),
   clubSave: (c: unknown) => request<{ ok: true }>('PUT', '/api/crm/club', c),
   smsStatus: () => request<{ enabled: boolean; canSend: boolean; library: string[] | null; custom: { id: string; title: string; text: string }[] }>('GET', '/api/sms/status'),
@@ -521,7 +527,7 @@ export const api = {
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),
   sepidarCancel: (id: string) => request<{ ok: true }>('POST', `/api/sepidar/jobs/${encodeURIComponent(id)}/cancel`, {}),
-  crmProducts: () => request<{ products: { id: string; code: string; title: string; unit: string; group?: string; total: number; prices?: { title: string; amount: number }[] }[] }>('GET', '/api/crm/products'),
+  crmProducts: () => request<{ products: { id: string; code: string; title: string; unit: string; group?: string; total: number; cost?: number; prices?: { title: string; amount: number }[] }[] }>('GET', '/api/crm/products'),
   warehouse: () => request<WhState>('GET', '/api/warehouse'),
   warehouseDocs: (q: Record<string, string>) => request<{ docs: WhDoc[] }>('GET', '/api/warehouse/docs?' + new URLSearchParams(q).toString()),
   warehouseCard: (product: string, warehouse = '') => request<WhCard>('GET', `/api/warehouse/card?product=${encodeURIComponent(product)}&warehouse=${encodeURIComponent(warehouse)}`),

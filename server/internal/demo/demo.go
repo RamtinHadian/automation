@@ -223,7 +223,7 @@ func Reset(ctx context.Context) error {
 	if err := exec(ctx, `TRUNCATE wh_moves, wh_docs, wh_products, wh_warehouses, reminders, sepidar_jobs, sepidar_links, sepidar_cache`); err != nil {
 		return err
 	}
-	if err := exec(ctx, `DELETE FROM settings WHERE key IN ('warehouse', 'sepidarConnector', 'sepidarPairing')`); err != nil {
+	if err := exec(ctx, `DELETE FROM settings WHERE key IN ('warehouse', 'sepidarConnector', 'sepidarPairing', 'crmTargets', 'crmRules')`); err != nil {
 		return err
 	}
 	if err := exec(ctx, `TRUNCATE users, departments, transfers, transfer_hidden, audit_logs, tasks, notifications, push_subscriptions,

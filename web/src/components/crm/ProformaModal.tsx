@@ -29,14 +29,33 @@ export const ProformaModal: React.FC<{
   customer?: Customer;
   settings: SystemSettings;
   issuerName: string;
+  /** The discount management set for this kind of customer (percent), used when the deal has none yet. */
+  defaultDiscount?: number;
   onClose: () => void;
   /** Called with the deal updated by the proforma (items, number, amount...). */
   onSave: (d: Deal) => void;
-}> = ({ deal, allDeals, customer, settings, issuerName, onClose, onSave }) => {
+}> = ({ deal, allDeals, customer, settings, issuerName, defaultDiscount, onClose, onSave }) => {
   const [items, setItems] = useState<ProformaItem[]>(
     deal.items && deal.items.length ? deal.items : [{ title: deal.title, qty: 1, unitPrice: deal.amount || 0, code: deal.productCode }]
   );
-  const [discountPercent, setDiscountPercent] = useState(deal.discountPercent || 0);
+  const [discountPercent, setDiscountPercent] = useState(deal.discountPercent ?? (deal.proformaNumber ? 0 : defaultDiscount || 0));
+  // the warehouse: what is in stock and the prices of the product, to put next to each line
+  const [catalog, setCatalog] = useState<{ code: string; title: string; unit: string; total: number; prices?: { title: string; amount: number }[] }[]>([]);
+  useEffect(() => {
+    api.crmProducts().then((r) => setCatalog(r.products)).catch(() => setCatalog([]));
+  }, []);
+  // the last price given to this same customer for a product code (from their earlier proformas)
+  const lastPriceFor = (code?: string) => {
+    if (!code) return null;
+    const earlier = allDeals
+      .filter((d) => d.customerId === deal.customerId && d.id !== deal.id && d.items?.length)
+      .sort((a, b) => (b.proformaAt || b.createdAt || '').localeCompare(a.proformaAt || a.createdAt || ''));
+    for (const d of earlier) {
+      const it = d.items!.find((x) => x.code === code && x.unitPrice);
+      if (it) return { price: it.unitPrice, at: d.proformaAt || d.createdAt };
+    }
+    return null;
+  };
   const [taxPercent, setTaxPercent] = useState(deal.taxPercent ?? settings.proformaTaxPercent ?? 10);
   const [date, setDate] = useState(deal.proformaAt || todayIso());
   const [valid, setValid] = useState(deal.validUntil || addDaysIso(deal.proformaAt || todayIso(), settings.proformaValidDays || 7));
@@ -316,6 +335,20 @@ export const ProformaModal: React.FC<{
                   <input className={field} dir="ltr" placeholder={official ? 'شناسه کالا / خدمت (لازم)' : 'شناسه / کد کالا (اختیاری)'} value={it.code || ''} onChange={(e) => patchItem(i, { code: e.target.value })} />
                   <input className={`${field} sm:col-span-2`} placeholder="توضیح بیشتر (اختیاری)" value={it.description || ''} onChange={(e) => patchItem(i, { description: e.target.value })} />
                 </div>
+                {(() => {
+                  const p = catalog.find((x) => x.code && x.code === it.code);
+                  if (!p) return null;
+                  const last = lastPriceFor(it.code);
+                  return (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] font-bold" data-item-hints>
+                      <span className={p.total <= 0 || p.total < (it.qty || 0) ? 'text-rose-600' : 'text-emerald-700'}>موجودی انبار: {toPersianDigits(p.total)} {p.unit}{p.total < (it.qty || 0) ? ' (کمتر از تعداد درخواستی)' : ''}</span>
+                      {last && <button type="button" onClick={() => patchItem(i, { unitPrice: last.price })} className="text-violet-700 underline cursor-pointer">آخرین قیمت به این مشتری: {formatMoney(last.price)}</button>}
+                      {(p.prices || []).map((x) => (
+                        <button key={x.title} type="button" onClick={() => patchItem(i, { unitPrice: x.amount })} className="px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800 cursor-pointer">{x.title}: {formatMoney(x.amount)}</button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
             <button type="button" onClick={() => setItems((p) => [...p, { title: '', qty: 1, unitPrice: 0 }])} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer">

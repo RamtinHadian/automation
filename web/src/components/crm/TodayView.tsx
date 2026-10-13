@@ -5,6 +5,7 @@ import { birthMonthDay, buildMembers, normalizeClub } from '../../lib/club';
 import { formatMoney, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, isoToJalaliParts, todayIso } from '../../lib/taskDates';
+import { monthNow, personStats, Targets } from '../../lib/team';
 
 const STALLED_DAYS = 7;
 const OPEN = ['NEW', 'CONTACTED', 'PROPOSAL', 'NEGOTIATION'];
@@ -31,11 +32,12 @@ export const TodayView: React.FC<{
   isAdmin: boolean;
   /** sees the whole team's customers (administrators, or people with the «مشتریان همکاران» right) */
   seesTeam: boolean;
+  targets: Targets | null;
   followups: CrmActivity[];
   renderFollow: (a: CrmActivity) => React.ReactNode;
   onOpenDeal: (d: Deal) => void;
   onOpenCustomer: (id: string) => void;
-}> = ({ me, myName, customers, deals, isAdmin, seesTeam, followups, renderFollow, onOpenDeal, onOpenCustomer }) => {
+}> = ({ me, myName, customers, deals, isAdmin, seesTeam, targets, followups, renderFollow, onOpenDeal, onOpenCustomer }) => {
   const today = todayIso();
   // managers can look at the whole team's day, everyone else sees only their own
   const [scope, setScope] = useState<'mine' | 'all'>(isAdmin ? 'all' : 'mine');
@@ -58,6 +60,8 @@ export const TodayView: React.FC<{
     return buildMembers(myCustomers, deals, cfg).filter((m) => m.last && new Date(m.last).getTime() < limit).slice(0, 8);
   }, [myCustomers, deals]);
 
+  // my sales this month against my target
+  const myStat = useMemo(() => personStats([me], deals, followups, monthNow(), targets)[0], [me, deals, followups, targets]);
   const lateCount = mineF.filter((a) => a.dueDate! < today).length;
   const dealRow = (d: Deal, note: string, danger?: boolean) => (
     <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className="w-full text-right flex items-center justify-between gap-3 bg-[#FAF5F1] hover:bg-[#F3E8DF] border border-[#EBDBCE] rounded-2xl px-3.5 py-2.5 cursor-pointer">
@@ -87,6 +91,15 @@ export const TodayView: React.FC<{
           </div>
         )}
         <div className="text-[11px] font-bold opacity-85 mt-1">{formatTaskDate(today)}</div>
+        {myStat.target > 0 && (
+          <div className="mt-3 rounded-2xl bg-white/15 border border-white/20 px-3.5 py-3" data-my-target>
+            <div className="flex items-center justify-between text-[11px] font-bold">
+              <span>فروش این ماه شما</span>
+              <span>{formatMoney(myStat.won)} از {formatMoney(myStat.target)} {unitName()}</span>
+            </div>
+            <div className="h-2 rounded-full bg-white/25 mt-2 overflow-hidden"><div className="h-full bg-white rounded-full" style={{ width: `${Math.min(100, Math.round((myStat.won / myStat.target) * 100))}%` }} /></div>
+          </div>
+        )}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
           {([
             ['پیگیری برای امروز', mineF.length - lateCount, ListChecks],

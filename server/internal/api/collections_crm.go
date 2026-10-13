@@ -160,6 +160,10 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		delete(doc, "createdByName")
 	}
 	stage := jsonx.Str(doc, "stage")
+	if msg := dealRuleViolation(r, me, jsonx.Str(before, "stage"), stage, func() float64 { f, _ := doc["amount"].(float64); return f }(), jsonx.Str(doc, "proformaNumber")); msg != "" {
+		httpx.Error(w, http.StatusForbidden, msg)
+		return
+	}
 	if stage == "WON" || stage == "LOST" {
 		if jsonx.Str(before, "closedAt") != "" && jsonx.Str(before, "stage") == stage {
 			doc["closedAt"] = before["closedAt"]

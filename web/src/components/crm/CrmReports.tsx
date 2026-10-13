@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { BadgeDollarSign, Download, Filter, MessageSquare, Moon, Tag, Target, Users, XCircle, ShieldAlert } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { BadgeDollarSign, Download, Filter, MessageSquare, Moon, Tag, Target, Users, XCircle, ShieldAlert, Coins } from 'lucide-react';
 import { CrmActivity, Customer, Deal, User } from '../../types';
 import { downloadCsv } from '../../lib/csv';
+import { api } from '../../lib/api';
 import { matchesQuery } from '../../lib/customerSearch';
 import { formatMoney, toDisplay, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
@@ -9,7 +10,7 @@ import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
 import { field, label } from './crmUi';
 
-type Kind = 'buyers' | 'interactions' | 'quotes' | 'dormant' | 'needs' | 'lost' | 'quality';
+type Kind = 'buyers' | 'interactions' | 'quotes' | 'dormant' | 'needs' | 'lost' | 'quality' | 'profit';
 
 const REPORTS: [Kind, string, React.ElementType][] = [
   ['buyers', 'خریداران در بازه', BadgeDollarSign],
@@ -19,6 +20,7 @@ const REPORTS: [Kind, string, React.ElementType][] = [
   ['needs', 'نیاز مشتریان', Target],
   ['lost', 'دلایل ازدست‌رفتن فروش', XCircle],
   ['quality', 'کیفیت اطلاعات', ShieldAlert],
+  ['profit', 'سود مشتریان', Coins],
 ];
 const ACT_LABEL: Record<string, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد' };
 
@@ -31,7 +33,7 @@ const when = (iso?: string) => (iso ? `${formatTaskDate(localDay(iso))} · ${toP
 
 const Cell: React.FC<{ children: React.ReactNode; strong?: boolean; className?: string }> = ({ children, strong, className }) => <td className={`px-3 py-2 text-[11px] ${strong ? 'font-black text-[#3A241F]' : 'font-bold text-[#5A4640]'} ${className || ''}`}>{children}</td>;
 
-export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activities: CrmActivity[]; staff: User[]; index: Map<string, string>; onOpenCustomer: (id: string) => void }> = ({ customers, deals, activities, staff, index, onOpenCustomer }) => {
+export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activities: CrmActivity[]; staff: User[]; index: Map<string, string>; onOpenCustomer: (id: string) => void; isAdmin?: boolean }> = ({ customers, deals, activities, staff, index, onOpenCustomer, isAdmin }) => {
   const [kind, setKind] = useState<Kind>('buyers');
   const [from, setFrom] = useState<string | undefined>(dayIso(-30));
   const [to, setTo] = useState<string | undefined>(todayIso());
@@ -131,6 +133,33 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customers, deals, activities, q, who, index]);
 
+  // profit per customer: what the won sales brought in against what the products cost (products with a cost price only)
+  const [products, setProducts] = useState<{ code: string; cost?: number }[]>([]);
+  useEffect(() => {
+    if (kind === 'profit' && isAdmin && products.length === 0) api.crmProducts().then((r) => setProducts(r.products)).catch(() => {});
+  }, [kind, isAdmin, products.length]);
+  const profit = useMemo(() => {
+    const cost = new Map(products.filter((p) => p.code && p.cost).map((p) => [p.code, p.cost as number]));
+    const map = new Map<string, { id: string; deals: number; revenue: number; knownRevenue: number; cost: number; unknown: number }>();
+    for (const d of deals) {
+      if (d.stage !== 'WON' || !inRange(d.closedAt || d.updatedAt) || !okCustomer(d.customerId) || (who && d.ownerId !== who)) continue;
+      const r = map.get(d.customerId) || { id: d.customerId, deals: 0, revenue: 0, knownRevenue: 0, cost: 0, unknown: 0 };
+      r.deals++;
+      const k = 1 - (d.discountPercent || 0) / 100;
+      if (d.items && d.items.length) {
+        for (const it of d.items) {
+          const rev = Math.max(0, (it.qty || 0) * (it.unitPrice || 0) - (it.discount || 0)) * k;
+          r.revenue += rev;
+          const c = it.code ? cost.get(it.code) : undefined;
+          if (c !== undefined) { r.knownRevenue += rev; r.cost += c * (it.qty || 0); } else r.unknown++;
+        }
+      } else { r.revenue += d.amount || 0; r.unknown++; }
+      map.set(d.customerId, r);
+    }
+    return [...map.values()].map((r) => ({ ...r, profit: r.knownRevenue - r.cost })).sort((a, b) => b.profit - a.profit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deals, products, from, to, q, who, index]);
+
   const needs = useMemo(() => {
     const miss = new Map<string, string[]>();
     for (const a of activities) if (a.type === 'MISSING' && inRange(a.createdAt)) miss.set(a.customerId, [...(miss.get(a.customerId) || []), a.itemName || a.text]);
@@ -144,12 +173,13 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
     setFrom(dayIso(-days));
     setTo(todayIso());
   };
-  const needsRange = kind === 'buyers' || kind === 'interactions' || kind === 'quotes' || kind === 'needs' || kind === 'lost';
+  const needsRange = kind === 'buyers' || kind === 'interactions' || kind === 'quotes' || kind === 'needs' || kind === 'lost' || kind === 'profit';
   const chip = (on: boolean) => `px-3 py-1.5 rounded-xl text-[11px] font-black border cursor-pointer ${on ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`;
 
   const exportCsv = () => {
     if (kind === 'buyers') downloadCsv('خریداران.csv', [['مشتری', 'تعداد خرید', `مبلغ (${unitName()})`, 'آخرین خرید', 'کالاها'], ...buyers.map((r) => [nameOf(r.id), r.count, toDisplay(r.total), r.last ? localDay(r.last) : '', [...r.items].join('، ')])]);
     else if (kind === 'dormant') downloadCsv('مشتریان-بی-پیگیری.csv', [['مشتری', 'آخرین تعامل', 'مسئول'], ...dormant.map((r) => [r.c.name, localDay(r.last), r.c.ownerName])]);
+    else if (kind === 'profit') downloadCsv('سود-مشتریان.csv', [['مشتری', 'تعداد فروش', `فروش (${unitName()})`, `بهای تمام‌شده (${unitName()})`, `سود (${unitName()})`, 'حاشیه سود', 'ردیف بدون قیمت خرید'], ...profit.map((r) => [nameOf(r.id), r.deals, toDisplay(r.revenue), toDisplay(r.cost), toDisplay(r.profit), r.knownRevenue ? Math.round((r.profit / r.knownRevenue) * 100) + '٪' : '', r.unknown])]);
     else if (kind === 'quality') downloadCsv('کیفیت-اطلاعات.csv', [['مورد', 'مشکل', 'مسئول'], ...quality.map((r) => [r.what, r.issue, r.who])]);
     else if (kind === 'lost') downloadCsv('دلایل-ازدست-رفتن-فروش.csv', [['تاریخ', 'مشتری', 'فرصت', `مبلغ (${unitName()})`, 'دلیل', 'توضیح', 'مسئول'], ...lost.map((d) => [localDay(d.closedAt || d.updatedAt), nameOf(d.customerId), d.title, toDisplay(d.amount), d.lostReason || '', d.lostNote || '', d.ownerName])]);
     else if (kind === 'needs') downloadCsv('نیاز-مشتریان.csv', [['مشتری', 'دنبال چه می‌گردد', 'کالاهای ناموجود'], ...needs.map((r) => [r.c.name, r.interest, r.missing.join('، ')])]);
@@ -158,7 +188,7 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
 
   const th = 'px-3 py-2 text-[10px] font-black text-[#8C6F66] text-right whitespace-nowrap';
   const total = kind === 'buyers' ? buyers.reduce((s, r) => s + r.total, 0) : 0;
-  const rowCount = kind === 'buyers' ? buyers.length : kind === 'dormant' ? dormant.length : kind === 'needs' ? needs.length : kind === 'lost' ? lost.length : kind === 'quality' ? quality.length : acts.length;
+  const rowCount = kind === 'buyers' ? buyers.length : kind === 'dormant' ? dormant.length : kind === 'needs' ? needs.length : kind === 'lost' ? lost.length : kind === 'quality' ? quality.length : kind === 'profit' ? profit.length : acts.length;
   const quoteAvg = useMemo(() => {
     if (kind !== 'quotes') return [];
     const m = new Map<string, { n: number; sum: number; min: number; max: number }>();
@@ -183,7 +213,7 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
   return (
     <div className="space-y-3" data-crm-reports>
       <div className="flex flex-wrap gap-1.5">
-        {REPORTS.map(([k, t, Icon]) => (
+        {REPORTS.filter(([k]) => k !== 'profit' || isAdmin).map(([k, t, Icon]) => (
           <button key={k} type="button" onClick={() => setKind(k)} className={`${chip(kind === k)} flex items-center gap-1.5 min-h-[40px]`}>
             <Icon className="w-4 h-4" />
             {t}
@@ -292,6 +322,7 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
             {kind === 'buyers' && <tr><th className={th}>مشتری</th><th className={th}>تعداد خرید</th><th className={th}>مبلغ ({unitName()})</th><th className={th}>آخرین خرید</th><th className={th}>کالاها</th></tr>}
             {(kind === 'interactions' || kind === 'quotes') && <tr><th className={th}>زمان</th><th className={th}>مشتری</th><th className={th}>{kind === 'quotes' ? 'کالا و مشخصات' : 'نوع'}</th><th className={th}>{kind === 'quotes' ? 'تعداد' : 'شرح'}</th>{kind === 'quotes' && <th className={th}>قیمت ({unitName()})</th>}<th className={th}>ثبت‌کننده</th></tr>}
             {kind === 'dormant' && <tr><th className={th}>مشتری</th><th className={th}>آخرین تعامل یا خرید</th><th className={th}>چند روز</th><th className={th}>مسئول</th></tr>}
+            {kind === 'profit' && <tr><th className={th}>مشتری</th><th className={th}>فروش</th><th className={th}>بهای تمام‌شده</th><th className={th}>سود</th><th className={th}>حاشیه</th><th className={th}>ردیف بدون قیمت خرید</th></tr>}
             {kind === 'quality' && <tr><th className={th}>مورد</th><th className={th}>مشکل</th><th className={th}>مسئول</th></tr>}
             {kind === 'lost' && <tr><th className={th}>تاریخ</th><th className={th}>مشتری</th><th className={th}>فرصت</th><th className={th}>مبلغ ({unitName()})</th><th className={th}>دلیل</th><th className={th}>مسئول</th></tr>}
             {kind === 'needs' && <tr><th className={th}>مشتری</th><th className={th}>دنبال چه کالایی می‌گردد</th><th className={th}>ناموجودهایی که خواسته</th></tr>}
@@ -309,6 +340,11 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
                 {kind === 'quotes' ? <Cell>{a.qty ? toPersianDigits(a.qty) : '—'}</Cell> : <Cell className="max-w-[360px]">{a.text}</Cell>}
                 {kind === 'quotes' && <Cell strong>{formatMoney(a.price || 0)}{a.askedPrice ? ` (مشتری ${formatMoney(a.askedPrice)})` : ''}</Cell>}
                 <Cell>{a.authorName}</Cell>
+              </tr>
+            ))}
+            {kind === 'profit' && profit.slice(0, 500).map((r) => (
+              <tr key={r.id} onClick={() => onOpenCustomer(r.id)} className="hover:bg-[#FAF5F1] cursor-pointer">
+                <Cell strong>{nameOf(r.id)}</Cell><Cell>{formatMoney(r.revenue)}</Cell><Cell>{r.cost ? formatMoney(r.cost) : '—'}</Cell><Cell strong className={r.profit > 0 ? 'text-emerald-700' : ''}>{r.knownRevenue ? formatMoney(r.profit) : '—'}</Cell><Cell>{r.knownRevenue ? toPersianDigits(Math.round((r.profit / r.knownRevenue) * 100)) + '٪' : '—'}</Cell><Cell className={r.unknown ? 'text-amber-800' : ''}>{r.unknown ? toPersianDigits(r.unknown) : '۰'}</Cell>
               </tr>
             ))}
             {kind === 'quality' && quality.slice(0, 500).map((r) => (
