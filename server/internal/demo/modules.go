@@ -34,9 +34,9 @@ func digitsN(seed, n int) string {
 }
 
 var places = [][2]string{{"تهران", "تهران"}, {"اصفهان", "اصفهان"}, {"خراسان رضوی", "مشهد"}, {"فارس", "شیراز"}, {"آذربایجان شرقی", "تبریز"}, {"البرز", "کرج"}, {"خوزستان", "اهواز"}, {"گیلان", "رشت"}, {"مازندران", "ساری"}, {"یزد", "یزد"}}
-var interests = []string{"روغن موتور و فیلتر برای ناوگان ۱۲ خودرو", "لنت و دیسک ترمز پژو ۲۰۶", "تسمه تایم و واترپمپ سمند", "ضدیخ عمده، ماهانه ۴۰ گالن", "شمع و وایر موتور", "لوازم یدکی خودروهای سنگین", "قیمت عمدهٔ فیلتر هوا"}
+var interests = []string{"لپ‌تاپ و ایستگاه کاری برای ۱۲ نفر از کارکنان", "سوئیچ و روتر شبکه برای دفتر جدید", "سرور و ذخیره‌ساز برای مرکز داده", "UPS و باتری برای اتاق سرور", "لایسنس آنتی‌ویروس و آفیس سازمانی", "پیاده‌سازی سامانهٔ اتوماسیون اداری", "قرارداد پشتیبانی ماهانهٔ شبکه و سرور"}
 var noteTexts = []string{"مشتری قدیمی؛ پرداخت‌ها به‌موقع است.", "ترجیح می‌دهد صبح‌ها تماس گرفته شود.", "برای خرید عمده تخفیف می‌خواهد.", "پیگیری قیمت و موجودی انجام شود.", "از طریق معرفی آشنا شده؛ جلسهٔ حضوری هماهنگ شد.", "نیاز به مشاورهٔ فنی دارد."}
-var tagSets = [][]string{{"مشتری قدیمی", "عمده"}, {"VIP"}, {"نمایندگی"}, {"خرده‌فروش", "پیگیری ماهانه"}, {"صنعتی"}, {"تازه‌وارد"}}
+var tagSets = [][]string{{"مشتری قدیمی", "قرارداد پشتیبانی"}, {"VIP"}, {"نمایندگی"}, {"خرده‌فروش", "پیگیری ماهانه"}, {"سازمانی"}, {"تازه‌وارد"}}
 
 func addModules(ctx context.Context, now time.Time, by map[string]account) error {
 	// ---------------- every customer gets every field ----------------
@@ -122,11 +122,11 @@ func addModules(ctx context.Context, now time.Time, by map[string]account) error
 
 	// ---------------- shops (the third kind of customer) with a won sale each ----------------
 	shops := []struct{ id, name, kind, owner, last string }{
-		{"demo-shop1", "لوازم یدکی ستاره", "لوازم یدکی خودرو", "اکبر", "جوادی"},
-		{"demo-shop2", "فروشگاه روغن و فیلتر آسمان", "روان‌کار و فیلتر", "مهران", "صدری"},
-		{"demo-shop3", "مرکز تعمیرات و لوازم پارس", "تعمیرگاه و لوازم", "داوود", "نیک‌پور"},
-		{"demo-shop4", "فروشگاه لنت و ترمز ایران", "ترمز", "سعید", "عباسی"},
-		{"demo-shop5", "لوازم یدکی گلستان", "لوازم یدکی خودرو", "شهرام", "گلزار"},
+		{"demo-shop1", "کامپیوتر آوا", "فروش کامپیوتر و لپ‌تاپ", "اکبر", "جوادی"},
+		{"demo-shop2", "دیجی‌نت شبکه", "تجهیزات شبکه و اینترنت", "مهران", "صدری"},
+		{"demo-shop3", "مرکز لپ‌تاپ پارس", "لپ‌تاپ و تعمیرات", "داوود", "نیک‌پور"},
+		{"demo-shop4", "فروشگاه چاپگر ایران", "چاپگر و لوازم مصرفی", "سعید", "عباسی"},
+		{"demo-shop5", "رایانه‌سرای گلستان", "سخت‌افزار و قطعات", "شهرام", "گلزار"},
 	}
 	for i, s := range shops {
 		k := len(rows) + i
@@ -138,7 +138,7 @@ func addModules(ctx context.Context, now time.Time, by map[string]account) error
 			"firstName": s.owner, "lastName": s.last, "fatherName": "حسین", "gender": "M", "birthDate": fmt.Sprintf("%d-%02d-%02d", 1965+i*4, 2+i, 9+i*3),
 			"nationalCode": validNationalCode(k + 40), "economicCode": digitsN(k+8, 12), "idNumber": fmt.Sprint(300 + i*41),
 			"province": pl[0], "city": pl[1], "postalCode": digitsN(k+21, 10), "website": fmt.Sprintf("www.shop%d.example.ir", i+1), "email": fmt.Sprintf("shop%d@example.ir", i+1),
-			"address": fmt.Sprintf("%s، بازار لوازم یدکی، پلاک %s", pl[1], fa(20+i*4)),
+			"address": fmt.Sprintf("%s، پاساژ کامپیوتر، پلاک %s", pl[1], fa(20+i*4)),
 			"phones":  []string{fmt.Sprintf("0913%07d", 7200000+i*313), land, fax}, "faxNumber": fax,
 			"interest": interests[(k+1)%len(interests)], "notes": noteTexts[(k+2)%len(noteTexts)], "tags": tagSets[(k+i)%len(tagSets)],
 			"status": []string{"ACTIVE", "ACTIVE", "LEAD", "ACTIVE", "LEAD"}[i], "source": []string{"معرفی دوستان", "نمایشگاه", "تماس ورودی", "وب‌سایت", "مشتری قبلی"}[i],
@@ -157,9 +157,9 @@ func addModules(ctx context.Context, now time.Time, by map[string]account) error
 		amount     int
 		ago        int
 	}{
-		{"demo-shop1", "خرید عمدهٔ روغن موتور و فیلتر", 38400000, 2}, {"demo-shop2", "سفارش ضدیخ و روغن", 21600000, 4}, {"demo-shop3", "لنت و تسمه تایم", 17500000, 6},
-		{"demo-shop4", "لنت ترمز دو پالت", 29800000, 9}, {"demo-c2", "تمدید پشتیبانی سه‌ماهه", 24000000, 11}, {"demo-c3", "خرید لایسنس سازمانی", 30000000, 15},
-		{"demo-shop1", "سفارش تکمیلی فیلتر", 9600000, 19}, {"demo-c1", "قرارداد خدمات فصلی", 45000000, 24}, {"demo-shop5", "شمع و وایر", 7200000, 27},
+		{"demo-shop1", "خرید عمدهٔ روتر وای‌فای", 38400000, 2}, {"demo-shop2", "سفارش کارتریج لیزری", 21600000, 4}, {"demo-shop3", "سوئیچ شبکه برای شعب", 17700000, 6},
+		{"demo-shop4", "یو‌پی‌اس برای اتاق سرور", 29400000, 9}, {"demo-c2", "تمدید پشتیبانی سه‌ماهه", 24000000, 11}, {"demo-c3", "خرید لایسنس سازمانی", 30000000, 15},
+		{"demo-shop1", "سفارش تکمیلی هارد SSD", 9600000, 19}, {"demo-c1", "قرارداد خدمات فصلی", 45000000, 24}, {"demo-shop5", "لایسنس آنتی‌ویروس", 7200000, 27},
 	}
 	for i, b := range buyers {
 		name := ""
@@ -175,7 +175,7 @@ func addModules(ctx context.Context, now time.Time, by map[string]account) error
 		doc := jsonx.M{"id": fmt.Sprintf("demo-w%d", i+1), "title": b.title, "customerId": b.cid, "customerName": name, "amount": b.amount, "stage": "WON", "closedAt": iso(at),
 			"ownerId": "demo-sales", "ownerName": by["demo-sales"].Name, "notes": "", "createdAt": iso(at.Add(-72 * time.Hour)), "updatedAt": iso(at)}
 		// the shop sales carry the product lines (code, count, price) so the profit report has something to work out
-		if l, ok := map[int][3]int{0: {1001, 30, 1280000}, 1: {1006, 60, 360000}, 2: {1003, 20, 875000}, 3: {1004, 25, 1192000}, 6: {1002, 60, 160000}, 8: {1005, 15, 480000}}[i]; ok {
+		if l, ok := map[int][3]int{0: {1001, 12, 3200000}, 1: {1003, 18, 1200000}, 2: {1002, 3, 5900000}, 3: {1005, 3, 9800000}, 6: {1004, 4, 2400000}, 8: {1006, 15, 480000}}[i]; ok {
 			doc["items"] = []jsonx.M{{"title": b.title, "code": fmt.Sprint(l[0]), "qty": l[1], "unit": "عدد", "unitPrice": l[2]}}
 		}
 		if err := exec(ctx, `INSERT INTO crm_deals (id, customer_id, owner_id, data) VALUES ($1, $2, $3, $4::jsonb)`, jsonx.Str(doc, "id"), b.cid, "demo-sales", jsonx.Encode(doc)); err != nil {
@@ -191,16 +191,16 @@ func addModules(ctx context.Context, now time.Time, by map[string]account) error
 		by                                string
 	}
 	quotes := []quote{
-		{"demo-c4", "روغن موتور ۵ لیتری", "p-oil", "1001", "عدد", "سینتتیک ۵W-40", 6, 1450000, 1350000, 2, "demo-sales"},
-		{"demo-c4", "لنت ترمز جلو پژو ۲۰۶", "p-pad", "1004", "جفت", "مارک اصلی", 2, 1250000, 0, 5, "demo-sales"},
-		{"demo-c1", "تسمه تایم سمند", "p-belt", "1003", "عدد", "قیمت نمایندگی", 4, 780000, 700000, 1, "demo-sales2"},
-		{"demo-c1", "ضدیخ ۴ لیتری", "p-coolant", "1006", "گالن", "", 10, 340000, 0, 4, "demo-sales2"},
-		{"demo-c2", "فیلتر روغن پراید", "p-filter", "1002", "عدد", "برای ۱۲ خودرو", 24, 160000, 150000, 3, "demo-sales"},
-		{"demo-c3", "شمع موتور پایه کوتاه", "p-plug", "1005", "ست", "", 8, 560000, 0, 6, "demo-sales3"},
-		{"demo-shop1", "روغن موتور ۵ لیتری", "p-oil", "1001", "عدد", "قیمت عمده", 40, 1300000, 1250000, 2, "demo-sales"},
-		{"demo-shop2", "ضدیخ ۴ لیتری", "p-coolant", "1006", "گالن", "قیمت عمده", 30, 340000, 320000, 4, "demo-sales3"},
-		{"demo-shop3", "لنت ترمز جلو پژو ۲۰۶", "p-pad", "1004", "جفت", "", 12, 1100000, 0, 7, "demo-sales2"},
-		{"demo-shop4", "تسمه تایم سمند", "p-belt", "1003", "عدد", "", 10, 780000, 750000, 8, "demo-sales"},
+		{"demo-c4", "روتر وای‌فای ax1800", "p-router", "1001", "عدد", "دو بانده", 6, 3450000, 3200000, 2, "demo-sales"},
+		{"demo-c4", "هارد SSD ۵۱۲ گیگ", "p-ssd", "1004", "عدد", "اینترنال SATA", 2, 2350000, 0, 5, "demo-sales"},
+		{"demo-c1", "سوئیچ ۲۴ پورت گیگابیت", "p-switch", "1002", "عدد", "قیمت نمایندگی", 4, 5400000, 5000000, 1, "demo-sales2"},
+		{"demo-c1", "لایسنس آنتی‌ویروس سازمانی", "p-av", "1006", "لایسنس", "", 10, 420000, 0, 4, "demo-sales2"},
+		{"demo-c2", "کارتریج لیزری HP 85A", "p-toner", "1003", "عدد", "برای ۱۲ چاپگر", 24, 1100000, 1000000, 3, "demo-sales"},
+		{"demo-c3", "یو‌پی‌اس ۱۰۰۰ ولت آنلاین", "p-ups", "1005", "دستگاه", "", 2, 9800000, 0, 6, "demo-sales3"},
+		{"demo-shop1", "روتر وای‌فای ax1800", "p-router", "1001", "عدد", "قیمت عمده", 40, 3100000, 3000000, 2, "demo-sales"},
+		{"demo-shop2", "لایسنس آنتی‌ویروس سازمانی", "p-av", "1006", "لایسنس", "قیمت عمده", 30, 420000, 400000, 4, "demo-sales3"},
+		{"demo-shop3", "هارد SSD ۵۱۲ گیگ", "p-ssd", "1004", "عدد", "", 12, 2100000, 0, 7, "demo-sales2"},
+		{"demo-shop4", "سوئیچ ۲۴ پورت گیگابیت", "p-switch", "1002", "عدد", "", 10, 5400000, 5200000, 8, "demo-sales"},
 	}
 	for i, q := range quotes {
 		at := now.Add(-time.Duration(q.ago)*24*time.Hour - time.Duration(i)*time.Hour)
@@ -268,7 +268,7 @@ func addModules(ctx context.Context, now time.Time, by map[string]account) error
 		{"demo-ceo", "تماس با آقای کاظمی برای تأیید پیش‌فاکتور", "سؤال کنید تأییدیه را فرستاده‌اند یا نه.", "none", "pending", 20},
 		{"demo-ceo", "ارسال گزارش فروش هفتگی", "برای هیئت‌مدیره", "weekly", "pending", 52},
 		{"demo-ceo", "پرداخت قسط بیمهٔ انبار", "", "none", "pending", 96},
-		{"demo-ceo", "بازبینی قیمت‌های عمده", "قیمت روغن و فیلتر را با تأمین‌کننده چک کنید.", "daily", "pending", 30},
+		{"demo-ceo", "بازبینی قیمت‌های عمده", "قیمت روتر و سوئیچ را با تأمین‌کننده چک کنید.", "daily", "pending", 30},
 		{"demo-ceo", "جلسهٔ هماهنگی با فروش", "", "none", "done", -30},
 		{"demo-sales", "پیگیری مشتری‌های بدون پاسخ", "", "daily", "pending", 24},
 		{"demo-secretary", "هماهنگی جلسهٔ فردا", "", "none", "pending", 14},

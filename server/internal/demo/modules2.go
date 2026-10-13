@@ -30,7 +30,7 @@ func queryRowsStore(ctx context.Context, sql string) ([]custRow, error) {
 // addWarehouse: two warehouses, six products with named prices and a month of documents (the stock is the sum of their movements).
 func addWarehouse(ctx context.Context, now time.Time, by map[string]account) error {
 	type wh struct{ id, title, code, location string }
-	whs := []wh{{"wh-main", "انبار مرکزی", "A1", "کارخانه، سالن ۲"}, {"wh-shop", "انبار فروشگاه", "B1", "خیابان اصلی، پلاک ۱۲"}}
+	whs := []wh{{"wh-main", "انبار مرکزی", "A1", "دفتر مرکزی، طبقهٔ همکف"}, {"wh-shop", "انبار شعبهٔ فروش", "B1", "خیابان ولیعصر، شعبهٔ فروش"}}
 	for _, w := range whs {
 		doc := jsonx.M{"id": w.id, "title": w.title, "code": w.code, "location": w.location, "keeperId": "demo-staff", "note": "", "active": true}
 		if err := exec(ctx, `INSERT INTO wh_warehouses (id, data) VALUES ($1, $2::jsonb)`, w.id, jsonx.Encode(doc)); err != nil {
@@ -44,17 +44,17 @@ func addWarehouse(ctx context.Context, now time.Time, by map[string]account) err
 	}
 	pr := func(t string, a int) jsonx.M { return jsonx.M{"title": t, "amount": a} }
 	prods := []prod{
-		{"p-oil", "1001", "روغن موتور ۵ لیتری", "عدد", "روان‌کار", 10, []jsonx.M{pr("خرده‌فروشی", 1450000), pr("عمده", 1300000)}},
-		{"p-filter", "1002", "فیلتر روغن پراید", "عدد", "فیلتر", 20, []jsonx.M{pr("خرده‌فروشی", 185000), pr("عمده", 160000)}},
-		{"p-belt", "1003", "تسمه تایم سمند", "عدد", "تسمه", 5, []jsonx.M{pr("خرده‌فروشی", 920000), pr("نمایندگی", 780000)}},
-		{"p-pad", "1004", "لنت ترمز جلو پژو ۲۰۶", "جفت", "ترمز", 8, []jsonx.M{pr("خرده‌فروشی", 1250000), pr("عمده", 1100000)}},
-		{"p-plug", "1005", "شمع موتور پایه کوتاه", "ست", "برق", 12, []jsonx.M{pr("خرده‌فروشی", 560000)}},
-		{"p-coolant", "1006", "ضدیخ ۴ لیتری", "گالن", "روان‌کار", 15, []jsonx.M{pr("خرده‌فروشی", 390000), pr("عمده", 340000)}},
+		{"p-router", "1001", "روتر وای‌فای ax1800", "عدد", "شبکه", 10, []jsonx.M{pr("خرده‌فروشی", 3450000), pr("عمده", 3100000)}},
+		{"p-switch", "1002", "سوئیچ ۲۴ پورت گیگابیت", "عدد", "شبکه", 6, []jsonx.M{pr("خرده‌فروشی", 5900000), pr("عمده", 5400000)}},
+		{"p-toner", "1003", "کارتریج لیزری HP 85A", "عدد", "لوازم مصرفی", 20, []jsonx.M{pr("خرده‌فروشی", 1250000), pr("عمده", 1100000)}},
+		{"p-ssd", "1004", "هارد SSD اینترنال ۵۱۲ گیگ", "عدد", "ذخیره‌سازی", 15, []jsonx.M{pr("خرده‌فروشی", 2350000), pr("عمده", 2100000)}},
+		{"p-ups", "1005", "یو‌پی‌اس ۱۰۰۰ ولت آنلاین", "دستگاه", "برق و پشتیبان", 6, []jsonx.M{pr("خرده‌فروشی", 9800000), pr("نمایندگی", 9200000)}},
+		{"p-av", "1006", "لایسنس آنتی‌ویروس سازمانی (یک‌ساله)", "لایسنس", "نرم‌افزار", 10, []jsonx.M{pr("خرده‌فروشی", 480000), pr("عمده", 420000)}},
 	}
 	byID := map[string]prod{}
 	for _, p := range prods {
 		byID[p.id] = p
-		doc := jsonx.M{"id": p.id, "code": p.code, "title": p.title, "unit": p.unit, "group": p.group, "minQty": p.min, "barcode": "62" + p.code + "0001", "note": "", "active": true, "prices": p.prices, "cost": map[string]int{"p-oil": 1000000, "p-filter": 120000, "p-belt": 600000, "p-pad": 900000, "p-plug": 380000, "p-coolant": 270000}[p.id]}
+		doc := jsonx.M{"id": p.id, "code": p.code, "title": p.title, "unit": p.unit, "group": p.group, "minQty": p.min, "barcode": "62" + p.code + "0001", "note": "", "active": true, "prices": p.prices, "cost": map[string]int{"p-router": 2700000, "p-switch": 4600000, "p-toner": 850000, "p-ssd": 1750000, "p-ups": 7500000, "p-av": 300000}[p.id]}
 		if err := exec(ctx, `INSERT INTO wh_products (id, code, data) VALUES ($1, $2, $3::jsonb)`, p.id, p.code, jsonx.Encode(doc)); err != nil {
 			return err
 		}
@@ -69,13 +69,13 @@ func addWarehouse(ctx context.Context, now time.Time, by map[string]account) err
 		lines                        []line
 	}
 	docs := []document{
-		{"receipt", "wh-main", "", "تأمین‌کننده: شرکت پارس‌لوب", "", 12, 1001, []line{{"p-oil", 60}, {"p-filter", 120}, {"p-belt", 30}, {"p-pad", 40}, {"p-plug", 50}, {"p-coolant", 36}}},
-		{"transfer", "wh-main", "wh-shop", "", "", 9, 1001, []line{{"p-oil", 20}, {"p-filter", 40}, {"p-pad", 12}, {"p-coolant", 10}}},
-		{"issue", "wh-main", "", "فروش به نمایندگی اصفهان", "", 6, 1001, []line{{"p-oil", 34}, {"p-belt", 26}, {"p-plug", 40}}},
-		{"issue", "wh-shop", "", "فروش خرده", "", 3, 1002, []line{{"p-oil", 14}, {"p-filter", 31}}},
-		{"adjust", "wh-main", "", "", "انبارگردانی پایان هفته", 1, 1001, []line{{"p-pad", 27}}},
+		{"receipt", "wh-main", "", "تأمین‌کننده: شرکت پخش رایان‌سازه", "", 12, 1001, []line{{"p-router", 40}, {"p-switch", 20}, {"p-toner", 80}, {"p-ssd", 50}, {"p-ups", 12}, {"p-av", 100}}},
+		{"transfer", "wh-main", "wh-shop", "", "", 9, 1001, []line{{"p-router", 12}, {"p-switch", 6}, {"p-toner", 30}, {"p-ssd", 15}}},
+		{"issue", "wh-main", "", "فروش به نمایندگی اصفهان", "", 6, 1001, []line{{"p-router", 20}, {"p-ssd", 30}, {"p-ups", 8}}},
+		{"issue", "wh-shop", "", "فروش خرده", "", 3, 1002, []line{{"p-router", 9}, {"p-toner", 22}}},
+		{"adjust", "wh-main", "", "", "انبارگردانی پایان هفته", 1, 1001, []line{{"p-ssd", 4}}},
 	}
-	titleOf := map[string]string{"wh-main": "انبار مرکزی", "wh-shop": "انبار فروشگاه"}
+	titleOf := map[string]string{"wh-main": "انبار مرکزی", "wh-shop": "انبار شعبهٔ فروش"}
 	bal := map[string]float64{}
 	for di, d := range docs {
 		at := now.Add(-time.Duration(d.ago) * 24 * time.Hour)
@@ -135,14 +135,14 @@ func addSepidar(ctx context.Context, now time.Time, by map[string]account) error
 		return err
 	}
 	if err := cache("balances", []jsonx.M{{"CustomerID": 501, "Title": "نرگس موسوی", "Remainder": 36000000}, {"CustomerID": 502, "Title": "حسین کاظمی", "Remainder": 0},
-		{"CustomerID": 503, "Title": "رضا حیدری", "Remainder": 18600000}, {"CustomerID": 504, "Title": "لوازم یدکی ستاره", "Remainder": 12000000}}); err != nil {
+		{"CustomerID": 503, "Title": "رضا حیدری", "Remainder": 18600000}, {"CustomerID": 504, "Title": "کامپیوتر آوا", "Remainder": 12000000}}); err != nil {
 		return err
 	}
 	if err := cache("bankAccounts", []jsonx.M{{"BankAccountID": 9, "DlTitle": "حساب جاری بانک ملت", "CurrencyRef": 1}, {"BankAccountID": 10, "DlTitle": "حساب جاری بانک پاسارگاد", "CurrencyRef": 1}}); err != nil {
 		return err
 	}
-	if err := cache("priceNotes", []jsonx.M{{"saleTypeRef": 1, "itemRef": 7, "code": "1001", "title": "روغن موتور ۵ لیتری", "fee": 1450000}, {"saleTypeRef": 1, "itemRef": 8, "code": "1002", "title": "فیلتر روغن پراید", "fee": 185000},
-		{"saleTypeRef": 1, "itemRef": 9, "code": "1003", "title": "تسمه تایم سمند", "fee": 920000}, {"saleTypeRef": 1, "itemRef": 10, "code": "1004", "title": "لنت ترمز جلو پژو ۲۰۶", "fee": 1250000}}); err != nil {
+	if err := cache("priceNotes", []jsonx.M{{"saleTypeRef": 1, "itemRef": 7, "code": "1001", "title": "روتر وای‌فای ax1800", "fee": 3450000}, {"saleTypeRef": 1, "itemRef": 8, "code": "1002", "title": "سوئیچ ۲۴ پورت گیگابیت", "fee": 5900000},
+		{"saleTypeRef": 1, "itemRef": 9, "code": "1003", "title": "کارتریج لیزری HP 85A", "fee": 1250000}, {"saleTypeRef": 1, "itemRef": 10, "code": "1004", "title": "هارد SSD اینترنال ۵۱۲ گیگ", "fee": 2350000}}); err != nil {
 		return err
 	}
 	for _, kv := range []struct {

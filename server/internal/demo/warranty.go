@@ -20,11 +20,11 @@ func addWarranty(ctx context.Context, now time.Time, by map[string]account) erro
 		void                                                      bool
 	}
 	list := []w{
-		{"demo-w1", "demo-c1", "حسین کاظمی", "09121234567", "میل لنگ سانز", "SN-4410", "SZ-2026-0001", "F-1405-3321", 60, 12, 40000, false},
-		{"demo-w2", "demo-c2", "نرگس موسوی", "09351112233", "دیسک ترمز جلو", "BR-7781", "DT-7781", "F-1405-3290", 335, 12, 0, false},
-		{"demo-w3", "demo-c3", "رضا حیدری", "09124445566", "پمپ روغن", "OP-1290", "OP-1290-A", "F-1404-2210", 420, 12, 0, false},
-		{"demo-w4", "demo-c1", "حسین کاظمی", "09121234567", "کیت تایمینگ کامل", "TK-300", "", "F-1405-3340", 20, 24, 60000, false},
-		{"demo-w5", "demo-c4", "لیلا صادقی", "09370001122", "واشر سرسیلندر", "HG-55", "HG-55-9", "F-1405-3000", 90, 6, 0, true},
+		{"demo-w1", "demo-c1", "حسین کاظمی", "09121234567", "لپ‌تاپ ایسوس ۱۵ اینچ", "LT-4410", "AS-2026-0001", "F-1405-3321", 60, 12, 0, false},
+		{"demo-w2", "demo-c2", "نرگس موسوی", "09351112233", "روتر وای‌فای ax1800", "RT-7781", "TP-7781", "F-1405-3290", 335, 12, 0, false},
+		{"demo-w3", "demo-c3", "رضا حیدری", "09124445566", "هارد SSD اینترنال ۵۱۲ گیگ", "SD-1290", "SD-1290-A", "F-1404-2210", 420, 12, 0, false},
+		{"demo-w4", "demo-c1", "حسین کاظمی", "09121234567", "یو‌پی‌اس ۱۰۰۰ ولت آنلاین", "UP-300", "", "F-1405-3340", 20, 24, 0, false},
+		{"demo-w5", "demo-c4", "لیلا صادقی", "09370001122", "کارتریج لیزری HP 85A", "TN-55", "TN-55-9", "F-1405-3000", 90, 6, 0, true},
 	}
 	numOf := map[string]string{}
 	for i, x := range list {
@@ -57,10 +57,10 @@ func addWarranty(ctx context.Context, now time.Time, by map[string]account) erro
 		steps                                                []string
 	}
 	claims := []c{
-		{"demo-wc1", "demo-w1", "REVIEW", "صدای تق‌تق از موتور هنگام گاز دادن؛ مشتری می‌گوید از هفتهٔ پیش شروع شده است.", "IN", "demo-staff", "", 3, 8200, []string{"REVIEW"}},
-		{"demo-wc2", "demo-w3", "REJECTED", "نشتی روغن از پمپ.", "EXPIRED", "demo-sales", "", 6, 61000, []string{"REVIEW", "REJECTED"}},
-		{"demo-wc3", "demo-w2", "RESOLVED", "لب‌پریدگی دیسک پس از چند هفته استفاده.", "IN", "demo-staff", "REPLACE", 12, 0, []string{"REVIEW", "APPROVED", "RESOLVED"}},
-		{"demo-wc4", "demo-w4", "RECEIVED", "لرزش در دور بالا.", "IN", "", "", 0, 1500, nil},
+		{"demo-wc1", "demo-w1", "REVIEW", "لپ‌تاپ بعد از چند دقیقه کار خودبه‌خود خاموش می‌شود؛ مشتری می‌گوید از هفتهٔ پیش شروع شده است.", "IN", "demo-staff", "", 3, 0, []string{"REVIEW"}},
+		{"demo-wc2", "demo-w3", "REJECTED", "هارد شناسایی نمی‌شود.", "EXPIRED", "demo-sales", "", 6, 0, []string{"REVIEW", "REJECTED"}},
+		{"demo-wc3", "demo-w2", "RESOLVED", "روتر پس از چند هفته مرتب قطع و وصل می‌شود.", "IN", "demo-staff", "REPLACE", 12, 0, []string{"REVIEW", "APPROVED", "RESOLVED"}},
+		{"demo-wc4", "demo-w4", "RECEIVED", "هنگام قطع برق بوق ممتد می‌دهد.", "IN", "", "", 0, 0, nil},
 	}
 	for i, x := range claims {
 		wr := list[0]
@@ -74,7 +74,7 @@ func addWarranty(ctx context.Context, now time.Time, by map[string]account) erro
 		doc := jsonx.M{
 			"id": x.id, "claimNo": fmt.Sprintf("C-%d-%04d", jy, seq), "year": jy, "seq": seq, "warrantyId": x.wid, "warrantyNo": numOf[x.wid],
 			"customerId": wr.cust, "customerName": wr.custName, "customerPhone": wr.phone, "productName": wr.product, "productCode": wr.code, "serial": wr.serial,
-			"description": x.desc, "reportedAt": day(created), "vehicle": jsonx.M{"model": "پژو ۴۰۵", "plate": "۱۲ ب ۳۴۵ ایران ۵۶", "km": x.km},
+			"description": x.desc, "reportedAt": day(created),
 			"coverage": x.coverage, "status": "RECEIVED", "handlerId": x.handler, "handlerName": nameOf(by, x.handler), "photos": []string{},
 			"createdAt": iso(created), "createdById": owner, "createdByName": by[owner].Name,
 		}
@@ -93,7 +93,7 @@ func addWarranty(ctx context.Context, now time.Time, by map[string]account) erro
 			case "RESOLVED":
 				e["resolution"] = x.resolution
 				e["note"] = "کالای نو تحویل داده شد."
-				doc["resolution"], doc["replacementSerial"], doc["cost"], doc["closedAt"] = x.resolution, "DT-7781-N", 1200000, e["at"]
+				doc["resolution"], doc["replacementSerial"], doc["cost"], doc["closedAt"] = x.resolution, "TP-7781-N", 1200000, e["at"]
 			}
 			log = append(log, e)
 			doc["status"] = st

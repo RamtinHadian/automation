@@ -251,7 +251,7 @@ func Reset(ctx context.Context) error {
 		}
 	}
 	settings := jsonx.M{
-		"companyName": "داده پرداز هورمند", "companySubtitle": "سامانه اتوماسیون اداری و بازرگانی",
+		"companyName": "داده پرداز هورمند", "companySubtitle": "راهکارهای نرم‌افزاری، شبکه و پشتیبانی فناوری اطلاعات",
 		"systemTitle": "سامانه اتوماسیون اداری", "companyLogoUrl": logoSVG, "companyStampUrl": stampSVG, "ceoSignatureUrl": signSVG,
 		"ceoName": by["demo-ceo"].Name, "ceoTitle": "مدیرعامل",
 		"companyAddress": "تهران، خیابان ولیعصر، پلاک ۱۲۳", "companyPhone": "۰۲۱-۱۲۳۴۵۶۷۸", "companyWebsite": "www.example.ir",
