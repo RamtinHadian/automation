@@ -260,6 +260,40 @@ func addModules(ctx context.Context, now time.Time, by map[string]account) error
 	if err := addSepidar(ctx, now, by); err != nil {
 		return err
 	}
+	// ---------------- leave taken by people (the «خلاصهٔ مرخصی‌ها» of each person has something to show) ----------------
+	type leaveRow struct {
+		user, typ, label, status, reason, decider string
+		ago, days                                  int
+		fromTime, toTime                           string
+	}
+	leaves := []leaveRow{
+		{"demo-ceo", "ANNUAL", "مرخصی استحقاقی", "APPROVED", "سفر خانوادگی", "demo-ceo", 42, 3, "", ""},
+		{"demo-ceo", "SICK", "مرخصی استعلاجی", "APPROVED", "سرماخوردگی", "demo-ceo", 78, 2, "", ""},
+		{"demo-ceo", "MISSION", "ماموریت", "APPROVED", "بازدید از نمایشگاه شیراز", "demo-ceo", 26, 2, "", ""},
+		{"demo-ceo", "HOURLY", "مرخصی ساعتی", "APPROVED", "کار شخصی", "demo-ceo", 12, 1, "09:00", "13:00"},
+		{"demo-ceo", "ANNUAL", "مرخصی استحقاقی", "PENDING", "", "", -10, 2, "", ""},
+		{"demo-sales", "ANNUAL", "مرخصی استحقاقی", "APPROVED", "", "demo-sales2", 55, 5, "", ""},
+		{"demo-sales", "HOURLY", "مرخصی ساعتی", "APPROVED", "مراجعه به بانک", "demo-sales2", 9, 1, "10:00", "12:30"},
+		{"demo-sales", "UNPAID", "مرخصی بدون حقوق", "REJECTED", "هماهنگ نشد", "demo-sales2", 20, 1, "", ""},
+		{"demo-sales", "ANNUAL", "مرخصی استحقاقی", "PENDING", "", "", -6, 2, "", ""},
+		{"demo-fin3", "ANNUAL", "مرخصی استحقاقی", "PENDING", "", "", -4, 2, "", ""},
+		{"demo-it2", "SICK", "مرخصی استعلاجی", "APPROVED", "عمل دندان", "demo-it1", 33, 3, "", ""},
+	}
+	for i, l := range leaves {
+		from := now.AddDate(0, 0, -l.ago)
+		to := from.AddDate(0, 0, l.days-1)
+		doc := jsonx.M{"id": fmt.Sprintf("demo-lv%d", i+1), "userId": l.user, "userName": by[l.user].Name, "type": l.typ, "typeLabel": l.label, "fromDate": day(from), "toDate": day(to),
+			"reason": l.reason, "status": l.status, "createdAt": iso(from.AddDate(0, 0, -3))}
+		if l.typ == "HOURLY" {
+			doc["toDate"], doc["fromTime"], doc["toTime"] = day(from), l.fromTime, l.toTime
+		}
+		if l.decider != "" {
+			doc["decidedBy"], doc["decidedByName"], doc["decidedAt"] = l.decider, by[l.decider].Name, iso(from.AddDate(0, 0, -2))
+		}
+		if err := exec(ctx, `INSERT INTO leave_requests (id, user_id, status, data) VALUES ($1, $2, $3, $4::jsonb)`, jsonx.Str(doc, "id"), l.user, l.status, jsonx.Encode(doc)); err != nil {
+			return err
+		}
+	}
 	// ---------------- reminders ----------------
 	rem := []struct {
 		user, title, note, repeat, status string

@@ -6,6 +6,7 @@ import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
+import { LeaveSummary } from './LeaveSummary';
 
 const TYPES = [
   { id: 'ANNUAL', label: 'استحقاقی', Icon: CalendarCheck2, tone: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
@@ -17,7 +18,7 @@ const TYPES = [
 ] as const;
 
 const STATUS = {
-  PENDING: { text: 'در انتظار مدیرعامل', cls: 'bg-amber-50 text-amber-800 border-amber-200', Icon: Clock },
+  PENDING: { text: 'در انتظار تایید', cls: 'bg-amber-50 text-amber-800 border-amber-200', Icon: Clock },
   APPROVED: { text: 'تایید شد', cls: 'bg-emerald-50 text-emerald-800 border-emerald-200', Icon: CheckCircle2 },
   REJECTED: { text: 'رد شد', cls: 'bg-rose-50 text-rose-800 border-rose-200', Icon: XCircle },
 } as const;
@@ -53,7 +54,7 @@ export const LeaveView: React.FC = () => {
   const [mine, setMine] = useState<LeaveRequest[]>([]);
   const [all, setAll] = useState<LeaveRequest[]>([]);
   const [canDecide, setCanDecide] = useState(false);
-  const [view, setView] = useState<'mine' | 'inbox' | 'all'>('mine');
+  const [view, setView] = useState<'mine' | 'inbox' | 'all' | 'summary'>('mine');
   const [type, setType] = useState<(typeof TYPES)[number]['id']>('ANNUAL');
   const [from, setFrom] = useState(todayIso());
   const [to, setTo] = useState(todayIso());
@@ -183,7 +184,7 @@ export const LeaveView: React.FC = () => {
       <section className="lg:col-span-2 rounded-3xl border border-[#EBDBCE] bg-gradient-to-b from-[#FDFAF7] to-white p-5 space-y-4 self-start">
         <div>
           <h2 className="font-black text-sm text-[#3A241F]">ثبت درخواست مرخصی</h2>
-          <p className="text-[11px] text-[#8C6F66] mt-0.5">درخواست شما مستقیم برای مدیرعامل ارسال می‌شود و نتیجه را اعلان می‌گیرید.</p>
+          <p className="text-[11px] text-[#8C6F66] mt-0.5">درخواست شما برای مدیر واحدتان (یا اگر واحد مدیر ندارد، مدیرعامل) ارسال می‌شود و نتیجه را اعلان می‌گیرید.</p>
         </div>
 
         <div>
@@ -241,7 +242,7 @@ export const LeaveView: React.FC = () => {
 
         <button type="button" disabled={busy} onClick={send} className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#6E1B1B] hover:bg-[#561414] disabled:opacity-60 text-white text-xs font-black cursor-pointer shadow-md">
           <Send className="w-4 h-4" />
-          ارسال برای مدیرعامل
+          ارسال درخواست
         </button>
       </section>
 
@@ -249,15 +250,17 @@ export const LeaveView: React.FC = () => {
       <section className="lg:col-span-3 space-y-3 min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           {(canDecide
-            ? ([['inbox', `در انتظار تایید شما (${toPersianDigits(pending.length)})`], ['all', 'همهٔ درخواست‌ها'], ['mine', 'مرخصی‌های من']] as const)
-            : ([['mine', 'درخواست‌های من']] as const)
+            ? ([['inbox', `در انتظار تایید شما (${toPersianDigits(pending.length)})`], ['all', 'همهٔ درخواست‌ها'], ['mine', 'مرخصی‌های من'], ['summary', 'خلاصهٔ مرخصی‌های من']] as const)
+            : ([['mine', 'درخواست‌های من'], ['summary', 'خلاصهٔ مرخصی‌های من']] as const)
           ).map(([id, t]) => (
             <button key={id} type="button" onClick={() => setView(id)} className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black cursor-pointer border ${view === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
               {t}
             </button>
           ))}
         </div>
-        {list.length === 0 ? (
+        {view === 'summary' ? (
+          <LeaveSummary leaves={mine} />
+        ) : list.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-10 text-center text-xs font-bold text-[#8C6F66]">
             {view === 'inbox' ? 'درخواستی در انتظار تایید نیست.' : 'هنوز درخواستی ثبت نشده است.'}
           </div>

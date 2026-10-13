@@ -227,7 +227,7 @@ func Reset(ctx context.Context) error {
 		return err
 	}
 	if err := exec(ctx, `TRUNCATE users, departments, transfers, transfer_hidden, audit_logs, tasks, notifications, push_subscriptions,
-		daily_reports, crm_customers, crm_deals, crm_activities, voip_calls, chat_messages, warranties, warranty_claims, support_subs, support_tickets, support_plans`); err != nil {
+		daily_reports, leave_requests, crm_customers, crm_deals, crm_activities, voip_calls, chat_messages, warranties, warranty_claims, support_subs, support_tickets, support_plans`); err != nil {
 		return err
 	}
 	if err := exec(ctx, `DELETE FROM settings WHERE key = 'main'`); err != nil { // other rows hold the push keys
