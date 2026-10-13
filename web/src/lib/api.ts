@@ -446,6 +446,8 @@ export const api = {
   },
   soundDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/sounds/${encodeURIComponent(id)}`),
   notifyTest: (kind: string, label: string) => request<{ ok: true }>('POST', '/api/notify/test', { kind, label }),
+  clubGet: () => request<Record<string, unknown>>('GET', '/api/crm/club'),
+  clubSave: (c: unknown) => request<{ ok: true }>('PUT', '/api/crm/club', c),
   smsStatus: () => request<{ enabled: boolean; canSend: boolean; library: string[] | null; custom: { id: string; title: string; text: string }[] }>('GET', '/api/sms/status'),
   smsBulkStart: (b: { customerIds: string[]; templateKey: string }) => request<{ id: string; total: number; sent: number; failed: number; skipped: number; done: boolean; error: string }>('POST', '/api/sms/bulk', b),
   smsBulkProgress: (id: string) => request<{ id: string; total: number; sent: number; failed: number; skipped: number; done: boolean; error: string }>('GET', `/api/sms/bulk/${encodeURIComponent(id)}`),

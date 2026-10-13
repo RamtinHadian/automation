@@ -26,6 +26,7 @@ import {
   Users,
   X,
   BarChart3,
+  Gift,
   BookUser,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -56,6 +57,7 @@ import { PersonPicker, staffItems, customerItems } from '../common/PersonPicker'
 import { PhraseChips } from '../common/PhraseChips';
 import { PhoneBook } from './PhoneBook';
 import { CrmReports } from './CrmReports';
+import { ClubView } from './ClubView';
 import { QuoteForm } from './QuoteForm';
 import { CustomerSummaryStrip } from './CustomerSummary';
 import { buildCustomerIndex, matchesQuery } from '../../lib/customerSearch';
@@ -103,7 +105,7 @@ export const CrmView: React.FC = () => {
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports'>('overview');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club'>('overview');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -308,6 +310,7 @@ export const CrmView: React.FC = () => {
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
     ['followups', 'پیگیری‌ها', ListChecks],
     ['reports', 'گزارش‌ها', BarChart3],
+    ['club', 'باشگاه مشتریان', Gift],
   ] as const;
   const smsTab = ['sms', 'پیامک گروهی', MessageSquare] as const;
   // the CEO also has «پیش‌فاکتورهای ارسالی»: what waits for the signature and what was signed
@@ -722,6 +725,7 @@ export const CrmView: React.FC = () => {
       )}
 
       {/* ---------- pipeline ---------- */}
+      {tab === 'club' && <ClubView customers={customers} deals={deals} isAdmin={isAdmin} smsEnabled={smsEnabled} onOpenCustomer={(id) => setOpenCustomer(id)} />}
       {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} index={searchIndex} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 
       {tab === 'pipeline' && (
