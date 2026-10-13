@@ -13,7 +13,7 @@ export interface AppNotification {
   label?: string;
   title: string;
   body: string;
-  ref: { type: 'file' | 'letter' | 'task' | 'report' | 'customer' | 'deal' | 'chat' | 'phone' | 'leave' | 'announcement' | 'warranty' | 'support' | 'warehouse' | 'sepidar' | 'reminder'; id: string } | null;
+  ref: { type: 'file' | 'letter' | 'task' | 'report' | 'customer' | 'deal' | 'chat' | 'phone' | 'leave' | 'announcement' | 'warranty' | 'support' | 'warehouse' | 'sepidar' | 'reminder' | 'crm'; id: string } | null;
   createdAt: string;
   read: boolean;
 }

@@ -259,7 +259,7 @@ func crmTransfer(w http.ResponseWriter, r *http.Request) {
 	if res["customers"]+res["deals"]+res["followups"] > 0 {
 		notify.Notify(ctx, []string{to}, notify.Note{
 			Kind: "task", Label: "انتقال مشتری", Title: "مشتری و کارهای یک همکار به شما سپرده شد",
-			Body: fmt.Sprintf("%d مشتری، %d فرصت باز، %d پیگیری", res["customers"], res["deals"], res["followups"]), Repeat: true,
+			Body: fmt.Sprintf("%d مشتری، %d فرصت باز، %d پیگیری", res["customers"], res["deals"], res["followups"]), Ref: ref("crm", "customers"), Repeat: true,
 		}, me.ID())
 	}
 	auditLine(r, me, "WARNING", fmt.Sprintf("انتقال کار همکار به «%s»: %d مشتری، %d فرصت، %d پیگیری", toName, res["customers"], res["deals"], res["followups"]))

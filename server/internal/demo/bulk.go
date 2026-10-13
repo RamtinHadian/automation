@@ -267,19 +267,19 @@ func addBulk(ctx context.Context, now time.Time, hash string, by map[string]acco
 
 	// ---- 24 more notifications for the accounts shown on the login page ----
 	targets := []string{"demo-ceo", "demo-secretary", "demo-sales", "demo-staff"}
-	kinds := []struct{ kind, label, title, body string }{
-		{"letter", "جهت امضا", "نامه جدید جهت امضا از " + by["demo-it1"].Name, "درخواست خرید تجهیزات شبکه"},
-		{"file", "فایل جدید", "فایل جدید از " + by["demo-sales2"].Name, "فهرست قیمت‌ها.csv"},
-		{"task", "وظیفه جدید", "وظیفه جدید از " + by["demo-ceo"].Name, "بررسی و تطبیق صورتحساب‌های بانکی"},
-		{"task", "گزارش روزانه", "گزارش روزانه از " + by["demo-fin2"].Name, "ثبت اسناد و تطبیق حساب‌ها"},
-		{"task", "پیگیری امروز", "پیگیری مشتری: شرکت تدبیر صنعت", "ارسال پیش‌فاکتور و پیگیری تأیید"},
-		{"letter", "امضا شد", "نامه امضا شد", "ابلاغ دستورالعمل جدید ایمنی محیط کار"},
+	kinds := []struct{ kind, label, title, body, refType, refID string }{
+		{"letter", "جهت امضا", "نامه جدید جهت امضا از " + by["demo-it1"].Name, "درخواست خرید تجهیزات شبکه", "letter", "demo-trl8"},
+		{"file", "فایل جدید", "فایل جدید از " + by["demo-sales2"].Name, "فهرست قیمت‌ها.csv", "file", "demo-trf3"},
+		{"task", "وظیفه جدید", "وظیفه جدید از " + by["demo-ceo"].Name, "بررسی و تطبیق صورتحساب‌های بانکی", "task", "demo-t6"},
+		{"task", "گزارش روزانه", "گزارش روزانه از " + by["demo-fin2"].Name, "ثبت اسناد و تطبیق حساب‌ها", "report", "demo-fin2_" + day(now.AddDate(0, 0, -2))},
+		{"task", "پیگیری امروز", "پیگیری مشتری: شرکت تدبیر صنعت", "ارسال پیش‌فاکتور و پیگیری تأیید", "customer", "demo-c5"},
+		{"letter", "امضا شد", "نامه امضا شد", "ابلاغ دستورالعمل جدید ایمنی محیط کار", "letter", "demo-trl3"},
 	}
 	for i := 0; i < 24; i++ {
 		k := kinds[i%len(kinds)]
 		u := targets[i%len(targets)]
 		id := fmt.Sprintf("demo-nb%d", i)
-		doc := jsonx.M{"id": id, "userId": u, "kind": k.kind, "label": k.label, "title": k.title, "body": k.body, "ref": nil, "createdAt": iso(now.Add(-time.Duration(40+i*25) * time.Minute)), "read": i%5 == 4}
+		doc := jsonx.M{"id": id, "userId": u, "kind": k.kind, "label": k.label, "title": k.title, "body": k.body, "ref": jsonx.M{"type": k.refType, "id": k.refID}, "createdAt": iso(now.Add(-time.Duration(40+i*25) * time.Minute)), "read": i%5 == 4}
 		if err := exec(ctx, `INSERT INTO notifications (id, user_id, data, read) VALUES ($1, $2, $3::jsonb, $4)`, id, u, jsonx.Encode(doc), i%5 == 4); err != nil {
 			return err
 		}

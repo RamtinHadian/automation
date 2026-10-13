@@ -166,6 +166,7 @@ export const CrmView: React.FC = () => {
           setEditingCustomer({ ...newCustomer(), phones: phone ? [normPhone(phone) || phone] : [], name: callerNameOnly(name, phone), source: 'تماس تلفنی' });
           return;
         }
+        if (type === 'tab') setTab(id as typeof tab);
         if (type === 'customer') setOpenCustomer(id);
         if (type === 'deal') {
           const d = deals.find((x) => x.id === id);

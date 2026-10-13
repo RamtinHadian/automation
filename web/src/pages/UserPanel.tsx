@@ -321,9 +321,41 @@ export default function UserPanel() {
       setChatPeer(n.ref?.id || '');
       setFilesSection('chat');
       setMainMenuTab('files');
-    } else if (type === 'task' && canAccessTasksMenu) setMainMenuTab('tasks');
-    else if (type === 'letter' && canAccessLettersMenu) setMainMenuTab('letters');
-    else setMainMenuTab('files');
+    } else if (type === 'crm' && canAccessCrmMenu) {
+      // a notice about the customer file as a whole (e.g. customers handed over to you): the right tab of the customers menu
+      try {
+        sessionStorage.setItem('crm_open', JSON.stringify({ type: 'tab', id: n.ref?.id }));
+      } catch {
+        /* storage unavailable */
+      }
+      window.dispatchEvent(new Event('open-crm-item'));
+      setMainMenuTab('crm');
+    } else if (type === 'task' && canAccessTasksMenu) {
+      try {
+        sessionStorage.setItem('task_open', n.ref?.id || '');
+      } catch {
+        /* storage unavailable */
+      }
+      window.dispatchEvent(new Event('open-task-item'));
+      setMainMenuTab('tasks');
+    } else if (type === 'letter' && canAccessLettersMenu) {
+      setMainMenuTab('letters');
+      const letter = transfers.find((t) => t.id === n.ref?.id);
+      if (letter) setPreviewingLetter(letter);
+    } else if (type === 'file') {
+      setMainMenuTab('files');
+      setFilesSection('files');
+      const mine = transfers.find((t) => t.id === n.ref?.id);
+      setActiveBoxTab(mine && mine.sender.id === currentUser.id ? 'sent' : 'received');
+      // after the list is drawn, bring the file into view and flash it
+      window.setTimeout(() => {
+        const el = document.getElementById('tr-' + n.ref?.id);
+        if (!el) return;
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        el.classList.add('ring-4', 'ring-amber-300');
+        window.setTimeout(() => el.classList.remove('ring-4', 'ring-amber-300'), 2500);
+      }, 350);
+    } else setMainMenuTab('files');
   };
   const canAccessCrmMenu = Boolean(currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
   // the warranty menu: admins, people with the warranty switch, and everybody who works with customers
@@ -1303,6 +1335,7 @@ export default function UserPanel() {
                         {(activeBoxTab === 'archive' ? archivedFiles : receivedFiles).map((t) => (
                           <div
                             key={t.id}
+                            id={'tr-' + t.id}
                             className="p-4 bg-white rounded-2xl border border-[#EBDBCE] hover:border-[#C98B6A] hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
                           >
                             <div className="flex items-start gap-3.5 truncate">
@@ -1378,6 +1411,7 @@ export default function UserPanel() {
                         {(activeBoxTab === 'archive' ? archivedSentFiles : sentFiles).map((t) => (
                           <div
                             key={t.id}
+                            id={'tr-' + t.id}
                             className="p-4 bg-white rounded-2xl border border-[#EBDBCE] hover:border-[#C98B6A] hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
                           >
                             <div className="flex items-start gap-3.5 truncate">

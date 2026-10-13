@@ -131,6 +131,24 @@ const TasksBoard: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<'ALL' | TaskPriority>('ALL');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<{ task: Task; isNew: boolean } | null>(null);
+  // a notification about a task opens that task (the menu may just have been opened, so look at once and again when told)
+  useEffect(() => {
+    const go = () => {
+      let id = '';
+      try {
+        id = sessionStorage.getItem('task_open') || '';
+        sessionStorage.removeItem('task_open');
+      } catch {
+        /* storage unavailable */
+      }
+      const t = id ? tasks.find((x) => x.id === id) : undefined;
+      if (t) setEditing({ task: t, isNew: false });
+    };
+    go();
+    window.addEventListener('open-task-item', go);
+    return () => window.removeEventListener('open-task-item', go);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<TaskStatus | null>(null);
   const [mobileCol, setMobileCol] = useState<TaskStatus>('TODO');
