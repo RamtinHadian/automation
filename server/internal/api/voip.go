@@ -28,8 +28,9 @@ var onlyDigits = regexp.MustCompile(`^[0-9*#+]{1,20}$`)
 func voipStatus(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"enabled":   phone != nil && phone.Enabled(),
-		"connected": phone != nil && phone.Connected(),
+		// the demo has no phone system; it shows the phone as connected so the call buttons are there to try
+		"enabled":   DemoMode || (phone != nil && phone.Enabled()),
+		"connected": DemoMode || (phone != nil && phone.Connected()),
 		"extension": jsonx.Str(me.M, "extension"),
 	})
 }
@@ -46,8 +47,8 @@ func voipLog(w http.ResponseWriter, r *http.Request) {
 		lastAt = last
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"enabled":    phone != nil && phone.Enabled(),
-		"connected":  phone != nil && phone.Connected(),
+		"enabled":    DemoMode || (phone != nil && phone.Enabled()),
+		"connected":  DemoMode || (phone != nil && phone.Connected()),
 		"eventCount": count,
 		"lastEvent":  lastAt,
 		"entries":    voip.Recent(),
@@ -89,6 +90,10 @@ func voipTestPopup(w http.ResponseWriter, r *http.Request) {
 
 // voipCall rings the user's own extension and then dials the target (a number or a colleague's user id).
 func voipCall(w http.ResponseWriter, r *http.Request) {
+	if DemoMode {
+		demoCall(w, r)
+		return
+	}
 	if phone == nil || !phone.Enabled() {
 		httpx.Error(w, http.StatusServiceUnavailable, "اتصال به تلفن سازمان تنظیم نشده است.")
 		return
@@ -208,4 +213,24 @@ func voipStats(w http.ResponseWriter, r *http.Request) {
 		"byDay": load(`SELECT to_char(started_at AT TIME ZONE 'Asia/Tehran', 'YYYY-MM-DD'), ` + agg + ` FROM voip_calls WHERE started_at > now() - interval '7 days' GROUP BY 1 ORDER BY 1 DESC`),
 		"byExt": load(`SELECT ext, ` + agg + ` FROM voip_calls WHERE started_at > now() - interval '7 days' AND ext <> '' GROUP BY ext ORDER BY 2 DESC LIMIT 30`),
 	})
+}
+
+// demoCall: in the demo nothing rings; the call is only written to the call journal so the history shows what was tried.
+func demoCall(w http.ResponseWriter, r *http.Request) {
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	me := auth.Current(r)
+	ext := jsonx.Str(me.M, "extension")
+	target := jsonx.Str(body, "to")
+	name := ""
+	if !onlyDigits.MatchString(target) { // a colleague's user id
+		_ = store.Pool.QueryRow(r.Context(), `SELECT COALESCE(data->>'extension', ''), COALESCE(data->>'fullName', '') FROM users WHERE id = $1`, target).Scan(&target, &name)
+	}
+	now := time.Now()
+	_, _ = store.Pool.Exec(r.Context(), `INSERT INTO voip_calls (id, started_at, answered_at, ended_at, direction, status, ext, exts, user_id, other_num, other_name, customer_id, customer_name, duration_sec)
+		VALUES ($1, $2, $2, $3, 'out', 'answered', $4, $5, $6, $7, $8, '', '', 30)`,
+		"demo-live-"+strconv.FormatInt(now.UnixNano(), 36), now, now.Add(30*time.Second), ext, []string{ext}, me.ID(), target, name)
+	httpx.OK(w)
 }
