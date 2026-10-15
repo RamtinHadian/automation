@@ -1,0 +1,278 @@
+# -*- coding: utf-8 -*-
+"""Builds intro.html: a friendly introduction brochure of Hoormand for people who have not bought it yet.
+Pictures come from capture_intro.cjs (img/intro/*.png); build_pdf_intro.cjs turns the page into hoormand-intro.pdf.
+Every page carries the «پل‌های ارتباطی با ما» strip at the bottom."""
+import shutil
+
+shutil.copyfile('../assets/banners/logo-full.png', 'img/intro/logo.png')
+
+FA = '۰۱۲۳۴۵۶۷۸۹'
+
+
+def fa(n):
+    return ''.join(FA[int(c)] if c.isdigit() else c for c in str(n))
+
+
+PHONE = '۰۳۱۳۳۹۲۰'
+EXT = '۵۰۰'
+SITE = 'ramtinai.com'
+DEMO = 'demo.ramtinai.com'
+
+CSS = '''
+@font-face{font-family:V;src:url(Vazirmatn-Regular.woff2);font-weight:400}
+@font-face{font-family:V;src:url(Vazirmatn-Medium.woff2);font-weight:500}
+@font-face{font-family:V;src:url(Vazirmatn-Bold.woff2);font-weight:700}
+@font-face{font-family:V;src:url(Vazirmatn-Black.woff2);font-weight:900}
+@page{size:A4;margin:0}
+:root{--night:#0c0b14;--navy:#1b1148;--blue:#2563eb;--violet:#a855f7;--orange:#f97316;--muted:#6c6a85;--line:#e6e3f2;--soft:#f4f2fb;--teal:#0e9f82;
+--grad:linear-gradient(90deg,#3b82f6 0%,#a855f7 52%,#f97316 100%)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff}
+body{font-family:V,Tahoma,sans-serif;color:#1d1b33;direction:rtl;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg{width:210mm;height:297mm;position:relative;overflow:hidden;page-break-after:always;background:#fff}
+.pg:last-child{page-break-after:auto}
+.pad{padding:16mm 16mm 30mm}
+/* the strip with the ways to reach us, on every page */
+.bridge{position:absolute;left:0;right:0;bottom:0;height:20mm;background:linear-gradient(100deg,#0c0b14,#1b1148 55%,#2a1768);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:6mm;padding:0 14mm}
+.bridge:before{content:"";position:absolute;left:0;right:0;top:0;height:1.2mm;background:var(--grad)}
+.bridge .lead{font-weight:900;font-size:10.5pt;line-height:1.5;max-width:46mm;color:#fff}
+.bridge .lead small{display:block;font-weight:500;font-size:8pt;color:#c8bff0}
+.bridge .it{display:flex;flex-direction:column;gap:1mm;text-align:right}
+.bridge .it span{font-size:7.6pt;color:#b9a8e6;font-weight:500}
+.bridge .it b{font-size:10.5pt;font-weight:700;letter-spacing:.2px}
+.bridge bdi{direction:ltr;unicode-bidi:isolate;display:inline-block}
+.pnum{position:absolute;left:14mm;top:10mm;font-size:8.5pt;color:#9a98b3;font-weight:700}
+/* headings */
+.kicker{display:inline-block;font-size:9pt;font-weight:900;color:#fff;background:var(--grad);border-radius:99px;padding:1.2mm 4mm;margin-bottom:4mm}
+h1{font-size:25pt;font-weight:900;line-height:1.45;color:var(--navy)}
+h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead-p{font-size:11.5pt;line-height:2.1;color:#3b3957;margin-top:4mm}
+h2{font-size:13pt;font-weight:900;color:var(--navy);margin:6mm 0 2.5mm}
+p{font-size:10.5pt;line-height:2.05;color:#3b3957}
+/* screenshots */
+.win{border-radius:3.2mm;overflow:hidden;background:#fff;border:.3mm solid #d9d5ee;box-shadow:0 5mm 12mm -4mm rgba(27,17,72,.35)}
+.win .bar{height:6mm;background:linear-gradient(#f4f2fb,#e9e5f7);display:flex;align-items:center;gap:1.4mm;padding:0 3mm;direction:ltr}
+.win .bar i{width:2.2mm;height:2.2mm;border-radius:50%;background:#c9c3e6}
+.win .bar i:nth-child(1){background:#fb7185}.win .bar i:nth-child(2){background:#fbbf24}.win .bar i:nth-child(3){background:#34d399}
+.win img{display:block;width:100%}
+.cap{font-size:8.6pt;color:var(--muted);margin-top:2mm;text-align:center;font-weight:500}
+.phone{border-radius:7mm;border:1.6mm solid #15132b;background:#15132b;overflow:hidden;box-shadow:0 6mm 12mm -4mm rgba(27,17,72,.5)}
+.phone img{display:block;width:100%}
+/* cards and chips */
+.grid{display:grid;gap:4mm}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}.g4{grid-template-columns:1fr 1fr 1fr 1fr}
+.card{border:.3mm solid var(--line);border-radius:3.6mm;padding:4.2mm 4.4mm;background:#fff}
+.card b{display:block;font-size:11pt;font-weight:900;color:var(--navy);margin-bottom:1.2mm}
+.card span{font-size:9.2pt;line-height:1.95;color:#4a4868;display:block}
+.card .ic{width:9mm;height:9mm;border-radius:2.6mm;display:flex;align-items:center;justify-content:center;font-size:13pt;margin-bottom:2.4mm;color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:2mm;margin-top:3mm}
+.chip{font-size:9pt;font-weight:700;color:var(--navy);background:var(--soft);border:.3mm solid var(--line);border-radius:99px;padding:1.4mm 3.6mm}
+.say{background:linear-gradient(135deg,#f4f2fb,#fff);border:.3mm solid var(--line);border-right:1.4mm solid var(--violet);border-radius:3mm;padding:4mm 5mm;margin-top:5mm;font-size:10.2pt;line-height:2;color:#3b3957}
+.say b{color:var(--navy)}
+.tl{margin-top:3mm}
+.tl .row{display:flex;gap:4mm;align-items:flex-start;margin-bottom:3.6mm}
+.tl .dot{flex:none;width:9mm;height:9mm;border-radius:50%;background:var(--grad);color:#fff;font-weight:900;font-size:11pt;display:flex;align-items:center;justify-content:center;box-shadow:0 2mm 4mm -1.5mm rgba(124,58,237,.6)}
+.tl b{font-size:10.8pt;font-weight:900;color:var(--navy);display:block}
+.tl span{font-size:9.4pt;line-height:1.95;color:#4a4868}
+.tick{list-style:none}
+.tick li{font-size:10pt;line-height:2;color:#3b3957;padding-right:6mm;position:relative}
+.tick li:before{content:"✓";position:absolute;right:0;top:0;color:var(--teal);font-weight:900}
+'''
+
+
+def bridge():
+    return f'''<div class="bridge">
+<div class="lead">پل‌های ارتباطی با ما<small>هر سؤالی داشتید، یه تماس فاصله داریم</small></div>
+<div class="it"><span>تماس با ما</span><b>{PHONE} <small style="font-weight:500;font-size:8pt;color:#c8bff0">(داخلی {EXT})</small></b></div>
+<div class="it"><span>وب‌سایت</span><b><bdi>{SITE}</bdi></b></div>
+<div class="it"><span>نسخهٔ آزمایشی</span><b><bdi>{DEMO}</bdi></b></div>
+</div>'''
+
+
+def win(img, cap='', h=None):
+    st = f' style="height:{h}mm;object-fit:cover;object-position:top"' if h else ''
+    return f'<div><div class="win"><div class="bar"><i></i><i></i><i></i></div><img src="img/intro/{img}.png"{st}></div>' + (f'<div class="cap">{cap}</div>' if cap else '') + '</div>'
+
+
+def phone(img, w='100%'):
+    return f'<div class="phone" style="width:{w}"><img src="img/intro/{img}.png"></div>'
+
+
+def page(n, inner, cls=''):
+    return f'<section class="pg {cls}"><div class="pnum">{fa(n)}</div>{inner}{bridge()}</section>'
+
+
+pages = []
+
+# ------------------------------------------------------------- 1 cover
+pages.append(f'''<section class="pg" style="background:linear-gradient(160deg,#f4f2fb 0%,#fff 46%,#fff 100%)">
+<div style="position:absolute;inset:0 0 auto 0;height:175mm;background:radial-gradient(120mm 90mm at 85% 8%,rgba(168,85,247,.32),transparent 70%),radial-gradient(110mm 80mm at 8% 30%,rgba(59,130,246,.30),transparent 70%),radial-gradient(90mm 60mm at 60% 75%,rgba(249,115,22,.22),transparent 70%)"></div>
+<div style="position:relative;padding:20mm 18mm 0;text-align:center">
+  <img src="img/intro/logo.png" style="height:64mm;display:block;margin:0 auto 4mm">
+  <div class="kicker" style="margin-top:2mm">یه آشنایی دوستانه، قبل از خرید</div>
+  <h1 style="font-size:31pt;line-height:1.55">همه‌چیِ دفتر کارتان،<br><em>تو یه جا</em></h1>
+  <p style="font-size:12.5pt;line-height:2.1;max-width:150mm;margin:5mm auto 0">نامه و فایل، وظیفه و یادآور، مشتری و فروش، انبار و حسابداری، گارانتی و پشتیبانی. هورمند همه‌شون رو کنار هم می‌ذاره که نه چیزی گم بشه، نه کسی بپرسه «اون فایل کجا بود؟».</p>
+</div>
+<div style="position:absolute;right:16mm;left:16mm;top:182mm">
+  <div class="grid g3">
+    <div class="card"><b>فارسی و راست‌به‌چپ</b><span>از تقویم شمسی تا ارقام فارسی، همه‌چیز برای خودمونیه.</span></div>
+    <div class="card"><b>روی سرور خودتان</b><span>اطلاعات شرکت پیش خودتان می‌ماند، نه جای دیگه.</span></div>
+    <div class="card"><b>هم رایانه، هم موبایل</b><span>از پشت میز یا وسط راه، کارها دستتان است.</span></div>
+  </div>
+  <p style="text-align:center;margin-top:7mm;font-size:10.5pt;color:#6c6a85">ورق بزنید؛ در چند صفحه با هورمند آشنا می‌شوید.</p>
+</div>
+{bridge()}
+</section>''')
+
+# ------------------------------------------------------------- 2 what is it
+cards = [
+    ('#2563eb', '✉', 'نامه و فایل', 'نامهٔ اداری با شماره، امضا و ارجاع. فایل می‌فرستید و می‌بینید کی دریافتش کرد.'),
+    ('#7c3aed', '☑', 'وظیفه و یادآور', 'کار را می‌دهید دست آدمش و پیگیری می‌کنید. یادآور شخصی هم دارید.'),
+    ('#0e9f82', '☎', 'مشتری و فروش', 'از اولین تماس تا پیش‌فاکتور و فروش موفق، همه ثبت می‌شود.'),
+    ('#f97316', '▤', 'انبار و حسابداری', 'موجودی کالا، رسید و حواله؛ وصل‌شدنی به نرم‌افزار حسابداری سپیدار.'),
+    ('#e11d48', '✔', 'گارانتی و پشتیبانی', 'گارانتی کالا، درخواست پشتیبانی و صفحهٔ مخصوص خود مشتری.'),
+    ('#0891b2', '▥', 'گزارش‌ها', 'نمودار و عددهایی که مدیر دوست دارد یک‌جا ببیند.'),
+    ('#9333ea', '▯', 'موبایل', 'روی گوشی هم راحت و مرتب کار می‌کند.'),
+    ('#1b1148', '⚙', 'کنسول مدیریت', 'دسترسی هر نفر، واحدهای سازمانی، مدیر هر واحد و پشتیبان‌گیری.'),
+]
+grid = ''.join(f'<div class="card"><div class="ic" style="background:{c}">{i}</div><b>{t}</b><span>{d}</span></div>' for c, i, t, d in cards)
+pages.append(page(2, f'''<div class="pad">
+<div class="kicker">سلام!</div>
+<h1>هورمند <em>چیه</em> اصلاً؟</h1>
+<p class="lead-p">هورمند یه سامانهٔ فارسیه که کارهای هر روزِ اداره و فروش رو می‌ریزه کنار هم. تا حالا نامه یه جا بوده، فهرست مشتری‌ها توی اکسل، قیمت‌ها توی گوشی یه نفر و قول‌وقرارها توی ذهن بقیه؛ این‌جا همه‌چی یه‌جاست و هر کس فقط چیزی رو می‌بینه که به کارش مربوطه.</p>
+<h2>توی هورمند چی پیدا می‌کنید؟</h2>
+<div class="grid g2" style="margin-top:3mm">{grid}</div>
+<div class="say"><b>یه نکتهٔ خوب:</b> لازم نیست از همه‌اش استفاده کنید. هر کس منوهای خودش رو می‌بینه و مدیر تعیین می‌کنه چه کسی چه چیزی ببینه؛ پس سامانه شلوغ و گیج‌کننده نمی‌شه.</div>
+</div>'''))
+
+# ------------------------------------------------------------- 3 a working day
+pages.append(page(3, f'''<div class="pad">
+<div class="kicker">یه روز کاری</div>
+<h1>یه روز با هورمند <em>چه شکلیه؟</em></h1>
+<div class="tl">
+<div class="row"><div class="dot">۱</div><div><b>صبح می‌رسید و «امروز من» رو باز می‌کنید</b><span>پیگیری‌های امروز و عقب‌افتاده، فرصت‌هایی که چند روزه کسی بهشون سر نزده، تولد مشتری‌ها و پیشرفت هدف فروش ماه؛ همه روی یک صفحه.</span></div></div>
+<div class="row"><div class="dot">۲</div><div><b>تلفن زنگ می‌خوره</b><span>اگر تلفن اداره وصل باشه، همون لحظه می‌بینید مشتری کیه، آخرین تماس‌ها و قیمت‌هایی که بهش داده‌اید چیه. دیگه «شما؟ با کی صحبت می‌کنم؟» لازم نیست.</span></div></div>
+<div class="row"><div class="dot">۳</div><div><b>پیش‌فاکتور می‌سازید</b><span>کالا از انبار انتخاب می‌شه، موجودی و قیمت‌های ثبت‌شده کنارش می‌آد و پیش‌فاکتور با سربرگ و مهر شرکت آماده است.</span></div></div>
+<div class="row"><div class="dot">۴</div><div><b>مدیر نامه رو امضا می‌کنه</b><span>نامه می‌ره توی کارتابل مدیر، همون‌جا امضا و مهر می‌خوره و اعلانش برای همه می‌رسه.</span></div></div>
+<div class="row"><div class="dot">۵</div><div><b>آخر روز، گزارش و مرخصی</b><span>گزارش روزانه رو می‌نویسید، برای مدیر واحدتون می‌ره. مرخصی هم با همین سامانه درخواست می‌شه و خلاصهٔ مرخصی‌هاتون رو هر وقت خواستید می‌بینید.</span></div></div>
+</div>
+<div style="margin-top:4mm">{win('crm-today', 'صفحهٔ «امروز من»: کارهای امروز یک‌جا')}</div>
+</div>'''))
+
+# ------------------------------------------------------------- 4 CRM
+pages.append(page(4, f'''<div class="pad">
+<div class="kicker">مشتری و فروش</div>
+<h1>مشتری‌هاتون رو <em>ول نکنید</em></h1>
+<p class="lead-p">هر مشتری یه پرونده داره: شماره‌ها، آدرس، سابقهٔ تماس، قیمت‌هایی که بهش گفته‌اید، فرصت‌های فروش و پیش‌فاکتورها. فرصت‌های فروش روی یک تابلو مرحله‌به‌مرحله جلو می‌رن؛ از «جدید» تا «فروش موفق».</p>
+<div style="margin-top:5mm">{win('crm-pipeline', 'تابلوی فرصت‌های فروش')}</div>
+<div class="chips">
+<span class="chip">دفتر تلفن</span><span class="chip">جستجو توی همهٔ اطلاعات مشتری</span><span class="chip">پیامک تکی و گروهی</span><span class="chip">ثبت قیمتی که گفته‌اید</span><span class="chip">پیش‌فاکتور با مهر و امضا</span><span class="chip">ورود مشتری از اکسل</span><span class="chip">دلیل از دست رفتن فروش</span><span class="chip">گزارش خریداران و بی‌پیگیری‌ها</span>
+</div>
+<div class="say"><b>هر کس مشتری خودش رو می‌بینه.</b> فروشنده فقط مشتری و فرصت و پیگیری خودش رو می‌بینه؛ مدیر همه رو می‌بینه. اگر لازم باشه، مدیر می‌تونه به یک نفر اجازهٔ دیدن مشتری‌های همکاران رو هم بده. ثبت مشتری تکراری هم همون موقع بهتون هشدار می‌ده.</div>
+</div>'''))
+
+# ------------------------------------------------------------- 5 team, club, calendar
+pages.append(page(5, f'''<div class="pad">
+<div class="kicker">تیم و باشگاه</div>
+<h1>هدف، تقویم و <em>باشگاه مشتریان</em></h1>
+<p class="lead-p">مدیر می‌تونه برای هر همکار هدف فروش ماهانه بذاره و ببینه هر نفر کجای کاره؛ حتی پیش‌بینی فروش ماه آینده رو هم می‌بینه. تقویم شمسی هم قرارها، بازدیدها و تاریخ بستن فرصت‌ها رو نشون می‌ده.</p>
+<div class="grid g2" style="margin-top:5mm">{win('crm-team', 'عملکرد تیم و هدف فروش')}{win('crm-club', 'باشگاه مشتریان')}</div>
+<h2>باشگاه مشتریان یعنی چی؟</h2>
+<ul class="tick">
+<li>مشتری به‌ازای هر خرید موفق امتیاز می‌گیره و به‌مرور به سطح بالاتر می‌رسه؛ شما قانونش رو خودتون تنظیم می‌کنید.</li>
+<li>تولد مشتری‌ها رو می‌بینید و می‌تونید پیامک تبریک بفرستید (یا بذارید خودکار برود).</li>
+<li>مشتری‌هایی که مدتی خرید نکرده‌اند جدا نشون داده می‌شن تا یادتون بمونه بهشون سر بزنید.</li>
+<li>مشتری امتیاز و خریدهای اخیرش رو توی صفحهٔ مخصوص خودش می‌بینه.</li>
+</ul>
+<div style="margin-top:4mm">{win('crm-calendar', 'تقویم: قرار، بازدید و تاریخ بستن فرصت‌ها', 52)}</div>
+</div>'''))
+
+# ------------------------------------------------------------- 6 warehouse, accounting, warranty
+pages.append(page(6, f'''<div class="pad">
+<div class="kicker">انبار، حسابداری و پشتیبانی</div>
+<h1>از انبار تا <em>گارانتی</em>، همه‌چی ردیفه</h1>
+<div style="margin-top:5mm">{win('warehouse', 'موجودی کالا و هشدار کمبود', 50)}</div>
+<div class="grid g2" style="margin-top:4mm">{win('warranty', 'گارانتی و ادعاهای گارانتی', 36)}{win('support', 'پشتیبانی مشتریان', 36)}</div>
+<h2>انبار</h2>
+<p>چند انبار، چند قیمت برای هر کالا (خرده‌فروشی، عمده، نمایندگی)، رسید و حواله و انتقال بین انبارها، انبارگردانی و هشدار وقتی موجودی از حداقل کمتر شد. موجودی هر کالا موقع ساختن پیش‌فاکتور هم کنار ردیف دیده می‌شه.</p>
+<h2>اتصال به سپیدار</h2>
+<p>اگر حسابداری‌تون سپیداره، هورمند می‌تونه بهش وصل بشه: مشتری، پیش‌فاکتور، فاکتور و دریافتی بین دو سامانه جابه‌جا می‌شه و لازم نیست همه‌چی رو دوبار تایپ کنید. هر کس هم فقط کارهایی از سپیدار رو می‌تونه انجام بده که مدیر بهش اجازه داده.</p>
+<h2>گارانتی و پشتیبانی</h2>
+<p>گارانتی هر کالا با شمارهٔ سریال و تاریخ ثبت می‌شه و ادعای گارانتی مرحله‌به‌مرحله پیگیری می‌شه. برای مشتری‌هایی که اشتراک پشتیبانی دارند، یه صفحهٔ مخصوص هست که خودشون درخواست می‌دن و جواب رو همون‌جا می‌بینن.</p>
+</div>'''))
+
+# ------------------------------------------------------------- 7 letters, tasks
+pages.append(page(7, f'''<div class="pad">
+<div class="kicker">نامه و کارهای اداری</div>
+<h1>اداره‌داری، <em>بدون کاغذبازی</em></h1>
+<p class="lead-p">نامهٔ اداری رو توی یه ویرایشگر شبیه ورد می‌نویسید، با سربرگ و شماره‌گذاری خودکار. نامه برای امضا می‌ره پیش مدیر و بعد از امضا و مهر، به گیرنده‌ها می‌رسه؛ همه‌اش با اعلان.</p>
+<div class="grid g2" style="margin-top:5mm">{win('letters', 'نامه‌نگاری اداری')}{win('tasks', 'تابلوی وظایف')}</div>
+<h2>وظایف و کارهای روزمره</h2>
+<ul class="tick">
+<li>وظیفه می‌سازید، به یک یا چند نفر می‌سپرید، موعد می‌ذارید و پیشرفتش رو روی تابلو می‌بینید.</li>
+<li>فایل می‌فرستید و می‌دونید کی دریافتش کرده؛ فایل‌های ارسالی و دریافتی قابل‌حذف نیستند و پیگیری‌شون همیشه ممکنه.</li>
+<li>گفتگوی داخلی، تابلوی اعلانات و یادآور شخصی (با پنجرهٔ وسط صفحه و صدای اعلان).</li>
+<li>درخواست مرخصی با خلاصهٔ مرخصی‌های هر نفر؛ تأییدش با مدیر همون واحده.</li>
+<li>کلیک روی هر اعلان، شما رو دقیقاً به همون نامه یا وظیفه می‌بره.</li>
+</ul>
+<div style="margin-top:4mm">{win('leave', 'درخواست و خلاصهٔ مرخصی', 46)}</div>
+</div>'''))
+
+# ------------------------------------------------------------- 8 admin
+pages.append(page(8, f'''<div class="pad">
+<div class="kicker">مدیریت</div>
+<h1>مدیر بودن هم <em>راحته</em></h1>
+<p class="lead-p">کنسول مدیریت جاییه که مدیر همه‌چی رو تنظیم می‌کنه. لازم نیست کد بزنید یا چیزی نصب کنید؛ همه‌اش با کلیک.</p>
+<div style="margin-top:5mm">{win('admin-permissions', 'جدول مجوزها: هر منو و زیرمنو برای هر نفر')}</div>
+<div class="grid g2" style="margin-top:5mm">
+<div class="card"><b>جدول مجوزها</b><span>برای هر کارمند، هر منو و زیرمنو رو با یک تیک باز یا بسته می‌کنید. چیز تازه‌ای که به سامانه اضافه بشه، خودش توی همین جدول می‌آد.</span></div>
+<div class="card"><b>مدیر هر واحد</b><span>برای هر واحد سازمانی یک مدیر تعیین می‌کنید؛ مرخصی، گزارش روزانه، وظایف و مشتری‌های کارکنان اون واحد پیش مدیرش می‌آد.</span></div>
+<div class="card"><b>گزارش‌های مدیریتی</b><span>نمودار نامه و فایل و وظیفه، قیف فروش، فروش ماهانه، سود مشتریان و دلایل از دست رفتن فروش.</span></div>
+<div class="card"><b>امنیت و پشتیبان‌گیری</b><span>سابقهٔ کارهای مهم ثبت می‌شه و پشتیبان‌گیری از اطلاعات تنظیم‌شدنیه. حذف‌ها همیشه با پرسش «مطمئنید؟» انجام می‌شن.</span></div>
+</div>
+</div>'''))
+
+# ------------------------------------------------------------- 9 phone
+pages.append(page(9, f'''<div class="pad">
+<div class="kicker">روی موبایل</div>
+<h1>تو جیب شما هم <em>هست</em></h1>
+<p class="lead-p">نیازی به نصب برنامهٔ جدا نیست؛ هورمند توی مرورگر گوشی هم مرتب و روان کار می‌کنه. منوها پایین صفحه‌ان، فرم‌ها زیر هم می‌شینن و همه‌چی با یک دست قابل‌استفاده است.</p>
+<div class="grid g3" style="margin-top:7mm;align-items:start">
+<div>{phone('phone-today')}<div class="cap">امروز من</div></div>
+<div style="margin-top:9mm">{phone('phone-pipeline')}<div class="cap">فرصت‌های فروش</div></div>
+<div>{phone('phone-club')}<div class="cap">باشگاه مشتریان</div></div>
+</div>
+</div>'''))
+
+# ------------------------------------------------------------- 10 after you buy
+pages.append(page(10, f'''<div class="pad">
+<div class="kicker">بعد از خرید</div>
+<h1>آموزش؟ <em>نگران نباشید</em></h1>
+<p class="lead-p">آموزش کامل سامانه موقع خرید به شما تحویل داده می‌شه؛ یعنی از روز اول می‌دونید هر بخش به چه دردی می‌خوره و چطور باهاش کار کنید. اگر لازم باشه، آموزش آنلاین هم برای شما و همکارانتون در نظر گرفته شده و کنارتون هستیم تا همه راحت با سامانه کار کنند.</p>
+<div class="say" style="margin-top:6mm"><b>یادآوری کوچک:</b> این معرفی فقط برای آشنایی با سامانه قبل از خریده. جزئیات هر بخش رو توی آموزشی که موقع خرید تحویل می‌گیرید پیدا می‌کنید.</div>
+<h2>چند سؤال که همه می‌پرسند</h2>
+<div class="grid g3" style="margin-top:3mm">
+<div class="card"><b>روی هر رایانه نصب بشه؟</b><span>نه. هورمند توی مرورگر باز می‌شه؛ فقط یک‌بار روی سرور نصب می‌شه.</span></div>
+<div class="card"><b>اطلاعاتمون کجا می‌مونه؟</b><span>روی سرور خودتون. دسترسی هر نفر هم دست مدیره.</span></div>
+<div class="card"><b>اگه یه بخش رو بلد نبودیم؟</b><span>آموزش موقع خرید تحویل می‌شه و اگه لازم شد آموزش آنلاین هم هست.</span></div>
+</div>
+<h2>می‌خواهید از نزدیک ببینید؟</h2>
+<div class="grid g3" style="margin-top:3mm">
+<div class="card" style="text-align:center"><div class="ic" style="background:#2563eb;margin:0 auto 2.4mm">①</div><b>نسخهٔ آزمایشی</b><span>خودتون وارد بشید و بگردید؛ همه‌چی با اطلاعات نمونه پره.</span></div>
+<div class="card" style="text-align:center"><div class="ic" style="background:#7c3aed;margin:0 auto 2.4mm">②</div><b>یه تماس با ما</b><span>نیازتون رو بگید تا بگیم هورمند کجاها به کارتون می‌آد.</span></div>
+<div class="card" style="text-align:center"><div class="ic" style="background:#f97316;margin:0 auto 2.4mm">③</div><b>نصب و آموزش</b><span>سامانه روی سرور شما نصب می‌شه و آموزش تحویل داده می‌شه.</span></div>
+</div>
+<div style="margin-top:9mm;border-radius:5mm;padding:9mm 9mm;color:#fff;background:linear-gradient(120deg,#0c0b14,#1b1148 60%,#3b1d8f);position:relative;overflow:hidden">
+<div style="position:absolute;inset:auto auto -20mm -10mm;width:70mm;height:70mm;border-radius:50%;background:radial-gradient(circle,rgba(249,115,22,.55),transparent 70%)"></div>
+<div style="position:relative">
+<div style="font-size:17pt;font-weight:900;line-height:1.7">با ما حرف بزنید،<br>باقی‌اش با ما.</div>
+<div style="margin-top:5mm;display:grid;gap:3mm;font-size:11pt">
+<div>تلفن: <b>{PHONE}</b> (داخلی {EXT})</div>
+<div>وب‌سایت: <b><bdi style="direction:ltr;unicode-bidi:isolate">{SITE}</bdi></b></div>
+<div>نسخهٔ آزمایشی: <b><bdi style="direction:ltr;unicode-bidi:isolate">{DEMO}</bdi></b></div>
+</div></div></div>
+</div>'''))
+
+html = f'<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>آشنایی با هورمند</title><style>{CSS}</style></head><body>' + ''.join(pages) + '</body></html>'
+open('intro.html', 'w', encoding='utf-8').write(html)
+print('intro.html written,', len(pages), 'pages')
