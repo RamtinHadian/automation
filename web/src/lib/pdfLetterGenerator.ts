@@ -149,6 +149,9 @@ export function generateOfficialLetterHtml(
 
   const finalSigHeight = isA5 ? Math.min(signatureHeight, 300) : signatureHeight;
   const stampHeight = overrides?.stampHeight || transfer.stampHeight || defaultStampHeight(isA5);
+  // the logo and the organisation text can be resized by the person (stored with the letter); older letters keep the fixed sizes
+  const logoSize = transfer.logoSize && transfer.logoSize > 0 ? transfer.logoSize : 0;
+  const orgScale = transfer.orgTextScale && transfer.orgTextScale > 0 ? transfer.orgTextScale : 1;
   const stampOffsetX = overrides?.stampOffsetX !== undefined ? overrides.stampOffsetX : (transfer.stampOffsetX || 0);
   const stampOffsetY = overrides?.stampOffsetY !== undefined ? overrides.stampOffsetY : (transfer.stampOffsetY || 0);
   const sigImgOffsetX = overrides?.signatureImgOffsetX !== undefined ? overrides.signatureImgOffsetX : (transfer.signatureImgOffsetX || 0);
@@ -455,11 +458,11 @@ export function generateOfficialLetterHtml(
   <div class="letter-container"${lh && !lh.image ? ' style="padding-top: ' + lhPadTop + '; padding-bottom: ' + lhPadBottom + ';"' : ''}${lh && lh.image ? ` style="background: url(${lh.image}) center / 100% 100% no-repeat;"` : ''}>
     ${lh && !lh.image ? `<div class="lh-top">${letterheadSvg(lh.id, 'top')}</div><div class="lh-bottom">${letterheadSvg(lh.id, 'bottom')}</div>` : ''}
     <div class="header">
-      <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);">
-        ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" />` : ''}
+      <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);${orgScale > 1.2 ? ' max-width: 55%;' : ''}">
+        ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو"${logoSize ? ` style="height: ${logoSize}px; max-width: ${Math.round(logoSize * 1.8)}px;"` : ''} />` : ''}
         ${showOrgName ? `<div>
-          ${companyName ? `<h1 class="org-title">${companyName}</h1>` : ''}
-          ${companySubtitle ? `<div class="org-sub">${companySubtitle}</div>` : ''}
+          ${companyName ? `<h1 class="org-title"${orgScale !== 1 ? ` style="font-size: ${((isA5 ? 13 : 15) * orgScale).toFixed(1)}px;"` : ''}>${companyName}</h1>` : ''}
+          ${companySubtitle ? `<div class="org-sub"${orgScale !== 1 ? ` style="font-size: ${((isA5 ? 9.5 : 10.5) * orgScale).toFixed(1)}px;"` : ''}>${companySubtitle}</div>` : ''}
         </div>` : ''}
       </div>
       <div class="letter-title">

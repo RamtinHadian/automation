@@ -123,6 +123,8 @@ interface AppContextType {
     signatureImgOffsetX?: number;
     signatureImgOffsetY?: number;
     stampHeight?: number;
+    logoSize?: number;
+    orgTextScale?: number;
     stampOffsetX?: number;
     stampOffsetY?: number;
     showSignatureImage?: boolean;
@@ -156,6 +158,8 @@ interface AppContextType {
       signatureImgOffsetX?: number;
       signatureImgOffsetY?: number;
       stampHeight?: number;
+      logoSize?: number;
+      orgTextScale?: number;
       stampOffsetX?: number;
       stampOffsetY?: number;
       showSignatureImage?: boolean;
@@ -712,6 +716,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       signatureImgOffsetX,
       signatureImgOffsetY,
       stampHeight,
+      logoSize,
+      orgTextScale,
       stampOffsetX,
       stampOffsetY,
       showSignatureImage,
@@ -763,6 +769,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       signatureImgOffsetX?: number;
       signatureImgOffsetY?: number;
       stampHeight?: number;
+      logoSize?: number;
+      orgTextScale?: number;
       stampOffsetX?: number;
       stampOffsetY?: number;
       showSignatureImage?: boolean;
@@ -859,6 +867,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             signatureImgOffsetX,
             signatureImgOffsetY,
             stampHeight,
+            logoSize,
+            orgTextScale,
             stampOffsetX,
             stampOffsetY,
             showSignatureImage,

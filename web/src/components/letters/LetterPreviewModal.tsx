@@ -654,6 +654,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
   const derivedStampHeight = defaultStampHeight(pageSize === 'A5');
   const effectiveStampHeight = stampHeightOverride ?? derivedStampHeight;
+  // the logo and the organisation text keep the size set in the editor (letters made before that keep the old sizes)
+  const logoPx = letter.logoSize && letter.logoSize > 0 ? letter.logoSize : pageSize === 'A5' ? Math.min(settings.companyLogoWidth || 44, 44) : (settings.companyLogoWidth || 64);
+  const orgFont = (base: number): React.CSSProperties | undefined => (letter.orgTextScale && letter.orgTextScale !== 1 ? { fontSize: `${(base * letter.orgTextScale).toFixed(1)}px` } : undefined);
 
   const isSigned = letter.signatureStatus === 'SIGNED';
   const isRejected = letter.signatureStatus === 'REJECTED';
@@ -1644,14 +1647,14 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             <div className={`pb-2 ${pageSize === 'A5' ? 'mb-2 space-y-2' : 'mb-4 space-y-3'} shrink-0`}>
               <div className="relative flex items-start justify-between min-h-[50px]">
                 {/* Right: Company Info & Emblem */}
-                <div style={{ transform: `translate(${orgOffset.x}px, ${orgOffset.y}px)` }} className={`space-y-0.5 min-w-0 ${pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
+                <div style={{ transform: `translate(${orgOffset.x}px, ${orgOffset.y}px)` }} className={`space-y-0.5 min-w-0 ${(letter.orgTextScale || 1) > 1.2 ? 'max-w-[55%]' : pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
                   <div className="flex items-center gap-2">
                     {settings.companyLogoUrl && showLogo ? (
                       <div
                         style={{
-                          width: `${pageSize === 'A5' ? Math.min(settings.companyLogoWidth || 44, 44) : (settings.companyLogoWidth || 64)}px`,
-                          height: `${pageSize === 'A5' ? Math.min(settings.companyLogoWidth || 44, 44) : (settings.companyLogoWidth || 64)}px`,
-                          maxHeight: `${pageSize === 'A5' ? Math.min(settings.companyLogoWidth || 44, 44) : (settings.companyLogoWidth || 64)}px`,
+                          width: `${logoPx}px`,
+                          height: `${logoPx}px`,
+                          maxHeight: `${logoPx}px`,
                         }}
                         className="flex items-center justify-center shrink-0 p-0"
                       >
@@ -1674,6 +1677,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                             className={`font-black text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full px-0.5 truncate ${
                               pageSize === 'A5' ? 'text-xs' : 'text-sm'
                             }`}
+                            style={orgFont(pageSize === 'A5' ? 12 : 14)}
                           />
                           <input
                             type="text"
@@ -1684,12 +1688,13 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                             className={`text-[#8C6F66] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full px-0.5 truncate ${
                               pageSize === 'A5' ? 'text-[9px]' : 'text-[10px]'
                             }`}
+                            style={orgFont(pageSize === 'A5' ? 9 : 10)}
                           />
                         </>
                       ) : (
                         <>
-                          <h1 className={`font-black text-[#3A241F] truncate ${pageSize === 'A5' ? 'text-xs' : 'text-sm'}`}>{headerCompanyTitle}</h1>
-                          <div className={`text-[#8C6F66] truncate ${pageSize === 'A5' ? 'text-[9px]' : 'text-[10px]'}`}>{headerCompanySubtitle}</div>
+                          <h1 style={orgFont(pageSize === 'A5' ? 12 : 14)} className={`font-black text-[#3A241F] truncate ${pageSize === 'A5' ? 'text-xs' : 'text-sm'}`}>{headerCompanyTitle}</h1>
+                          <div style={orgFont(pageSize === 'A5' ? 9 : 10)} className={`text-[#8C6F66] truncate ${pageSize === 'A5' ? 'text-[9px]' : 'text-[10px]'}`}>{headerCompanySubtitle}</div>
                         </>
                       )}
                     </div>
