@@ -85,6 +85,7 @@ export function generateOfficialLetterHtml(
 
   const pageCssSize = isA5 ? 'A5 portrait' : isLetter ? 'letter portrait' : 'A4 portrait';
   const pageMargin = isA5 ? '6mm 8mm' : '10mm 14mm';
+  const pagePrintHeight = isA5 ? '209mm' : isLetter ? '278.4mm' : '296mm';
   const containerMaxWidth = isA5 ? '580px' : isLetter ? '700px' : '720px';
   const containerMinHeight = isA5 ? '600px' : isLetter ? '720px' : '760px';
   const containerPadding = isA5 ? '32px' : isLetter ? '40px' : '48px';
@@ -197,7 +198,7 @@ export function generateOfficialLetterHtml(
     @media print {
       html, body {
         width: 100% !important;
-        height: 100% !important;
+        height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
         background: #ffffff !important;
@@ -210,8 +211,9 @@ export function generateOfficialLetterHtml(
       .letter-container {
         width: 100% !important;
         max-width: 100% !important;
-        height: 100% !important;
-        min-height: 100vh !important;
+        height: ${pagePrintHeight} !important;
+        min-height: ${pagePrintHeight} !important;
+        max-height: ${pagePrintHeight} !important;
         padding: ${lhPadTop} ${containerPadding} ${lhPadBottom} ${containerPadding} !important;
         margin: 0 !important;
         box-shadow: none !important;
