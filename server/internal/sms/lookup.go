@@ -15,17 +15,18 @@ import (
 
 // KVTemplate is one template: its key in the app, its name in the Kavenegar panel and its text with {variables}.
 type KVTemplate struct {
-	Key  string
-	Name string
-	Text string
-	Auto bool // an automatic message of the system (the others are the ready-made texts staff can choose)
+	Key   string
+	Name  string
+	Text  string
+	Auto  bool // an automatic message of the system (the others are the ready-made texts staff can choose)
+	Staff bool // a message to the company's own staff (the notifications that are also sent as SMS)
 }
 
 // DefaultLibrary are the ready-made texts that are offered while the admin has not chosen any.
 var DefaultLibrary = []string{"proforma-sent", "proforma-expiring", "thanks-trust", "meeting"}
 
 // slot is the parameter of the panel that carries each variable. Only token10 and token20 accept spaces (company names have several words).
-var slot = map[string]string{"name": "token", "number": "token2", "end": "token3", "company": "token20", "product": "token10"}
+var slot = map[string]string{"name": "token", "number": "token2", "end": "token3", "company": "token20", "product": "token10", "subject": "token10"}
 
 // KVFind returns the template with this key.
 func KVFind(key string) (KVTemplate, bool) {

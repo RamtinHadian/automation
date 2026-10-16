@@ -313,6 +313,13 @@ func ForNotification(userID, label, title, body string) {
 			Log(ctx, "system", name, "(پیامک «"+label+"» ارسال نشد) "+title, "skipped", why)
 			return
 		}
+		// each of the notifications has its own Kavenegar template (see kvtemplates_gen.go): only the person, the subject and the company travel
+		if key, ok := staffTemplate[label]; ok {
+			subject := staffSubject(label, title, body)
+			vars := map[string]string{"name": jsonx.Str(u, "fullName"), "subject": subject, "company": Company(ctx)}
+			_, _ = SendTemplateAndLog(ctx, "system", mobile, key, vars)
+			return
+		}
 		text := "هورمند: " + title
 		if body != "" {
 			if r := []rune(body); len(r) > 60 {
@@ -322,4 +329,30 @@ func ForNotification(userID, label, title, body string) {
 		}
 		_ = SendAndLog(ctx, "system", []string{mobile}, text)
 	}()
+}
+
+// staffTemplate: the notification label -> the Kavenegar template used for the SMS to that person.
+var staffTemplate = map[string]string{
+	"جهت امضا": "staff_sign", "وظیفه جدید": "staff_task_new", "موعد امروز": "staff_task_today", "موعد گذشته": "staff_task_late",
+	"تماس بی‌پاسخ": "staff_missed_call", "پیگیری امروز": "staff_followup_today", "پیگیری عقب‌افتاده": "staff_followup_late", "فروش موفق": "staff_deal_won",
+}
+
+// staffSubject is what the SMS is about: the body of the notification (letter subject, task title) or the part of the title after the colon / «از».
+func staffSubject(label, title, body string) string {
+	cut := func(t, sep string) string {
+		if i := strings.Index(t, sep); i >= 0 {
+			return strings.TrimSpace(t[i+len(sep):])
+		}
+		return strings.TrimSpace(t)
+	}
+	switch label {
+	case "تماس بی‌پاسخ":
+		return cut(title, "از ")
+	case "پیگیری امروز", "پیگیری عقب‌افتاده", "فروش موفق":
+		return cut(title, ": ")
+	}
+	if strings.TrimSpace(body) != "" {
+		return strings.TrimSpace(body)
+	}
+	return cut(title, ": ")
 }

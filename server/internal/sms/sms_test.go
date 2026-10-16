@@ -175,7 +175,7 @@ func TestEveryTemplateIsConsistent(t *testing.T) {
 		}
 	}
 	for _, k := range DefaultLibrary {
-		if kv, ok := KVFind(k); !ok || kv.Auto {
+		if kv, ok := KVFind(k); !ok || kv.Auto || kv.Staff {
 			t.Errorf("default library text %s is missing", k)
 		}
 	}
