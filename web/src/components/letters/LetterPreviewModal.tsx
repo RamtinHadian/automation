@@ -533,6 +533,12 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true, 0, false);
   // zoomed (a phone, or the person pressed the magnifier): the sheet is drawn at its real width and scaled, exactly like the editor
   const scaled = fitZ.isPhone || fitZ.zoom !== 1;
+  // when the signer puts the signature or the stamp on the letter, bring that part of the sheet into view
+  useEffect(() => {
+    if (actionTab !== 'SIGN' || (!showSig && !showStamp)) return;
+    const t = setTimeout(() => document.querySelector('[data-sign-area]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 120);
+    return () => clearTimeout(t);
+  }, [showSig, showStamp, actionTab]);
   const zoom = fitZ.zoom;
   const zoomRef = useRef(1);
   zoomRef.current = zoom;
@@ -1393,120 +1399,60 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
         {/* Expandable Action Box for Sign / Refer / Reject */}
         {actionTab === 'SIGN' && (
-          <div className="bg-emerald-50 p-4 border-b border-emerald-200 flex flex-col gap-3 animate-in slide-in-from-top-2">
-            {/* The signer chooses what goes on the letter: pressing a tile puts it on the sheet, where it can be dragged and resized */}
-            <div className="rounded-3xl border-2 border-emerald-300 bg-white p-3 sm:p-4 shadow-sm space-y-3" data-sign-choice>
-              <div className="text-center">
-                <div className="font-black text-sm sm:text-base text-emerald-950">چه چیزی روی این نامه بنشیند؟</div>
-                <div className="text-[11px] text-emerald-800/80 mt-0.5">هر کدام را بزنید روی نامه می‌نشیند؛ با کشیدن جابه‌جایش کنید و با نقطهٔ نارنجی گوشه‌اش بزرگ و کوچک کنید. دوباره بزنید تا برداشته شود.</div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+          <div className="bg-emerald-50/90 px-3 sm:px-5 py-2.5 border-b border-emerald-200 shrink-0 animate-in slide-in-from-top-2" data-sign-bar>
+            {/* One slim bar: the signer picks what goes on the letter, writes an optional note and confirms; the letter below keeps almost the whole window */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 shrink-0" data-sign-choice>
                 {([
-                  { key: 'sig', on: showSig, toggle: () => setShowSig((v) => !v), title: 'امضا کردن', Icon: PenTool, have: !!(letter.signatureImageUrl || settings?.ceoSignatureUrl), hint: 'امضای شما', color: 'emerald' },
-                  { key: 'stamp', on: showStamp, toggle: () => setShowStamp((v) => !v), title: 'مهر کردن', Icon: Stamp, have: !!(letter.companyStampImageUrl || settings?.companyStampUrl), hint: 'مهر سازمان', color: 'indigo' },
+                  { key: 'sig', on: showSig, toggle: () => setShowSig((v) => !v), title: 'امضا کردن', Icon: PenTool, have: !!(letter.signatureImageUrl || settings?.ceoSignatureUrl), hint: 'امضا', color: 'emerald' },
+                  { key: 'stamp', on: showStamp, toggle: () => setShowStamp((v) => !v), title: 'مهر کردن', Icon: Stamp, have: !!(letter.companyStampImageUrl || settings?.companyStampUrl), hint: 'مهر', color: 'indigo' },
                 ] as const).map((t) => (
                   <button
                     key={t.key}
                     type="button"
                     disabled={!t.have}
                     onClick={t.toggle}
-                    className={`relative rounded-2xl border-2 p-3 flex flex-row items-center justify-center gap-3 text-right transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
+                    title={!t.have ? `${t.hint} در تنظیمات سیستم بارگذاری نشده است` : t.on ? `${t.hint} روی نامه نشسته؛ برای برداشتن دوباره بزنید` : `گذاشتن ${t.hint} روی نامه`}
+                    className={`relative h-12 pl-4 pr-3 rounded-2xl border-2 flex items-center gap-2 text-right transition-all cursor-pointer active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed ${
                       t.on
-                        ? t.color === 'emerald' ? 'border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'border-indigo-600 bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                        : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-emerald-400 hover:bg-emerald-50'
+                        ? t.color === 'emerald' ? 'border-emerald-600 bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                        : 'border-slate-300 bg-white text-slate-800 hover:border-emerald-400 hover:bg-emerald-50'
                     }`}
                   >
-                    {t.on && <span className="absolute top-2 left-2 w-6 h-6 rounded-full bg-white/95 text-emerald-700 flex items-center justify-center"><Check className="w-4 h-4" /></span>}
-                    <t.Icon className={`w-8 h-8 sm:w-10 sm:h-10 shrink-0 ${t.on ? 'text-white' : 'text-emerald-700'}`} />
-                    <div className="min-w-0">
-                    <div className="font-black text-base sm:text-xl leading-tight">{t.title}</div>
-                    <div className={`text-[10px] sm:text-[11px] leading-5 ${t.on ? 'text-white/90' : 'text-slate-500'}`}>
-                      {!t.have ? `${t.hint} در تنظیمات سیستم بارگذاری نشده است` : t.on ? `${t.hint} روی نامه نشست؛ همان‌جا جابه‌جایش کنید` : `برای گذاشتن ${t.hint} روی نامه بزنید`}
-                    </div>
-                    </div>
+                    <t.Icon className={`w-6 h-6 shrink-0 ${t.on ? 'text-white' : 'text-emerald-700'}`} />
+                    <span className="leading-tight">
+                      <span className="block font-black text-sm">{t.title}</span>
+                      <span className={`block text-[10px] ${t.on ? 'text-white/90' : 'text-slate-500'}`}>{t.on ? 'روی نامه نشست' : 'برای گذاشتن بزنید'}</span>
+                    </span>
+                    {t.on && <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white text-emerald-700 border border-emerald-300 flex items-center justify-center"><Check className="w-3 h-3" /></span>}
                   </button>
                 ))}
               </div>
-            </div>
 
-            <div className="flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 w-full lg:w-auto flex-1 lg:min-w-[320px]">
-                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Award className="w-4 h-4" />
-                </div>
-                <div className="flex-1 space-y-1 min-w-0">
-                  <label className="block text-[11px] font-bold text-emerald-950">
-                    دستور / پاراف مدیرعامل هنگام امضا (اختیاری):
-                  </label>
-                  <input
-                    type="text"
-                    dir="rtl"
-                    value={signComment}
-                    onChange={(e) => setSignComment(toPersianDigits(e.target.value))}
-                    placeholder="مثلاً: تایید شد، جهت اقدام لازم به واحد مربوطه ارسال گردد."
-                    className="w-full px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                  />
-                </div>
-              </div>
+              <input
+                type="text"
+                dir="rtl"
+                value={signComment}
+                onChange={(e) => setSignComment(toPersianDigits(e.target.value))}
+                placeholder="دستور یا پاراف هنگام امضا (اختیاری)"
+                className="flex-1 min-w-[160px] h-10 px-3 bg-white border border-emerald-300 rounded-xl text-xs text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
 
-              {/* Signature Size in Sign Banner */}
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold shrink-0 shadow-2xs">
-                <Sliders className="w-3.5 h-3.5 text-emerald-700" />
-                <span>سایز امضا:</span>
-                <input
-                  type="range"
-                  min="20"
-                  max="600"
-                  value={signatureHeight}
-                  onChange={(e) => setSignatureHeight(Number(e.target.value))}
-                  className="w-24 accent-emerald-600 cursor-pointer"
-                  title="تغییر ابعاد و سایز امضا قبل از ثبت"
-                />
-                <span className="font-mono text-[10px] text-emerald-700 w-10 text-center">{toPersianDigits(signatureHeight)}px</span>
-              </div>
-
-              {/* Stamp Size in Sign Banner */}
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold shrink-0 shadow-2xs">
-                <Sliders className="w-3.5 h-3.5 text-emerald-700" />
-                <span>سایز مهر:</span>
-                <input
-                  type="range"
-                  min="20"
-                  max="600"
-                  value={effectiveStampHeight}
-                  onChange={(e) => setStampHeightOverride(Number(e.target.value))}
-                  className="w-24 accent-emerald-600 cursor-pointer"
-                  title="تغییر اندازهٔ مهر قبل از ثبت"
-                />
-                <span className="font-mono text-[10px] text-emerald-700 w-10 text-center">{toPersianDigits(effectiveStampHeight)}px</span>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0 self-end lg:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setActionTab('NONE')}
-                  className="px-3 py-1.5 text-xs text-gray-600 hover:bg-white rounded-xl cursor-pointer"
-                >
-                  انصراف
-                </button>
+              <div className="flex items-center gap-2 shrink-0 mr-auto">
+                <button type="button" onClick={() => setActionTab('NONE')} className="px-3 h-10 text-xs text-gray-600 hover:bg-white rounded-xl cursor-pointer">انصراف</button>
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleConfirmSign}
-                  className="flex items-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95"
+                  className="flex items-center gap-1.5 px-5 h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95"
                 >
                   <Award className="w-4 h-4" />
                   <span>ثبت و قفل امضای نهایی</span>
                 </button>
               </div>
             </div>
-
-            {/* Drag & Placement Guide */}
-            <div className="text-[11px] text-emerald-900 bg-emerald-100/70 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <Move className="w-3.5 h-3.5 text-emerald-700" />
-                <span><b>راهنمای جانمایی:</b> تصویر امضا و مهر در کادر زیر نامه نمایش داده شده است. می‌توانید آن را با ماوس به هر نقطه از نامه بکشید و رها کنید (Drag & Drop).</span>
-              </div>
+            <div className="mt-1.5 flex items-center justify-between gap-2 flex-wrap text-[10.5px] text-emerald-900/80">
+              <span className="flex items-center gap-1.5"><Move className="w-3 h-3 text-emerald-700 shrink-0" />هر کدام را بزنید روی نامه می‌نشیند؛ با کشیدن جابه‌جا و با نقطهٔ نارنجی گوشه‌اش بزرگ و کوچک کنید.</span>
               <button
                 type="button"
                 onClick={() => {
@@ -1516,9 +1462,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   setStampHeightOverride(null);
                   setSignatureHeight(defaultSignatureHeight(pageSize === 'A5', settings?.ceoSignatureHeight));
                 }}
-                className="text-[10px] text-emerald-800 hover:underline font-bold cursor-pointer"
+                className="text-emerald-800 hover:underline font-bold cursor-pointer"
               >
-                بازنشانی جایگاه پیش‌فرض
+                بازنشانی جایگاه
               </button>
             </div>
           </div>
@@ -2109,6 +2055,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               </div>
 
                 <div
+                  data-sign-area
                   style={{ height: `${signatureAreaHeight(pageSize === 'A5', pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight, effectiveStampHeight)}px` }}
                   className={`${pageSize === 'A5' ? 'my-0.5' : 'my-1'} relative w-full`}
                 >

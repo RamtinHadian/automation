@@ -515,6 +515,9 @@ func Reset(ctx context.Context) error {
 	if err := addModules(ctx, now, by); err != nil {
 		return err
 	}
+	if err := addEnrichment(ctx, now, by); err != nil {
+		return err
+	}
 	store.BackfillDealCreators(ctx) // the sample opportunities also say who made them
 	return nil
 }
