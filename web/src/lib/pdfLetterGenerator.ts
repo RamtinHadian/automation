@@ -1,5 +1,5 @@
 import { FileTransfer, SystemSettings, User } from '../types';
-import { resolveSignatureHeight, signatureAreaHeight, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
+import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
@@ -146,7 +146,7 @@ export function generateOfficialLetterHtml(
   const bodyPaddingX = overrides?.bodyPaddingX !== undefined ? overrides.bodyPaddingX : (transfer.bodyPaddingX || 0);
 
   const finalSigHeight = isA5 ? Math.min(signatureHeight, 300) : signatureHeight;
-  const stampHeight = overrides?.stampHeight || transfer.stampHeight || (isA5 ? Math.min(Math.round(finalSigHeight * 0.95), 100) : Math.round(finalSigHeight * 1.05));
+  const stampHeight = overrides?.stampHeight || transfer.stampHeight || defaultStampHeight(isA5);
   const stampOffsetX = overrides?.stampOffsetX !== undefined ? overrides.stampOffsetX : (transfer.stampOffsetX || 0);
   const stampOffsetY = overrides?.stampOffsetY !== undefined ? overrides.stampOffsetY : (transfer.stampOffsetY || 0);
   const sigImgOffsetX = overrides?.signatureImgOffsetX !== undefined ? overrides.signatureImgOffsetX : (transfer.signatureImgOffsetX || 0);

@@ -1,5 +1,7 @@
 // Default size (px) of the CEO signature on official letters. The stamp is derived from it.
 export const DEFAULT_SIGNATURE_HEIGHT = 100;
+/** the stamp has its own size: it does not follow the signature (until the person sets it) */
+export const defaultStampHeight = (isA5: boolean): number => (isA5 ? 95 : 105);
 export const DEFAULT_SIGNATURE_HEIGHT_A5 = 75;
 export const MIN_SIGNATURE_HEIGHT = 20;
 export const MAX_SIGNATURE_HEIGHT = 600;

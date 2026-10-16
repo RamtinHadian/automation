@@ -12,6 +12,7 @@ import {
   SIGNATURE_ANCHOR_LEFT,
   STAMP_ANCHOR_LEFT,
   signatureAreaHeight,
+  defaultStampHeight,
 } from '../../lib/letterDefaults';
 import { useAttachment } from '../../lib/useAttachment';
 import {
@@ -648,8 +649,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
   if (!isOpen || !letter) return null;
 
-  const derivedStampHeight =
-    pageSize === 'A5' ? Math.min(Math.round(signatureHeight * 0.95), 100) : Math.round(signatureHeight * 1.05);
+  const derivedStampHeight = defaultStampHeight(pageSize === 'A5');
   const effectiveStampHeight = stampHeightOverride ?? derivedStampHeight;
 
   const isSigned = letter.signatureStatus === 'SIGNED';
