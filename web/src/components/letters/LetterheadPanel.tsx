@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Check, ImagePlus, Star, Search, Trash2, X } from 'lucide-react';
-import { LETTERHEAD_DESIGN_COUNT, LETTERHEAD_DESIGNS, LETTERHEAD_PALETTES, LETTERHEAD_VARIANTS, LetterheadChoice, letterheadSvg, queryLetterheads, variantName, designName } from '../../lib/letterheads';
+import { LETTERHEAD_DESIGN_COUNT, LETTERHEAD_TOTAL, LETTERHEAD_DESIGNS, LETTERHEAD_PALETTES, LETTERHEAD_VARIANTS, LetterheadChoice, letterheadSvg, queryLetterheads, variantName, designName } from '../../lib/letterheads';
 import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 
@@ -140,7 +140,7 @@ export const LetterheadPanel: React.FC<{
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[#EBDBCE] bg-amber-50/60">
         <div>
           <div className="font-black text-sm text-[#3A241F]">قالب‌های سربرگ</div>
-          <div className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(LETTERHEAD_DESIGN_COUNT)} طرح در ۴۰۰ رنگ، یا طرح خودتان · روی هر کدام بزنید تا روی نامه بنشیند</div>
+          <div className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(LETTERHEAD_DESIGN_COUNT)} طرح در {toPersianDigits(LETTERHEAD_PALETTES.length)} رنگ ({toPersianDigits(LETTERHEAD_TOTAL.toLocaleString('en-US'))} قالب)، یا طرح خودتان · روی هر کدام بزنید تا روی نامه بنشیند</div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-xl text-[#8C6F66] hover:bg-white cursor-pointer" title="بستن"><X className="w-4 h-4" /></button>
       </div>

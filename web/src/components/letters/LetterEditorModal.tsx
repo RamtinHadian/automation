@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
 import { MoveBox } from './MoveBox';
 import { LetterheadPanel } from './LetterheadPanel';
-import { LetterheadChoice, letterheadBackground, letterheadColor, letterheadFooterText, letterheadPad, letterheadSvg } from '../../lib/letterheads';
+import { LETTERHEAD_TOTAL, LetterheadChoice, letterheadBackground, letterheadColor, letterheadFooterText, letterheadPad, letterheadSvg } from '../../lib/letterheads';
 import { useDemoInfo } from '../common/DemoBanner';
 import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
@@ -805,7 +805,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
           {lhPaper && (
             <button type="button" onClick={() => setLhOpen((v) => !v)} className="px-2.5 py-1.5 rounded-xl border border-amber-400 bg-amber-50 hover:bg-amber-100 text-[11px] font-black text-amber-900 cursor-pointer shrink-0" data-letterhead-toggle>
-              {lhOpen ? 'بستن قالب‌های سربرگ' : `قالب‌های سربرگ (${lh ? 'قالب ' + lh.id : '۱۰۰۰۰ قالب'})`}
+              {lhOpen ? 'بستن قالب‌های سربرگ' : `قالب‌های سربرگ (${lh ? 'قالب ' + toPersianDigits(lh.id) : toPersianDigits(LETTERHEAD_TOTAL.toLocaleString('en-US')) + ' قالب'})`}
             </button>
           )}
 
