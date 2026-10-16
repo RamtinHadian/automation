@@ -31,3 +31,11 @@ export const STAMP_ANCHOR_LEFT = '30%';
 /** Height reserved for the signature/stamp area so large images do not overlap the text below. */
 export const signatureAreaHeight = (isA5: boolean, signatureHeight: number, stampHeight: number): number =>
   Math.max(isA5 ? 60 : 85, signatureHeight, stampHeight);
+
+/**
+ * The editor wraps the saved text in a div that already carries the side padding and the sideways shift (so «ویرایش» can read
+ * them back). The preview and the printed page apply the same two values again from the letter's own fields, which doubled
+ * the margins. This removes the two from the wrapper where it is only displayed, so the page looks like the editor.
+ */
+export const stripBakedBodyLayout = (html: string): string =>
+  html.replace(/padding-left:\s*[\d.]+px;\s*padding-right:\s*[\d.]+px;\s*transform:\s*translateX\(\s*-?[\d.]+px\s*\);?/i, '');

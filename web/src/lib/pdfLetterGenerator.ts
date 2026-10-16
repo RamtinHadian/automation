@@ -1,5 +1,5 @@
 import { FileTransfer, SystemSettings, User } from '../types';
-import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
+import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, stripBakedBodyLayout, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
@@ -73,8 +73,10 @@ export function generateOfficialLetterHtml(
   const showLogo = (overrides?.showLogo ?? transfer.showLogo) !== false;
   const showOrgName = (overrides?.showOrgName ?? transfer.showOrgName) !== false;
   const showSubject = (overrides?.showSubject ?? transfer.showSubject) !== false;
-  const signatureImg = showSig ? transfer.signatureImageUrl || settings.ceoSignatureUrl : undefined;
-  const stampImg = showStamp ? transfer.companyStampImageUrl || settings.companyStampUrl : undefined;
+  // the printed page is a blob: document, so a relative picture address would not load there
+  const absUrl = (u?: string) => (u && u.startsWith('/') && !u.startsWith('//') ? location.origin + u : u);
+  const signatureImg = showSig ? absUrl(transfer.signatureImageUrl || settings.ceoSignatureUrl) : undefined;
+  const stampImg = showStamp ? absUrl(transfer.companyStampImageUrl || settings.companyStampUrl) : undefined;
 
   const pageSize = (overrides?.pageSize || transfer.pageSize || 'A4').trim();
   const isA5 = pageSize.toUpperCase() === 'A5';
@@ -95,7 +97,7 @@ export function generateOfficialLetterHtml(
 
   const companyName = overrides?.customCompanyTitle !== undefined ? overrides.customCompanyTitle : (transfer.customHeaderCompanyTitle !== undefined ? transfer.customHeaderCompanyTitle : (settings.companyName || ''));
   const companySubtitle = overrides?.customCompanySubtitle !== undefined ? overrides.customCompanySubtitle : (transfer.customHeaderCompanySubtitle !== undefined ? transfer.customHeaderCompanySubtitle : (settings.companySubtitle || ''));
-  const companyLogo = showLogo ? settings.companyLogoUrl : undefined;
+  const companyLogo = showLogo ? absUrl(settings.companyLogoUrl) : undefined;
 
   const rawLetterNo = overrides?.customNumber || transfer.customHeaderNumber || transfer.letterNumber || transfer.fileName.replace(/\.[^/.]+$/, '').replace(/^نامه_/, '');
   const letterNo = toPersianDigits(rawLetterNo);
@@ -107,11 +109,11 @@ export function generateOfficialLetterHtml(
   const letterSubject = overrides?.customSubject || transfer.customHeaderSubject || transfer.fileName.replace(/\.[^/.]+$/, '').replace(/^نامه_/, '').replace(/_/g, ' ');
   const headerTitle = overrides?.customHeaderTitle !== undefined ? overrides.customHeaderTitle : (transfer.customHeaderCenterTitle !== undefined ? transfer.customHeaderCenterTitle : '');
 
-  const letterBody =
+  const letterBody = stripBakedBodyLayout(
     overrides?.customBody ||
     transfer.letterContentHtml ||
     transfer.note ||
-    'متن نامه رسمی جهت استحضار، بررسی و صدور دستور مقتضی ارسال گردیده است.';
+    'متن نامه رسمی جهت استحضار، بررسی و صدور دستور مقتضی ارسال گردیده است.');
 
   const showFooter = overrides?.showFooterNote !== undefined
     ? overrides.showFooterNote

@@ -13,6 +13,7 @@ import {
   STAMP_ANCHOR_LEFT,
   signatureAreaHeight,
   defaultStampHeight,
+  stripBakedBodyLayout,
 } from '../../lib/letterDefaults';
 import { useAttachment } from '../../lib/useAttachment';
 import {
@@ -565,7 +566,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setFooterNote(letter.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری');
       setCustomBody(
         convertNumbersInHtmlToPersian(
-          letter.letterContentHtml ||
+          stripBakedBodyLayout(letter.letterContentHtml || '') ||
           letter.note ||
           'متن نامه رسمی جهت استحضار، بررسی و صدور دستور مقتضی ارسال گردیده است.'
         )
