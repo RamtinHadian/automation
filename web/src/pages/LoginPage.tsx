@@ -78,14 +78,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
       <div className="w-full max-w-sm">
         {/* Login card: frosted glass over the picture */}
         <div className={`${GLASS_CARD} p-6 sm:p-8 space-y-5`}>
-          <div className="text-center space-y-2">
-            <img src="/images/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-36 sm:w-40 mx-auto drop-shadow-lg [filter:brightness(0)_invert(1)_drop-shadow(0_2px_6px_rgba(0,0,0,.35))]" draggable={false} />
-            {companyName && <div className="text-sm font-black text-white/95" data-company-name>{companyName}</div>}
+          <div className="text-center space-y-3">
+            <img src="/images/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="brand-logo w-44 sm:w-48 mx-auto [filter:drop-shadow(0_0_14px_rgba(255,255,255,0.85))_drop-shadow(0_4px_10px_rgba(0,0,0,0.25))]" draggable={false} />
+            {companyName && <div className="text-sm font-black text-white drop-shadow" data-company-name>{companyName}</div>}
           </div>
 
-          <div className="text-right">
-            <h1 className="text-3xl font-black text-white leading-tight">ورود</h1>
-            <p className="text-xs text-white/80 mt-1">خوش آمدید؛ برای ادامه وارد حساب خود شوید.</p>
+          <div className="text-center">
+            <h1 className="text-2xl font-black text-white leading-tight drop-shadow">ورود</h1>
+            <p className="text-xs text-white/85 mt-1">خوش آمدید؛ برای ادامه وارد حساب خود شوید.</p>
           </div>
 
           {/* Username / User Select Field */}
@@ -109,7 +109,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
                 enterKeyHint="next"
                 aria-label="نام کاربری"
                 placeholder="نام کاربری"
-                className="glass-input flex-1 bg-transparent text-sm font-bold text-white placeholder:text-white/70 focus:outline-none min-w-0"
+                className="glass-input flex-1 bg-transparent text-center text-sm font-bold text-white placeholder:text-white/70 focus:outline-none min-w-0"
               />
               <UserIcon className="w-5 h-5 text-white/85 shrink-0" />
             </div>
@@ -164,7 +164,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
               enterKeyHint="go"
               aria-label="رمز عبور"
               placeholder="رمز عبور"
-              className="glass-input flex-1 bg-transparent text-sm font-bold text-white placeholder:text-white/70 focus:outline-none font-mono min-w-0"
+              className="glass-input flex-1 bg-transparent text-center text-sm font-bold text-white placeholder:text-white/70 focus:outline-none font-mono min-w-0"
             />
             <Lock className="w-5 h-5 text-white/85 shrink-0" />
           </div>
@@ -174,14 +174,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
             <div className="bg-red-500/25 border border-red-200/60 text-white text-xs font-bold px-3 py-2 rounded-xl text-center">{error}</div>
           )}
 
-          {/* Login Button */}
+          {/* Login Button: a pane of glass */}
           <button
             type="button"
             onClick={handleLogin}
             disabled={submitting}
-            className="w-full py-3.5 bg-gradient-to-l from-[var(--theme-primary,#6E1B1B)] to-[var(--theme-secondary,#D34A32)] hover:brightness-110 text-white font-black text-sm rounded-2xl shadow-lg shadow-black/30 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
+            className="relative w-full py-3.5 overflow-hidden rounded-2xl text-white font-black text-sm tracking-wide bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/60 shadow-[0_8px_24px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.7),inset_0_-8px_16px_rgba(255,255,255,0.08)] transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 [text-shadow:0_1px_6px_rgba(0,0,0,0.35)]"
           >
-            {submitting ? 'در حال ورود…' : 'ورود'}
+            <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent" aria-hidden />
+            <span className="relative">{submitting ? 'در حال ورود…' : 'ورود'}</span>
           </button>
         </div>
       </div>
