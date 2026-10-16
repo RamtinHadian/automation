@@ -92,7 +92,7 @@
   async function run() {
     if (!S.running) return;
     const cur = T[S.i];
-    if (!cur) { S.running = false; save(S); return render('همهٔ الگوها ثبت شد.'); }
+    if (!cur) { S.running = false; const sk = S.skipped || []; S.skipped = []; save(S); return render('همهٔ الگوها انجام شد.' + (sk.length ? ' ' + fa(sk.length) + ' الگو را کاوه‌نگار نپذیرفت (معمولاً تکراری) و رد شد: ' + sk.join('، ') : '')); }
     render('الگوی ' + fa(cur.n) + ' در حال پر شدن...');
     const nameEl = await waitFor(findName, S.url && location.href !== S.url ? 2500 : 15000);
     const textEl = findText();
@@ -114,8 +114,10 @@
     submit.click();
     const done = await waitFor(() => location.href !== before || !formPresent(), 10000);
     if (done) { await sleep(1200); go(); return; }
-    S.i--; save(S);
-    pause('بعد از زدن «ساخت الگو» صفحه تغییر نکرد؛ احتمالاً خطایی روی فرم هست. آن را درست کنید و «ادامه» بزنید، یا «رد کردن این یکی».');
+    // the form refused it (a red message: usually «تکراری» = the name already exists): do not stop, note it and go to the next one
+    S.skipped = (S.skipped || []).concat([cur.name]); save(S);
+    await sleep(600);
+    go();
   }
 
   // ---------- delete the templates that are still «در حال بررسی» (only the ones this tool made: names starting with hm) ----------
