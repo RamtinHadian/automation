@@ -3,9 +3,9 @@ import { Minus, Plus, Maximize2 } from 'lucide-react';
 import { toPersianDigits } from '../../lib/jalali';
 
 /** Zoom buttons for the letter paper on phones. */
-export const ZoomBar: React.FC<{ zoom: number; onIn: () => void; onOut: () => void; onFit: () => void }> = ({ zoom, onIn, onOut, onFit }) => (
-  <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-[#FAF5F1] border-b border-[#EBDBCE] text-xs shrink-0" dir="rtl">
-    <span className="text-[11px] font-black text-[#3A241F]">بزرگ‌نمایی نامه</span>
+export const ZoomBar: React.FC<{ zoom: number; onIn: () => void; onOut: () => void; onFit: () => void; inline?: boolean }> = ({ zoom, onIn, onOut, onFit, inline }) => (
+  <div className={inline ? 'flex items-center gap-1.5 text-xs shrink-0 mx-auto' : 'flex items-center justify-center gap-2 px-3 py-1.5 bg-[#FAF5F1] border-b border-[#EBDBCE] text-xs shrink-0'} dir="rtl">
+    <span className={`text-[11px] font-black text-[#3A241F] ${inline ? 'hidden md:inline' : ''}`}>بزرگ‌نمایی نامه</span>
     <button type="button" onClick={onOut} className="w-8 h-8 rounded-xl bg-white border border-[#EBDBCE] flex items-center justify-center cursor-pointer active:scale-95" title="کوچک‌تر">
       <Minus className="w-4 h-4" />
     </button>
