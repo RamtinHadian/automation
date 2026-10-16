@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
 import { MoveBox } from './MoveBox';
 import { LetterheadPanel } from './LetterheadPanel';
-import { LetterheadChoice, letterheadColor, letterheadFooterText, letterheadSvg } from '../../lib/letterheads';
+import { LetterheadChoice, letterheadBackground, letterheadColor, letterheadFooterText, letterheadSvg } from '../../lib/letterheads';
 import { useDemoInfo } from '../common/DemoBanner';
 import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
@@ -308,7 +308,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   // the logo belongs to the saved layout: a new letter starts the way the layout / template was saved last
   const [showLogo, setShowLogo] = useState<boolean>(() => prefs.showLogo !== false);
   // the ready-made letterheads (shown for now only in the demo): the page at the right with 100 templates, and the choice itself
-  const [lh, setLh] = useState<LetterheadChoice | null>(() => editTransfer?.letterhead ?? null);
+  const [lh, setLh] = useState<LetterheadChoice | null>(() => editTransfer?.letterhead ?? ((prefs.letterhead as LetterheadChoice | undefined) || null));
   const [showOrgName, setShowOrgName] = useState<boolean>(() => prefs.showOrgName !== false); // the name beside the logo, saved with the layout like the logo
   const [showSubject, setShowSubject] = useState<boolean>(() => prefs.showSubject !== false); // the subject line, saved with the layout too
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(() => (typeof prefs.stampHeightOverride === 'number' ? prefs.stampHeightOverride : null));
@@ -326,7 +326,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
     selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
-    orgOffset, bodyOffsetY, layoutLocked,
+    orgOffset, bodyOffsetY, layoutLocked, letterhead: lh,
     showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo, showOrgName, showSubject,
     // the ticks of the header (number, date, attachment, logo, name) are part of the layout: what was saved is what the next letter starts with
     showLetterNumber: showNo, showLetterDate: showDate, showLetterAttachment: showAtt,
@@ -378,6 +378,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setOrgOffset(pt(base.orgOffset));
     setBodyOffsetY(numPref(base.bodyOffsetY, 0));
     setLayoutLocked(false);
+    setLh((base.letterhead as LetterheadChoice | undefined) || null);
     setShowSigImg(base.showSignatureImage !== false);
     setShowStampImg(base.showStampImage !== false);
     setShowNo(base.showLetterNumber !== false);
@@ -884,10 +885,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           <ScaledPaper enabled={fitZ.isPhone || fitZ.zoom !== 1} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
             ref={paperSheetRef}
-            style={{ fontFamily: selectedFontFamily, ...(lhEnabled && pageSize === 'Letterhead' && lh ? { paddingTop: 56, paddingBottom: 54 } : {}) }}
+            style={{ fontFamily: selectedFontFamily, ...(lhEnabled && pageSize === 'Letterhead' && lh && !lh.image ? { paddingTop: 56, paddingBottom: 54 } : {}), ...(lhEnabled && pageSize === 'Letterhead' ? letterheadBackground(lh) : {}) }}
             className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 w-full transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
           >
-            {lhEnabled && pageSize === 'Letterhead' && lh && (
+            {lhEnabled && pageSize === 'Letterhead' && lh && !lh.image && (
               <>
                 <div className="absolute inset-x-0 top-0 pointer-events-none rounded-t-xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(lh.id, 'top') }} />
                 <div className="absolute inset-x-0 bottom-0 pointer-events-none rounded-b-xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(lh.id, 'bottom') }} />

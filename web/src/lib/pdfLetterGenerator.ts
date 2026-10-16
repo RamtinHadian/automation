@@ -3,7 +3,7 @@ import { resolveSignatureHeight, signatureAreaHeight, SIGNATURE_ANCHOR_LEFT, STA
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
-import { letterheadColor, letterheadFooterText, letterheadSvg } from './letterheads';
+import { letterheadBackground, letterheadColor, letterheadFooterText, letterheadSvg } from './letterheads';
 
 export interface LetterPrintOverrides {
   pageSize?: string;
@@ -448,8 +448,8 @@ export function generateOfficialLetterHtml(
     <button class="print-btn" onclick="window.print()">دریافت PDF / چاپ مستقیم</button>
   </div>
 
-  <div class="letter-container"${lh ? ' style="padding-top: calc(' + containerPadding + ' + 8px); padding-bottom: calc(' + containerPadding + ' + 6px);"' : ''}>
-    ${lh ? `<div class="lh-top">${letterheadSvg(lh.id, 'top')}</div><div class="lh-bottom">${letterheadSvg(lh.id, 'bottom')}</div>` : ''}
+  <div class="letter-container"${lh && !lh.image ? ' style="padding-top: calc(' + containerPadding + ' + 8px); padding-bottom: calc(' + containerPadding + ' + 6px);"' : ''}${lh && lh.image ? ` style="background: url(${lh.image}) center / 100% 100% no-repeat;"` : ''}>
+    ${lh && !lh.image ? `<div class="lh-top">${letterheadSvg(lh.id, 'top')}</div><div class="lh-bottom">${letterheadSvg(lh.id, 'bottom')}</div>` : ''}
     <div class="header">
       <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);">
         ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" />` : ''}
