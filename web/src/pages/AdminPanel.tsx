@@ -36,6 +36,7 @@ import { NetWatchCard } from '../components/admin/NetWatchCard';
 import { SupportAdmin } from '../components/admin/SupportAdmin';
 import { useCompanyName } from '../lib/useCompanyName';
 import { AuditLogsView } from '../components/admin/AuditLogsView';
+import { ServerAddressCard } from '../components/admin/ServerAddressCard';
 import { TransfersMonitor } from '../components/admin/TransfersMonitor';
 import { SettingsView } from '../components/admin/SettingsView';
 import { LetterManagementAdminView } from '../components/admin/LetterManagementAdminView';
@@ -567,6 +568,7 @@ export default function AdminPanel() {
 
           {activeTab === 'analytics' && (
             <div className="space-y-4">
+              <ServerAddressCard />
               <NetWatchCard />
               <AnalyticsView
                 users={staffList}

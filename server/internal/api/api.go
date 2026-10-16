@@ -43,6 +43,7 @@ var DemoMode bool
 // Router returns the HTTP handler for the whole server: the API and the built frontend.
 func Router(cfg config.Config) http.Handler {
 	DemoMode = cfg.Demo
+	listenPort, infoDBURL, infoAMIHost, infoAMIPort = cfg.Port, cfg.DatabaseURL, cfg.AMIHost, cfg.AMIPort
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /api/auth/login", auth.Login)
@@ -110,6 +111,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("POST /api/sms/send", auth.Require(smsSend))
 	mux.HandleFunc("GET /api/admin/files/info", auth.Require(adminFileInfo))
 	mux.HandleFunc("GET /api/admin/netwatch", auth.Require(netWatchInfo))
+	mux.HandleFunc("GET /api/admin/server-info", auth.Require(serverInfo))
 	mux.HandleFunc("GET /api/warranty", auth.Require(warrantyList))
 	mux.HandleFunc("PUT /api/warranty/settings", auth.Require(warrantySaveSettings))
 	mux.HandleFunc("PUT /api/warranty/items/{id}", auth.Require(warrantyPut))

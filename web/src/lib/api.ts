@@ -383,6 +383,7 @@ export const api = {
   leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string) => request<{ ok: true }>('POST', `/api/leaves/${encodeURIComponent(id)}/decide`, { status, note }),
   leaveCancel: (id: string) => request<{ ok: true }>('DELETE', `/api/leaves/${encodeURIComponent(id)}`),
   netWatch: () => request<any>('GET', '/api/admin/netwatch'),
+  serverInfo: () => request<any>('GET', '/api/admin/server-info'),
   warrantyList: () => request<{ warranties: Warranty[]; claims: WarrantyClaim[]; settings: WarrantySettings; canManage: boolean }>('GET', '/api/warranty'),
   warrantySaveSettings: (b: WarrantySettings) => request<WarrantySettings>('PUT', '/api/warranty/settings', b),
   warrantyPut: (id: string, b: Partial<Warranty>) => request<Warranty>('PUT', `/api/warranty/items/${encodeURIComponent(id)}`, b),
