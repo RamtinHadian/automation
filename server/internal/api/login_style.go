@@ -14,7 +14,7 @@ func loginStyle(w http.ResponseWriter, r *http.Request) {
 	_ = store.Pool.QueryRow(r.Context(), `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
 	imgs := []string{}
 	for _, s := range jsonx.Strings(jsonx.Decode(raw), "loginImages") {
-		if len(s) > 0 && len(s) < 2_500_000 && len(imgs) < 6 {
+		if len(s) > 0 && len(s) < 2_500_000 && len(imgs) < 12 {
 			imgs = append(imgs, s)
 		}
 	}

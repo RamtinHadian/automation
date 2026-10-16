@@ -545,7 +545,7 @@ export const CrmView: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap sm:flex-nowrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 sm:overflow-x-auto">
+      <div className="flex flex-wrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
         {tabs.map(([id, text, Icon]) => (
           <button
             key={id}
