@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Check, ImagePlus, Search, Trash2, X } from 'lucide-react';
-import { LETTERHEADS, LETTERHEAD_DESIGNS, LETTERHEAD_PALETTES, LetterheadChoice, letterheadSvg } from '../../lib/letterheads';
+import { LETTERHEAD_DESIGN_COUNT, LETTERHEAD_DESIGNS, LETTERHEAD_PALETTES, LETTERHEAD_VARIANTS, LetterheadChoice, letterheadSvg, queryLetterheads, variantName, designName } from '../../lib/letterheads';
 import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 
@@ -62,16 +62,17 @@ export const LetterheadPanel: React.FC<{
 }> = ({ value, onChange, defaults, onClose }) => {
   const { showToast } = useAppContext();
   const [design, setDesign] = useState(-1);
+  const [variant, setVariant] = useState(-1);
   const [palette, setPalette] = useState(-1);
   const [q, setQ] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const [mine, setMine] = useState<string[]>(loadMine);
   const file = useRef<HTMLInputElement>(null);
 
-  const list = useMemo(() => {
-    const n = Number(q.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))));
-    return LETTERHEADS.filter((l) => (design < 0 || l.design === design) && (palette < 0 || l.palette === palette) && (!q.trim() || (Number.isFinite(n) && n === l.id) || l.name.includes(q.trim())));
-  }, [design, palette, q]);
+  const { total, items: list } = useMemo(() => {
+    const n = Number(q.trim().replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))));
+    return queryLetterheads({ base: design, variant, palette, id: q.trim() && Number.isFinite(n) ? n : undefined }, limit);
+  }, [design, variant, palette, q, limit]);
 
   const base = (): Omit<LetterheadChoice, 'id' | 'image'> => ({
     showAddress: value?.showAddress ?? !!defaults.address,
@@ -116,7 +117,7 @@ export const LetterheadPanel: React.FC<{
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[#EBDBCE] bg-amber-50/60">
         <div>
           <div className="font-black text-sm text-[#3A241F]">قالب‌های سربرگ</div>
-          <div className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(LETTERHEADS.length)} قالب آماده، یا طرح خودتان · روی هر کدام بزنید تا روی نامه بنشیند</div>
+          <div className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(LETTERHEAD_DESIGN_COUNT)} طرح در ۴۰۰ رنگ، یا طرح خودتان · روی هر کدام بزنید تا روی نامه بنشیند</div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-xl text-[#8C6F66] hover:bg-white cursor-pointer" title="بستن"><X className="w-4 h-4" /></button>
       </div>
@@ -186,14 +187,18 @@ export const LetterheadPanel: React.FC<{
               {LETTERHEAD_PALETTES.map((p, i) => <option key={p} value={i}>{p}</option>)}
             </select>
           </div>
-          <div className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(list.length)} قالب</div>
+          <select className={field} value={variant} onChange={(e) => { setVariant(Number(e.target.value)); setLimit(PAGE); }}>
+            <option value={-1}>همهٔ نسخه‌ها ({toPersianDigits(LETTERHEAD_VARIANTS)} حالت برای هر طرح)</option>
+            {Array.from({ length: LETTERHEAD_VARIANTS }, (_, v) => <option key={v} value={v}>نسخهٔ {toPersianDigits(v)}: {variantName(v)}</option>)}
+          </select>
+          <div className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(total)} قالب</div>
         </div>
 
         {/* the ready templates, sixty at a time */}
         <div className="p-3">
-          {list.length === 0 && <div className="text-center text-xs font-bold text-[#8C6F66] py-10">قالبی با این مشخصات پیدا نشد.</div>}
+          {total === 0 && <div className="text-center text-xs font-bold text-[#8C6F66] py-10">قالبی با این مشخصات پیدا نشد.</div>}
           <div className="grid grid-cols-3 gap-2.5">
-            {list.slice(0, limit).map((l) => {
+            {list.map((l) => {
               const on = !value?.image && value?.id === l.id;
               return (
                 <button key={l.id} type="button" onClick={() => pick(l.id)} title={l.name} className={`group text-center cursor-pointer rounded-xl p-1.5 border-2 transition-all ${on ? 'border-amber-500 bg-amber-50 shadow' : 'border-transparent hover:border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
@@ -205,15 +210,15 @@ export const LetterheadPanel: React.FC<{
                     </div>
                     {on && <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center"><Check className="w-3 h-3" /></span>}
                   </div>
-                  <div className="mt-1 text-[9.5px] font-black text-[#3A241F] leading-4 truncate">{toPersianDigits(l.id)} · {LETTERHEAD_DESIGNS[l.design]}</div>
+                  <div className="mt-1 text-[9.5px] font-black text-[#3A241F] leading-4 truncate">{toPersianDigits(l.id)} · {designName(l.design)}</div>
                   <div className="text-[9px] font-bold text-[#8C6F66] leading-4 truncate">{LETTERHEAD_PALETTES[l.palette]}</div>
                 </button>
               );
             })}
           </div>
-          {list.length > limit && (
+          {total > limit && (
             <button type="button" onClick={() => setLimit(limit + PAGE)} className="mt-3 w-full py-2.5 rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] text-[11px] font-black text-[#6E1B1B] hover:bg-amber-50 cursor-pointer">
-              نمایش {toPersianDigits(Math.min(PAGE, list.length - limit))} قالب بعدی
+              نمایش {toPersianDigits(Math.min(PAGE, total - limit))} قالب بعدی
             </button>
           )}
         </div>

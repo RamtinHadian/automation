@@ -1,10 +1,10 @@
 /**
- * Ready-made letterheads («سربرگ رسمی با آرم»): 25 designs x 400 colour sets = 10000 templates, and the person's own uploaded design. Each one is a thin decoration drawn at the top and the
+ * Ready-made letterheads («سربرگ رسمی با آرم»): 25 basic designs x 40 variants = 1000 shapes, x 400 colour sets = 400000 templates, and the person's own uploaded design. Each one is a thin decoration drawn at the top and the
  * bottom of the sheet (an SVG, so it prints sharp), and the letter can carry the address and the phone number in its footer.
  * The same markup is used by the editor, the preview and the printed page, so the three always look alike.
  */
 export interface LetterheadChoice {
-  /** 1..10000, or 0 when the person uploaded their own design (then `image` holds it) */
+  /** 1..400000, or 0 when the person uploaded their own design (then `image` holds it) */
   id: number;
   /** the person's own letterhead design, as a data URL (picture), drawn as the background of the whole sheet */
   image?: string;
@@ -87,19 +87,54 @@ export const LETTERHEAD_PALETTES = PALETTES.map((p) => p.name);
 export interface LetterheadDef {
   id: number;
   name: string;
+  /** 0..999: the shape = one of the 25 basic designs x 40 variants (mirrored, lower, with an extra line) */
   design: number;
+  base: number;
+  variant: number;
   palette: number;
 }
 
 const PER = PALETTES.length;
-export const LETTERHEADS: LetterheadDef[] = Array.from({ length: LETTERHEAD_DESIGNS.length * PER }, (_, i) => ({
-  id: i + 1,
-  design: Math.floor(i / PER),
-  palette: i % PER,
-  name: `${LETTERHEAD_DESIGNS[Math.floor(i / PER)]} ${PALETTES[i % PER].name}`,
-}));
+export const LETTERHEAD_VARIANTS = 40;
+export const LETTERHEAD_DESIGN_COUNT = LETTERHEAD_DESIGNS.length * LETTERHEAD_VARIANTS; // 1000 shapes
+export const LETTERHEAD_TOTAL = LETTERHEAD_DESIGN_COUNT * PER;
 
-export const letterheadById = (id: number) => LETTERHEADS[id - 1] || LETTERHEADS[0];
+const ACCENTS = ['بدون خط', 'خط نازک', 'خط رنگ دوم', 'نقطه‌چین', 'خط دوتایی'];
+export const variantName = (v: number) =>
+  v === 0 ? 'اصلی' : `${v % 2 ? 'قرینه' : 'عادی'}، ${['بلند', 'کوتاه‌تر', 'کم‌ارتفاع', 'کمارتفاع‌تر'][Math.floor(v / 2) % 4]}، ${ACCENTS[Math.floor(v / 8) % 5]}`;
+export const designName = (d: number) => `${LETTERHEAD_DESIGNS[d % LETTERHEAD_DESIGNS.length]}${d >= LETTERHEAD_DESIGNS.length ? ' · نسخهٔ ' + Math.floor(d / LETTERHEAD_DESIGNS.length) : ''}`;
+
+/** id = shape * colours + colour + 1 (ids of the first 25 shapes are the same as before) */
+export function letterheadById(id: number): LetterheadDef {
+  const i = Number.isInteger(id) && id >= 1 && id <= LETTERHEAD_TOTAL ? id - 1 : 0;
+  const design = Math.floor(i / PER);
+  const palette = i % PER;
+  return { id: i + 1, design, base: design % LETTERHEAD_DESIGNS.length, variant: Math.floor(design / LETTERHEAD_DESIGNS.length), palette, name: `${designName(design)} ${PALETTES[palette].name}` };
+}
+
+/** The templates matching the filters, without building all of them: `total` and the first `limit` ones. */
+export function queryLetterheads(f: { base: number; variant: number; palette: number; id?: number }, limit: number): { total: number; items: LetterheadDef[] } {
+  const bases = f.base < 0 ? LETTERHEAD_DESIGNS.map((_, i) => i) : [f.base];
+  const variants = f.variant < 0 ? Array.from({ length: LETTERHEAD_VARIANTS }, (_, i) => i) : [f.variant];
+  const pals = f.palette < 0 ? PER : 1;
+  if (f.id) {
+    const d = letterheadById(f.id);
+    const ok = d.id === f.id && bases.includes(d.base) && variants.includes(d.variant) && (f.palette < 0 || f.palette === d.palette);
+    return { total: ok ? 1 : 0, items: ok ? [d] : [] };
+  }
+  const total = bases.length * variants.length * pals;
+  const items: LetterheadDef[] = [];
+  for (let k = 0; k < Math.min(limit, total); k++) {
+    const nD = bases.length * variants.length;
+    const dIdx = k % nD; // shapes change fastest so the first page shows many different shapes
+    const v = variants[Math.floor(dIdx / bases.length)];
+    const b = bases[dIdx % bases.length];
+    const p = f.palette < 0 ? Math.floor(k / nD) : f.palette;
+    items.push(letterheadById((b + LETTERHEAD_DESIGNS.length * v) * PER + p + 1));
+  }
+  return { total, items };
+}
+
 /** colour of the address / phone line: the template's main colour, dark brown for the person's own design */
 export const letterheadColor = (id: number) => (id === 0 ? '#3A241F' : PALETTES[letterheadById(id).palette].c1);
 
@@ -184,7 +219,20 @@ function drawing(d: number, c: Palette, gid: string): string {
 /** The SVG markup of one template's top or bottom decoration (as wide as its box; about 5% of the width tall). */
 export function letterheadSvg(id: number, part: 'top' | 'bottom'): string {
   const def = letterheadById(id);
-  const inner = drawing(def.design, PALETTES[def.palette], `lhg${def.id}${part[0]}`);
+  const pal = PALETTES[def.palette];
+  const v = def.variant;
+  let inner = drawing(def.base, pal, `lhg${def.id}${part[0]}`);
+  if (v) {
+    const hs = [1, 0.85, 0.7, 0.55][Math.floor(v / 2) % 4];
+    inner = `<g transform="scale(1 ${hs})">${inner}</g>`;
+    if (v % 2) inner = `<g transform="translate(800 0) scale(-1 1)">${inner}</g>`;
+    const y = Math.round(H * hs) - 1;
+    const accent = Math.floor(v / 8) % 5;
+    if (accent === 1) inner += `<rect x="40" y="${y - 1}" width="720" height="1" fill="${pal.c1}"/>`;
+    else if (accent === 2) inner += `<rect x="40" y="${y - 1}" width="720" height="1.6" fill="${pal.c2}"/>`;
+    else if (accent === 3) inner += `<line x1="40" y1="${y}" x2="760" y2="${y}" stroke="${pal.c2}" stroke-width="1.6" stroke-dasharray="2 5"/>`;
+    else if (accent === 4) inner += `<rect x="40" y="${y - 3}" width="720" height="1" fill="${pal.c1}"/><rect x="40" y="${y}" width="720" height="1" fill="${pal.c2}"/>`;
+  }
   const g = part === 'bottom' ? `<g transform="translate(0 ${H}) scale(1 -1)">${inner}</g>` : inner;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 ${H}" width="100%" preserveAspectRatio="xMidYMin meet" style="display:block">${g}</svg>`;
 }
