@@ -53,6 +53,49 @@ STAFF = [
 for key, label, text in STAFF:
     items.append((key, 'hm' + key.replace('_', ''), 'همکاران: ' + label, 'اعلان داخلی که پیامک هم می‌شود', '{name} عزیز، ' + text + '\n' + SIGN, True))
 
+# More messages for customers (prepared in the Kavenegar console first; the app starts sending each one when its event is built)
+MORE_CUSTOMER = [
+    ('c_payment_due', 'یادآوری پرداخت', 'سفارش شما به شمارهٔ {number} تأیید شد. لطفاً مبلغ آن را تا {end} واریز فرمایید.'),
+    ('c_payment_received', 'پرداخت دریافت شد', 'پرداخت شما برای سفارش {number} دریافت شد. از اعتماد شما سپاسگزاریم.'),
+    ('c_cheque_due', 'سررسید چک', 'سررسید چک شما به شمارهٔ {number} در تاریخ {end} است.'),
+    ('c_win_back', 'بازگشت مشتری خوابیده', 'مدتی است از شما خبری نداریم. برای خرید بعدی از تخفیف ویژهٔ باشگاه مشتریان بهره‌مند شوید.'),
+    ('c_club_upgrade', 'ارتقای سطح باشگاه', 'تبریک! به سطح «{subject}» باشگاه مشتریان رسیدید و از تخفیف این سطح بهره‌مند می‌شوید.'),
+    ('c_survey', 'نظرسنجی', 'نظر شما دربارهٔ خدمات ما برایمان مهم است. امتیاز خود را از ۱ تا ۵ به کارشناس ما اعلام کنید.'),
+    ('c_warranty_expiring', 'انقضای گارانتی', 'اعتبار گارانتی کالای «{product}» شما به شمارهٔ {number} در تاریخ {end} به پایان می‌رسد.'),
+    ('c_support_expiring', 'انقضای پشتیبانی', 'اشتراک پشتیبانی شما ({number}) تا {end} معتبر است. برای تمدید با ما تماس بگیرید.'),
+    ('c_meeting_reminder', 'یادآوری جلسه', 'یادآوری: جلسهٔ شما با ما در تاریخ {end} برگزار می‌شود. منتظر شما هستیم.'),
+    ('c_shipped', 'ارسال سفارش', 'سفارش شما به شمارهٔ {number} ارسال شد.'),
+    ('c_install_visit', 'مراجعهٔ نصب', 'همکار ما در تاریخ {end} برای نصب یا بازدید به شما مراجعه می‌کند.'),
+    ('c_callback', 'پاسخ به تماس بی‌پاسخ', 'تماس شما را دیدیم؛ کارشناس ما به‌زودی با شما تماس می‌گیرد.'),
+    ('c_invoice_issued', 'صدور فاکتور رسمی', 'فاکتور رسمی شما به شمارهٔ {number} صادر شد.'),
+    ('c_occasion', 'تبریک مناسبت', '{subject} را به شما تبریک می‌گوییم.'),
+    ('c_offer', 'پیشنهاد ویژه', 'پیشنهاد ویژه برای شما: {subject}'),
+    ('c_portal_welcome', 'خوش‌آمد به پورتال', 'به پورتال مشتریان خوش آمدید. اطلاعات پرونده و پیش‌فاکتورهای خود را آنجا ببینید.'),
+]
+for key, label, text in MORE_CUSTOMER:
+    items.append((key, 'hm' + key.replace('_', ''), 'مشتری: ' + label, 'رویداد آینده', '{name} عزیز، ' + text + '\n{company}\n' + SIGN, True))
+
+# More messages for the company's own staff
+MORE_STAFF = [
+    ('staff_customer_new', 'مشتری یا فرصت جدید به نام شما', 'مشتری یا فرصت جدید «{subject}» به نام شما ثبت شد؛ لطفاً سریع پیگیری کنید.'),
+    ('staff_deal_stale', 'فرصت فروش بی‌پیگیری', 'فرصت فروش «{subject}» چند روز است بدون پیگیری مانده است.'),
+    ('staff_proforma_decided', 'تأیید یا رد پیش‌فاکتور', 'تصمیم مدیرعامل دربارهٔ پیش‌فاکتور «{subject}» ثبت شد؛ نتیجه را در سامانه ببینید.'),
+    ('staff_proforma_wait', 'پیش‌فاکتور منتظر تأیید', 'پیش‌فاکتور «{subject}» منتظر تأیید شماست.'),
+    ('staff_customer_moved', 'انتقال مشتری', 'مشتری «{subject}» به شما منتقل شد.'),
+    ('staff_leave_new', 'درخواست مرخصی جدید', 'درخواست مرخصی «{subject}» برای بررسی شما ثبت شد.'),
+    ('staff_leave_decided', 'نتیجهٔ درخواست مرخصی', 'نتیجهٔ درخواست مرخصی شما («{subject}») در سامانه ثبت شد.'),
+    ('staff_letter_signed', 'نامه امضا شد', 'نامهٔ «{subject}» امضا شد؛ می‌توانید آن را در سامانه ببینید.'),
+    ('staff_referral', 'ارجاع به شما', '«{subject}» به شما ارجاع شد؛ لطفاً در کارتابل بررسی کنید.'),
+    ('staff_report_missing', 'گزارش روزانه ثبت نشده', 'گزارش روزانهٔ امروز هنوز ثبت نشده است؛ لطفاً تا پایان وقت ثبت کنید.'),
+    ('staff_support_assigned', 'پشتیبانی یا گارانتی به شما سپرده شد', 'درخواست «{subject}» برای پیگیری به شما سپرده شد.'),
+    ('staff_daily_summary', 'خلاصهٔ امروز', 'خلاصهٔ امروز شما: {subject}'),
+    ('staff_target_progress', 'پیشرفت هدف ماه', 'پیشرفت هدف ماه شما: {subject}'),
+    ('staff_occasion', 'تبریک مناسبت همکاران', '{subject} را به شما تبریک می‌گوییم.'),
+    ('staff_security', 'هشدار امنیتی', 'هشدار امنیتی: {subject}. اگر شما نبودید، رمز عبور را عوض کنید.'),
+]
+for key, label, text in MORE_STAFF:
+    items.append((key, 'hm' + key.replace('_', ''), 'همکاران: ' + label, 'رویداد آینده', '{name} عزیز، ' + text + '\n{company}\n' + SIGN, True))
+
 names = [i[1] for i in items]
 assert len(set(names)) == len(names), 'template names must be unique'
 
