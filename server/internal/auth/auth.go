@@ -48,6 +48,39 @@ func FromRow(id, email string, data []byte) jsonx.M {
 
 type ctxKey struct{}
 
+// OnRequest is called after every request of a signed-in person has been answered (the journal of who did what, from which address).
+// OnLogin is called for every sign-in attempt. Both are set by the api package.
+var (
+	OnRequest func(r *http.Request, u User, status int)
+	OnLogin   func(r *http.Request, identifier string, u *User, ok bool, why string)
+)
+
+// statusWriter remembers the status code a handler answered with; it passes streaming (Flush) through untouched.
+type statusWriter struct {
+	http.ResponseWriter
+	code int
+}
+
+func (w *statusWriter) WriteHeader(c int) {
+	w.code = c
+	w.ResponseWriter.WriteHeader(c)
+}
+
+func (w *statusWriter) Write(b []byte) (int, error) {
+	if w.code == 0 {
+		w.code = http.StatusOK
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *statusWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
 var secret []byte
 
 // SetSecret must be called once at start-up with the JWT secret.
@@ -83,7 +116,17 @@ func Require(next http.HandlerFunc) http.HandlerFunc {
 			httpx.Error(w, http.StatusUnauthorized, "unauthenticated")
 			return
 		}
-		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
+		r = r.WithContext(context.WithValue(r.Context(), ctxKey{}, u))
+		if OnRequest == nil {
+			next(w, r)
+			return
+		}
+		sw := &statusWriter{ResponseWriter: w}
+		next(sw, r)
+		if sw.code == 0 {
+			sw.code = http.StatusOK
+		}
+		OnRequest(r, u, sw.code)
 	}
 }
 
@@ -155,15 +198,24 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
 		noteFailure(ip)
+		if OnLogin != nil {
+			OnLogin(r, identifier, nil, false, "نام کاربری یا رمز عبور نادرست بود")
+		}
 		httpx.Error(w, http.StatusUnauthorized, "نام کاربری یا رمز عبور نادرست است.")
 		return
 	}
 	user := User{FromRow(id, email, data)}
 	if !jsonx.Bool(user.M, "isActive") {
+		if OnLogin != nil {
+			OnLogin(r, identifier, nil, false, "حساب غیرفعال است")
+		}
 		httpx.Error(w, http.StatusForbidden, "حساب کاربری شما غیرفعال شده است.")
 		return
 	}
 	if adminOnly && !user.IsAdmin() {
+		if OnLogin != nil {
+			OnLogin(r, identifier, nil, false, "ورود به کنسول مدیریت بدون دسترسی مدیر")
+		}
 		httpx.Error(w, http.StatusForbidden, "این حساب دسترسی مدیر ندارد.")
 		return
 	}
@@ -182,6 +234,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "internal error")
 		return
+	}
+	if OnLogin != nil {
+		OnLogin(r, identifier, &user, true, "")
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"token": token, "user": user.M})
 }

@@ -3,6 +3,15 @@ import { Shield, Search, Download, Filter, AlertTriangle, Info, CheckCircle2 } f
 import { AuditLog } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 
+// what each kind of entry is called on screen
+const ACTION_LABEL: Record<string, string> = {
+  LOGIN: 'ورود', LOGIN_FAILED: 'ورود ناموفق', LOGOUT: 'خروج', FILE_UPLOAD: 'بارگذاری فایل', FILE_DOWNLOAD: 'دریافت فایل', FILE_TRANSFER: 'ارسال فایل یا نامه', FILE_DELETE: 'حذف فایل',
+  USER_CREATE: 'ساخت کاربر', USER_UPDATE: 'ویرایش کاربر', USER_DELETE: 'حذف کاربر', DEPARTMENT_CHANGE: 'واحد سازمانی', QUOTA_UPDATE: 'سهمیه', QUOTA_CHANGE: 'سهمیه',
+  PERMISSION_CHANGE: 'تغییر دسترسی', ADMIN_SETTING_CHANGE: 'تنظیمات مدیریت', SETTINGS_UPDATE: 'تنظیمات', SECURITY_EVENT: 'رویداد امنیتی', CEO_CHANGE: 'تغییر مدیرعامل',
+  CUSTOMER: 'مشتری', DEAL: 'فرصت فروش', CRM_NOTE: 'سابقه و پیگیری', TASK: 'وظیفه', REPORT: 'گزارش روزانه', CHAT: 'گفتگو', SMS: 'پیامک', LEAVE: 'مرخصی', CALL: 'تماس تلفنی',
+  WAREHOUSE: 'انبار', WARRANTY: 'گارانتی', SUPPORT: 'پشتیبانی', SEPIDAR: 'سپیدار', REMINDER: 'یادآور', ANNOUNCEMENT: 'تابلو اعلانات', ACTIVITY: 'سایر تغییرات',
+};
+
 interface AuditLogsViewProps {
   logs: AuditLog[];
 }
@@ -10,15 +19,19 @@ interface AuditLogsViewProps {
 export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ logs }) => {
   const [search, setSearch] = useState('');
   const [severityFilter, setSeverityFilter] = useState('ALL');
+  const [actionFilter, setActionFilter] = useState('ALL');
 
   const filtered = logs.filter((log) => {
     const matchesSearch =
       log.userName.toLowerCase().includes(search.toLowerCase()) ||
       log.userEmail.toLowerCase().includes(search.toLowerCase()) ||
       log.details.toLowerCase().includes(search.toLowerCase()) ||
-      log.action.toLowerCase().includes(search.toLowerCase());
+      log.action.toLowerCase().includes(search.toLowerCase()) ||
+      (ACTION_LABEL[log.action] || '').includes(search) ||
+      (log.ipAddress || '').includes(search);
     const matchesSeverity = severityFilter === 'ALL' || log.severity === severityFilter;
-    return matchesSearch && matchesSeverity;
+    const matchesAction = actionFilter === 'ALL' || log.action === actionFilter;
+    return matchesSearch && matchesSeverity && matchesAction;
   });
 
   return (
@@ -64,10 +77,21 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ logs }) => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="جستجو در لاگ‌ها بر اساس نام کارمند، نوع عملیات یا توضیحات..."
+            placeholder="جستجو بر اساس نام کارمند، آدرس IP، نوع عملیات یا توضیحات..."
             className="w-full pr-10 pl-4 py-2.5 bg-white border border-[#EBDBCE] rounded-xl text-xs text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
           />
         </div>
+
+        <select
+          value={actionFilter}
+          onChange={(e) => setActionFilter(e.target.value)}
+          className="px-3 py-2.5 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:outline-none cursor-pointer"
+        >
+          <option value="ALL">همهٔ نوع عملیات</option>
+          {[...new Set(logs.map((l) => l.action))].sort().map((a) => (
+            <option key={a} value={a}>{ACTION_LABEL[a] || a}</option>
+          ))}
+        </select>
 
         <select
           value={severityFilter}
@@ -107,7 +131,7 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ logs }) => {
                   </td>
                   <td className="py-3.5 px-4">
                     <span className={log.action === 'CEO_CHANGE' ? 'bg-purple-700 text-white border border-purple-800 text-[10px] px-2 py-0.5 rounded font-black whitespace-nowrap' : 'bg-[#FAF5F1] text-[#3A241F] border border-[#EBDBCE] font-mono text-[10px] px-2 py-0.5 rounded font-bold'}>
-                      {log.action === 'CEO_CHANGE' ? 'تغییر مدیرعامل' : log.action}
+                      {ACTION_LABEL[log.action] || log.action}
                     </span>
                   </td>
                   <td className="py-3.5 px-4">
@@ -125,8 +149,8 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ logs }) => {
                       </span>
                     )}
                   </td>
-                  <td className="py-3.5 px-4 font-mono text-[11px] text-[#8C6F66] whitespace-nowrap">
-                    {toPersianDigits(log.ipAddress)}
+                  <td className="py-3.5 px-4 whitespace-nowrap">
+                    {log.ipAddress ? <span dir="ltr" className="inline-block font-mono text-[11px] font-bold text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] rounded-lg px-2 py-0.5">{log.ipAddress}</span> : <span className="text-[#B8A39C]">—</span>}
                   </td>
                   <td className="py-3.5 px-4 text-[#503730] text-xs font-medium">
                     {toPersianDigits(log.details)}

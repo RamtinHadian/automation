@@ -882,7 +882,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             userEmail: currentUser.email,
             action: 'FILE_TRANSFER',
             severity: 'INFO',
-            ipAddress: '192.168.1.104',
+            ipAddress: '',
             details: `ارسال فایل "${newTransfer.fileName}" (${newTransfer.fileSize}) برای ${recipient.fullName}.`,
           };
 
@@ -1078,7 +1078,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'SETTINGS_UPDATE',
         severity: 'INFO',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `بایگانی نامه رسمی "${target?.fileName || ''}".`,
       };
       setAuditLogs((prev) => [newLog, ...prev]);
@@ -1223,7 +1223,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'ADMIN_SETTING_CHANGE',
         severity: 'INFO',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `امضای الکترونیک نامه رسمی "${target?.fileName || ''}" توسط مدیر (${currentUser.fullName}).`,
       };
       setAuditLogs((prev) => [newLog, ...prev]);
@@ -1257,7 +1257,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'SECURITY_EVENT',
         severity: 'WARNING',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `رد پیش‌نویس نامه رسمی "${target?.fileName || ''}" توسط مدیر (${currentUser.fullName}). علت: ${reason || 'عدم انطباق'}`,
       };
       setAuditLogs((prev) => [newLog, ...prev]);
@@ -1303,7 +1303,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'FILE_TRANSFER',
         severity: 'INFO',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `ارجاع نامه رسمی "${target?.fileName || ''}" به ${toUser.fullName} با دستور: "${newReferral.comment}"`,
       };
       setAuditLogs((prev) => [newLog, ...prev]);
@@ -1366,7 +1366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'USER_CREATE',
         severity: 'WARNING',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `تعریف کاربر جدید "${newUser.fullName}" با سهمیه ${newUser.storageQuotaGB}GB در واحد ${newUser.departmentName}.`,
       };
 
@@ -1410,7 +1410,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'SETTINGS_UPDATE',
         severity: 'WARNING',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `تعریف واحد سازمانی جدید "${newDept.name}" (کد: ${newDept.code}) با سهمیه پیش‌فرض ${newDept.defaultQuotaGB}GB.`,
       };
 
@@ -1442,7 +1442,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'SETTINGS_UPDATE',
         severity: 'INFO',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `ویرایش اطلاعات واحد سازمانی (شناسه: ${deptId}).`,
       };
       setAuditLogs((prev) => [newLog, ...prev]);
@@ -1467,7 +1467,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'SETTINGS_UPDATE',
         severity: 'CRITICAL',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `حذف واحد سازمانی "${dept?.name || deptId}".`,
       };
 
@@ -1523,7 +1523,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'SETTINGS_UPDATE',
         severity: 'INFO',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `بارگذاری فونت اختصاصی جدید "${newFont.name}" (${newFont.fileName}).`,
       };
       setAuditLogs((prev) => [newLog, ...prev]);
@@ -1548,7 +1548,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userEmail: currentUser.email,
         action: 'SETTINGS_UPDATE',
         severity: 'WARNING',
-        ipAddress: '192.168.1.104',
+        ipAddress: '',
         details: `حذف فونت سفارشی "${fontToDelete?.name || fontId}".`,
       };
       setAuditLogs((prev) => [newLog, ...prev]);

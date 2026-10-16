@@ -36,6 +36,7 @@ import { NetWatchCard } from '../components/admin/NetWatchCard';
 import { SupportAdmin } from '../components/admin/SupportAdmin';
 import { useCompanyName } from '../lib/useCompanyName';
 import { AuditLogsView } from '../components/admin/AuditLogsView';
+import { TransfersMonitor } from '../components/admin/TransfersMonitor';
 import { SettingsView } from '../components/admin/SettingsView';
 import { LetterManagementAdminView } from '../components/admin/LetterManagementAdminView';
 import { Stamp, Trash2 } from 'lucide-react';
@@ -540,147 +541,20 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-[#EBDBCE] overflow-hidden shadow-xs">
-                <table className="w-full text-right text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-[#FAF5F1] text-[11px] font-bold text-[#8C6F66] uppercase border-b border-[#EBDBCE]">
-                      <th className="py-3 px-4">شناسه و سند</th>
-                      <th className="py-3 px-4">فرستنده</th>
-                      <th className="py-3 px-4">گیرنده</th>
-                      <th className="py-3 px-4">حجم</th>
-                      <th className="py-3 px-4">تاریخ ارسال</th>
-                      <th className="py-3 px-4">دریافت / دانلود</th>
-                      <th className="py-3 px-4">روی سرور</th>
-                      <th className="py-3 px-4">وضعیت</th>
-                      <th className="py-3 px-4">مدیریت فایل</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#EBDBCE]/60 font-medium text-[#3A241F]">
-                    {filteredTransfers.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="py-12 text-center text-[#8C6F66]">
-                          هیچ رکوردی برای تبادل فایل یافت نشد.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredTransfers.map((t) => (
-                        <tr key={t.id} className="hover:bg-[#FAF5F1] transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-[#3A241F] flex items-center gap-1.5 flex-wrap">
-                              <span>{t.fileName}</span>
-                              {t.isOfficialLetter && (
-                                <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-1.5 py-0.2 rounded-md border border-amber-300">
-                                  نامه رسمی
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-[#8C6F66] font-mono">{t.id}</div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-[#3A241F]">{t.sender.fullName}</div>
-                            <div className="text-[10px] text-[#8C6F66]">{t.sender.departmentName}</div>
-                          </td>
-                          <td className="py-3 px-4">
-                            {t.recipients.map((r) => (
-                              <div key={r.id} className="text-xs">
-                                <span className="font-bold">{r.fullName}</span>
-                                <span className="text-[10px] text-[#8C6F66] mr-1">({r.departmentName})</span>
-                              </div>
-                            ))}
-                          </td>
-                          <td className="py-3 px-4 font-black text-[#3A241F]">{t.fileSize}</td>
-                          <td className="py-3 px-4 font-mono text-[11px] text-[#8C6F66]">{toPersianDigits(t.sentAt)}</td>
-                          <td className="py-3 px-4 font-bold">
-                            {t.isOfficialLetter ? (
-                              <span className="text-[#6E1B1B]">{toPersianDigits(t.downloadsCount)} بار</span>
-                            ) : t.downloadsCount > 0 ? (
-                              <span className="text-emerald-700">دریافت شد · {toPersianDigits(t.downloadsCount)} بار دانلود</span>
-                            ) : (
-                              <span className="text-amber-700">هنوز دانلود نشده</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-[11px] font-bold">
-                            {t.isOfficialLetter ? (
-                              <span className="text-[#8C6F66]">—</span>
-                            ) : t.fileDeletedAt ? (
-                              <span className="text-rose-700">حذف شد</span>
-                            ) : fileSizes && fileSizes[t.id] != null ? (
-                              <span className="text-emerald-700">ذخیره است · {toPersianDigits(Math.max(1, Math.round(fileSizes[t.id] / 1024)))} KB{t.keepForever ? ' · نگه‌دار' : ''}</span>
-                            ) : (
-                              <span className="text-[#8C6F66]">فقط نزد فرستنده</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4">
-                            {t.isOfficialLetter ? (
-                              t.signatureStatus === 'SIGNED' ? (
-                                <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full text-[10px] font-black">
-                                  امضا شده توسط {t.signedBy}
-                                </span>
-                              ) : t.signatureStatus === 'REJECTED' ? (
-                                <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-0.5 rounded-full text-[10px] font-black">
-                                  رد شده توسط مدیر
-                                </span>
-                              ) : (
-                                <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-full text-[10px] font-black">
-                                  در انتظار امضا
-                                </span>
-                              )
-                            ) : t.fileDeletedAt ? (
-                              <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-0.5 rounded-full text-[10px] font-black leading-5 inline-block">
-                                این فایل توسط مدیر کل سیستم حذف شد
-                                {t.fileDeletedByName ? ` (${t.fileDeletedByName})` : ' (سیاست نگهداری)'}
-                              </span>
-                            ) : (
-                              <span className="bg-[#F6D9CD] text-[#6E1B1B] border border-[#C98B6A]/30 px-2.5 py-0.5 rounded-full text-[10px] font-black">
-                                تحویل داده شده
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4">
-                            {t.isOfficialLetter && t.signatureStatus === 'SIGNED' ? (
-                              <span className="text-[10px] font-bold text-[#8C6F66]" title="نامهٔ امضاشده قابل حذف نیست">محافظت‌شده</span>
-                            ) : (
-                              <div className="flex flex-col gap-1.5 items-start">
-                                {!t.isOfficialLetter && !t.fileDeletedAt && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={async () => {
-                                        if (!(await askConfirm(`فایل «${t.fileName}» از سرور حذف شود؟ سابقهٔ ارسال و دانلود می‌ماند و برای کاربران می‌نویسد «توسط مدیر کل سیستم حذف شد».`))) return;
-                                        try { await api.adminFilePurge(t.id); showToast('فایل از سرور حذف شد؛ سابقه نگه داشته شد.'); await reloadState(); loadFileSizes(); } catch (e) { showToast(e instanceof Error ? e.message : 'حذف نشد.'); }
-                                      }}
-                                      className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black cursor-pointer"
-                                    >
-                                      حذف فایل از سرور
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={async () => { try { await api.adminFileKeep(t.id, !t.keepForever); await reloadState(); } catch (e) { showToast(e instanceof Error ? e.message : 'انجام نشد.'); } }}
-                                      className={`px-2.5 py-1 rounded-lg border text-[10px] font-black cursor-pointer ${t.keepForever ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}
-                                    >
-                                      {t.keepForever ? '✓ همیشه بماند' : 'همیشه بماند'}
-                                    </button>
-                                  </>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    if (await askConfirm(`رکورد «${t.fileName}» (با تاریخچه) برای همیشه پاک شود؟ قابل بازگشت نیست.`, { title: 'پاک‌کردن کامل رکورد؟', confirmText: 'بله، برای همیشه پاک شود' })) handleAdminDeleteTransfer(t.id);
-                                  }}
-                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                  title="پاک کردن کامل رکورد و تاریخچه"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <TransfersMonitor
+                transfers={filteredTransfers}
+                fileSizes={fileSizes}
+                onPurge={async (t) => {
+                  if (!(await askConfirm(`فایل «${t.fileName}» از سرور حذف شود؟ سابقهٔ ارسال و دانلود می‌ماند و برای کاربران می‌نویسد «توسط مدیر کل سیستم حذف شد».`))) return;
+                  try { await api.adminFilePurge(t.id); showToast('فایل از سرور حذف شد؛ سابقه نگه داشته شد.'); await reloadState(); loadFileSizes(); } catch (e) { showToast(e instanceof Error ? e.message : 'حذف نشد.'); }
+                }}
+                onKeep={async (t) => {
+                  try { await api.adminFileKeep(t.id, !t.keepForever); await reloadState(); } catch (e) { showToast(e instanceof Error ? e.message : 'انجام نشد.'); }
+                }}
+                onDelete={async (t) => {
+                  if (await askConfirm(`رکورد «${t.fileName}» (با تاریخچه) برای همیشه پاک شود؟ قابل بازگشت نیست.`, { title: 'پاک‌کردن کامل رکورد؟', confirmText: 'بله، برای همیشه پاک شود' })) handleAdminDeleteTransfer(t.id);
+                }}
+              />
             </div>
           )}
 
