@@ -1,10 +1,10 @@
 /**
- * Ready-made letterheads («سربرگ رسمی با آرم»): 25 designs x 40 colour sets = 1000 templates, and the person's own uploaded design. Each one is a thin decoration drawn at the top and the
+ * Ready-made letterheads («سربرگ رسمی با آرم»): 25 designs x 400 colour sets = 10000 templates, and the person's own uploaded design. Each one is a thin decoration drawn at the top and the
  * bottom of the sheet (an SVG, so it prints sharp), and the letter can carry the address and the phone number in its footer.
  * The same markup is used by the editor, the preview and the printed page, so the three always look alike.
  */
 export interface LetterheadChoice {
-  /** 1..1000, or 0 when the person uploaded their own design (then `image` holds it) */
+  /** 1..10000, or 0 when the person uploaded their own design (then `image` holds it) */
   id: number;
   /** the person's own letterhead design, as a data URL (picture), drawn as the background of the whole sheet */
   image?: string;
@@ -12,6 +12,9 @@ export interface LetterheadChoice {
   showPhone: boolean;
   address: string;
   phone: string;
+  /** the web address of the company, printed in the footer line when ticked */
+  showWebsite?: boolean;
+  website?: string;
   /** where the person dragged the address / phone line */
   offsetX?: number;
   offsetY?: number;
@@ -68,6 +71,17 @@ const PALETTES: Palette[] = [
 ];
 
 export const LETTERHEAD_DESIGNS = ['خطوط ساده', 'نوار رنگی', 'موج', 'گوشهٔ هندسی', 'قاب گوشه‌ای', 'گرادیان', 'کمان', 'الماس', 'پله‌ای', 'دایره‌ای', 'خط و گوی', 'تیغه‌ها', 'نقطه‌چین', 'موج ظریف', 'مثلث‌های پشت‌سرهم', 'ستارهٔ هشت‌پر', 'نوار توخالی', 'کادر گوشه‌بریده', 'ردیف دایره‌ها', 'طاق‌ها', 'بلوک‌های رنگی', 'تیغهٔ مایل', 'کنگره‌ای', 'اسلیمی ساده', 'دو نقطه'];
+// 360 more colour sets, made from 24 main hues and 15 partner hues: 40 hand-picked + 360 = 400 sets, so 25 designs give 10000 templates
+const HUE_NAMES: [number, string][] = [[15, 'قرمز'], [40, 'نارنجی'], [65, 'زرد'], [95, 'لیمویی'], [150, 'سبز'], [175, 'زمردی'], [200, 'فیروزه‌ای'], [235, 'آبی'], [265, 'نیلی'], [290, 'بنفش'], [330, 'ارغوانی'], [346, 'صورتی'], [361, 'قرمز']];
+const hueName = (h: number) => HUE_NAMES.find(([m]) => h < m)![1];
+const hsl = (h: number, s: number, l: number) => `hsl(${Math.round(h) % 360} ${s}% ${l}%)`;
+const PARTNER = [180, 150, 210, 30, 60, 120, 240, 90, 300, 330, 20, 270, 45, 195, 165];
+for (let i = 0; i < 360; i++) {
+  const h1 = (i % 24) * 15;
+  const h2 = (h1 + PARTNER[Math.floor(i / 24)] + 360) % 360;
+  PALETTES.push({ name: `${hueName(h1)} و ${hueName(h2)} ${i + 1}`.replace(/\d+$/, (d) => String(d).replace(/\d/g, (x) => '۰۱۲۳۴۵۶۷۸۹'[Number(x)])), c1: hsl(h1, 62 + (i % 3) * 6, 26 + (i % 4) * 3), c2: hsl(h2, 70, 48 + (i % 2) * 6), c3: hsl(h1, 55, 92) });
+}
+
 export const LETTERHEAD_PALETTES = PALETTES.map((p) => p.name);
 
 export interface LetterheadDef {
@@ -85,7 +99,7 @@ export const LETTERHEADS: LetterheadDef[] = Array.from({ length: LETTERHEAD_DESI
   name: `${LETTERHEAD_DESIGNS[Math.floor(i / PER)]} ${PALETTES[i % PER].name}`,
 }));
 
-export const letterheadById = (id: number) => LETTERHEADS.find((l) => l.id === id) || LETTERHEADS[0];
+export const letterheadById = (id: number) => LETTERHEADS[id - 1] || LETTERHEADS[0];
 /** colour of the address / phone line: the template's main colour, dark brown for the person's own design */
 export const letterheadColor = (id: number) => (id === 0 ? '#3A241F' : PALETTES[letterheadById(id).palette].c1);
 
@@ -180,5 +194,6 @@ export function letterheadFooterText(c: LetterheadChoice): string {
   const parts: string[] = [];
   if (c.showAddress && c.address.trim()) parts.push(`نشانی: ${c.address.trim()}`);
   if (c.showPhone && c.phone.trim()) parts.push(`تلفن: ⁦${c.phone.trim().replace(/[‐-―−]/g, '-')}⁩`);
+  if (c.showWebsite && c.website?.trim()) parts.push(`وب‌سایت: ⁦${c.website.trim()}⁩`);
   return parts.join('  •  ');
 }

@@ -266,8 +266,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [pageSize, setPageSize] = useState<PaperSize>(() => (['A4', 'A5', 'Letter', 'Letterhead'].includes(prefs.pageSize) ? prefs.pageSize : 'A4'));
   const demoInfo = useDemoInfo();
   const lhEnabled = !!demoInfo?.demo;
+  const lhPaper = lhEnabled && (pageSize === 'Letterhead' || pageSize === 'A4' || pageSize === 'A5'); // the letterheads fit the official letterhead sheet and A4 / A5 paper
   const [lhOpen, setLhOpen] = useState(false);
-  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true, lhEnabled && pageSize === 'Letterhead' && lhOpen ? 360 : 0);
+  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true, lhPaper && lhOpen ? 360 : 0);
   const zoom = fitZ.zoom;
   // wide screens: the toolbars sit in a column on each side of the paper
   const side = fitZ.vw >= 1100;
@@ -647,7 +648,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       showOrgName: showOrgName ? undefined : false,
       showSubject: showSubject ? undefined : false,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
-      letterhead: lhEnabled && pageSize === 'Letterhead' && lh ? lh : undefined,
+      letterhead: lhPaper && lh ? lh : undefined,
       bodyOffsetX,
       bodyOffsetY,
       orgOffsetX: orgOffset.x,
@@ -715,9 +716,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
         {/* Body: on wide screens the two toolbars become side columns so the top stays open */}
         <div className={side ? 'flex flex-1 min-h-0' : 'contents'}>
-        {lhEnabled && pageSize === 'Letterhead' && lhOpen && (
+        {lhPaper && lhOpen && (
           <div className={side ? 'order-first w-[360px] shrink-0 border-l border-[#EBDBCE] min-h-0' : 'fixed inset-y-0 right-0 z-[60] w-[min(380px,94vw)] shadow-2xl border-l border-[#EBDBCE]'}>
-            <LetterheadPanel value={lh} onChange={setLh} defaults={{ address: settings.companyAddress || '', phone: settings.companyPhone || '' }} onClose={() => setLhOpen(false)} />
+            <LetterheadPanel value={lh} onChange={setLh} defaults={{ address: settings.companyAddress || '', phone: settings.companyPhone || '', website: settings.companyWebsite || '' }} onClose={() => setLhOpen(false)} />
           </div>
         )}
         {/* Action / Settings Toolbar Bar */}
@@ -802,9 +803,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             </div>
           </div>
 
-          {lhEnabled && pageSize === 'Letterhead' && (
+          {lhPaper && (
             <button type="button" onClick={() => setLhOpen((v) => !v)} className="px-2.5 py-1.5 rounded-xl border border-amber-400 bg-amber-50 hover:bg-amber-100 text-[11px] font-black text-amber-900 cursor-pointer shrink-0" data-letterhead-toggle>
-              {lhOpen ? 'بستن قالب‌های سربرگ' : `قالب‌های سربرگ (${lh ? 'قالب ' + lh.id : '۱۰۰ قالب'})`}
+              {lhOpen ? 'بستن قالب‌های سربرگ' : `قالب‌های سربرگ (${lh ? 'قالب ' + lh.id : '۱۰۰۰۰ قالب'})`}
             </button>
           )}
 
@@ -885,10 +886,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           <ScaledPaper enabled={fitZ.isPhone || fitZ.zoom !== 1} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
             ref={paperSheetRef}
-            style={{ fontFamily: selectedFontFamily, ...(lhEnabled && pageSize === 'Letterhead' && lh && !lh.image ? { paddingTop: 56, paddingBottom: 54 } : {}), ...(lhEnabled && pageSize === 'Letterhead' ? letterheadBackground(lh) : {}) }}
+            style={{ fontFamily: selectedFontFamily, ...(lhPaper && lh && !lh.image ? { paddingTop: 56, paddingBottom: 54 } : {}), ...(lhPaper ? letterheadBackground(lh) : {}) }}
             className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 w-full transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
           >
-            {lhEnabled && pageSize === 'Letterhead' && lh && !lh.image && (
+            {lhPaper && lh && !lh.image && (
               <>
                 <div className="absolute inset-x-0 top-0 pointer-events-none rounded-t-xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(lh.id, 'top') }} />
                 <div className="absolute inset-x-0 bottom-0 pointer-events-none rounded-b-xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(lh.id, 'bottom') }} />
@@ -1222,7 +1223,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             </div>
 
             {/* The address and the phone of the chosen letterhead: dragged like every other part of the header */}
-            {lhEnabled && pageSize === 'Letterhead' && lh && letterheadFooterText(lh) && (
+            {lhPaper && lh && letterheadFooterText(lh) && (
               <MoveBox offset={{ x: lh.offsetX || 0, y: lh.offsetY || 0 }} onChange={(o) => setLh({ ...lh, offsetX: o.x, offsetY: o.y })} locked={layoutLocked} scale={zoom} className="mt-4 text-center text-[10.5px] font-bold leading-6 px-2">
                 <span style={{ color: letterheadColor(lh.id) }}>{toPersianDigits(letterheadFooterText(lh))}</span>
               </MoveBox>

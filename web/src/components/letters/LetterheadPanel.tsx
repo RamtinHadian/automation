@@ -57,7 +57,7 @@ function readDesign(file: File): Promise<string> {
 export const LetterheadPanel: React.FC<{
   value: LetterheadChoice | null;
   onChange: (v: LetterheadChoice | null) => void;
-  defaults: { address: string; phone: string };
+  defaults: { address: string; phone: string; website: string };
   onClose: () => void;
 }> = ({ value, onChange, defaults, onClose }) => {
   const { showToast } = useAppContext();
@@ -78,6 +78,8 @@ export const LetterheadPanel: React.FC<{
     showPhone: value?.showPhone ?? !!defaults.phone,
     address: value?.address ?? defaults.address,
     phone: value?.phone ?? defaults.phone,
+    showWebsite: value?.showWebsite ?? !!defaults.website,
+    website: value?.website ?? defaults.website,
     offsetX: value?.offsetX,
     offsetY: value?.offsetY,
   });
@@ -149,7 +151,7 @@ export const LetterheadPanel: React.FC<{
 
         {/* the address and the phone in the footer */}
         <div className="px-4 py-3 border-b border-[#EBDBCE] space-y-2.5 bg-[#FAF5F1]">
-          <div className="text-[11px] font-black text-[#3A241F]">نشانی و تلفن در پایین نامه</div>
+          <div className="text-[11px] font-black text-[#3A241F]">نشانی، تلفن و سایت در پایین نامه</div>
           <label className="flex items-center gap-2 text-[11px] font-bold text-[#3A241F] cursor-pointer">
             <input type="checkbox" disabled={!value} checked={!!value?.showAddress} onChange={(e) => patch({ showAddress: e.target.checked })} className="accent-amber-600" />
             نمایش نشانی
@@ -160,6 +162,11 @@ export const LetterheadPanel: React.FC<{
             نمایش تلفن
           </label>
           <input className={field} disabled={!value} value={value?.phone ?? defaults.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="شمارهٔ تلفن" />
+          <label className="flex items-center gap-2 text-[11px] font-bold text-[#3A241F] cursor-pointer">
+            <input type="checkbox" disabled={!value} checked={!!value?.showWebsite} onChange={(e) => patch({ showWebsite: e.target.checked })} className="accent-amber-600" />
+            نمایش آدرس سایت
+          </label>
+          <input dir="ltr" className={`${field} text-left`} disabled={!value} value={value?.website ?? defaults.website} onChange={(e) => patch({ website: e.target.value })} placeholder="www.example.com" />
           <p className="text-[10px] text-[#8C6F66] leading-5">این خط روی نامه با ماوس یا انگشت جابه‌جا می‌شود، مثل بقیهٔ بخش‌های سربرگ. مقدار پیش‌فرض از اطلاعات شرکت در تنظیمات می‌آید.</p>
         </div>
 
