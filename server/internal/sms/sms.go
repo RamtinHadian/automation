@@ -297,12 +297,20 @@ func ForNotification(userID, label, title, body string) {
 		if !match {
 			return
 		}
+		// from here on the admin asked for this SMS: whatever stops it is written in the SMS log so it is never silent
 		var raw []byte
 		if store.Pool.QueryRow(ctx, `SELECT data FROM users WHERE id = $1`, userID).Scan(&raw) != nil {
 			return
 		}
-		mobile, ok := Mobile(jsonx.Str(jsonx.Decode(raw), "mobile"))
+		u := jsonx.Decode(raw)
+		name := jsonx.Str(u, "fullName")
+		mobile, ok := Mobile(jsonx.Str(u, "mobile"))
 		if !ok {
+			why := "برای این کاربر شمارهٔ موبایل ثبت نشده است؛ در «کاربران» شمارهٔ او را وارد کنید."
+			if jsonx.Str(u, "mobile") != "" {
+				why = "شمارهٔ موبایل ثبت‌شدهٔ این کاربر معتبر نیست (باید مثل 09123456789 باشد)."
+			}
+			Log(ctx, "system", name, "(پیامک «"+label+"» ارسال نشد) "+title, "skipped", why)
 			return
 		}
 		text := "هورمند: " + title

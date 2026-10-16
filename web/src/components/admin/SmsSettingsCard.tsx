@@ -245,7 +245,7 @@ export const SmsSettingsCard: React.FC = () => {
           ) : (
             log.map((l, i) => (
               <div key={i} className="px-3 py-2 flex gap-3">
-                <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${l.status === 'ok' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${l.status === 'ok' ? 'bg-emerald-500' : l.status === 'skipped' ? 'bg-amber-500' : 'bg-rose-500'}`} />
                 <span className="flex-1 min-w-0">
                   <span className="block font-bold text-[#3A241F] truncate">{l.text}</span>
                   <span className="block text-[10px] text-[#8C6F66]">
