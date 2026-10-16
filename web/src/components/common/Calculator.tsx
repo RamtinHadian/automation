@@ -36,9 +36,29 @@ const show = (raw: string) => {
 
 const fmt = (n: number) => {
   if (!isFinite(n)) return 'خطا';
-  let s = String(+n.toPrecision(12));
+  let s = String(+n.toPrecision(15));
   if (/e/i.test(s)) s = n.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 8 });
   return s;
+};
+
+/** 5200000 -> «۵ میلیون و ۲۰۰ هزار»: the size of the number in the units people say (up to همت = ۱ هزار میلیارد and beyond). */
+const FADIG = '۰۱۲۳۴۵۶۷۸۹';
+const faDigits = (x: number) => String(x).replace(/\d/g, (d) => FADIG[Number(d)]);
+const words = (raw: string): string => {
+  const n = Math.abs(Math.trunc(parseFloat(raw)));
+  if (!isFinite(n) || n < 1000) return '';
+  const units: [number, string][] = [[1e12, 'همت'], [1e9, 'میلیارد'], [1e6, 'میلیون'], [1e3, 'هزار']];
+  let rest = n;
+  const out: string[] = [];
+  for (const [u, name] of units) {
+    const q = Math.floor(rest / u);
+    if (q > 0) {
+      out.push(`${faDigits(q)} ${name}`);
+      rest -= q * u;
+    }
+  }
+  if (rest > 0 && out.length < 3) out.push(faDigits(rest));
+  return (raw.startsWith('-') ? 'منفی ' : '') + out.join(' و ') + (n >= 1e12 ? '' : '');
 };
 
 type Tok = number | '+' | '-' | '×' | '÷';
@@ -100,7 +120,7 @@ export const CalculatorHost: React.FC = () => {
       return;
     }
     if (d === '.') return !cur.includes('.') && setCur(cur + '.');
-    if (cur.replace(/[-.]/g, '').length >= 14) return;
+    if (cur.replace(/[-.]/g, '').length >= 15) return;
     setCur(cur === '0' ? d : cur === '-0' ? '-' + d : cur + d);
   };
   const op = (o: '+' | '-' | '×' | '÷') => {
@@ -226,11 +246,12 @@ export const CalculatorHost: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="h-[110px] px-3 flex flex-col justify-end items-end overflow-hidden" dir="ltr">
+        <div className="h-[124px] px-3 flex flex-col justify-end items-end overflow-hidden" dir="ltr">
           <div className="text-[15px] text-white/55 h-6 truncate max-w-full" dir="ltr">{expr}</div>
-          <div className="font-light leading-none truncate max-w-full" style={{ fontSize: cur.length > 11 ? 34 : cur.length > 8 ? 44 : 56 }} dir="ltr" data-calc-display>
+          <div className="font-light leading-none truncate max-w-full" style={{ fontSize: show(cur).length > 17 ? 26 : show(cur).length > 14 ? 31 : show(cur).length > 11 ? 38 : show(cur).length > 8 ? 46 : 56 }} dir="ltr" data-calc-display>
             {show(cur)}
           </div>
+          <div className="text-[12px] text-orange-300/90 h-4 truncate max-w-full mt-1" dir="rtl" data-calc-words>{words(cur)}</div>
         </div>
       )}
 
