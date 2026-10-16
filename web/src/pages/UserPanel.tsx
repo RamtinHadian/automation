@@ -577,6 +577,10 @@ export default function UserPanel() {
     signatureImgOffsetY?: number;
     stampHeight?: number;
     logoSize?: number;
+    logoOffsetX?: number;
+    logoOffsetY?: number;
+    orgTextOffsetX?: number;
+    orgTextOffsetY?: number;
     orgTextScale?: number;
     stampOffsetX?: number;
     stampOffsetY?: number;
@@ -676,6 +680,10 @@ export default function UserPanel() {
       signatureImgOffsetY: letterData.signatureImgOffsetY,
       stampHeight: letterData.stampHeight,
       logoSize: letterData.logoSize,
+      logoOffsetX: letterData.logoOffsetX,
+      logoOffsetY: letterData.logoOffsetY,
+      orgTextOffsetX: letterData.orgTextOffsetX,
+      orgTextOffsetY: letterData.orgTextOffsetY,
       orgTextScale: letterData.orgTextScale,
       stampOffsetX: letterData.stampOffsetX,
       stampOffsetY: letterData.stampOffsetY,

@@ -1647,11 +1647,12 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             <div className={`pb-2 ${pageSize === 'A5' ? 'mb-2 space-y-2' : 'mb-4 space-y-3'} shrink-0`}>
               <div className="relative flex items-start justify-between min-h-[50px]">
                 {/* Right: Company Info & Emblem */}
-                <div style={{ transform: `translate(${orgOffset.x}px, ${orgOffset.y}px)` }} className={`space-y-0.5 min-w-0 ${(letter.orgTextScale || 1) > 1.2 ? 'max-w-[55%]' : pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
+                <div style={{ transform: `translate(${orgOffset.x}px, ${orgOffset.y}px)` }} className={`space-y-0.5 min-w-0 ${(letter.orgTextScale || 1) > 1.2 ? 'max-w-[60%]' : 'max-w-[50%]'}`}>
                   <div className="flex items-center gap-2">
                     {settings.companyLogoUrl && showLogo ? (
                       <div
                         style={{
+                          transform: `translate(${letter.logoOffsetX || 0}px, ${letter.logoOffsetY || 0}px)`,
                           width: `${logoPx}px`,
                           height: `${logoPx}px`,
                           maxHeight: `${logoPx}px`,
@@ -1665,7 +1666,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         />
                       </div>
                     ) : null}
-                    <div className={`flex-1 min-w-0 ${showOrgName ? '' : 'hidden'}`}>
+                    <div style={{ transform: `translate(${letter.orgTextOffsetX || 0}px, ${letter.orgTextOffsetY || 0}px)` }} className={`flex-1 min-w-0 ${showOrgName ? '' : 'hidden'}`}>
                       {isEditable ? (
                         <>
                           <input

@@ -87,6 +87,10 @@ interface LetterEditorModalProps {
     stampHeight?: number;
     logoSize?: number;
     orgTextScale?: number;
+    logoOffsetX?: number;
+    logoOffsetY?: number;
+    orgTextOffsetX?: number;
+    orgTextOffsetY?: number;
     stampOffsetX?: number;
     stampOffsetY?: number;
     showSignatureImage?: boolean;
@@ -205,6 +209,8 @@ function parseLetterForEdit(t: FileTransfer) {
   if (t.stampHeight) layout.stampHeightOverride = t.stampHeight;
   if (t.logoSize) layout.logoSize = t.logoSize;
   if (t.orgTextScale) layout.orgTextScale = t.orgTextScale;
+  layout.logoOffset = pt(t.logoOffsetX, t.logoOffsetY);
+  layout.orgTextOffset = pt(t.orgTextOffsetX, t.orgTextOffsetY);
   layout.stampOffset = pt(t.stampOffsetX, t.stampOffsetY);
   layout.orgOffset = pt(t.orgOffsetX, t.orgOffsetY);
   if (t.bodyOffsetY) layout.bodyOffsetY = t.bodyOffsetY;
@@ -326,6 +332,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   // the logo and the organisation text are resized by their corner dot, like the signature
   const [logoSize, setLogoSize] = useState<number>(() => numPref(prefs.logoSize, settings.companyLogoWidth || 70));
   const [orgTextScale, setOrgTextScale] = useState<number>(() => numPref(prefs.orgTextScale, 1));
+  // the logo and the organisation text can also be moved separately (inside the organisation block)
+  const [logoOffset, setLogoOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.logoOffset));
+  const [orgTextOffset, setOrgTextOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.orgTextOffset));
   const resizeStart = useRef({ logo: 0, text: 1 });
   // Once everything is where it should be, the layout can be locked so a stray touch moves nothing.
   const [layoutLocked, setLayoutLocked] = useState<boolean>(() => prefs.layoutLocked === true);
@@ -334,7 +343,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
     selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
-    orgOffset, bodyOffsetY, layoutLocked, letterhead: lh, logoSize, orgTextScale,
+    orgOffset, bodyOffsetY, layoutLocked, letterhead: lh, logoSize, orgTextScale, logoOffset, orgTextOffset,
     showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo, showOrgName, showSubject,
     // the ticks of the header (number, date, attachment, logo, name) are part of the layout: what was saved is what the next letter starts with
     showLetterNumber: showNo, showLetterDate: showDate, showLetterAttachment: showAtt,
@@ -389,6 +398,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setLh((base.letterhead as LetterheadChoice | undefined) || null);
     setLogoSize(numPref(base.logoSize, settings.companyLogoWidth || 70));
     setOrgTextScale(numPref(base.orgTextScale, 1));
+    setLogoOffset(pt(base.logoOffset));
+    setOrgTextOffset(pt(base.orgTextOffset));
     setShowSigImg(base.showSignatureImage !== false);
     setShowStampImg(base.showStampImage !== false);
     setShowNo(base.showLetterNumber !== false);
@@ -648,6 +659,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       stampHeight: stampHeightOverride ?? undefined,
       logoSize,
       orgTextScale: orgTextScale !== 1 ? orgTextScale : undefined,
+      logoOffsetX: logoOffset.x,
+      logoOffsetY: logoOffset.y,
+      orgTextOffsetX: orgTextOffset.x,
+      orgTextOffsetY: orgTextOffset.y,
       stampOffsetX: stampOffset.x,
       stampOffsetY: stampOffset.y,
       showSignatureImage: showSigImg ? undefined : false,
@@ -910,10 +925,14 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             <div className="pb-2 mb-4 space-y-3 shrink-0">
               <div className="relative flex items-start justify-between">
                 {/* Right: Company Info & Dynamic Logo */}
-                <MoveBox offset={orgOffset} onChange={setOrgOffset} locked={layoutLocked} scale={zoom} className={`space-y-1 min-w-0 ${orgTextScale > 1.2 ? 'max-w-[55%]' : pageSize === 'A5' ? 'max-w-[36%]' : 'max-w-[38%]'}`}>
+                <MoveBox offset={orgOffset} onChange={setOrgOffset} locked={layoutLocked} scale={zoom} className={`space-y-1 min-w-0 ${orgTextScale > 1.2 ? 'max-w-[60%]' : 'max-w-[50%]'}`}>
                   <div className="flex items-center gap-2.5">
                     {settings.companyLogoUrl && showLogo ? (
-                      <div
+                      <MoveBox
+                        offset={logoOffset}
+                        onChange={setLogoOffset}
+                        locked={layoutLocked}
+                        scale={zoom}
                         style={{
                           width: `${logoSize}px`,
                           height: `${logoSize}px`,
@@ -926,11 +945,12 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                           src={settings.companyLogoUrl}
                           alt="لوگو"
                           className="max-w-full max-h-full object-contain"
+                          draggable={false}
                         />
-                      </div>
+                      </MoveBox>
                     ) : null}
                     {(settings.companyName || settings.companySubtitle) && showOrgName && (
-                      <div className="relative">
+                      <MoveBox offset={orgTextOffset} onChange={setOrgTextOffset} locked={layoutLocked} scale={zoom} className="relative">
                         <ResizeDot title="برای بزرگ و کوچک کردن نوشته‌ها بکشید" scale={zoom} locked={layoutLocked} onStart={() => { resizeStart.current.text = orgTextScale; }} onGrow={(px) => setOrgTextScale(Math.max(0.6, Math.min(3, +(resizeStart.current.text + px / 80).toFixed(2))))} />
                         {settings.companyName && (
                           <h1 style={{ fontSize: `${14 * orgTextScale}px` }} className="font-black text-[#3A241F]">
@@ -942,7 +962,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                             {settings.companySubtitle}
                           </div>
                         )}
-                      </div>
+                      </MoveBox>
                     )}
                   </div>
                 </MoveBox>

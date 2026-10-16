@@ -481,6 +481,10 @@ export interface FileTransfer {
   signatureImgOffsetY?: number;
   stampHeight?: number; // اندازهٔ مهر (اگر خالی باشد متناسب با امضا)
   logoSize?: number; // اندازهٔ لوگو در سربرگ نامه (پیکسل)
+  logoOffsetX?: number;
+  logoOffsetY?: number;
+  orgTextOffsetX?: number;
+  orgTextOffsetY?: number;
   orgTextScale?: number; // ضریب اندازهٔ نام و عنوان سازمان در سربرگ نامه
   stampOffsetX?: number;
   stampOffsetY?: number;
