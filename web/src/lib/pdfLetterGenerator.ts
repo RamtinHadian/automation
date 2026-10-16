@@ -65,8 +65,9 @@ export function generateOfficialLetterHtml(
   const ceoTitle = settings.ceoTitle || 'مدیرعامل';
   // Image URLs (esp. inline SVG data URLs) can contain quotes; escape them for use inside src="..."
   const attr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-  const showSig = (overrides?.showSignatureImage ?? transfer.showSignatureImage) !== false;
-  const showStamp = (overrides?.showStampImage ?? transfer.showStampImage) !== false;
+  // before the signer signs there is no signature and no stamp on the letter: only what the signer chose (when signing) appears
+  const showSig = overrides?.showSignatureImage !== undefined ? overrides.showSignatureImage : isSigned && transfer.showSignatureImage !== false;
+  const showStamp = overrides?.showStampImage !== undefined ? overrides.showStampImage : isSigned && transfer.showStampImage !== false;
   const showNo = (overrides?.showLetterNumber ?? transfer.showLetterNumber) !== false;
   const showDate = (overrides?.showLetterDate ?? transfer.showLetterDate) !== false;
   const showAtt = (overrides?.showLetterAttachment ?? transfer.showLetterAttachment) !== false;

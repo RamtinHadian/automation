@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { hwheel } from '../../lib/hscroll';
+import { useAppContext } from '../../context/AppContext';
 import { DraggableImage } from './DraggableImage';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
@@ -468,6 +469,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   onDownload,
   onOpenEditor,
 }) => {
+  const { showToast } = useAppContext();
   const allFonts = [...DEFAULT_FONTS, ...(settings?.customFonts || [])];
   const chosenFont = allFonts.find((f) => f.id === settings?.defaultLetterFontId) || DEFAULT_FONTS[0] || { fontFamily: 'Vazirmatn', name: 'وزیرمتن' };
   const canSign = currentUser?.canSignOfficialLetters === true;
@@ -576,8 +578,11 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setSigImgOffset({ x: letter.signatureImgOffsetX || 0, y: letter.signatureImgOffsetY || 0 });
       setStampOffset({ x: letter.stampOffsetX || 0, y: letter.stampOffsetY || 0 });
       setStampHeightOverride(letter.stampHeight ?? null);
-      setShowSig(letter.showSignatureImage !== false);
-      setShowStamp(letter.showStampImage !== false);
+      // an unsigned letter carries no signature and no stamp; the signer picks them below
+      const signedLetter = letter.signatureStatus === 'SIGNED';
+      setShowSig(signedLetter ? letter.showSignatureImage !== false : false);
+      setShowStamp(signedLetter ? letter.showStampImage !== false : false);
+      if (letter.signatureStatus === 'PENDING_SIGNATURE' && currentUser?.canSignOfficialLetters === true) setActionTab('SIGN');
       setShowNo(letter.showLetterNumber !== false);
       setShowDate(letter.showLetterDate !== false);
       setShowAtt(letter.showLetterAttachment !== false);
@@ -760,6 +765,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
   const handleConfirmSign = () => {
     if (!onSign) return;
+    if (!showSig && !showStamp) {
+      showToast('اول «امضا کردن» یا «مهر کردن» (یا هر دو) را بزنید تا روی نامه بنشیند.');
+      return;
+    }
     setIsSubmitting(true);
     onSign(letter.id, signComment.trim() || 'تایید و امضا شد', {
       pageSize,
@@ -1320,7 +1329,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 </label>
               </div>
 
-              <div className="flex items-center gap-4 font-bold text-[#3A241F] pt-1">
+              {canSign && <div className="flex items-center gap-4 font-bold text-[#3A241F] pt-1">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={showSig} onChange={(e) => setShowSig(e.target.checked)} className="accent-[#6E1B1B]" />
                   درج امضا
@@ -1329,7 +1338,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   <input type="checkbox" checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-[#6E1B1B]" />
                   درج مهر
                 </label>
-              </div>
+              </div>}
 
               <div className="space-y-1 pt-1">
                 <div className="flex items-center justify-between font-bold text-[#8C6F66]">
@@ -1385,6 +1394,41 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         {/* Expandable Action Box for Sign / Refer / Reject */}
         {actionTab === 'SIGN' && (
           <div className="bg-emerald-50 p-4 border-b border-emerald-200 flex flex-col gap-3 animate-in slide-in-from-top-2">
+            {/* The signer chooses what goes on the letter: pressing a tile puts it on the sheet, where it can be dragged and resized */}
+            <div className="rounded-3xl border-2 border-emerald-300 bg-white p-3 sm:p-4 shadow-sm space-y-3" data-sign-choice>
+              <div className="text-center">
+                <div className="font-black text-sm sm:text-base text-emerald-950">چه چیزی روی این نامه بنشیند؟</div>
+                <div className="text-[11px] text-emerald-800/80 mt-0.5">هر کدام را بزنید روی نامه می‌نشیند؛ با کشیدن جابه‌جایش کنید و با نقطهٔ نارنجی گوشه‌اش بزرگ و کوچک کنید. دوباره بزنید تا برداشته شود.</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { key: 'sig', on: showSig, toggle: () => setShowSig((v) => !v), title: 'امضا کردن', Icon: PenTool, have: !!(letter.signatureImageUrl || settings?.ceoSignatureUrl), hint: 'امضای شما', color: 'emerald' },
+                  { key: 'stamp', on: showStamp, toggle: () => setShowStamp((v) => !v), title: 'مهر کردن', Icon: Stamp, have: !!(letter.companyStampImageUrl || settings?.companyStampUrl), hint: 'مهر سازمان', color: 'indigo' },
+                ] as const).map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    disabled={!t.have}
+                    onClick={t.toggle}
+                    className={`relative rounded-2xl border-2 p-3 flex flex-row items-center justify-center gap-3 text-right transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
+                      t.on
+                        ? t.color === 'emerald' ? 'border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'border-indigo-600 bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                        : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-emerald-400 hover:bg-emerald-50'
+                    }`}
+                  >
+                    {t.on && <span className="absolute top-2 left-2 w-6 h-6 rounded-full bg-white/95 text-emerald-700 flex items-center justify-center"><Check className="w-4 h-4" /></span>}
+                    <t.Icon className={`w-8 h-8 sm:w-10 sm:h-10 shrink-0 ${t.on ? 'text-white' : 'text-emerald-700'}`} />
+                    <div className="min-w-0">
+                    <div className="font-black text-base sm:text-xl leading-tight">{t.title}</div>
+                    <div className={`text-[10px] sm:text-[11px] leading-5 ${t.on ? 'text-white/90' : 'text-slate-500'}`}>
+                      {!t.have ? `${t.hint} در تنظیمات سیستم بارگذاری نشده است` : t.on ? `${t.hint} روی نامه نشست؛ همان‌جا جابه‌جایش کنید` : `برای گذاشتن ${t.hint} روی نامه بزنید`}
+                    </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 w-full lg:w-auto flex-1 lg:min-w-[320px]">
                 <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -1403,19 +1447,6 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                     className="w-full px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   />
                 </div>
-              </div>
-
-              {/* The signer decides whether the signature and the stamp go on this letter */}
-              <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 font-bold whitespace-nowrap">
-                <span className="text-emerald-700">روی این نامه درج شود:</span>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={showSig} onChange={(e) => setShowSig(e.target.checked)} className="accent-emerald-600" />
-                  درج امضا
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={showStamp} onChange={(e) => setShowStamp(e.target.checked)} className="accent-emerald-600" />
-                  درج مهر
-                </label>
               </div>
 
               {/* Signature Size in Sign Banner */}
@@ -2113,13 +2144,6 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                           opacityClass={!isSigned ? 'opacity-85' : 'opacity-95'}
                         />
                       )}
-                    </div>
-                  )}
-
-                  {!signatureImg && !stampImg && !isSigned && !isRejected && (
-                    <div className="h-12 w-56 border border-amber-300 rounded-xl flex items-center justify-center text-xs text-amber-900 bg-amber-100/90 font-black shadow-2xs gap-1.5 select-none">
-                      <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-                      <span>این نامه هنوز امضا نشده است</span>
                     </div>
                   )}
 

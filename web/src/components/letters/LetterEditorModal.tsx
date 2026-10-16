@@ -1218,37 +1218,9 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                   className="w-full relative my-1"
                   style={{ height: `${signatureAreaHeight(pageSize === 'A5', pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight, effectiveStampHeight)}px` }}
                 >
-                  {settings.ceoSignatureUrl && showSigImg ? (
-                    <DraggableImage
-                      src={settings.ceoSignatureUrl}
-                      alt="امضا"
-                      height={pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight}
-                      offset={sigImgOffset}
-                      editable={!layoutLocked}
-                      onOffsetChange={setSigImgOffset}
-                      onHeightChange={setSignatureHeight}
-                      anchorLeft={SIGNATURE_ANCHOR_LEFT}
-                      scale={zoom}
-                      opacityClass="opacity-90"
-                    />
-                  ) : null}
-                  {settings.companyStampUrl && showStampImg ? (
-                    <DraggableImage
-                      src={settings.companyStampUrl}
-                      alt="مهر"
-                      height={effectiveStampHeight}
-                      offset={stampOffset}
-                      editable={!layoutLocked}
-                      onOffsetChange={setStampOffset}
-                      onHeightChange={setStampHeightOverride}
-                      anchorLeft={STAMP_ANCHOR_LEFT}
-                      scale={zoom}
-                      opacityClass="opacity-85"
-                    />
-                  ) : null}
-                  {!settings.ceoSignatureUrl && !settings.companyStampUrl && (
+                  {(
                     <div className="text-[8px] text-amber-700/60 font-bold border-t border-dashed border-amber-200/60 pt-0.5 w-full text-center">
-                      محل درج امضا و مهر رسمی
+                      محل امضا و مهر؛ مدیرعامل هنگام امضا انتخاب می‌کند و روی نامه می‌گذارد
                     </div>
                   )}
                 </div>
@@ -1527,16 +1499,6 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center gap-3 border-r border-amber-300/80 pr-2 mr-1 text-[10px] font-bold text-amber-950">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" checked={showSigImg} onChange={(e) => setShowSigImg(e.target.checked)} className="accent-amber-700" />
-                درج امضا
-              </label>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" checked={showStampImg} onChange={(e) => setShowStampImg(e.target.checked)} className="accent-amber-700" />
-                درج مهر
-              </label>
-            </div>
 
             <div className="flex items-center gap-3 border-r border-amber-300/80 pr-2 mr-1 text-[10px] font-bold text-amber-950">
               <span>نمایش عنوان در سربرگ:</span>
