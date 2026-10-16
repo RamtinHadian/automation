@@ -509,10 +509,10 @@ export function generateOfficialLetterHtml(
       </div>
     </div>
 
-    ${lh && lhFooter ? `<div style="margin-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
+    ${lh && lhFooter ? `<div style="margin-top: auto; padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
 
     ${showFooter ? `
-    <div class="footer">
+    <div class="footer"${lh && lhFooter ? ' style="margin-top: 0;"' : ''}>
       <div>${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
     </div>
     ` : ''}

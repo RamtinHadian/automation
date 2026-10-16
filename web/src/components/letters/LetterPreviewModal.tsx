@@ -2134,7 +2134,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             </div>
 
             {letter.letterhead && letterheadFooterText(letter.letterhead) && (
-              <div className="mt-4 text-center text-[10.5px] font-bold leading-6 px-2" style={{ color: letterheadColor(letter.letterhead.id), transform: `translate(${letter.letterhead.offsetX || 0}px, ${letter.letterhead.offsetY || 0}px)` }}>
+              <div className="mt-auto pt-4 text-center text-[10.5px] font-bold leading-6 px-2" style={{ color: letterheadColor(letter.letterhead.id), transform: `translate(${letter.letterhead.offsetX || 0}px, ${letter.letterhead.offsetY || 0}px)` }}>
                 {toPersianDigits(letterheadFooterText(letter.letterhead))}
               </div>
             )}

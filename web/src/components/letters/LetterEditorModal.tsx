@@ -1224,7 +1224,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
             {/* The address and the phone of the chosen letterhead: dragged like every other part of the header */}
             {lhPaper && lh && letterheadFooterText(lh) && (
-              <MoveBox offset={{ x: lh.offsetX || 0, y: lh.offsetY || 0 }} onChange={(o) => setLh({ ...lh, offsetX: o.x, offsetY: o.y })} locked={layoutLocked} scale={zoom} className="mt-4 text-center text-[10.5px] font-bold leading-6 px-2">
+              <MoveBox offset={{ x: lh.offsetX || 0, y: lh.offsetY || 0 }} onChange={(o) => setLh({ ...lh, offsetX: o.x, offsetY: o.y })} locked={layoutLocked} scale={zoom} className="mt-auto pt-4 text-center text-[10.5px] font-bold leading-6 px-2">
                 <span style={{ color: letterheadColor(lh.id) }}>{toPersianDigits(letterheadFooterText(lh))}</span>
               </MoveBox>
             )}
