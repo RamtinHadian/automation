@@ -1,11 +1,20 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Check, ImagePlus, Search, Trash2, X } from 'lucide-react';
+import { Check, ImagePlus, Star, Search, Trash2, X } from 'lucide-react';
 import { LETTERHEAD_DESIGN_COUNT, LETTERHEAD_DESIGNS, LETTERHEAD_PALETTES, LETTERHEAD_VARIANTS, LetterheadChoice, letterheadSvg, queryLetterheads, variantName, designName } from '../../lib/letterheads';
 import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 
 const PAGE = 60;
 const MINE_KEY = 'my_letterheads_v1';
+const FAV_KEY = 'fav_letterheads_v1';
+const loadFav = (): number[] => {
+  try {
+    const l = JSON.parse(localStorage.getItem(FAV_KEY) || '[]');
+    return Array.isArray(l) ? l.filter((x) => Number.isInteger(x) && x > 0).slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+};
 const loadMine = (): string[] => {
   try {
     const l = JSON.parse(localStorage.getItem(MINE_KEY) || '[]');
@@ -68,6 +77,20 @@ export const LetterheadPanel: React.FC<{
   const [limit, setLimit] = useState(PAGE);
   const [mine, setMine] = useState<string[]>(loadMine);
   const file = useRef<HTMLInputElement>(null);
+  const [fav, setFav] = useState<number[]>(loadFav);
+  const toggleFav = (id: number) => {
+    if (!fav.includes(id) && fav.length >= 3) {
+      showToast('حداکثر ۳ طرح را می‌شود ستاره‌دار کرد؛ اول ستارهٔ یکی را بردارید.');
+      return;
+    }
+    const next = fav.includes(id) ? fav.filter((x) => x !== id) : [...fav, id];
+    setFav(next);
+    try {
+      localStorage.setItem(FAV_KEY, JSON.stringify(next));
+    } catch {
+      /* the stars stay for this session only */
+    }
+  };
 
   const { total, items: list } = useMemo(() => {
     const n = Number(q.trim().replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))));
@@ -171,6 +194,32 @@ export const LetterheadPanel: React.FC<{
           <p className="text-[10px] text-[#8C6F66] leading-5">این خط روی نامه با ماوس یا انگشت جابه‌جا می‌شود، مثل بقیهٔ بخش‌های سربرگ. مقدار پیش‌فرض از اطلاعات شرکت در تنظیمات می‌آید.</p>
         </div>
 
+        {/* the starred ones: three templates for a quick pick */}
+        <div className="px-4 py-3 border-b border-[#EBDBCE] space-y-2">
+          <div className="text-[11px] font-black text-[#3A241F] flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />طرح‌های ستاره‌دار (انتخاب سریع)</div>
+          {fav.length === 0 ? (
+            <p className="text-[10px] text-[#8C6F66] leading-5">روی ستارهٔ گوشهٔ هر قالب بزنید تا تا ۳ طرح مورد علاقه‌تان اینجا بماند و بعداً با یک کلیک انتخابشان کنید.</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2.5">
+              {fav.map((id) => {
+                const on = !value?.image && value?.id === id;
+                return (
+                  <div key={id} className="relative">
+                    <button type="button" onClick={() => pick(id)} className={`block w-full rounded-md overflow-hidden border-2 cursor-pointer ${on ? 'border-amber-500' : 'border-[#E1D6CC] hover:border-amber-300'}`} style={{ aspectRatio: '210 / 297' }} title={`قالب ${toPersianDigits(id)}`}>
+                      <div className="relative w-full h-full bg-white">
+                        <div className="absolute inset-x-0 top-0" dangerouslySetInnerHTML={{ __html: letterheadSvg(id, 'top') }} />
+                        <div className="absolute inset-x-0 bottom-0" dangerouslySetInnerHTML={{ __html: letterheadSvg(id, 'bottom') }} />
+                      </div>
+                    </button>
+                    <button type="button" onClick={() => toggleFav(id)} className="absolute top-1 right-1 p-0.5 rounded-full bg-white/90 cursor-pointer" title="برداشتن ستاره"><Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" /></button>
+                    <div className="text-center text-[9.5px] font-black text-[#3A241F] mt-0.5">{toPersianDigits(id)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* filters */}
         <div className="px-4 py-3 border-b border-[#EBDBCE] space-y-2">
           <div className="relative">
@@ -209,6 +258,7 @@ export const LetterheadPanel: React.FC<{
                       {[100, 86, 94, 70, 90, 78, 60].map((w, i) => <div key={i} className="h-[2.5px] rounded bg-[#E7DFD8] mr-auto" style={{ width: `${w}%` }} />)}
                     </div>
                     {on && <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center"><Check className="w-3 h-3" /></span>}
+                    <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); toggleFav(l.id); }} onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); toggleFav(l.id); } }} className="absolute top-1 right-1 p-0.5 rounded-full bg-white/90 hover:bg-white" title={fav.includes(l.id) ? 'برداشتن ستاره' : 'ستاره‌دار کردن (انتخاب سریع)'}><Star className={`w-3.5 h-3.5 ${fav.includes(l.id) ? 'text-amber-500 fill-amber-400' : 'text-[#B8A39C]'}`} /></span>
                   </div>
                   <div className="mt-1 text-[9.5px] font-black text-[#3A241F] leading-4 truncate">{toPersianDigits(l.id)} · {designName(l.design)}</div>
                   <div className="text-[9px] font-bold text-[#8C6F66] leading-4 truncate">{LETTERHEAD_PALETTES[l.palette]}</div>

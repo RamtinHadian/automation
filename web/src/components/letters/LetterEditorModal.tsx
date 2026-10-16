@@ -266,7 +266,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [pageSize, setPageSize] = useState<PaperSize>(() => (['A4', 'A5', 'Letter', 'Letterhead'].includes(prefs.pageSize) ? prefs.pageSize : 'A4'));
   const demoInfo = useDemoInfo();
   const lhEnabled = !!demoInfo?.demo;
-  const lhPaper = lhEnabled && (pageSize === 'Letterhead' || pageSize === 'A4' || pageSize === 'A5'); // the letterheads fit the official letterhead sheet and A4 / A5 paper
+  const lhPaper = lhEnabled; // the letterheads fit every paper size
   const [lhOpen, setLhOpen] = useState(false);
   const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true, lhPaper && lhOpen ? 360 : 0);
   const zoom = fitZ.zoom;
