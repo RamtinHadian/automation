@@ -39,3 +39,12 @@ export const signatureAreaHeight = (isA5: boolean, signatureHeight: number, stam
  */
 export const stripBakedBodyLayout = (html: string): string =>
   html.replace(/padding-left:\s*[\d.]+px;\s*padding-right:\s*[\d.]+px;\s*transform:\s*translateX\(\s*-?[\d.]+px\s*\);?/i, '');
+
+/** Faint, slanted, repeated «این نامه هنوز امضا نشده است» over a whole unsigned letter: the letter stays readable, the draft status is clear. */
+export const UNSIGNED_WATERMARK = (() => {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="190">' +
+    '<text x="150" y="100" text-anchor="middle" font-family="Vazirmatn, Tahoma, Arial, sans-serif" font-size="19" font-weight="700" fill="#b45309" fill-opacity="0.13" transform="rotate(-24 150 95)">این نامه هنوز امضا نشده است</text>' +
+    '</svg>';
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+})();

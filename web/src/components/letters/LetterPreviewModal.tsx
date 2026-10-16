@@ -14,6 +14,7 @@ import {
   signatureAreaHeight,
   defaultStampHeight,
   stripBakedBodyLayout,
+  UNSIGNED_WATERMARK,
 } from '../../lib/letterDefaults';
 import { useAttachment } from '../../lib/useAttachment';
 import {
@@ -1643,6 +1644,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <div className="absolute inset-x-0 bottom-0 pointer-events-none rounded-b-2xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(letter.letterhead.id, 'bottom') }} />
               </>
             )}
+            {!isSigned && !isRejected && <div className="absolute inset-0 pointer-events-none z-20 rounded-2xl" style={{ backgroundImage: UNSIGNED_WATERMARK, backgroundRepeat: 'repeat' }} />}
             {/* Header Component */}
             <div className={`pb-2 ${pageSize === 'A5' ? 'mb-2 space-y-2' : 'mb-4 space-y-3'} shrink-0`}>
               <div className="relative flex items-start justify-between min-h-[50px]">
@@ -2110,16 +2112,6 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                           scale={zoom}
                           opacityClass={!isSigned ? 'opacity-85' : 'opacity-95'}
                         />
-                      )}
-
-                      {/* Prominent Overlay Label for Unsigned Draft Letters */}
-                      {!isSigned && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-                          <div className="bg-amber-600/95 backdrop-blur-xs text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-lg border border-amber-400/80 flex items-center gap-1.5 whitespace-nowrap">
-                            <AlertCircle className="w-4 h-4 text-amber-200 shrink-0" />
-                            <span>این نامه هنوز امضا نشده است</span>
-                          </div>
-                        </div>
                       )}
                     </div>
                   )}

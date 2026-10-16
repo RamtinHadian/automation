@@ -1,5 +1,5 @@
 import { FileTransfer, SystemSettings, User } from '../types';
-import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, stripBakedBodyLayout, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
+import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, stripBakedBodyLayout, UNSIGNED_WATERMARK, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
@@ -460,6 +460,7 @@ export function generateOfficialLetterHtml(
   </div>
 
   <div class="letter-container"${lh && !lh.image ? ' style="padding-top: ' + lhPadTop + '; padding-bottom: ' + lhPadBottom + ';"' : ''}${lh && lh.image ? ` style="background: url(${lh.image}) center / 100% 100% no-repeat;"` : ''}>
+    ${!isSigned ? `<div style="position: absolute; inset: 0; pointer-events: none; z-index: 5; background-image: ${UNSIGNED_WATERMARK.replace(/"/g, "'")}; background-repeat: repeat;"></div>` : ''}
     ${lh && !lh.image ? `<div class="lh-top">${letterheadSvg(lh.id, 'top')}</div><div class="lh-bottom">${letterheadSvg(lh.id, 'bottom')}</div>` : ''}
     <div class="header">
       <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);${orgScale > 1.2 ? ' max-width: 60%;' : ''}">
@@ -509,11 +510,6 @@ export function generateOfficialLetterHtml(
         <div class="stamp-container">
           ${signatureImg ? `<img src="${attr(signatureImg)}" alt="امضای مدیرعامل" class="signature-img" style="height: ${finalSigHeight}px; transform: translate(-50%, -50%) translate(${sigImgOffsetX}px, ${sigImgOffsetY}px);" />` : ''}
           ${stampImg ? `<img src="${attr(stampImg)}" alt="مهر شرکت" class="stamp-img" style="height: ${stampHeight}px; opacity: 0.9; transform: translate(-50%, -50%) translate(${stampOffsetX}px, ${stampOffsetY}px);" />` : ''}
-          ${!isSigned ? `
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #d97706; color: white; padding: 5px 14px; border-radius: 10px; font-weight: 900; font-size: 11px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 1.5px solid #fef3c7;">
-              ⚠️ این نامه هنوز امضا نشده است
-            </div>
-          ` : ''}
         </div>
       </div>
     </div>
