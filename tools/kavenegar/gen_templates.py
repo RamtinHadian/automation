@@ -73,7 +73,7 @@ MORE_CUSTOMER = [
     ('c_portal_welcome', 'خوش‌آمد به پورتال', 'به پورتال مشتریان خوش آمدید. اطلاعات پرونده و پیش‌فاکتورهای خود را آنجا ببینید.'),
 ]
 for key, label, text in MORE_CUSTOMER:
-    items.append((key, 'hm' + key.replace('_', ''), 'مشتری: ' + label, 'رویداد آینده', '{name} عزیز، ' + text + '\n{company}\n' + SIGN, True))
+    items.append((key, 'hm' + key.replace('_', ''), 'مشتری: ' + label, 'رویداد آینده', '{name} عزیز، ' + text + '\nاز طرف {company}\n' + SIGN, True))
 
 # More messages for the company's own staff
 MORE_STAFF = [
@@ -94,7 +94,7 @@ MORE_STAFF = [
     ('staff_security', 'هشدار امنیتی', 'هشدار امنیتی: {subject}. اگر شما نبودید، رمز عبور را عوض کنید.'),
 ]
 for key, label, text in MORE_STAFF:
-    items.append((key, 'hm' + key.replace('_', ''), 'همکاران: ' + label, 'رویداد آینده', '{name} عزیز، ' + text + '\n{company}\n' + SIGN, True))
+    items.append((key, 'hm' + key.replace('_', ''), 'همکاران: ' + label, 'رویداد آینده', '{name} عزیز، ' + text + '\nاز طرف {company}\n' + SIGN, True))
 
 names = [i[1] for i in items]
 assert len(set(names)) == len(names), 'template names must be unique'
