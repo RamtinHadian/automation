@@ -3,7 +3,6 @@ import { DraggableImage } from './DraggableImage';
 import { MoveBox } from './MoveBox';
 import { LetterheadPanel } from './LetterheadPanel';
 import { LETTERHEAD_TOTAL, LetterheadChoice, letterheadBackground, letterheadColor, letterheadFooterText, letterheadPad, paperWidth, letterheadSvg } from '../../lib/letterheads';
-import { useDemoInfo } from '../common/DemoBanner';
 import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
@@ -264,8 +263,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [signatureHeight, setSignatureHeight] = useState<number>(() => numPref(prefs.signatureHeight, settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT));
 
   const [pageSize, setPageSize] = useState<PaperSize>(() => (['A4', 'A5', 'Letter', 'Letterhead'].includes(prefs.pageSize) ? prefs.pageSize : 'A4'));
-  const demoInfo = useDemoInfo();
-  const lhEnabled = !!demoInfo?.demo;
+  const lhEnabled = true; // the ready-made letterheads are on for every server
   const lhPaper = lhEnabled; // the letterheads fit every paper size
   const [lhOpen, setLhOpen] = useState(false);
   const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true, lhPaper && lhOpen ? 360 : 0);
