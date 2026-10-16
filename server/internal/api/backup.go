@@ -41,7 +41,10 @@ func auditLine(r *http.Request, me auth.User, severity, details string) {
 	entry := jsonx.M{
 		"id": "aud-bk-" + strconv.FormatInt(time.Now().UnixNano(), 36), "timestamp": jalali.Timestamp(time.Now()),
 		"userName": me.Name(), "userEmail": me.Email(), "action": "SECURITY_EVENT", "severity": severity,
-		"ipAddress": strings.TrimSpace(httpx.ClientIP(r)), "details": details,
+		"details": details,
+	}
+	for k, v := range ipFields(r) {
+		entry[k] = v
 	}
 	_, _ = store.Pool.Exec(r.Context(), `INSERT INTO audit_logs (id, data) VALUES ($1, $2::jsonb)`, entry["id"], jsonx.Encode(entry))
 }

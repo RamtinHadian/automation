@@ -548,6 +548,10 @@ export interface AuditLog {
   action: string | 'LOGIN' | 'LOGOUT' | 'FILE_UPLOAD' | 'FILE_DOWNLOAD' | 'FILE_TRANSFER' | 'FILE_DELETE' | 'USER_CREATE' | 'USER_UPDATE' | 'USER_DELETE' | 'DEPARTMENT_CHANGE' | 'QUOTA_UPDATE' | 'QUOTA_CHANGE' | 'PERMISSION_CHANGE' | 'ADMIN_SETTING_CHANGE' | 'SETTINGS_UPDATE' | 'SECURITY_EVENT' | 'CEO_CHANGE';
   severity: 'INFO' | 'WARNING' | 'CRITICAL';
   ipAddress: string;
+  /** what the server itself saw as the sender (the router's address when it rewrites the sender) */
+  ipSeen?: string;
+  /** 'browser' = ipAddress is the public address the person's browser reported */
+  ipVia?: string;
   details: string;
 }
 

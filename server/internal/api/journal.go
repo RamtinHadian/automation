@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -125,8 +126,10 @@ func journalLogin(r *http.Request, identifier string, u *auth.User, ok bool, why
 	}
 	entry := jsonx.M{
 		"id": "aud-lg-" + strconv.FormatInt(time.Now().UnixNano(), 36), "timestamp": jalali.Timestamp(time.Now()),
-		"userName": "ناشناس", "userEmail": identifier, "action": "LOGIN_FAILED", "severity": "WARNING",
-		"ipAddress": strings.TrimSpace(httpx.ClientIP(r)), "details": "ورود ناموفق: " + why,
+		"userName": "ناشناس", "userEmail": identifier, "action": "LOGIN_FAILED", "severity": "WARNING", "details": "ورود ناموفق: " + why,
+	}
+	for k, v := range ipFields(r) {
+		entry[k] = v
 	}
 	insertJournal(entry)
 }
@@ -134,10 +137,39 @@ func journalLogin(r *http.Request, identifier string, u *auth.User, ok bool, why
 func writeJournal(r *http.Request, u auth.User, action, severity, text string) {
 	entry := jsonx.M{
 		"id": "aud-j-" + strconv.FormatInt(time.Now().UnixNano(), 36), "timestamp": jalali.Timestamp(time.Now()),
-		"userName": u.Name(), "userEmail": u.Email(), "action": action, "severity": severity,
-		"ipAddress": strings.TrimSpace(httpx.ClientIP(r)), "details": text,
+		"userName": u.Name(), "userEmail": u.Email(), "action": action, "severity": severity, "details": text,
+	}
+	for k, v := range ipFields(r) {
+		entry[k] = v
 	}
 	insertJournal(entry)
+}
+
+// publicIP: an address that belongs to the internet (not the office network, not the router's own, not carrier-grade NAT).
+func publicIP(s string) (string, bool) {
+	ip := net.ParseIP(strings.TrimSpace(s))
+	if ip == nil || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() || ip.IsMulticast() {
+		return "", false
+	}
+	if v4 := ip.To4(); v4 != nil && v4[0] == 100 && v4[1]&0xC0 == 64 { // 100.64.0.0/10
+		return "", false
+	}
+	return ip.String(), true
+}
+
+// ipFields: the address a request came from. The server writes what it saw (ipSeen). When that is an address inside the office network (a
+// router that rewrites the sender is the usual reason) and the browser told us the public address it is on, that one is written as the
+// person's address (ipVia = "browser"); the browser's word can be faked, which is why ipSeen is always kept next to it.
+func ipFields(r *http.Request) jsonx.M {
+	seen := strings.TrimSpace(httpx.ClientIP(r))
+	out := jsonx.M{"ipAddress": seen, "ipSeen": seen}
+	if _, ok := publicIP(seen); ok {
+		return out
+	}
+	if pub, ok := publicIP(r.Header.Get("X-Client-Public-IP")); ok {
+		out["ipAddress"], out["ipVia"] = pub, "browser"
+	}
+	return out
 }
 
 func insertJournal(entry jsonx.M) {

@@ -199,7 +199,10 @@ func ceoChanged(r *http.Request, me auth.User, id, name string, was, now bool) {
 	entry := jsonx.M{
 		"id": "aud-ceo-" + strconv.FormatInt(time.Now().UnixNano(), 36), "timestamp": jalali.Timestamp(time.Now()),
 		"userName": me.Name(), "userEmail": me.Email(), "action": "CEO_CHANGE", "severity": "CRITICAL",
-		"ipAddress": strings.TrimSpace(httpx.ClientIP(r)), "details": details,
+		"details": details,
+	}
+	for k, v := range ipFields(r) {
+		entry[k] = v
 	}
 	_, _ = store.Pool.Exec(ctx, `INSERT INTO audit_logs (id, data) VALUES ($1, $2::jsonb)`, entry["id"], jsonx.Encode(entry))
 }
@@ -318,7 +321,9 @@ func putAudit(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 	entry["id"] = id
 	entry["userName"] = me.Name()
 	entry["userEmail"] = me.Email()
-	entry["ipAddress"] = strings.TrimSpace(httpx.ClientIP(r))
+	for k, v := range ipFields(r) {
+		entry[k] = v
+	}
 	if _, err := store.Pool.Exec(r.Context(),
 		`INSERT INTO audit_logs (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO NOTHING`, id, jsonx.Encode(entry)); err != nil {
 		internalError(w)

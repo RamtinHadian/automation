@@ -5,8 +5,10 @@ import App from './App';
 import 'vazirmatn/Vazirmatn-Variable-font-face.css'; // the font is bundled with the app (no dependency on Google Fonts)
 import './index.css';
 import { installPersianDigits } from './lib/persianDigits';
+import { installPublicIp } from './lib/publicIp';
 
 installPersianDigits();
+installPublicIp();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
