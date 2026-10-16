@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
  * Phones: the letter paper keeps its real design width and is scaled down to fit the screen (like a page viewer),
  * so every element sits exactly where it does on a computer. The person can zoom in to work precisely.
  */
-export function useFitZoom(designWidth: number, sidePad = 20, allowWide = false, extraReserve = 0) {
+export function useFitZoom(designWidth: number, sidePad = 20, allowWide = false, extraReserve = 0, sideColumns = true) {
   const [vw, setVw] = useState(() => (typeof window !== 'undefined' ? document.documentElement.clientWidth : 1024));
   const [userZoom, setUserZoom] = useState(1);
 
@@ -22,7 +22,7 @@ export function useFitZoom(designWidth: number, sidePad = 20, allowWide = false,
   const fit = isPhone ? Math.min(1, (vw - sidePad) / designWidth) : 1;
   // where asked (the letter editor), big screens use their room: the sheet is drawn larger and the designed positions scale with it
   // two side columns of 300 px (+ gaps) take their room on screens from 1100 px; the sheet fits what is left, never above 1.35
-  const reserve = vw >= 1100 ? 664 + extraReserve : 0;
+  const reserve = vw >= 1100 ? (sideColumns ? 664 : 160) + extraReserve : 0;
   const wide = allowWide ? Math.max(0.5, Math.min(1.35, (vw - reserve) / designWidth)) : 1;
   const zoom = isPhone ? Math.min(1.6, fit * userZoom) : allowWide ? Math.min(2.5, Math.max(0.4, +(wide * userZoom).toFixed(2))) : 1;
 

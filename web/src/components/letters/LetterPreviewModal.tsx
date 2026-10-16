@@ -526,7 +526,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   // null = the stamp follows the signature size; a number = size chosen for the stamp on its own
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(null);
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720);
+  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true, 0, false);
+  // zoomed (a phone, or the person pressed the magnifier): the sheet is drawn at its real width and scaled, exactly like the editor
+  const scaled = fitZ.isPhone || fitZ.zoom !== 1;
   const zoom = fitZ.zoom;
   const zoomRef = useRef(1);
   zoomRef.current = zoom;
@@ -1616,19 +1618,19 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         )}
 
         {/* Paper Document Canvas Container */}
-        {fitZ.isPhone && <ZoomBar zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} />}
-        <div className={`flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
+        <ZoomBar zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} />
+        <div className={`flex-1 overflow-auto ${scaled ? 'p-2 block' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
           {/* Virtual Official Paper Sheet */}
-          <ScaledPaper enabled={fitZ.isPhone} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
+          <ScaledPaper enabled={scaled} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
             style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily, ...(letter.letterhead && !letter.letterhead.image ? { paddingTop: letterheadPad(letter.letterhead.id, paperWidth(pageSize)), paddingBottom: letterheadPad(letter.letterhead.id, paperWidth(pageSize)) - 2 } : {}), ...letterheadBackground(letter.letterhead) }}
             className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 w-full text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
               pageSize === 'A5'
-                ? `${fitZ.isPhone ? '' : 'max-w-[580px]'} min-h-[600px] ${fitZ.isPhone ? 'p-7' : 'p-4 sm:p-7'} text-xs`
+                ? `${scaled ? '' : 'max-w-[580px]'} min-h-[600px] ${scaled ? 'p-7' : 'p-4 sm:p-7'} text-xs`
                 : pageSize === 'Letter'
-                ? `${fitZ.isPhone ? '' : 'max-w-[700px]'} min-h-[720px] ${fitZ.isPhone ? 'p-9' : 'p-5 sm:p-9'} text-xs`
-                : `${fitZ.isPhone ? '' : 'max-w-[720px]'} min-h-[760px] ${fitZ.isPhone ? 'p-10' : 'p-6 sm:p-10'} text-xs`
+                ? `${scaled ? '' : 'max-w-[700px]'} min-h-[720px] ${scaled ? 'p-9' : 'p-5 sm:p-9'} text-xs`
+                : `${scaled ? '' : 'max-w-[720px]'} min-h-[760px] ${scaled ? 'p-10' : 'p-6 sm:p-10'} text-xs`
             }`}
           >
             {letter.letterhead && !letter.letterhead.image && (
