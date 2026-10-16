@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
 import { MoveBox } from './MoveBox';
 import { LetterheadPanel } from './LetterheadPanel';
-import { LetterheadChoice, letterheadBackground, letterheadColor, letterheadFooterText, letterheadSvg } from '../../lib/letterheads';
+import { LetterheadChoice, letterheadBackground, letterheadColor, letterheadFooterText, letterheadPad, letterheadSvg } from '../../lib/letterheads';
 import { useDemoInfo } from '../common/DemoBanner';
 import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
@@ -886,7 +886,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           <ScaledPaper enabled={fitZ.isPhone || fitZ.zoom !== 1} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
             ref={paperSheetRef}
-            style={{ fontFamily: selectedFontFamily, ...(lhPaper && lh && !lh.image ? { paddingTop: 56, paddingBottom: 54 } : {}), ...(lhPaper ? letterheadBackground(lh) : {}) }}
+            style={{ fontFamily: selectedFontFamily, ...(lhPaper && lh && !lh.image ? { paddingTop: letterheadPad(lh.id), paddingBottom: letterheadPad(lh.id) - 2 } : {}), ...(lhPaper ? letterheadBackground(lh) : {}) }}
             className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 w-full transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
           >
             {lhPaper && lh && !lh.image && (
@@ -1248,9 +1248,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         {/* Word Styling Toolbar: one horizontally scrollable row on phones */}
         <div onWheel={side ? undefined : hwheel} className={side ? 'order-3 flex bg-[#FAF5F1] w-[300px] shrink-0 overflow-y-auto border-r border-[#EBDBCE] flex-col items-stretch gap-2.5 p-3 text-xs [&>*]:shrink-0' : 'order-2 flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap hscroll whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0'}>
           
-          <div className={`flex items-center gap-1.5 ${side ? 'w-full flex-col items-stretch gap-2 [&>*]:w-full [&>*]:justify-between [&>*]:rounded-xl [&>*>select]:flex-1 [&>*>input]:flex-1' : 'flex-nowrap sm:flex-wrap'}`}>
+          <div className={`flex items-center gap-1.5 ${side ? 'w-full grid grid-cols-2 items-stretch gap-2 [&>*]:rounded-xl [&>*>select]:flex-1 [&>*>input]:flex-1' : 'flex-nowrap sm:flex-wrap'}`}>
+            {side && <div className="col-span-2 flex items-center gap-2 pt-1 text-[10.5px] font-black text-[#6E1B1B]"><span>قلم و اندازه</span><span className="flex-1 h-px bg-[#EBDBCE]" /></div>}
             {/* Font Family Selector */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
+            <div className={`flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs ${side ? 'col-span-2' : ''}`}>
               <Type className="w-3.5 h-3.5 text-[#6E1B1B] mr-1 ml-0.5 shrink-0" />
               <select
                 value={selectedFontFamily}
@@ -1267,7 +1268,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             </div>
 
             {/* Font Size Selector */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
+            <div className={`flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] shadow-2xs ${side ? 'col-span-2' : ''}`}>
               <select
                 value={selectedFontSize}
                 onChange={(e) => handleFontSizeChange(e.target.value)}
@@ -1283,7 +1284,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </select>
             </div>
 
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+            {side && <div className="col-span-2 flex items-center gap-2 pt-1 text-[10.5px] font-black text-[#6E1B1B]"><span>شکل متن</span><span className="flex-1 h-px bg-[#EBDBCE]" /></div>}
+            <div className={`flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] ${side ? 'col-span-2 justify-around' : ''}`}>
               <button
                 type="button"
                 onClick={() => executeCommand('bold')}
@@ -1310,7 +1312,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+            <div className={`flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] ${side ? 'col-span-2 justify-around' : ''}`}>
               <button
                 type="button"
                 onClick={() => executeCommand('justifyRight')}
@@ -1345,7 +1347,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+            <div className={`flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] ${side ? 'col-span-2 justify-around' : ''}`}>
               <button
                 type="button"
                 onClick={() => executeCommand('insertUnorderedList')}
@@ -1364,7 +1366,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
+            {side && <div className="col-span-2 flex items-center gap-2 pt-1 text-[10.5px] font-black text-[#6E1B1B]"><span>فاصله‌ها</span><span className="flex-1 h-px bg-[#EBDBCE]" /></div>}
+            <div className={`flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] shadow-2xs ${side ? 'col-span-2 flex-wrap' : ''}`}>
               <span className="text-[11px] font-bold text-[#8C6F66]">جابه‌جایی کل متن (چپ/راست):</span>
               <input
                 type="range"
@@ -1372,13 +1375,13 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 max="120"
                 value={bodyOffsetX}
                 onChange={(e) => setBodyOffsetX(Number(e.target.value))}
-                className="w-20 accent-[#6E1B1B] cursor-pointer"
+                className={`${side ? 'flex-1 min-w-0' : 'w-20'} accent-[#6E1B1B] cursor-pointer`}
                 title="جابه‌جایی کل بدنه متن نامه به چپ یا راست"
               />
               <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-8 text-center">{toPersianDigits(Math.round(bodyOffsetX))}px</span>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-[#EBDBCE] shadow-2xs">
+            <div className={`flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] shadow-2xs ${side ? 'col-span-2 flex-wrap' : ''}`}>
               <span className="text-[11px] font-bold text-[#8C6F66]">حاشیه متن:</span>
               <input
                 type="range"
@@ -1386,13 +1389,14 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 max="80"
                 value={bodyPaddingX}
                 onChange={(e) => setBodyPaddingX(Number(e.target.value))}
-                className="w-16 accent-[#6E1B1B] cursor-pointer"
+                className={`${side ? 'flex-1 min-w-0' : 'w-16'} accent-[#6E1B1B] cursor-pointer`}
                 title="تغییر فاصله و حاشیه متن از سمت چپ و راست"
               />
               <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-7 text-center">{toPersianDigits(bodyPaddingX)}px</span>
             </div>
 
-            <div className="relative flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+            {side && <div className="col-span-2 flex items-center gap-2 pt-1 text-[10.5px] font-black text-[#6E1B1B]"><span>افزودنی‌ها</span><span className="flex-1 h-px bg-[#EBDBCE]" /></div>}
+            <div className={`relative flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] ${side ? 'justify-center' : ''}`}>
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
@@ -1430,7 +1434,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             </div>
 
             {/* Attachment Upload Button in Editor Toolbar */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE]">
+            <div className={`flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] ${side ? 'justify-center' : ''}`}>
               <input
                 type="file"
                 ref={attachmentInputRef}
@@ -1449,7 +1453,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 title="افزودن فایل پیوست یا اسکن سند"
               >
                 <Paperclip className="w-3.5 h-3.5 text-amber-600" />
-                <span>{attachedFile ? 'تغییر فایل پیوست' : 'افزودن پیوست / اسکن'}</span>
+                <span>{attachedFile ? (side ? 'تغییر پیوست' : 'تغییر فایل پیوست') : (side ? 'پیوست / اسکن' : 'افزودن پیوست / اسکن')}</span>
               </button>
             </div>
           </div>

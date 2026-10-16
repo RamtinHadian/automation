@@ -1,10 +1,10 @@
 /**
- * Ready-made letterheads («سربرگ رسمی با آرم»): 25 basic designs x 40 variants = 1000 shapes, x 400 colour sets = 400000 templates, and the person's own uploaded design. Each one is a thin decoration drawn at the top and the
+ * Ready-made letterheads («سربرگ رسمی با آرم»): 25 basic designs x 40 variants = 1000 shapes, x 400 colour sets = 1.6 million templates, and the person's own uploaded design. Each one is a thin decoration drawn at the top and the
  * bottom of the sheet (an SVG, so it prints sharp), and the letter can carry the address and the phone number in its footer.
  * The same markup is used by the editor, the preview and the printed page, so the three always look alike.
  */
 export interface LetterheadChoice {
-  /** 1..400000, or 0 when the person uploaded their own design (then `image` holds it) */
+  /** 1.., or 0 when the person uploaded their own design (then `image` holds it) */
   id: number;
   /** the person's own letterhead design, as a data URL (picture), drawn as the background of the whole sheet */
   image?: string;
@@ -87,7 +87,7 @@ export const LETTERHEAD_PALETTES = PALETTES.map((p) => p.name);
 export interface LetterheadDef {
   id: number;
   name: string;
-  /** 0..999: the shape = one of the 25 basic designs x 40 variants (mirrored, lower, with an extra line) */
+  /** 0..3999: the shape = one of the 25 basic designs x 40 variants (mirrored, height, extra line, pattern) */
   design: number;
   base: number;
   variant: number;
@@ -95,13 +95,24 @@ export interface LetterheadDef {
 }
 
 const PER = PALETTES.length;
-export const LETTERHEAD_VARIANTS = 40;
+export const LETTERHEAD_VARIANTS = 160;
 export const LETTERHEAD_DESIGN_COUNT = LETTERHEAD_DESIGNS.length * LETTERHEAD_VARIANTS; // 1000 shapes
 export const LETTERHEAD_TOTAL = LETTERHEAD_DESIGN_COUNT * PER;
 
-const ACCENTS = ['بدون خط', 'خط نازک', 'خط رنگ دوم', 'نقطه‌چین', 'خط دوتایی'];
-export const variantName = (v: number) =>
-  v === 0 ? 'اصلی' : `${v % 2 ? 'قرینه' : 'عادی'}، ${['بلند', 'کوتاه‌تر', 'کم‌ارتفاع', 'کمارتفاع‌تر'][Math.floor(v / 2) % 4]}، ${ACCENTS[Math.floor(v / 8) % 5]}`;
+const HEIGHTS = [1, 0.7, 1.4, 1.8, 2.3];
+const HEIGHT_NAMES = ['استاندارد', 'کوتاه', 'بلند', 'بلندتر', 'خیلی بلند'];
+const ACCENTS = ['بدون خط', 'خط نازک', 'خط دوتایی', 'نقطه‌چین'];
+const OVERLAYS = ['ساده', 'نقطه‌دار', 'راه‌راه مورب', 'زیگزاگ'];
+const parts = (v: number) => ({ mirror: v % 2, h: Math.floor(v / 2) % 5, accent: Math.floor(v / 10) % 4, overlay: Math.floor(v / 40) % 4 });
+export const variantName = (v: number) => {
+  if (v === 0) return 'اصلی';
+  const x = parts(v);
+  return `${x.mirror ? 'قرینه' : 'عادی'}، ${HEIGHT_NAMES[x.h]}، ${ACCENTS[x.accent]}، ${OVERLAYS[x.overlay]}`;
+};
+/** the height of one template's decoration in drawing units (800 wide), so the page can leave room for it */
+export const letterheadHeight = (id: number) => Math.max(30, Math.round(H * HEIGHTS[parts(letterheadById(id).variant).h]));
+/** padding (px) the sheet needs at the top and the bottom, for a sheet `width` px wide */
+export const letterheadPad = (id: number, width = 740) => (id > 0 ? Math.round((letterheadHeight(id) * width) / 800) + 8 : 0);
 export const designName = (d: number) => `${LETTERHEAD_DESIGNS[d % LETTERHEAD_DESIGNS.length]}${d >= LETTERHEAD_DESIGNS.length ? ' · نسخهٔ ' + Math.floor(d / LETTERHEAD_DESIGNS.length) : ''}`;
 
 /** id = shape * colours + colour + 1 (ids of the first 25 shapes are the same as before) */
@@ -220,21 +231,31 @@ function drawing(d: number, c: Palette, gid: string): string {
 export function letterheadSvg(id: number, part: 'top' | 'bottom'): string {
   const def = letterheadById(id);
   const pal = PALETTES[def.palette];
-  const v = def.variant;
+  const x = parts(def.variant);
+  const hs = HEIGHTS[x.h];
+  const svgH = letterheadHeight(def.id);
   let inner = drawing(def.base, pal, `lhg${def.id}${part[0]}`);
-  if (v) {
-    const hs = [1, 0.85, 0.7, 0.55][Math.floor(v / 2) % 4];
-    inner = `<g transform="scale(1 ${hs})">${inner}</g>`;
-    if (v % 2) inner = `<g transform="translate(800 0) scale(-1 1)">${inner}</g>`;
-    const y = Math.round(H * hs) - 1;
-    const accent = Math.floor(v / 8) % 5;
-    if (accent === 1) inner += `<rect x="40" y="${y - 1}" width="720" height="1" fill="${pal.c1}"/>`;
-    else if (accent === 2) inner += `<rect x="40" y="${y - 1}" width="720" height="1.6" fill="${pal.c2}"/>`;
-    else if (accent === 3) inner += `<line x1="40" y1="${y}" x2="760" y2="${y}" stroke="${pal.c2}" stroke-width="1.6" stroke-dasharray="2 5"/>`;
-    else if (accent === 4) inner += `<rect x="40" y="${y - 3}" width="720" height="1" fill="${pal.c1}"/><rect x="40" y="${y}" width="720" height="1" fill="${pal.c2}"/>`;
+  if (hs !== 1) inner = `<g transform="scale(1 ${hs})">${inner}</g>`;
+  if (x.mirror) inner = `<g transform="translate(800 0) scale(-1 1)">${inner}</g>`;
+  const y = svgH - 1;
+  if (x.accent === 1) inner += `<rect x="40" y="${y - 1}" width="720" height="1" fill="${pal.c1}"/>`;
+  else if (x.accent === 2) inner += `<rect x="40" y="${y - 3}" width="720" height="1" fill="${pal.c1}"/><rect x="40" y="${y}" width="720" height="1" fill="${pal.c2}"/>`;
+  else if (x.accent === 3) inner += `<line x1="40" y1="${y}" x2="760" y2="${y}" stroke="${pal.c2}" stroke-width="1.6" stroke-dasharray="2 5"/>`;
+  if (x.overlay === 1) {
+    let d = '';
+    for (let cy = 6; cy < svgH - 4; cy += 12) for (let cx = 52 + ((cy / 12) % 2) * 8; cx < 760; cx += 16) d += `<circle cx="${cx}" cy="${cy}" r="1.3"/>`;
+    inner += `<g fill="${pal.c2}" opacity=".28">${d}</g>`;
+  } else if (x.overlay === 2) {
+    let d = '';
+    for (let cx = 40; cx < 790; cx += 14) d += `<line x1="${cx}" y1="0" x2="${cx - 14}" y2="${svgH}"/>`;
+    inner += `<g stroke="${pal.c2}" stroke-width="1" opacity=".22">${d}</g>`;
+  } else if (x.overlay === 3) {
+    let d = `M0 ${svgH * 0.35}`;
+    for (let cx = 0; cx < 800; cx += 16) d += ` l8 -6 l8 6`;
+    inner += `<path d="${d}" fill="none" stroke="${pal.c2}" stroke-width="1.4" opacity=".4"/>`;
   }
-  const g = part === 'bottom' ? `<g transform="translate(0 ${H}) scale(1 -1)">${inner}</g>` : inner;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 ${H}" width="100%" preserveAspectRatio="xMidYMin meet" style="display:block">${g}</svg>`;
+  const g = part === 'bottom' ? `<g transform="translate(0 ${svgH}) scale(1 -1)">${inner}</g>` : inner;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 ${svgH}" width="100%" preserveAspectRatio="xMidYMin meet" style="display:block">${g}</svg>`;
 }
 
 /** The line printed in the footer: address and / or phone, whichever the person ticked. */
