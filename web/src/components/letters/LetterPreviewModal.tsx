@@ -14,6 +14,7 @@ import {
   STAMP_ANCHOR_LEFT,
   signatureAreaHeight,
   defaultStampHeight,
+  stampSizeLocked,
   stripBakedBodyLayout,
   UNSIGNED_WATERMARK,
 } from '../../lib/letterDefaults';
@@ -743,8 +744,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
 
 
-  const derivedStampHeight = defaultStampHeight(pageSize === 'A5');
-  const effectiveStampHeight = stampHeightOverride ?? derivedStampHeight;
+  const derivedStampHeight = defaultStampHeight(pageSize === 'A5', settings?.companyStampSizeCm, pageSize);
+  const effectiveStampHeight = stampSizeLocked(settings) ? derivedStampHeight : stampHeightOverride ?? derivedStampHeight;
   // the logo and the organisation text keep the size set in the editor (letters made before that keep the old sizes)
   const logoPx = letter.logoSize && letter.logoSize > 0 ? letter.logoSize : pageSize === 'A5' ? Math.min(settings.companyLogoWidth || 44, 44) : (settings.companyLogoWidth || 64);
   const orgFont = (base: number): React.CSSProperties | undefined => (letter.orgTextScale && letter.orgTextScale !== 1 ? { fontSize: `${(base * letter.orgTextScale).toFixed(1)}px` } : undefined);

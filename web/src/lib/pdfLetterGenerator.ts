@@ -1,5 +1,5 @@
 import { FileTransfer, SystemSettings, User } from '../types';
-import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, stripBakedBodyLayout, UNSIGNED_WATERMARK, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
+import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, stampSizeLocked, stripBakedBodyLayout, UNSIGNED_WATERMARK, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
@@ -149,7 +149,8 @@ export function generateOfficialLetterHtml(
   const bodyPaddingX = overrides?.bodyPaddingX !== undefined ? overrides.bodyPaddingX : (transfer.bodyPaddingX || 0);
 
   const finalSigHeight = isA5 ? Math.min(signatureHeight, 300) : signatureHeight;
-  const stampHeight = overrides?.stampHeight || transfer.stampHeight || defaultStampHeight(isA5);
+  const stampDefault = defaultStampHeight(isA5, settings.companyStampSizeCm, pageSize);
+  const stampHeight = stampSizeLocked(settings) ? stampDefault : overrides?.stampHeight || transfer.stampHeight || stampDefault;
   // the logo and the organisation text can be resized by the person (stored with the letter); older letters keep the fixed sizes
   const logoOffsetX = transfer.logoOffsetX || 0;
   const logoOffsetY = transfer.logoOffsetY || 0;

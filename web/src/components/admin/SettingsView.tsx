@@ -989,6 +989,88 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             مهر خودکار کمی بزرگ‌تر از امضا نمایش داده می‌شود. مدیرعامل هنگام امضا هم می‌تواند اندازه را برای همان نامه تغییر دهد.
           </p>
         </div>
+        {/* The real size of the stamp: seen at true size here, set once, used on every letter */}
+        <div className="pt-4 border-t border-[#EBDBCE]/60 space-y-3 text-xs" data-stamp-size>
+          <label className="block font-bold text-[#3A241F]">اندازهٔ مهر روی کاغذ (سانتی‌متر)</label>
+          <div className="flex items-center gap-3 flex-wrap">
+            <input
+              type="number"
+              step="0.1"
+              min="1"
+              max="12"
+              value={settings.companyStampSizeCm ?? ''}
+              onChange={(e) => {
+                const n = parseFloat(e.target.value);
+                setSettings({ ...settings, companyStampSizeCm: Number.isFinite(n) && n > 0 ? Math.min(12, Math.max(1, Math.round(n * 10) / 10)) : undefined });
+              }}
+              placeholder="۳٫۵"
+              dir="ltr"
+              className="w-24 p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] text-center focus:outline-none focus:border-[#D34A32]"
+            />
+            <input
+              type="range"
+              min="1"
+              max="12"
+              step="0.1"
+              value={settings.companyStampSizeCm ?? 3.5}
+              onChange={(e) => setSettings({ ...settings, companyStampSizeCm: Number(e.target.value) })}
+              className="flex-1 min-w-[160px] accent-[#6E1B1B] cursor-pointer"
+            />
+            {[2.5, 3, 3.5, 4, 5].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setSettings({ ...settings, companyStampSizeCm: v })}
+                className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer ${settings.companyStampSizeCm === v ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}
+              >
+                {toPersianDigits(String(v).replace('.', '٫'))}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setSettings({ ...settings, companyStampSizeCm: undefined, companyStampSizeLocked: false })}
+              className="px-3 py-2 text-[11px] font-bold text-[#8C6F66] hover:bg-[#FAF5F1] rounded-xl cursor-pointer"
+            >
+              بازگشت به پیش‌فرض
+            </button>
+          </div>
+
+          <label className="flex items-center gap-2 font-bold text-[#3A241F] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!settings.companyStampSizeLocked}
+              disabled={!settings.companyStampSizeCm}
+              onChange={(e) => setSettings({ ...settings, companyStampSizeLocked: e.target.checked })}
+              className="accent-[#6E1B1B]"
+            />
+            این اندازه همیشه ثابت باشد (مدیرعامل هنگام امضا نتواند مهر را بزرگ یا کوچک کند)
+          </label>
+
+          {/* the stamp at its real size (1 cm = 1 cm on a screen that is not scaled) next to a ruler */}
+          <div className="rounded-2xl border border-[#EBDBCE] bg-white p-4 overflow-auto">
+            <div className="flex items-end gap-6 min-w-max">
+              <div className="relative bg-[#FDFBF8] border border-dashed border-[#C98B6A]/60 rounded-md flex items-center justify-center" style={{ height: `${settings.companyStampSizeCm || 3.5}cm`, minWidth: `${settings.companyStampSizeCm || 3.5}cm`, padding: 0 }}>
+                {settings.companyStampUrl ? (
+                  <img src={settings.companyStampUrl} alt="مهر در اندازهٔ واقعی" className="mix-blend-multiply opacity-90 object-contain" style={{ height: `${settings.companyStampSizeCm || 3.5}cm` }} draggable={false} />
+                ) : (
+                  <span className="text-[11px] text-gray-400 font-bold px-3">ابتدا تصویر مهر را بارگذاری کنید</span>
+                )}
+              </div>
+              <div className="space-y-1">
+                <div className="text-[11px] font-bold text-[#6E1B1B]">خط‌کش (هر خانه یک سانتی‌متر)</div>
+                <div className="relative h-5 border-b border-[#6E1B1B]" style={{ width: '10cm', backgroundImage: 'repeating-linear-gradient(to right, #6E1B1B 0, #6E1B1B 1px, transparent 1px, transparent 1cm)', backgroundSize: '100% 10px', backgroundRepeat: 'no-repeat' }}>
+                  {Array.from({ length: 11 }, (_, i) => (
+                    <span key={i} className="absolute top-2.5 text-[9px] text-[#8C6F66]" style={{ left: `${i}cm`, transform: 'translateX(-50%)' }}>{toPersianDigits(i)}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="text-[11px] text-[#8C6F66] leading-6">
+            مهر بالا با اندازهٔ واقعی نمایش داده می‌شود (روی نمایشگری که بزرگ‌نمایی ندارد). اندازهٔ انتخاب‌شده روی همهٔ قطع‌ها (A4، A5 و Letter) به همان نسبت واقعی در نامه نشسته و در چاپ هم همان است.
+            اگر قفل نباشد، مدیرعامل می‌تواند هنگام امضا برای همان نامه اندازه را تغییر بدهد.
+          </p>
+        </div>
       </div>
 
       </>

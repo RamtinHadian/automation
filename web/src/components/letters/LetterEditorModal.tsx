@@ -10,7 +10,7 @@ import { ScaledPaper } from './ScaledPaper';
 import { LetterTextTemplatesModal, bodyToText } from './LetterTextTemplatesModal';
 import { useFitZoom } from '../../lib/useFitZoom';
 import { SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT, signatureAreaHeight } from '../../lib/letterDefaults';
-import { DEFAULT_SIGNATURE_HEIGHT, defaultStampHeight } from '../../lib/letterDefaults';
+import { DEFAULT_SIGNATURE_HEIGHT, defaultStampHeight, stampSizeLocked } from '../../lib/letterDefaults';
 import {
   X,
   FileText,
@@ -323,7 +323,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [showSubject, setShowSubject] = useState<boolean>(() => prefs.showSubject !== false); // the subject line, saved with the layout too
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(() => (typeof prefs.stampHeightOverride === 'number' ? prefs.stampHeightOverride : null));
   const effectiveStampHeight =
-    stampHeightOverride ?? defaultStampHeight(pageSize === 'A5');
+    stampSizeLocked(settings) ? defaultStampHeight(pageSize === 'A5', settings.companyStampSizeCm, pageSize) : stampHeightOverride ?? defaultStampHeight(pageSize === 'A5', settings.companyStampSizeCm, pageSize);
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.headerCenterOffset));
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.subjectOffset));
   const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.metaOffset));

@@ -640,6 +640,10 @@ export interface SystemSettings {
   ceoSignatureUrl?: string;
   ceoSignatureHeight?: number; // اندازهٔ پیش‌فرض امضای مدیرعامل روی نامه‌ها (پیکسل)
   companyStampUrl?: string;
+  /** Real height of the stamp on paper, in centimetres (set in the admin console; the default size of the stamp on every letter). */
+  companyStampSizeCm?: number;
+  /** When true the stamp is always that size and cannot be resized on a letter. */
+  companyStampSizeLocked?: boolean;
   ceoName?: string;
   ceoTitle?: string;
   themeId?: string;

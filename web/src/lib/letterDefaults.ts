@@ -1,7 +1,17 @@
 // Default size (px) of the CEO signature on official letters. The stamp is derived from it.
 export const DEFAULT_SIGNATURE_HEIGHT = 100;
 /** the stamp has its own size: it does not follow the signature (until the person sets it) */
-export const defaultStampHeight = (isA5: boolean): number => (isA5 ? 95 : 105);
+/** Sheet width in design pixels / in centimetres, per paper: the stamp's real size (cm, set by the admin) becomes pixels on the sheet. */
+const PX_PER_CM: Record<string, number> = { A4: 720 / 21, A5: 580 / 14.8, Letter: 700 / 21.59, Letterhead: 740 / 21 };
+export const stampPxFromCm = (cm: number, pageSize?: string): number => Math.round(cm * (PX_PER_CM[pageSize || 'A4'] || PX_PER_CM.A4));
+/**
+ * Default stamp height in px: the size the admin set in centimetres (real size) when there is one, else the built-in default.
+ * `settings.companyStampSizeCm`; the sheet is `pageSize` (A5 when only `isA5` is known).
+ */
+export const defaultStampHeight = (isA5: boolean, cm?: number | null, pageSize?: string): number =>
+  cm && cm > 0 ? stampPxFromCm(cm, pageSize || (isA5 ? 'A5' : 'A4')) : isA5 ? 95 : 105;
+/** The stamp size is fixed by the admin: letters cannot change it. */
+export const stampSizeLocked = (s?: { companyStampSizeCm?: number; companyStampSizeLocked?: boolean } | null): boolean => !!(s && s.companyStampSizeLocked && s.companyStampSizeCm && s.companyStampSizeCm > 0);
 export const DEFAULT_SIGNATURE_HEIGHT_A5 = 75;
 export const MIN_SIGNATURE_HEIGHT = 20;
 export const MAX_SIGNATURE_HEIGHT = 600;
