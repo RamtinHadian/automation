@@ -17,6 +17,7 @@ import { SupportView } from '../components/support/SupportView';
 import { useCompanyName } from '../lib/useCompanyName';
 import { TasksView } from '../components/tasks/TasksView';
 import { CallMenu } from '../components/common/CallMenu';
+import { CalculatorButton } from '../components/common/Calculator';
 import { normPhone } from '../lib/customerImport';
 import { NotificationBell } from '../components/common/NotificationBell';
 import type { AppNotification } from '../lib/notifications';
@@ -799,6 +800,7 @@ export default function UserPanel() {
           {/* Right actions */}
           <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:shrink-0">
             <CallMenu />
+            <CalculatorButton className="flex items-center justify-center w-9 h-9 rounded-2xl bg-white border border-[#EBDBCE] text-[#3A241F] hover:bg-orange-50 transition-all cursor-pointer" />
             <NotificationBell onOpenNotification={openNotification} />
 
             <DayNightToggle className="p-2 sm:p-2.5 bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border border-[#EBDBCE] rounded-2xl shadow-2xs" />

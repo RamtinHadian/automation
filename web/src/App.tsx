@@ -13,6 +13,7 @@ import { DayNightToggle } from './components/common/DayNightToggle';
 import { ErrorPopups } from './components/common/ErrorPopups';
 import { LicenseGate } from './components/common/LicenseGate';
 import { ConfirmHost } from './lib/confirmDialog';
+import { CalculatorHost } from './components/common/Calculator';
 
 function AppRoutes() {
   const companyName = useCompanyName();
@@ -32,6 +33,7 @@ function AppRoutes() {
   return (
     <>
     <DemoBanner />
+    <CalculatorHost />
     {loggedInUser && <NotificationPopups />}
     <Routes>
       <Route

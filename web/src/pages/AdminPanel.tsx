@@ -36,6 +36,7 @@ import { NetWatchCard } from '../components/admin/NetWatchCard';
 import { SupportAdmin } from '../components/admin/SupportAdmin';
 import { useCompanyName } from '../lib/useCompanyName';
 import { LoginBackdrop } from '../components/common/LoginBackdrop';
+import { CalculatorButton } from '../components/common/Calculator';
 import { AuditLogsView } from '../components/admin/AuditLogsView';
 import { ServerAddressCard } from '../components/admin/ServerAddressCard';
 import { TransfersMonitor } from '../components/admin/TransfersMonitor';
@@ -441,6 +442,7 @@ export default function AdminPanel() {
 
           {/* The admin who signed in, and logout (no switching to other people) */}
           <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:shrink-0">
+            <CalculatorButton className="p-2 sm:p-2.5 bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border border-[#EBDBCE] rounded-2xl shadow-2xs cursor-pointer" />
             <DayNightToggle className="p-2 sm:p-2.5 bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border border-[#EBDBCE] rounded-2xl shadow-2xs" />
 
             <button
