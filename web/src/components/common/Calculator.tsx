@@ -22,15 +22,16 @@ const useOpen = () =>
   );
 
 const FA = '۰۱۲۳۴۵۶۷۸۹';
-const fa = (s: string) => s.replace(/\d/g, (d) => FA[Number(d)]);
+// the calculator shows English digits (FA is only used to read Persian digits typed on the keyboard)
+const fa = (s: string) => s;
 
 /** 1234567.5 -> ۱٬۲۳۴٬۵۶۷٫۵ (the number as typed: keeps a trailing point and zeros). */
 const show = (raw: string) => {
   if (raw === 'خطا') return raw;
   const neg = raw.startsWith('-');
   const [i, d] = raw.replace('-', '').split('.');
-  const grouped = i.replace(/\B(?=(\d{3})+(?!\d))/g, '٬');
-  return fa((neg ? '-' : '') + grouped) + (d !== undefined ? '٫' + fa(d) : '');
+  const grouped = i.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return fa((neg ? '-' : '') + grouped) + (d !== undefined ? '.' + d : '');
 };
 
 const fmt = (n: number) => {
@@ -158,6 +159,7 @@ export const CalculatorHost: React.FC = () => {
   const expr = fa(toks.map((t) => (typeof t === 'number' ? fmt(t) : t)).join(' ') + (fresh || !toks.length ? '' : ' ' + cur));
   const startDrag = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
+    e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     drag.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y };
   };
@@ -194,12 +196,17 @@ export const CalculatorHost: React.FC = () => {
     <div
       ref={box}
       dir="ltr"
+      data-keep-digits
+      onPointerDown={startDrag}
+      onPointerMove={moveDrag}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
       style={{ left: pos.x, top: pos.y, width: W, touchAction: 'none' }}
-      className="fixed z-[400] rounded-[34px] bg-black text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-white/10 p-3 pb-4 font-sans"
+      className="fixed z-[400] rounded-[34px] bg-black text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-white/10 p-3 pb-4 font-sans cursor-grab active:cursor-grabbing select-none"
       role="dialog"
       aria-label="ماشین‌حساب"
     >
-      <div onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} className="flex items-center justify-between px-1 pb-1 cursor-grab active:cursor-grabbing">
+      <div className="flex items-center justify-between px-1 pb-1">
         <button type="button" onClick={() => setShowHist((v) => !v)} aria-label="تاریخچه" className="w-9 h-9 rounded-full bg-neutral-700 hover:bg-neutral-600 flex items-center justify-center cursor-pointer">
           <History className="w-4 h-4" />
         </button>
@@ -213,7 +220,7 @@ export const CalculatorHost: React.FC = () => {
         <div className="h-[110px] overflow-y-auto px-2 text-right text-xs text-white/70 space-y-1.5" dir="rtl">
           {history.length === 0 && <div className="text-white/40 pt-8 text-center">هنوز محاسبه‌ای نشده است.</div>}
           {history.map((h, i) => (
-            <button key={i} type="button" onClick={() => { setCur(h.split(' = ')[1].replace(/٬/g, '').replace(/٫/g, '.').replace(/[۰-۹]/g, (d) => String(FA.indexOf(d)))); setFresh(true); setShowHist(false); }} className="block w-full text-right hover:text-white cursor-pointer">
+            <button key={i} type="button" onClick={() => { setCur(h.split(' = ')[1].replace(/,/g, '')); setFresh(true); setShowHist(false); }} className="block w-full text-right hover:text-white cursor-pointer">
               {h}
             </button>
           ))}
@@ -230,7 +237,7 @@ export const CalculatorHost: React.FC = () => {
       <div className="grid grid-cols-4 gap-2.5 mt-2">
         {key(cur === '0' && !toks.length ? 'C' : 'C', clear, 'fn', false, false, 'پاک‌کردن')}
         {key('±', sign, 'fn', false, false, 'تغییر علامت')}
-        {key('٪', percent, 'fn', false, false, 'درصد')}
+        {key('%', percent, 'fn', false, false, 'درصد')}
         {key('÷', () => op('÷'), 'op', false, lastOp === '÷')}
         {['7', '8', '9'].map((d) => <React.Fragment key={d}>{key(fa(d), () => digit(d))}</React.Fragment>)}
         {key('×', () => op('×'), 'op', false, lastOp === '×')}
@@ -238,8 +245,8 @@ export const CalculatorHost: React.FC = () => {
         {key('−', () => op('-'), 'op', false, lastOp === '-')}
         {['1', '2', '3'].map((d) => <React.Fragment key={d}>{key(fa(d), () => digit(d))}</React.Fragment>)}
         {key('+', () => op('+'), 'op', false, lastOp === '+')}
-        {key(fa('0'), () => digit('0'), 'num', true)}
-        {key('٫', () => digit('.'))}
+        {key('0', () => digit('0'), 'num', true)}
+        {key('.', () => digit('.'))}
         {key('=', equals, 'op')}
       </div>
     </div>
