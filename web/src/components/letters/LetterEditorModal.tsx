@@ -925,7 +925,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             <div className="pb-2 mb-4 space-y-3 shrink-0">
               <div className="relative flex items-start justify-between">
                 {/* Right: Company Info & Dynamic Logo */}
-                <MoveBox offset={orgOffset} onChange={setOrgOffset} locked={layoutLocked} scale={zoom} className={`space-y-1 min-w-0 ${orgTextScale > 1.2 ? 'max-w-[60%]' : 'max-w-[50%]'}`}>
+                <MoveBox offset={orgOffset} onChange={setOrgOffset} locked={layoutLocked || !(showOrgName && (settings.companyName || settings.companySubtitle))} scale={zoom} className={`space-y-1 min-w-0 ${orgTextScale > 1.2 ? 'max-w-[60%]' : 'max-w-[50%]'}`}>
                   <div className="flex items-center gap-2.5">
                     {settings.companyLogoUrl && showLogo ? (
                       <MoveBox
