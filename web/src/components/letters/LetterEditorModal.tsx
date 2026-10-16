@@ -1534,31 +1534,6 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
             </div>
 
             <div className="flex items-center gap-1.5 border-r border-amber-300/80 pr-2 mr-1">
-              <span className="text-[10px] font-bold text-amber-950">سایز امضا:</span>
-              <input
-                type="range"
-                min="20"
-                max="600"
-                value={signatureHeight}
-                onChange={(e) => setSignatureHeight(Number(e.target.value))}
-                className="w-20 accent-amber-700 cursor-pointer"
-                title="تنظیم اندازه و ارتفاع امضای مدیرعامل"
-              />
-              <span className="font-mono text-[10px] font-bold text-amber-800 w-8">{toPersianDigits(signatureHeight)}px</span>
-            </div>
-
-            <div className="flex items-center gap-1.5 border-r border-amber-300/80 pr-2 mr-1">
-              <span className="text-[10px] font-bold text-amber-950">سایز مهر:</span>
-              <input
-                type="range"
-                min="20"
-                max="600"
-                value={effectiveStampHeight}
-                onChange={(e) => setStampHeightOverride(Number(e.target.value))}
-                className="w-20 accent-amber-700 cursor-pointer"
-                title="تنظیم اندازهٔ مهر"
-              />
-              <span className="font-mono text-[10px] font-bold text-amber-800 w-8">{toPersianDigits(effectiveStampHeight)}px</span>
               <button
                 type="button"
                 onClick={() => {
