@@ -1346,7 +1346,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         lastLogin: 'تاکنون وارد نشده',
         avatarUrl:
           'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-        avatarInitials: data.fullName.substring(0, 2),
+        avatarInitials: '',
         canSendOfficialLetters: !!data.canSendOfficialLetters,
         canSignOfficialLetters: !!data.canSignOfficialLetters,
         canUseTasks: !!data.canUseTasks,
@@ -1411,7 +1411,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         action: 'SETTINGS_UPDATE',
         severity: 'WARNING',
         ipAddress: '',
-        details: `تعریف واحد سازمانی جدید "${newDept.name}" (کد: ${newDept.code}) با سهمیه پیش‌فرض ${newDept.defaultQuotaGB}GB.`,
+        details: `تعریف واحد سازمانی جدید "${newDept.name}" با سهمیه پیش‌فرض ${newDept.defaultQuotaGB}GB.`,
       };
 
       setDepartments((prev) => [...prev, newDept]);

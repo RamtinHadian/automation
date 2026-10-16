@@ -73,10 +73,10 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
 
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!form.name.trim() || !form.code.trim()) return;
+        if (!form.name.trim()) return;
         onCreateDepartment({
             name: form.name.trim(),
-            code: form.code.trim().toUpperCase(),
+            code: 'u' + Date.now().toString(36),
             color: form.color,
             defaultQuotaGB: form.defaultQuotaGB,
         });
@@ -89,7 +89,7 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
         if (!editingDept) return;
         onUpdateDepartment(editingDept.id, {
             name: editingDept.name,
-            code: editingDept.code.toUpperCase(),
+            code: editingDept.code,
             color: editingDept.color,
             defaultQuotaGB: editingDept.defaultQuotaGB,
             managerId: editingDept.managerId || '',
@@ -174,16 +174,13 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex items-center gap-3">
                                         <div
-                                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0"
+                                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0"
                                             style={{ backgroundColor: dept.color }}
                                         >
-                                            {dept.code.substring(0, 3)}
+                                            <Building2 className="w-5 h-5" />
                                         </div>
                                         <div>
                                             <div className="font-black text-sm text-[#3A241F] leading-tight">{dept.name}</div>
-                                            <div className="text-[11px] text-[#8C6F66] font-mono font-bold mt-0.5">
-                                                کد: {dept.code}
-                                            </div>
                                             <div className="text-[11px] font-bold mt-0.5 text-[#6E1B1B]" data-dept-manager>
                                                 {staffList.find((u) => u.id === dept.managerId)?.fullName ? `مدیر واحد: ${staffList.find((u) => u.id === dept.managerId)!.fullName}` : <span className="text-[#B8A39C] font-medium">مدیر واحد تعیین نشده</span>}
                                             </div>
@@ -297,22 +294,6 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
                                 />
                             </div>
 
-                            {/* Code */}
-                            <div>
-                                <label className="block text-[11px] font-bold text-[#3A241F] uppercase mb-1.5">
-                                    کد اختصاری (Code) <span className="text-[#D34A32]">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    maxLength={8}
-                                    value={form.code}
-                                    onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                                    placeholder="مثال: IT"
-                                    className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-[#3A241F] font-mono focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
-                                />
-                            </div>
-
                             {/* Default Quota */}
                             <div>
                                 <div className="flex justify-between text-[11px] font-bold text-[#3A241F] uppercase mb-1.5">
@@ -421,21 +402,6 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
                                     value={editingDept.name}
                                     onChange={(e) => setEditingDept({ ...editingDept, name: e.target.value })}
                                     className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
-                                />
-                            </div>
-
-                            {/* Code */}
-                            <div>
-                                <label className="block text-[11px] font-bold text-[#3A241F] uppercase mb-1.5">
-                                    کد اختصاری
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    maxLength={8}
-                                    value={editingDept.code}
-                                    onChange={(e) => setEditingDept({ ...editingDept, code: e.target.value.toUpperCase() })}
-                                    className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-[#3A241F] font-mono focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
                                 />
                             </div>
 
@@ -557,7 +523,6 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
 
                             <div className="bg-[#FAF5F1] rounded-xl p-3 text-xs text-[#3A241F] space-y-1">
                                 <div className="font-bold">{dept?.name}</div>
-                                <div className="text-[#8C6F66]">کد: {dept?.code}</div>
                                 {membersCount > 0 ? (
                                     <div className="flex items-center gap-1.5 text-[#D34A32] font-bold mt-2">
                                         <AlertTriangle className="w-3.5 h-3.5" />

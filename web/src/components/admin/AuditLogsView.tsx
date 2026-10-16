@@ -37,10 +37,6 @@ const toneOf = (a: string): [Tone, React.ElementType] => {
   return ['slate', FileText];
 };
 
-const HUES = ['#6E1B1B', '#2563eb', '#0e9f82', '#7c3aed', '#c2410c', '#0891b2', '#be185d'];
-const hue = (n: string) => HUES[[...n].reduce((s, c) => s + c.charCodeAt(0), 0) % HUES.length];
-const initials = (n: string) => (n || '؟').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('');
-
 /** private = inside the office network (or the router itself); everything else came from the internet */
 const isPrivate = (ip: string) => /^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|::1|fe80|fc|fd)/i.test(ip || '');
 
@@ -193,7 +189,6 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ logs }) => {
                   <div className="text-[11px] font-bold text-[#8C6F66]">{t.time}</div>
                 </div>
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="shrink-0 w-8 h-8 rounded-full text-white font-black text-[11px] flex items-center justify-center" style={{ background: hue(log.userName) }}>{initials(log.userName)}</span>
                   <div className="min-w-0">
                     <div className="text-[12px] font-black text-[#3A241F] truncate">{log.userName}</div>
                     <div className="text-[10px] text-[#8C6F66] truncate" dir="ltr" style={{ textAlign: 'right' }}>{log.userEmail}</div>

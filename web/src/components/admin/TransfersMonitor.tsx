@@ -4,16 +4,6 @@ import { FileTransfer } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
 
-const initials = (name: string) => (name || '؟').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('');
-const HUES = ['#6E1B1B', '#2563eb', '#0e9f82', '#7c3aed', '#c2410c', '#0891b2', '#be185d'];
-const hue = (name: string) => HUES[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % HUES.length];
-
-const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 28 }) => (
-  <span className="shrink-0 rounded-full text-white font-black flex items-center justify-center" style={{ width: size, height: size, background: hue(name), fontSize: size * 0.38 }}>
-    {initials(name)}
-  </span>
-);
-
 const Pill: React.FC<{ tone: 'green' | 'amber' | 'rose' | 'slate' | 'brand' | 'violet'; icon?: React.ReactNode; children: React.ReactNode; title?: string }> = ({ tone, icon, children, title }) => {
   const cls = {
     green: 'bg-emerald-50 text-emerald-800 border-emerald-200',
@@ -82,19 +72,15 @@ export const TransfersMonitor: React.FC<{
 
             {/* who to whom */}
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex items-center gap-2 min-w-0 shrink-0 max-w-[45%]">
-                <Avatar name={t.sender.fullName} size={30} />
-                <div className="min-w-0">
-                  <div className="text-[12px] font-black text-[#3A241F] truncate">{t.sender.fullName}</div>
-                  <div className="text-[10px] text-[#8C6F66] truncate">{t.sender.departmentName}</div>
-                </div>
+              <div className="min-w-0 shrink-0 max-w-[45%]">
+                <div className="text-[12px] font-black text-[#3A241F]">{t.sender.fullName}</div>
+                <div className="text-[10px] text-[#8C6F66]">{t.sender.departmentName}</div>
               </div>
               <span className="text-[#C98B6A] font-black shrink-0">←</span>
               <div className="flex flex-wrap gap-1.5 min-w-0">
                 {shown.map((r) => (
-                  <span key={r.id} title={r.departmentName ? `${r.fullName} (${r.departmentName})` : r.fullName} className="inline-flex items-center gap-1.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-full pr-1 pl-2.5 py-0.5 max-w-[150px]">
-                    <Avatar name={r.fullName} size={20} />
-                    <span className="text-[11px] font-bold text-[#3A241F] truncate">{r.fullName}</span>
+                  <span key={r.id} title={r.departmentName ? `${r.fullName} (${r.departmentName})` : r.fullName} className="inline-flex items-center bg-[#FAF5F1] border border-[#EBDBCE] rounded-full px-3 py-0.5">
+                    <span className="text-[11px] font-bold text-[#3A241F]">{r.fullName}</span>
                   </span>
                 ))}
                 {more > 0 && (

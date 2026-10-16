@@ -1651,10 +1651,6 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                           className="max-w-full max-h-full object-contain"
                         />
                       </div>
-                    ) : showLogo ? (
-                      <div className={`${pageSize === 'A5' ? 'w-8 h-8 rounded-lg text-xs' : 'w-10 h-10 rounded-xl text-sm'} bg-[#6E1B1B] text-white flex items-center justify-center font-black shadow-xs shrink-0`}>
-                        {(headerCompanyTitle || 'ش').charAt(0)}
-                      </div>
                     ) : null}
                     <div className={`flex-1 min-w-0 ${showOrgName ? '' : 'hidden'}`}>
                       {isEditable ? (

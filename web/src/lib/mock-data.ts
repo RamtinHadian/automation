@@ -10,7 +10,7 @@ export const CURRENT_USER: User = {
   email: 'admin@company.internal',
   password: 'admin',
   avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  avatarInitials: 'مد',
+  avatarInitials: '',
   role: 'SUPER_ADMIN',
   departmentId: 'dept-general',
   departmentName: 'مدیریت کل',
