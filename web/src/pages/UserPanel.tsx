@@ -2163,202 +2163,58 @@ export default function UserPanel() {
       {/* ========================================================================= */}
       <nav
         aria-label="منوی شناور موبایل"
-        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] inset-x-3 sm:hidden z-40 max-w-md mx-auto bg-white/95 backdrop-blur-2xl border border-[#EBDBCE] shadow-[0_16px_48px_rgba(58,36,31,0.28)] rounded-[28px] p-1.5 flex items-center justify-between gap-0.5 transition-all select-none"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] inset-x-3 sm:hidden z-40 max-w-md mx-auto backdrop-blur-xl border border-white/10 shadow-[0_16px_48px_rgba(0,0,0,0.45)] rounded-full p-1.5 flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        dir="rtl"
+        style={{ background: 'color-mix(in srgb, var(--theme-dark-bg, #3A241F) 94%, transparent)' }}
       >
-        {/* Tab 1: ارسال فایل */}
-        <button
-          type="button"
-          onClick={() => openMenu('files')}
-          className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
-            mainMenuTab === 'files'
-              ? 'bg-[#6E1B1B] text-white shadow-md'
-              : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
-          }`}
-        >
-          <ArrowLeftRight className="w-4 h-4" />
-          <span className="text-[9px] leading-tight font-black whitespace-nowrap">امور اداری</span>
-          {menuBadge('files') > 0 && (
-            <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
-              {toPersianDigits(menuBadge('files') > 99 ? '99+' : menuBadge('files'))}
-            </span>
-          )}
-        </button>
+        {([
+          { id: 'files', label: 'امور اداری', Icon: ArrowLeftRight, show: true, badge: menuBadge('files') },
+          { id: 'letters', label: 'نامه‌ها', Icon: Stamp, show: canAccessLettersMenu, badge: menuBadge('letters') },
+          { id: 'tasks', label: 'وظایف', Icon: ClipboardList, show: canAccessTasksMenu, badge: menuBadge('tasks') },
+          { id: 'crm', label: 'مشتریان', Icon: Users, show: canAccessCrmMenu, badge: menuBadge('crm') },
+          { id: 'sepidar', label: 'سپیدار', Icon: Landmark, show: canAccessSepidarMenu, badge: menuBadge('sepidar') },
+          { id: 'warehouse', label: 'انبار', Icon: Warehouse, show: canAccessWarehouseMenu, badge: menuBadge('warehouse') },
+          { id: 'warranty', label: 'گارانتی', Icon: ShieldCheck, show: canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty'), badge: menuBadge('warranty') },
+          { id: 'support', label: 'پشتیبانی', Icon: Headset, show: canAccessWarrantyMenu && canSub(currentUser, 'warranty.support'), badge: menuBadge('support') },
+          { id: 'stats', label: 'گزارشات', Icon: BarChart3, show: canAccessStatsMenu, badge: 0 },
+        ] as const)
+          .filter((t) => t.show)
+          .map(({ id, label, Icon, badge }) => {
+            const on = mainMenuTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => openMenu(id)}
+                aria-label={label}
+                aria-current={on ? 'page' : undefined}
+                ref={(el) => { if (on && el) el.scrollIntoView({ inline: 'center', block: 'nearest' }); }}
+                className={`relative shrink-0 h-11 flex items-center justify-center gap-1.5 rounded-full transition-all duration-300 active:scale-95 cursor-pointer ${
+                  on ? 'bg-white text-[#2A1A16] pl-3.5 pr-3 shadow-md' : 'w-11 text-white/70 hover:text-white'
+                }`}
+              >
+                <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={on ? 2.4 : 1.9} />
+                {on && <span className="text-[11px] font-black whitespace-nowrap">{label}</span>}
+                {badge > 0 && (
+                  <span className="absolute -top-0.5 -left-0.5 bg-rose-500 text-white text-[9px] font-black min-w-[16px] h-4 leading-4 text-center px-1 rounded-full border-2 border-[var(--theme-dark-bg,#3A241F)]">
+                    {toPersianDigits(badge > 99 ? '99+' : badge)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
 
-        {/* Tab 2: نامه‌ها */}
-        {canAccessLettersMenu && (
-          <button
-            type="button"
-            onClick={() => openMenu('letters')}
-            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
-              mainMenuTab === 'letters'
-                ? 'bg-amber-600 text-white shadow-md'
-                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
-            }`}
-          >
-            <Stamp className="w-4 h-4" />
-            <span className="text-[9px] leading-tight font-black whitespace-nowrap">نامه‌ها</span>
-            {menuBadge('letters') > 0 && (
-              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
-                {toPersianDigits(menuBadge('letters') > 99 ? '99+' : menuBadge('letters'))}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Tab: وظایف */}
-        {canAccessTasksMenu && (
-          <button
-            type="button"
-            onClick={() => openMenu('tasks')}
-            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
-              mainMenuTab === 'tasks'
-                ? 'bg-sky-600 text-white shadow-md'
-                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
-            }`}
-          >
-            <ClipboardList className="w-4 h-4" />
-            <span className="text-[9px] leading-tight font-black whitespace-nowrap">وظایف</span>
-            {menuBadge('tasks') > 0 && (
-              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
-                {toPersianDigits(menuBadge('tasks') > 99 ? '99+' : menuBadge('tasks'))}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Tab: مشتریان */}
-        {canAccessCrmMenu && (
-          <button
-            type="button"
-            onClick={() => openMenu('crm')}
-            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
-              mainMenuTab === 'crm'
-                ? 'bg-violet-600 text-white shadow-md'
-                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span className="text-[9px] leading-tight font-black whitespace-nowrap">مشتریان</span>
-            {menuBadge('crm') > 0 && (
-              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
-                {toPersianDigits(menuBadge('crm') > 99 ? '99+' : menuBadge('crm'))}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Tab: سپیدار */}
-        {canAccessSepidarMenu && (
-          <button
-            type="button"
-            onClick={() => openMenu('sepidar')}
-            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
-              mainMenuTab === 'sepidar'
-                ? 'bg-rose-700 text-white shadow-md'
-                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
-            }`}
-          >
-            <Landmark className="w-4 h-4" />
-            <span className="text-[9px] leading-tight font-black whitespace-nowrap">سپیدار</span>
-            {menuBadge('sepidar') > 0 && (
-              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
-                {toPersianDigits(menuBadge('sepidar') > 99 ? '99+' : menuBadge('sepidar'))}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Tab: انبار */}
-        {canAccessWarehouseMenu && (
-          <button
-            type="button"
-            onClick={() => openMenu('warehouse')}
-            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
-              mainMenuTab === 'warehouse'
-                ? 'bg-amber-600 text-white shadow-md'
-                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
-            }`}
-          >
-            <Warehouse className="w-4 h-4" />
-            <span className="text-[9px] leading-tight font-black whitespace-nowrap">انبار</span>
-            {menuBadge('warehouse') > 0 && (
-              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
-                {toPersianDigits(menuBadge('warehouse') > 99 ? '99+' : menuBadge('warehouse'))}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Tab: گارانتی */}
-        {canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty') && (
-          <button
-            type="button"
-            onClick={() => openMenu('warranty')}
-            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
-              mainMenuTab === 'warranty'
-                ? 'bg-teal-600 text-white shadow-md'
-                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span className="text-[9px] leading-tight font-black whitespace-nowrap">گارانتی</span>
-            {menuBadge('warranty') > 0 && (
-              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
-                {toPersianDigits(menuBadge('warranty') > 99 ? '99+' : menuBadge('warranty'))}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Tab: پشتیبانی */}
-        {canAccessWarrantyMenu && canSub(currentUser, 'warranty.support') && (
-          <button
-            type="button"
-            onClick={() => openMenu('support')}
-            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
-              mainMenuTab === 'support'
-                ? 'bg-teal-600 text-white shadow-md'
-                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
-            }`}
-          >
-            <Headset className="w-4 h-4" />
-            <span className="text-[9px] leading-tight font-black whitespace-nowrap">پشتیبانی</span>
-            {menuBadge('support') > 0 && (
-              <span className="absolute -top-1 right-1 bg-rose-600 text-white text-[9px] font-black min-w-[18px] text-center px-1 rounded-full border-2 border-white shadow-xs">
-                {toPersianDigits(menuBadge('support') > 99 ? '99+' : menuBadge('support'))}
-              </span>
-            )}
-          </button>
-        )}
-
-        {canAccessStatsMenu && (
-          <button
-            type="button"
-            onClick={() => openMenu('stats')}
-            className={`flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
-              mainMenuTab === 'stats'
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1]'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span className="text-[9px] leading-tight font-black whitespace-nowrap">گزارشات</span>
-          </button>
-        )}
-
-        {/* (the letter-writing pen button and the colour-theme tab are not in this bar: the theme button is in the page header) */}
-
-        {/* Tab: منوی پروفایل و تنظیمات */}
+        {/* the profile and settings menu */}
         <button
           type="button"
           onClick={() => setShowMobileMenu(true)}
-          className="flex-1 min-h-[50px] min-w-0 flex flex-col items-center justify-center gap-0.5 rounded-2xl text-[#8C6F66] hover:text-[#3A241F] hover:bg-[#FAF5F1] transition-all active:scale-95 cursor-pointer"
+          aria-label="پروفایل"
           title="منوی کاربری"
+          className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full text-white/70 hover:text-white transition-all active:scale-95 cursor-pointer"
         >
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6E1B1B] to-[#D34A32] text-white flex items-center justify-center shadow-2xs">
+          <span className="w-7 h-7 rounded-full bg-gradient-to-br from-[#6E1B1B] to-[#D34A32] text-white flex items-center justify-center shadow-2xs">
             <UserIcon className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-[9px] leading-tight font-black whitespace-nowrap">پروفایل</span>
+          </span>
         </button>
       </nav>
 

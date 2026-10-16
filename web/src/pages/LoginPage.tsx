@@ -3,6 +3,7 @@ import { User as UserIcon, Lock, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
 import { useDemoInfo } from '../components/common/DemoBanner';
 import { useCompanyName } from '../lib/useCompanyName';
+import { LoginBackdrop, GLASS_CARD, GLASS_FIELD } from '../components/common/LoginBackdrop';
 
 interface LoginPageProps {
   staffList: User[];
@@ -73,29 +74,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
   };
 
   return (
-    <div
-      className="min-h-screen min-h-dvh flex items-center justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] font-sans bg-[#FAF7F2] text-[#3A241F] select-none"
-      dir="rtl"
-    >
-      <div className="w-full max-w-sm flex flex-col items-center gap-6">
+    <LoginBackdrop className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] font-sans select-none">
+      <div className="w-full max-w-sm">
+        {/* Login card: frosted glass over the picture */}
+        <div className={`${GLASS_CARD} p-6 sm:p-8 space-y-5`}>
+          <div className="text-center space-y-2">
+            <img src="/images/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="w-36 sm:w-40 mx-auto drop-shadow-lg [filter:brightness(0)_invert(1)_drop-shadow(0_2px_6px_rgba(0,0,0,.35))]" draggable={false} />
+            {companyName && <div className="text-sm font-black text-white/95" data-company-name>{companyName}</div>}
+          </div>
 
-        {/* Only the logo and the login box */}
-        <h1>
-          <img src="/images/logo-full.png" alt="هورمند - سامانه اتوماسیون اداری" className="brand-logo w-44 sm:w-52 mx-auto" draggable={false} />
-        </h1>
-
-        {companyName && <div className="-mt-3 text-center text-base font-black text-[#6E1B1B]" data-company-name>{companyName}</div>}
-
-        {/* Login Card */}
-        <div className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-[#EBDBCE] shadow-lg shadow-[#3A241F]/5 space-y-4">
+          <div className="text-right">
+            <h1 className="text-3xl font-black text-white leading-tight">ورود</h1>
+            <p className="text-xs text-white/80 mt-1">خوش آمدید؛ برای ادامه وارد حساب خود شوید.</p>
+          </div>
 
           {/* Username / User Select Field */}
           <div className="relative" ref={dropdownRef}>
-            <div
-              className="flex items-center gap-3 px-3.5 py-3 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl cursor-text transition-all focus-within:border-[#6E1B1B] focus-within:ring-2 focus-within:ring-[#6E1B1B]/15"
-              onClick={() => setShowDropdown(true)}
-            >
-              <UserIcon className="w-5 h-5 text-[#8C6F66] shrink-0" />
+            <div className={`${GLASS_FIELD} cursor-text`} onClick={() => setShowDropdown(true)}>
               <input
                 type="text"
                 value={usernameQuery}
@@ -113,18 +108,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
                 spellCheck={false}
                 enterKeyHint="next"
                 aria-label="نام کاربری"
-                className="flex-1 bg-transparent text-sm font-bold text-[#3A241F] focus:outline-none"
+                placeholder="نام کاربری"
+                className="flex-1 bg-transparent text-sm font-bold text-white placeholder:text-white/70 focus:outline-none min-w-0"
               />
-              {selectedUser && (
-                <div className="w-7 h-7 rounded-xl bg-[#6E1B1B] text-[#F6D9CD] flex items-center justify-center shrink-0">
-                  <UserIcon className="w-3.5 h-3.5" />
-                </div>
-              )}
+              <UserIcon className="w-5 h-5 text-white/85 shrink-0" />
             </div>
 
             {/* Dropdown list */}
             {showDropdown && filtered.length > 0 && (
-              <div className="absolute top-full mt-2 w-full max-h-56 overflow-y-auto bg-white border border-[#EBDBCE] rounded-2xl shadow-xl z-50 divide-y divide-[#EBDBCE]/50">
+              <div className="absolute top-full mt-2 w-full max-h-56 overflow-y-auto bg-white border border-[#EBDBCE] rounded-2xl shadow-xl z-50 divide-y divide-[#EBDBCE]/50 text-[#3A241F]">
                 {filtered.map((u) => (
                   <button
                     key={u.id}
@@ -136,9 +128,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
                       <UserIcon className="w-4 h-4" />
                     </div>
                     <div className="flex-1 min-w-0 text-right">
-                      <div className="text-xs font-bold text-[#3A241F] truncate">
-                        {u.fullName}
-                      </div>
+                      <div className="text-xs font-bold text-[#3A241F] truncate">{u.fullName}</div>
                       <div className="text-[10px] text-[#8C6F66] truncate">
                         {u.departmentName} {u.role === 'SUPER_ADMIN' ? '(مدیر ارشد)' : ''}
                       </div>
@@ -150,8 +140,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
           </div>
 
           {/* Password Field */}
-          <div className="flex items-center gap-3 px-3.5 py-3 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl transition-all focus-within:border-[#6E1B1B] focus-within:ring-2 focus-within:ring-[#6E1B1B]/15">
-            <Lock className="w-5 h-5 text-[#8C6F66] shrink-0" />
+          <div className={GLASS_FIELD}>
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'پنهان‌کردن رمز' : 'نمایش رمز'}
+              className="text-white/85 hover:text-white transition-colors shrink-0 p-2.5 -m-2"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
@@ -166,23 +163,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
               spellCheck={false}
               enterKeyHint="go"
               aria-label="رمز عبور"
-              className="flex-1 bg-transparent text-sm font-bold text-[#3A241F] focus:outline-none font-mono"
+              placeholder="رمز عبور"
+              className="flex-1 bg-transparent text-sm font-bold text-white placeholder:text-white/70 focus:outline-none font-mono min-w-0"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? 'پنهان‌کردن رمز' : 'نمایش رمز'}
-              className="text-[#8C6F66] hover:text-[#3A241F] transition-colors shrink-0 p-2.5 -m-2"
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+            <Lock className="w-5 h-5 text-white/85 shrink-0" />
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="bg-[#D34A32]/10 border border-[#D34A32]/30 text-[#D34A32] text-xs font-bold px-3 py-2 rounded-xl text-center">
-              {error}
-            </div>
+            <div className="bg-red-500/25 border border-red-200/60 text-white text-xs font-bold px-3 py-2 rounded-xl text-center">{error}</div>
           )}
 
           {/* Login Button */}
@@ -190,14 +179,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
             type="button"
             onClick={handleLogin}
             disabled={submitting}
-            className="w-full py-3.5 bg-[#6E1B1B] hover:bg-[#D34A32] text-white font-black text-sm rounded-2xl shadow-md shadow-[#6E1B1B]/20 transition-all active:scale-[0.98] mt-2 cursor-pointer disabled:opacity-60"
+            className="w-full py-3.5 bg-gradient-to-l from-[var(--theme-primary,#6E1B1B)] to-[var(--theme-secondary,#D34A32)] hover:brightness-110 text-white font-black text-sm rounded-2xl shadow-lg shadow-black/30 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
           >
-            ورود
+            {submitting ? 'در حال ورود…' : 'ورود'}
           </button>
-
         </div>
-
       </div>
-    </div>
+    </LoginBackdrop>
   );
 };

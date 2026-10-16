@@ -641,6 +641,8 @@ export interface SystemSettings {
   ceoSignatureHeight?: number; // اندازهٔ پیش‌فرض امضای مدیرعامل روی نامه‌ها (پیکسل)
   companyStampUrl?: string;
   /** Real height of the stamp on paper, in centimetres (set in the admin console; the default size of the stamp on every letter). */
+  /** Pictures behind the sign-in pages (data URLs, up to 6; one is picked at random each visit). Empty = the built-in pictures. */
+  loginImages?: string[];
   companyStampSizeCm?: number;
   /** Real width of the stamp in centimetres (for the true-size preview; letters are sized by the height). */
   companyStampWidthCm?: number;

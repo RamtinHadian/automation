@@ -35,6 +35,7 @@ import { AnalyticsView } from '../components/admin/AnalyticsView';
 import { NetWatchCard } from '../components/admin/NetWatchCard';
 import { SupportAdmin } from '../components/admin/SupportAdmin';
 import { useCompanyName } from '../lib/useCompanyName';
+import { LoginBackdrop } from '../components/common/LoginBackdrop';
 import { AuditLogsView } from '../components/admin/AuditLogsView';
 import { ServerAddressCard } from '../components/admin/ServerAddressCard';
 import { TransfersMonitor } from '../components/admin/TransfersMonitor';
@@ -294,9 +295,9 @@ export default function AdminPanel() {
   // If not authenticated, show Admin Login Gate with Captcha
   if (!isAdminAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#3A241F] via-[#2E1A16] to-[#1F0F0C] flex items-center justify-center p-4 font-sans select-none relative" dir="rtl">
-        <DayNightToggle className="absolute top-4 left-4 p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/20" />
-        <div className="bg-white rounded-[32px] p-6 sm:p-8 max-w-md w-full border border-[#6E1B1B]/30 shadow-2xl space-y-6">
+      <LoginBackdrop className="p-4 font-sans select-none">
+        <DayNightToggle className="fixed z-20 top-4 left-4 p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/20" />
+        <div className="bg-white/90 backdrop-blur-xl rounded-[32px] p-6 sm:p-8 max-w-md w-full border border-white/60 shadow-2xl shadow-black/30 space-y-6">
           
           {/* Header */}
           <div className="text-center space-y-2">
@@ -409,7 +410,7 @@ export default function AdminPanel() {
 
           </form>
         </div>
-      </div>
+      </LoginBackdrop>
     );
   }
 

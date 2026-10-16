@@ -534,6 +534,11 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, false, 0, false);
   // zoomed (a phone, or the person pressed the magnifier): the sheet is drawn at its real width and scaled, exactly like the editor
   const scaled = fitZ.isPhone || fitZ.zoom !== 1;
+  // a name block that was dragged up by the writer would sit on top of the text: when signing starts it goes back under the text (the signer can still move it)
+  useEffect(() => {
+    if (actionTab === 'SIGN' && signatureOffset.y < -12) setSignatureOffset((o) => ({ ...o, y: 0 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionTab]);
   // when the signer puts the signature or the stamp on the letter, bring that part of the sheet into view
   useEffect(() => {
     if (actionTab !== 'SIGN' || (!showSig && !showStamp)) return;
