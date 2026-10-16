@@ -531,7 +531,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   // null = the stamp follows the signature size; a number = size chosen for the stamp on its own
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(null);
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true, actionTab === 'SIGN' && canSign ? 270 : 0, false);
+  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, false, 0, false);
   // zoomed (a phone, or the person pressed the magnifier): the sheet is drawn at its real width and scaled, exactly like the editor
   const scaled = fitZ.isPhone || fitZ.zoom !== 1;
   // when the signer puts the signature or the stamp on the letter, bring that part of the sheet into view
