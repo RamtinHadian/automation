@@ -326,187 +326,187 @@
 {
 "n": "53",
 "title": "مشتری: یادآوری پرداخت",
-"name": "hmcpaymentdue",
+"name": "hmcpaymentdue2",
 "text": "%token عزیز، سفارش شما به شمارهٔ %token2 تأیید شد. لطفاً مبلغ آن را تا %token3 واریز فرمایید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "54",
 "title": "مشتری: پرداخت دریافت شد",
-"name": "hmcpaymentreceived",
+"name": "hmcpaymentreceived2",
 "text": "%token عزیز، پرداخت شما برای سفارش %token2 دریافت شد. از اعتماد شما سپاسگزاریم.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "55",
 "title": "مشتری: سررسید چک",
-"name": "hmcchequedue",
+"name": "hmcchequedue2",
 "text": "%token عزیز، سررسید چک شما به شمارهٔ %token2 در تاریخ %token3 است.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "56",
 "title": "مشتری: بازگشت مشتری خوابیده",
-"name": "hmcwinback",
+"name": "hmcwinback2",
 "text": "%token عزیز، مدتی است از شما خبری نداریم. برای خرید بعدی از تخفیف ویژهٔ باشگاه مشتریان بهره‌مند شوید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "57",
 "title": "مشتری: ارتقای سطح باشگاه",
-"name": "hmcclubupgrade",
+"name": "hmcclubupgrade2",
 "text": "%token عزیز، تبریک! به سطح «%token10» باشگاه مشتریان رسیدید و از تخفیف این سطح بهره‌مند می‌شوید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "58",
 "title": "مشتری: نظرسنجی",
-"name": "hmcsurvey",
+"name": "hmcsurvey2",
 "text": "%token عزیز، نظر شما دربارهٔ خدمات ما برایمان مهم است. امتیاز خود را از ۱ تا ۵ به کارشناس ما اعلام کنید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "59",
 "title": "مشتری: انقضای گارانتی",
-"name": "hmcwarrantyexpiring",
+"name": "hmcwarrantyexpiring2",
 "text": "%token عزیز، اعتبار گارانتی کالای «%token10» شما به شمارهٔ %token2 در تاریخ %token3 به پایان می‌رسد.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "60",
 "title": "مشتری: انقضای پشتیبانی",
-"name": "hmcsupportexpiring",
+"name": "hmcsupportexpiring2",
 "text": "%token عزیز، اشتراک پشتیبانی شما (%token2) تا %token3 معتبر است. برای تمدید با ما تماس بگیرید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "61",
 "title": "مشتری: یادآوری جلسه",
-"name": "hmcmeetingreminder",
+"name": "hmcmeetingreminder2",
 "text": "%token عزیز، یادآوری: جلسهٔ شما با ما در تاریخ %token3 برگزار می‌شود. منتظر شما هستیم.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "62",
 "title": "مشتری: ارسال سفارش",
-"name": "hmcshipped",
+"name": "hmcshipped2",
 "text": "%token عزیز، سفارش شما به شمارهٔ %token2 ارسال شد.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "63",
 "title": "مشتری: مراجعهٔ نصب",
-"name": "hmcinstallvisit",
+"name": "hmcinstallvisit2",
 "text": "%token عزیز، همکار ما در تاریخ %token3 برای نصب یا بازدید به شما مراجعه می‌کند.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "64",
 "title": "مشتری: پاسخ به تماس بی‌پاسخ",
-"name": "hmccallback",
+"name": "hmccallback2",
 "text": "%token عزیز، تماس شما را دیدیم؛ کارشناس ما به‌زودی با شما تماس می‌گیرد.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "65",
 "title": "مشتری: صدور فاکتور رسمی",
-"name": "hmcinvoiceissued",
+"name": "hmcinvoiceissued2",
 "text": "%token عزیز، فاکتور رسمی شما به شمارهٔ %token2 صادر شد.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "66",
 "title": "مشتری: تبریک مناسبت",
-"name": "hmcoccasion",
+"name": "hmcoccasion2",
 "text": "%token عزیز، %token10 را به شما تبریک می‌گوییم.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "67",
 "title": "مشتری: پیشنهاد ویژه",
-"name": "hmcoffer",
+"name": "hmcoffer2",
 "text": "%token عزیز، پیشنهاد ویژه برای شما: %token10\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "68",
 "title": "مشتری: خوش‌آمد به پورتال",
-"name": "hmcportalwelcome",
+"name": "hmcportalwelcome2",
 "text": "%token عزیز، به پورتال مشتریان خوش آمدید. اطلاعات پرونده و پیش‌فاکتورهای خود را آنجا ببینید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "69",
 "title": "همکاران: مشتری یا فرصت جدید به نام شما",
-"name": "hmstaffcustomernew",
+"name": "hmstaffcustomernew2",
 "text": "%token عزیز، مشتری یا فرصت جدید «%token10» به نام شما ثبت شد؛ لطفاً سریع پیگیری کنید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "70",
 "title": "همکاران: فرصت فروش بی‌پیگیری",
-"name": "hmstaffdealstale",
+"name": "hmstaffdealstale2",
 "text": "%token عزیز، فرصت فروش «%token10» چند روز است بدون پیگیری مانده است.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "71",
 "title": "همکاران: تأیید یا رد پیش‌فاکتور",
-"name": "hmstaffproformadecided",
+"name": "hmstaffproformadecided2",
 "text": "%token عزیز، تصمیم مدیرعامل دربارهٔ پیش‌فاکتور «%token10» ثبت شد؛ نتیجه را در سامانه ببینید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "72",
 "title": "همکاران: پیش‌فاکتور منتظر تأیید",
-"name": "hmstaffproformawait",
+"name": "hmstaffproformawait2",
 "text": "%token عزیز، پیش‌فاکتور «%token10» منتظر تأیید شماست.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "73",
 "title": "همکاران: انتقال مشتری",
-"name": "hmstaffcustomermoved",
+"name": "hmstaffcustomermoved2",
 "text": "%token عزیز، مشتری «%token10» به شما منتقل شد.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "74",
 "title": "همکاران: درخواست مرخصی جدید",
-"name": "hmstaffleavenew",
+"name": "hmstaffleavenew2",
 "text": "%token عزیز، درخواست مرخصی «%token10» برای بررسی شما ثبت شد.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "75",
 "title": "همکاران: نتیجهٔ درخواست مرخصی",
-"name": "hmstaffleavedecided",
+"name": "hmstaffleavedecided2",
 "text": "%token عزیز، نتیجهٔ درخواست مرخصی شما («%token10») در سامانه ثبت شد.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "76",
 "title": "همکاران: نامه امضا شد",
-"name": "hmstafflettersigned",
+"name": "hmstafflettersigned2",
 "text": "%token عزیز، نامهٔ «%token10» امضا شد؛ می‌توانید آن را در سامانه ببینید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "77",
 "title": "همکاران: ارجاع به شما",
-"name": "hmstaffreferral",
+"name": "hmstaffreferral2",
 "text": "%token عزیز، «%token10» به شما ارجاع شد؛ لطفاً در کارتابل بررسی کنید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "78",
 "title": "همکاران: گزارش روزانه ثبت نشده",
-"name": "hmstaffreportmissing",
+"name": "hmstaffreportmissing2",
 "text": "%token عزیز، گزارش روزانهٔ امروز هنوز ثبت نشده است؛ لطفاً تا پایان وقت ثبت کنید.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "79",
 "title": "همکاران: پشتیبانی یا گارانتی به شما سپرده شد",
-"name": "hmstaffsupportassigned",
+"name": "hmstaffsupportassigned2",
 "text": "%token عزیز، درخواست «%token10» برای پیگیری به شما سپرده شد.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "80",
 "title": "همکاران: خلاصهٔ امروز",
-"name": "hmstaffdailysummary",
+"name": "hmstaffdailysummary2",
 "text": "%token عزیز، خلاصهٔ امروز شما: %token10\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "81",
 "title": "همکاران: پیشرفت هدف ماه",
-"name": "hmstafftargetprogress",
+"name": "hmstafftargetprogress2",
 "text": "%token عزیز، پیشرفت هدف ماه شما: %token10\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "82",
 "title": "همکاران: تبریک مناسبت همکاران",
-"name": "hmstaffoccasion",
+"name": "hmstaffoccasion2",
 "text": "%token عزیز، %token10 را به شما تبریک می‌گوییم.\nاز طرف %token20\nاتوماسیون هورمند"
 },
 {
 "n": "83",
 "title": "همکاران: هشدار امنیتی",
-"name": "hmstaffsecurity",
+"name": "hmstaffsecurity2",
 "text": "%token عزیز، هشدار امنیتی: %token10. اگر شما نبودید، رمز عبور را عوض کنید.\nاز طرف %token20\nاتوماسیون هورمند"
 }
 ];

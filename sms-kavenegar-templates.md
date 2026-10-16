@@ -861,7 +861,7 @@ hmstaffdealwon
 
 نام الگو:
 ```
-hmcpaymentdue
+hmcpaymentdue2
 ```
 
 متن الگو:
@@ -878,7 +878,7 @@ hmcpaymentdue
 
 نام الگو:
 ```
-hmcpaymentreceived
+hmcpaymentreceived2
 ```
 
 متن الگو:
@@ -895,7 +895,7 @@ hmcpaymentreceived
 
 نام الگو:
 ```
-hmcchequedue
+hmcchequedue2
 ```
 
 متن الگو:
@@ -912,7 +912,7 @@ hmcchequedue
 
 نام الگو:
 ```
-hmcwinback
+hmcwinback2
 ```
 
 متن الگو:
@@ -929,7 +929,7 @@ hmcwinback
 
 نام الگو:
 ```
-hmcclubupgrade
+hmcclubupgrade2
 ```
 
 متن الگو:
@@ -946,7 +946,7 @@ hmcclubupgrade
 
 نام الگو:
 ```
-hmcsurvey
+hmcsurvey2
 ```
 
 متن الگو:
@@ -963,7 +963,7 @@ hmcsurvey
 
 نام الگو:
 ```
-hmcwarrantyexpiring
+hmcwarrantyexpiring2
 ```
 
 متن الگو:
@@ -980,7 +980,7 @@ hmcwarrantyexpiring
 
 نام الگو:
 ```
-hmcsupportexpiring
+hmcsupportexpiring2
 ```
 
 متن الگو:
@@ -997,7 +997,7 @@ hmcsupportexpiring
 
 نام الگو:
 ```
-hmcmeetingreminder
+hmcmeetingreminder2
 ```
 
 متن الگو:
@@ -1014,7 +1014,7 @@ hmcmeetingreminder
 
 نام الگو:
 ```
-hmcshipped
+hmcshipped2
 ```
 
 متن الگو:
@@ -1031,7 +1031,7 @@ hmcshipped
 
 نام الگو:
 ```
-hmcinstallvisit
+hmcinstallvisit2
 ```
 
 متن الگو:
@@ -1048,7 +1048,7 @@ hmcinstallvisit
 
 نام الگو:
 ```
-hmccallback
+hmccallback2
 ```
 
 متن الگو:
@@ -1065,7 +1065,7 @@ hmccallback
 
 نام الگو:
 ```
-hmcinvoiceissued
+hmcinvoiceissued2
 ```
 
 متن الگو:
@@ -1082,7 +1082,7 @@ hmcinvoiceissued
 
 نام الگو:
 ```
-hmcoccasion
+hmcoccasion2
 ```
 
 متن الگو:
@@ -1099,7 +1099,7 @@ hmcoccasion
 
 نام الگو:
 ```
-hmcoffer
+hmcoffer2
 ```
 
 متن الگو:
@@ -1116,7 +1116,7 @@ hmcoffer
 
 نام الگو:
 ```
-hmcportalwelcome
+hmcportalwelcome2
 ```
 
 متن الگو:
@@ -1133,7 +1133,7 @@ hmcportalwelcome
 
 نام الگو:
 ```
-hmstaffcustomernew
+hmstaffcustomernew2
 ```
 
 متن الگو:
@@ -1150,7 +1150,7 @@ hmstaffcustomernew
 
 نام الگو:
 ```
-hmstaffdealstale
+hmstaffdealstale2
 ```
 
 متن الگو:
@@ -1167,7 +1167,7 @@ hmstaffdealstale
 
 نام الگو:
 ```
-hmstaffproformadecided
+hmstaffproformadecided2
 ```
 
 متن الگو:
@@ -1184,7 +1184,7 @@ hmstaffproformadecided
 
 نام الگو:
 ```
-hmstaffproformawait
+hmstaffproformawait2
 ```
 
 متن الگو:
@@ -1201,7 +1201,7 @@ hmstaffproformawait
 
 نام الگو:
 ```
-hmstaffcustomermoved
+hmstaffcustomermoved2
 ```
 
 متن الگو:
@@ -1218,7 +1218,7 @@ hmstaffcustomermoved
 
 نام الگو:
 ```
-hmstaffleavenew
+hmstaffleavenew2
 ```
 
 متن الگو:
@@ -1235,7 +1235,7 @@ hmstaffleavenew
 
 نام الگو:
 ```
-hmstaffleavedecided
+hmstaffleavedecided2
 ```
 
 متن الگو:
@@ -1252,7 +1252,7 @@ hmstaffleavedecided
 
 نام الگو:
 ```
-hmstafflettersigned
+hmstafflettersigned2
 ```
 
 متن الگو:
@@ -1269,7 +1269,7 @@ hmstafflettersigned
 
 نام الگو:
 ```
-hmstaffreferral
+hmstaffreferral2
 ```
 
 متن الگو:
@@ -1286,7 +1286,7 @@ hmstaffreferral
 
 نام الگو:
 ```
-hmstaffreportmissing
+hmstaffreportmissing2
 ```
 
 متن الگو:
@@ -1303,7 +1303,7 @@ hmstaffreportmissing
 
 نام الگو:
 ```
-hmstaffsupportassigned
+hmstaffsupportassigned2
 ```
 
 متن الگو:
@@ -1320,7 +1320,7 @@ hmstaffsupportassigned
 
 نام الگو:
 ```
-hmstaffdailysummary
+hmstaffdailysummary2
 ```
 
 متن الگو:
@@ -1337,7 +1337,7 @@ hmstaffdailysummary
 
 نام الگو:
 ```
-hmstafftargetprogress
+hmstafftargetprogress2
 ```
 
 متن الگو:
@@ -1354,7 +1354,7 @@ hmstafftargetprogress
 
 نام الگو:
 ```
-hmstaffoccasion
+hmstaffoccasion2
 ```
 
 متن الگو:
@@ -1371,7 +1371,7 @@ hmstaffoccasion
 
 نام الگو:
 ```
-hmstaffsecurity
+hmstaffsecurity2
 ```
 
 متن الگو:
