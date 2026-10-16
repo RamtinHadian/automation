@@ -314,7 +314,7 @@ func ForNotification(userID, label, title, body string) {
 			return
 		}
 		// each of the notifications has its own Kavenegar template (see kvtemplates_gen.go): only the person, the subject and the company travel
-		if key, ok := staffTemplate[label]; ok {
+		if key, ok := staffTemplate[label]; ok && !((label == "پشتیبانی" || label == "درخواست گارانتی") && !strings.Contains(title, "سپرده")) {
 			subject := staffSubject(label, title, body)
 			vars := map[string]string{"name": jsonx.Str(u, "fullName"), "subject": subject, "company": Company(ctx)}
 			_, _ = SendTemplateAndLog(ctx, "system", mobile, key, vars)
@@ -335,6 +335,10 @@ func ForNotification(userID, label, title, body string) {
 var staffTemplate = map[string]string{
 	"جهت امضا": "staff_sign", "وظیفه جدید": "staff_task_new", "موعد امروز": "staff_task_today", "موعد گذشته": "staff_task_late",
 	"تماس بی‌پاسخ": "staff_missed_call", "پیگیری امروز": "staff_followup_today", "پیگیری عقب‌افتاده": "staff_followup_late", "فروش موفق": "staff_deal_won",
+	"مشتری جدید": "staff_customer_new", "فرصت فروش": "staff_customer_new", "فرصت گیرکرده": "staff_deal_stale",
+	"پیش‌فاکتور تایید شد": "staff_proforma_decided", "پیش‌فاکتور رد شد": "staff_proforma_decided", "تایید پیش‌فاکتور": "staff_proforma_wait",
+	"انتقال مشتری": "staff_customer_moved", "درخواست مرخصی": "staff_leave_new", "مرخصی تایید شد": "staff_leave_decided", "مرخصی رد شد": "staff_leave_decided",
+	"امضا شد": "staff_letter_signed", "ارجاع": "staff_referral", "پشتیبانی": "staff_support_assigned", "درخواست گارانتی": "staff_support_assigned",
 }
 
 // staffSubject is what the SMS is about: the body of the notification (letter subject, task title) or the part of the title after the colon / «از».
@@ -344,6 +348,15 @@ func staffSubject(label, title, body string) string {
 			return strings.TrimSpace(t[i+len(sep):])
 		}
 		return strings.TrimSpace(t)
+	}
+	if label == "فرصت گیرکرده" || label == "مشتری جدید" || label == "فرصت فروش" || strings.HasPrefix(label, "پیش‌فاکتور") || label == "تایید پیش‌فاکتور" {
+		for _, t := range []string{title, body} {
+			if i := strings.Index(t, "«"); i >= 0 {
+				if j := strings.Index(t[i:], "»"); j > 0 {
+					return strings.TrimSpace(t[i+len("«") : i+j])
+				}
+			}
+		}
 	}
 	switch label {
 	case "تماس بی‌پاسخ":
