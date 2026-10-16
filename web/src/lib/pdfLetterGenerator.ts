@@ -3,6 +3,7 @@ import { resolveSignatureHeight, signatureAreaHeight, SIGNATURE_ANCHOR_LEFT, STA
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
+import { letterheadColor, letterheadFooterText, letterheadSvg } from './letterheads';
 
 export interface LetterPrintOverrides {
   pageSize?: string;
@@ -154,6 +155,9 @@ export function generateOfficialLetterHtml(
   const areaHeight = signatureAreaHeight(isA5, finalSigHeight, stampHeight);
 
   const signedDateTime = toPersianDigits(transfer.signedAt || formatCurrentJalaliDateTime());
+  // the ready-made letterhead: a decoration at the top and the bottom of the sheet and the address / phone line in the footer
+  const lh = transfer.letterhead;
+  const lhFooter = lh ? letterheadFooterText(lh) : '';
 
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -220,7 +224,11 @@ export function generateOfficialLetterHtml(
       background: #f0ede9;
       line-height: 1.8;
     }
+    .lh-top, .lh-bottom { position: absolute; left: 0; right: 0; pointer-events: none; }
+    .lh-top { top: 0; }
+    .lh-bottom { bottom: 0; }
     .letter-container {
+      position: relative;
       max-width: ${containerMaxWidth};
       margin: 0 auto;
       min-height: ${containerMinHeight};
@@ -440,7 +448,8 @@ export function generateOfficialLetterHtml(
     <button class="print-btn" onclick="window.print()">دریافت PDF / چاپ مستقیم</button>
   </div>
 
-  <div class="letter-container">
+  <div class="letter-container"${lh ? ' style="padding-top: calc(' + containerPadding + ' + 8px); padding-bottom: calc(' + containerPadding + ' + 6px);"' : ''}>
+    ${lh ? `<div class="lh-top">${letterheadSvg(lh.id, 'top')}</div><div class="lh-bottom">${letterheadSvg(lh.id, 'bottom')}</div>` : ''}
     <div class="header">
       <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);">
         ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" />` : ''}
@@ -497,6 +506,8 @@ export function generateOfficialLetterHtml(
         </div>
       </div>
     </div>
+
+    ${lh && lhFooter ? `<div style="margin-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
 
     ${showFooter ? `
     <div class="footer">

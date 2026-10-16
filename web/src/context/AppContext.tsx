@@ -134,6 +134,7 @@ interface AppContextType {
     showOrgName?: boolean;
     showSubject?: boolean;
     customFooterNote?: string;
+    letterhead?: import('../lib/letterheads').LetterheadChoice;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
     orgOffsetX?: number;
@@ -175,6 +176,7 @@ interface AppContextType {
       customHeaderCompanySubtitle?: string;
       customHeaderCenterTitle?: string;
       customFooterNote?: string;
+      letterhead?: import('../lib/letterheads').LetterheadChoice;
       metaOffsetX?: number;
       metaOffsetY?: number;
       headerCenterFontFamily?: string;
@@ -721,6 +723,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showOrgName,
       showSubject,
       customFooterNote,
+      letterhead,
       bodyOffsetX,
       bodyOffsetY,
       orgOffsetX,
@@ -771,6 +774,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showOrgName?: boolean;
       showSubject?: boolean;
       customFooterNote?: string;
+      letterhead?: import('../lib/letterheads').LetterheadChoice;
       bodyOffsetX?: number;
       bodyOffsetY?: number;
       orgOffsetX?: number;
@@ -866,6 +870,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             showOrgName,
             showSubject,
             customFooterNote,
+            letterhead,
             bodyOffsetX,
             bodyOffsetY,
             orgOffsetX,

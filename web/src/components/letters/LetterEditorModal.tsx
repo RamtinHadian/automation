@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
 import { MoveBox } from './MoveBox';
+import { LetterheadPanel } from './LetterheadPanel';
+import { LetterheadChoice, letterheadColor, letterheadFooterText, letterheadSvg } from '../../lib/letterheads';
+import { useDemoInfo } from '../common/DemoBanner';
 import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
@@ -93,6 +96,7 @@ interface LetterEditorModalProps {
     showOrgName?: boolean;
     showSubject?: boolean;
     customFooterNote?: string;
+    letterhead?: LetterheadChoice;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
     orgOffsetX?: number;
@@ -260,7 +264,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [signatureHeight, setSignatureHeight] = useState<number>(() => numPref(prefs.signatureHeight, settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT));
 
   const [pageSize, setPageSize] = useState<PaperSize>(() => (['A4', 'A5', 'Letter', 'Letterhead'].includes(prefs.pageSize) ? prefs.pageSize : 'A4'));
-  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true);
+  const demoInfo = useDemoInfo();
+  const lhEnabled = !!demoInfo?.demo;
+  const [lhOpen, setLhOpen] = useState(false);
+  const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, true, lhEnabled && pageSize === 'Letterhead' && lhOpen ? 360 : 0);
   const zoom = fitZ.zoom;
   // wide screens: the toolbars sit in a column on each side of the paper
   const side = fitZ.vw >= 1100;
@@ -300,6 +307,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [showAtt, setShowAtt] = useState<boolean>(() => prefs.showLetterAttachment !== false);
   // the logo belongs to the saved layout: a new letter starts the way the layout / template was saved last
   const [showLogo, setShowLogo] = useState<boolean>(() => prefs.showLogo !== false);
+  // the ready-made letterheads (shown for now only in the demo): the page at the right with 100 templates, and the choice itself
+  const [lh, setLh] = useState<LetterheadChoice | null>(() => editTransfer?.letterhead ?? null);
   const [showOrgName, setShowOrgName] = useState<boolean>(() => prefs.showOrgName !== false); // the name beside the logo, saved with the layout like the logo
   const [showSubject, setShowSubject] = useState<boolean>(() => prefs.showSubject !== false); // the subject line, saved with the layout too
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(() => (typeof prefs.stampHeightOverride === 'number' ? prefs.stampHeightOverride : null));
@@ -637,6 +646,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       showOrgName: showOrgName ? undefined : false,
       showSubject: showSubject ? undefined : false,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
+      letterhead: lhEnabled && pageSize === 'Letterhead' && lh ? lh : undefined,
       bodyOffsetX,
       bodyOffsetY,
       orgOffsetX: orgOffset.x,
@@ -704,6 +714,11 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
         {/* Body: on wide screens the two toolbars become side columns so the top stays open */}
         <div className={side ? 'flex flex-1 min-h-0' : 'contents'}>
+        {lhEnabled && pageSize === 'Letterhead' && lhOpen && (
+          <div className={side ? 'order-first w-[360px] shrink-0 border-l border-[#EBDBCE] min-h-0' : 'fixed inset-y-0 right-0 z-[60] w-[min(380px,94vw)] shadow-2xl border-l border-[#EBDBCE]'}>
+            <LetterheadPanel value={lh} onChange={setLh} defaults={{ address: settings.companyAddress || '', phone: settings.companyPhone || '' }} onClose={() => setLhOpen(false)} />
+          </div>
+        )}
         {/* Action / Settings Toolbar Bar */}
         <div onWheel={side ? undefined : hwheel} className={side ? 'order-1 bg-[#FAF5F1] w-[300px] shrink-0 overflow-y-auto border-l border-[#EBDBCE] flex flex-col items-stretch gap-2.5 p-3 text-xs [&>*]:w-full [&>button]:justify-center [&>button]:py-2.5 [&>button]:rounded-xl [&>div]:flex-col [&>div]:items-stretch [&>div]:gap-2 [&>div]:bg-white [&>div]:rounded-2xl [&>div]:border [&>div]:border-[#EBDBCE] [&>div]:p-3 [&>div]:shadow-sm [&>div_select]:w-full' : 'order-1 bg-white px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center justify-between gap-2 shrink-0 hscroll text-xs whitespace-nowrap'}>
           
@@ -776,7 +791,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setPageSize('Letterhead')}
+                onClick={() => { setPageSize('Letterhead'); if (lhEnabled) setLhOpen(true); }}
                 className={`px-3 py-1 text-xs font-black rounded-lg transition-all cursor-pointer ${
                   pageSize === 'Letterhead' ? 'bg-amber-600 text-white shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
                 }`}
@@ -785,6 +800,12 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </button>
             </div>
           </div>
+
+          {lhEnabled && pageSize === 'Letterhead' && (
+            <button type="button" onClick={() => setLhOpen((v) => !v)} className="px-2.5 py-1.5 rounded-xl border border-amber-400 bg-amber-50 hover:bg-amber-100 text-[11px] font-black text-amber-900 cursor-pointer shrink-0" data-letterhead-toggle>
+              {lhOpen ? 'بستن قالب‌های سربرگ' : `قالب‌های سربرگ (${lh ? 'قالب ' + lh.id : '۱۰۰ قالب'})`}
+            </button>
+          )}
 
           {/* Quick Pre-built Templates */}
           <div className="flex items-center gap-2">
@@ -863,9 +884,15 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           <ScaledPaper enabled={fitZ.isPhone || fitZ.zoom !== 1} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
             ref={paperSheetRef}
-            style={{ fontFamily: selectedFontFamily }}
+            style={{ fontFamily: selectedFontFamily, ...(lhEnabled && pageSize === 'Letterhead' && lh ? { paddingTop: 56, paddingBottom: 54 } : {}) }}
             className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 w-full transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
           >
+            {lhEnabled && pageSize === 'Letterhead' && lh && (
+              <>
+                <div className="absolute inset-x-0 top-0 pointer-events-none rounded-t-xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(lh.id, 'top') }} />
+                <div className="absolute inset-x-0 bottom-0 pointer-events-none rounded-b-xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(lh.id, 'bottom') }} />
+              </>
+            )}
             {/* Header Component */}
             <div className="pb-2 mb-4 space-y-3 shrink-0">
               <div className="relative flex items-start justify-between">
@@ -1192,6 +1219,13 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* The address and the phone of the chosen letterhead: dragged like every other part of the header */}
+            {lhEnabled && pageSize === 'Letterhead' && lh && letterheadFooterText(lh) && (
+              <MoveBox offset={{ x: lh.offsetX || 0, y: lh.offsetY || 0 }} onChange={(o) => setLh({ ...lh, offsetX: o.x, offsetY: o.y })} locked={layoutLocked} scale={zoom} className="mt-4 text-center text-[10.5px] font-bold leading-6 px-2">
+                <span style={{ color: letterheadColor(lh.id) }}>{toPersianDigits(letterheadFooterText(lh))}</span>
+              </MoveBox>
+            )}
 
             {/* Official Letter Footer */}
             {(settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false) && (

@@ -587,6 +587,7 @@ export default function UserPanel() {
     showOrgName?: boolean;
     showSubject?: boolean;
     customFooterNote?: string;
+    letterhead?: import('../lib/letterheads').LetterheadChoice;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
     orgOffsetX?: number;
@@ -683,6 +684,7 @@ export default function UserPanel() {
       showOrgName: letterData.showOrgName,
       showSubject: letterData.showSubject,
       customFooterNote: letterData.customFooterNote,
+      letterhead: letterData.letterhead,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyOffsetY: letterData.bodyOffsetY,
       orgOffsetX: letterData.orgOffsetX,

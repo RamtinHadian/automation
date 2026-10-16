@@ -3,6 +3,7 @@ import { hwheel } from '../../lib/hscroll';
 import { DraggableImage } from './DraggableImage';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
+import { letterheadColor, letterheadFooterText, letterheadSvg } from '../../lib/letterheads';
 import { useFitZoom } from '../../lib/useFitZoom';
 import {
   DEFAULT_SIGNATURE_HEIGHT,
@@ -1621,7 +1622,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           {/* Virtual Official Paper Sheet */}
           <ScaledPaper enabled={fitZ.isPhone} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
-            style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily }}
+            style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily, ...(letter.letterhead ? { paddingTop: 56, paddingBottom: 54 } : {}) }}
             className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 w-full text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
               pageSize === 'A5'
                 ? `${fitZ.isPhone ? '' : 'max-w-[580px]'} min-h-[600px] ${fitZ.isPhone ? 'p-7' : 'p-4 sm:p-7'} text-xs`
@@ -1630,6 +1631,12 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 : `${fitZ.isPhone ? '' : 'max-w-[720px]'} min-h-[760px] ${fitZ.isPhone ? 'p-10' : 'p-6 sm:p-10'} text-xs`
             }`}
           >
+            {letter.letterhead && (
+              <>
+                <div className="absolute inset-x-0 top-0 pointer-events-none rounded-t-2xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(letter.letterhead.id, 'top') }} />
+                <div className="absolute inset-x-0 bottom-0 pointer-events-none rounded-b-2xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(letter.letterhead.id, 'bottom') }} />
+              </>
+            )}
             {/* Header Component */}
             <div className={`pb-2 ${pageSize === 'A5' ? 'mb-2 space-y-2' : 'mb-4 space-y-3'} shrink-0`}>
               <div className="relative flex items-start justify-between min-h-[50px]">
@@ -2123,6 +2130,12 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {letter.letterhead && letterheadFooterText(letter.letterhead) && (
+              <div className="mt-4 text-center text-[10.5px] font-bold leading-6 px-2" style={{ color: letterheadColor(letter.letterhead.id), transform: `translate(${letter.letterhead.offsetX || 0}px, ${letter.letterhead.offsetY || 0}px)` }}>
+                {toPersianDigits(letterheadFooterText(letter.letterhead))}
+              </div>
+            )}
 
             {/* Document Footer (Clean official note) */}
             {(isEditable

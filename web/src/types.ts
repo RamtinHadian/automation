@@ -523,6 +523,8 @@ export interface FileTransfer {
   customHeaderCompanySubtitle?: string;
   customHeaderCenterTitle?: string;
   customFooterNote?: string;
+  /** The ready-made letterhead (decoration, address and phone in the footer) chosen for an official letter on the «سربرگ رسمی با آرم» paper. */
+  letterhead?: import('./lib/letterheads').LetterheadChoice;
   showFooterNote?: boolean;
   attachmentFileName?: string;
   attachmentFileSize?: string;
