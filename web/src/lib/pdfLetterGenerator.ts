@@ -463,7 +463,7 @@ export function generateOfficialLetterHtml(
     ${lh && !lh.image ? `<div class="lh-top">${letterheadSvg(lh.id, 'top')}</div><div class="lh-bottom">${letterheadSvg(lh.id, 'bottom')}</div>` : ''}
     <div class="header">
       <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);${orgScale > 1.2 ? ' max-width: 60%;' : ''}">
-        ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" style="transform: translate(${logoOffsetX}px, ${logoOffsetY}px);${logoSize ? ` height: ${logoSize}px; max-width: ${Math.round(logoSize * 1.8)}px;` : ''}" />` : ''}
+        ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" style="transform: translate(${logoOffsetX}px, ${logoOffsetY}px);${logoSize ? ` width: ${logoSize}px; height: ${logoSize}px; max-width: none; flex-shrink: 0; object-fit: contain;` : ''}" />` : ''}
         ${showOrgName ? `<div style="transform: translate(${orgTextOffsetX}px, ${orgTextOffsetY}px); min-width: 90px;">
           ${companyName ? `<h1 class="org-title"${orgScale !== 1 ? ` style="font-size: ${((isA5 ? 13 : 15) * orgScale).toFixed(1)}px;"` : ''}>${companyName}</h1>` : ''}
           ${companySubtitle ? `<div class="org-sub"${orgScale !== 1 ? ` style="font-size: ${((isA5 ? 9.5 : 10.5) * orgScale).toFixed(1)}px;"` : ''}>${companySubtitle}</div>` : ''}
