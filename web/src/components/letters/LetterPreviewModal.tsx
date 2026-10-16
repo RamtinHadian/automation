@@ -533,7 +533,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const fitZ = useFitZoom(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720, 20, false, 0, false);
   // zoomed (a phone, or the person pressed the magnifier): the sheet is drawn at its real width and scaled, exactly like the editor
-  const scaled = fitZ.isPhone || fitZ.zoom !== 1;
+  // the sheet is always drawn at its real design width and scaled by transform: the layout is then the same at every zoom (before, 100% and the other zooms laid the text out differently, so the name and the signature jumped)
+  const scaled = true;
   // a name block that was dragged up by the writer would sit on top of the text: when signing starts it goes back under the text (the signer can still move it)
   useEffect(() => {
     if (actionTab === 'SIGN' && signatureOffset.y < -12) setSignatureOffset((o) => ({ ...o, y: 0 }));
