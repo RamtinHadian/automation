@@ -32,7 +32,6 @@ function AppRoutes() {
   return (
     <>
     <DemoBanner />
-    {!loggedInUser && !window.location.pathname.startsWith('/support') && <DayNightToggle className="fixed top-4 left-4 z-50 p-2.5 rounded-2xl bg-white/80 hover:bg-white text-[#6E1B1B] border border-[#EBDBCE] shadow-md" />}
     {loggedInUser && <NotificationPopups />}
     <Routes>
       <Route
@@ -41,6 +40,9 @@ function AppRoutes() {
           loggedInUser ? (
             <UserPanel />
           ) : (
+            <>
+              {/* the day / night switch belongs to the sign-in page only (the other pages have their own) */}
+              <DayNightToggle className="fixed top-4 left-4 z-50 p-2.5 rounded-2xl bg-white/80 hover:bg-white text-[#6E1B1B] border border-[#EBDBCE] shadow-md" />
             <LoginPage
               staffList={staffList}
               onLogin={async (identifier, password) => {
@@ -49,6 +51,7 @@ function AppRoutes() {
               }}
               onAdminLogin={handleAdminLogin}
             />
+            </>
           )
         }
       />
