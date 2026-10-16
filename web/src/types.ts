@@ -642,6 +642,8 @@ export interface SystemSettings {
   companyStampUrl?: string;
   /** Real height of the stamp on paper, in centimetres (set in the admin console; the default size of the stamp on every letter). */
   companyStampSizeCm?: number;
+  /** Real width of the stamp in centimetres (for the true-size preview; letters are sized by the height). */
+  companyStampWidthCm?: number;
   /** When true the stamp is always that size and cannot be resized on a letter. */
   companyStampSizeLocked?: boolean;
   ceoName?: string;

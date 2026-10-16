@@ -211,6 +211,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const [newExt, setNewExt] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [stampAspect, setStampAspect] = useState<number | null>(null); // width / height of the uploaded stamp picture
   const [section, setSectionState] = useState<SettingsSection>(() => {
     try {
       const v = localStorage.getItem('admin_settings_section_v1') as SettingsSection | null;
@@ -991,44 +992,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
         {/* The real size of the stamp: seen at true size here, set once, used on every letter */}
         <div className="pt-4 border-t border-[#EBDBCE]/60 space-y-3 text-xs" data-stamp-size>
-          <label className="block font-bold text-[#3A241F]">اندازهٔ مهر روی کاغذ (سانتی‌متر)</label>
-          <div className="flex items-center gap-3 flex-wrap">
-            <input
-              type="number"
-              step="0.1"
-              min="1"
-              max="12"
-              value={settings.companyStampSizeCm ?? ''}
-              onChange={(e) => {
-                const n = parseFloat(e.target.value);
-                setSettings({ ...settings, companyStampSizeCm: Number.isFinite(n) && n > 0 ? Math.min(12, Math.max(1, Math.round(n * 10) / 10)) : undefined });
-              }}
-              placeholder="۳٫۵"
-              dir="ltr"
-              className="w-24 p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] text-center focus:outline-none focus:border-[#D34A32]"
-            />
-            <input
-              type="range"
-              min="1"
-              max="12"
-              step="0.1"
-              value={settings.companyStampSizeCm ?? 3.5}
-              onChange={(e) => setSettings({ ...settings, companyStampSizeCm: Number(e.target.value) })}
-              className="flex-1 min-w-[160px] accent-[#6E1B1B] cursor-pointer"
-            />
-            {[2.5, 3, 3.5, 4, 5].map((v) => (
+          <label className="block font-bold text-[#3A241F]">اندازهٔ واقعی مهر روی کاغذ (سانتی‌متر)</label>
+          <div className="flex items-end gap-3 flex-wrap">
+            {([
+              { key: 'companyStampWidthCm', label: 'عرض', ph: '۴' },
+              { key: 'companyStampSizeCm', label: 'ارتفاع', ph: '۱٫۵' },
+            ] as const).map((f) => (
+              <label key={f.key} className="space-y-1">
+                <span className="block text-[11px] font-bold text-[#8C6F66]">{f.label}</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.5"
+                  max="12"
+                  value={settings[f.key] ?? ''}
+                  onChange={(e) => {
+                    const n = parseFloat(e.target.value);
+                    setSettings({ ...settings, [f.key]: Number.isFinite(n) && n > 0 ? Math.min(12, Math.max(0.5, Math.round(n * 10) / 10)) : undefined });
+                  }}
+                  placeholder={f.ph}
+                  dir="ltr"
+                  className="w-24 p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] text-center focus:outline-none focus:border-[#D34A32]"
+                />
+              </label>
+            ))}
+            {[[4, 1.5], [3, 3], [5, 2], [3.5, 3.5]].map(([w, h]) => (
               <button
-                key={v}
+                key={`${w}x${h}`}
                 type="button"
-                onClick={() => setSettings({ ...settings, companyStampSizeCm: v })}
-                className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer ${settings.companyStampSizeCm === v ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}
+                onClick={() => setSettings({ ...settings, companyStampWidthCm: w, companyStampSizeCm: h })}
+                className={`px-2.5 py-2 rounded-lg border text-[11px] font-bold cursor-pointer ${settings.companyStampWidthCm === w && settings.companyStampSizeCm === h ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}
               >
-                {toPersianDigits(String(v).replace('.', '٫'))}
+                {toPersianDigits(`${w}`.replace('.', '٫'))} × {toPersianDigits(`${h}`.replace('.', '٫'))}
               </button>
             ))}
             <button
               type="button"
-              onClick={() => setSettings({ ...settings, companyStampSizeCm: undefined, companyStampSizeLocked: false })}
+              onClick={() => setSettings({ ...settings, companyStampSizeCm: undefined, companyStampWidthCm: undefined, companyStampSizeLocked: false })}
               className="px-3 py-2 text-[11px] font-bold text-[#8C6F66] hover:bg-[#FAF5F1] rounded-xl cursor-pointer"
             >
               بازگشت به پیش‌فرض
@@ -1049,9 +1049,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {/* the stamp at its real size (1 cm = 1 cm on a screen that is not scaled) next to a ruler */}
           <div className="rounded-2xl border border-[#EBDBCE] bg-white p-4 overflow-auto">
             <div className="flex items-end gap-6 min-w-max">
-              <div className="relative bg-[#FDFBF8] border border-dashed border-[#C98B6A]/60 rounded-md flex items-center justify-center" style={{ height: `${settings.companyStampSizeCm || 3.5}cm`, minWidth: `${settings.companyStampSizeCm || 3.5}cm`, padding: 0 }}>
+              <div className="bg-[#FDFBF8] border border-dashed border-[#C98B6A]/60 flex items-center justify-center" style={{ width: `${settings.companyStampWidthCm || settings.companyStampSizeCm || 3.5}cm`, height: `${settings.companyStampSizeCm || 3.5}cm` }}>
                 {settings.companyStampUrl ? (
-                  <img src={settings.companyStampUrl} alt="مهر در اندازهٔ واقعی" className="mix-blend-multiply opacity-90 object-contain" style={{ height: `${settings.companyStampSizeCm || 3.5}cm` }} draggable={false} />
+                  <img
+                    src={settings.companyStampUrl}
+                    alt="مهر در اندازهٔ واقعی"
+                    className="mix-blend-multiply opacity-90 object-contain w-full h-full"
+                    draggable={false}
+                    onLoad={(e) => setStampAspect(e.currentTarget.naturalWidth / (e.currentTarget.naturalHeight || 1))}
+                  />
                 ) : (
                   <span className="text-[11px] text-gray-400 font-bold px-3">ابتدا تصویر مهر را بارگذاری کنید</span>
                 )}
@@ -1066,6 +1072,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
           </div>
+          {settings.companyStampUrl && stampAspect && settings.companyStampWidthCm && settings.companyStampSizeCm && Math.abs(stampAspect / (settings.companyStampWidthCm / settings.companyStampSizeCm) - 1) > 0.1 && (
+            <div className="text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-2.5 leading-6">
+              نسبت تصویر مهر بارگذاری‌شده ({toPersianDigits(stampAspect.toFixed(2).replace('.', '٫'))} به ۱) با نسبت اندازهٔ واقعی ({toPersianDigits((settings.companyStampWidthCm / settings.companyStampSizeCm).toFixed(2).replace('.', '٫'))} به ۱) یکی نیست؛
+              حاشیهٔ خالی دور تصویر را ببُرید یا اندازه را مطابق خودِ تصویر بدهید تا روی نامه دقیقاً همین اندازه دیده شود.
+            </div>
+          )}
           <p className="text-[11px] text-[#8C6F66] leading-6">
             مهر بالا با اندازهٔ واقعی نمایش داده می‌شود (روی نمایشگری که بزرگ‌نمایی ندارد). اندازهٔ انتخاب‌شده روی همهٔ قطع‌ها (A4، A5 و Letter) به همان نسبت واقعی در نامه نشسته و در چاپ هم همان است.
             اگر قفل نباشد، مدیرعامل می‌تواند هنگام امضا برای همان نامه اندازه را تغییر بدهد.
