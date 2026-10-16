@@ -614,7 +614,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setBodyPaddingX(letter.bodyPaddingX || 0);
       setIsEditingBody(false);
     }
-  }, [letter, settings]);
+  // start over only when another letter is opened or its status changes (a background refresh replaces the object but must not wipe what the signer just chose or moved)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, letter?.id, letter?.signatureStatus]);
 
   const editorBodyRef = useRef<HTMLDivElement>(null);
   const [selectedFontSize, setSelectedFontSize] = useState<string>('13px');

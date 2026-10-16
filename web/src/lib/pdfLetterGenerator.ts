@@ -528,6 +528,36 @@ export function generateOfficialLetterHtml(
     </div>
     ` : ''}
   </div>
+<script>
+// When the letter is longer than one page, its whole sheet is shrunk just enough to fit, so the footer never goes to a second page.
+(function () {
+  var PAGE_MM = ${isA5 ? 209 : isLetter ? 278.4 : 296};
+  var PX = 96 / 25.4;
+  var PROPS = ['width', 'height', 'min-height', 'max-height'];
+  function reset(c) { c.style.zoom = ''; PROPS.forEach(function (p) { c.style.removeProperty(p); }); }
+  function fit() {
+    var c = document.querySelector('.letter-container');
+    if (!c) return;
+    reset(c);
+    var natural = c.scrollHeight;
+    c.style.height = 'auto'; c.style.minHeight = '0'; c.style.maxHeight = 'none';
+    natural = Math.max(natural, c.scrollHeight);
+    ['height', 'min-height', 'max-height'].forEach(function (p) { c.style.removeProperty(p); });
+    var z = Math.min(1, (PAGE_MM * PX) / (natural * 1.03));
+    if (z < 0.999) {
+      c.style.zoom = String(z);
+      var h = (PAGE_MM / z) + 'mm';
+      c.style.setProperty('width', (100 / z) + '%', 'important');
+      c.style.setProperty('height', h, 'important');
+      c.style.setProperty('min-height', h, 'important');
+      c.style.setProperty('max-height', h, 'important');
+    }
+  }
+  window.__fitPrint = fit;
+  window.addEventListener('beforeprint', fit);
+  window.addEventListener('afterprint', function () { var c = document.querySelector('.letter-container'); if (c) reset(c); });
+})();
+</script>
 </body>
 </html>`;
 }
