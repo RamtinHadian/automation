@@ -3,7 +3,7 @@ import { hwheel } from '../../lib/hscroll';
 import { DraggableImage } from './DraggableImage';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
-import { letterheadBackground, letterheadColor, letterheadFooterText, letterheadPad, letterheadSvg } from '../../lib/letterheads';
+import { letterheadBackground, letterheadColor, letterheadFooterText, letterheadPad, paperWidth, letterheadSvg } from '../../lib/letterheads';
 import { useFitZoom } from '../../lib/useFitZoom';
 import {
   DEFAULT_SIGNATURE_HEIGHT,
@@ -1622,7 +1622,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           {/* Virtual Official Paper Sheet */}
           <ScaledPaper enabled={fitZ.isPhone} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
-            style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily, ...(letter.letterhead && !letter.letterhead.image ? { paddingTop: letterheadPad(letter.letterhead.id), paddingBottom: letterheadPad(letter.letterhead.id) - 2 } : {}), ...letterheadBackground(letter.letterhead) }}
+            style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily, ...(letter.letterhead && !letter.letterhead.image ? { paddingTop: letterheadPad(letter.letterhead.id, paperWidth(pageSize)), paddingBottom: letterheadPad(letter.letterhead.id, paperWidth(pageSize)) - 2 } : {}), ...letterheadBackground(letter.letterhead) }}
             className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 w-full text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
               pageSize === 'A5'
                 ? `${fitZ.isPhone ? '' : 'max-w-[580px]'} min-h-[600px] ${fitZ.isPhone ? 'p-7' : 'p-4 sm:p-7'} text-xs`

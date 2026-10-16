@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Check, ImagePlus, Star, Search, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, ImagePlus, Star, Search, Trash2, X } from 'lucide-react';
 import { LETTERHEAD_DESIGN_COUNT, LETTERHEAD_TOTAL, LETTERHEAD_DESIGNS, LETTERHEAD_PALETTES, LETTERHEAD_VARIANTS, LetterheadChoice, letterheadSvg, queryLetterheads, variantName, designName } from '../../lib/letterheads';
 import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
@@ -77,6 +77,11 @@ export const LetterheadPanel: React.FC<{
   const [limit, setLimit] = useState(PAGE);
   const [mine, setMine] = useState<string[]>(loadMine);
   const file = useRef<HTMLInputElement>(null);
+  // on a phone the two top sections start folded so the templates are reachable at once
+  const [sec, setSec] = useState(() => {
+    const wide = typeof window === 'undefined' || window.innerWidth >= 768;
+    return { own: wide, foot: wide };
+  });
   const [fav, setFav] = useState<number[]>(loadFav);
   const toggleFav = (id: number) => {
     if (!fav.includes(id) && fav.length >= 3) {
@@ -148,7 +153,8 @@ export const LetterheadPanel: React.FC<{
       <div className="flex-1 overflow-y-auto">
         {/* the person's own design */}
         <div className="px-4 py-3 border-b border-[#EBDBCE] space-y-2.5">
-          <div className="text-[11px] font-black text-[#3A241F]">طرح سربرگ خودتان</div>
+          <button type="button" onClick={() => setSec((s) => ({ ...s, own: !s.own }))} className="w-full flex items-center justify-between text-[11px] font-black text-[#3A241F] cursor-pointer"><span>طرح سربرگ خودتان</span><ChevronDown className={`w-4 h-4 transition-transform ${sec.own ? "rotate-180" : ""}`} /></button>
+          {sec.own && (<>
           <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} data-letterhead-upload />
           <button type="button" onClick={() => file.current?.click()} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50/60 hover:bg-amber-50 text-amber-900 text-xs font-black cursor-pointer">
             <ImagePlus className="w-4 h-4" />
@@ -171,11 +177,13 @@ export const LetterheadPanel: React.FC<{
               })}
             </div>
           )}
+          </>)}
         </div>
 
         {/* the address and the phone in the footer */}
         <div className="px-4 py-3 border-b border-[#EBDBCE] space-y-2.5 bg-[#FAF5F1]">
-          <div className="text-[11px] font-black text-[#3A241F]">نشانی، تلفن و سایت در پایین نامه</div>
+          <button type="button" onClick={() => setSec((s) => ({ ...s, foot: !s.foot }))} className="w-full flex items-center justify-between text-[11px] font-black text-[#3A241F] cursor-pointer"><span>نشانی، تلفن و سایت در پایین نامه</span><ChevronDown className={`w-4 h-4 transition-transform ${sec.foot ? "rotate-180" : ""}`} /></button>
+          {sec.foot && (<>
           <label className="flex items-center gap-2 text-[11px] font-bold text-[#3A241F] cursor-pointer">
             <input type="checkbox" disabled={!value} checked={!!value?.showAddress} onChange={(e) => patch({ showAddress: e.target.checked })} className="accent-amber-600" />
             نمایش نشانی
@@ -192,6 +200,7 @@ export const LetterheadPanel: React.FC<{
           </label>
           <input dir="ltr" className={`${field} text-left`} disabled={!value} value={value?.website ?? defaults.website} onChange={(e) => patch({ website: e.target.value })} placeholder="www.example.com" />
           <p className="text-[10px] text-[#8C6F66] leading-5">این خط روی نامه با ماوس یا انگشت جابه‌جا می‌شود، مثل بقیهٔ بخش‌های سربرگ. مقدار پیش‌فرض از اطلاعات شرکت در تنظیمات می‌آید.</p>
+          </>)}
         </div>
 
         {/* the starred ones: three templates for a quick pick */}

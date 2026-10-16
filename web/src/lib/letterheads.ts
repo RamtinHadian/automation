@@ -111,6 +111,8 @@ export const variantName = (v: number) => {
 };
 /** the height of one template's decoration in drawing units (800 wide), so the page can leave room for it */
 export const letterheadHeight = (id: number) => Math.max(30, Math.round(H * HEIGHTS[parts(letterheadById(id).variant).h]));
+/** the width (px) a sheet of this paper size is laid out at, so the decoration height and the room left for it match */
+export const paperWidth = (size?: string) => ({ A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[size || ''] ?? 720;
 /** padding (px) the sheet needs at the top and the bottom, for a sheet `width` px wide */
 export const letterheadPad = (id: number, width = 740) => (id > 0 ? Math.round((letterheadHeight(id) * width) / 800) + 8 : 0);
 export const designName = (d: number) => `${LETTERHEAD_DESIGNS[d % LETTERHEAD_DESIGNS.length]}${d >= LETTERHEAD_DESIGNS.length ? ' · نسخهٔ ' + Math.floor(d / LETTERHEAD_DESIGNS.length) : ''}`;

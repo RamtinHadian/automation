@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DraggableImage } from './DraggableImage';
 import { MoveBox } from './MoveBox';
 import { LetterheadPanel } from './LetterheadPanel';
-import { LETTERHEAD_TOTAL, LetterheadChoice, letterheadBackground, letterheadColor, letterheadFooterText, letterheadPad, letterheadSvg } from '../../lib/letterheads';
+import { LETTERHEAD_TOTAL, LetterheadChoice, letterheadBackground, letterheadColor, letterheadFooterText, letterheadPad, paperWidth, letterheadSvg } from '../../lib/letterheads';
 import { useDemoInfo } from '../common/DemoBanner';
 import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
@@ -886,7 +886,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
           <ScaledPaper enabled={fitZ.isPhone || fitZ.zoom !== 1} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
             ref={paperSheetRef}
-            style={{ fontFamily: selectedFontFamily, ...(lhPaper && lh && !lh.image ? { paddingTop: letterheadPad(lh.id), paddingBottom: letterheadPad(lh.id) - 2 } : {}), ...(lhPaper ? letterheadBackground(lh) : {}) }}
+            style={{ fontFamily: selectedFontFamily, ...(lhPaper && lh && !lh.image ? { paddingTop: letterheadPad(lh.id, paperWidth(pageSize)), paddingBottom: letterheadPad(lh.id, paperWidth(pageSize)) - 2 } : {}), ...(lhPaper ? letterheadBackground(lh) : {}) }}
             className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 w-full transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
           >
             {lhPaper && lh && !lh.image && (

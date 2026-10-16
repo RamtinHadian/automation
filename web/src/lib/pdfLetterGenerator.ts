@@ -158,6 +158,8 @@ export function generateOfficialLetterHtml(
   // the ready-made letterhead: a decoration at the top and the bottom of the sheet and the address / phone line in the footer
   const lh = transfer.letterhead;
   const lhFooter = lh ? letterheadFooterText(lh) : '';
+  const lhPadTop = lh && !lh.image ? `${letterheadPad(lh.id, parseInt(containerMaxWidth, 10))}px` : containerPadding;
+  const lhPadBottom = lh && !lh.image ? `${letterheadPad(lh.id, parseInt(containerMaxWidth, 10)) - 2}px` : containerPadding;
 
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -199,7 +201,7 @@ export function generateOfficialLetterHtml(
         max-width: 100% !important;
         height: 100% !important;
         min-height: 100vh !important;
-        padding: ${containerPadding} !important;
+        padding: ${lhPadTop} ${containerPadding} ${lhPadBottom} ${containerPadding} !important;
         margin: 0 !important;
         box-shadow: none !important;
         border-radius: 0 !important;
@@ -448,7 +450,7 @@ export function generateOfficialLetterHtml(
     <button class="print-btn" onclick="window.print()">دریافت PDF / چاپ مستقیم</button>
   </div>
 
-  <div class="letter-container"${lh && !lh.image ? ' style="padding-top: calc(' + containerPadding + ' + ' + letterheadPad(lh.id, parseInt(containerMaxWidth, 10)) + 'px); padding-bottom: calc(' + containerPadding + ' + ' + (letterheadPad(lh.id, parseInt(containerMaxWidth, 10)) - 2) + 'px);"' : ''}${lh && lh.image ? ` style="background: url(${lh.image}) center / 100% 100% no-repeat;"` : ''}>
+  <div class="letter-container"${lh && !lh.image ? ' style="padding-top: ' + lhPadTop + '; padding-bottom: ' + lhPadBottom + ';"' : ''}${lh && lh.image ? ` style="background: url(${lh.image}) center / 100% 100% no-repeat;"` : ''}>
     ${lh && !lh.image ? `<div class="lh-top">${letterheadSvg(lh.id, 'top')}</div><div class="lh-bottom">${letterheadSvg(lh.id, 'bottom')}</div>` : ''}
     <div class="header">
       <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);">
