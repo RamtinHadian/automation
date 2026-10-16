@@ -964,8 +964,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       stampHeight: stampHeightOverride ?? undefined,
       stampOffsetX: stampOffset.x,
       stampOffsetY: stampOffset.y,
-      showSignatureImage: showSig,
-      showStampImage: showStamp,
+      // a draft print never carries the signature or the stamp: they appear only once the signer has signed
+      showSignatureImage: isSigned ? showSig : false,
+      showStampImage: isSigned ? showStamp : false,
       showLetterNumber: showNo,
       showLetterDate: showDate,
       showLetterAttachment: showAtt,
