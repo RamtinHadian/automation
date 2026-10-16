@@ -360,3 +360,17 @@ html.night [data-error-popups] > div {
     overscroll-behavior: contain;
   }
 }
+
+
+/* sign-in glass fields: the browser's autofill paints a pale box inside them; keep the crystal look */
+.glass-input:-webkit-autofill,
+.glass-input:-webkit-autofill:hover,
+.glass-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff;
+  caret-color: #fff;
+  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.001) inset;
+  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.001) inset;
+  transition: background-color 99999s ease-in-out 0s;
+  background-clip: text;
+}
+.glass-input::selection { background: rgba(255, 255, 255, 0.35); }

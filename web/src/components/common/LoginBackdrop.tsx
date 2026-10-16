@@ -15,6 +15,6 @@ export const LoginBackdrop: React.FC<{ children: React.ReactNode; className?: st
 
 /** Class names of the frosted-glass card and of its fields (shared by the sign-in pages). */
 export const GLASS_CARD =
-  'w-full bg-white/15 backdrop-blur-xl border border-white/40 rounded-[28px] shadow-2xl shadow-black/30 text-white';
+  'w-full bg-gradient-to-br from-white/25 to-white/5 backdrop-blur-2xl backdrop-saturate-150 border border-white/40 rounded-[28px] shadow-[0_20px_60px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.55),inset_0_-1px_0_rgba(255,255,255,0.15)] text-white';
 export const GLASS_FIELD =
-  'flex items-center gap-3 px-4 py-3 bg-white/10 border border-white/55 rounded-2xl transition-all focus-within:bg-white/20 focus-within:border-white focus-within:ring-2 focus-within:ring-white/25';
+  'flex items-center gap-3 px-4 py-3 bg-white/10 backdrop-blur-md border border-white/45 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-all focus-within:bg-white/20 focus-within:border-white focus-within:ring-2 focus-within:ring-white/25';

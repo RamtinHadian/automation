@@ -109,7 +109,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
                 enterKeyHint="next"
                 aria-label="نام کاربری"
                 placeholder="نام کاربری"
-                className="flex-1 bg-transparent text-sm font-bold text-white placeholder:text-white/70 focus:outline-none min-w-0"
+                className="glass-input flex-1 bg-transparent text-sm font-bold text-white placeholder:text-white/70 focus:outline-none min-w-0"
               />
               <UserIcon className="w-5 h-5 text-white/85 shrink-0" />
             </div>
@@ -164,7 +164,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
               enterKeyHint="go"
               aria-label="رمز عبور"
               placeholder="رمز عبور"
-              className="flex-1 bg-transparent text-sm font-bold text-white placeholder:text-white/70 focus:outline-none font-mono min-w-0"
+              className="glass-input flex-1 bg-transparent text-sm font-bold text-white placeholder:text-white/70 focus:outline-none font-mono min-w-0"
             />
             <Lock className="w-5 h-5 text-white/85 shrink-0" />
           </div>
