@@ -6,6 +6,7 @@ import { useAppContext } from '../../context/AppContext';
 
 const PAGE = 60;
 const MINE_KEY = 'my_letterheads_v1';
+const FOOT_KEY = 'letterhead_footer_v1';
 const FAV_KEY = 'fav_letterheads_v1';
 const loadFav = (): number[] => {
   try {
@@ -102,19 +103,38 @@ export const LetterheadPanel: React.FC<{
     return queryLetterheads({ base: design, variant, palette, id: q.trim() && Number.isFinite(n) ? n : undefined }, limit);
   }, [design, variant, palette, q, limit]);
 
-  const base = (): Omit<LetterheadChoice, 'id' | 'image'> => ({
-    showAddress: value?.showAddress ?? !!defaults.address,
-    showPhone: value?.showPhone ?? !!defaults.phone,
-    address: value?.address ?? defaults.address,
-    phone: value?.phone ?? defaults.phone,
-    showWebsite: value?.showWebsite ?? !!defaults.website,
-    website: value?.website ?? defaults.website,
-    offsetX: value?.offsetX,
-    offsetY: value?.offsetY,
+  // the footer lines (address, phone, website) can be typed before any template is chosen: they wait here and go onto the template when one is picked
+  const [draft, setDraft] = useState(() => {
+    let saved: Record<string, unknown> = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(FOOT_KEY) || '{}') || {};
+    } catch {
+      /* none saved */
+    }
+    const str = (k: string, d: string) => (typeof saved[k] === 'string' ? (saved[k] as string) : d);
+    const flag = (k: string, d: boolean) => (typeof saved[k] === 'boolean' ? (saved[k] as boolean) : d);
+    return {
+      address: str('address', defaults.address), phone: str('phone', defaults.phone), website: str('website', defaults.website),
+      showAddress: flag('showAddress', !!defaults.address), showPhone: flag('showPhone', !!defaults.phone), showWebsite: flag('showWebsite', !!defaults.website),
+    };
   });
+  const foot = {
+    address: value?.address ?? draft.address, phone: value?.phone ?? draft.phone, website: value?.website ?? draft.website,
+    showAddress: value?.showAddress ?? draft.showAddress, showPhone: value?.showPhone ?? draft.showPhone, showWebsite: value?.showWebsite ?? draft.showWebsite,
+  };
+  const base = (): Omit<LetterheadChoice, 'id' | 'image'> => ({ ...foot, offsetX: value?.offsetX, offsetY: value?.offsetY });
   const pick = (id: number) => onChange({ ...base(), id });
   const pickOwn = (image: string) => onChange({ ...base(), id: 0, image });
-  const patch = (u: Partial<LetterheadChoice>) => value && onChange({ ...value, ...u });
+  const patch = (u: Partial<LetterheadChoice>) => {
+    const next = { ...draft, ...u } as typeof draft;
+    setDraft(next);
+    try {
+      localStorage.setItem(FOOT_KEY, JSON.stringify(next));
+    } catch {
+      /* kept for this letter only */
+    }
+    if (value) onChange({ ...value, ...u });
+  };
 
   const upload = async (f?: File | null) => {
     if (!f) return;
@@ -185,20 +205,20 @@ export const LetterheadPanel: React.FC<{
           <button type="button" onClick={() => setSec((s) => ({ ...s, foot: !s.foot }))} className="w-full flex items-center justify-between text-[11px] font-black text-[#3A241F] cursor-pointer"><span>نشانی، تلفن و سایت در پایین نامه</span><ChevronDown className={`w-4 h-4 transition-transform ${sec.foot ? "rotate-180" : ""}`} /></button>
           {sec.foot && (<>
           <label className="flex items-center gap-2 text-[11px] font-bold text-[#3A241F] cursor-pointer">
-            <input type="checkbox" disabled={!value} checked={!!value?.showAddress} onChange={(e) => patch({ showAddress: e.target.checked })} className="accent-amber-600" />
+            <input type="checkbox" checked={foot.showAddress} onChange={(e) => patch({ showAddress: e.target.checked })} className="accent-amber-600" />
             نمایش نشانی
           </label>
-          <input className={field} disabled={!value} value={value?.address ?? defaults.address} onChange={(e) => patch({ address: e.target.value })} placeholder="نشانی شرکت" />
+          <input className={field} value={foot.address} onChange={(e) => patch({ address: e.target.value })} placeholder="نشانی شرکت" />
           <label className="flex items-center gap-2 text-[11px] font-bold text-[#3A241F] cursor-pointer">
-            <input type="checkbox" disabled={!value} checked={!!value?.showPhone} onChange={(e) => patch({ showPhone: e.target.checked })} className="accent-amber-600" />
+            <input type="checkbox" checked={foot.showPhone} onChange={(e) => patch({ showPhone: e.target.checked })} className="accent-amber-600" />
             نمایش تلفن
           </label>
-          <input className={field} disabled={!value} value={value?.phone ?? defaults.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="شمارهٔ تلفن" />
+          <input className={field} value={foot.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="شمارهٔ تلفن" />
           <label className="flex items-center gap-2 text-[11px] font-bold text-[#3A241F] cursor-pointer">
-            <input type="checkbox" disabled={!value} checked={!!value?.showWebsite} onChange={(e) => patch({ showWebsite: e.target.checked })} className="accent-amber-600" />
+            <input type="checkbox" checked={foot.showWebsite} onChange={(e) => patch({ showWebsite: e.target.checked })} className="accent-amber-600" />
             نمایش آدرس سایت
           </label>
-          <input dir="ltr" className={`${field} text-left`} disabled={!value} value={value?.website ?? defaults.website} onChange={(e) => patch({ website: e.target.value })} placeholder="www.example.com" />
+          <input dir="ltr" className={`${field} text-left`} value={foot.website} onChange={(e) => patch({ website: e.target.value })} placeholder="www.example.com" />
           <p className="text-[10px] text-[#8C6F66] leading-5">این خط روی نامه با ماوس یا انگشت جابه‌جا می‌شود، مثل بقیهٔ بخش‌های سربرگ. مقدار پیش‌فرض از اطلاعات شرکت در تنظیمات می‌آید.</p>
           </>)}
         </div>
