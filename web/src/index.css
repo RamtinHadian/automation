@@ -371,6 +371,9 @@ html.night [data-error-popups] > div {
   -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.001) inset;
   box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.001) inset;
   transition: background-color 99999s ease-in-out 0s;
+  -webkit-background-clip: text;
   background-clip: text;
+  background-color: transparent !important;
+  color-scheme: dark;
 }
 .glass-input::selection { background: rgba(255, 255, 255, 0.35); }
