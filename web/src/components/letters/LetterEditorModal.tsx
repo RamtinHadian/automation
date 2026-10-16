@@ -972,7 +972,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                   className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center z-10"
                   style={{ top: '8px' }}
                 >
-                  <MoveBox offset={headerCenterOffset} onChange={setHeaderCenterOffset} locked={layoutLocked} scale={zoom} className="group/title relative flex items-center gap-1.5 px-2.5 py-1">
+                  <MoveBox offset={lhPaper && lh ? { x: headerCenterOffset.x, y: Math.max(headerCenterOffset.y, 0) } : headerCenterOffset} onChange={setHeaderCenterOffset} locked={layoutLocked} scale={zoom} className="group/title relative flex items-center gap-1.5 px-2.5 py-1">
                     <input
                       type="text"
                       value={headerCenterTitle}

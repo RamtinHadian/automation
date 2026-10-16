@@ -1708,8 +1708,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <div
                   className="absolute left-1/2 flex items-center justify-center z-10 select-none pointer-events-auto"
                   style={{
-                    top: `${pageSize === 'A5' ? 2 : 6}px`,
-                    transform: `translate(calc(-50% + ${headerCenterOffset.x}px), ${headerCenterOffset.y}px)`,
+                    top: '8px',
+                    transform: `translate(calc(-50% + ${headerCenterOffset.x}px), ${letter.letterhead ? Math.max(headerCenterOffset.y, 0) : headerCenterOffset.y}px)`,
                   }}
                 >
                   {isEditable && !layoutFrozen && (

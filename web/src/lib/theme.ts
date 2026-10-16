@@ -249,6 +249,43 @@ export const COLOR_THEMES: ColorTheme[] = [
   },
 ];
 
+// 12 more colour sets (24 in all). Each one is built from one main hue so the whole interface (buttons, borders, dark mode, badges) stays in tune.
+const hex = (h: number, sat: number, l: number) => {
+  const a = (sat / 100) * Math.min(l / 100, 1 - l / 100);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const c = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(255 * c).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+};
+const buildTheme = (id: string, name: string, description: string, h: number, sat: number, secondaryHue: number, secondarySat = 70): ColorTheme => {
+  const primary = hex(h, sat, 32);
+  const secondary = hex(secondaryHue, secondarySat, 48);
+  const accent = hex(secondaryHue, Math.min(sat, 65), 68);
+  const darkBg = hex(h, Math.min(sat, 45), 13);
+  return {
+    id, name, description, primary, primaryHover: hex(h, sat, 26), secondary, accent,
+    darkBg, darkBgVia: hex(h, Math.min(sat, 42), 18), darkBgEnd: hex(h, Math.min(sat, 45), 9), darkBgSub: hex(h, Math.min(sat, 42), 11), darkBorder: hex(h, Math.min(sat, 28), 26),
+    lightBg: hex(h, Math.min(sat, 60) + 10, 97), border: hex(h, Math.min(sat, 45), 87), badgeBg: hex(h, Math.min(sat + 5, 70), 92), badgeText: primary,
+    swatchColors: [primary, secondary, accent, darkBg],
+  };
+};
+COLOR_THEMES.push(
+  buildTheme('crimson', 'سرخ کارمین و مرجانی', 'تم پرانرژی و جسور با سرخ کارمین و مرجانی', 350, 70, 14),
+  buildTheme('coral', 'مرجانی و هلویی', 'تم گرم و دوستانه با مرجانی و هلویی', 12, 68, 28),
+  buildTheme('gold', 'طلایی و عسلی', 'تم شاد و درخشان با طلایی و عسلی', 40, 75, 28),
+  buildTheme('lime', 'لیمویی و سبز جنگلی', 'تم تازه و پرطراوت با سبز لیمویی و جنگلی', 100, 60, 150),
+  buildTheme('jade', 'یشمی و نعنایی', 'تم آرام و طبیعی با سبز یشمی و نعنایی', 158, 62, 178),
+  buildTheme('aqua', 'آکوا و فیروزه‌ای', 'تم خنک و شفاف با آبی آکوا و فیروزه‌ای', 188, 78, 168),
+  buildTheme('sky', 'آسمانی و آبی روشن', 'تم سبک و روشن با آسمانی و آبی دریایی', 205, 80, 224),
+  buildTheme('navy', 'سرمه‌ای و نقره‌ای', 'تم رسمی و باوقار با سرمه‌ای و خاکستری نقره‌ای', 224, 55, 215, 25),
+  buildTheme('violet', 'یاسی و بنفش ملایم', 'تم لطیف و آرام با یاسی و بنفش ملایم', 268, 50, 285),
+  buildTheme('magenta', 'سرخابی و ارغوانی', 'تم پرجنب‌وجوش با سرخابی و ارغوانی', 320, 62, 340),
+  buildTheme('slate', 'خاکستری و آبی فولادی', 'تم ساده و حرفه‌ای با خاکستری و آبی فولادی', 214, 18, 205, 45),
+  buildTheme('graphite', 'گرافیتی و نارنجی', 'تم مدرن و تیره با گرافیتی و نارنجی', 215, 12, 24, 85),
+);
+
 /** Hue (0-360) of a #rrggbb colour. */
 const hueOf = (hex: string) => {
   const n = parseInt(hex.replace('#', ''), 16);

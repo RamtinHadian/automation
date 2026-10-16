@@ -309,12 +309,14 @@ export function generateOfficialLetterHtml(
       font-size: ${isA5 ? '9.5px' : '10.5px'};
       line-height: ${isA5 ? '1.5' : '1.6'};
     }
-    .letter-title,
-    .letter-title span {
+    .letter-title {
       position: absolute;
       left: 50%;
-      top: 0;
-      transform: translate(calc(-50% + ${headerCenterOffsetX}px), ${headerCenterOffsetY}px);
+      top: 8px;
+      transform: translate(calc(-50% + ${headerCenterOffsetX}px), ${lh ? Math.max(headerCenterOffsetY, 0) : headerCenterOffsetY}px);
+    }
+    .letter-title,
+    .letter-title span {
       font-family: '${centerFont}', 'IranNastaliq', 'B Titr', 'Vazirmatn', Tahoma, sans-serif !important;
       font-size: ${isA5 ? '11.5px' : '13px'};
       font-weight: 900;

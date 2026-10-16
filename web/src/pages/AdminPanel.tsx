@@ -417,68 +417,71 @@ export default function AdminPanel() {
     <div className="min-h-screen bg-gradient-to-br from-[#3A241F] via-[#2E1A16] to-[#1F0F0C] p-0 sm:p-1 flex items-stretch justify-center font-sans antialiased text-[#3A241F]" dir="rtl">
       <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#6E1B1B]/30 flex flex-col min-h-[calc(100vh-0.5rem)]">
 
-        {/* Top Admin Header */}
-        <header className="px-6 sm:px-8 py-4 bg-[#3A241F] text-white flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-[#563D34]">
-          <div className="flex items-center gap-3">
-<div className="w-7 h-7 rounded-xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1">
+        {/* Top Admin Header: the same look as the application's own panel (light bar, brand name, rounded action buttons), tidy on a phone */}
+        <header className="px-4 sm:px-8 py-3.5 sm:py-4 bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1.5">
               <img src="/images/mark.png" alt="" className="brand-logo w-full h-full object-contain" draggable={false} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="flex items-center gap-2.5 text-white leading-tight">
-                  <span className="bg-white rounded-lg px-2 py-0.5 flex items-center">
-                    <img src="/images/brand-name.png" alt="هورمند" className="brand-word h-5 w-auto" draggable={false} />
-                  </span>
-                  <span className="font-black text-base">کنسول مدیریت</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="leading-none flex items-center gap-2">
+                  <img src="/images/brand-name.png" alt="هورمند" className="brand-word h-6 sm:h-8 w-auto" draggable={false} />
                 </h1>
-                <span className="bg-[#D34A32]/20 border border-[#D34A32]/50 text-[#F6D9CD] text-[10px] font-black px-2.5 py-0.5 rounded-full">
-                  ADMIN CONSOLE
-                </span>
-                <VersionBadge withDate className="text-[10px] font-bold text-[#EBDBCE]" />
+                <span className="bg-[#6E1B1B] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-2xs shrink-0">کنسول مدیریت</span>
+                <VersionBadge withDate className="text-[10px] font-bold text-[#8C6F66]" />
               </div>
-              {headerCompany && <div className="mt-0.5 text-sm font-black text-white" data-company-name>{headerCompany}</div>}
-              <p className="text-[11px] text-[#EBDBCE] font-medium">
-                سامانه پایش نقل و انتقالات، امنیت دسترسی، سهمیه‌ها و پیکربندی سازمان
+              {headerCompany && <div className="mt-1 text-xs sm:text-sm font-black text-[#6E1B1B] truncate" data-company-name>{headerCompany}</div>}
+              <p className="text-[10px] sm:text-[11px] text-[#8C6F66] font-medium truncate sm:whitespace-normal">
+                پایش نقل و انتقالات، امنیت دسترسی، سهمیه‌ها و پیکربندی سازمان
               </p>
             </div>
           </div>
 
           {/* The admin who signed in, and logout (no switching to other people) */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-[#2E1A16] px-3 py-1.5 rounded-2xl border border-[#563D34]">
-              <div className="text-right">
-                <div className="text-xs font-black text-white">{currentUser.fullName}</div>
-                <div className="text-[10px] text-[#C98B6A] font-bold">
-                  {currentUser.role === 'SUPER_ADMIN' ? 'مدیر ارشد کل سیستم' : 'مدیر واحد سازمانی'}
-                </div>
-              </div>
-            </div>
-
-            <DayNightToggle className="p-2 rounded-2xl bg-[#2E1A16] hover:bg-[#6E1B1B] text-[#F6D9CD] border border-[#563D34]" />
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:shrink-0">
+            <DayNightToggle className="p-2 sm:p-2.5 bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border border-[#EBDBCE] rounded-2xl shadow-2xs" />
 
             <button
               onClick={() => setShowThemeModal(true)}
-              title="تغییر تم رنگی سامانه"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-[#2E1A16] hover:bg-[#6E1B1B] text-[#F6D9CD] border border-[#563D34] text-xs font-bold transition-all cursor-pointer"
+              title="تغییر رنگبندی و تم سامانه"
+              className="p-2 sm:p-2.5 bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border border-[#EBDBCE] rounded-2xl transition-all shadow-2xs hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
             >
               <Palette className="w-4 h-4" />
-              <span className="hidden sm:inline">تم رنگی</span>
+              <span className="hidden sm:inline">رنگبندی</span>
             </button>
 
             <button
-              onClick={handleAdminLogout}
-              title="خروج از پنل مدیریت"
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[#D34A32]/20 hover:bg-[#D34A32] text-[#F6D9CD] hover:text-white border border-[#D34A32]/40 text-xs font-bold transition-all cursor-pointer"
+              onClick={() => { window.location.href = '/'; }}
+              title="برگشت به برنامه"
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-2xl text-xs font-bold shadow-xs transition-all cursor-pointer"
             >
-              <LogOut className="w-4 h-4" />
-              <span>خروج</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+              <span>برگشت به برنامه</span>
             </button>
+
+            <div className="flex items-center gap-1.5 bg-[#F6D9CD]/40 p-1.5 pr-2.5 sm:pr-3 rounded-2xl border border-[#C98B6A]/30 min-w-0">
+              <div className="text-right min-w-0">
+                <div className="text-xs font-black text-[#3A241F] truncate max-w-[130px]">{currentUser.fullName}</div>
+                <div className="text-[10px] text-[#D34A32] font-bold truncate max-w-[130px]">
+                  {currentUser.role === 'SUPER_ADMIN' ? 'مدیر ارشد کل سیستم' : 'مدیر واحد سازمانی'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleAdminLogout}
+                title="خروج از پنل مدیریت"
+                className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-[#F6D9CD] hover:bg-[#D34A32] text-[#6E1B1B] hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </header>
 
         {/* Admin Navigation Sub-Tabs */}
-        <div className="bg-[#FAF5F1] px-6 sm:px-8 py-3 border-b border-[#EBDBCE] flex flex-wrap items-center justify-between gap-3">
-          <nav className="flex items-center gap-2 flex-wrap">
+        <div className="bg-[#FAF5F1] px-4 sm:px-8 py-2.5 sm:py-3 border-b border-[#EBDBCE] flex items-center justify-between gap-3">
+          <nav className="flex items-center gap-2 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 -mb-1 sm:mb-0 min-w-0 flex-1 [&>*]:shrink-0">
             <IconTab active={activeTab === 'users'} onClick={() => setActiveTab('users')} label="کاربران و سهمیه‌ها" count={badge('users')} alert icon={<Users className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} label="واحدهای سازمانی" count={badge('departments')} alert icon={<Shield className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'transfers'} onClick={() => setActiveTab('transfers')} label="مانیتورینگ انتقالات" count={badge('transfers')} alert icon={<Activity className="w-[18px] h-[18px]" />} />
@@ -489,14 +492,14 @@ export default function AdminPanel() {
             <IconTab active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} label="تنظیمات سیستم" icon={<Settings className="w-[18px] h-[18px]" />} />
           </nav>
 
-          <div className="flex items-center gap-2 text-[11px] font-bold text-[#8C6F66]">
+          <div className="hidden md:flex items-center gap-2 text-[11px] font-bold text-[#8C6F66] shrink-0">
             <span className="inline-block w-2 h-2 rounded-full bg-[#D34A32] animate-pulse" />
             <span>سیستم آنلاین و امن</span>
           </div>
         </div>
 
         {/* Tab Content */}
-        <main className="p-6 sm:p-8 flex-1 bg-white">
+        <main className="p-3 sm:p-6 lg:p-8 flex-1 bg-white">
           {activeTab === 'users' && (
             <UserManagementView
               users={staffList}
