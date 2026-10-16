@@ -545,18 +545,19 @@ export const CrmView: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
+      <div className="flex flex-wrap lg:flex-nowrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
         {tabs.map(([id, text, Icon]) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`flex-1 basis-[45%] sm:basis-auto sm:flex-initial min-h-[44px] sm:min-h-0 whitespace-nowrap flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            title={text}
+            className={`flex-1 basis-[45%] sm:basis-auto lg:basis-0 min-h-[44px] lg:min-h-0 min-w-0 whitespace-nowrap flex items-center justify-center gap-1 lg:gap-1.5 px-3 lg:px-2 xl:px-3 py-2 rounded-xl text-xs lg:text-[11.5px] xl:text-xs font-black transition-all cursor-pointer ${
               tab === id ? 'bg-white text-violet-700 shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
             }`}
           >
-            <Icon className="w-4 h-4" />
-            {text}
+            <Icon className="w-4 h-4 lg:w-3.5 lg:h-3.5 xl:w-4 xl:h-4 shrink-0" />
+            <span className="truncate">{({ 'فرصت‌های فروش': 'فرصت‌ها', 'باشگاه مشتریان': 'باشگاه', 'پیامک گروهی': 'پیامک', 'پیش‌فاکتورهای ارسالی': 'پیش‌فاکتورها' } as Record<string, string>)[text] || text}</span>
             {id === 'proformas' && pendingProformas.length > 0 && <span className="bg-amber-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(pendingProformas.length)}</span>}
             {id === 'followups' && overdueFollowups.length > 0 && <span className="bg-rose-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(overdueFollowups.length)}</span>}
           </button>
