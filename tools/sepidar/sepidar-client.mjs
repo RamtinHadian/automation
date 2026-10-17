@@ -23,15 +23,17 @@ export const aesDecrypt = (serial, cypher, iv) => {
 };
 
 /** <RSAKeyValue><Modulus>…</Modulus><Exponent>…</Exponent></RSAKeyValue> -> a key Node can encrypt with. */
-export const publicKeyFromXml = (xml) => {
-  const n = /<Modulus>([^<]+)<\/Modulus>/.exec(xml)?.[1];
+export const publicKeyFromXml = (xml, reverseModulus = false) => {
+  let n = /<Modulus>([^<]+)<\/Modulus>/.exec(xml)?.[1];
   const e = /<Exponent>([^<]+)<\/Exponent>/.exec(xml)?.[1];
   if (!n || !e) throw new Error('کلید عمومی دریافت‌شده از سپیدار قابل خواندن نیست.');
+  if (reverseModulus) n = Buffer.from(Buffer.from(n.trim(), 'base64').reverse()).toString('base64');
   return crypto.createPublicKey({ key: { kty: 'RSA', n: b64u(n.trim()), e: b64u(e.trim()) }, format: 'jwk' });
 };
 
-export const rsaEncrypt = (publicKey, text, padding = 'pkcs1') =>
-  crypto.publicEncrypt(padding === 'oaep' ? { key: publicKey, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING } : { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING }, Buffer.from(text, 'utf8')).toString('base64');
+/** text may also be a Buffer (the raw bytes to encrypt); out: 'base64' (default) or 'hex' */
+export const rsaEncrypt = (publicKey, text, padding = 'pkcs1', out = 'base64') =>
+  crypto.publicEncrypt(padding === 'oaep' ? { key: publicKey, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING } : { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING }, Buffer.isBuffer(text) ? text : Buffer.from(text, 'utf8')).toString(out);
 
 export const md5 = (s) => crypto.createHash('md5').update(s, 'utf8').digest('hex');
 
@@ -154,11 +156,17 @@ export class Sepidar {
     let code = shape.upper ? crypto.randomUUID().toUpperCase() : crypto.randomUUID();
     if (shape.nodash) code = code.replace(/-/g, '');
     if (shape.braces) code = `{${code}}`;
+    let plain = code;
+    if (shape.raw) {
+      // the 16 bytes of the GUID itself: 'be' as written, 'le' as .NET Guid.ToByteArray() orders them
+      const b = Buffer.from(code.replace(/[-{}]/g, ''), 'hex');
+      plain = shape.raw === 'le' ? Buffer.concat([Buffer.from(b.subarray(0, 4)).reverse(), Buffer.from(b.subarray(4, 6)).reverse(), Buffer.from(b.subarray(6, 8)).reverse(), b.subarray(8)]) : b;
+    }
     return {
       GenerationVersion: this.cfg.generationVersion,
       IntegrationID: String(this.integrationId),
       ArbitraryCode: code,
-      EncArbitraryCode: rsaEncrypt(publicKeyFromXml(this.state.publicKeyXml), code, shape.padding || 'pkcs1'),
+      EncArbitraryCode: rsaEncrypt(publicKeyFromXml(this.state.publicKeyXml, !!shape.revmod), plain, shape.padding || 'pkcs1', shape.hex ? 'hex' : 'base64'),
     };
   }
 
@@ -170,12 +178,22 @@ export class Sepidar {
   async login() {
     const keyProblem = (e) => e instanceof SepidarError && ((e.status === 401 && /تطابق|کلید|نسخه|version|key/i.test(e.message)) || e.status === 412 || /انطباق نسخه|عدم انطباق/.test(e.message));
     // other shapes of the encrypted code, tried with the announced version if the usual one is refused with a key mismatch
-    const shapes = [{}, { upper: true }, { nodash: true }, { upper: true, nodash: true }, { braces: true }, { padding: 'oaep' }];
-    const shapeName = (s) => (s.padding === 'oaep' ? 'OAEP' : 'PKCS1') + (s.upper ? '+حروف بزرگ' : '') + (s.nodash ? '+بدون خط تیره' : '') + (s.braces ? '+آکولاد' : '');
+    const shapes = [{}, { upper: true }, { nodash: true }, { upper: true, nodash: true }, { braces: true }, { padding: 'oaep' },
+      { raw: 'be' }, { raw: 'le' }, { hex: true }, { revmod: true }, { revmod: true, raw: 'le' }];
+    const shapeName = (s) => (s.padding === 'oaep' ? 'OAEP' : 'PKCS1') + (s.upper ? '+حروف بزرگ' : '') + (s.nodash ? '+بدون خط تیره' : '') + (s.braces ? '+آکولاد' : '') + (s.raw ? `+بایت خام ${s.raw}` : '') + (s.hex ? '+خروجی hex' : '') + (s.revmod ? '+مدولوس معکوس' : '');
     const tryOnce = async (v, shape = {}) => {
       this.cfg.generationVersion = v;
+      let headers;
+      try {
+        headers = this.deviceHeaders(shape);
+      } catch (e) {
+        if (!this.state.publicKeyXml) throw e; // not registered yet: the message tells what to do first
+        const x = new Error(e?.reason || e?.message || 'ساخت هدر ممکن نشد');
+        x.local = true; // this shape cannot even be built with the key Sepidar gave: skipped, not an error of Sepidar
+        throw x;
+      }
       const r = await this.raw('POST', '/api/users/login', {
-        headers: this.deviceHeaders(shape),
+        headers,
         body: { UserName: this.cfg.userName, PasswordHash: md5(this.cfg.password) },
       });
       this.token = r.Token;
@@ -194,8 +212,8 @@ export class Sepidar {
         try {
           return await tryOnce(v, shape);
         } catch (e) {
-          if (!(e instanceof SepidarError) && /too large for key size|data too large/i.test(e?.message || '')) {
-            errors.push(`نسخهٔ ${v} (${shapeName(shape)}): کلید سپیدار برای این شکل کوچک است`);
+          if (e?.local) {
+            errors.push(`نسخهٔ ${v} (${shapeName(shape)}): با کلید سپیدار ساخته نشد (${e.message})`);
             continue;
           }
           if (!keyProblem(e)) throw e;
@@ -222,7 +240,7 @@ export class Sepidar {
     } catch {
       keyInfo = ' [کلید دریافتی قابل خواندن نیست]';
     }
-    throw new SepidarError(401, `ورود به سپیدار با هیچ‌کدام از نسخه‌های API پذیرفته نشد (نسخه‌ای که سپیدار اعلام کرد: ${this.detectedVersion || 'نامشخص'}): ` + errors.slice(0, 6).join(' | ') + (errors.length > 6 ? ` | … (${errors.length} تلاش)` : '') + keyInfo);
+    throw new SepidarError(401, `ورود به سپیدار با هیچ‌کدام از نسخه‌های API پذیرفته نشد (نسخه‌ای که سپیدار اعلام کرد: ${this.detectedVersion || 'نامشخص'}): ` + errors.slice(0, 2).join(' | ') + ` | … (${errors.length} تلاش؛ شکل‌های امتحان‌شده: ${shapes.map(shapeName).join('، ')})` + keyInfo);
   }
 
   async call(method, path, body) {

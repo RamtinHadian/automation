@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { aesDecrypt, aesEncrypt, md5, guidFrom } from './sepidar-client.mjs';
+import { aesDecrypt, aesEncrypt, md5, guidFrom, Sepidar } from './sepidar-client.mjs';
 import { customerBody, quotationBody, stockPayload } from './sepidar-sync.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
@@ -23,6 +23,7 @@ const jwk = publicKey.export({ format: 'jwk' });
 const std = (u) => Buffer.from(u, 'base64url').toString('base64');
 const xml = `<RSAKeyValue><Modulus>${std(jwk.n)}</Modulus><Exponent>${std(jwk.e)}</Exponent></RSAKeyValue>`;
 const used = new Set();
+let strictRawLe = false;
 const sp = { customers: [], quotations: [], registered: false, logins: 0 };
 const items = [{ ItemID: 7, Code: '1001', Title: 'کالای یک', Type: 1, UnitRef: 1, IsActive: true, IsSellable: true }, { ItemID: 8, Code: '1002', Title: 'کالای دو', Type: 1, UnitRef: 2, IsActive: true, IsSellable: true }, { ItemID: 9, Code: '2001', Title: 'خدمت نصب', Type: 2, UnitRef: 1, IsActive: true, IsSellable: true }];
 const stocks = [{ StockID: 1, Code: 'A1', Title: 'انبار مرکزی', IsActive: true }, { StockID: 2, Code: 'B1', Title: 'انبار فروشگاه', IsActive: true }];
@@ -39,10 +40,19 @@ function deviceOk(req, res) {
   if (used.has(h.arbitrarycode)) return send(res, 401, { Message: 'کد تکراری' }), false;
   used.add(h.arbitrarycode);
   let plain = '';
+  let rawPlain = null;
   try {
-    plain = crypto.privateDecrypt({ key: privateKey, padding: crypto.constants.RSA_PKCS1_PADDING }, Buffer.from(h.encarbitrarycode, 'base64')).toString('utf8');
+    rawPlain = crypto.privateDecrypt({ key: privateKey, padding: crypto.constants.RSA_PKCS1_PADDING }, Buffer.from(h.encarbitrarycode, 'base64'));
+    plain = rawPlain.toString('utf8');
   } catch {
     return send(res, 401, { Message: 'عدم تطابق کلید' }), false;
+  }
+  if (strictRawLe) {
+    // a Sepidar that wants the 16 bytes of the GUID in the order of .NET's Guid.ToByteArray()
+    const b = Buffer.from(String(h.arbitrarycode).replace(/-/g, ''), 'hex');
+    const le = Buffer.concat([Buffer.from(b.subarray(0, 4)).reverse(), Buffer.from(b.subarray(4, 6)).reverse(), Buffer.from(b.subarray(6, 8)).reverse(), b.subarray(8)]);
+    if (!rawPlain.equals(le)) return send(res, 401, { Message: 'عدم تطابق کلید API' }), false;
+    return true;
   }
   if (plain !== h.arbitrarycode) return send(res, 401, { Message: 'عدم تطابق کلید' }), false;
   return true;
@@ -184,6 +194,19 @@ r = await new Promise((resolve) => {
   p.on('close', (code) => resolve({ code, out }));
 });
 ok(r.code === 0 && /ورود موفق بود/.test(r.out), 'diag works from the typed values alone (no config.json, no Hoormand key)\n' + r.out.split('\n').slice(-6).map((l) => '      ' + l).join('\n'));
+// a Sepidar that accepts only another shape of the encrypted code: the client tries the shapes and finds it
+strictRawLe = true;
+{
+  const c2 = new Sepidar({ url: `http://127.0.0.1:${sPort}`, serial: SERIAL, userName: 'admin', password: 'secret' }, { publicKeyXml: xml });
+  let res2 = null;
+  try {
+    res2 = await c2.login();
+  } catch (e) {
+    res2 = { error: e.message };
+  }
+  ok(res2 && !res2.error && c2.shape?.raw === 'le', 'login finds the raw-bytes shape when the usual one is refused: ' + (res2?.error || JSON.stringify(c2.shape)));
+}
+strictRawLe = false;
 r = await runAsync('stock');
 ok(r.code === 0 && hoormandPosts.length === 0 && /فقط نمایش/.test(r.out), 'stock without --apply sends nothing');
 r = await runAsync('stock', '--apply');
