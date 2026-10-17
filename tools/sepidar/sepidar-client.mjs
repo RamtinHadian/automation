@@ -156,13 +156,49 @@ export class Sepidar {
     };
   }
 
+  /**
+   * Signs in. A refusal that talks about the key / version («عدم تطابق کلید API») can come from the API version header or from an old
+   * public key (the device was registered again): the other usual versions are tried, then the device is registered once more and
+   * the sign-in repeated. A refusal about the password or anything else stops at once (so the account is never locked by retries).
+   */
   async login() {
-    const r = await this.raw('POST', '/api/users/login', {
-      headers: this.deviceHeaders(),
-      body: { UserName: this.cfg.userName, PasswordHash: md5(this.cfg.password) },
-    });
-    this.token = r.Token;
-    return r;
+    const keyProblem = (e) => e instanceof SepidarError && e.status === 401 && /تطابق|کلید|نسخه|version|key/i.test(e.message);
+    const tryOnce = async (v) => {
+      this.cfg.generationVersion = v;
+      const r = await this.raw('POST', '/api/users/login', {
+        headers: this.deviceHeaders(),
+        body: { UserName: this.cfg.userName, PasswordHash: md5(this.cfg.password) },
+      });
+      this.token = r.Token;
+      this.state.generationVersion = v;
+      return r;
+    };
+    const first = (this.state.generationVersion || this.cfg.generationVersion || '101');
+    const errors = [];
+    for (let round = 0; round < 2; round++) {
+      const detected = round === 0 && !this.state.generationVersion ? await this.detectVersion() : first;
+      const versions = [...new Set([this.state.generationVersion, detected, first, '101', '100', '102'].filter(Boolean).map(String))];
+      for (const v of versions) {
+        try {
+          return await tryOnce(v);
+        } catch (e) {
+          if (!keyProblem(e)) throw e;
+          const line = `نسخهٔ ${v}: ${e.message}`;
+          if (!errors.includes(line)) errors.push(line);
+        }
+      }
+      if (round === 0) {
+        // maybe the key kept from an earlier registration no longer belongs to this device: register again and retry
+        try {
+          delete this.state.publicKeyXml;
+          await this.register();
+        } catch (e) {
+          errors.push('ثبت دوبارهٔ دستگاه: ' + e.message);
+          break;
+        }
+      }
+    }
+    throw new SepidarError(401, 'ورود به سپیدار با هیچ‌کدام از حالت‌ها پذیرفته نشد: ' + errors.join(' | '));
   }
 
   async call(method, path, body) {
