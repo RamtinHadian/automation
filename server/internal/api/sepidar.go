@@ -437,6 +437,86 @@ func extSepidarToolFile(w http.ResponseWriter, r *http.Request, k extKey, user a
 	_, _ = w.Write(b)
 }
 
+// ---------- the financial position of a customer (for the call pop-up and the Sepidar page) ----------
+
+// cacheItems reads one copy of Sepidar's data (a list of objects) and when it was taken.
+func cacheItems(ctx context.Context, key string) ([]map[string]any, string) {
+	var raw []byte
+	var at time.Time
+	if store.Pool.QueryRow(ctx, `SELECT data, updated_at FROM sepidar_cache WHERE key = $1`, key).Scan(&raw, &at) != nil {
+		return nil, ""
+	}
+	var list []map[string]any
+	_ = json.Unmarshal(raw, &list)
+	return list, at.Format(time.RFC3339)
+}
+
+// GET /api/sepidar/finance/{customerId}: the balance and the latest invoices of the customer in Sepidar, from the copy the program keeps up to date.
+// Only people who may see Sepidar's data AND may work with this customer get it (a salesperson does not see a colleague's customer's money).
+func sepidarFinance(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if !sepidarCan(me, "view") {
+		httpx.Forbidden(w)
+		return
+	}
+	cid := r.PathValue("customerId")
+	if !crmOwnsCustomer(r, me, cid) {
+		httpx.Forbidden(w)
+		return
+	}
+	ctx := r.Context()
+	var sid int64
+	if store.Pool.QueryRow(ctx, `SELECT sepidar_id FROM sepidar_links WHERE kind = 'customer' AND ref = $1`, cid).Scan(&sid) != nil {
+		httpx.JSON(w, http.StatusOK, map[string]any{"linked": false})
+		return
+	}
+	out := map[string]any{"linked": true, "sepidarId": sid}
+	balances, balAt := cacheItems(ctx, "balances")
+	for _, b := range balances {
+		if id, _ := whNum(b, "CustomerID"); int64(id) == sid {
+			out["title"] = jsonx.Str(b, "Title")
+			if v, ok := whNum(b, "Remainder"); ok {
+				out["remainder"] = v
+			}
+			if v, ok := whNum(b, "CreditRemainder"); ok {
+				out["creditRemainder"] = v
+			}
+			break
+		}
+	}
+	out["balanceAt"] = balAt
+	invoices, invAt := cacheItems(ctx, "invoices")
+	last := []jsonx.M{}
+	var total float64
+	var count int
+	for _, i := range invoices {
+		if ref, _ := whNum(i, "CustomerRef"); int64(ref) != sid {
+			continue
+		}
+		net, _ := whNum(i, "NetPrice")
+		total += net
+		count++
+		num, _ := whNum(i, "Number")
+		last = append(last, jsonx.M{"number": int64(num), "date": jsonx.Str(i, "Date"), "net": net})
+	}
+	// newest first, three of them
+	for a := 0; a < len(last); a++ {
+		for b := a + 1; b < len(last); b++ {
+			if jsonx.Str(last[b], "date") > jsonx.Str(last[a], "date") {
+				last[a], last[b] = last[b], last[a]
+			}
+		}
+	}
+	if len(last) > 3 {
+		last = last[:3]
+	}
+	out["invoices"] = last
+	out["invoiceCount"] = count
+	out["invoiceTotal"] = total
+	out["invoicesAt"] = invAt
+	httpx.JSON(w, http.StatusOK, out)
+}
+
 // ---------- customers that already exist in Sepidar ----------
 
 func loadSepidarCustomers(ctx context.Context) []map[string]any {
@@ -710,4 +790,5 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/ext/v1/sepidar/tool", extAuth("sepidar.connect", extSepidarTool))
 	mux.HandleFunc("GET /api/ext/v1/sepidar/tool/{name}", extAuth("sepidar.connect", extSepidarToolFile))
 	mux.HandleFunc("POST /api/crm/sepidar-link", auth.Require(crmSepidarLink))
+	mux.HandleFunc("GET /api/sepidar/finance/{customerId}", auth.Require(sepidarFinance))
 }

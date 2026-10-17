@@ -8,6 +8,7 @@ import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label } from '../crm/crmUi';
 import { matchesAll } from '../../lib/searchAll';
+import { CustomerFinance } from './CustomerFinance';
 
 interface Job {
   id: string;
@@ -55,6 +56,8 @@ export const SepidarView: React.FC = () => {
   const [tab, setTab] = useState<Tab>('deals');
   const [q, setQ] = useState('');
   const [receiptFor, setReceiptFor] = useState<any | null>(null);
+  // clicking a customer's name shows his financial position in Sepidar
+  const [financeFor, setFinanceFor] = useState<{ id: string; name: string } | null>(null);
   const [pair, setPair] = useState<{ code: string; expiresAt: string } | null>(null);
   const { currentUser } = useAppContext();
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
@@ -179,7 +182,9 @@ export const SepidarView: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-rose-700 shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <div className="text-xs font-black text-[#3A241F] truncate">{d.customerName} · پیش‌فاکتور {toPersianDigits(d.proformaNumber)}</div>
+                    <div className="text-xs font-black text-[#3A241F] truncate">
+                      <button type="button" onClick={() => setFinanceFor({ id: d.customerId, name: d.customerName })} className="font-black underline decoration-dotted underline-offset-4 hover:text-rose-800 cursor-pointer" title="وضعیت مالی مشتری در سپیدار">{d.customerName}</button> · پیش‌فاکتور {toPersianDigits(d.proformaNumber)}
+                    </div>
                     <div className="text-[10px] font-bold text-[#8C6F66]">
                       {qt ? `در سپیدار: پیش‌فاکتور ${toPersianDigits(qt.number ?? qt.sepidarId)}` : 'هنوز در سپیدار نیست'}
                       {inv ? ` · فاکتور ${toPersianDigits(inv.number ?? inv.sepidarId)}` : ''}
@@ -214,7 +219,7 @@ export const SepidarView: React.FC = () => {
               <div key={c.id} className="px-4 py-3 flex items-center gap-3">
                 <Users className="w-4 h-4 text-rose-700 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-black text-[#3A241F] truncate">{c.name}</div>
+                  <button type="button" onClick={() => setFinanceFor({ id: c.id, name: c.name })} className="block max-w-full text-right text-xs font-black text-[#3A241F] truncate underline decoration-dotted underline-offset-4 hover:text-rose-800 cursor-pointer" title="وضعیت مالی مشتری در سپیدار">{c.name}</button>
                   <div className="text-[10px] font-bold text-[#8C6F66] truncate">{l ? `در سپیدار (شناسه ${toPersianDigits(l.sepidarId)})` : 'هنوز در سپیدار نیست'}{bal ? ` · مانده حساب ${fmt(bal.Remainder)}` : ''}</div>
                 </div>
                 {can('customer') && (
@@ -283,6 +288,19 @@ export const SepidarView: React.FC = () => {
         </Modal>
       )}
 
+      {financeFor && (
+        <Modal
+          title={`وضعیت مالی: ${financeFor.name}`}
+          onClose={() => setFinanceFor(null)}
+          footer={
+            <button type="button" onClick={() => setFinanceFor(null)} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">
+              بستن
+            </button>
+          }
+        >
+          <CustomerFinance customerId={financeFor.id} />
+        </Modal>
+      )}
       {receiptFor && <ReceiptModal deal={receiptFor} accounts={st.cache?.bankAccounts?.items || []} onClose={() => setReceiptFor(null)} onAsk={async (b) => { await ask({ kind: 'receipt.add', dealId: receiptFor.id, ...b }, 'ثبت دریافتی در صف قرار گرفت.'); setReceiptFor(null); }} />}
     </div>
   );
