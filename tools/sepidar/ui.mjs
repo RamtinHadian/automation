@@ -64,7 +64,7 @@ pre{background:#1c1210;color:#f3e9e2;border-radius:14px;padding:14px;min-height:
 <div class="btns"><button class="alt" style="color:#c53030;border-color:#c53030" onclick="if(confirm('اجرای خودکار متوقف و تنظیمات و رمز ذخیره‌شده پاک می‌شود. ادامه می‌دهید؟'))run('cleanup')">پاک‌سازی کامل این کامپیوتر</button></div>
 <div class="note">این کار اجرای خودکار را خاموش می‌کند و فایل‌های تنظیمات و رمز و گزارش را پاک می‌کند. کلید هورمند و دستگاه سپیدار را باید خودتان حذف کنید (مرحلهٔ‌ها در راهنمای PDF آمده).</div></div>
 
-<div class="card"><h2>گزارش کار</h2><pre id="log">منتظر دستور شما…</pre></div>
+<div class="card"><h2>گزارش کار</h2><pre id="log">منتظر دستور شما…</pre><p id="build" dir="ltr" style="font-size:11px;color:#8c6f66;margin:8px 0 0;text-align:left"></p></div>
 </div>
 <script>
 const T=location.pathname.split('/')[1];const $=id=>document.getElementById(id);
@@ -75,7 +75,7 @@ async function poll(){const r=await api('log?from=0');paint(r.lines);document.qu
 async function run(action){const body={action,hoormand:$('hoormand').value.trim(),code:$('code').value.trim(),sepidar:$('sepidar').value.trim(),serial:$('serial').value.trim(),user:$('user').value.trim(),password:$('password').value,multiplier:$('multiplier').value,rmfolder:$('rmfolder').checked};
 $('log').textContent='در حال اجرا… (ممکن است تا نیم دقیقه طول بکشد)';const r=await api('run',body);if(r.error){$('log').textContent=r.error;return}
 if(!timer)timer=setInterval(poll,700);poll()}
-(async()=>{const s=await api('state');for(const k of ['hoormand','sepidar','serial','user'])if(s[k])$(k).value=s[k];if(s.hasPassword)$('passhelp').textContent='رمز قبلاً ذخیره شده؛ اگر عوض نشده خالی بگذارید.';if(s.multiplier)$('multiplier').value=String(s.multiplier);})();
+(async()=>{const s=await api('state');if(s.folder)$('build').textContent='پوشهٔ در حال اجرا: '+s.folder+' · '+s.tool+' · اندازهٔ sepidar-client.mjs: '+s.clientBytes+' بایت';for(const k of ['hoormand','sepidar','serial','user'])if(s[k])$(k).value=s[k];if(s.hasPassword)$('passhelp').textContent='رمز قبلاً ذخیره شده؛ اگر عوض نشده خالی بگذارید.';if(s.multiplier)$('multiplier').value=String(s.multiplier);})();
 </script></body></html>`;
 
 // the sample config.example.json has made-up values («example.com», Persian words): that is the same as nothing filled in
@@ -123,7 +123,13 @@ export function startUi({ dir, cfgPath, script }) {
     if (!sub) return void res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }).end(PAGE(fontCss(dir)));
     if (sub === 'state') {
       const c = readCfg();
-      return json({ hoormand: real(c.hoormand?.url) ? c.hoormand.url : '', sepidar: real(c.sepidar?.url) ? c.sepidar.url : '', serial: real(c.sepidar?.serial) ? c.sepidar.serial : '', user: real(c.sepidar?.userName) ? c.sepidar.userName : '', hasPassword: real(c.sepidar?.password), multiplier: c.sync?.priceMultiplier || 10 });
+      let clientBytes = 0;
+      try {
+        clientBytes = fs.statSync(path.join(dir, 'sepidar-client.mjs')).size;
+      } catch {
+        /* missing */
+      }
+      return json({ folder: dir, tool: 'sepidar-tool 1.30.4 (api 112)', clientBytes, hoormand: real(c.hoormand?.url) ? c.hoormand.url : '', sepidar: real(c.sepidar?.url) ? c.sepidar.url : '', serial: real(c.sepidar?.serial) ? c.sepidar.serial : '', user: real(c.sepidar?.userName) ? c.sepidar.userName : '', hasPassword: real(c.sepidar?.password), multiplier: c.sync?.priceMultiplier || 10 });
     }
     if (sub === 'log') return json({ running: job.running, lines: job.lines });
     if (sub === 'run' && req.method === 'POST') {
