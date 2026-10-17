@@ -106,6 +106,33 @@ export function customerBody(c) {
   return body;
 }
 
+/** The customer Sepidar already has for this body: the same mobile (last nine digits) or the same national code. takenIds = Sepidar customers already tied to another Hoormand customer. */
+export function matchSepidarCustomer(body, list, takenIds = new Set()) {
+  const tail = (v) => {
+    const d = toLatin(String(v || '')).replace(/\D/g, '');
+    return d.length >= 9 ? d.slice(-9) : '';
+  };
+  const phone = tail(body.PhoneNumber);
+  const nid = toLatin(String(body.NationalID || '')).replace(/\D/g, '');
+  for (const c of list) {
+    const id = c.CustomerID;
+    if (takenIds.has(id)) continue;
+    const phones = [c.PhoneNumber, c.MobileNumber, c.Phone].map(tail).filter(Boolean);
+    if ((phone && phones.includes(phone)) || (nid && toLatin(String(c.NationalID || '')).replace(/\D/g, '') === nid)) return c;
+  }
+  return null;
+}
+
+/** The customers tied by hand in Hoormand to a customer Sepidar already had (Hoormand customer id -> Sepidar CustomerID). An older Hoormand without this answers nothing. */
+async function hoormandLinks(cfg) {
+  try {
+    const j = await hoormand(cfg, '/sepidar/links');
+    return new Map((j.links || []).map((l) => [l.ref, l.sepidarId]));
+  } catch {
+    return new Map();
+  }
+}
+
 const round = (n) => Math.round(n);
 const addDays = (iso, d) => new Date(new Date(iso).getTime() + d * 86400000).toISOString();
 
@@ -267,13 +294,29 @@ async function cmdSync(cfg) {
   const hoormandCustomers = await hoormandAll(cfg, '/customers', 'customers');
   const sepidarCustomers = await sp.get('/api/Customers');
   const byGuid = new Map(sepidarCustomers.map((c) => [String(c.GUID || '').toLowerCase(), c.CustomerID]));
+  const links = await hoormandLinks(cfg);
+  const taken = new Set([...Object.values(state.customers), ...links.values()]);
   const refOf = new Map(); // hoormand customer id -> Sepidar CustomerID
 
   for (const c of hoormandCustomers) {
     const body = customerBody(c);
-    const existing = byGuid.get(body.GUID.toLowerCase()) ?? state.customers[c.id];
+    const existing = byGuid.get(body.GUID.toLowerCase()) ?? state.customers[c.id] ?? links.get(c.id);
     if (existing) {
       refOf.set(c.id, existing);
+      if (!state.customers[c.id] && links.has(c.id)) state.customers[c.id] = existing;
+      continue;
+    }
+    // Sepidar may already know this person (same mobile or national code): the customer stays under that name, no second one is made
+    const same = matchSepidarCustomer(body, sepidarCustomers, taken);
+    if (same) {
+      const title = same.Title || `${same.Name || ''} ${same.LastName || ''}`.trim();
+      log(`  در سپیدار از قبل هست: «${body.Name} ${body.LastName}» همان «${title}» است؛ مشتری تازه ساخته نشد`);
+      refOf.set(c.id, same.CustomerID);
+      taken.add(same.CustomerID);
+      if (apply) {
+        state.customers[c.id] = same.CustomerID;
+        saveState(state);
+      }
       continue;
     }
     if (!sync.customers) continue;
@@ -363,6 +406,17 @@ async function sepidarCustomerRef(cfg, sp, state, c) {
   if (found) {
     state.customers[c.id] = found.CustomerID;
     return found.CustomerID;
+  }
+  const tied = (await hoormandLinks(cfg)).get(c.id);
+  if (tied) {
+    state.customers[c.id] = tied;
+    return tied;
+  }
+  const taken = new Set([...Object.values(state.customers), ...(await hoormandLinks(cfg)).values()]);
+  const same = matchSepidarCustomer(body, list, taken);
+  if (same) {
+    state.customers[c.id] = same.CustomerID;
+    return same.CustomerID;
   }
   if (!body.Name) throw new Error('مشتری نام ندارد.');
   const r = await sp.post('/api/Customers', body);
@@ -494,6 +548,7 @@ export async function pushCaches(cfg, sp, state) {
   await tryPush('saleTypes', '/api/SaleTypes', (x) => pick(x, ['SaleTypeID', 'Title']));
   await tryPush('currencies', '/api/Currencies', (x) => pick(x, ['CurrencyID', 'Title', 'IsMain']));
   await tryPush('customerGroups', '/api/CustomerGroupings', (x) => pick(x, ['CustomerGroupingID', 'Title']));
+  await tryPush('sepidarCustomers', '/api/Customers', (x) => ({ id: x.CustomerID, code: x.Code ?? x.CustomerCode ?? '', name: x.Title || `${x.Name || ''} ${x.LastName || ''}`.trim(), phones: [x.PhoneNumber, x.MobileNumber, x.Phone].filter(Boolean), nationalId: x.NationalID || '' }));
   await tryPush('balances', '/api/Customers', (x) => pick(x, ['CustomerID', 'Title', 'Remainder', 'CreditRemainder']));
   try {
     const [notes, items] = await Promise.all([sp.get('/api/PriceNoteItems'), sp.get('/api/Items')]);

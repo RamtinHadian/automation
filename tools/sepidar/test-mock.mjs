@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aesDecrypt, aesEncrypt, md5, guidFrom, Sepidar } from './sepidar-client.mjs';
-import { customerBody, quotationBody, stockPayload } from './sepidar-sync.mjs';
+import { customerBody, quotationBody, stockPayload, matchSepidarCustomer } from './sepidar-sync.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 let failed = 0;
@@ -156,6 +156,20 @@ const q = quotationBody(deals[0], 500, map, { currencyRef: 1, saleTypeRef: 2, st
 ok(q.body.Price === 25000 && q.body.Discount === 2950 && q.body.Tax === 2205 && q.total === 24255, `quotation totals (${q.body.Price}/${q.body.Discount}/${q.body.Tax})`);
 ok(q.body.Items.length === 2 && q.body.Items[0].ItemRef === 7 && q.body.Items[1].Discount === 950, 'quotation rows map to Sepidar items');
 ok(quotationBody(deals[1], 500, map, { priceMultiplier: 1 }).skip?.includes('9999'), 'unknown item code is skipped with the reason');
+
+// a customer Sepidar already has (same mobile or same national code) is found instead of making a second one
+{
+  const have = [
+    { CustomerID: 51, Title: 'علی رضایی', PhoneNumber: '09121234567', NationalID: '' },
+    { CustomerID: 52, Title: 'شرکت الف', PhoneNumber: '02188776655', NationalID: '10100000001' },
+    { CustomerID: 53, Title: 'نفر سوم', PhoneNumber: '09351112233', NationalID: '' },
+  ];
+  ok(matchSepidarCustomer({ PhoneNumber: '+989121234567' }, have)?.CustomerID === 51, 'existing Sepidar customer found by the same mobile (+98 or 0 in front does not matter)');
+  ok(matchSepidarCustomer({ PhoneNumber: '۰۹۱۲۱۲۳۴۵۶۷' }, have)?.CustomerID === 51, 'existing Sepidar customer found by a mobile written in Persian digits');
+  ok(matchSepidarCustomer({ PhoneNumber: '09000000000', NationalID: '10100000001' }, have)?.CustomerID === 52, 'existing Sepidar customer found by the national code');
+  ok(matchSepidarCustomer({ PhoneNumber: '09121234567' }, have, new Set([51])) === null, 'a Sepidar customer already tied to another Hoormand customer is not taken twice');
+  ok(matchSepidarCustomer({ PhoneNumber: '09999999999', NationalID: '' }, have) === null, 'nothing is found for a number Sepidar does not have');
+}
 
 // the stock payload: goods only, tracings summed, units by title
 const pl = stockPayload(stocks, items, units, inventories);

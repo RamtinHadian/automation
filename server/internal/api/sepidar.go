@@ -43,7 +43,7 @@ var sepidarJobs = map[string]struct{ Perm, Title string }{
 }
 
 // what the program may store as a copy of Sepidar's data
-var sepidarCaches = map[string]bool{"invoices": true, "banks": true, "bankAccounts": true, "priceNotes": true, "saleTypes": true, "currencies": true, "customerGroups": true, "balances": true, "quotations": true}
+var sepidarCaches = map[string]bool{"sepidarCustomers": true, "invoices": true, "banks": true, "bankAccounts": true, "priceNotes": true, "saleTypes": true, "currencies": true, "customerGroups": true, "balances": true, "quotations": true}
 
 func sepidarCan(me auth.User, perm string) bool {
 	if me.IsAdmin() {
@@ -127,7 +127,7 @@ func sepidarState(w http.ResponseWriter, r *http.Request) {
 				var key string
 				var data []byte
 				var at time.Time
-				if rows.Scan(&key, &data, &at) == nil {
+				if rows.Scan(&key, &data, &at) == nil && key != "sepidarCustomers" { // the full list is only for the duplicate check
 					var v any
 					_ = json.Unmarshal(data, &v)
 					cache[key] = jsonx.M{"items": v, "at": at.Format(time.RFC3339)}
@@ -386,6 +386,138 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 
 func ref0(kind, id string) jsonx.M { return jsonx.M{"type": kind, "id": id} }
 
+// ---------- customers that already exist in Sepidar ----------
+
+func loadSepidarCustomers(ctx context.Context) []map[string]any {
+	var raw []byte
+	if store.Pool.QueryRow(ctx, `SELECT data FROM sepidar_cache WHERE key = 'sepidarCustomers'`).Scan(&raw) != nil {
+		return nil
+	}
+	var list []map[string]any
+	_ = json.Unmarshal(raw, &list)
+	return list
+}
+
+func sepidarIDOf(c map[string]any) int64 {
+	n, _ := whNum(c, "id")
+	return int64(n)
+}
+
+// sepidarCustomerMatches finds the customers Sepidar already has for the numbers / national codes being typed in the customer form.
+// phoneKeys are the last nine digits of each number. linked tells which Sepidar customer this customer (except) is already tied to.
+func sepidarCustomerMatches(r *http.Request, phoneKeys []string, nat, nid, except string) ([]jsonx.M, jsonx.M) {
+	ctx := r.Context()
+	list := loadSepidarCustomers(ctx)
+	out := []jsonx.M{}
+	var linked jsonx.M
+	if len(list) == 0 {
+		return out, linked
+	}
+	var sid int64
+	hasLink := except != "" && store.Pool.QueryRow(ctx, `SELECT sepidar_id FROM sepidar_links WHERE kind = 'customer' AND ref = $1`, except).Scan(&sid) == nil
+	for _, c := range list {
+		id := sepidarIDOf(c)
+		name := jsonx.Str(c, "name")
+		if hasLink && id == sid {
+			linked = jsonx.M{"sepidarId": id, "name": name}
+		}
+		hit := false
+		for _, p := range jsonx.Strings(c, "phones") {
+			d := digitsOnly(p)
+			if len(d) < 9 {
+				continue
+			}
+			for _, k := range phoneKeys {
+				if len(k) >= 9 && strings.HasSuffix(d, k) {
+					hit = true
+				}
+			}
+		}
+		sn := digitsOnly(jsonx.Str(c, "nationalId"))
+		if sn != "" && (sn == nat || sn == nid) {
+			hit = true
+		}
+		if !hit || len(out) >= 5 {
+			continue
+		}
+		m := jsonx.M{"sepidarId": id, "name": name, "code": jsonx.Str(c, "code")}
+		var ref string
+		if store.Pool.QueryRow(ctx, `SELECT ref FROM sepidar_links WHERE kind = 'customer' AND sepidar_id = $1 LIMIT 1`, id).Scan(&ref) == nil && ref != except {
+			m["linkedCustomerId"] = ref
+		}
+		out = append(out, m)
+	}
+	return out, linked
+}
+
+// POST /api/crm/sepidar-link {customerId, sepidarId}: this customer is the one Sepidar already has under that name (sepidarId 0 removes the tie).
+func crmSepidarLink(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if crmDenied(w, me) {
+		return
+	}
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	cid := jsonx.Str(body, "customerId")
+	if cid == "" {
+		httpx.Error(w, http.StatusBadRequest, "مشتری مشخص نیست.")
+		return
+	}
+	if !me.IsAdmin() && !sepidarCan(me, "customer") && !crmOwnsCustomer(r, me, cid) {
+		httpx.Forbidden(w)
+		return
+	}
+	sid, _ := whNum(body, "sepidarId")
+	if sid == 0 {
+		_, _ = store.Pool.Exec(ctx, `DELETE FROM sepidar_links WHERE kind = 'customer' AND ref = $1`, cid)
+		httpx.OK(w)
+		return
+	}
+	title := ""
+	for _, c := range loadSepidarCustomers(ctx) {
+		if sepidarIDOf(c) == int64(sid) {
+			title = jsonx.Str(c, "name")
+		}
+	}
+	if title == "" {
+		httpx.Error(w, http.StatusBadRequest, "این مشتری در فهرست سپیدار پیدا نشد؛ اطلاعات سپیدار را بروز کنید.")
+		return
+	}
+	var other string
+	if store.Pool.QueryRow(ctx, `SELECT ref FROM sepidar_links WHERE kind = 'customer' AND sepidar_id = $1 AND ref <> $2 LIMIT 1`, int64(sid), cid).Scan(&other) == nil {
+		httpx.Error(w, http.StatusConflict, "این مشتری سپیدار قبلاً به مشتری دیگری در هورمند وصل شده است.")
+		return
+	}
+	if _, err := store.Pool.Exec(ctx, `INSERT INTO sepidar_links (kind, ref, sepidar_id, data) VALUES ('customer', $1, $2, $3::jsonb)
+		ON CONFLICT (kind, ref) DO UPDATE SET sepidar_id = $2, data = $3::jsonb, updated_at = now()`, cid, int64(sid), jsonx.Encode(jsonx.M{"title": title})); err != nil {
+		internalError(w)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true, "name": title})
+}
+
+// GET /api/ext/v1/sepidar/links: the customers tied by hand to a customer that Sepidar already had (the program uses them instead of creating a new one)
+func extSepidarLinks(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
+	rows, err := store.Pool.Query(r.Context(), `SELECT ref, sepidar_id FROM sepidar_links WHERE kind = 'customer'`)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	defer rows.Close()
+	out := []jsonx.M{}
+	for rows.Next() {
+		var ref string
+		var sid int64
+		if rows.Scan(&ref, &sid) == nil {
+			out = append(out, jsonx.M{"ref": ref, "sepidarId": sid})
+		}
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"links": out})
+}
+
 // POST /api/ext/v1/sepidar/push {cache: "invoices", items: [...]} or {links: [{kind, ref, sepidarId, number, data}]}
 func extSepidarPush(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
 	body, ok := httpx.ReadBody(w, r)
@@ -523,4 +655,6 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/ext/v1/sepidar/jobs", extAuth("sepidar.connect", extSepidarJobs))
 	mux.HandleFunc("POST /api/ext/v1/sepidar/jobs/{id}/result", extAuth("sepidar.connect", extSepidarResult))
 	mux.HandleFunc("POST /api/ext/v1/sepidar/push", extAuth("sepidar.connect", extSepidarPush))
+	mux.HandleFunc("GET /api/ext/v1/sepidar/links", extAuth("sepidar.connect", extSepidarLinks))
+	mux.HandleFunc("POST /api/crm/sepidar-link", auth.Require(crmSepidarLink))
 }

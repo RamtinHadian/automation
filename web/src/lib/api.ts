@@ -449,7 +449,13 @@ export const api = {
   },
   soundDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/sounds/${encodeURIComponent(id)}`),
   notifyTest: (kind: string, label: string) => request<{ ok: true }>('POST', '/api/notify/test', { kind, label }),
-  crmDuplicates: (b: { phones: string[]; nationalCode?: string; exceptId?: string }) => request<{ matches: { id: string; name: string; ownerName: string; mine: boolean }[] }>('POST', '/api/crm/duplicates', b),
+  crmDuplicates: (b: { phones: string[]; nationalCode?: string; nationalId?: string; exceptId?: string }) =>
+    request<{
+      matches: { id: string; name: string; ownerName: string; mine: boolean }[];
+      sepidar?: { sepidarId: number; name: string; code?: string; linkedCustomerId?: string }[];
+      sepidarLinked?: { sepidarId: number; name: string } | null;
+    }>('POST', '/api/crm/duplicates', b),
+  crmSepidarLink: (customerId: string, sepidarId: number) => request<{ ok: true; name?: string }>('POST', '/api/crm/sepidar-link', { customerId, sepidarId }),
   crmMerge: (keepId: string, dropId: string) => request<{ ok: true; keepId: string }>('POST', '/api/crm/merge', { keepId, dropId }),
   crmTransfer: (b: { fromId: string; toId: string; customers: boolean; deals: boolean; followups: boolean }) => request<{ ok: true; customers: number; deals: number; followups: number }>('POST', '/api/crm/transfer', b),
   crmTargets: () => request<Record<string, unknown>>('GET', '/api/crm/targets'),

@@ -80,7 +80,8 @@ func crmDuplicates(w http.ResponseWriter, r *http.Request) {
 	if len(nat) == 10 {
 		add(`SELECT id, COALESCE(data->>'name', ''), COALESCE(data->>'ownerName', ''), '' FROM crm_customers WHERE data->>'nationalCode' = $1 OR data->>'nationalId' = $1 LIMIT 5`, nat)
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"matches": out})
+	sep, linked := sepidarCustomerMatches(r, keys, nat, digitsOnly(jsonx.Str(body, "nationalId")), except)
+	httpx.JSON(w, http.StatusOK, map[string]any{"matches": out, "sepidar": sep, "sepidarLinked": linked})
 }
 
 func isEmptyValue(v any) bool {

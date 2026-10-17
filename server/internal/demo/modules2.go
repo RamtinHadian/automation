@@ -134,6 +134,13 @@ func addSepidar(ctx context.Context, now time.Time, by map[string]account) error
 		{"InvoiceID": 703, "Number": 1184, "Date": d(1), "CustomerRef": 503, "NetPrice": 18600000}, {"InvoiceID": 704, "Number": 1185, "Date": d(0), "CustomerRef": 504, "NetPrice": 38400000}}); err != nil {
 		return err
 	}
+	// customers Sepidar already has (the customer form says «this number is already in Sepidar under this name»); the third is not tied to anybody yet
+	if err := cache("sepidarCustomers", []jsonx.M{
+		{"id": 501, "code": "10501", "name": "نرگس موسوی", "phones": []string{"09351112233"}, "nationalId": ""},
+		{"id": 502, "code": "10502", "name": "حسین کاظمی", "phones": []string{"09121234567"}, "nationalId": ""},
+		{"id": 505, "code": "10505", "name": "داروسازی سلامت (آقای حیدری)", "phones": []string{"09124445566"}, "nationalId": ""}}); err != nil {
+		return err
+	}
 	if err := cache("balances", []jsonx.M{{"CustomerID": 501, "Title": "نرگس موسوی", "Remainder": 36000000}, {"CustomerID": 502, "Title": "حسین کاظمی", "Remainder": 0},
 		{"CustomerID": 503, "Title": "رضا حیدری", "Remainder": 18600000}, {"CustomerID": 504, "Title": "کامپیوتر آوا", "Remainder": 12000000}}); err != nil {
 		return err

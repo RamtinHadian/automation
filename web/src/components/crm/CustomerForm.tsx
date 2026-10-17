@@ -9,6 +9,7 @@ import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { IRAN_CITIES, PROVINCE_LIST } from '../../lib/iranCities';
 import { PhraseChips } from '../common/PhraseChips';
 import { api } from '../../lib/api';
+import { askConfirm } from '../../lib/confirmDialog';
 
 const STATUS_LABEL: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
 const COMPANY_TYPES = ['سهامی خاص', 'سهامی عام', 'مسئولیت محدود', 'تضامنی', 'نسبی', 'تعاونی', 'مؤسسه / انجمن', 'شخص حقیقی با کد اقتصادی', 'سایر'];
@@ -199,17 +200,70 @@ export const CustomerForm: React.FC<{
 
   // is this number / national code already in the file (even a colleague's customer that this person cannot see)?
   const [dups, setDups] = useState<{ id: string; name: string; ownerName: string; mine: boolean }[]>([]);
-  const dupKey = JSON.stringify([c.phones, mobileDraft, landlineDraft, c.nationalCode]);
+  // customers Sepidar (accounting) already has under this number / national code, and the one this customer is already tied to
+  type SepMatch = { sepidarId: number; name: string; code?: string; linkedCustomerId?: string };
+  const [sepMatches, setSepMatches] = useState<SepMatch[]>([]);
+  const [sepLinked, setSepLinked] = useState<{ sepidarId: number; name: string } | null>(null);
+  const [sepBusy, setSepBusy] = useState(false);
+  const [sepError, setSepError] = useState('');
+  const dupKey = JSON.stringify([c.phones, mobileDraft, landlineDraft, c.nationalCode, c.nationalId]);
   useEffect(() => {
     const phones = [...c.phones, cleanNumber(mobileDraft), cleanNumber(landlineDraft)].filter((p) => p && digits(p).length >= 7);
     const nat = digits(c.nationalCode || '');
-    if (phones.length === 0 && nat.length !== 10) return setDups([]);
+    const nid = digits(c.nationalId || '');
+    if (phones.length === 0 && nat.length !== 10 && nid.length !== 11) {
+      setDups([]);
+      setSepMatches([]);
+      return;
+    }
     const t = setTimeout(() => {
-      api.crmDuplicates({ phones, nationalCode: nat.length === 10 ? nat : undefined, exceptId: initial.id }).then((r) => setDups(r.matches)).catch(() => setDups([]));
+      api
+        .crmDuplicates({ phones, nationalCode: nat.length === 10 ? nat : undefined, nationalId: nid.length === 11 ? nid : undefined, exceptId: initial.id })
+        .then((r) => {
+          setDups(r.matches);
+          setSepMatches(r.sepidar || []);
+          setSepLinked(r.sepidarLinked || null);
+        })
+        .catch(() => {
+          setDups([]);
+          setSepMatches([]);
+        });
     }, 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dupKey]);
+
+  /** The customer keeps the name Sepidar already has: the name fields are filled with it. */
+  const useSepidarName = (name: string) => {
+    if (isCompany || isShop) return patch({ company: name });
+    const parts = name.trim().split(/\s+/);
+    patch({ firstName: parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || '', lastName: parts.length > 1 ? parts[parts.length - 1] : '' });
+  };
+  const linkToSepidar = async (m: SepMatch) => {
+    setSepBusy(true);
+    setSepError('');
+    try {
+      await api.crmSepidarLink(initial.id, m.sepidarId);
+      setSepLinked({ sepidarId: m.sepidarId, name: m.name });
+      setSepMatches((x) => x.filter((y) => y.sepidarId !== m.sepidarId));
+    } catch (e) {
+      setSepError(e instanceof Error ? e.message : 'اتصال انجام نشد.');
+    } finally {
+      setSepBusy(false);
+    }
+  };
+  const unlinkSepidar = async () => {
+    if (!(await askConfirm('اتصال این مشتری به مشتری سپیدار برداشته شود؟ (مشتری در سپیدار پاک نمی‌شود.)'))) return;
+    setSepBusy(true);
+    try {
+      await api.crmSepidarLink(initial.id, 0);
+      setSepLinked(null);
+    } catch (e) {
+      setSepError(e instanceof Error ? e.message : 'انجام نشد.');
+    } finally {
+      setSepBusy(false);
+    }
+  };
 
   const hint = (bad: boolean, text: string) => (bad ? <div className="text-[10px] font-bold text-rose-600 mt-1">{text}</div> : null);
 
@@ -248,6 +302,47 @@ export const CustomerForm: React.FC<{
               <div key={d.id}>«{d.name}»{d.ownerName ? ` · مسئول: ${d.ownerName}` : ''}{d.mine ? '' : ' (در پروندهٔ همکار شما)'}</div>
             ))}
             <div className="font-medium text-amber-800">اگر همان مشتری است، به‌جای ثبت دوباره، با مسئولش هماهنگ کنید.</div>
+          </div>
+        )}
+        {sepLinked && !isNew && (
+          <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-[11px] font-bold text-emerald-900 flex flex-wrap items-center gap-2" data-sepidar-linked>
+            <Landmark className="w-4 h-4 shrink-0" />
+            <span className="flex-1 min-w-0">در سپیدار با نام «{sepLinked.name}» ثبت است و پیش‌فاکتورها به همان نام می‌روند.</span>
+            <button type="button" disabled={sepBusy} onClick={unlinkSepidar} className="px-3 py-1.5 rounded-xl text-[11px] font-black text-emerald-800 bg-white border border-emerald-300 cursor-pointer disabled:opacity-50">
+              برداشتن اتصال
+            </button>
+          </div>
+        )}
+        {!sepLinked && sepMatches.length > 0 && (
+          <div className="rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3 text-[11px] font-bold text-sky-900 space-y-2" data-sepidar-match>
+            <div className="font-black flex items-center gap-2">
+              <Landmark className="w-4 h-4 shrink-0" />
+              این شماره (یا کد ملی) در سپیدار از قبل ثبت شده است:
+            </div>
+            {sepMatches.map((m) => (
+              <div key={m.sepidarId} className="flex flex-wrap items-center gap-2 bg-white/70 rounded-xl px-3 py-2">
+                <span className="flex-1 min-w-0">
+                  «{m.name}»{m.code ? ` · کد سپیدار ${toPersianDigits(m.code)}` : ''}
+                  {m.linkedCustomerId ? <span className="text-sky-700 font-medium"> (به مشتری دیگری در هورمند وصل است)</span> : null}
+                </span>
+                {!m.linkedCustomerId && (
+                  <>
+                    <button type="button" onClick={() => useSepidarName(m.name)} className="px-3 py-1.5 rounded-xl text-[11px] font-black text-sky-800 bg-white border border-sky-300 cursor-pointer">
+                      نام را همین بگذار
+                    </button>
+                    {!isNew && (
+                      <button type="button" disabled={sepBusy} onClick={() => linkToSepidar(m)} className="px-3 py-1.5 rounded-xl text-[11px] font-black text-white bg-sky-700 hover:bg-sky-800 cursor-pointer disabled:opacity-50">
+                        اتصال به همین مشتری
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+            <div className="font-medium text-sky-800">
+              {isNew ? 'بعد از ثبت، مشتری خودکار به همین نام در سپیدار وصل می‌شود و دوباره ساخته نمی‌شود.' : 'با «اتصال»، پیش‌فاکتورها به همین مشتری در سپیدار می‌روند و مشتری تکراری ساخته نمی‌شود.'}
+            </div>
+            {sepError && <div className="text-rose-600">{sepError}</div>}
           </div>
         )}
         <div className="flex gap-2">
