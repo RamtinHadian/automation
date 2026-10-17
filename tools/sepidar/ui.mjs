@@ -129,7 +129,7 @@ export function startUi({ dir, cfgPath, script }) {
       } catch {
         /* missing */
       }
-      return json({ folder: dir, tool: 'sepidar-tool 1.30.4 (api 112)', clientBytes, hoormand: real(c.hoormand?.url) ? c.hoormand.url : '', sepidar: real(c.sepidar?.url) ? c.sepidar.url : '', serial: real(c.sepidar?.serial) ? c.sepidar.serial : '', user: real(c.sepidar?.userName) ? c.sepidar.userName : '', hasPassword: real(c.sepidar?.password), multiplier: c.sync?.priceMultiplier || 10 });
+      return json({ folder: dir, tool: 'sepidar-tool 1.31.4 (api 112، دکمهٔ تشخیص)', clientBytes, hoormand: real(c.hoormand?.url) ? c.hoormand.url : '', sepidar: real(c.sepidar?.url) ? c.sepidar.url : '', serial: real(c.sepidar?.serial) ? c.sepidar.serial : '', user: real(c.sepidar?.userName) ? c.sepidar.userName : '', hasPassword: real(c.sepidar?.password), multiplier: c.sync?.priceMultiplier || 10 });
     }
     if (sub === 'log') return json({ running: job.running, lines: job.lines });
     if (sub === 'run' && req.method === 'POST') {
