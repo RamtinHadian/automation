@@ -78,6 +78,10 @@ if(!timer)timer=setInterval(poll,700);poll()}
 (async()=>{const s=await api('state');for(const k of ['hoormand','sepidar','serial','user'])if(s[k])$(k).value=s[k];if(s.hasPassword)$('passhelp').textContent='رمز قبلاً ذخیره شده؛ اگر عوض نشده خالی بگذارید.';if(s.multiplier)$('multiplier').value=String(s.multiplier);})();
 </script></body></html>`;
 
+// the sample config.example.json has made-up values («example.com», Persian words): that is the same as nothing filled in
+const real = (v) => typeof v === 'string' && v.trim() !== '' && !/[؀-ۿ]|example\.com|xxxx/i.test(v);
+const ready = (c) => !!(c && real(c.hoormand?.url) && real(c.hoormand?.apiKey) && real(c.sepidar?.url) && real(c.sepidar?.serial) && real(c.sepidar?.userName) && real(c.sepidar?.password));
+
 export function startUi({ dir, cfgPath, script }) {
   const token = crypto.randomBytes(9).toString('hex');
   const job = { running: false, lines: [] };
@@ -119,7 +123,7 @@ export function startUi({ dir, cfgPath, script }) {
     if (!sub) return void res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }).end(PAGE(fontCss(dir)));
     if (sub === 'state') {
       const c = readCfg();
-      return json({ hoormand: c.hoormand?.url || '', sepidar: c.sepidar?.url || '', serial: c.sepidar?.serial || '', user: c.sepidar?.userName || '', hasPassword: !!c.sepidar?.password, multiplier: c.sync?.priceMultiplier || 10 });
+      return json({ hoormand: real(c.hoormand?.url) ? c.hoormand.url : '', sepidar: real(c.sepidar?.url) ? c.sepidar.url : '', serial: real(c.sepidar?.serial) ? c.sepidar.serial : '', user: real(c.sepidar?.userName) ? c.sepidar.userName : '', hasPassword: real(c.sepidar?.password), multiplier: c.sync?.priceMultiplier || 10 });
     }
     if (sub === 'log') return json({ running: job.running, lines: job.lines });
     if (sub === 'run' && req.method === 'POST') {
@@ -135,15 +139,15 @@ export function startUi({ dir, cfgPath, script }) {
       job.lines = [];
       const c = readCfg();
       const a = b.action;
-      if (['test', 'preview', 'apply', 'auto', 'password'].includes(a) && !(c.hoormand && c.sepidar)) {
+      if (['test', 'preview', 'apply', 'auto', 'password'].includes(a) && !ready(c)) {
         job.lines = [];
         return json({ error: 'هنوز اطلاعات اتصال ذخیره نشده است. اول کادرهای بخش ۱ را پر کنید و «ذخیره و راه‌اندازی» را بزنید؛ بعد این دکمه را بزنید.' }, 400);
       }
       if (a === 'setup') {
-        const hUrl = b.hoormand || c.hoormand?.url;
-        const serial = b.serial || c.sepidar?.serial;
-        const user = b.user || c.sepidar?.userName;
-        const pass = b.password || c.sepidar?.password;
+        const hUrl = b.hoormand || (real(c.hoormand?.url) ? c.hoormand.url : '');
+        const serial = b.serial || (real(c.sepidar?.serial) ? c.sepidar.serial : '');
+        const user = b.user || (real(c.sepidar?.userName) ? c.sepidar.userName : '');
+        const pass = b.password || (real(c.sepidar?.password) ? c.sepidar.password : '');
         if (!hUrl || !serial || !user || !pass) return json({ error: 'نشانی هورمند، سریال، نام کاربری و رمز سپیدار را بنویسید.' }, 400);
         const argv = ['setup', '--yes', '--no-autostart', '--hoormand', hUrl, '--sepidar', b.sepidar || c.sepidar?.url || 'http://localhost:7373', '--serial', serial, '--user', user, '--password', pass, '--multiplier', String(b.multiplier || 10)];
         if (b.code) argv.push('--code', b.code);
@@ -158,14 +162,14 @@ export function startUi({ dir, cfgPath, script }) {
         job.lines.push('این فقط تا زمانی که کامپیوتر روشن است کار می‌کند. برای اینکه بعد از هر روشن‌شدن کامپیوتر هم خودکار شروع شود، «ذخیره و راه‌اندازی» را در پنجرهٔ قدیمی (۰-راه‌اندازی-خودکار) بزنید.');
       } else if (a === 'password') {
         if (!b.password) return json({ error: 'رمز تازه را در کادر «رمز سپیدار» بنویسید.' }, 400);
-        if (!c.sepidar) return json({ error: 'هنوز راه‌اندازی نشده است؛ اول «ذخیره و راه‌اندازی» را بزنید.' }, 400);
+        if (!ready(c)) return json({ error: 'هنوز راه‌اندازی نشده است؛ اول «ذخیره و راه‌اندازی» را بزنید.' }, 400);
         c.sepidar.password = b.password;
         if (b.user) c.sepidar.userName = b.user;
         fs.writeFileSync(cfgPath, JSON.stringify(withHelp(c), null, 2));
         job.lines.push('رمز تازه ذخیره شد. در حال آزمایش اتصال…');
         runNode(['test']);
       } else if (a === 'install') {
-        if (!c.sepidar || !c.hoormand) return json({ error: 'اول «ذخیره و راه‌اندازی» و «آزمایش اتصال» را انجام دهید؛ بعد نصب دائمی.' }, 400);
+        if (!ready(c)) return json({ error: 'اول «ذخیره و راه‌اندازی» و «آزمایش اتصال» را انجام دهید؛ بعد نصب دائمی.' }, 400);
         installPermanent(dir, script, job);
       } else if (a === 'cleanup') {
         cleanup(dir, !!b.rmfolder, job);
