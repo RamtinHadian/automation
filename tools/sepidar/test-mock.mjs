@@ -34,7 +34,7 @@ const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'applic
 
 function deviceOk(req, res) {
   const h = req.headers;
-  if (h.generationversion !== '101') return send(res, 412, { Message: 'version' }), false;
+  if (h.generationversion !== '112') return send(res, 412, { Message: 'version' }), false;
   if (String(h.integrationid) !== '1001') return send(res, 401, { Message: 'device' }), false;
   if (used.has(h.arbitrarycode)) return send(res, 401, { Message: 'کد تکراری' }), false;
   used.add(h.arbitrarycode);

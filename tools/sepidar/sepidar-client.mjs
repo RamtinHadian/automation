@@ -70,7 +70,7 @@ export class SepidarError extends Error {
 export class Sepidar {
   /** cfg: { url, serial, userName, password, generationVersion?, authScheme? }; state: { publicKeyXml?, token? } (kept by the caller) */
   constructor(cfg, state = {}) {
-    this.cfg = { generationVersion: '101', authScheme: 'Bearer', ...cfg };
+    this.cfg = { generationVersion: '112', authScheme: 'Bearer', ...cfg };
     if (state && state.generationVersion && !cfg.generationVersion) this.cfg.generationVersion = state.generationVersion;
     this.state = state;
     this.base = this.cfg.url.replace(/\/+$/, '');
@@ -119,7 +119,7 @@ export class Sepidar {
     if (!Number.isInteger(id) || id <= 0) throw new SepidarError(0, `سریال دستگاه درست نیست: چهار نویسهٔ اولش باید عدد باشد (سریال «${this.cfg.serial}»). سریال را از صفحهٔ «دستگاه جدید» سپیدار کپی کنید.`);
     const version = await this.detectVersion();
     // The request is sent with the version header; if Sepidar still answers 400 / 401 the other usual shapes are tried before giving up
-    const versions = [...new Set([version, '101', '100', '102'])];
+    const versions = [...new Set([version, '112', '111', '110', '101', '100', '102'])];
     const shapes = [];
     for (const v of versions) for (const asText of [false, true]) shapes.push({ v, asText });
     const errors = [];
@@ -173,11 +173,11 @@ export class Sepidar {
       this.state.generationVersion = v;
       return r;
     };
-    const first = (this.state.generationVersion || this.cfg.generationVersion || '101');
+    const first = (this.state.generationVersion || this.cfg.generationVersion || '112');
     const errors = [];
     for (let round = 0; round < 2; round++) {
       const detected = round === 0 && !this.state.generationVersion ? await this.detectVersion() : first;
-      const versions = [...new Set([this.state.generationVersion, detected, first, '101', '100', '102'].filter(Boolean).map(String))];
+      const versions = [...new Set([this.state.generationVersion, detected, first, '112', '111', '110', '101', '100', '102'].filter(Boolean).map(String))];
       for (const v of versions) {
         try {
           return await tryOnce(v);
