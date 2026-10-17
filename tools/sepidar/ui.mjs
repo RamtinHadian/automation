@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { spawn, execFileSync } from 'node:child_process';
+import { withHelp } from './config-help.mjs';
 
 const fontCss = (dir) => {
   const f = (file, w) => {
@@ -45,7 +46,7 @@ pre{background:#1c1210;color:#f3e9e2;border-radius:14px;padding:14px;min-height:
 <label>رمز سپیدار</label><p class="help" id="passhelp">رمز همان کاربر. فقط روی همین کامپیوتر ذخیره می‌شود.</p><input id="password" type="password" class="ltr" autocomplete="new-password">
 <label>قیمت‌ها</label><p class="help">هورمند به تومان کار می‌کند. اگر سپیدار شما به ریال است «ریال» را انتخاب کنید تا قیمت‌ها ۱۰ برابر شوند.</p>
 <select id="multiplier"><option value="10">سپیدار ریال است (×۱۰)</option><option value="1">سپیدار هم تومان است (×۱)</option></select>
-<div class="btns"><button id="b-setup" onclick="run('setup')">ذخیره و راه‌اندازی</button></div>
+<div class="btns"><button id="b-setup" onclick="run('setup')">ذخیره و راه‌اندازی</button><button class="alt" onclick="run('password')">فقط رمز (یا نام کاربری) را عوض کن</button></div>
 <div class="note">برنامه اول کد اتصال را با هورمند عوض می‌کند، تنظیمات را ذخیره می‌کند و دستگاه را در سپیدار ثبت می‌کند. نتیجه در کادر پایین صفحه نوشته می‌شود.</div></div>
 
 <div class="card"><h2><span class="step">۲</span>آزمایش</h2><p class="hint">قبل از ثبت واقعی این دو را بزنید. هیچ‌کدام چیزی در سپیدار ثبت نمی‌کنند.</p>
@@ -147,6 +148,14 @@ export function startUi({ dir, cfgPath, script }) {
         runNode(['watch', '--apply'], true);
         job.lines.push('اجرای خودکار در پس‌زمینه شروع شد؛ هر چند دقیقه مشتری‌ها و پیش‌فاکتورها را همگام می‌کند.');
         job.lines.push('این فقط تا زمانی که کامپیوتر روشن است کار می‌کند. برای اینکه بعد از هر روشن‌شدن کامپیوتر هم خودکار شروع شود، «ذخیره و راه‌اندازی» را در پنجرهٔ قدیمی (۰-راه‌اندازی-خودکار) بزنید.');
+      } else if (a === 'password') {
+        if (!b.password) return json({ error: 'رمز تازه را در کادر «رمز سپیدار» بنویسید.' }, 400);
+        if (!c.sepidar) return json({ error: 'هنوز راه‌اندازی نشده است؛ اول «ذخیره و راه‌اندازی» را بزنید.' }, 400);
+        c.sepidar.password = b.password;
+        if (b.user) c.sepidar.userName = b.user;
+        fs.writeFileSync(cfgPath, JSON.stringify(withHelp(c), null, 2));
+        job.lines.push('رمز تازه ذخیره شد. در حال آزمایش اتصال…');
+        runNode(['test']);
       } else if (a === 'cleanup') {
         cleanup(dir, !!b.rmfolder, job);
       } else return json({ error: 'دستور ناشناخته.' }, 400);
