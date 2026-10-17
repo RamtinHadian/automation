@@ -151,7 +151,9 @@ export class Sepidar {
   /** The headers every call needs: a new GUID each time, and the same GUID encrypted with the public key. */
   deviceHeaders(shape = this.shape || {}) {
     if (!this.state.publicKeyXml) throw new Error('هنوز دستگاه در سپیدار ثبت نشده است؛ اول دستور register را اجرا کنید.');
-    const code = shape.upper ? crypto.randomUUID().toUpperCase() : crypto.randomUUID();
+    let code = shape.upper ? crypto.randomUUID().toUpperCase() : crypto.randomUUID();
+    if (shape.nodash) code = code.replace(/-/g, '');
+    if (shape.braces) code = `{${code}}`;
     return {
       GenerationVersion: this.cfg.generationVersion,
       IntegrationID: String(this.integrationId),
@@ -168,8 +170,8 @@ export class Sepidar {
   async login() {
     const keyProblem = (e) => e instanceof SepidarError && ((e.status === 401 && /تطابق|کلید|نسخه|version|key/i.test(e.message)) || e.status === 412 || /انطباق نسخه|عدم انطباق/.test(e.message));
     // other shapes of the encrypted code, tried with the announced version if the usual one is refused with a key mismatch
-    const shapes = [{}, { upper: true }, { padding: 'oaep' }, { upper: true, padding: 'oaep' }];
-    const shapeName = (s) => (s.padding === 'oaep' ? 'OAEP' : 'PKCS1') + (s.upper ? '+حروف بزرگ' : '');
+    const shapes = [{}, { upper: true }, { nodash: true }, { upper: true, nodash: true }, { braces: true }, { padding: 'oaep' }];
+    const shapeName = (s) => (s.padding === 'oaep' ? 'OAEP' : 'PKCS1') + (s.upper ? '+حروف بزرگ' : '') + (s.nodash ? '+بدون خط تیره' : '') + (s.braces ? '+آکولاد' : '');
     const tryOnce = async (v, shape = {}) => {
       this.cfg.generationVersion = v;
       const r = await this.raw('POST', '/api/users/login', {
