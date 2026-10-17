@@ -1,0 +1,210 @@
+{
+  "info": {
+    "name": "Hoormand - Sepidar (device and login check)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base",
+      "value": "http://localhost:7373"
+    },
+    {
+      "key": "serial",
+      "value": "10000e60"
+    },
+    {
+      "key": "userName",
+      "value": "crm"
+    },
+    {
+      "key": "password",
+      "value": "PASSWORD"
+    },
+    {
+      "key": "version",
+      "value": "101"
+    }
+  ],
+  "item": [
+    {
+      "name": "0 - Which API version? (no headers)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// nothing to compute"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base}}/api/General/GenerationVersion",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "General",
+            "GenerationVersion"
+          ]
+        }
+      }
+    },
+    {
+      "name": "1 - Register device",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Register: the cipher is AES-128-CBC of the first four characters of the serial, key = serial + serial",
+              "const serial = pm.collectionVariables.get('serial');",
+              "const id = serial.substring(0, 4);",
+              "const key = CryptoJS.enc.Utf8.parse(serial + serial);",
+              "const iv = CryptoJS.lib.WordArray.random(16);",
+              "const enc = CryptoJS.AES.encrypt(id, key, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });",
+              "pm.collectionVariables.set('integrationId', id);",
+              "pm.collectionVariables.set('cypher', enc.ciphertext.toString(CryptoJS.enc.Base64));",
+              "pm.collectionVariables.set('iv', CryptoJS.enc.Base64.stringify(iv));",
+              ""
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// the answer holds the public key, encrypted with the same key: it is decrypted and kept for the sign-in",
+              "pm.test('Register answered 200', () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const j = pm.response.json();",
+              "  const serial = pm.collectionVariables.get('serial');",
+              "  const key = CryptoJS.enc.Utf8.parse(serial + serial);",
+              "  const plain = CryptoJS.AES.decrypt({ ciphertext: CryptoJS.enc.Base64.parse(j.Cypher) }, key, { iv: CryptoJS.enc.Base64.parse(j.IV), mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(CryptoJS.enc.Utf8);",
+              "  pm.collectionVariables.set('pubkeyXml', plain);",
+              "  console.log('Public key:', plain);",
+              "}",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "GenerationVersion",
+            "value": "{{version}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/Devices/Register",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "Devices",
+            "Register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"Cypher\": \"{{cypher}}\",\n  \"IV\": \"{{iv}}\",\n  \"IntegrationID\": {{integrationId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "2 - Login",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Login: ArbitraryCode = a new GUID, EncArbitraryCode = the same GUID encrypted (RSA, PKCS#1) with the public key from Register.",
+              "// The RSA library is loaded from the internet once (jsrsasign).",
+              "const xml = pm.collectionVariables.get('pubkeyXml');",
+              "if (!xml) throw new Error('First send \"1 - Register device\" and see 200.');",
+              "const code = require('uuid').v4();",
+              "const m = /<Modulus>(.*?)<\\/Modulus>/.exec(xml)[1];",
+              "const e = /<Exponent>(.*?)<\\/Exponent>/.exec(xml)[1];",
+              "const hex = (b64) => CryptoJS.enc.Base64.parse(b64).toString(CryptoJS.enc.Hex);",
+              "pm.collectionVariables.set('arbitraryCode', code);",
+              "pm.collectionVariables.set('passwordHash', CryptoJS.MD5(pm.collectionVariables.get('password')).toString());",
+              "pm.sendRequest('https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.8.6/jsrsasign-all-min.js', (err, res) => {",
+              "  if (err) { console.log('could not load jsrsasign', err); return; }",
+              "  const lib = new Function(res.text() + '; return { KEYUTIL: KEYUTIL, KJUR: KJUR, hextob64: hextob64 };')();",
+              "  const pub = lib.KEYUTIL.getKey({ n: hex(m), e: hex(e) });",
+              "  const cipherHex = lib.KJUR.crypto.Cipher.encrypt(code, pub, 'RSA');",
+              "  pm.collectionVariables.set('encArbitraryCode', lib.hextob64(cipherHex));",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "GenerationVersion",
+            "value": "{{version}}"
+          },
+          {
+            "key": "IntegrationID",
+            "value": "{{integrationId}}"
+          },
+          {
+            "key": "ArbitraryCode",
+            "value": "{{arbitraryCode}}"
+          },
+          {
+            "key": "EncArbitraryCode",
+            "value": "{{encArbitraryCode}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/users/login",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "users",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"UserName\": \"{{userName}}\",\n  \"PasswordHash\": \"{{passwordHash}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
