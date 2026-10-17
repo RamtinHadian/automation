@@ -106,7 +106,10 @@ export class Sepidar {
     try {
       const r = await this.raw('GET', '/api/General/GenerationVersion');
       const v = typeof r === 'object' && r !== null ? r.GenerationVersion ?? r.Version ?? Object.values(r)[0] : r;
-      if (v !== undefined && v !== null && String(v).trim() !== '' && !Number.isNaN(Number(v))) this.cfg.generationVersion = String(v).trim();
+      if (v !== undefined && v !== null && String(v).trim() !== '' && !Number.isNaN(Number(v))) {
+        this.cfg.generationVersion = String(v).trim();
+        this.detectedVersion = String(v).trim();
+      }
     } catch {
       /* the default version is used */
     }
@@ -162,7 +165,7 @@ export class Sepidar {
    * the sign-in repeated. A refusal about the password or anything else stops at once (so the account is never locked by retries).
    */
   async login() {
-    const keyProblem = (e) => e instanceof SepidarError && e.status === 401 && /تطابق|کلید|نسخه|version|key/i.test(e.message);
+    const keyProblem = (e) => e instanceof SepidarError && ((e.status === 401 && /تطابق|کلید|نسخه|version|key/i.test(e.message)) || e.status === 412 || /انطباق نسخه|عدم انطباق/.test(e.message));
     const tryOnce = async (v) => {
       this.cfg.generationVersion = v;
       const r = await this.raw('POST', '/api/users/login', {
@@ -176,8 +179,9 @@ export class Sepidar {
     const first = (this.state.generationVersion || this.cfg.generationVersion || '112');
     const errors = [];
     for (let round = 0; round < 2; round++) {
-      const detected = round === 0 && !this.state.generationVersion ? await this.detectVersion() : first;
-      const versions = [...new Set([this.state.generationVersion, detected, first, '112', '111', '110', '101', '100', '102'].filter(Boolean).map(String))];
+      const detected = round === 0 ? await this.detectVersion() : first;
+      const all = ['112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100'];
+      const versions = [...new Set([detected, this.state.generationVersion, first, ...all].filter(Boolean).map(String))];
       for (const v of versions) {
         try {
           return await tryOnce(v);
@@ -198,7 +202,7 @@ export class Sepidar {
         }
       }
     }
-    throw new SepidarError(401, 'ورود به سپیدار با هیچ‌کدام از حالت‌ها پذیرفته نشد: ' + errors.join(' | '));
+    throw new SepidarError(401, `ورود به سپیدار با هیچ‌کدام از نسخه‌های API پذیرفته نشد (نسخه‌ای که سپیدار اعلام کرد: ${this.detectedVersion || 'نامشخص'}): ` + errors.slice(0, 4).join(' | '));
   }
 
   async call(method, path, body) {
