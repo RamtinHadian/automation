@@ -30,7 +30,8 @@ export const publicKeyFromXml = (xml) => {
   return crypto.createPublicKey({ key: { kty: 'RSA', n: b64u(n.trim()), e: b64u(e.trim()) }, format: 'jwk' });
 };
 
-export const rsaEncrypt = (publicKey, text) => crypto.publicEncrypt({ key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING }, Buffer.from(text, 'utf8')).toString('base64');
+export const rsaEncrypt = (publicKey, text, padding = 'pkcs1') =>
+  crypto.publicEncrypt(padding === 'oaep' ? { key: publicKey, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING } : { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING }, Buffer.from(text, 'utf8')).toString('base64');
 
 export const md5 = (s) => crypto.createHash('md5').update(s, 'utf8').digest('hex');
 
@@ -148,14 +149,14 @@ export class Sepidar {
   }
 
   /** The headers every call needs: a new GUID each time, and the same GUID encrypted with the public key. */
-  deviceHeaders() {
+  deviceHeaders(shape = this.shape || {}) {
     if (!this.state.publicKeyXml) throw new Error('هنوز دستگاه در سپیدار ثبت نشده است؛ اول دستور register را اجرا کنید.');
-    const code = crypto.randomUUID();
+    const code = shape.upper ? crypto.randomUUID().toUpperCase() : crypto.randomUUID();
     return {
       GenerationVersion: this.cfg.generationVersion,
       IntegrationID: String(this.integrationId),
       ArbitraryCode: code,
-      EncArbitraryCode: rsaEncrypt(publicKeyFromXml(this.state.publicKeyXml), code),
+      EncArbitraryCode: rsaEncrypt(publicKeyFromXml(this.state.publicKeyXml), code, shape.padding || 'pkcs1'),
     };
   }
 
@@ -166,14 +167,18 @@ export class Sepidar {
    */
   async login() {
     const keyProblem = (e) => e instanceof SepidarError && ((e.status === 401 && /تطابق|کلید|نسخه|version|key/i.test(e.message)) || e.status === 412 || /انطباق نسخه|عدم انطباق/.test(e.message));
-    const tryOnce = async (v) => {
+    // other shapes of the encrypted code, tried with the announced version if the usual one is refused with a key mismatch
+    const shapes = [{}, { upper: true }, { padding: 'oaep' }, { upper: true, padding: 'oaep' }];
+    const shapeName = (s) => (s.padding === 'oaep' ? 'OAEP' : 'PKCS1') + (s.upper ? '+حروف بزرگ' : '');
+    const tryOnce = async (v, shape = {}) => {
       this.cfg.generationVersion = v;
       const r = await this.raw('POST', '/api/users/login', {
-        headers: this.deviceHeaders(),
+        headers: this.deviceHeaders(shape),
         body: { UserName: this.cfg.userName, PasswordHash: md5(this.cfg.password) },
       });
       this.token = r.Token;
       this.state.generationVersion = v;
+      this.shape = shape;
       return r;
     };
     const first = (this.state.generationVersion || this.cfg.generationVersion || '112');
@@ -182,12 +187,13 @@ export class Sepidar {
       const detected = round === 0 ? await this.detectVersion() : first;
       const all = ['112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100'];
       const versions = [...new Set([detected, this.state.generationVersion, first, ...all].filter(Boolean).map(String))];
-      for (const v of versions) {
+      const attempts = [...shapes.map((s) => [versions[0], s]), ...versions.slice(1).map((v) => [v, {}])];
+      for (const [v, shape] of attempts) {
         try {
-          return await tryOnce(v);
+          return await tryOnce(v, shape);
         } catch (e) {
           if (!keyProblem(e)) throw e;
-          const line = `نسخهٔ ${v}: ${e.message}`;
+          const line = `نسخهٔ ${v} (${shapeName(shape)}): ${e.message}`;
           if (!errors.includes(line)) errors.push(line);
         }
       }
@@ -202,7 +208,7 @@ export class Sepidar {
         }
       }
     }
-    throw new SepidarError(401, `ورود به سپیدار با هیچ‌کدام از نسخه‌های API پذیرفته نشد (نسخه‌ای که سپیدار اعلام کرد: ${this.detectedVersion || 'نامشخص'}): ` + errors.slice(0, 4).join(' | '));
+    throw new SepidarError(401, `ورود به سپیدار با هیچ‌کدام از نسخه‌های API پذیرفته نشد (نسخه‌ای که سپیدار اعلام کرد: ${this.detectedVersion || 'نامشخص'}): ` + errors.slice(0, 6).join(' | ') + (errors.length > 6 ? ` | … (${errors.length} تلاش)` : ''));
   }
 
   async call(method, path, body) {
