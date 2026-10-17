@@ -71,6 +71,7 @@ export class Sepidar {
   /** cfg: { url, serial, userName, password, generationVersion?, authScheme? }; state: { publicKeyXml?, token? } (kept by the caller) */
   constructor(cfg, state = {}) {
     this.cfg = { generationVersion: '101', authScheme: 'Bearer', ...cfg };
+    if (state && state.generationVersion && !cfg.generationVersion) this.cfg.generationVersion = state.generationVersion;
     this.state = state;
     this.base = this.cfg.url.replace(/\/+$/, '');
   }
@@ -99,15 +100,48 @@ export class Sepidar {
     return data;
   }
 
+  /** The API version this Sepidar speaks (the header GenerationVersion of every call); asked from Sepidar itself, else the configured / default one. */
+  async detectVersion() {
+    if (this.cfg.generationVersionFixed) return this.cfg.generationVersion;
+    try {
+      const r = await this.raw('GET', '/api/General/GenerationVersion');
+      const v = typeof r === 'object' && r !== null ? r.GenerationVersion ?? r.Version ?? Object.values(r)[0] : r;
+      if (v !== undefined && v !== null && String(v).trim() !== '' && !Number.isNaN(Number(v))) this.cfg.generationVersion = String(v).trim();
+    } catch {
+      /* the default version is used */
+    }
+    return this.cfg.generationVersion;
+  }
+
   /** Done once: introduces this program to Sepidar and keeps the public key it answers with. */
   async register() {
     const id = this.integrationId;
     if (!Number.isInteger(id) || id <= 0) throw new SepidarError(0, `سریال دستگاه درست نیست: چهار نویسهٔ اولش باید عدد باشد (سریال «${this.cfg.serial}»). سریال را از صفحهٔ «دستگاه جدید» سپیدار کپی کنید.`);
-    const { Cypher, IV } = aesEncrypt(this.cfg.serial, String(id));
-    const r = await this.raw('POST', '/api/Devices/Register', { body: { Cypher, IntegrationID: id, IV } });
-    this.state.publicKeyXml = aesDecrypt(this.cfg.serial, r.Cypher, r.IV);
-    publicKeyFromXml(this.state.publicKeyXml); // fails early if it is not a key
-    return r.DeviceTitle;
+    const version = await this.detectVersion();
+    // The request is sent with the version header; if Sepidar still answers 400 / 401 the other usual shapes are tried before giving up
+    const versions = [...new Set([version, '101', '100', '102'])];
+    const shapes = [];
+    for (const v of versions) for (const asText of [false, true]) shapes.push({ v, asText });
+    const errors = [];
+    for (const { v, asText } of shapes) {
+      try {
+        const { Cypher, IV } = aesEncrypt(this.cfg.serial, String(id));
+        const r = await this.raw('POST', '/api/Devices/Register', {
+          headers: { GenerationVersion: v },
+          body: { Cypher, IntegrationID: asText ? String(id) : id, IV },
+        });
+        this.state.publicKeyXml = aesDecrypt(this.cfg.serial, r.Cypher, r.IV);
+        publicKeyFromXml(this.state.publicKeyXml); // fails early if it is not a key
+        this.cfg.generationVersion = v;
+        this.state.generationVersion = v;
+        return r.DeviceTitle;
+      } catch (e) {
+        if (!(e instanceof SepidarError) || ![400, 401, 415].includes(e.status)) throw e;
+        const line = `نسخهٔ ${v}${asText ? '، شناسه به‌صورت متن' : ''}: ${e.message}`;
+        if (!errors.includes(line)) errors.push(line);
+      }
+    }
+    throw new SepidarError(401, 'سپیدار هر شکل درخواست را رد کرد: ' + errors.join(' | '));
   }
 
   /** The headers every call needs: a new GUID each time, and the same GUID encrypted with the public key. */
