@@ -663,6 +663,22 @@ async function main() {
     return startUi({ dir, cfgPath, script: fileURLToPath(import.meta.url) });
   }
   if (cmd === 'setup') return cmdSetup();
+  if (cmd === 'diag') {
+    let c = {};
+    try {
+      c = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    } catch {
+      /* the values come from the flags */
+    }
+    const ok = (v) => typeof v === 'string' && v.trim() !== '' && !/[؀-ۿ]|example\.com|xxxx/i.test(v);
+    const pick = (f, v) => flag(f) || (ok(v) ? v : '');
+    const s = { url: pick('--sepidar', c.sepidar?.url) || 'http://localhost:7373', serial: pick('--serial', c.sepidar?.serial), userName: pick('--user', c.sepidar?.userName), password: pick('--password', c.sepidar?.password), generationVersion: c.sepidar?.generationVersion };
+    if (!s.serial || !s.userName || !s.password) {
+      console.error('برای تشخیص: --serial و --user و --password را بدهید (یا در config.json بنویسید).');
+      process.exit(1);
+    }
+    return cmdDiag({ sepidar: s });
+  }
   const cfg = loadConfig();
   if (cmd === 'register') return cmdRegister(cfg);
   if (cmd === 'test') return cmdTest(cfg);

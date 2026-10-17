@@ -129,7 +129,7 @@ export function startUi({ dir, cfgPath, script }) {
       } catch {
         /* missing */
       }
-      return json({ folder: dir, tool: 'sepidar-tool 1.31.4 (api 112، دکمهٔ تشخیص)', clientBytes, hoormand: real(c.hoormand?.url) ? c.hoormand.url : '', sepidar: real(c.sepidar?.url) ? c.sepidar.url : '', serial: real(c.sepidar?.serial) ? c.sepidar.serial : '', user: real(c.sepidar?.userName) ? c.sepidar.userName : '', hasPassword: real(c.sepidar?.password), multiplier: c.sync?.priceMultiplier || 10 });
+      return json({ folder: dir, tool: 'sepidar-tool 1.31.5 (api 112، تشخیص بدون راه‌اندازی)', clientBytes, hoormand: real(c.hoormand?.url) ? c.hoormand.url : '', sepidar: real(c.sepidar?.url) ? c.sepidar.url : '', serial: real(c.sepidar?.serial) ? c.sepidar.serial : '', user: real(c.sepidar?.userName) ? c.sepidar.userName : '', hasPassword: real(c.sepidar?.password), multiplier: c.sync?.priceMultiplier || 10 });
     }
     if (sub === 'log') return json({ running: job.running, lines: job.lines });
     if (sub === 'run' && req.method === 'POST') {
@@ -145,7 +145,7 @@ export function startUi({ dir, cfgPath, script }) {
       job.lines = [];
       const c = readCfg();
       const a = b.action;
-      if (['test', 'diag', 'preview', 'apply', 'auto', 'password'].includes(a) && !ready(c)) {
+      if (['test', 'preview', 'apply', 'auto', 'password'].includes(a) && !ready(c)) {
         job.lines = [];
         return json({ error: 'هنوز اطلاعات اتصال ذخیره نشده است. اول کادرهای بخش ۱ را پر کنید و «ذخیره و راه‌اندازی» را بزنید؛ بعد این دکمه را بزنید.' }, 400);
       }
@@ -160,7 +160,14 @@ export function startUi({ dir, cfgPath, script }) {
         job.lines.push('در حال راه‌اندازی…');
         runNode(argv);
       } else if (a === 'test') runNode(['test']);
-      else if (a === 'diag') runNode(['diag']);
+      else if (a === 'diag') {
+        // works from what is typed in the form (or saved earlier): no Hoormand key and no finished setup is needed
+        const serial = b.serial || (real(c.sepidar?.serial) ? c.sepidar.serial : '');
+        const user = b.user || (real(c.sepidar?.userName) ? c.sepidar.userName : '');
+        const pass = b.password || (real(c.sepidar?.password) ? c.sepidar.password : '');
+        if (!serial || !user || !pass) return json({ error: 'برای تشخیص، سریال دستگاه و نام کاربری و رمز سپیدار را در کادرهای بخش ۱ بنویسید (لازم نیست «ذخیره و راه‌اندازی» را بزنید).' }, 400);
+        runNode(['diag', '--sepidar', b.sepidar || (real(c.sepidar?.url) ? c.sepidar.url : 'http://localhost:7373'), '--serial', serial, '--user', user, '--password', pass]);
+      }
       else if (a === 'preview') runNode(['sync']);
       else if (a === 'apply') runNode(['sync', '--apply']);
       else if (a === 'auto') {

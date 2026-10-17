@@ -175,6 +175,15 @@ r = await runAsync('test');
 ok(r.code === 0 && /ورود موفق/.test(r.out) && /3 کالا|۳ کالا/.test(r.out), 'test: encrypted headers + login accepted by the pretend Sepidar\n' + r.out.split('\n').map((l) => '      ' + l).join('\n'));
 r = await runAsync('diag');
 ok(r.code === 0 && /۰\) نسخهٔ API/.test(r.out) && /۱\) ثبت دستگاه/.test(r.out) && /کلید باز شد: \d+ بیت/.test(r.out) && /۲\) ورود/.test(r.out) && /ورود موفق بود/.test(r.out) && !/secret/.test(r.out), 'diag: prints the raw answers of version, register and login, never the password\n' + r.out.split('\n').map((l) => '      ' + l).join('\n'));
+// the diagnosis needs only what is typed in the form: no config.json, no Hoormand key
+r = await new Promise((resolve) => {
+  const p = spawn(process.execPath, [path.join(dir, 'sepidar-sync.mjs'), 'diag', '--sepidar', `http://127.0.0.1:${sPort}`, '--serial', SERIAL, '--user', 'admin', '--password', 'secret', '--config', path.join(tmp, 'none.json'), '--state', path.join(tmp, 'none-state.json')]);
+  let out = '';
+  p.stdout.on('data', (d) => (out += d));
+  p.stderr.on('data', (d) => (out += d));
+  p.on('close', (code) => resolve({ code, out }));
+});
+ok(r.code === 0 && /ورود موفق بود/.test(r.out), 'diag works from the typed values alone (no config.json, no Hoormand key)\n' + r.out.split('\n').slice(-6).map((l) => '      ' + l).join('\n'));
 r = await runAsync('stock');
 ok(r.code === 0 && hoormandPosts.length === 0 && /فقط نمایش/.test(r.out), 'stock without --apply sends nothing');
 r = await runAsync('stock', '--apply');
