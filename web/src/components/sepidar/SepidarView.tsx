@@ -150,9 +150,9 @@ export const SepidarView: React.FC = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1.5 overflow-x-auto">
+        <div className="flex flex-wrap gap-1.5">
           {tabs.filter((t) => t[2]).map(([k, t]) => (
-            <button key={k} type="button" onClick={() => setTab(k)} className={`px-4 py-2 min-h-[40px] rounded-xl text-xs font-black whitespace-nowrap cursor-pointer border ${tab === k ? 'bg-rose-700 text-white border-rose-700' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}>
+            <button key={k} type="button" onClick={() => setTab(k)} className={`px-3 sm:px-4 py-2 min-h-[40px] rounded-xl text-xs font-black whitespace-nowrap cursor-pointer border ${tab === k ? 'bg-rose-700 text-white border-rose-700' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}>
               {t}
             </button>
           ))}
