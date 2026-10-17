@@ -615,6 +615,10 @@ async function main() {
     log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 14).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     return;
   }
+  if (cmd === 'ui') {
+    const { startUi } = await import('./ui.mjs');
+    return startUi({ dir, cfgPath, script: fileURLToPath(import.meta.url) });
+  }
   if (cmd === 'setup') return cmdSetup();
   const cfg = loadConfig();
   if (cmd === 'register') return cmdRegister(cfg);
