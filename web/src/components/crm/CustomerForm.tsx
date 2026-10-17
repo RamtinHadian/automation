@@ -206,7 +206,8 @@ export const CustomerForm: React.FC<{
   const [sepLinked, setSepLinked] = useState<{ sepidarId: number; name: string } | null>(null);
   const [sepBusy, setSepBusy] = useState(false);
   const [sepError, setSepError] = useState('');
-  const dupKey = JSON.stringify([c.phones, mobileDraft, landlineDraft, c.nationalCode, c.nationalId]);
+  const [recheck, setRecheck] = useState(0); // bumped to ask the server again (after the tie is removed)
+  const dupKey = JSON.stringify([c.phones, mobileDraft, landlineDraft, c.nationalCode, c.nationalId, recheck]);
   useEffect(() => {
     const phones = [...c.phones, cleanNumber(mobileDraft), cleanNumber(landlineDraft)].filter((p) => p && digits(p).length >= 7);
     const nat = digits(c.nationalCode || '');
@@ -258,6 +259,7 @@ export const CustomerForm: React.FC<{
     try {
       await api.crmSepidarLink(initial.id, 0);
       setSepLinked(null);
+      setRecheck((n) => n + 1);
     } catch (e) {
       setSepError(e instanceof Error ? e.message : 'انجام نشد.');
     } finally {
