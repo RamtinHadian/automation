@@ -31,3 +31,6 @@ tools/sepidar/config.json
 tools/sepidar/state.json
 
 tools/sepidar/sepidar.log
+
+# built from tools/sepidar by hand (it holds node.exe); never commit it
+tools/sepidar.zip
