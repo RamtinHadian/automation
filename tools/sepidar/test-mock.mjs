@@ -24,6 +24,8 @@ const std = (u) => Buffer.from(u, 'base64url').toString('base64');
 const xml = `<RSAKeyValue><Modulus>${std(jwk.n)}</Modulus><Exponent>${std(jwk.e)}</Exponent></RSAKeyValue>`;
 const used = new Set();
 let strictRawLe = false;
+let toolMode = 'normal'; // 'broken' = the served console-fa.mjs has a syntax error (with a matching hash), 'damaged' = its bytes do not match the hash
+const servedTool = (n) => (n === 'console-fa.mjs' && toolMode === 'broken' ? Buffer.from('export const = ;' + String.fromCharCode(10)) : n === 'console-fa.mjs' && toolMode === 'damaged' ? Buffer.from('damaged bytes') : fs.readFileSync(path.join(dir, n)));
 const sp = { customers: [], quotations: [], registered: false, logins: 0 };
 const items = [{ ItemID: 7, Code: '1001', Title: 'کالای یک', Type: 1, UnitRef: 1, IsActive: true, IsSellable: true }, { ItemID: 8, Code: '1002', Title: 'کالای دو', Type: 1, UnitRef: 2, IsActive: true, IsSellable: true }, { ItemID: 9, Code: '2001', Title: 'خدمت نصب', Type: 2, UnitRef: 1, IsActive: true, IsSellable: true }];
 const stocks = [{ StockID: 1, Code: 'A1', Title: 'انبار مرکزی', IsActive: true }, { StockID: 2, Code: 'B1', Title: 'انبار فروشگاه', IsActive: true }];
@@ -134,6 +136,13 @@ const hoormandServer = http.createServer(async (req, res) => {
     return send(res, 200, { warehousesNew: 2, productsNew: 2, productsUpdated: 0, docs: 2, changed: 3 });
   }
   const u = new URL(req.url, 'http://x');
+  // the copy of the program that Hoormand's server holds (here: this very folder); toolMode makes it serve a broken or a damaged file
+  if (u.pathname === '/api/ext/v1/sepidar/tool') {
+    const names = ['sepidar-sync.mjs', 'sepidar-client.mjs', 'console-fa.mjs', 'config-help.mjs', 'ui.mjs', 'updater.mjs', 'Vazirmatn-Regular.woff2', 'Vazirmatn-Bold.woff2'];
+    const files = names.map((n) => { const b = servedTool(n); return { name: n, sha256: crypto.createHash('sha256').update(toolMode === 'damaged' && n === 'console-fa.mjs' ? fs.readFileSync(path.join(dir, n)) : b).digest('hex'), size: b.length }; });
+    return send(res, 200, { version: 'test', files });
+  }
+  if (u.pathname.startsWith('/api/ext/v1/sepidar/tool/')) { res.writeHead(200); return res.end(servedTool(decodeURIComponent(u.pathname.split('/').pop()))); }
   if (u.pathname === '/api/ext/v1/ping') return send(res, 200, { ok: true, key: 'آزمایش', actAs: 'همکار', scopes: ['customers.read', 'deals.read', 'warehouse.write', 'sepidar.connect'] });
   if ((u.pathname.startsWith('/api/ext/v1/customers/') && u.pathname.length > 22)) return send(res, 200, customers.find((c) => u.pathname.endsWith('/' + c.id)) || {});
   if ((u.pathname.startsWith('/api/ext/v1/deals/') && u.pathname.length > 18)) return send(res, 200, deals.find((d) => u.pathname.endsWith('/' + d.id)) || {});
@@ -208,6 +217,46 @@ r = await new Promise((resolve) => {
   p.on('close', (code) => resolve({ code, out }));
 });
 ok(r.code === 0 && /ورود موفق بود/.test(r.out), 'diag works from the typed values alone (no config.json, no Hoormand key)\n' + r.out.split('\n').slice(-6).map((l) => '      ' + l).join('\n'));
+// the program updates itself from the copy Hoormand's server holds
+{
+  const NL = String.fromCharCode(10);
+  const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+  const names = ['sepidar-sync.mjs', 'sepidar-client.mjs', 'console-fa.mjs', 'config-help.mjs', 'ui.mjs', 'updater.mjs', 'Vazirmatn-Regular.woff2', 'Vazirmatn-Bold.woff2'];
+  const mk = () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'sepidar-upd-'));
+    for (const n of names) fs.copyFileSync(path.join(dir, n), path.join(d, n));
+    fs.appendFileSync(path.join(d, 'console-fa.mjs'), String.fromCharCode(10) + '// an old copy' + String.fromCharCode(10));
+    fs.appendFileSync(path.join(d, 'config-help.mjs'), String.fromCharCode(10) + '// old too' + String.fromCharCode(10));
+    fs.rmSync(path.join(d, 'Vazirmatn-Bold.woff2')); // a file the program does not have yet
+    fs.writeFileSync(path.join(d, 'config.json'), fs.readFileSync(cfg));
+    fs.writeFileSync(path.join(d, 'state.json'), '{"keep":"me"}');
+    return d;
+  };
+  const upd = (d) => new Promise((resolve) => {
+    const p = spawn(process.execPath, [path.join(d, 'sepidar-sync.mjs'), 'update'], { cwd: d });
+    let out = '';
+    p.stdout.on('data', (x) => (out += x));
+    p.stderr.on('data', (x) => (out += x));
+    p.on('close', (code) => resolve({ code, out }));
+  });
+  const d1 = mk();
+  const old = fs.readFileSync(path.join(d1, 'console-fa.mjs'), 'utf8');
+  let u = await upd(d1);
+  ok(u.code === 0 && names.every((n) => sha(path.join(d1, n)) === sha(path.join(dir, n))), 'update: changed and missing files are replaced by the server copy' + NL + u.out.split(NL).map((l) => '      ' + l).join(NL));
+  ok(fs.readFileSync(path.join(d1, 'prev', 'console-fa.mjs'), 'utf8') === old, 'update: the old file is kept in prev');
+  ok(fs.readFileSync(path.join(d1, 'state.json'), 'utf8') === '{"keep":"me"}' && fs.existsSync(path.join(d1, 'config.json')), 'update: config.json and state.json are never touched');
+  u = await upd(d1);
+  ok(u.code === 0 && /به‌روز است/.test(u.out), 'update: a second run finds nothing to do');
+  const d2 = mk();
+  toolMode = 'broken';
+  u = await upd(d2);
+  ok(u.code !== 0 && /خطای برنامه‌نویسی/.test(u.out) && /an old copy/.test(fs.readFileSync(path.join(d2, 'console-fa.mjs'), 'utf8')) && !fs.existsSync(path.join(d2, 'console-fa.new.mjs')), 'update: a served file with a syntax error is refused, the old one stays' + NL + u.out.split(NL).slice(0, 3).map((l) => '      ' + l).join(NL));
+  toolMode = 'damaged';
+  u = await upd(d2);
+  ok(u.code !== 0 && /ناقص رسید/.test(u.out) && /an old copy/.test(fs.readFileSync(path.join(d2, 'console-fa.mjs'), 'utf8')), 'update: a file whose hash does not match is refused');
+  toolMode = 'normal';
+}
+
 // a Sepidar that accepts only another shape of the encrypted code: the client tries the shapes and finds it
 strictRawLe = true;
 {

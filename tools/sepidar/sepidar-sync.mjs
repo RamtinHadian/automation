@@ -17,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import { Sepidar, guidFrom, netFetch, aesEncrypt, aesDecrypt, publicKeyFromXml, rsaEncrypt, md5 } from './sepidar-client.mjs';
+import { selfUpdate } from './updater.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -104,6 +105,31 @@ export function customerBody(c) {
   if (company && c.economicCode) body.EconomicCode = toLatin(c.economicCode);
   if (!company && c.birthDate) body.BirthDate = c.birthDate;
   return body;
+}
+
+/** Raw bytes of one file Hoormand holds for this program (the update). */
+async function hoormandBytes(cfg, p) {
+  const res = await netFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } }, 'هورمند');
+  if (!res.ok) throw new Error(`هورمند (${res.status}): فایل بروزرسانی داده نشد.`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+/** Compares this program's files with Hoormand's copy and replaces the ones that differ; returns the names that changed. */
+async function runUpdate(cfg) {
+  return selfUpdate({ dir, get: (p) => hoormand(cfg, p), getFile: (name) => hoormandBytes(cfg, '/sepidar/tool/' + encodeURIComponent(name)), log });
+}
+
+async function cmdUpdate(cfg) {
+  const r = await runUpdate(cfg);
+  if (r.updated.length === 0) return log('برنامه به‌روز است (همان نسخه‌ای که هورمند دارد).');
+  log(`برنامه بروزرسانی شد (${r.updated.length} فایل). اگر برنامهٔ خودکار در حال اجراست، خودش دوباره بالا می‌آید؛ در غیر این‌صورت برنامه را ببندید و دوباره باز کنید.`);
+}
+
+/** After an update the running program starts a fresh copy of itself (writing to the same log) and ends. */
+function restartSelf() {
+  const logFd = fs.openSync(path.join(dir, 'sepidar.log'), 'a');
+  spawn(process.execPath, process.argv.slice(1), { cwd: dir, detached: true, stdio: ['ignore', logFd, logFd], windowsHide: true }).unref();
+  setTimeout(() => process.exit(0), 300);
 }
 
 /** The customer Sepidar already has for this body: the same mobile (last nine digits) or the same national code. takenIds = Sepidar customers already tied to another Hoormand customer. */
@@ -735,6 +761,7 @@ async function main() {
     }
     return cmdDiag({ sepidar: s });
   }
+  if (cmd === 'update') return cmdUpdate(loadConfig());
   const cfg = loadConfig();
   if (cmd === 'register') return cmdRegister(cfg);
   if (cmd === 'test') return cmdTest(cfg);
@@ -746,8 +773,21 @@ async function main() {
   if (cmd === 'watch') {
     // requests from Hoormand's people are looked at every few seconds; the full synchronisation runs every intervalMinutes
     let nextFull = 0;
+    let nextUpdate = 0;
     for (;;) {
       try {
+        if (cfg.autoUpdate !== false && Date.now() >= nextUpdate) {
+          nextUpdate = Date.now() + 60 * 60000; // looks for a new version of the program every hour (and at start)
+          try {
+            const r = await runUpdate(cfg);
+            if (r.updated.length) {
+              log(`برنامه از هورمند بروزرسانی شد (${r.updated.join('، ')}). در حال راه‌اندازی دوبارهٔ خودکار…`);
+              return restartSelf();
+            }
+          } catch (e) {
+            log('  بروزرسانی انجام نشد:', e.message);
+          }
+        }
         if (Date.now() >= nextFull) {
           await cmdSync(cfg);
           await cmdCache(cfg);

@@ -2,10 +2,14 @@ package api
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"math/big"
 	"encoding/json"
 	"context"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -386,6 +390,53 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 
 func ref0(kind, id string) jsonx.M { return jsonx.M{"type": kind, "id": id} }
 
+// ---------- the program on the accounting computer updates itself from here ----------
+// The server holds a copy of the program's files (the Docker image carries them, so they are updated from Git together with the app);
+// the program compares its own files with this list and downloads what differs. Only these names can ever be served.
+var sepidarToolFiles = []string{"sepidar-sync.mjs", "sepidar-client.mjs", "console-fa.mjs", "config-help.mjs", "ui.mjs", "updater.mjs", "Vazirmatn-Regular.woff2", "Vazirmatn-Bold.woff2"}
+
+func sepidarToolDir() string {
+	if d := os.Getenv("SEPIDAR_TOOL_DIR"); d != "" {
+		return d
+	}
+	return "/app/sepidar-tool"
+}
+
+// GET /api/ext/v1/sepidar/tool: {version, files:[{name, sha256, size}]}; version is a short hash of all the files
+func extSepidarTool(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
+	sepidarBeat(r.Context(), k.Name)
+	files := []jsonx.M{}
+	all := sha256.New()
+	for _, name := range sepidarToolFiles {
+		b, err := os.ReadFile(filepath.Join(sepidarToolDir(), name))
+		if err != nil {
+			continue // a file this server does not carry is not offered
+		}
+		sum := sha256.Sum256(b)
+		h := hex.EncodeToString(sum[:])
+		all.Write([]byte(name + h))
+		files = append(files, jsonx.M{"name": name, "sha256": h, "size": len(b)})
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"version": hex.EncodeToString(all.Sum(nil))[:12], "files": files})
+}
+
+// GET /api/ext/v1/sepidar/tool/{name}: one file of the program
+func extSepidarToolFile(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
+	name := r.PathValue("name")
+	if !jsonx.Contains(sepidarToolFiles, name) {
+		httpx.Error(w, http.StatusNotFound, "فایل پیدا نشد.")
+		return
+	}
+	b, err := os.ReadFile(filepath.Join(sepidarToolDir(), name))
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "فایل پیدا نشد.")
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write(b)
+}
+
 // ---------- customers that already exist in Sepidar ----------
 
 func loadSepidarCustomers(ctx context.Context) []map[string]any {
@@ -656,5 +707,7 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/ext/v1/sepidar/jobs/{id}/result", extAuth("sepidar.connect", extSepidarResult))
 	mux.HandleFunc("POST /api/ext/v1/sepidar/push", extAuth("sepidar.connect", extSepidarPush))
 	mux.HandleFunc("GET /api/ext/v1/sepidar/links", extAuth("sepidar.connect", extSepidarLinks))
+	mux.HandleFunc("GET /api/ext/v1/sepidar/tool", extAuth("sepidar.connect", extSepidarTool))
+	mux.HandleFunc("GET /api/ext/v1/sepidar/tool/{name}", extAuth("sepidar.connect", extSepidarToolFile))
 	mux.HandleFunc("POST /api/crm/sepidar-link", auth.Require(crmSepidarLink))
 }

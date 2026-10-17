@@ -20,6 +20,8 @@ COPY --from=api /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificate
 COPY --from=api /out/server /server
 COPY --from=web /web/dist /app/public
 COPY VERSION /app/VERSION
-ENV STATIC_DIR=/app/public PORT=8080
+# the program on the accounting computer (tools/sepidar) updates itself from these files, so it follows Git together with the app
+COPY tools/sepidar/sepidar-sync.mjs tools/sepidar/sepidar-client.mjs tools/sepidar/console-fa.mjs tools/sepidar/config-help.mjs tools/sepidar/ui.mjs tools/sepidar/updater.mjs tools/sepidar/Vazirmatn-Regular.woff2 tools/sepidar/Vazirmatn-Bold.woff2 /app/sepidar-tool/
+ENV STATIC_DIR=/app/public SEPIDAR_TOOL_DIR=/app/sepidar-tool PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["/server"]

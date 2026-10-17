@@ -50,7 +50,7 @@ pre{background:#1c1210;color:#f3e9e2;border-radius:14px;padding:14px;min-height:
 <div class="note">برنامه اول کد اتصال را با هورمند عوض می‌کند، تنظیمات را ذخیره می‌کند و دستگاه را در سپیدار ثبت می‌کند. نتیجه در کادر پایین صفحه نوشته می‌شود.</div></div>
 
 <div class="card"><h2><span class="step">۲</span>آزمایش</h2><p class="hint">قبل از ثبت واقعی این دو را بزنید. هیچ‌کدام چیزی در سپیدار ثبت نمی‌کنند.</p>
-<div class="btns"><button class="alt" onclick="run('test')">آزمایش اتصال</button><button class="alt" onclick="run('diag')">تشخیص دقیق (جواب خام سپیدار)</button><button class="alt" onclick="run('preview')">پیش‌نمایش (چه چیزهایی ثبت می‌شود)</button></div></div>
+<div class="btns"><button class="alt" onclick="run('test')">آزمایش اتصال</button><button class="alt" onclick="run('update')">بروزرسانی برنامه از هورمند</button><button class="alt" onclick="run('diag')">تشخیص دقیق (جواب خام سپیدار)</button><button class="alt" onclick="run('preview')">پیش‌نمایش (چه چیزهایی ثبت می‌شود)</button></div></div>
 
 <div class="card"><h2><span class="step">۳</span>ثبت در سپیدار</h2><p class="hint">مشتری‌ها و پیش‌فاکتورهای هورمند را در سپیدار ثبت می‌کند. هر مورد فقط یک‌بار ثبت می‌شود.</p>
 <div class="btns"><button onclick="run('apply')">ثبت واقعی الان</button><button class="alt" onclick="run('auto')">روشن کردن اجرای خودکار (پس‌زمینه)</button></div></div>
@@ -129,7 +129,7 @@ export function startUi({ dir, cfgPath, script }) {
       } catch {
         /* missing */
       }
-      return json({ folder: dir, tool: 'sepidar-tool 1.32.0 (api 112، تشخیص مشتری تکراری)', clientBytes, hoormand: real(c.hoormand?.url) ? c.hoormand.url : '', sepidar: real(c.sepidar?.url) ? c.sepidar.url : '', serial: real(c.sepidar?.serial) ? c.sepidar.serial : '', user: real(c.sepidar?.userName) ? c.sepidar.userName : '', hasPassword: real(c.sepidar?.password), multiplier: c.sync?.priceMultiplier || 10 });
+      return json({ folder: dir, tool: 'sepidar-tool 1.33.0 (api 112، بروزرسانی خودکار)', clientBytes, hoormand: real(c.hoormand?.url) ? c.hoormand.url : '', sepidar: real(c.sepidar?.url) ? c.sepidar.url : '', serial: real(c.sepidar?.serial) ? c.sepidar.serial : '', user: real(c.sepidar?.userName) ? c.sepidar.userName : '', hasPassword: real(c.sepidar?.password), multiplier: c.sync?.priceMultiplier || 10 });
     }
     if (sub === 'log') return json({ running: job.running, lines: job.lines });
     if (sub === 'run' && req.method === 'POST') {
@@ -145,7 +145,7 @@ export function startUi({ dir, cfgPath, script }) {
       job.lines = [];
       const c = readCfg();
       const a = b.action;
-      if (['test', 'preview', 'apply', 'auto', 'password'].includes(a) && !ready(c)) {
+      if (['test', 'update', 'preview', 'apply', 'auto', 'password'].includes(a) && !ready(c)) {
         job.lines = [];
         return json({ error: 'هنوز اطلاعات اتصال ذخیره نشده است. اول کادرهای بخش ۱ را پر کنید و «ذخیره و راه‌اندازی» را بزنید؛ بعد این دکمه را بزنید.' }, 400);
       }
@@ -160,6 +160,7 @@ export function startUi({ dir, cfgPath, script }) {
         job.lines.push('در حال راه‌اندازی…');
         runNode(argv);
       } else if (a === 'test') runNode(['test']);
+      else if (a === 'update') runNode(['update']);
       else if (a === 'diag') {
         // works from what is typed in the form (or saved earlier): no Hoormand key and no finished setup is needed
         const serial = b.serial || (real(c.sepidar?.serial) ? c.sepidar.serial : '');
@@ -263,7 +264,7 @@ function installPermanent(dir, script, job) {
     try {
       const target = path.join(process.env.ProgramData || 'C:\ProgramData', 'HoormandSepidar');
       fs.mkdirSync(target, { recursive: true });
-      for (const f of ['sepidar-sync.mjs', 'sepidar-client.mjs', 'console-fa.mjs', 'config-help.mjs', 'ui.mjs', 'Vazirmatn-Regular.woff2', 'Vazirmatn-Bold.woff2', 'شروع-برنامه.vbs', 'config.json', 'state.json']) {
+      for (const f of ['sepidar-sync.mjs', 'sepidar-client.mjs', 'console-fa.mjs', 'config-help.mjs', 'ui.mjs', 'updater.mjs', 'Vazirmatn-Regular.woff2', 'Vazirmatn-Bold.woff2', 'شروع-برنامه.vbs', 'config.json', 'state.json']) {
         if (fs.existsSync(path.join(dir, f))) fs.copyFileSync(path.join(dir, f), path.join(target, f));
       }
       const node = path.join(target, 'node.exe');
