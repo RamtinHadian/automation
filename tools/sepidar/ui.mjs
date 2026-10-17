@@ -55,7 +55,11 @@ pre{background:#1c1210;color:#f3e9e2;border-radius:14px;padding:14px;min-height:
 <div class="card"><h2><span class="step">۳</span>ثبت در سپیدار</h2><p class="hint">مشتری‌ها و پیش‌فاکتورهای هورمند را در سپیدار ثبت می‌کند. هر مورد فقط یک‌بار ثبت می‌شود.</p>
 <div class="btns"><button onclick="run('apply')">ثبت واقعی الان</button><button class="alt" onclick="run('auto')">روشن کردن اجرای خودکار (پس‌زمینه)</button></div></div>
 
-<div class="card"><h2><span class="step">۴</span>پایان کار: پاک کردن از این کامپیوتر</h2><p class="hint">اگر این برنامه را روی سرور مشتری فقط برای یک‌بار اجرا کردید، بعد از اتمام کار پاکش کنید تا هیچ رمز یا فایلی از ما جا نماند.</p>
+<div class="card"><h2><span class="step">۴</span>رفتن از سرور: فقط نصب‌کننده پاک شود، اتصال بماند</h2><p class="hint">وقتی همه‌چیز آزمایش و ثبت شد، این دکمه برنامه را در یک پوشهٔ ثابت و پنهان (ProgramData) می‌گذارد، اجرای خودکار را از آنجا روشن می‌کند و همین پوشهٔ نصب را پاک می‌کند. بعد از آن سرور و هورمند خودشان کار می‌کنند و چیزی روی Desktop نمی‌ماند.</p>
+<div class="btns"><button onclick="if(confirm('برنامه در پوشهٔ ثابت نصب می‌شود و همین پوشه پاک می‌شود. ادامه می‌دهید؟'))run('install')">نصب دائمی و پاک کردن نصب‌کننده</button></div>
+<div class="note">بعداً اگر خواستید رمز را عوض کنید یا کلاً برنامه را بردارید، فایل «شروع-برنامه» را از <b dir="ltr">C:&#92;ProgramData&#92;HoormandSepidar</b> باز کنید.</div></div>
+
+<div class="card"><h2><span class="step">۵</span>پایان کار: پاک کردن کامل از این کامپیوتر</h2><p class="hint">اگر این برنامه را روی سرور مشتری فقط برای یک‌بار اجرا کردید، بعد از اتمام کار پاکش کنید تا هیچ رمز یا فایلی از ما جا نماند.</p>
 <label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" id="rmfolder" style="width:auto" checked>پوشهٔ برنامه هم کاملاً پاک شود</label>
 <div class="btns"><button class="alt" style="color:#c53030;border-color:#c53030" onclick="if(confirm('اجرای خودکار متوقف و تنظیمات و رمز ذخیره‌شده پاک می‌شود. ادامه می‌دهید؟'))run('cleanup')">پاک‌سازی کامل این کامپیوتر</button></div>
 <div class="note">این کار اجرای خودکار را خاموش می‌کند و فایل‌های تنظیمات و رمز و گزارش را پاک می‌کند. کلید هورمند و دستگاه سپیدار را باید خودتان حذف کنید (مرحلهٔ‌ها در راهنمای PDF آمده).</div></div>
@@ -156,6 +160,9 @@ export function startUi({ dir, cfgPath, script }) {
         fs.writeFileSync(cfgPath, JSON.stringify(withHelp(c), null, 2));
         job.lines.push('رمز تازه ذخیره شد. در حال آزمایش اتصال…');
         runNode(['test']);
+      } else if (a === 'install') {
+        if (!c.sepidar || !c.hoormand) return json({ error: 'اول «ذخیره و راه‌اندازی» و «آزمایش اتصال» را انجام دهید؛ بعد نصب دائمی.' }, 400);
+        installPermanent(dir, script, job);
       } else if (a === 'cleanup') {
         cleanup(dir, !!b.rmfolder, job);
       } else return json({ error: 'دستور ناشناخته.' }, 400);
@@ -194,6 +201,15 @@ function cleanup(dir, removeFolder, job) {
           say('بستن برنامهٔ پس‌زمینه ممکن نشد؛ اگر پنجره‌ای از «۵-اجرای-خودکار» باز است خودتان ببندید.');
         }
       }
+      try {
+        const sf = path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'HoormandSepidar.vbs');
+        if (fs.existsSync(sf)) {
+          fs.rmSync(sf, { force: true });
+          say('اجرای خودکار پوشهٔ Startup برداشته شد.');
+        }
+      } catch {
+        /* none */
+      }
       for (const f of ['config.json', 'state.json', 'sepidar.log', 'اجرای-پنهان.vbs']) {
         try {
           fs.rmSync(path.join(dir, f), { force: true });
@@ -211,6 +227,55 @@ function cleanup(dir, removeFolder, job) {
         setTimeout(() => process.exit(0), 800);
       }
       say('— تمام شد —');
+    } finally {
+      job.running = false;
+    }
+  }, 50);
+}
+
+/** Puts a small permanent copy (node, the program, the settings) in ProgramData, switches the automatic run on from there and removes the installer folder. */
+function installPermanent(dir, script, job) {
+  const say = (t) => job.lines.push(t);
+  job.running = true;
+  setTimeout(() => {
+    try {
+      const target = path.join(process.env.ProgramData || 'C:\ProgramData', 'HoormandSepidar');
+      fs.mkdirSync(target, { recursive: true });
+      for (const f of ['sepidar-sync.mjs', 'sepidar-client.mjs', 'console-fa.mjs', 'config-help.mjs', 'ui.mjs', 'Vazirmatn-Regular.woff2', 'Vazirmatn-Bold.woff2', 'شروع-برنامه.vbs', 'config.json', 'state.json']) {
+        if (fs.existsSync(path.join(dir, f))) fs.copyFileSync(path.join(dir, f), path.join(target, f));
+      }
+      const node = path.join(target, 'node.exe');
+      fs.copyFileSync(process.execPath, node);
+      say('برنامه در ' + target + ' نصب شد.');
+      const q = (x) => '""' + x + '""';
+      const vbs = path.join(target, 'اجرای-پنهان.vbs');
+      fs.writeFileSync(vbs, `CreateObject("Wscript.Shell").Run "cmd /c cd /d ${q(target)} && ${q(node)} ${q(path.join(target, 'sepidar-sync.mjs'))} watch --apply >> ${q(path.join(target, 'sepidar.log'))} 2>&1", 0, False
+`);
+      if (process.platform === 'win32') {
+        try {
+          execFileSync('powershell', ['-NoProfile', '-Command', `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -like '*sepidar-sync.mjs*watch*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`], { stdio: 'pipe' });
+        } catch {
+          /* nothing was running */
+        }
+        try {
+          execFileSync('schtasks', ['/Create', '/TN', 'HoormandSepidar', '/SC', 'ONLOGON', '/RL', 'LIMITED', '/F', '/TR', `wscript.exe "${vbs}"`], { stdio: 'pipe' });
+        } catch {
+          // without administrator rights the Windows scheduler refuses: the Startup folder of this user does the same job
+          const startup = path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
+          fs.mkdirSync(startup, { recursive: true });
+          fs.copyFileSync(vbs, path.join(startup, 'HoormandSepidar.vbs'));
+          say('زمان‌بندی ویندوز اجازه نداد (دسترسی مدیر لازم است)؛ به‌جایش در پوشهٔ Startup همین کاربر گذاشته شد. برنامه هر بار این کاربر وارد ویندوز شود شروع می‌شود.');
+        }
+        spawn('wscript.exe', [vbs], { detached: true, stdio: 'ignore' }).unref();
+        say('اجرای خودکار از پوشهٔ ثابت روشن شد و همین الان هم شروع به کار کرد (بی‌صدا، در پس‌زمینه).');
+        say('پوشهٔ نصب چند ثانیهٔ دیگر پاک می‌شود و این صفحه بسته می‌شود. از این به بعد لازم نیست کاری بکنید.');
+        spawn('cmd.exe', ['/d', '/s', '/c', `"ping 127.0.0.1 -n 5 >nul & rmdir /s /q "${dir}""`], { cwd: os.tmpdir(), windowsHide: true, detached: true, stdio: 'ignore', windowsVerbatimArguments: true }).unref();
+        process.chdir(os.tmpdir());
+        say('— تمام شد —');
+        setTimeout(() => process.exit(0), 1200);
+      } else say('این کار فقط روی ویندوز انجام می‌شود.');
+    } catch (e) {
+      say('نصب دائمی نشد: ' + String(e.message).slice(0, 200));
     } finally {
       job.running = false;
     }
