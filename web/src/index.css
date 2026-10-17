@@ -377,3 +377,13 @@ html.night [data-error-popups] > div {
   color-scheme: dark;
 }
 .glass-input::selection { background: rgba(255, 255, 255, 0.35); }
+
+/* Sub-menus of the pages: the window does not scroll, only the page area (UserPanel, data-app-scroll) does. On a computer the header and the main
+   menu stay pinned at the top of that area and the sub-menu of the open page pins itself right under them (--shell-top = their height). */
+[data-subtabs] {
+  position: sticky;
+  top: var(--shell-top, 0px);
+  z-index: 20;
+  background-color: #fff;
+  box-shadow: 0 6px 8px -8px rgba(58, 36, 31, 0.35);
+}

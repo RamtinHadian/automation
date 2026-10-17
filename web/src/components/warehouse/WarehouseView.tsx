@@ -11,6 +11,7 @@ import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
 import { PersonPicker, customerItems } from '../common/PersonPicker';
 import { Modal, field, label } from '../crm/crmUi';
+import { matchesAll } from '../../lib/searchAll';
 
 const KIND_LABEL: Record<WhKind, string> = { receipt: 'رسید ورود', issue: 'حواله خروج', transfer: 'انتقال بین انبارها', adjust: 'تعدیل انبارگردانی' };
 const KIND_COLOR: Record<WhKind, string> = {
@@ -104,7 +105,7 @@ export const WarehouseView: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-subtabs className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1.5 overflow-x-auto">
           {tabs.map(([k, t]) => (
             <button
@@ -175,8 +176,8 @@ const StockTab: React.FC<{ st: WhState; onCard: (p: WhProduct) => void }> = ({ s
   const [wh, setWh] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
   const rows = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    return st.products.filter((p) => p.active !== false && (!t || `${p.code} ${p.title} ${p.group || ''}`.toLowerCase().includes(t)) && (!onlyLow || ((p.minQty || 0) > 0 && p.total < (p.minQty || 0))) && (!wh || (p.byWarehouse[wh] || 0) !== 0));
+    const names = (p: WhProduct) => Object.entries(p.byWarehouse || {}).filter(([, n]) => n).map(([id]) => st.warehouses.find((w) => w.id === id)?.title || '');
+    return st.products.filter((p) => p.active !== false && matchesAll(p, q, names(p)) && (!onlyLow || ((p.minQty || 0) > 0 && p.total < (p.minQty || 0))) && (!wh || (p.byWarehouse[wh] || 0) !== 0));
   }, [st, q, wh, onlyLow]);
   const qtyOf = (p: WhProduct) => (wh ? p.byWarehouse[wh] || 0 : p.total);
   const whName = (id: string) => st.warehouses.find((w) => w.id === id)?.title || '';
@@ -185,7 +186,7 @@ const StockTab: React.FC<{ st: WhState; onCard: (p: WhProduct) => void }> = ({ s
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[180px]">
           <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C6F66]" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی کد یا نام کالا" className={field + ' pr-9'} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در همهٔ اطلاعات کالا: کد، نام، گروه، واحد، بارکد، قیمت، انبار…" className={field + ' pr-9'} />
         </div>
         <select value={wh} onChange={(e) => setWh(e.target.value)} className={field + ' !w-auto'}>
           <option value="">همهٔ انبارها</option>
@@ -575,11 +576,11 @@ const CardModal: React.FC<{ st: WhState; product: WhProduct; onClose: () => void
 
 const ProductsTab: React.FC<{ st: WhState; sepidar: boolean; onEdit: (p: Partial<WhProduct>) => void; onCard: (p: WhProduct) => void }> = ({ st, sepidar, onEdit }) => {
   const [q, setQ] = useState('');
-  const rows = st.products.filter((p) => !q.trim() || `${p.code} ${p.title} ${p.group || ''}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const rows = st.products.filter((p) => matchesAll(p, q, Object.keys(p.byWarehouse || {}).map((id) => st.warehouses.find((w) => w.id === id)?.title || '')));
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی کد یا نام کالا" className={field + ' flex-1'} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در همهٔ اطلاعات کالا: کد، نام، گروه، واحد، بارکد، قیمت، انبار…" className={field + ' flex-1'} />
         {!sepidar && (
           <button type="button" onClick={() => onEdit({ unit: 'عدد', active: true })} className="flex items-center gap-1 px-4 py-2 min-h-[40px] rounded-xl bg-amber-600 text-white text-xs font-black cursor-pointer">
             <Plus className="w-4 h-4" /> کالای جدید

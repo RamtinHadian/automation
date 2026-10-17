@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { DayNightToggle } from '../components/common/DayNightToggle';
 import { askConfirm } from '../lib/confirmDialog';
+import { matchesAll } from '../lib/searchAll';
 import { canSub } from '../lib/permissions';
 import { ManagementReports } from '../components/admin/ManagementReports';
 import { VersionBadge } from '../components/common/VersionBadge';
@@ -412,13 +413,28 @@ export default function UserPanel() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const letterFileInputRef = useRef<HTMLInputElement>(null);
+  // the area that scrolls, and the pinned header + main menu; the sub-menus of the pages pin themselves just below (--shell-top)
+  const shellScrollRef = useRef<HTMLDivElement>(null);
+  const shellPinRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const scroller = shellScrollRef.current;
+    const pin = shellPinRef.current;
+    if (!scroller || !pin) return;
+    const set = () => scroller.style.setProperty('--shell-top', window.matchMedia('(min-width: 640px)').matches ? `${pin.offsetHeight}px` : '0px');
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(pin);
+    window.addEventListener('resize', set);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', set);
+    };
+  }, []);
 
   // Regular Files (non-official)
   const regularTransfers = transfers.filter((t) => !t.isOfficialLetter);
   const isArchivedByMe = (t: FileTransfer) => (t.archivedBy || []).includes(currentUser.id);
-  const matchesFileSearch = (t: FileTransfer) =>
-    t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.sender.fullName.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchesFileSearch = (t: FileTransfer) => matchesAll(t, searchQuery);
   const receivedFiles = regularTransfers.filter((t) => t.recipients.some((r) => r.id === currentUser.id) && !isArchivedByMe(t) && matchesFileSearch(t));
   // the archive of received files is the person's own: putting a file there does not change anybody else's list
   const archivedFiles = regularTransfers.filter((t) => t.recipients.some((r) => r.id === currentUser.id) && isArchivedByMe(t) && matchesFileSearch(t));
@@ -435,16 +451,13 @@ export default function UserPanel() {
 
   const sentFiles = regularTransfers.filter((t) => {
     const isSender = t.sender.id === currentUser.id;
-    const matchesSearch =
-      t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.recipients.some((r) => r.fullName.toLowerCase().includes(searchQuery.toLowerCase()));
-    return isSender && !isArchivedByMe(t) && matchesSearch;
+    return isSender && !isArchivedByMe(t) && matchesAll(t, searchQuery);
   });
   const archivedSentFiles = regularTransfers.filter(
     (t) =>
       t.sender.id === currentUser.id &&
       isArchivedByMe(t) &&
-      (t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) || t.recipients.some((r) => r.fullName.toLowerCase().includes(searchQuery.toLowerCase())))
+      matchesAll(t, searchQuery)
   );
   const archiveShown = archiveSub === 'sent' ? archivedSentFiles : archivedFiles;
 
@@ -465,10 +478,7 @@ export default function UserPanel() {
   const userOfficialLetters = officialLetters.filter((t) => {
     const isRelated = true; // officialLetters already holds only the related ones
 
-    const matchesSearch =
-      t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.sender.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.note && t.note.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = matchesAll(t, searchQuery);
 
     let matchesFilter = false;
     if (letterFilter === 'ARCHIVED') {
@@ -759,14 +769,18 @@ export default function UserPanel() {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-[#3A241F] via-[#4A2620] to-[#2E1A16] p-0 sm:p-1 pb-28 sm:pb-1 flex items-stretch justify-center font-sans antialiased text-[#3A241F]"
+      className="h-[100dvh] bg-gradient-to-br from-[#3A241F] via-[#4A2620] to-[#2E1A16] p-0 sm:p-1 flex items-stretch justify-center font-sans antialiased text-[#3A241F]"
       dir="rtl"
     >
       <ReminderPopup />
-      <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 sm:min-h-[calc(100vh-0.5rem)]">
+      <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 h-full">
+      {/* The window never scrolls: only this area does. On a computer the header and the main menu stay pinned at its top (the sub-menus of every
+          page pin themselves right under them, see data-subtabs in index.css); on a phone the main menu is the bottom bar and the header scrolls away. */}
+      <div ref={shellScrollRef} data-app-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-28 sm:pb-0 flex flex-col">
 
         {/* Top Header */}
         <BannerStrip />
+        <div ref={shellPinRef} className="sm:sticky sm:top-0 sm:z-30 bg-[#FAF5F1] shrink-0">
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
 <div className="w-7 h-7 rounded-xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1">
@@ -1089,13 +1103,14 @@ export default function UserPanel() {
             )}
           </div>
         </div>
+        </div>
 
         {/* ========================================================================= */}
         {/* VIEW 1: FILE TRANSFER MODE (ارسال فایل) */}
         {/* ========================================================================= */}
         {mainMenuTab === 'files' && (
           <div className="flex-1 flex flex-col">
-            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 px-4 sm:px-6 pt-4 pb-2">
+            <div data-subtabs className="grid grid-cols-2 sm:flex sm:items-center gap-2 px-4 sm:px-6 pt-4 pb-2">
               {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => (
                 <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative shrink-0 whitespace-nowrap min-h-[44px] sm:min-h-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
                   <Icon className="w-4 h-4" />
@@ -1931,6 +1946,7 @@ export default function UserPanel() {
           </div>
         )}
 
+      </div>
       </div>
 
       {/* Letter Preview & Inspection Modal */}

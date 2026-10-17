@@ -11,6 +11,7 @@ import { Modal, field, label } from '../crm/crmUi';
 import { ClaimDetail } from './ClaimDetail';
 import { printCertificate } from './certificate';
 import { ClaimForm, WarrantyForm } from './WarrantyForms';
+import { matchesAll } from '../../lib/searchAll';
 
 type Tab = 'overview' | 'warranties' | 'claims' | 'settings';
 const DEFAULT_SETTINGS: WarrantySettings = { defaultMonths: 12, terms: '' };
@@ -137,18 +138,16 @@ export const WarrantyView: React.FC = () => {
   }, [warranties, claims, today]);
 
   const shownWarranties = useMemo(() => {
-    const t = q.trim().toLowerCase();
     return warranties.filter((w) => {
       if (stateFilter !== 'ALL' && warrantyState(w, today) !== stateFilter) return false;
-      return !t || `${w.warrantyNo} ${w.customerName} ${w.productName} ${w.productCode || ''} ${w.serial || ''} ${w.invoiceNumber || ''}`.toLowerCase().includes(t);
+      return matchesAll(w, q);
     });
   }, [warranties, q, stateFilter, today]);
   const shownClaims = useMemo(() => {
-    const t = q.trim().toLowerCase();
     return claims.filter((c) => {
       if (claimFilter === 'OPEN' && !isOpenClaim(c)) return false;
       if (claimFilter === 'DONE' && isOpenClaim(c)) return false;
-      return !t || `${c.claimNo} ${c.warrantyNo} ${c.customerName} ${c.productName} ${c.serial || ''} ${c.description}`.toLowerCase().includes(t);
+      return matchesAll(c, q);
     });
   }, [claims, q, claimFilter]);
 
@@ -250,7 +249,7 @@ export const WarrantyView: React.FC = () => {
   );
 
   return (
-    <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-32 sm:pb-8 select-none overflow-x-hidden" data-warranty-view>
+    <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-32 sm:pb-8 select-none overflow-x-clip" data-warranty-view>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="font-black text-lg text-[#3A241F]">گارانتی</h2>
@@ -262,7 +261,7 @@ export const WarrantyView: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap sm:flex-nowrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 sm:overflow-x-auto">{tabs.map(tabBtn)}</div>
+      <div data-subtabs className="flex flex-wrap sm:flex-nowrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 sm:overflow-x-auto">{tabs.map(tabBtn)}</div>
 
       {failed && !loaded && <div className="py-16 text-center text-xs font-bold text-rose-600">دریافت گارانتی‌ها ممکن نشد؛ اتصال یا دسترسی را بررسی کنید.</div>}
       {!loaded && !failed && <div className="py-16 text-center text-xs font-bold text-gray-400">در حال بارگذاری…</div>}

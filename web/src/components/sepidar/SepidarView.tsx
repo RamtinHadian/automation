@@ -7,6 +7,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label } from '../crm/crmUi';
+import { matchesAll } from '../../lib/searchAll';
 
 interface Job {
   id: string;
@@ -108,8 +109,8 @@ export const SepidarView: React.FC = () => {
   const needle = q.trim().toLowerCase();
   const BtnS = 'px-3 py-1.5 min-h-[34px] rounded-lg text-[11px] font-black border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 
-  const dealRows = deals.filter((d: any) => d.proformaNumber && (!needle || `${d.customerName} ${d.proformaNumber}`.toLowerCase().includes(needle)));
-  const custRows = customers.filter((c) => !needle || `${c.name} ${c.company || ''} ${(c.phones || []).join(' ')}`.toLowerCase().includes(needle));
+  const dealRows = deals.filter((d: any) => d.proformaNumber && matchesAll(d, q));
+  const custRows = customers.filter((c) => matchesAll(c, q));
   const balances = new Map<number, any>((st.cache?.balances?.items || []).map((b) => [b.CustomerID, b]));
   const accountName = new Map<number, string>((st.cache?.bankAccounts?.items || []).map((a) => [a.BankAccountID, a.DlTitle]));
   void accountName;
@@ -149,7 +150,7 @@ export const SepidarView: React.FC = () => {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-subtabs className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1.5">
           {tabs.filter((t) => t[2]).map(([k, t]) => (
             <button key={k} type="button" onClick={() => setTab(k)} className={`px-3 sm:px-4 py-2 min-h-[40px] rounded-xl text-xs font-black whitespace-nowrap cursor-pointer border ${tab === k ? 'bg-rose-700 text-white border-rose-700' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}>
@@ -160,7 +161,7 @@ export const SepidarView: React.FC = () => {
         {tab !== 'jobs' && (
           <div className="relative mr-auto min-w-[180px] flex-1 max-w-xs">
             <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C6F66]" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو" className={field + ' pr-9'} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در همهٔ اطلاعات: نام، شماره، کالا، مبلغ، تاریخ…" className={field + ' pr-9'} />
           </div>
         )}
       </div>
@@ -229,7 +230,7 @@ export const SepidarView: React.FC = () => {
 
       {tab === 'invoices' && (
         <List empty="فاکتوری دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
-          {(st.cache?.invoices?.items || []).filter((i: any) => !needle || `${i.Number} ${customerOfSepidar.get(i.CustomerRef) || ''}`.toLowerCase().includes(needle)).slice(0, 300).map((i: any) => (
+          {(st.cache?.invoices?.items || []).filter((i: any) => matchesAll(i, q, customerOfSepidar.get(i.CustomerRef) || '')).slice(0, 300).map((i: any) => (
             <div key={i.InvoiceID ?? i.ID} className="px-4 py-3 flex items-center gap-3">
               <FileCheck2 className="w-4 h-4 text-emerald-700 shrink-0" />
               <div className="min-w-0 flex-1">
@@ -244,7 +245,7 @@ export const SepidarView: React.FC = () => {
 
       {tab === 'prices' && (
         <List empty="لیست قیمتی دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
-          {(st.cache?.priceNotes?.items || []).filter((p: any) => !needle || `${p.code} ${p.title}`.toLowerCase().includes(needle)).slice(0, 300).map((p: any, i: number) => (
+          {(st.cache?.priceNotes?.items || []).filter((p: any) => matchesAll(p, q)).slice(0, 300).map((p: any, i: number) => (
             <div key={i} className="px-4 py-3 flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-black text-[#3A241F] truncate">{p.title || 'کالا ' + toPersianDigits(p.itemRef)}</div>

@@ -7,6 +7,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, unitName } from '../../lib/money';
 import { Modal, field, label } from './crmUi';
 import { PersonPicker, customerItems } from '../common/PersonPicker';
+import { matchesAll } from '../../lib/searchAll';
 
 const STAGE_TEXT: Record<string, string> = { NEW: 'جدید', CONTACTED: 'تماس گرفته شد', PROPOSAL: 'پیشنهاد ارسال شد', NEGOTIATION: 'مذاکره', WON: 'فروش موفق', LOST: 'از دست رفت' };
 
@@ -35,9 +36,8 @@ export const QuickProformaDialog: React.FC<{
   const [q, setQ] = useState('');
 
   const list = useMemo(() => {
-    const s = q.trim().toLowerCase();
     return [...deals]
-      .filter((d) => !s || `${d.title} ${d.customerName} ${d.productCode || ''}`.toLowerCase().includes(s))
+      .filter((d) => matchesAll(d, q))
       .sort((a, b) => Number(['WON', 'LOST'].includes(a.stage)) - Number(['WON', 'LOST'].includes(b.stage)) || b.updatedAt.localeCompare(a.updatedAt));
   }, [deals, q]);
 

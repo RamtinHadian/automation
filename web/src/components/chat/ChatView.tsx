@@ -57,10 +57,15 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
       setDock({ left: r.left, width: r.width, bottom: window.innerWidth < 768 ? 88 : 0 });
     };
     const all = () => { fit(); place(); };
-    // the page itself does not scroll while the chat is open (so the chat, the typing bar and the window bottom always line up)
+    // the page itself does not scroll while the chat is open (so the chat, the typing bar and the window bottom always line up);
+    // the area that scrolls in the app (data-app-scroll) is the one held still
+    const area = document.querySelector<HTMLElement>('[data-app-scroll]');
     window.scrollTo(0, 0);
+    area?.scrollTo(0, 0);
     const prevOverflow = document.documentElement.style.overflowY;
+    const prevAreaOverflow = area?.style.overflowY ?? '';
     document.documentElement.style.overflowY = 'hidden';
+    if (area) area.style.overflowY = 'hidden';
     all();
     const ro = new ResizeObserver(all);
     if (box.current) ro.observe(box.current);
@@ -71,6 +76,7 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
       window.removeEventListener('resize', all);
       window.removeEventListener('scroll', place);
       document.documentElement.style.overflowY = prevOverflow;
+      if (area) area.style.overflowY = prevAreaOverflow;
     };
   }, [peer]);
   const lastCount = useRef(0);

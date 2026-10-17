@@ -31,6 +31,7 @@ import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 import { LetterThumbnail } from '../letters/LetterThumbnail';
 import { LetterPreviewModal } from '../letters/LetterPreviewModal';
+import { matchesAll } from '../../lib/searchAll';
 
 interface LetterManagementAdminViewProps {
   settings: SystemSettings;
@@ -93,10 +94,7 @@ export const LetterManagementAdminView: React.FC<LetterManagementAdminViewProps>
   // Filter only official letters
   const officialLetters = transfers.filter((t) => t.isOfficialLetter);
   const filteredLetters = officialLetters.filter((t) => {
-    const matchesSearch =
-      t.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.sender.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.note && t.note.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = matchesAll(t, searchQuery);
 
     let matchesStatus = false;
     if (statusFilter === 'ARCHIVED') {

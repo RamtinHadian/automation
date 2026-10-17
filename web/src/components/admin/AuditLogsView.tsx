@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Download, FileText, Globe2, KeyRound, LogIn, Network, Search, Settings2, ShieldAlert, Trash2, UserCog, Users, Wifi } from 'lucide-react';
 import { AuditLog } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
+import { matchesAll } from '../../lib/searchAll';
 
 // what each kind of entry is called on screen
 const ACTION_LABEL: Record<string, string> = {
@@ -60,17 +61,8 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ logs }) => {
 
   const users = useMemo(() => [...new Set(logs.map((l) => l.userName).filter(Boolean))].sort(), [logs]);
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return logs.filter((log) => {
-      const hit =
-        !q ||
-        log.userName.toLowerCase().includes(q) ||
-        log.userEmail.toLowerCase().includes(q) ||
-        log.details.toLowerCase().includes(q) ||
-        log.action.toLowerCase().includes(q) ||
-        (ACTION_LABEL[log.action] || '').includes(search.trim()) ||
-        (log.ipAddress || '').includes(q) ||
-        (log.ipSeen || '').includes(q);
+      const hit = matchesAll(log, search, ACTION_LABEL[log.action] || '');
       return hit && (severityFilter === 'ALL' || log.severity === severityFilter) && (actionFilter === 'ALL' || log.action === actionFilter) && (userFilter === 'ALL' || log.userName === userFilter);
     });
   }, [logs, search, severityFilter, actionFilter, userFilter]);

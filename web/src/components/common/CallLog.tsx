@@ -6,6 +6,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
 import { callerNameOnly, normPhone } from '../../lib/customerImport';
 import { useAppContext } from '../../context/AppContext';
+import { matchesAll } from '../../lib/searchAll';
 
 const dur = (s: number) => (s > 0 ? toPersianDigits(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`) : '');
 const clock = (iso: string) => toPersianDigits(new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }));
@@ -157,12 +158,11 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
   }, [load]);
 
   const shown = useMemo(() => {
-    const s = q.trim().toLowerCase();
     return (calls || []).filter((c) => {
       if (filter === 'missed' && !(c.direction === 'in' && c.status !== 'answered')) return false;
       if (filter === 'in' && c.direction !== 'in') return false;
       if (filter === 'out' && c.direction !== 'out') return false;
-      return !s || `${c.number} ${c.name} ${c.customerName} ${c.userName}`.toLowerCase().includes(s);
+      return matchesAll(c, q);
     });
   }, [calls, filter, q]);
 
@@ -263,7 +263,7 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
           </div>
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در نام یا شماره" className="w-full pr-9 pl-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در نام، شماره، مشتری، همکار، تاریخ…" className="w-full pr-9 pl-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden" />
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">

@@ -7,6 +7,7 @@ import { useCompanyName } from '../../lib/useCompanyName';
 import { useAppContext } from '../../context/AppContext';
 import { Customer, CustomerStatus, Deal, User } from '../../types';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
+import { matchesAll } from '../../lib/searchAll';
 
 const STATUS: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
 const faToEn = (s: string) => s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
@@ -55,7 +56,6 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
   }, [deals]);
 
   const shown = useMemo(() => {
-    const t = q.trim().toLowerCase();
     return mine.filter((c) => {
       if (status !== 'ALL' && c.status !== status) return false;
       if (kind !== 'ALL' && (c.kind || 'PERSON') !== kind) return false;
@@ -67,7 +67,7 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
       if (dealsF === 'OPEN' && !ds?.open) return false;
       if (dealsF === 'WON' && !ds?.won) return false;
       if (dealsF === 'NONE' && ds) return false;
-      return !t || `${c.name} ${c.company || ''} ${c.phones.join(' ')}`.toLowerCase().includes(t);
+      return matchesAll(c, q);
     });
   }, [mine, q, status, kind, tag, source, province, owner, dealsF, dealState]);
 
@@ -112,7 +112,7 @@ export const BulkSms: React.FC<{ customers: Customer[]; deals: Deal[]; me: User;
         <div className="flex flex-wrap gap-2">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="w-4 h-4 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی نام، شرکت یا شماره…" className="w-full pr-9 pl-3 py-2 min-h-[40px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در همهٔ اطلاعات مشتری: نام، شرکت، شماره، شهر، برچسب…" className="w-full pr-9 pl-3 py-2 min-h-[40px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden" />
           </div>
           <select className={sel} value={status} onChange={(e) => setStatus(e.target.value as 'ALL' | CustomerStatus)}>
             <option value="ALL">همهٔ وضعیت‌ها</option>

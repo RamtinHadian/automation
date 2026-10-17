@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { matchesAll } from '../../lib/searchAll';
 
 /** One person (colleague or customer) that can be chosen. */
 export interface PickerItem {
@@ -40,8 +41,7 @@ const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, on
   }, [onClose]);
 
   const shown = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    return t ? items.filter((i) => `${i.name} ${i.sub || ''}`.toLowerCase().includes(t)) : items;
+    return q.trim() ? items.filter((i) => matchesAll(i, q)) : items;
   }, [items, q]);
 
   const choose = (id: string) => {

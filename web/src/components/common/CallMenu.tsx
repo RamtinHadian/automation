@@ -5,6 +5,7 @@ import { CallLogModal } from './CallLog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
+import { matchesAll } from '../../lib/searchAll';
 
 interface Status {
   enabled: boolean;
@@ -68,7 +69,7 @@ export const CallMenu: React.FC = () => {
     () =>
       staffList
         .filter((u) => u.isActive && u.id !== currentUser.id && u.extension)
-        .filter((u) => !q.trim() || u.fullName.includes(q.trim()) || (u.extension || '').includes(q.trim())),
+        .filter((u) => matchesAll(u, q)),
     [staffList, currentUser.id, q]
   );
 

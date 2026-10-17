@@ -25,6 +25,7 @@ import { useAppContext } from '../../context/AppContext';
 import { DailyReportsView } from './DailyReportsView';
 import { Task, TaskPriority, TaskStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
+import { matchesAll } from '../../lib/searchAll';
 import {
   JALALI_MONTHS,
   formatTaskDate,
@@ -163,7 +164,7 @@ const TasksBoard: React.FC = () => {
   const canMove = (t: Task) => isCreatorOrAdmin(t) || isAssignee(t);
 
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
     return tasks.filter((t) => {
       if (scope === 'ARCHIVE' ? !t.archived : t.archived) return false;
       if (scope === 'MINE' && !t.assigneeIds.includes(currentUser.id)) return false;
@@ -171,7 +172,7 @@ const TasksBoard: React.FC = () => {
       if (priorityFilter !== 'ALL' && t.priority !== priorityFilter) return false;
       if (q) {
         const names = t.assigneeIds.map((id) => userById.get(id)?.fullName || '').join(' ');
-        if (!`${t.title} ${t.description} ${t.creatorName} ${names}`.toLowerCase().includes(q)) return false;
+        if (!matchesAll(t, q, names)) return false;
       }
       return true;
     });
@@ -283,7 +284,7 @@ const TasksBoard: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-32 sm:pb-8 select-none overflow-x-hidden">
+    <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-32 sm:pb-8 select-none overflow-x-clip">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -326,7 +327,7 @@ const TasksBoard: React.FC = () => {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="جستجو در عنوان، توضیحات، سازنده یا مسئول..."
+            placeholder="جستجو در همهٔ اطلاعات وظیفه: عنوان، توضیحات، سازنده، مسئول، تاریخ، یادداشت…"
             className="w-full pr-10 pl-4 py-2.5 bg-white border border-[#EBDBCE] rounded-2xl text-xs font-medium text-[#3A241F] outline-hidden focus:ring-2 focus:ring-sky-500/20"
           />
         </div>
@@ -759,7 +760,7 @@ export const TasksView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      <div className="px-3.5 sm:px-8 pt-4 sm:pt-6">
+      <div data-subtabs className="px-3.5 sm:px-8 pt-4 sm:pt-6">
         <div className="inline-flex bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
           {([
             ['tasks', 'وظایف', ListChecks],

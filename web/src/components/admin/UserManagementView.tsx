@@ -29,6 +29,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 import { UserEditorDialog, UserForm } from './UserEditorDialog';
 import { PermissionMatrix } from './PermissionMatrix';
+import { matchesAll } from '../../lib/searchAll';
 
 interface UserManagementViewProps {
   users: User[];
@@ -102,10 +103,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [newForm, setNewForm] = useState<UserForm>(emptyForm);
 
   const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      u.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.departmentName.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = matchesAll(u, search);
     const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
     return matchesSearch && matchesRole;
   });

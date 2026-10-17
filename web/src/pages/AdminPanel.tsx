@@ -47,6 +47,7 @@ import { DepartmentManagementView } from '../components/admin/DepartmentManageme
 import { ThemeSelector } from '../components/common/ThemeSelector';
 import { toPersianDigits } from '../lib/jalali';
 import { INITIAL_FILES } from '../lib/mock-data';
+import { matchesAll } from '../lib/searchAll';
 
 // Helper to normalize Persian/Arabic digits to English for verification
 const normalizeDigits = (str: string) => {
@@ -285,12 +286,7 @@ export default function AdminPanel() {
   };
 
   const filteredTransfers = transfers.filter((t) => {
-    const s = transfersSearch.toLowerCase();
-    return (
-      t.fileName.toLowerCase().includes(s) ||
-      t.sender.fullName.toLowerCase().includes(s) ||
-      t.recipients.some((r) => r.fullName.toLowerCase().includes(s))
-    );
+    return matchesAll(t, transfersSearch);
   });
 
   // If not authenticated, show Admin Login Gate with Captcha
@@ -416,8 +412,10 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#3A241F] via-[#2E1A16] to-[#1F0F0C] p-0 sm:p-1 flex items-stretch justify-center font-sans antialiased text-[#3A241F]" dir="rtl">
-      <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#6E1B1B]/30 flex flex-col min-h-[calc(100vh-0.5rem)]">
+    <div className="h-[100dvh] bg-gradient-to-br from-[#3A241F] via-[#2E1A16] to-[#1F0F0C] p-0 sm:p-1 flex items-stretch justify-center font-sans antialiased text-[#3A241F]" dir="rtl">
+      <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#6E1B1B]/30 flex flex-col min-h-0 h-full">
+      {/* The window never scrolls: the header and the tab bar stay in place and only the page area below them scrolls. */}
+      <div className="shrink-0">
 
         {/* Top Admin Header: the same look as the application's own panel (light bar, brand name, rounded action buttons), tidy on a phone */}
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
@@ -500,9 +498,10 @@ export default function AdminPanel() {
             <span>سیستم آنلاین و امن</span>
           </div>
         </div>
+      </div>
 
         {/* Tab Content */}
-        <main className="p-3 sm:p-6 lg:p-8 flex-1 bg-white">
+        <main data-app-scroll className="p-3 sm:p-6 lg:p-8 flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white">
           {activeTab === 'users' && (
             <UserManagementView
               users={staffList}

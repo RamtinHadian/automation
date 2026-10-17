@@ -6,6 +6,7 @@ import { downloadCsv } from '../../lib/csv';
 import { toPersianDigits } from '../../lib/jalali';
 import { isMobileNumber } from '../../lib/customerImport';
 import { Modal, field } from './crmUi';
+import { searchLine } from '../../lib/searchAll';
 
 type Row = { key: string; customer: Customer; number: string; kind: 'mobile' | 'landline' | 'fax'; main: boolean; line: string };
 
@@ -27,7 +28,7 @@ export const PhoneBook: React.FC<{ customers: Customer[]; canCall: boolean; onCa
       (c.phones || []).forEach((p, i) => {
         const k: Row['kind'] = c.faxNumber === p ? 'fax' : isMobileNumber(p) ? 'mobile' : 'landline';
         const digits = p.replace(/\D/g, '');
-        const line = fold(`${c.name} ${c.company || ''} ${c.firstName || ''} ${c.lastName || ''} ${p} ${digits.replace(/^0+/, '')} ${c.city || ''} ${c.province || ''} ${c.email || ''} ${(c.tags || []).join(' ')} ${c.address || ''} ${c.repName || ''} ${c.notes || ''}`);
+        const line = searchLine(c) + ' ' + fold(`${c.name} ${c.company || ''} ${c.firstName || ''} ${c.lastName || ''} ${p} ${digits.replace(/^0+/, '')} ${c.city || ''} ${c.province || ''} ${c.email || ''} ${(c.tags || []).join(' ')} ${c.address || ''} ${c.repName || ''} ${c.notes || ''}`);
         out.push({ key: c.id + '|' + p, customer: c, number: p, kind: k, main: i === 0, line });
       });
     }

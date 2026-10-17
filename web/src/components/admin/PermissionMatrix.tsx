@@ -5,6 +5,7 @@ import { COLUMNS, Column, MENUS, colOn, colPatch, colPatchMany, isAdminUser } fr
 import { toPersianDigits } from '../../lib/jalali';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
+import { matchesAll } from '../../lib/searchAll';
 
 const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'مدیر ارشد', DEPT_ADMIN: 'مدیر واحد', STAFF: 'کارمند' };
 
@@ -19,12 +20,11 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
   const [onlyStaff, setOnlyStaff] = useState(false);
 
   const rows = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return users
       .filter((u) => u.isActive !== false)
       .filter((u) => !dept || u.departmentId === dept)
       .filter((u) => !onlyStaff || !isAdminUser(u))
-      .filter((u) => !needle || `${u.fullName} ${u.email} ${u.departmentName}`.toLowerCase().includes(needle))
+      .filter((u) => matchesAll(u, q))
       .sort((a, b) => Number(isAdminUser(a)) - Number(isAdminUser(b)) || a.fullName.localeCompare(b.fullName, 'fa'));
   }, [users, q, dept, onlyStaff]);
 

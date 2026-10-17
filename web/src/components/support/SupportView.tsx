@@ -239,7 +239,7 @@ export const SupportView: React.FC = () => {
   const openTicketDoc = tickets.find((t) => t.id === openTicket);
 
   return (
-    <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-32 sm:pb-8 select-none overflow-x-hidden" data-support-view>
+    <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-32 sm:pb-8 select-none overflow-x-clip" data-support-view>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="font-black text-lg text-[#3A241F]">پشتیبانی</h2>
@@ -251,7 +251,7 @@ export const SupportView: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap sm:flex-nowrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 sm:overflow-x-auto">{tabs.map(tabBtn)}</div>
+      <div data-subtabs className="flex flex-wrap sm:flex-nowrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 sm:overflow-x-auto">{tabs.map(tabBtn)}</div>
 
       {failed && !loaded && <div className="py-16 text-center text-xs font-bold text-rose-600">دریافت اطلاعات پشتیبانی ممکن نشد؛ اتصال یا دسترسی را بررسی کنید.</div>}
       {!loaded && !failed && <div className="py-16 text-center text-xs font-bold text-gray-400">در حال بارگذاری…</div>}
