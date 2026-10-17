@@ -654,6 +654,7 @@ async function main() {
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   main().catch((e) => {
     console.error('خطا:', e.message);
-    process.exit(1);
+    // not process.exit(): on Windows it can crash with a libuv assertion while a network connection is still closing
+    process.exitCode = 1;
   });
 }

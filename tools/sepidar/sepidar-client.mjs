@@ -102,6 +102,7 @@ export class Sepidar {
   /** Done once: introduces this program to Sepidar and keeps the public key it answers with. */
   async register() {
     const id = this.integrationId;
+    if (!Number.isInteger(id) || id <= 0) throw new SepidarError(0, `سریال دستگاه درست نیست: چهار نویسهٔ اولش باید عدد باشد (سریال «${this.cfg.serial}»). سریال را از صفحهٔ «دستگاه جدید» سپیدار کپی کنید.`);
     const { Cypher, IV } = aesEncrypt(this.cfg.serial, String(id));
     const r = await this.raw('POST', '/api/Devices/Register', { body: { Cypher, IntegrationID: id, IV } });
     this.state.publicKeyXml = aesDecrypt(this.cfg.serial, r.Cypher, r.IV);
