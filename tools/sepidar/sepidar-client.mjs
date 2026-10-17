@@ -212,7 +212,15 @@ export class Sepidar {
         }
       }
     }
-    throw new SepidarError(401, `ورود به سپیدار با هیچ‌کدام از نسخه‌های API پذیرفته نشد (نسخه‌ای که سپیدار اعلام کرد: ${this.detectedVersion || 'نامشخص'}): ` + errors.slice(0, 6).join(' | ') + (errors.length > 6 ? ` | … (${errors.length} تلاش)` : ''));
+    let keyInfo = '';
+    try {
+      const bits = publicKeyFromXml(this.state.publicKeyXml).asymmetricKeyDetails?.modulusLength;
+      const mod = /<Modulus>([^<]+)<\/Modulus>/.exec(this.state.publicKeyXml)?.[1] || '';
+      keyInfo = ` [کلید دریافتی: ${bits} بیت، ${this.state.publicKeyXml.length} نویسه، شروع مدولوس: ${mod.slice(0, 12)}]`;
+    } catch {
+      keyInfo = ' [کلید دریافتی قابل خواندن نیست]';
+    }
+    throw new SepidarError(401, `ورود به سپیدار با هیچ‌کدام از نسخه‌های API پذیرفته نشد (نسخه‌ای که سپیدار اعلام کرد: ${this.detectedVersion || 'نامشخص'}): ` + errors.slice(0, 6).join(' | ') + (errors.length > 6 ? ` | … (${errors.length} تلاش)` : '') + keyInfo);
   }
 
   async call(method, path, body) {
