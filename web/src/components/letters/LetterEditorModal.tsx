@@ -831,7 +831,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
           {lhPaper && (
             <button type="button" onClick={() => setLhOpen((v) => !v)} className="px-2.5 py-1.5 rounded-xl border border-amber-400 bg-amber-50 hover:bg-amber-100 text-[11px] font-black text-amber-900 cursor-pointer shrink-0" data-letterhead-toggle>
-              {lhOpen ? 'بستن قالب‌های سربرگ' : `قالب‌های سربرگ (${lh ? 'قالب ' + toPersianDigits(lh.id) : toPersianDigits(LETTERHEAD_TOTAL.toLocaleString('en-US')) + ' قالب'})`}
+              {lhOpen ? 'بستن قالب‌های سربرگ' : `قالب‌های سربرگ · ${toPersianDigits(LETTERHEAD_TOTAL.toLocaleString('en-US'))} قالب${lh ? (lh.image ? ' · طرح شما انتخاب شده' : ' · انتخاب‌شده: شمارهٔ ' + toPersianDigits(lh.id)) : ''}`}
             </button>
           )}
 
