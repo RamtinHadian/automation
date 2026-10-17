@@ -50,7 +50,7 @@ pre{background:#1c1210;color:#f3e9e2;border-radius:14px;padding:14px;min-height:
 <div class="note">برنامه اول کد اتصال را با هورمند عوض می‌کند، تنظیمات را ذخیره می‌کند و دستگاه را در سپیدار ثبت می‌کند. نتیجه در کادر پایین صفحه نوشته می‌شود.</div></div>
 
 <div class="card"><h2><span class="step">۲</span>آزمایش</h2><p class="hint">قبل از ثبت واقعی این دو را بزنید. هیچ‌کدام چیزی در سپیدار ثبت نمی‌کنند.</p>
-<div class="btns"><button class="alt" onclick="run('test')">آزمایش اتصال</button><button class="alt" onclick="run('preview')">پیش‌نمایش (چه چیزهایی ثبت می‌شود)</button></div></div>
+<div class="btns"><button class="alt" onclick="run('test')">آزمایش اتصال</button><button class="alt" onclick="run('diag')">تشخیص دقیق (جواب خام سپیدار)</button><button class="alt" onclick="run('preview')">پیش‌نمایش (چه چیزهایی ثبت می‌شود)</button></div></div>
 
 <div class="card"><h2><span class="step">۳</span>ثبت در سپیدار</h2><p class="hint">مشتری‌ها و پیش‌فاکتورهای هورمند را در سپیدار ثبت می‌کند. هر مورد فقط یک‌بار ثبت می‌شود.</p>
 <div class="btns"><button onclick="run('apply')">ثبت واقعی الان</button><button class="alt" onclick="run('auto')">روشن کردن اجرای خودکار (پس‌زمینه)</button></div></div>
@@ -145,7 +145,7 @@ export function startUi({ dir, cfgPath, script }) {
       job.lines = [];
       const c = readCfg();
       const a = b.action;
-      if (['test', 'preview', 'apply', 'auto', 'password'].includes(a) && !ready(c)) {
+      if (['test', 'diag', 'preview', 'apply', 'auto', 'password'].includes(a) && !ready(c)) {
         job.lines = [];
         return json({ error: 'هنوز اطلاعات اتصال ذخیره نشده است. اول کادرهای بخش ۱ را پر کنید و «ذخیره و راه‌اندازی» را بزنید؛ بعد این دکمه را بزنید.' }, 400);
       }
@@ -160,6 +160,7 @@ export function startUi({ dir, cfgPath, script }) {
         job.lines.push('در حال راه‌اندازی…');
         runNode(argv);
       } else if (a === 'test') runNode(['test']);
+      else if (a === 'diag') runNode(['diag']);
       else if (a === 'preview') runNode(['sync']);
       else if (a === 'apply') runNode(['sync', '--apply']);
       else if (a === 'auto') {

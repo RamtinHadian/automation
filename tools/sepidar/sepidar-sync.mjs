@@ -15,7 +15,8 @@ import './console-fa.mjs'; // Persian text in the Windows console: joined letter
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Sepidar, guidFrom, netFetch } from './sepidar-client.mjs';
+import crypto from 'node:crypto';
+import { Sepidar, guidFrom, netFetch, aesEncrypt, aesDecrypt, publicKeyFromXml, rsaEncrypt, md5 } from './sepidar-client.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -212,6 +213,45 @@ async function cmdTest(cfg) {
   log(`سپیدار: ورود موفق بود (کاربر «${r.Title}»). دسترسی ثبت مشتری: ${r.CanRegisterCustomer ? 'دارد' : 'ندارد'}`);
   const items = await sp.get('/api/Items');
   log(`سپیدار: ${items.length} کالا و خدمت دارد.`);
+}
+
+/** The same three calls as the Postman file, with the raw answer of Sepidar printed (nothing is changed in Sepidar except the device registration). */
+async function cmdDiag(cfg) {
+  const base = cfg.sepidar.url.replace(/\/+$/, '');
+  const serial = cfg.sepidar.serial;
+  const id = Number(String(serial).slice(0, 4));
+  const show = async (title, method, p, headers, body) => {
+    log(`\n=== ${title}`);
+    log(`${method} ${base}${p}`);
+    const res = await netFetch(base + p, { method, headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body) }, 'سپیدار');
+    const text = await res.text();
+    log(`پاسخ: ${res.status} ${res.statusText}`);
+    log('هدرهای پاسخ: ' + [...res.headers.entries()].map(([k, v]) => `${k}=${v}`).join(' ; '));
+    log('متن پاسخ: ' + (text.length > 600 ? text.slice(0, 600) + ' …' : text || '(خالی)'));
+    let data = null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      /* not json */
+    }
+    return { res, data, text };
+  };
+  log(`سریال: ${serial} | شناسهٔ یکپارچه‌سازی: ${id} | کاربر: ${cfg.sepidar.userName}`);
+  const g = await show('۰) نسخهٔ API', 'GET', '/api/General/GenerationVersion', {});
+  const announced = String((g.res.ok && (typeof g.data === 'object' && g.data ? g.data.GenerationVersion ?? Object.values(g.data)[0] : g.data)) ?? '').replace(/"/g, '').trim();
+  const version = announced && !Number.isNaN(Number(announced)) ? announced : String(cfg.sepidar.generationVersion || '112');
+  const { Cypher, IV } = aesEncrypt(serial, String(id));
+  const r = await show('۱) ثبت دستگاه', 'POST', '/api/Devices/Register', { GenerationVersion: version }, { Cypher, IntegrationID: id, IV });
+  if (!r.res.ok || !r.data?.Cypher) return log('\nثبت دستگاه موفق نبود؛ ورود آزمایش نمی‌شود.');
+  const xml = aesDecrypt(serial, r.data.Cypher, r.data.IV);
+  const pub = publicKeyFromXml(xml);
+  log(`کلید باز شد: ${pub.asymmetricKeyDetails?.modulusLength} بیت | DeviceTitle: ${r.data.DeviceTitle ?? '-'}`);
+  const code = crypto.randomUUID();
+  const enc = rsaEncrypt(pub, code);
+  const headers = { GenerationVersion: version, IntegrationID: String(id), ArbitraryCode: code, EncArbitraryCode: enc };
+  log(`\nهدرهای ورود: GenerationVersion=${version} ; IntegrationID=${id} ; ArbitraryCode=${code} ; EncArbitraryCode=${enc.slice(0, 16)}… (${enc.length} نویسه)`);
+  const l = await show('۲) ورود', 'POST', '/api/users/login', headers, { UserName: cfg.sepidar.userName, PasswordHash: md5(cfg.sepidar.password) });
+  log(l.res.ok ? '\nنتیجه: ورود موفق بود.' : '\nنتیجه: ورود رد شد. همین خروجی را (بدون رمز؛ در آن رمزی نیست) برای پشتیبانی یا برای من بفرستید.');
 }
 
 async function cmdSync(cfg) {
@@ -626,6 +666,7 @@ async function main() {
   const cfg = loadConfig();
   if (cmd === 'register') return cmdRegister(cfg);
   if (cmd === 'test') return cmdTest(cfg);
+  if (cmd === 'diag') return cmdDiag(cfg);
   if (cmd === 'sync') return cmdSync(cfg);
   if (cmd === 'stock') return cmdStock(cfg);
   if (cmd === 'jobs') return log(`${await cmdJobs(cfg)} درخواست انجام شد.`);

@@ -173,6 +173,8 @@ r = await runAsync('register');
 ok(r.code === 0 && sp.registered && /ثبت شد/.test(r.out), 'register: AES cypher accepted, public key received');
 r = await runAsync('test');
 ok(r.code === 0 && /ورود موفق/.test(r.out) && /3 کالا|۳ کالا/.test(r.out), 'test: encrypted headers + login accepted by the pretend Sepidar\n' + r.out.split('\n').map((l) => '      ' + l).join('\n'));
+r = await runAsync('diag');
+ok(r.code === 0 && /۰\) نسخهٔ API/.test(r.out) && /۱\) ثبت دستگاه/.test(r.out) && /کلید باز شد: \d+ بیت/.test(r.out) && /۲\) ورود/.test(r.out) && /ورود موفق بود/.test(r.out) && !/secret/.test(r.out), 'diag: prints the raw answers of version, register and login, never the password\n' + r.out.split('\n').map((l) => '      ' + l).join('\n'));
 r = await runAsync('stock');
 ok(r.code === 0 && hoormandPosts.length === 0 && /فقط نمایش/.test(r.out), 'stock without --apply sends nothing');
 r = await runAsync('stock', '--apply');
