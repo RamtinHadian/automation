@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { hwheel } from '../../lib/hscroll';
 import { useAppContext } from '../../context/AppContext';
 import { DraggableImage } from './DraggableImage';
@@ -491,6 +492,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
   const [actionTab, setActionTab] = useState<'NONE' | 'SIGN' | 'REFER' | 'REJECT'>('NONE');
   const [signComment, setSignComment] = useState('تایید و امضا شد');
+  // pressing «ثبت و قفل» does not sign at once: a pop-up asks first (and carries the paraph, so the bar stays slim)
+  const [confirmSign, setConfirmSign] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   // Only people who may work with official letters (write, send or sign them) can be given a letter.
   const referralCandidates = (staffList || []).filter(
@@ -713,27 +716,19 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <t.Icon className={`${vertical ? 'w-8 h-8' : 'w-5 h-5'} shrink-0 ${t.on ? 'text-white' : 'text-emerald-700'}`} />
                 <span className="leading-tight">
                   <span className={`block font-black ${vertical ? 'text-base' : 'text-xs'}`}>{vertical ? t.title : t.hint}</span>
-                  <span className={`${vertical ? 'block' : 'hidden'} text-[10px] ${t.on ? 'text-white/90' : 'text-slate-500'}`}>{t.on ? 'روی نامه نشست' : 'برای گذاشتن بزنید'}</span>
+                  <span className={`${vertical || !t.have ? 'block' : 'hidden'} ${vertical ? 'text-[10px]' : 'text-[9px]'} ${!t.have ? 'font-black text-rose-600' : t.on ? 'text-white/90' : 'text-slate-500'}`}>{!t.have ? (vertical ? `${t.hint} ندارد (در تنظیمات بارگذاری نشده)` : 'ندارد') : t.on ? 'روی نامه نشست' : 'برای گذاشتن بزنید'}</span>
                 </span>
                 {t.on && <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white text-emerald-700 border border-emerald-300 flex items-center justify-center"><Check className="w-3 h-3" /></span>}
               </button>
             ))}
           </div>
 
-          <input
-            type="text"
-            dir="rtl"
-            value={signComment}
-            onChange={(e) => setSignComment(toPersianDigits(e.target.value))}
-            placeholder="دستور یا پاراف هنگام امضا (اختیاری)"
-            className={`${vertical ? 'w-full' : 'order-3 basis-full min-w-0'} h-10 px-3 bg-white border border-emerald-300 rounded-xl text-xs text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
-          />
 
           <div className={vertical ? 'flex flex-col gap-2' : 'order-2 flex flex-1 items-center gap-1.5 min-w-0'}>
             <button
               type="button"
               disabled={isSubmitting}
-              onClick={handleConfirmSign}
+              onClick={requestSign}
               className={`flex items-center justify-center gap-1.5 ${vertical ? 'h-11 w-full' : 'flex-1 min-w-0 px-2 h-11'} bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95`}
             >
               <Award className="w-4 h-4 shrink-0" />
@@ -857,7 +852,26 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
     };
   };
 
+  const haveSig = !!(letter.signatureImageUrl || settings?.ceoSignatureUrl);
+  const haveStamp = !!(letter.companyStampImageUrl || settings?.companyStampUrl);
+  const requestSign = () => {
+    if (!showSig && !showStamp) {
+      showToast(
+        !haveSig && !haveStamp
+          ? 'امضا و مهر هیچ‌کدام ندارد؛ اول آن‌ها را در تنظیمات سیستم بارگذاری کنید.'
+          : !haveSig
+            ? 'امضا ندارد؛ فقط «مهر کردن» را می‌توانید بزنید.'
+            : !haveStamp
+              ? 'مهر ندارد؛ فقط «امضا کردن» را می‌توانید بزنید.'
+              : 'اول «امضا کردن» یا «مهر کردن» (یا هر دو) را بزنید تا روی نامه بنشیند.'
+      );
+      return;
+    }
+    setConfirmSign(true);
+  };
+
   const handleConfirmSign = () => {
+    setConfirmSign(false);
     if (!onSign) return;
     if (!showSig && !showStamp) {
       showToast('اول «امضا کردن» یا «مهر کردن» (یا هر دو) را بزنید تا روی نامه بنشیند.');
@@ -1744,7 +1758,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                     transform: `translate(${metaOffset.x}px, ${metaOffset.y}px)`,
                   }}
                   className={`font-medium text-[#3A241F] text-right shrink-0 relative group/meta select-none ${
-                    pageSize === 'A5' ? 'text-[9.5px] space-y-0.5' : 'text-[11px] space-y-1'
+                    pageSize === 'A5' ? 'text-[9.5px] space-y-0 leading-[1.4]' : 'text-[11px] space-y-0 leading-[1.4]'
                   }`}
                   dir="rtl"
                 >
@@ -1767,7 +1781,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         onChange={(e) => setHeaderNumber(toPersianDigits(e.target.value))}
                         placeholder="شماره نامه"
                         title="شماره نامه در سربرگ (قابل ویرایش قبل از امضا)"
-                        className={`font-bold text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none text-right px-0.5 ${
+                        className={`font-bold text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none text-right px-0.5 py-0 h-[1.45em] ${
                           pageSize === 'A5' ? 'w-16 text-[9.5px]' : 'w-24 text-[11px]'
                         }`}
                       />
@@ -1784,7 +1798,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         onChange={(e) => setHeaderDate(toPersianDigits(e.target.value))}
                         placeholder="تاریخ نامه"
                         title="تاریخ ثبت در سربرگ (قابل ویرایش قبل از امضا)"
-                        className={`font-mono font-bold text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none text-right px-0.5 ${
+                        className={`font-mono font-bold text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none text-right px-0.5 py-0 h-[1.45em] ${
                           pageSize === 'A5' ? 'w-16 text-[9.5px]' : 'w-24 text-[11px]'
                         }`}
                       />
@@ -1801,7 +1815,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         onChange={(e) => setHeaderAttachment(e.target.value)}
                         placeholder="وضعیت پیوست"
                         title="وضعیت پیوست در سربرگ (قابل ویرایش قبل از امضا)"
-                        className={`font-bold text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none text-right px-0.5 ${
+                        className={`font-bold text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none text-right px-0.5 py-0 h-[1.45em] ${
                           pageSize === 'A5' ? 'w-16 text-[9.5px]' : 'w-24 text-[11px]'
                         }`}
                       />
@@ -2205,6 +2219,54 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           }}
           onClose={() => setShowBodyEditorModal(false)}
         />
+      )}
+      {confirmSign && createPortal(
+        <div className="fixed inset-0 z-[320] flex items-start sm:items-center justify-center bg-black/55 backdrop-blur-xs p-3 pt-[12vh] sm:pt-3" onMouseDown={() => setConfirmSign(false)} data-sign-confirm data-confirm-dialog>
+          <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-emerald-200 p-5 space-y-4 text-right animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-3">
+              <span className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <Award className="w-6 h-6" />
+              </span>
+              <div>
+                <div className="font-black text-sm text-[#3A241F]">امضای نهایی نامه</div>
+                <div className="text-[11px] font-bold text-[#8C6F66] leading-5">با تأیید، نامه امضا و قفل می‌شود و دیگر تغییر نمی‌کند.</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px] font-black" data-sign-confirm-state>
+              {([
+                ['امضا', haveSig, showSig],
+                ['مهر', haveStamp, showStamp],
+              ] as const).map(([name, have, on]) => (
+                <div key={name} className={`rounded-xl border px-3 py-2 ${!have ? 'bg-rose-50 border-rose-200 text-rose-700' : on ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                  {name}: {!have ? 'ندارد' : on ? 'روی نامه می‌نشیند' : 'گذاشته نشده'}
+                </div>
+              ))}
+            </div>
+            <div>
+              <label className="block text-[11px] font-black text-[#3A241F] mb-1">دستور یا پاراف (اختیاری)</label>
+              <input
+                type="text"
+                dir="rtl"
+                autoFocus
+                value={signComment}
+                onChange={(e) => setSignComment(toPersianDigits(e.target.value))}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmSign(); }}
+                placeholder="تایید و امضا شد"
+                className="w-full h-11 px-3 bg-white border border-emerald-300 rounded-xl text-sm text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button type="button" disabled={isSubmitting} onClick={handleConfirmSign} className="flex-1 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md cursor-pointer active:scale-95 flex items-center justify-center gap-1.5">
+                <Check className="w-4 h-4" />
+                تأیید و امضا
+              </button>
+              <button type="button" onClick={() => setConfirmSign(false)} className="px-5 h-11 rounded-xl border border-[#EBDBCE] bg-[#FAF5F1] text-[#3A241F] font-black text-sm cursor-pointer">
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

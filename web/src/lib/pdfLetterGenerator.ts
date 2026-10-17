@@ -479,19 +479,19 @@ export function generateOfficialLetterHtml(
       <div class="letter-title">
         ${headerTitle ? `<span>${headerTitle}</span>` : ''}
       </div>
-      <div class="meta-box" style="transform: translate(${metaOffsetX}px, ${metaOffsetY}px); font-family: '${metaFont}', inherit; text-align: right; line-height: 1.8;">
+      <div class="meta-box" style="transform: translate(${metaOffsetX}px, ${metaOffsetY}px); font-family: '${metaFont}', inherit; text-align: right; line-height: 1.45;">
         <table style="border-collapse: collapse; border: none; font-size: inherit; font-family: inherit; margin: 0; padding: 0;">
           <tr>
-            <td style="padding: 1px 4px 1px 0; color: #8C6F66; font-weight: bold; text-align: right;">${showNo ? 'شماره:' : ''}</td>
-            <td style="padding: 1px 0; color: #3A241F; font-weight: bold; text-align: right;">${letterNo}</td>
+            <td style="padding: 0 4px 0 0; color: #8C6F66; font-weight: bold; text-align: right;">${showNo ? 'شماره:' : ''}</td>
+            <td style="padding: 0; color: #3A241F; font-weight: bold; text-align: right;">${letterNo}</td>
           </tr>
           <tr>
-            <td style="padding: 1px 4px 1px 0; color: #8C6F66; font-weight: bold; text-align: right;">${showDate ? 'تاریخ:' : ''}</td>
-            <td style="padding: 1px 0; color: #3A241F; font-weight: bold; text-align: right;">${letterDate}</td>
+            <td style="padding: 0 4px 0 0; color: #8C6F66; font-weight: bold; text-align: right;">${showDate ? 'تاریخ:' : ''}</td>
+            <td style="padding: 0; color: #3A241F; font-weight: bold; text-align: right;">${letterDate}</td>
           </tr>
           <tr>
-            <td style="padding: 1px 4px 1px 0; color: #8C6F66; font-weight: bold; text-align: right;">${showAtt ? 'پیوست:' : ''}</td>
-            <td style="padding: 1px 0; color: #3A241F; font-weight: bold; text-align: right;">${letterAttach}</td>
+            <td style="padding: 0 4px 0 0; color: #8C6F66; font-weight: bold; text-align: right;">${showAtt ? 'پیوست:' : ''}</td>
+            <td style="padding: 0; color: #3A241F; font-weight: bold; text-align: right;">${letterAttach}</td>
           </tr>
         </table>
       </div>
