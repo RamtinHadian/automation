@@ -11,6 +11,7 @@
 //   node sepidar-sync.mjs jobs            درخواست‌های همکاران هورمند (صدور فاکتور، ثبت دریافتی…) را یک‌بار انجام می‌دهد
 //   node sepidar-sync.mjs cache           فاکتورها، قیمت‌ها، حساب‌های بانکی و مانده مشتری‌ها را برای هورمند می‌فرستد
 //   node sepidar-sync.mjs stock --apply   کالاها و موجودی انبارهای سپیدار را به هورمند می‌فرستد
+import './console-fa.mjs'; // Persian text in the Windows console: joined letters, right order
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -473,6 +474,7 @@ async function cmdCache(cfg) {
 
 // ---------- one-time automatic setup ----------
 import readline from 'node:readline';
+import { withHelp } from './config-help.mjs';
 import { execFileSync, spawn } from 'node:child_process';
 
 function makePrompter() {
@@ -577,7 +579,7 @@ async function cmdSetup() {
         cfg.sync.priceMultiplier = /^(بله|y|yes|آره)/i.test(a) ? 10 : 1;
       }
     }
-    fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+    fs.writeFileSync(cfgPath, JSON.stringify(withHelp(cfg), null, 2));
     log('\nتنظیمات روی این کامپیوتر ذخیره شد.');
     const full = loadConfig();
     const h = await hoormand(full, '/ping');
