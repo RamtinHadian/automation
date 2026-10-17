@@ -40,6 +40,26 @@ export const guidFrom = (text) => {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 };
 
+/** fetch with a time limit and a clear Persian message when the other side cannot be reached (who = «هورمند» / «سپیدار»). */
+export async function netFetch(url, opts = {}, who = 'سرور', seconds = 20) {
+  try {
+    return await fetch(url, { ...opts, signal: AbortSignal.timeout(seconds * 1000) });
+  } catch (e) {
+    const code = e?.cause?.code || e?.cause?.errors?.[0]?.code || e?.code || '';
+    const host = (() => {
+      try {
+        return new URL(url).host;
+      } catch {
+        return url;
+      }
+    })();
+    if (e?.name === 'TimeoutError' || e?.name === 'AbortError') throw new Error(`${who} در ${seconds} ثانیه جواب نداد (${host}). نشانی یا اینترنت یا روشن‌بودن سرویس را بررسی کنید.`);
+    if (code === 'ECONNREFUSED') throw new Error(`اتصال به ${who} رد شد (${host}): سرویس روشن نیست یا پورت درست نیست.${who === 'سپیدار' ? ' در سپیدار دکمهٔ سبز «شروع» را بزنید.' : ''}`);
+    if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') throw new Error(`نشانی ${who} پیدا نشد (${host}): نشانی را درست بنویسید و اینترنت را بررسی کنید.`);
+    throw new Error(`اتصال به ${who} برقرار نشد (${host})${code ? ' [' + code + ']' : ''}: ${e?.message || ''}`);
+  }
+}
+
 export class SepidarError extends Error {
   constructor(status, message) {
     super(message);
@@ -60,11 +80,11 @@ export class Sepidar {
   }
 
   async raw(method, path, { headers = {}, body } = {}) {
-    const res = await fetch(this.base + path, {
+    const res = await netFetch(this.base + path, {
       method,
       headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...headers },
       body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    }, 'سپیدار');
     const text = await res.text();
     let data = null;
     try {

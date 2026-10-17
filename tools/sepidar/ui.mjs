@@ -73,7 +73,7 @@ let seen=0,timer=null;
 function paint(lines){const el=$('log');el.textContent=lines.join('\\n')||'…';el.scrollTop=el.scrollHeight}
 async function poll(){const r=await api('log?from=0');paint(r.lines);document.querySelectorAll('button').forEach(b=>b.disabled=r.running);if(!r.running){clearInterval(timer);timer=null}}
 async function run(action){const body={action,hoormand:$('hoormand').value.trim(),code:$('code').value.trim(),sepidar:$('sepidar').value.trim(),serial:$('serial').value.trim(),user:$('user').value.trim(),password:$('password').value,multiplier:$('multiplier').value,rmfolder:$('rmfolder').checked};
-const r=await api('run',body);if(r.error){$('log').textContent=r.error;return}
+$('log').textContent='در حال اجرا… (ممکن است تا نیم دقیقه طول بکشد)';const r=await api('run',body);if(r.error){$('log').textContent=r.error;return}
 if(!timer)timer=setInterval(poll,700);poll()}
 (async()=>{const s=await api('state');for(const k of ['hoormand','sepidar','serial','user'])if(s[k])$(k).value=s[k];if(s.hasPassword)$('passhelp').textContent='رمز قبلاً ذخیره شده؛ اگر عوض نشده خالی بگذارید.';if(s.multiplier)$('multiplier').value=String(s.multiplier);})();
 </script></body></html>`;

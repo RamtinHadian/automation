@@ -15,7 +15,7 @@ import './console-fa.mjs'; // Persian text in the Windows console: joined letter
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Sepidar, guidFrom } from './sepidar-client.mjs';
+import { Sepidar, guidFrom, netFetch } from './sepidar-client.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -56,15 +56,16 @@ const loadState = () => {
 const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2));
 
 // ---------- Hoormand ----------
+const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 async function hoormand(cfg, p) {
-  const res = await fetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } });
+  const res = await netFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } }, 'هورمند');
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`هورمند (${res.status}): ${j.error || res.statusText}`);
   return j;
 }
 
 async function hoormandPost(cfg, p, body) {
-  const res = await fetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { method: 'POST', headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await hFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { method: 'POST', headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`هورمند (${res.status}): ${res.status === 403 ? 'این کلید دسترسی «همگام‌سازی انبار» ندارد؛ در کنسول هورمند آن را برای کلید تیک بزنید.' : j.error || res.statusText}`);
   return j;
@@ -200,8 +201,10 @@ async function cmdRegister(cfg) {
 }
 
 async function cmdTest(cfg) {
+  log('در حال اتصال به هورمند (' + cfg.hoormand.url + ') …');
   const h = await hoormand(cfg, '/ping');
   log(`هورمند: اتصال برقرار است (کلید «${h.key}»، به نام ${h.actAs}، دسترسی‌ها: ${h.scopes.join('، ')})`);
+  log('در حال اتصال به سپیدار (' + cfg.sepidar.url + ') …');
   const state = loadState();
   const sp = client(cfg, state);
   const r = await sp.login();
@@ -501,7 +504,7 @@ function makePrompter() {
 }
 
 async function hoormandPing(url, key) {
-  const res = await fetch(url.replace(/\/+$/, '') + '/api/ext/v1/ping', { headers: { Authorization: 'Bearer ' + key } });
+  const res = await hFetch(url.replace(/\/+$/, '') + '/api/ext/v1/ping', { headers: { Authorization: 'Bearer ' + key } });
   return res.ok ? res.json() : null;
 }
 
@@ -517,7 +520,7 @@ async function cmdSetup() {
     const code = flag('--code');
     if (code || !key || !(await hoormandPing(hUrl, key).catch(() => null))) {
       const c = code || (await pr.ask('کد اتصال (در هورمند: منوی «سپیدار» ← «ساخت کد اتصال»)'));
-      const res = await fetch(hUrl + '/api/ext/v1/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: c }) });
+      const res = await hFetch(hUrl + '/api/ext/v1/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: c }) });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || `هورمند جواب نداد (${res.status})`);
       key = j.key;
