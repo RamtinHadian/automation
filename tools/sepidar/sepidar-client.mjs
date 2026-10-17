@@ -192,6 +192,10 @@ export class Sepidar {
         try {
           return await tryOnce(v, shape);
         } catch (e) {
+          if (!(e instanceof SepidarError) && /too large for key size|data too large/i.test(e?.message || '')) {
+            errors.push(`نسخهٔ ${v} (${shapeName(shape)}): کلید سپیدار برای این شکل کوچک است`);
+            continue;
+          }
           if (!keyProblem(e)) throw e;
           const line = `نسخهٔ ${v} (${shapeName(shape)}): ${e.message}`;
           if (!errors.includes(line)) errors.push(line);
