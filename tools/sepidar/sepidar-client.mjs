@@ -198,6 +198,7 @@ export class Sepidar {
       });
       this.token = r.Token;
       this.state.generationVersion = v;
+      this.state.shape = shape; // the shape that worked is tried first next time
       this.shape = shape;
       return r;
     };
@@ -207,7 +208,8 @@ export class Sepidar {
       const detected = round === 0 ? await this.detectVersion() : first;
       const all = ['112', '111', '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100'];
       const versions = [...new Set([detected, this.state.generationVersion, first, ...all].filter(Boolean).map(String))];
-      const attempts = [...shapes.map((s) => [versions[0], s]), ...versions.slice(1).map((v) => [v, {}])];
+      const known = this.state.shape ? [this.state.shape] : [];
+      const attempts = [...known.map((s) => [versions[0], s]), ...shapes.map((s) => [versions[0], s]), ...versions.slice(1).map((v) => [v, {}])];
       for (const [v, shape] of attempts) {
         try {
           return await tryOnce(v, shape);

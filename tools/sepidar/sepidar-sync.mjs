@@ -211,6 +211,7 @@ async function cmdTest(cfg) {
   const r = await sp.login();
   saveState(state);
   log(`سپیدار: ورود موفق بود (کاربر «${r.Title}»). دسترسی ثبت مشتری: ${r.CanRegisterCustomer ? 'دارد' : 'ندارد'}`);
+  log(`شکل ورود که جواب داد: نسخهٔ ${sp.cfg.generationVersion}، ${JSON.stringify(sp.shape || {})}`);
   const items = await sp.get('/api/Items');
   log(`سپیدار: ${items.length} کالا و خدمت دارد.`);
 }
