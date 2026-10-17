@@ -696,7 +696,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       >
         {vertical && <div className="text-center font-black text-sm text-emerald-950">امضا و مهر مدیرعامل</div>}
         <div className={vertical ? 'flex flex-col gap-3' : 'flex flex-wrap items-center gap-2 sm:gap-3'}>
-          <div className={vertical ? 'flex flex-col gap-3' : 'flex items-center gap-2 shrink-0'} data-sign-choice>
+          <div className={vertical ? 'flex flex-col gap-3' : 'order-1 flex items-center gap-2 shrink-0'} data-sign-choice>
             {tiles.map((t) => (
               <button
                 key={t.key}
@@ -704,16 +704,16 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 disabled={!t.have}
                 onClick={t.toggle}
                 title={!t.have ? `${t.hint} در تنظیمات سیستم بارگذاری نشده است` : t.on ? `${t.hint} روی نامه نشسته؛ برای برداشتن دوباره بزنید` : `گذاشتن ${t.hint} روی نامه`}
-                className={`relative ${vertical ? 'h-20 flex-col justify-center text-center gap-1' : 'h-12 pl-4 pr-3 gap-2 text-right'} rounded-2xl border-2 flex items-center transition-all cursor-pointer active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`relative ${vertical ? 'h-20 flex-col justify-center text-center gap-1' : 'h-11 pl-3 pr-2.5 gap-1.5 text-right'} rounded-2xl border-2 flex items-center transition-all cursor-pointer active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed ${
                   t.on
                     ? t.color === 'emerald' ? 'border-emerald-600 bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                     : 'border-slate-300 bg-white text-slate-800 hover:border-emerald-400 hover:bg-emerald-50'
                 }`}
               >
-                <t.Icon className={`${vertical ? 'w-8 h-8' : 'w-6 h-6'} shrink-0 ${t.on ? 'text-white' : 'text-emerald-700'}`} />
+                <t.Icon className={`${vertical ? 'w-8 h-8' : 'w-5 h-5'} shrink-0 ${t.on ? 'text-white' : 'text-emerald-700'}`} />
                 <span className="leading-tight">
-                  <span className={`block font-black ${vertical ? 'text-base' : 'text-sm'}`}>{t.title}</span>
-                  <span className={`block text-[10px] ${t.on ? 'text-white/90' : 'text-slate-500'}`}>{t.on ? 'روی نامه نشست' : 'برای گذاشتن بزنید'}</span>
+                  <span className={`block font-black ${vertical ? 'text-base' : 'text-xs'}`}>{vertical ? t.title : t.hint}</span>
+                  <span className={`${vertical ? 'block' : 'hidden'} text-[10px] ${t.on ? 'text-white/90' : 'text-slate-500'}`}>{t.on ? 'روی نامه نشست' : 'برای گذاشتن بزنید'}</span>
                 </span>
                 {t.on && <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white text-emerald-700 border border-emerald-300 flex items-center justify-center"><Check className="w-3 h-3" /></span>}
               </button>
@@ -726,24 +726,24 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             value={signComment}
             onChange={(e) => setSignComment(toPersianDigits(e.target.value))}
             placeholder="دستور یا پاراف هنگام امضا (اختیاری)"
-            className={`${vertical ? 'w-full' : 'flex-1 min-w-[160px]'} h-10 px-3 bg-white border border-emerald-300 rounded-xl text-xs text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
+            className={`${vertical ? 'w-full' : 'order-3 basis-full min-w-0'} h-10 px-3 bg-white border border-emerald-300 rounded-xl text-xs text-[#3A241F] focus:outline-none focus:ring-2 focus:ring-emerald-500/20`}
           />
 
-          <div className={vertical ? 'flex flex-col gap-2' : 'flex items-center gap-2 shrink-0 mr-auto'}>
+          <div className={vertical ? 'flex flex-col gap-2' : 'order-2 flex flex-1 items-center gap-1.5 min-w-0'}>
             <button
               type="button"
               disabled={isSubmitting}
               onClick={handleConfirmSign}
-              className={`flex items-center justify-center gap-1.5 ${vertical ? 'h-11 w-full' : 'px-5 h-10'} bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95`}
+              className={`flex items-center justify-center gap-1.5 ${vertical ? 'h-11 w-full' : 'flex-1 min-w-0 px-2 h-11'} bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95`}
             >
-              <Award className="w-4 h-4" />
-              <span>ثبت و قفل امضای نهایی</span>
+              <Award className="w-4 h-4 shrink-0" />
+              {vertical ? <span>ثبت و قفل امضای نهایی</span> : <span className="truncate">ثبت و قفل</span>}
             </button>
-            <button type="button" onClick={() => setActionTab('NONE')} className={`${vertical ? 'h-9 w-full border border-emerald-200 bg-white' : 'px-3 h-10'} text-xs text-gray-600 hover:bg-white rounded-xl cursor-pointer`}>انصراف</button>
+            <button type="button" onClick={() => setActionTab('NONE')} className={`${vertical ? 'h-9 w-full border border-emerald-200 bg-white' : 'px-2.5 h-11 shrink-0'} text-xs text-gray-600 hover:bg-white rounded-xl cursor-pointer`}>انصراف</button>
           </div>
         </div>
-        <div className={`text-[10.5px] text-emerald-900/80 ${vertical ? 'space-y-1.5 leading-5' : 'mt-1.5 flex items-center justify-between gap-2 flex-wrap'}`}>
-          <span className="flex items-start gap-1.5"><Move className="w-3 h-3 text-emerald-700 shrink-0 mt-1" />هر کدام را بزنید روی نامه می‌نشیند؛ با کشیدن جابه‌جا و با نقطهٔ نارنجی گوشه‌اش بزرگ و کوچک کنید.</span>
+        <div className={`text-[10.5px] text-emerald-900/80 ${vertical ? 'space-y-1.5 leading-5' : 'mt-1 flex items-center justify-end gap-2'}`}>
+          {vertical && <span className="flex items-start gap-1.5"><Move className="w-3 h-3 text-emerald-700 shrink-0 mt-1" />هر کدام را بزنید روی نامه می‌نشیند؛ با کشیدن جابه‌جا و با نقطهٔ نارنجی گوشه‌اش بزرگ و کوچک کنید.</span>}
           <button type="button" onClick={resetPlace} className="text-emerald-800 hover:underline font-bold cursor-pointer">بازنشانی جایگاه</button>
         </div>
       </div>

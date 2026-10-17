@@ -13,6 +13,7 @@ import { CrmView } from '../components/crm/CrmView';
 import { WarrantyView } from '../components/warranty/WarrantyView';
 import { WarehouseView } from '../components/warehouse/WarehouseView';
 import { SepidarView } from '../components/sepidar/SepidarView';
+import { CompanyCalls } from '../components/common/CompanyCalls';
 import { ReminderPopup, RemindersView } from '../components/reminders/Reminders';
 import { SupportView } from '../components/support/SupportView';
 import { useCompanyName } from '../lib/useCompanyName';
@@ -76,6 +77,8 @@ import {
   Warehouse,
   Landmark,
   BellRing,
+  Phone,
+  ChevronUp,
 } from 'lucide-react';
 import { FileCategory, FileTransfer, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
@@ -130,7 +133,7 @@ export default function UserPanel() {
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
   const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders'>('files');
   const [chatPeer, setChatPeer] = useState('');
-  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar'>('files');
+  const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar' | 'calls'>('files');
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -255,7 +258,7 @@ export default function UserPanel() {
   }, [notifications, mainMenuTab]);
   const menuBadge = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'warranty' | 'support' | 'warehouse' | 'sepidar') =>
     (m === 'sepidar' && !canAccessSepidarMenu) || (m === 'warehouse' && !canAccessWarehouseMenu) || (m === 'letters' && !canAccessLettersMenu) || (m === 'tasks' && !canAccessTasksMenu) || (m === 'crm' && !canAccessCrmMenu) || (m === 'warranty' && !canAccessWarrantyMenu) || (m === 'support' && !canAccessWarrantyMenu) ? 0 : unreadByMenu[m];
-  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar') => {
+  const openMenu = (m: 'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar' | 'calls') => {
     setMainMenuTab(m);
     setSearchQuery('');
     const ids = notifications.filter((n) => !n.read && n.kind !== 'chat' && menuOfNotification(n) === m).map((n) => n.id);
@@ -405,6 +408,11 @@ export default function UserPanel() {
   useEffect(() => {
     if (!canAccessStatsMenu && mainMenuTab === 'stats') setMainMenuTab('files');
   }, [canAccessStatsMenu, mainMenuTab]);
+  // the calls of the whole company (who rang which extension, and listening to the recordings): the top manager only
+  const canAccessCallsMenu = currentUser.role === 'SUPER_ADMIN';
+  useEffect(() => {
+    if (!canAccessCallsMenu && mainMenuTab === 'calls') setMainMenuTab('files');
+  }, [canAccessCallsMenu, mainMenuTab]);
   useEffect(() => {
     if (!canAccessTasksMenu && mainMenuTab === 'tasks') setMainMenuTab('files');
   }, [canAccessTasksMenu, mainMenuTab]);
@@ -416,6 +424,14 @@ export default function UserPanel() {
   // the area that scrolls, and the pinned header + main menu; the sub-menus of the pages pin themselves just below (--shell-top)
   const shellScrollRef = useRef<HTMLDivElement>(null);
   const shellPinRef = useRef<HTMLDivElement>(null);
+  const [showTop, setShowTop] = useState(false);
+  useEffect(() => {
+    const el = shellScrollRef.current;
+    if (!el) return;
+    const on = () => setShowTop(el.scrollTop > 480);
+    el.addEventListener('scroll', on, { passive: true });
+    return () => el.removeEventListener('scroll', on);
+  }, []);
   useLayoutEffect(() => {
     const scroller = shellScrollRef.current;
     const pin = shellPinRef.current;
@@ -776,7 +792,7 @@ export default function UserPanel() {
       <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 h-full">
       {/* The window never scrolls: only this area does. On a computer the header and the main menu stay pinned at its top (the sub-menus of every
           page pin themselves right under them, see data-subtabs in index.css); on a phone the main menu is the bottom bar and the header scrolls away. */}
-      <div ref={shellScrollRef} data-app-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-28 sm:pb-0 flex flex-col">
+      <div ref={shellScrollRef} data-app-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-6 sm:pb-0 flex flex-col">
 
         {/* Top Header */}
         <BannerStrip />
@@ -805,14 +821,14 @@ export default function UserPanel() {
                 )}
               </div>
               {headerCompany && <div className="mt-1 text-xs sm:text-sm font-black text-[#6E1B1B] truncate" data-company-name>{headerCompany}</div>}
-              <p className="text-[10px] sm:text-[11px] text-[#8C6F66] font-medium truncate sm:whitespace-normal">
+              <p className="hidden sm:block text-[10px] sm:text-[11px] text-[#8C6F66] font-medium truncate sm:whitespace-normal">
                 سامانه هوشمند تبادل فایل، نگارش اسناد Word، گردش ارجاعات و امضای اسکن‌شده مدیرعامل
               </p>
             </div>
           </div>
 
           {/* Right actions */}
-          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:shrink-0">
+          <div className="flex flex-nowrap sm:flex-wrap items-center gap-2 sm:justify-end sm:shrink-0 overflow-x-auto sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
             <CallMenu />
             <CalculatorButton className="flex items-center justify-center w-9 h-9 rounded-2xl bg-white border border-[#EBDBCE] text-[#3A241F] hover:bg-orange-50 transition-all cursor-pointer" />
             <NotificationBell onOpenNotification={openNotification} />
@@ -841,7 +857,7 @@ export default function UserPanel() {
 
             {/* User info card + password change + logout */}
             <div className="flex items-center gap-1.5 bg-[#F6D9CD]/40 p-1.5 pr-2.5 sm:pr-3 rounded-2xl border border-[#C98B6A]/30">
-              <div className="text-right">
+              <div className="text-right hidden sm:block">
                 <div className="text-xs font-black text-[#3A241F] truncate max-w-[130px]">{currentUser.fullName}</div>
                 <div className="text-[10px] text-[#D34A32] font-bold truncate max-w-[130px]">{currentUser.departmentName}</div>
               </div>
@@ -878,12 +894,12 @@ export default function UserPanel() {
 
         {/* PRIMARY MENU NAVIGATION: 'ارسال فایل' vs 'نامه' */}
         <div className="bg-[#FAF5F1] px-4 sm:px-8 py-2.5 sm:py-3 border-b border-[#EBDBCE] flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))] sm:flex sm:items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1 sm:mx-0 sm:px-0">
 
             {/* Menu 1: ارسال فایل */}
             <button
               onClick={() => openMenu('files')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+              className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                 mainMenuTab === 'files'
                   ? 'bg-[#6E1B1B] text-white shadow-md shadow-[#6E1B1B]/25 scale-[1.02]'
                   : 'bg-white text-[#3A241F] hover:bg-[#F6D9CD]/40 border border-[#EBDBCE]'
@@ -902,7 +918,7 @@ export default function UserPanel() {
             {canAccessLettersMenu && (
               <button
                 onClick={() => openMenu('letters')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'letters'
                     ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-amber-50 border border-[#EBDBCE]'
@@ -922,7 +938,7 @@ export default function UserPanel() {
             {canAccessCrmMenu && (
               <button
                 onClick={() => openMenu('crm')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'crm'
                     ? 'bg-violet-600 text-white shadow-md shadow-violet-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-violet-50 border border-[#EBDBCE]'
@@ -942,7 +958,7 @@ export default function UserPanel() {
             {canAccessSepidarMenu && (
               <button
                 onClick={() => openMenu('sepidar')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'sepidar'
                     ? 'bg-rose-700 text-white shadow-md shadow-rose-700/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-rose-50 border border-[#EBDBCE]'
@@ -962,7 +978,7 @@ export default function UserPanel() {
             {canAccessWarehouseMenu && (
               <button
                 onClick={() => openMenu('warehouse')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'warehouse'
                     ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-amber-50 border border-[#EBDBCE]'
@@ -982,7 +998,7 @@ export default function UserPanel() {
             {canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty') && (
               <button
                 onClick={() => openMenu('warranty')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'warranty'
                     ? 'bg-teal-600 text-white shadow-md shadow-teal-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-teal-50 border border-[#EBDBCE]'
@@ -1002,7 +1018,7 @@ export default function UserPanel() {
             {canAccessWarrantyMenu && canSub(currentUser, 'warranty.support') && (
               <button
                 onClick={() => openMenu('support')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'support'
                     ? 'bg-teal-600 text-white shadow-md shadow-teal-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-teal-50 border border-[#EBDBCE]'
@@ -1022,7 +1038,7 @@ export default function UserPanel() {
             {canAccessStatsMenu && (
               <button
                 onClick={() => openMenu('stats')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'stats'
                     ? 'bg-orange-600 text-white shadow-md shadow-orange-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-orange-50 border border-[#EBDBCE]'
@@ -1033,11 +1049,26 @@ export default function UserPanel() {
               </button>
             )}
 
+            {/* Menu: تماس‌های شرکت (مدیر ارشد) */}
+            {canAccessCallsMenu && (
+              <button
+                onClick={() => openMenu('calls')}
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                  mainMenuTab === 'calls'
+                    ? 'bg-emerald-700 text-white shadow-md shadow-emerald-700/25 scale-[1.02]'
+                    : 'bg-white text-[#3A241F] hover:bg-emerald-50 border border-[#EBDBCE]'
+                }`}
+              >
+                <Phone className="w-4 h-4" />
+                <span>تماس‌ها</span>
+              </button>
+            )}
+
             {/* Menu 3: وظایف (فقط برای کاربرانی که مجوز دارند) */}
             {canAccessTasksMenu && (
               <button
                 onClick={() => openMenu('tasks')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-0 rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                   mainMenuTab === 'tasks'
                     ? 'bg-sky-600 text-white shadow-md shadow-sky-600/25 scale-[1.02]'
                     : 'bg-white text-[#3A241F] hover:bg-sky-50 border border-[#EBDBCE]'
@@ -1089,6 +1120,11 @@ export default function UserPanel() {
               <span className="flex items-center gap-1 text-orange-800">
                 <BarChart3 className="w-4 h-4 text-orange-600" />
                 گزارشات آماری مدیریتی شرکت
+              </span>
+            ) : mainMenuTab === 'calls' ? (
+              <span className="flex items-center gap-1 text-emerald-800">
+                <Phone className="w-4 h-4 text-emerald-700" />
+                همهٔ تماس‌های شرکت: چه کسی با کدام داخلی و کدام شماره صحبت کرده، و شنیدن مکالمه‌ها
               </span>
             ) : mainMenuTab === 'tasks' ? (
               <span className="flex items-center gap-1 text-sky-800">
@@ -1525,6 +1561,7 @@ export default function UserPanel() {
         {mainMenuTab === 'warranty' && canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty') && <WarrantyView />}
         {mainMenuTab === 'warehouse' && canAccessWarehouseMenu && <WarehouseView />}
         {mainMenuTab === 'sepidar' && canAccessSepidarMenu && <SepidarView />}
+        {mainMenuTab === 'calls' && canAccessCallsMenu && <CompanyCalls />}
         {mainMenuTab === 'support' && canAccessWarrantyMenu && canSub(currentUser, 'warranty.support') && <SupportView />}
         {mainMenuTab === 'stats' && canAccessStatsMenu && (
           <div className="p-3 sm:p-6">
@@ -2176,65 +2213,17 @@ export default function UserPanel() {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* PERSISTENT MOBILE FLOATING BOTTOM DOCK NAVIGATION (Position: Fixed, 16px bottom) */}
-      {/* ========================================================================= */}
-      <nav
-        aria-label="منوی شناور موبایل"
-        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] inset-x-3 sm:hidden z-40 max-w-md mx-auto backdrop-blur-xl border border-white/10 shadow-[0_16px_48px_rgba(0,0,0,0.45)] rounded-full p-1.5 flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        dir="rtl"
-        style={{ background: 'color-mix(in srgb, var(--theme-dark-bg, #3A241F) 94%, transparent)' }}
+      {/* The main menu is the row at the top of the page on a phone (it scrolls away with the page); this small button brings the page back to its top. */}
+      <button
+        type="button"
+        onClick={() => shellScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+        aria-label="بازگشت به بالای صفحه"
+        title="بالای صفحه"
+        className={`fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-40 w-11 h-11 rounded-full flex items-center justify-center text-white border border-white/15 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-md active:scale-90 transition-all duration-300 cursor-pointer ${showTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+        style={{ background: 'color-mix(in srgb, var(--theme-dark-bg, #3A241F) 90%, transparent)' }}
       >
-        {([
-          { id: 'files', label: 'امور اداری', Icon: ArrowLeftRight, show: true, badge: menuBadge('files') },
-          { id: 'letters', label: 'نامه‌ها', Icon: Stamp, show: canAccessLettersMenu, badge: menuBadge('letters') },
-          { id: 'tasks', label: 'وظایف', Icon: ClipboardList, show: canAccessTasksMenu, badge: menuBadge('tasks') },
-          { id: 'crm', label: 'مشتریان', Icon: Users, show: canAccessCrmMenu, badge: menuBadge('crm') },
-          { id: 'sepidar', label: 'سپیدار', Icon: Landmark, show: canAccessSepidarMenu, badge: menuBadge('sepidar') },
-          { id: 'warehouse', label: 'انبار', Icon: Warehouse, show: canAccessWarehouseMenu, badge: menuBadge('warehouse') },
-          { id: 'warranty', label: 'گارانتی', Icon: ShieldCheck, show: canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty'), badge: menuBadge('warranty') },
-          { id: 'support', label: 'پشتیبانی', Icon: Headset, show: canAccessWarrantyMenu && canSub(currentUser, 'warranty.support'), badge: menuBadge('support') },
-          { id: 'stats', label: 'گزارشات', Icon: BarChart3, show: canAccessStatsMenu, badge: 0 },
-        ] as const)
-          .filter((t) => t.show)
-          .map(({ id, label, Icon, badge }) => {
-            const on = mainMenuTab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => openMenu(id)}
-                aria-label={label}
-                aria-current={on ? 'page' : undefined}
-                ref={(el) => { if (on && el) el.scrollIntoView({ inline: 'center', block: 'nearest' }); }}
-                className={`relative shrink-0 h-11 flex items-center justify-center gap-1.5 rounded-full transition-all duration-300 active:scale-95 cursor-pointer ${
-                  on ? 'bg-white text-[#2A1A16] pl-3.5 pr-3 shadow-md' : 'w-11 text-white/70 hover:text-white'
-                }`}
-              >
-                <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={on ? 2.4 : 1.9} />
-                {on && <span className="text-[11px] font-black whitespace-nowrap">{label}</span>}
-                {badge > 0 && (
-                  <span className="absolute -top-0.5 -left-0.5 bg-rose-500 text-white text-[9px] font-black min-w-[16px] h-4 leading-4 text-center px-1 rounded-full border-2 border-[var(--theme-dark-bg,#3A241F)]">
-                    {toPersianDigits(badge > 99 ? '99+' : badge)}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-
-        {/* the profile and settings menu */}
-        <button
-          type="button"
-          onClick={() => setShowMobileMenu(true)}
-          aria-label="پروفایل"
-          title="منوی کاربری"
-          className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full text-white/70 hover:text-white transition-all active:scale-95 cursor-pointer"
-        >
-          <span className="w-7 h-7 rounded-full bg-gradient-to-br from-[#6E1B1B] to-[#D34A32] text-white flex items-center justify-center shadow-2xs">
-            <UserIcon className="w-3.5 h-3.5" />
-          </span>
-        </button>
-      </nav>
+        <ChevronUp className="w-5 h-5" strokeWidth={2.4} />
+      </button>
 
       {/* ========================================================================= */}
       {/* MOBILE PROFILE & QUICK ACTIONS BOTTOM SHEET DRAWER */}

@@ -70,6 +70,7 @@ var journalRules = []rule{
 	jr("POST", `/api/leaves/[^/]+/decide`, "LEAVE", "WARNING", "تصمیم دربارهٔ درخواست مرخصی"),
 	jr("DELETE", `/api/leaves/[^/]+`, "LEAVE", "INFO", "پس‌گرفتن درخواست مرخصی"),
 	jr("POST", `/api/voip/call`, "CALL", "INFO", "تماس تلفنی با یک کلیک"),
+	jr("GET", `/api/voip/recording/[^/]+`, "CALL_LISTEN", "WARNING", "شنیدن مکالمهٔ ضبط‌شده"),
 	jr("POST", `/api/auth/change-password`, "SECURITY_EVENT", "WARNING", "تغییر رمز عبور"),
 	jr("POST", `/api/warehouse/docs`, "WAREHOUSE", "INFO", "ثبت سند انبار"),
 	jr("POST", `/api/warehouse/docs/[^/]+/void`, "WAREHOUSE", "WARNING", "ابطال سند انبار"),

@@ -24,7 +24,7 @@ const savedVolume = (): number => {
 };
 
 /** Plays the recording of one call (fetched with the login, then played from memory). */
-const RecordingButton: React.FC<{ id: string }> = ({ id }) => {
+export const RecordingButton: React.FC<{ id: string }> = ({ id }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');

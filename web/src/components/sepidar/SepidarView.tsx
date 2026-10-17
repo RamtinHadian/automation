@@ -105,7 +105,7 @@ export const SepidarView: React.FC = () => {
   const tabs: [Tab, string, boolean][] = [
     ['deals', 'پیش‌فاکتور و فاکتور', can('quotation') || can('invoice') || can('receipt') || can('view')],
     ['customers', 'مشتریان', can('customer') || can('view')],
-    ['invoices', 'فاکتورهای سپیدار', can('view')],
+    ['invoices', 'فاکتورهای فروش', can('view')],
     ['prices', 'قیمت‌ها', can('view')],
     ['jobs', 'درخواست‌ها', true],
   ];
@@ -119,6 +119,7 @@ export const SepidarView: React.FC = () => {
   void accountName;
   const customerOfSepidar = new Map<number, string>();
   st.links.filter((l) => l.kind === 'customer').forEach((l) => customerOfSepidar.set(l.sepidarId, customers.find((c) => c.id === l.ref)?.name || ''));
+  const invoiceRows = (st.cache?.invoices?.items || []).filter((i: any) => matchesAll(i, q, customerOfSepidar.get(i.CustomerRef) || ''));
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -178,33 +179,35 @@ export const SepidarView: React.FC = () => {
             const paid = receipts.reduce((s, r) => s + Number(r.data?.amount || 0), 0);
             const wait = (k: string) => busy.has(k + ':' + d.id);
             return (
-              <div key={d.id} className="px-4 py-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-rose-700 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-black text-[#3A241F] truncate">
-                      <button type="button" onClick={() => setFinanceFor({ id: d.customerId, name: d.customerName })} className="font-black underline decoration-dotted underline-offset-4 hover:text-rose-800 cursor-pointer" title="وضعیت مالی مشتری در سپیدار">{d.customerName}</button> · پیش‌فاکتور {toPersianDigits(d.proformaNumber)}
-                    </div>
-                    <div className="text-[10px] font-bold text-[#8C6F66]">
-                      {qt ? `در سپیدار: پیش‌فاکتور ${toPersianDigits(qt.number ?? qt.sepidarId)}` : 'هنوز در سپیدار نیست'}
-                      {inv ? ` · فاکتور ${toPersianDigits(inv.number ?? inv.sepidarId)}` : ''}
-                      {paid ? ` · دریافتی ثبت‌شده ${fmt(paid)}` : ''}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {!qt && can('quotation') && <button type="button" disabled={wait('quotation.send')} onClick={() => ask({ kind: 'quotation.send', dealId: d.id }, 'پیش‌فاکتور برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-rose-700 text-white border-rose-700`}><Send className="w-3.5 h-3.5 inline ml-1" />ارسال به سپیدار</button>}
-                  {qt && !inv && can('invoice') && <button type="button" disabled={wait('invoice.fromProforma')} onClick={async () => (await askConfirm('فاکتور فروش در سپیدار صادر شود؟', { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' })) && ask({ kind: 'invoice.fromProforma', dealId: d.id }, 'صدور فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-emerald-700 text-white border-emerald-700`}><FileCheck2 className="w-3.5 h-3.5 inline ml-1" />صدور فاکتور</button>}
-                  {inv && can('receipt') && <button type="button" onClick={() => setReceiptFor(d)} className={`${BtnS} bg-sky-700 text-white border-sky-700`}><Banknote className="w-3.5 h-3.5 inline ml-1" />ثبت دریافتی</button>}
-                  {qt && !inv && can('quotation') && (
-                    <>
-                      <button type="button" disabled={wait('quotation.close')} onClick={() => ask({ kind: 'quotation.close', dealId: d.id }, 'بستن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بستن پیش‌فاکتور</button>
-                      <button type="button" disabled={wait('quotation.unclose')} onClick={() => ask({ kind: 'quotation.unclose', dealId: d.id }, 'بازکردن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بازکردن</button>
-                      <button type="button" disabled={wait('quotation.delete')} onClick={async () => (await askConfirm('پیش‌فاکتور از سپیدار حذف شود؟')) && ask({ kind: 'quotation.delete', dealId: d.id }, 'حذف پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-rose-200 text-rose-700`}>حذف از سپیدار</button>
-                    </>
-                  )}
-                </div>
-              </div>
+              <Card
+                key={d.id}
+                icon={<FileText className="w-5 h-5" />}
+                tone="rose"
+                title={
+                  <button type="button" onClick={() => setFinanceFor({ id: d.customerId, name: d.customerName })} className="font-black underline decoration-dotted underline-offset-4 hover:text-rose-800 cursor-pointer text-right" title="وضعیت مالی مشتری در سپیدار">
+                    {d.customerName}
+                  </button>
+                }
+                sub={`پیش‌فاکتور ${toPersianDigits(d.proformaNumber)}${d.title ? ' · ' + d.title : ''}`}
+                badge={inv ? ['فاکتور شد', 'bg-emerald-50 text-emerald-800 border-emerald-200'] : qt ? ['در سپیدار', 'bg-sky-50 text-sky-800 border-sky-200'] : ['هنوز در سپیدار نیست', 'bg-amber-50 text-amber-800 border-amber-200']}
+                facts={[
+                  ['مبلغ', d.amount ? fmt(d.amount) : '—'],
+                  ['پیش‌فاکتور سپیدار', qt ? toPersianDigits(qt.number ?? qt.sepidarId) : '—'],
+                  ['فاکتور', inv ? toPersianDigits(inv.number ?? inv.sepidarId) : '—'],
+                  ['دریافتی', paid ? fmt(paid) : '—'],
+                ]}
+              >
+                {!qt && can('quotation') && <button type="button" disabled={wait('quotation.send')} onClick={() => ask({ kind: 'quotation.send', dealId: d.id }, 'پیش‌فاکتور برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-rose-700 text-white border-rose-700`}><Send className="w-3.5 h-3.5 inline ml-1" />ارسال به سپیدار</button>}
+                {qt && !inv && can('invoice') && <button type="button" disabled={wait('invoice.fromProforma')} onClick={async () => (await askConfirm('فاکتور فروش در سپیدار صادر شود؟', { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' })) && ask({ kind: 'invoice.fromProforma', dealId: d.id }, 'صدور فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-emerald-700 text-white border-emerald-700`}><FileCheck2 className="w-3.5 h-3.5 inline ml-1" />صدور فاکتور</button>}
+                {inv && can('receipt') && <button type="button" onClick={() => setReceiptFor(d)} className={`${BtnS} bg-sky-700 text-white border-sky-700`}><Banknote className="w-3.5 h-3.5 inline ml-1" />ثبت دریافتی</button>}
+                {qt && !inv && can('quotation') && (
+                  <>
+                    <button type="button" disabled={wait('quotation.close')} onClick={() => ask({ kind: 'quotation.close', dealId: d.id }, 'بستن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بستن پیش‌فاکتور</button>
+                    <button type="button" disabled={wait('quotation.unclose')} onClick={() => ask({ kind: 'quotation.unclose', dealId: d.id }, 'بازکردن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بازکردن</button>
+                    <button type="button" disabled={wait('quotation.delete')} onClick={async () => (await askConfirm('پیش‌فاکتور از سپیدار حذف شود؟')) && ask({ kind: 'quotation.delete', dealId: d.id }, 'حذف پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-rose-200 text-rose-700`}>حذف از سپیدار</button>
+                  </>
+                )}
+              </Card>
             );
           })}
         </List>
@@ -216,48 +219,85 @@ export const SepidarView: React.FC = () => {
             const l = linkMap.get('customer:' + c.id);
             const bal = l ? balances.get(l.sepidarId) : undefined;
             return (
-              <div key={c.id} className="px-4 py-3 flex items-center gap-3">
-                <Users className="w-4 h-4 text-rose-700 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <button type="button" onClick={() => setFinanceFor({ id: c.id, name: c.name })} className="block max-w-full text-right text-xs font-black text-[#3A241F] truncate underline decoration-dotted underline-offset-4 hover:text-rose-800 cursor-pointer" title="وضعیت مالی مشتری در سپیدار">{c.name}</button>
-                  <div className="text-[10px] font-bold text-[#8C6F66] truncate">{l ? `در سپیدار (شناسه ${toPersianDigits(l.sepidarId)})` : 'هنوز در سپیدار نیست'}{bal ? ` · مانده حساب ${fmt(bal.Remainder)}` : ''}</div>
-                </div>
+              <Card
+                key={c.id}
+                icon={<Users className="w-5 h-5" />}
+                tone="rose"
+                title={
+                  <button type="button" onClick={() => setFinanceFor({ id: c.id, name: c.name })} className="font-black underline decoration-dotted underline-offset-4 hover:text-rose-800 cursor-pointer text-right" title="وضعیت مالی مشتری در سپیدار">
+                    {c.name}
+                  </button>
+                }
+                sub={[c.company, c.phones?.[0] ? toPersianDigits(c.phones[0]) : ''].filter(Boolean).join(' · ')}
+                badge={l ? ['در سپیدار', 'bg-emerald-50 text-emerald-800 border-emerald-200'] : ['هنوز در سپیدار نیست', 'bg-amber-50 text-amber-800 border-amber-200']}
+                facts={[
+                  ['شناسه سپیدار', l ? toPersianDigits(l.sepidarId) : '—'],
+                  ['مانده حساب', bal ? fmt(bal.Remainder) : '—'],
+                ]}
+              >
                 {can('customer') && (
                   <button type="button" disabled={busy.has('customer.send:' + c.id)} onClick={() => ask({ kind: 'customer.send', customerId: c.id }, 'درخواست برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>
                     {l ? 'بروزرسانی در سپیدار' : 'ثبت در سپیدار'}
                   </button>
                 )}
-              </div>
+              </Card>
             );
           })}
         </List>
       )}
 
       {tab === 'invoices' && (
-        <List empty="فاکتوری دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
-          {(st.cache?.invoices?.items || []).filter((i: any) => matchesAll(i, q, customerOfSepidar.get(i.CustomerRef) || '')).slice(0, 300).map((i: any) => (
-            <div key={i.InvoiceID ?? i.ID} className="px-4 py-3 flex items-center gap-3">
-              <FileCheck2 className="w-4 h-4 text-emerald-700 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-black text-[#3A241F] truncate">فاکتور {toPersianDigits(i.Number)} · {customerOfSepidar.get(i.CustomerRef) || balances.get(i.CustomerRef)?.Title || 'مشتری سپیدار ' + toPersianDigits(i.CustomerRef)}</div>
-                <div className="text-[10px] font-bold text-[#8C6F66]">{i.Date ? formatTaskDate(String(i.Date).slice(0, 10)) : ''}</div>
-              </div>
-              <div className="text-xs font-black whitespace-nowrap">{fmt(i.NetPrice ?? i.Price)}</div>
-            </div>
-          ))}
-        </List>
+        <>
+          <InvoicesSummary rows={invoiceRows} />
+          <List empty="فاکتوری دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
+            {invoiceRows.slice(0, 300).map((i: any) => {
+              const cname = customerOfSepidar.get(i.CustomerRef) || balances.get(i.CustomerRef)?.Title || 'مشتری سپیدار ' + toPersianDigits(i.CustomerRef);
+              const hoormandCustomerId = [...st.links].find((l) => l.kind === 'customer' && l.sepidarId === i.CustomerRef)?.ref;
+              const proforma = st.links.find((l) => l.kind === 'invoice' && l.sepidarId === (i.InvoiceID ?? i.ID));
+              return (
+                <Card
+                  key={i.InvoiceID ?? i.ID}
+                  icon={<FileCheck2 className="w-5 h-5" />}
+                  tone="emerald"
+                  title={
+                    hoormandCustomerId ? (
+                      <button type="button" onClick={() => setFinanceFor({ id: hoormandCustomerId, name: cname })} className="font-black underline decoration-dotted underline-offset-4 hover:text-emerald-800 cursor-pointer text-right" title="وضعیت مالی مشتری در سپیدار">
+                        {cname}
+                      </button>
+                    ) : (
+                      cname
+                    )
+                  }
+                  sub={`فاکتور فروش ${toPersianDigits(i.Number)}${i.Date ? ' · ' + formatTaskDate(String(i.Date).slice(0, 10)) : ''}`}
+                  badge={proforma ? ['از پیش‌فاکتور هورمند', 'bg-sky-50 text-sky-800 border-sky-200'] : null}
+                  facts={[
+                    ['مبلغ', i.Price != null ? fmt(i.Price) : '—'],
+                    ['تخفیف', i.Discount ? fmt(i.Discount) : '—'],
+                    ['مالیات', i.Tax ? fmt(i.Tax) : '—'],
+                    ['خالص', fmt(i.NetPrice ?? i.Price)],
+                  ]}
+                />
+              );
+            })}
+          </List>
+        </>
       )}
 
       {tab === 'prices' && (
         <List empty="لیست قیمتی دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
           {(st.cache?.priceNotes?.items || []).filter((p: any) => matchesAll(p, q)).slice(0, 300).map((p: any, i: number) => (
-            <div key={i} className="px-4 py-3 flex items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-black text-[#3A241F] truncate">{p.title || 'کالا ' + toPersianDigits(p.itemRef)}</div>
-                <div className="text-[10px] font-bold text-[#8C6F66]">{p.code ? toPersianDigits(p.code) : ''} · نوع فروش {toPersianDigits(p.saleTypeRef)}</div>
-              </div>
-              <div className="text-xs font-black whitespace-nowrap">{fmt(p.fee)}</div>
-            </div>
+            <Card
+              key={i}
+              icon={<Banknote className="w-5 h-5" />}
+              tone="amber"
+              title={p.title || 'کالا ' + toPersianDigits(p.itemRef)}
+              sub={p.code ? `کد ${toPersianDigits(p.code)}` : ''}
+              badge={null}
+              facts={[
+                ['قیمت', fmt(p.fee)],
+                ['نوع فروش', toPersianDigits(p.saleTypeRef)],
+              ]}
+            />
           ))}
         </List>
       )}
@@ -265,16 +305,22 @@ export const SepidarView: React.FC = () => {
       {tab === 'jobs' && (
         <List empty="درخواستی ثبت نشده است.">
           {st.jobs.map((j) => (
-            <div key={j.id} className="px-4 py-3 flex items-center gap-3">
-              <span className={`text-[10px] font-black px-2 py-1 rounded-lg border whitespace-nowrap ${STATUS[j.status][1]}`}>{STATUS[j.status][0]}</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-black text-[#3A241F] truncate">{st.jobKinds[j.kind]?.Title || j.kind}{j.data.title ? ` · ${j.data.title}` : ''}</div>
-                <div className="text-[10px] font-bold text-[#8C6F66] truncate">{j.by} · {timeOf(j.createdAt)}{j.result?.message ? ` · ${j.result.message}` : ''}</div>
-              </div>
+            <Card
+              key={j.id}
+              icon={<Send className="w-5 h-5" />}
+              tone="sky"
+              title={`${st.jobKinds[j.kind]?.Title || j.kind}${j.data.title ? ` · ${j.data.title}` : ''}`}
+              sub={`${j.by} · ${timeOf(j.createdAt)}`}
+              badge={[STATUS[j.status][0], STATUS[j.status][1]]}
+              facts={j.result?.message ? [['نتیجه', j.result.message]] : []}
+            >
               {j.status === 'pending' && (
-                <button type="button" onClick={async () => (await askConfirm('این درخواست از صف برداشته شود؟', { tone: 'warning', title: 'لغو درخواست', confirmText: 'بله، لغو شود' })) && api.sepidarCancel(j.id).then(load).catch((e) => showToast(e.message))} className="p-1.5 text-[#8C6F66] cursor-pointer" aria-label="لغو"><X className="w-4 h-4" /></button>
+                <button type="button" onClick={async () => (await askConfirm('این درخواست از صف برداشته شود؟', { tone: 'warning', title: 'لغو درخواست', confirmText: 'بله، لغو شود' })) && api.sepidarCancel(j.id).then(load).catch((e) => showToast(e.message))} className={`${BtnS} bg-white border-rose-200 text-rose-700`}>
+                  <X className="w-3.5 h-3.5 inline ml-1" />
+                  لغو درخواست
+                </button>
               )}
-            </div>
+            </Card>
           ))}
         </List>
       )}
@@ -311,7 +357,62 @@ const List: React.FC<{ empty: string; children: React.ReactNode }> = ({ empty, c
   return items.length === 0 ? (
     <div className="bg-white rounded-2xl border border-dashed border-[#EBDBCE] p-8 text-center text-xs font-bold text-[#8C6F66]">{empty}</div>
   ) : (
-    <div className="bg-white rounded-2xl border border-[#EBDBCE] divide-y divide-[#F3E8DF] overflow-hidden">{items}</div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">{items}</div>
+  );
+};
+
+const TONES: Record<string, string> = { rose: 'bg-rose-100 text-rose-700', emerald: 'bg-emerald-100 text-emerald-700', amber: 'bg-amber-100 text-amber-700', sky: 'bg-sky-100 text-sky-700' };
+
+/** One box of the Sepidar page: the same look as the customer boxes of the CRM (icon, title, small line, numbers, actions at the bottom). */
+const Card: React.FC<{
+  icon: React.ReactNode;
+  tone: keyof typeof TONES | string;
+  title: React.ReactNode;
+  sub?: string;
+  badge?: [string, string] | null;
+  facts?: [string, React.ReactNode][];
+  children?: React.ReactNode;
+}> = ({ icon, tone, title, sub, badge, facts = [], children }) => (
+  <div className="rounded-2xl border border-[#EBDBCE] bg-white p-4 flex flex-col gap-3 shadow-2xs hover:shadow-md transition-shadow" data-sepidar-card>
+    <div className="flex items-start gap-3">
+      <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${TONES[tone] || TONES.rose}`}>{icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-black text-[#3A241F] leading-6 break-words">{title}</div>
+        {sub ? <div className="text-[11px] font-bold text-[#8C6F66] leading-5 break-words">{sub}</div> : null}
+      </div>
+      {badge ? <span className={`text-[10px] font-black px-2 py-1 rounded-lg border whitespace-nowrap shrink-0 ${badge[1]}`}>{badge[0]}</span> : null}
+    </div>
+    {facts.length > 0 && (
+      <div className="grid grid-cols-2 gap-2">
+        {facts.map(([k, v]) => (
+          <div key={k} className="rounded-xl bg-[#FAF5F1] border border-[#EBDBCE]/70 px-3 py-1.5 min-w-0">
+            <div className="text-[10px] font-bold text-[#8C6F66]">{k}</div>
+            <div className="text-xs font-black text-[#3A241F] break-words">{v}</div>
+          </div>
+        ))}
+      </div>
+    )}
+    {children ? <div className="flex flex-wrap gap-1.5 mt-auto pt-1">{children}</div> : null}
+  </div>
+);
+
+/** The sales invoices that Sepidar issued: how many and their total (of what is shown). */
+const InvoicesSummary: React.FC<{ rows: any[] }> = ({ rows }) => {
+  const total = rows.reduce((s, i) => s + Number(i.NetPrice ?? i.Price ?? 0), 0);
+  const tax = rows.reduce((s, i) => s + Number(i.Tax || 0), 0);
+  return (
+    <div className="grid grid-cols-3 gap-2 text-center">
+      {[
+        ['تعداد فاکتور فروش', toPersianDigits(rows.length)],
+        ['جمع خالص', fmt(total)],
+        ['جمع مالیات', fmt(tax)],
+      ].map(([t, v]) => (
+        <div key={t} className="rounded-2xl border border-emerald-200 bg-emerald-50/60 px-3 py-2">
+          <div className="text-[10px] font-bold text-emerald-800">{t}</div>
+          <div className="text-sm font-black text-emerald-900">{v}</div>
+        </div>
+      ))}
+    </div>
   );
 };
 
