@@ -135,6 +135,10 @@ export function startUi({ dir, cfgPath, script }) {
       job.lines = [];
       const c = readCfg();
       const a = b.action;
+      if (['test', 'preview', 'apply', 'auto', 'password'].includes(a) && !(c.hoormand && c.sepidar)) {
+        job.lines = [];
+        return json({ error: 'هنوز اطلاعات اتصال ذخیره نشده است. اول کادرهای بخش ۱ را پر کنید و «ذخیره و راه‌اندازی» را بزنید؛ بعد این دکمه را بزنید.' }, 400);
+      }
       if (a === 'setup') {
         const hUrl = b.hoormand || c.hoormand?.url;
         const serial = b.serial || c.sepidar?.serial;
