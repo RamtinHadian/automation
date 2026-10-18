@@ -13,6 +13,7 @@ import { CrmView } from '../components/crm/CrmView';
 import { WarrantyView } from '../components/warranty/WarrantyView';
 import { WarehouseView } from '../components/warehouse/WarehouseView';
 import { SepidarView } from '../components/sepidar/SepidarView';
+import { VersionNotice } from '../components/sepidar/VersionNotice';
 import { CompanyCalls } from '../components/common/CompanyCalls';
 import { ReminderPopup, RemindersView } from '../components/reminders/Reminders';
 import { SupportView } from '../components/support/SupportView';
@@ -1568,6 +1569,7 @@ export default function UserPanel() {
         {mainMenuTab === 'warranty' && canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty') && <WarrantyView />}
         {mainMenuTab === 'warehouse' && canAccessWarehouseMenu && <WarehouseView />}
         {mainMenuTab === 'sepidar' && canAccessSepidarMenu && <SepidarView />}
+        <VersionNotice enabled={canAccessSepidarMenu} />
         {mainMenuTab === 'calls' && canAccessCallsMenu && <CompanyCalls />}
         {mainMenuTab === 'support' && canAccessWarrantyMenu && canSub(currentUser, 'warranty.support') && <SupportView />}
         {mainMenuTab === 'stats' && canAccessStatsMenu && (

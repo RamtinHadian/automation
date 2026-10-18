@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, FileCheck2, FileText, KeyRound, ScrollText, Link2, RefreshCw, Search, Send, Unplug, Users, X } from 'lucide-react';
+import { Banknote, FileCheck2, FileText, Info, KeyRound, ScrollText, Link2, RefreshCw, Search, Send, Unplug, Users, X } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
@@ -9,6 +9,7 @@ import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label } from '../crm/crmUi';
 import { matchesAll } from '../../lib/searchAll';
 import { CustomerFinance } from './CustomerFinance';
+import { OPEN_VERSION_NOTICE } from './VersionNotice';
 import { BoxCard as Card, BoxGrid as List } from '../common/BoxCard';
 import { SubTabs } from '../common/SubTabs';
 
@@ -173,6 +174,9 @@ export const SepidarView: React.FC = () => {
               <KeyRound className="w-4 h-4" />
             </button>
           )}
+          <button type="button" title="نسخهٔ هورمند روی این سیستم" aria-label="نسخهٔ هورمند" onClick={() => window.dispatchEvent(new Event(OPEN_VERSION_NOTICE))} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white" data-version-notice-btn>
+            <Info className="w-4 h-4" />
+          </button>
           {isAdmin && (
             <button type="button" title="گزارش ابزار سپیدار (آنچه ابزار از سپیدار خوانده)" aria-label="گزارش ابزار سپیدار" onClick={() => setShowReport((v) => !v)} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white" data-tool-report-btn>
               <ScrollText className="w-4 h-4" />
