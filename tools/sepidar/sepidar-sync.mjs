@@ -218,8 +218,17 @@ export function quotationBody(deal, customerRef, itemsByCode, sync) {
   };
 }
 
+/** Every plain value of a Sepidar record (text, number, yes / no), except what Hoormand already has a field for: kept with the warehouse or the product. */
+const scalars = (o, skip) =>
+  Object.fromEntries(
+    Object.entries(o || {})
+      .filter(([k, v]) => !skip.includes(k) && v !== null && v !== '' && typeof v !== 'object' && typeof v !== 'function')
+      .slice(0, 40)
+      .map(([k, v]) => [k, String(v).slice(0, 200)]),
+  );
+
 /** The catalogue and the stock of Sepidar's warehouses in the shape Hoormand's warehouse sync takes. */
-export function stockPayload(stocks, items, units, inventories) {
+export function stockPayload(stocks, items, units, inventories, groupOf = () => '') {
   const unitTitle = new Map(units.map((u) => [u.UnitID, u.Title]));
   const stockCode = new Map(stocks.map((w) => [w.StockID, String(w.Code ?? w.StockID).trim()]));
   const goods = items.filter((i) => i.Type !== 2 && String(i.Code ?? i.ItemCode ?? '').trim());
@@ -228,26 +237,40 @@ export function stockPayload(stocks, items, units, inventories) {
   for (const r of inventories) {
     const pc = codeOf.get(r.ItemRef ?? r.ItemID);
     const wc = stockCode.get(r.StockRef ?? r.StockID);
-    const q = Number(r.Quantity ?? r.Qty ?? 0);
+    const q = Number(r.Quantity ?? r.Qty ?? r.Balance ?? r.Remaining ?? r.CurrentQuantity ?? r.StockQuantity ?? r.Count ?? 0);
     if (!pc || !wc || !Number.isFinite(q)) continue;
     sums.set(pc + '|' + wc, (sums.get(pc + '|' + wc) || 0) + q);
   }
   return {
     complete: true,
-    warehouses: stocks.map((w) => ({ code: String(w.Code ?? w.StockID).trim(), title: w.Title || String(w.Code), active: w.IsActive !== false })),
-    products: goods.map((i) => ({ code: String(i.Code ?? i.ItemCode).trim(), title: i.Title || String(i.Code ?? i.ItemCode), unit: unitTitle.get(i.UnitRef) || '', barcode: i.Barcode || '', active: i.IsActive !== false })),
+    warehouses: stocks.map((w) => ({ code: String(w.Code ?? w.StockID).trim(), title: w.Title || String(w.Code), active: w.IsActive !== false, location: String(w.Address ?? w.Location ?? '').slice(0, 200), extra: scalars(w, ['StockID', 'Code', 'Title', 'IsActive']) })),
+    products: goods.map((i) => ({ code: String(i.Code ?? i.ItemCode).trim(), title: i.Title || String(i.Code ?? i.ItemCode), unit: unitTitle.get(i.UnitRef) || '', group: groupOf(i) || '', barcode: i.Barcode || '', active: i.IsActive !== false, extra: scalars(i, ['ItemID', 'Code', 'Title', 'Barcode', 'IsActive']) })),
     stock: [...sums].map(([k, qty]) => { const [productCode, warehouseCode] = k.split('|'); return { productCode, warehouseCode, qty: Math.max(0, Math.round(qty * 1000) / 1000) }; }),
   };
 }
 
-/** Sepidar's versions differ in where the stock lives: the configured address first, then the usual ones; the first that answers with rows wins. */
-async function readInventories(sp, cfg) {
-  const paths = [...new Set([cfg.sync.inventoryPath, '/api/Items/Inventories', '/api/ItemStocks', '/api/Inventories', '/api/Stocks/Inventories', '/api/StockItems'].filter(Boolean))];
+/** Sepidar's versions differ in where the stock lives: the configured address first, then the usual ones (also asked warehouse by warehouse); the first that answers with rows wins. */
+async function readInventories(sp, cfg, stocks = []) {
+  const paths = [...new Set([cfg.sync.inventoryPath, '/api/Items/Inventories', '/api/ItemStockSummaries', '/api/ItemStocks', '/api/ItemStockSummary', '/api/Inventories', '/api/Stocks/Inventories', '/api/StockItems', '/api/Items/StockSummaries', '/api/StockSummaries'].filter(Boolean))];
   for (const path of paths) {
     try {
       const rows = await sp.get(path);
       log(`  موجودی از ${path}: ${Array.isArray(rows) ? rows.length : 'پاسخ نامعتبر'} ردیف`);
       if (Array.isArray(rows) && rows.length) return { rows, path };
+      if (Array.isArray(rows)) {
+        // the address exists but wants the warehouse: ask for every warehouse in turn
+        const all = [];
+        for (const w of stocks.slice(0, 80)) {
+          try {
+            const part = await sp.get(`${path}?StockRef=${w.StockID}`);
+            if (Array.isArray(part)) for (const r of part) all.push({ StockRef: w.StockID, ...r });
+          } catch {
+            break;
+          }
+        }
+        log(`  موجودی از ${path} به تفکیک انبار: ${all.length} ردیف`);
+        if (all.length) return { rows: all, path };
+      }
     } catch (e) {
       log(`  ${path}: ${e.message}`);
     }
@@ -255,12 +278,45 @@ async function readInventories(sp, cfg) {
   return { rows: [], path: null };
 }
 
+/** The groups of the goods: a function that gives the group name (with its parents, «پدر / فرزند») of an item. Nothing is guessed: no answer = no group. */
+async function readItemGroups(sp, items) {
+  const field = items[0] ? Object.keys(items[0]).find((k) => /(Category|Group|Grouping)(Ref|ID|Id)$/i.test(k) && !/Customer|Supplier|Tax|Price|Sale|Intermediary/i.test(k)) : null;
+  if (!field) {
+    log('  گروه کالا: فیلد گروه در آیتم‌ها پیدا نشد.');
+    return () => '';
+  }
+  for (const path of ['/api/ItemCategories', '/api/ItemGroups', '/api/ItemGroupings', '/api/ItemCategory', '/api/Categories']) {
+    try {
+      const rows = await sp.get(path);
+      if (!Array.isArray(rows) || !rows.length) continue;
+      const idKey = Object.keys(rows[0]).find((k) => /ID$|Id$/.test(k) && !/Parent/i.test(k));
+      const parentKey = Object.keys(rows[0]).find((k) => /Parent(Ref|ID|Id)$/i.test(k));
+      const byId = new Map(rows.map((g) => [g[idKey], g]));
+      const nameOf = (g, depth = 0) => {
+        const t = g.Title || g.Name || '';
+        const par = parentKey && g[parentKey] != null ? byId.get(g[parentKey]) : null;
+        return par && depth < 5 && par !== g ? `${nameOf(par, depth + 1)} / ${t}` : t;
+      };
+      log(`  گروه کالا: ${rows.length} گروه از ${path} (فیلد کالا: ${field})`);
+      return (item) => {
+        const g = byId.get(item[field]);
+        return g ? nameOf(g) : '';
+      };
+    } catch (e) {
+      /* try the next address */
+    }
+  }
+  log(`  گروه کالا: فهرست گروه‌ها پیدا نشد (فیلد کالا: ${field})`);
+  return () => '';
+}
+
 async function cmdStock(cfg) {
   const state = loadState();
   const sp = client(cfg, state);
   const [stocks, items, units] = await Promise.all([sp.get('/api/Stocks'), sp.get('/api/Items'), sp.get('/api/Units')]);
-  const { rows: inventories } = await readInventories(sp, cfg);
-  const pay = stockPayload(stocks, items, units, inventories);
+  const { rows: inventories } = await readInventories(sp, cfg, stocks);
+  const groupOf = await readItemGroups(sp, items);
+  const pay = stockPayload(stocks, items, units, inventories, groupOf);
   // no stock rows read (an address that does not exist in this Sepidar, or nothing matched): never tell Hoormand that every product has none
   if (!pay.stock.length) {
     pay.complete = false;
@@ -277,6 +333,11 @@ async function cmdStock(cfg) {
   }
   const r = await hoormandPost(cfg, '/warehouse/sync', pay);
   log(`به هورمند فرستاده شد: انبار تازه ${r.warehousesNew}، کالای تازه ${r.productsNew}، سند تعدیل ${r.docs}، ردیف تغییرکرده ${r.changed}`);
+  try {
+    await hoormandPost(cfg, '/sepidar/push', { cache: 'toolReport', items: [{ at: new Date().toISOString(), lines: recentLog.slice(-80) }] });
+  } catch {
+    /* an older Hoormand does not know the report */
+  }
   return r;
 }
 

@@ -149,6 +149,85 @@ func whListDocs(ctx context.Context, where string, args []any, limit, offset int
 	return out, nil
 }
 
+// whExtra: the plain values the accounting program keeps about a warehouse or a product (name → text), kept as they are for the page to show.
+func whExtra(m jsonx.M) map[string]string {
+	raw, _ := m["extra"].(map[string]any)
+	out := map[string]string{}
+	for k, v := range raw {
+		if len(out) >= 40 || len(k) > 60 {
+			continue
+		}
+		switch t := v.(type) {
+		case string:
+			out[k] = whCut(t, 200)
+		case bool, float64, json.Number:
+			out[k] = whCut(fmt.Sprint(t), 200)
+		}
+	}
+	return out
+}
+
+func whCut(s string, n int) string {
+	r := []rune(strings.TrimSpace(s))
+	if len(r) > n {
+		r = r[:n]
+	}
+	return string(r)
+}
+
+// whNoGroup is how products without a group are named in the lists a person may see.
+const whNoGroup = "بدون گروه"
+
+// whGroupOK: a person sees the products of the groups the administrator picked for them (user.whGroups); none picked = every group.
+func whGroupOK(me auth.User, group string) bool {
+	if me.IsAdmin() {
+		return true
+	}
+	list := jsonx.Strings(me.M, "whGroups")
+	if len(list) == 0 {
+		return true
+	}
+	if group == "" {
+		group = whNoGroup
+	}
+	return jsonx.Contains(list, group)
+}
+
+// whGroupDocs keeps, in each document, only the lines of the products the person may see (a document with none left is left out).
+func whGroupDocs(ctx context.Context, me auth.User, docs []jsonx.M) []jsonx.M {
+	if me.IsAdmin() || len(jsonx.Strings(me.M, "whGroups")) == 0 {
+		return docs
+	}
+	ok := map[string]bool{}
+	if rows, err := store.Pool.Query(ctx, `SELECT id, COALESCE(data->>'group', '') FROM wh_products`); err == nil {
+		for rows.Next() {
+			var id, g string
+			if rows.Scan(&id, &g) == nil && whGroupOK(me, g) {
+				ok[id] = true
+			}
+		}
+		rows.Close()
+	}
+	out := []jsonx.M{}
+	for _, d := range docs {
+		lines, _ := d["lines"].([]any)
+		if len(lines) == 0 {
+			continue
+		}
+		keep := []any{}
+		for _, l := range lines {
+			if m, isMap := l.(map[string]any); isMap && ok[jsonx.Str(m, "productId")] {
+				keep = append(keep, l)
+			}
+		}
+		if len(keep) > 0 {
+			d["lines"] = keep
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 // GET /api/warehouse: warehouses, products with their stock, and the latest documents.
 func whState(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
@@ -189,6 +268,9 @@ func whState(w http.ResponseWriter, r *http.Request) {
 		if rows.Scan(&id, &raw) == nil {
 			d := jsonx.Decode(raw)
 			d["id"] = id
+			if !whGroupOK(me, jsonx.Str(d, "group")) {
+				continue
+			}
 			total := 0.0
 			by := map[string]float64{}
 			for wh, n := range bal[id] {
@@ -217,6 +299,7 @@ func whState(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	recent = whGroupDocs(ctx, me, recent)
 	mode, last, source := whModeInfo(ctx)
 	httpx.JSON(w, http.StatusOK, map[string]any{"warehouses": whs, "products": prods, "recent": recent, "kinds": whKinds, "mode": mode, "lastSyncAt": last, "source": source,
 		"limits": map[string]any{"qty": whQtyAllowed(me), "money": whMoneyAllowed(me), "kinds": kinds}})
@@ -260,6 +343,7 @@ func whDocs(w http.ResponseWriter, r *http.Request) {
 		internalError(w)
 		return
 	}
+	docs = whGroupDocs(r.Context(), me, docs)
 	httpx.JSON(w, http.StatusOK, map[string]any{"docs": docs, "limit": limit, "offset": offset})
 }
 
@@ -279,7 +363,11 @@ func whCard(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "کالا پیدا نشد.")
 		return
 	}
-sql, args := `SELECT m.doc_date::text, m.warehouse_id, m.qty::float8, d.kind, d.number, d.data FROM wh_moves m JOIN wh_docs d ON d.id = m.doc_id WHERE m.product_id = $1 AND NOT m.voided AND d.kind = ANY($2::text[])`, []any{pid, whAllowedKinds(me)}
+if g := jsonx.Str(jsonx.Decode(praw), "group"); !whGroupOK(me, g) {
+		httpx.Error(w, http.StatusForbidden, "گروه این کالا برای شما باز نشده است.")
+		return
+	}
+	sql, args := `SELECT m.doc_date::text, m.warehouse_id, m.qty::float8, d.kind, d.number, d.data FROM wh_moves m JOIN wh_docs d ON d.id = m.doc_id WHERE m.product_id = $1 AND NOT m.voided AND d.kind = ANY($2::text[])`, []any{pid, whAllowedKinds(me)}
 	if wid != "" {
 		args = append(args, wid)
 		sql += ` AND m.warehouse_id = $3`
@@ -993,6 +1081,12 @@ func whSync(ctx context.Context, by auth.User, keyName string, body jsonx.M) (js
 			whNew++
 		}
 		d["id"], d["code"], d["title"], d["active"] = id, code, title, whAct(m)
+		if loc := whText(m, "location", 200); loc != "" {
+			d["location"] = loc
+		}
+		if ex := whExtra(m); len(ex) > 0 {
+			d["sepidar"] = ex
+		}
 		if _, err := tx.Exec(ctx, `INSERT INTO wh_warehouses (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO UPDATE SET data = $2::jsonb`, id, jsonx.Encode(d)); err != nil {
 			return nil, err
 		}
@@ -1024,6 +1118,9 @@ func whSync(ctx context.Context, by auth.User, keyName string, body jsonx.M) (js
 		}
 		if b := whText(m, "barcode", 60); b != "" {
 			d["barcode"] = b
+		}
+		if ex := whExtra(m); len(ex) > 0 {
+			d["sepidar"] = ex
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO wh_products (id, code, data) VALUES ($1, $2, $3::jsonb) ON CONFLICT (id) DO UPDATE SET code = $2, data = $3::jsonb`, id, code, jsonx.Encode(d)); err != nil {
 			return nil, err

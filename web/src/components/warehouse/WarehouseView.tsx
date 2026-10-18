@@ -38,6 +38,7 @@ export const WarehouseView: React.FC = () => {
   const [cardOf, setCardOf] = useState<WhProduct | null>(null);
   const [docOpen, setDocOpen] = useState<WhDoc | null>(null);
   const [prodEdit, setProdEdit] = useState<Partial<WhProduct> | null>(null);
+  const [group, setGroup] = useState('');
   const [whEdit, setWhEdit] = useState<Partial<WhWarehouse> | null>(null);
 
   const load = useCallback(async () => {
@@ -56,6 +57,10 @@ export const WarehouseView: React.FC = () => {
   if (!st) return <div className="p-8 text-center text-xs font-bold text-[#8C6F66]">در حال دریافت…</div>;
 
   const sepidar = st.mode === 'sepidar';
+  // the groups of the products (as Sepidar has them) with how many products each holds
+  const groupCount = new Map<string, number>();
+  st.products.forEach((p) => groupCount.set(p.group || 'بدون گروه', (groupCount.get(p.group || 'بدون گروه') || 0) + 1));
+  const groups: [string, string, number][] = [...groupCount.entries()].sort((a, b) => a[0].localeCompare(b[0], 'fa')).map(([g, n]) => [g, g, n]);
 const qtyOk = st.limits ? st.limits.qty : true;
 	const kindsOk = (st.limits?.kinds ?? (Object.keys(KIND_LABEL) as WhKind[])) as WhKind[];
 	const low = qtyOk ? st.products.filter((p) => (p.minQty || 0) > 0 && p.total < (p.minQty || 0)) : [];
@@ -125,9 +130,18 @@ const qtyOk = st.limits ? st.limits.qty : true;
         </div>
       )}
 
-      {shownTab === 'stock' && <StockTab st={st} onCard={setCardOf} />}
+      {(shownTab === 'stock' || shownTab === 'products') && groups.length > 1 && (
+        <div className="flex flex-wrap gap-1.5" data-group-bar>
+          {[['', 'همهٔ گروه‌ها', st.products.length] as [string, string, number], ...groups].map(([g, text, n]) => (
+            <button key={g || 'all'} type="button" onClick={() => setGroup(g)} className={`px-3 py-1.5 rounded-full text-[11px] font-black border cursor-pointer ${group === g ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-amber-50'}`}>
+              {text} <span className={group === g ? 'opacity-80' : 'text-[#8C6F66]'}>{toPersianDigits(n)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {shownTab === 'stock' && <StockTab st={st} group={group} onCard={setCardOf} />}
       {shownTab === 'docs' && <DocsTab st={st} onOpen={setDocOpen} />}
-      {shownTab === 'products' && <ProductsTab st={st} sepidar={sepidar} onEdit={setProdEdit} onCard={setCardOf} />}
+      {shownTab === 'products' && <ProductsTab st={st} group={group} sepidar={sepidar} onEdit={setProdEdit} onCard={setCardOf} />}
       {shownTab === 'warehouses' && <WarehousesTab st={st} sepidar={sepidar} onEdit={setWhEdit} />}
 
       {docForm && (
@@ -167,14 +181,14 @@ const csvDownload = (name: string, rows: (string | number)[][]) => {
   URL.revokeObjectURL(url);
 };
 
-const StockTab: React.FC<{ st: WhState; onCard: (p: WhProduct) => void }> = ({ st, onCard }) => {
+const StockTab: React.FC<{ st: WhState; group: string; onCard: (p: WhProduct) => void }> = ({ st, group, onCard }) => {
   const [q, setQ] = useState('');
   const [wh, setWh] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
   const rows = useMemo(() => {
     const names = (p: WhProduct) => Object.entries(p.byWarehouse || {}).filter(([, n]) => n).map(([id]) => st.warehouses.find((w) => w.id === id)?.title || '');
-    return st.products.filter((p) => p.active !== false && matchesAll(p, q, names(p)) && (!onlyLow || ((p.minQty || 0) > 0 && p.total < (p.minQty || 0))) && (!wh || (p.byWarehouse[wh] || 0) !== 0));
-  }, [st, q, wh, onlyLow]);
+    return st.products.filter((p) => p.active !== false && (!group || (p.group || 'بدون گروه') === group) && matchesAll(p, q, names(p)) && (!onlyLow || ((p.minQty || 0) > 0 && p.total < (p.minQty || 0))) && (!wh || (p.byWarehouse[wh] || 0) !== 0));
+  }, [st, q, wh, onlyLow, group]);
   const qtyOf = (p: WhProduct) => (wh ? p.byWarehouse[wh] || 0 : p.total);
   const whName = (id: string) => st.warehouses.find((w) => w.id === id)?.title || '';
   return (
@@ -576,9 +590,9 @@ const CardModal: React.FC<{ st: WhState; product: WhProduct; onClose: () => void
 
 // ---------- products and warehouses ----------
 
-const ProductsTab: React.FC<{ st: WhState; sepidar: boolean; onEdit: (p: Partial<WhProduct>) => void; onCard: (p: WhProduct) => void }> = ({ st, sepidar, onEdit }) => {
+const ProductsTab: React.FC<{ st: WhState; group: string; sepidar: boolean; onEdit: (p: Partial<WhProduct>) => void; onCard: (p: WhProduct) => void }> = ({ st, group, sepidar, onEdit }) => {
   const [q, setQ] = useState('');
-  const rows = st.products.filter((p) => matchesAll(p, q, Object.keys(p.byWarehouse || {}).map((id) => st.warehouses.find((w) => w.id === id)?.title || '')));
+  const rows = st.products.filter((p) => (!group || (p.group || 'بدون گروه') === group) && matchesAll(p, q, Object.keys(p.byWarehouse || {}).map((id) => st.warehouses.find((w) => w.id === id)?.title || '')));
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
@@ -659,6 +673,7 @@ const { showToast, currentUser } = useAppContext();
       </>
     }>
       {sepidar && <div className="rounded-xl bg-sky-50 border border-sky-200 p-3 text-[11px] font-bold text-sky-900">کد، نام و واحد از سپیدار می‌آید؛ فقط حداقل موجودی و یادداشت را می‌توانید تغییر دهید.</div>}
+      <SepidarInfo info={p.sepidar} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><span className={label}>کد کالا</span><input value={f.code} disabled={lockBase} onChange={(e) => setF({ ...f, code: e.target.value })} className={field} /></div>
         <div><span className={label}>واحد</span><input value={f.unit} disabled={lockBase} onChange={(e) => setF({ ...f, unit: e.target.value })} className={field} /></div>
@@ -683,6 +698,23 @@ const { showToast, currentUser } = useAppContext();
 </div>}
       </div>
     </Modal>
+  );
+};
+
+/** Everything Sepidar keeps about the warehouse or product, as it sent it (name → value). */
+const SEPIDAR_LABELS: Record<string, string> = { Address: 'آدرس', Description: 'توضیحات', Phone: 'تلفن', PhoneNumber: 'تلفن', Keeper: 'انباردار', Type: 'نوع', Barcode: 'بارکد', ItemType: 'نوع کالا', SaleGroupRef: 'گروه فروش', TracingRef: 'ردیابی', HasTracing: 'ردیابی دارد', IsActive: 'فعال', Weight: 'وزن', Length: 'طول', Width: 'عرض', Height: 'ارتفاع', Volume: 'حجم', Tax: 'مالیات', Duty: 'عوارض', MinimumQuantity: 'حداقل موجودی در سپیدار', MaximumQuantity: 'حداکثر موجودی در سپیدار', Rate: 'نرخ', Fee: 'فی' };
+const SepidarInfo: React.FC<{ info?: Record<string, string> }> = ({ info }) => {
+  const rows = Object.entries(info || {});
+  if (rows.length === 0) return null;
+  return (
+    <details className="rounded-xl border border-sky-200 bg-sky-50/50 px-3 py-2" data-sepidar-info>
+      <summary className="text-[11px] font-black text-sky-900 cursor-pointer">اطلاعات سپیدار ({toPersianDigits(rows.length)} مورد)</summary>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-[11px] font-bold text-[#3A241F]">
+        {rows.map(([k, v]) => (
+          <div key={k} className="min-w-0 flex gap-1.5"><span className="text-[#8C6F66] shrink-0">{SEPIDAR_LABELS[k] || k}:</span><span className="truncate">{toPersianDigits(v)}</span></div>
+        ))}
+      </div>
+    </details>
   );
 };
 
@@ -759,6 +791,7 @@ const WarehouseModal: React.FC<{ w: Partial<WhWarehouse>; sepidar: boolean; isAd
       </>
     }>
       {sepidar && <div className="rounded-xl bg-sky-50 border border-sky-200 p-3 text-[11px] font-bold text-sky-900">نام و کد انبار از سپیدار می‌آید؛ فقط انباردار، محل و یادداشت را می‌توانید تغییر دهید.</div>}
+      <SepidarInfo info={w.sepidar} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><span className={label}>نام انبار</span><input value={f.title} disabled={sepidar} onChange={(e) => setF({ ...f, title: e.target.value })} className={field} /></div>
         <div><span className={label}>کد</span><input value={f.code} disabled={sepidar} onChange={(e) => setF({ ...f, code: e.target.value })} className={field} /></div>

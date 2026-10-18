@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '../../lib/api';
 import { Award, BarChart3, Megaphone, ClipboardList, FileCheck, HardDrive, KeyRound, Lock, Phone, MessageSquare, Warehouse, ShieldCheck, Smartphone, UserPlus, Users, X } from 'lucide-react';
 import { Department, UserRole } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
@@ -16,6 +17,8 @@ export interface UserForm {
   canSendSms?: boolean;
   canUseWarehouse?: boolean;
   sepidarPerms?: string[];
+  /** the warehouse product groups this person may see (none = every group) */
+  whGroups?: string[];
   canUseTasks?: boolean;
   canSignOfficialLetters?: boolean;
   canSendOfficialLetters?: boolean;
@@ -69,6 +72,20 @@ const Tile: React.FC<{ icon: React.ReactNode; title: string; hint: string; on: b
 /** One large, two-column dialog for both «new employee» and «edit employee»: account on one side, access switches on the other. */
 export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments, onClose, onSubmit, onToggleCeo, quotaMax }) => {
   const initials = (form.fullName || '').trim().slice(0, 2) || '؟';
+  // the product groups of the warehouse (as Sepidar has them), to pick the ones this person may see
+  const [groups, setGroups] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    api.warehouse().then((s) => {
+      if (!alive) return;
+      const g = new Set<string>();
+      s.products.forEach((p) => g.add(p.group || 'بدون گروه'));
+      setGroups([...g].sort((a, b) => a.localeCompare(b, 'fa')));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const picked = form.whGroups || [];
+  const toggleGroup = (g: string) => set({ whGroups: picked.includes(g) ? picked.filter((x) => x !== g) : [...picked, g] });
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-3 sm:p-6" dir="rtl">
       <form
@@ -174,6 +191,25 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
               <Tile wide icon={<Award className="w-[18px] h-[18px]" />} title="مدیرعامل / صاحب امضای مجاز" hint="فقط یک نفر؛ تنها او نامه رسمی را امضا می‌کند و نامش روی نامه‌ها می‌نشیند." on={!!form.canSignOfficialLetters} color="#B45309" tint="#FFF7E6" border="#F3D08A" onChange={onToggleCeo} />
             </div>
             <p className="text-[11px] text-[#8C6F66] leading-6 pt-1">همهٔ مجوزهای دیگر (منوها و زیرمنوها) از «جدول مجوزها» در بالای همین صفحه تعیین می‌شود. مدیران ارشد و مدیران واحد بدون نیاز به آن‌ها همه‌چیز را دارند؛ فقط «مدیرعامل» با سوئیچ بالا جدا انتخاب می‌شود.</p>
+            {groups.length > 0 && (
+              <div className="pt-3 space-y-2" data-wh-groups>
+                <h4 className="font-black text-[12px] text-[#6E1B1B] flex items-center gap-1.5">
+                  <Warehouse className="w-4 h-4" />
+                  گروه‌های کالای انبار که این شخص می‌بیند
+                </h4>
+                <p className="text-[11px] text-[#8C6F66] leading-6">اگر هیچ گروهی تیک نخورد، همهٔ گروه‌ها را می‌بیند. با تیک‌زدن، فقط کالاهای همان گروه‌ها (موجودی، اسناد و کارت کالا) برایش باز است.</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {groups.map((g) => (
+                    <button key={g} type="button" role="checkbox" aria-checked={picked.includes(g)} onClick={() => toggleGroup(g)} className={`px-3 py-1.5 rounded-full text-[11px] font-black border cursor-pointer ${picked.includes(g) ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-amber-50'}`}>
+                      {g}
+                    </button>
+                  ))}
+                  {picked.length > 0 && (
+                    <button type="button" onClick={() => set({ whGroups: [] })} className="px-3 py-1.5 rounded-full text-[11px] font-black text-[#8C6F66] cursor-pointer">همه (بدون محدودیت)</button>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
         </div>
 

@@ -253,6 +253,8 @@ export interface WhProduct {
   title: string;
   unit: string;
   group?: string;
+  /** everything the accounting program keeps about the product (name → text) */
+  sepidar?: Record<string, string>;
   barcode?: string;
   minQty?: number;
   /** several named prices (retail, wholesale…) */
@@ -272,6 +274,8 @@ export interface WhWarehouse {
   keeperId?: string;
   note?: string;
   active?: boolean;
+  /** everything the accounting program keeps about the warehouse (name → text) */
+  sepidar?: Record<string, string>;
 }
 export type WhKind = 'receipt' | 'issue' | 'transfer' | 'adjust';
 export interface WhDocLine {

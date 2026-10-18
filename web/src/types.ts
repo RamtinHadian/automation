@@ -44,6 +44,8 @@ export interface User {
   sepidarPerms?: string[];
   /** sub-menus the administrator switched off for this person (see lib/permissions.ts); everything else of the menus they may enter is open */
   hiddenSub?: string[];
+  /** the warehouse product groups the person may see (none = every group) */
+  whGroups?: string[];
   /** Access to the management statistics page (admins always have it). */
   canViewStats?: boolean;
   /** May publish on the bulletin board (admins always may). */
