@@ -48,6 +48,7 @@ import { FileTransfer, User, LetterNumberingSettings } from '../../types';
 import { formatCurrentJalaliDateTime, toPersianDigits, convertNumbersInHtmlToPersian } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 import { formatLetterNumber } from '../../lib/letterNumbering';
+import { countPages } from '../../lib/pageCount';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { RichExtras, TableTools, useLetterBodyEditing } from './tableEditor';
 
@@ -297,7 +298,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     if (editTransfer?.letterNumber) return editTransfer.letterNumber;
     return formatLetterNumber(settings.letterNumbering || letterNumbering);
   });
-  const [attachment, setAttachment] = useState('دارد (پیوست الکترونیک)');
+  const [attachment, setAttachment] = useState('ندارد');
   // Official letters can only be sent for signature to the CEO / authorised signatories.
   const signers = staffList.filter((u) => u.canSignOfficialLetters);
   const [recipientId, setRecipientId] = useState(editTransfer?.recipients[0]?.id || signers[0]?.id || '');
@@ -500,6 +501,8 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
   };
 
   const handleAttachmentUpload = (file: File) => {
+    // the attachment line of the letter says how many pages came with it (a PDF is counted, a scan is one page)
+    void countPages(file).then((n) => setAttachment(n ? `دارد (${toPersianDigits(n)} صفحه)` : 'دارد (۱ فایل)'));
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result) {
@@ -508,7 +511,6 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
           size: (file.size / 1024 > 1024 ? (file.size / (1024 * 1024)).toFixed(1) + ' MB' : Math.round(file.size / 1024) + ' KB'),
           dataUrl: e.target.result as string,
         });
-        setAttachment('دارد (پیوست فایل/اسکن)');
       }
     };
     reader.readAsDataURL(file);
