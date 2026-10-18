@@ -607,7 +607,21 @@ export async function pushCaches(cfg, sp, state) {
       log(`  ${cache}: خوانده نشد (${e.message})`);
     }
   };
-  await tryPush('invoices', '/api/Invoices', (x) => pick(x, ['InvoiceID', 'ID', 'Number', 'Date', 'CustomerRef', 'QuotationRef', 'Price', 'Discount', 'Tax', 'NetPrice']));
+  // an invoice is sent with the customer's name, its description and the names of its goods, so that all of them can be searched in Hoormand
+  const nameOfCustomer = new Map();
+  const titleOfItem = new Map();
+  try {
+    for (const c of await sp.get('/api/Customers')) nameOfCustomer.set(c.CustomerID, c.Title || `${c.Name || ''} ${c.LastName || ''}`.trim());
+    for (const i of await sp.get('/api/Items')) titleOfItem.set(i.ItemID, i.Title || '');
+  } catch (e) {
+    log(`  نام مشتری و کالا برای فاکتورها خوانده نشد (${e.message})`);
+  }
+  await tryPush('invoices', '/api/Invoices', (x) => ({
+    ...pick(x, ['InvoiceID', 'ID', 'Number', 'Date', 'CustomerRef', 'QuotationRef', 'Price', 'Discount', 'Tax', 'NetPrice']),
+    CustomerName: nameOfCustomer.get(x.CustomerRef) || x.CustomerTitle || x.CustomerName || '',
+    Description: [x.Description, x.Title, x.Comment, x.Memo].filter(Boolean).join(' · ').slice(0, 400),
+    Goods: (Array.isArray(x.Items) ? x.Items : []).map((it) => titleOfItem.get(it.ItemRef) || it.Title || it.Description || '').filter(Boolean).slice(0, 30).join('، ').slice(0, 600),
+  }));
   await tryPush('quotations', '/api/Quotations', (x) => pick(x, ['ID', 'Number', 'Date', 'CustomerRef', 'Price', 'NetPrice']));
   await tryPush('banks', '/api/banks', (x) => pick(x, ['BankID', 'Title']));
   await tryPush('bankAccounts', '/api/BankAccounts', (x) => pick(x, ['BankAccountID', 'DlCode', 'DlTitle', 'CurrencyRef']));

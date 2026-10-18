@@ -141,7 +141,9 @@ export const SepidarView: React.FC = () => {
   void accountName;
   const customerOfSepidar = new Map<number, string>();
   st.links.filter((l) => l.kind === 'customer').forEach((l) => customerOfSepidar.set(l.sepidarId, customers.find((c) => c.id === l.ref)?.name || ''));
-  const invoiceRows = (st.cache?.invoices?.items || []).filter((i: any) => matchesAll(i, q, customerOfSepidar.get(i.CustomerRef) || ''));
+  // the customer's name comes from every place that knows it: the invoice itself (the program sends it), the tied Hoormand customer, the balances
+  const invoiceCustomer = (i: any): string => i.CustomerName || customerOfSepidar.get(i.CustomerRef) || balances.get(i.CustomerRef)?.Title || '';
+  const invoiceRows = (st.cache?.invoices?.items || []).filter((i: any) => matchesAll(i, q, invoiceCustomer(i), balances.get(i.CustomerRef)?.Title || ''));
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -294,7 +296,7 @@ export const SepidarView: React.FC = () => {
           {canSeeSalesTotals(currentUser) && <InvoicesSummary rows={invoiceRows} />}
           <List empty="فاکتوری دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
             {invoiceRows.slice(0, 300).map((i: any) => {
-              const cname = customerOfSepidar.get(i.CustomerRef) || balances.get(i.CustomerRef)?.Title || 'مشتری سپیدار ' + toPersianDigits(i.CustomerRef);
+              const cname = invoiceCustomer(i) || 'مشتری سپیدار ' + toPersianDigits(i.CustomerRef);
               const hoormandCustomerId = [...st.links].find((l) => l.kind === 'customer' && l.sepidarId === i.CustomerRef)?.ref;
               const proforma = st.links.find((l) => l.kind === 'invoice' && l.sepidarId === (i.InvoiceID ?? i.ID));
               return (
@@ -317,7 +319,14 @@ export const SepidarView: React.FC = () => {
                     ['مالیات', i.Tax ? fmt(i.Tax) : '—'],
                     ['خالص', fmt(i.NetPrice ?? i.Price)],
                   ]}
-                />
+                >
+                  {(i.Description || i.Goods) && (
+                    <div className="px-1 space-y-0.5 text-[11px] leading-5 font-bold text-[#5A4640]">
+                      {i.Goods && <div><span className="text-[#8C6F66]">کالاها: </span>{i.Goods}</div>}
+                      {i.Description && <div><span className="text-[#8C6F66]">توضیحات: </span>{i.Description}</div>}
+                    </div>
+                  )}
+                </Card>
               );
             })}
           </List>
