@@ -49,6 +49,7 @@ import { formatCurrentJalaliDateTime, toPersianDigits, convertNumbersInHtmlToPer
 import { useAppContext } from '../../context/AppContext';
 import { formatLetterNumber } from '../../lib/letterNumbering';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
+import { TableTools, useLetterBodyEditing } from './tableEditor';
 
 interface LetterEditorModalProps {
   /** Edit mode: the author's own unsigned letter to change. */
@@ -446,6 +447,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const dragStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const editorRef = useRef<HTMLDivElement>(null);
+  useLetterBodyEditing(editorRef); // Persian digits while typing, tables with draggable borders
   const paperSheetRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
@@ -531,7 +533,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
       : '';
     const bodyRows = tableHeader ? rows - 1 : rows;
     const body = `<tbody>${Array.from({ length: Math.max(0, bodyRows) }, (_, r) => `<tr>${Array.from({ length: cols }, (_, c) => `<td style="${cell}">${c === 0 && cols > 1 && tableHeader ? toPersianDigits(r + 1) : '&nbsp;'}</td>`).join('')}</tr>`).join('')}</tbody>`;
-    const tableHtml = `<table style="width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 11px; text-align: right;">${head}${body}</table><p><br></p>`;
+    const tableHtml = `<table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin: 14px 0; font-size: 11px; text-align: right;">${head}${body}</table><p><br></p>`;
     editorRef.current?.focus();
     if (tableSel.current) {
       const sel = window.getSelection();
@@ -1146,6 +1148,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
                 className="focus:outline-none min-h-[160px] leading-relaxed space-y-3 transition-transform"
                 dangerouslySetInnerHTML={{ __html: initialBody }}
               />
+              <TableTools editorRef={editorRef} />
             </MoveBox>
 
             {/* CEO NAME / TITLE (font + size beside the text). Signature image and stamp are independent objects. */}

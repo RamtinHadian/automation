@@ -72,6 +72,7 @@ import { toPersianDigits,
 import { DEFAULT_FONTS } from '../../lib/fonts';
 import { openAndDownloadPdfLetter } from '../../lib/pdfLetterGenerator';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
+import { TableTools, useLetterBodyEditing } from './tableEditor';
 
 /* =========================================================================
    WORD-LIKE POPUP EDITOR — opens as a full-screen popup with Word ribbon
@@ -98,6 +99,7 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
   onClose,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  useLetterBodyEditing(editorRef);
   const [subject, setSubject] = useState(initialSubject);
   const [centerTitle, setCenterTitle] = useState(initialCenterTitle);
   const [footerNote, setFooterNote] = useState(initialFooterNote);
@@ -116,7 +118,7 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
 
   const insertTable = () => {
     exec('insertHTML', `
-      <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:12px;text-align:right;">
+      <table style="width:100%;table-layout:fixed;border-collapse:collapse;margin:12px 0;font-size:12px;text-align:right;">
         <thead><tr style="background:#FAF5F1;border:1px solid #EBDBCE;">
           <th style="border:1px solid #EBDBCE;padding:6px 10px;">ردیف</th>
           <th style="border:1px solid #EBDBCE;padding:6px 10px;">شرح</th>
@@ -365,6 +367,7 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
               }
             }}
           />
+          <TableTools editorRef={editorRef} />
         </div>
       </div>
 
@@ -628,6 +631,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   }, [isOpen, letter?.id, letter?.signatureStatus]);
 
   const editorBodyRef = useRef<HTMLDivElement>(null);
+  useLetterBodyEditing(editorBodyRef, isOpen, [isOpen, letter?.id, letter?.signatureStatus]);
   const [selectedFontSize, setSelectedFontSize] = useState<string>('13px');
   const [showFormattingSidebar, setShowFormattingSidebar] = useState<boolean>(false);
 
@@ -1870,6 +1874,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               className="py-4 text-xs leading-relaxed min-h-[160px] transition-transform relative group/body"
             >
               {isEditable ? (
+                <>
                 <div
                   ref={editorBodyRef}
                   contentEditable
@@ -1886,6 +1891,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   }}
                   title="متن نامه (مستقیماً کلیک کرده و ویرایش کنید)"
                 />
+                <TableTools editorRef={editorBodyRef} enabled={isEditable} />
+                </>
               ) : (
                 <div
                   dangerouslySetInnerHTML={{ __html: customBody }}

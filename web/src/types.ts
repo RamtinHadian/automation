@@ -575,6 +575,8 @@ export interface LetterNumberingSettings {
   showFooterNote?: boolean;
   /** put the Persian month number (۰۱ … ۱۲) after the year; it changes by itself every month */
   includeMonth?: boolean;
+  /** what stands between the parts of the number: «/» (default) or «-» */
+  separator?: '/' | '-';
 }
 
 export interface CustomFont {

@@ -716,11 +716,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
             >
-              <option value="PREFIX_YEAR_NUM">پیشوند / سال / شماره (مثال: ۱۰/۱۴۰۵/۱۰۰۱)</option>
-              <option value="YEAR_NUM_PREFIX">سال / شماره / پیشوند (مثال: ۱۴۰۵/۱۰۰۱/۱۰)</option>
-              <option value="NUM_PREFIX_YEAR">شماره / پیشوند / سال (مثال: ۱۰۰۱/۱۰/۱۴۰۵)</option>
-              <option value="PREFIX_NUM">پیشوند / شماره (مثال: ۱۰/۱۰۰۱)</option>
+              <option value="PREFIX_YEAR_NUM">{`پیشوند ${currentNumbering.separator === '-' ? '-' : '/'} سال ${currentNumbering.separator === '-' ? '-' : '/'} شماره (مثال: ۱۰${currentNumbering.separator === '-' ? '-' : '/'}۱۴۰۵${currentNumbering.separator === '-' ? '-' : '/'}۱۰۰۱)`}</option>
+              <option value="YEAR_NUM_PREFIX">{`سال ${currentNumbering.separator === '-' ? '-' : '/'} شماره ${currentNumbering.separator === '-' ? '-' : '/'} پیشوند (مثال: ۱۴۰۵${currentNumbering.separator === '-' ? '-' : '/'}۱۰۰۱${currentNumbering.separator === '-' ? '-' : '/'}۱۰)`}</option>
+              <option value="NUM_PREFIX_YEAR">{`شماره ${currentNumbering.separator === '-' ? '-' : '/'} پیشوند ${currentNumbering.separator === '-' ? '-' : '/'} سال (مثال: ۱۰۰۱${currentNumbering.separator === '-' ? '-' : '/'}۱۰${currentNumbering.separator === '-' ? '-' : '/'}۱۴۰۵)`}</option>
+              <option value="PREFIX_NUM">{`پیشوند ${currentNumbering.separator === '-' ? '-' : '/'} شماره (مثال: ۱۰${currentNumbering.separator === '-' ? '-' : '/'}۱۰۰۱)`}</option>
             </select>
+          </div>
+
+          <div data-number-separator>
+            <label className="block font-bold text-[#3A241F] mb-1.5">
+              علامت بین اجزای شماره نامه:
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {([['/', 'اسلش ( / )'], ['-', 'خط تیره ( - )']] as const).map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => handleNumberingChange({ separator: v })}
+                  className={`p-2.5 rounded-xl border text-xs font-black cursor-pointer transition-colors ${(currentNumbering.separator || '/') === v ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-[#FAF5F1] text-[#3A241F] border-[#EBDBCE] hover:bg-white'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-1 text-[10px] font-medium text-[#8C6F66]">خط تیره را می‌توانید داخل خود پیشوند و سال هم بنویسید (مثلاً ۱۰-الف).</div>
           </div>
 
           <div>

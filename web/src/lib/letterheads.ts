@@ -266,5 +266,5 @@ export function letterheadFooterText(c: LetterheadChoice): string {
   if (c.showAddress && c.address.trim()) parts.push(`نشانی: ${c.address.trim()}`);
   if (c.showPhone && c.phone.trim()) parts.push(`تلفن: ⁦${c.phone.trim().replace(/[‐-―−]/g, '-')}⁩`);
   if (c.showWebsite && c.website?.trim()) parts.push(`وب‌سایت: ⁦${c.website.trim()}⁩`);
-  return parts.join('  •  ');
+  return parts.join('   ');
 }

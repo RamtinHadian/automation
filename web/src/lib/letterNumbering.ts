@@ -15,24 +15,25 @@ export function formatLetterNumber(settings?: LetterNumberingSettings): string {
   const cfg = settings || DEFAULT_LETTER_NUMBERING;
   const prefix = (cfg.prefix || '').trim();
   const num = toPersianDigits(cfg.nextNumber || 1001);
+  const sep = cfg.separator === '-' ? '-' : '/';
   let year = toPersianDigits((cfg.year || '1405').trim());
   if (cfg.includeMonth) {
     // the month of today's Persian date, always two digits, so every month brings its own number into the letter number
     const d = new Date();
     const [, jm] = gregorianToJalali(d.getFullYear(), d.getMonth() + 1, d.getDate());
-    year = `${year}/${toPersianDigits(String(jm).padStart(2, '0'))}`;
+    year = `${year}${sep}${toPersianDigits(String(jm).padStart(2, '0'))}`;
   }
 
   switch (cfg.formatPattern) {
     case 'PREFIX_YEAR_NUM':
-      return prefix ? `${prefix}/${year}/${num}` : `${year}/${num}`;
+      return prefix ? `${prefix}${sep}${year}${sep}${num}` : `${year}${sep}${num}`;
     case 'YEAR_NUM_PREFIX':
-      return prefix ? `${year}/${num}/${prefix}` : `${year}/${num}`;
+      return prefix ? `${year}${sep}${num}${sep}${prefix}` : `${year}${sep}${num}`;
     case 'NUM_PREFIX_YEAR':
-      return prefix ? `${num}/${prefix}/${year}` : `${num}/${year}`;
+      return prefix ? `${num}${sep}${prefix}${sep}${year}` : `${num}${sep}${year}`;
     case 'PREFIX_NUM':
-      return prefix ? `${prefix}/${num}` : `${num}`;
+      return prefix ? `${prefix}${sep}${num}` : `${num}`;
     default:
-      return prefix ? `${prefix}/${year}/${num}` : `${year}/${num}`;
+      return prefix ? `${prefix}${sep}${year}${sep}${num}` : `${year}${sep}${num}`;
   }
 }
