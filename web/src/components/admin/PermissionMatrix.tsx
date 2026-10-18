@@ -84,7 +84,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
       </div>
 
       {/* wide screens: one table that fits the page (no sideways scrolling): the column titles stand upright */}
-      <div className="hidden md:block bg-white rounded-2xl border border-[#EBDBCE] overflow-hidden shadow-xs">
+      <div className="hidden md:block bg-white rounded-2xl border border-[#EBDBCE] overflow-clip shadow-xs">
         <table className="w-full table-fixed text-right text-xs border-collapse">
           <colgroup>
             <col style={{ width: 168 }} />
@@ -93,17 +93,17 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
             ))}
             <col style={{ width: 92 }} />
           </colgroup>
-          <thead>
+          <thead className="sticky top-0 z-20 shadow-[0_2px_6px_rgba(110,27,27,0.12)]">
             <tr>
               <th rowSpan={2} className="bg-[#FAF5F1] border-b border-l border-[#EBDBCE] py-3 px-3 text-[11px] font-black text-[#8C6F66]">کارمند</th>
               {menuCols.map(({ m, cols }) =>
                 cols.length === 1 ? (
                   // a menu with one column only (no sub-menus): its title stands upright over the whole header height, there is no room for it across
                   <th key={m.id} rowSpan={2} className="border-b border-l-2 border-white/60 px-0 py-2 text-center align-bottom text-white" style={{ background: m.tone }}>
-                    <button type="button" title={cols[0].hint} onClick={() => colAll(cols[0])} className="mx-auto block h-[112px] text-[11px] font-black leading-4 cursor-pointer whitespace-nowrap text-white" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                    <button type="button" title={cols[0].hint} onClick={() => colAll(cols[0])} className="mx-auto block h-[190px] text-[11px] font-black leading-4 cursor-pointer whitespace-nowrap text-white" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
                       {m.title}
                     </button>
-                    <div className="text-[9px] font-bold text-white/80 pb-1" title="چند نفر دارند">{toPersianDigits(people.filter((u) => colOn(u, cols[0])).length)}</div>
+                    <div className="mt-2 mx-auto w-5 rounded-md bg-white/20 text-[9px] font-black text-white leading-[18px] mb-1.5" title="چند نفر دارند">{toPersianDigits(people.filter((u) => colOn(u, cols[0])).length)}</div>
                   </th>
                 ) : (
                   <th key={m.id} colSpan={cols.length} className="border-b border-l-2 border-white/60 py-2 px-1 text-center text-[10px] font-black text-white leading-4" style={{ background: m.tone }}>
@@ -117,11 +117,11 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
               {menuCols.filter(({ cols }) => cols.length > 1).flatMap(({ m, cols }) =>
                 cols.map((c, i) => (
                   <th key={c.id} className={`border-b border-[#EBDBCE] px-0 pt-2 pb-1 text-center align-bottom ${i === 0 ? 'border-r-2 border-r-white' : 'border-l border-l-[#F3E8DF]'}`} style={{ background: c.isMain ? `${m.tone}14` : undefined }}>
-                    <button type="button" title={c.hint} onClick={() => colAll(c)} className="mx-auto block h-[112px] text-[10.5px] font-black leading-4 cursor-pointer hover:underline whitespace-nowrap" style={{ color: m.tone, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                    <button type="button" title={c.hint} onClick={() => colAll(c)} className="mx-auto block h-[190px] text-[10.5px] font-black leading-4 cursor-pointer hover:underline whitespace-nowrap" style={{ color: m.tone, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
                       {c.isMain ? '' : '↳ '}
                       {c.label}
                     </button>
-                    <div className="text-[9px] font-bold text-[#B8A39C] pb-1" title="چند نفر دارند">{toPersianDigits(people.filter((u) => colOn(u, c)).length)}</div>
+                    <div className="mt-2 mx-auto w-5 rounded-md bg-[#F3E8DF] text-[9px] font-black text-[#8C6F66] leading-[18px] mb-1.5" title="چند نفر دارند">{toPersianDigits(people.filter((u) => colOn(u, c)).length)}</div>
                   </th>
                 )),
               )}

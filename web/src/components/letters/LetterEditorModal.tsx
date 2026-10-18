@@ -49,7 +49,7 @@ import { formatCurrentJalaliDateTime, toPersianDigits, convertNumbersInHtmlToPer
 import { useAppContext } from '../../context/AppContext';
 import { formatLetterNumber } from '../../lib/letterNumbering';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
-import { TableTools, useLetterBodyEditing } from './tableEditor';
+import { RichExtras, TableTools, useLetterBodyEditing } from './tableEditor';
 
 interface LetterEditorModalProps {
   /** Edit mode: the author's own unsigned letter to change. */
@@ -447,7 +447,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const dragStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const editorRef = useRef<HTMLDivElement>(null);
-  useLetterBodyEditing(editorRef); // Persian digits while typing, tables with draggable borders
+const editing = useLetterBodyEditing(editorRef); // Persian digits while typing, tables with draggable borders, undo / redo
   const paperSheetRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
@@ -1253,8 +1253,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
         </div>
         </div>
 
-        {/* Word Styling Toolbar: one horizontally scrollable row on phones */}
-        <div onWheel={side ? undefined : hwheel} className={side ? 'order-3 flex bg-[#FAF5F1] w-[300px] shrink-0 overflow-y-auto border-r border-[#EBDBCE] flex-col items-stretch gap-2.5 p-3 text-xs [&>*]:shrink-0' : 'order-2 flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap hscroll whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0'}>
+{/* Word Styling Toolbar: one horizontally scrollable row on phones */}
+        <div onMouseDown={(e) => { if ((e.target as HTMLElement).closest('button')) e.preventDefault(); }} onWheel={side ? undefined : hwheel} className={side ? 'order-3 flex bg-[#FAF5F1] w-[300px] shrink-0 overflow-y-auto border-r border-[#EBDBCE] flex-col items-stretch gap-2.5 p-3 text-xs [&>*]:shrink-0' : 'order-2 flex bg-[#FAF5F1] px-3 sm:px-6 py-1.5 sm:py-2 border-b border-[#EBDBCE] flex-nowrap hscroll whitespace-nowrap items-center justify-between gap-2 shrink-0 text-xs [&>*]:shrink-0'}>
           
           <div className={`flex items-center gap-1.5 ${side ? 'w-full grid grid-cols-2 items-stretch gap-2 [&>*]:rounded-xl [&>*>select]:flex-1 [&>*>input]:flex-1' : 'flex-nowrap sm:flex-wrap'}`}>
             {side && <div className="col-span-2 flex items-center gap-2 pt-1 text-[10.5px] font-black text-[#6E1B1B]"><span>قلم و اندازه</span><span className="flex-1 h-px bg-[#EBDBCE]" /></div>}
@@ -1292,6 +1292,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
               </select>
             </div>
 
+{side && <div className="col-span-2 flex items-center gap-2 pt-1 text-[10.5px] font-black text-[#6E1B1B]"><span>واگرد، اندازه و رنگ</span><span className="flex-1 h-px bg-[#EBDBCE]" /></div>}
+            <RichExtras editing={editing} className={side ? 'col-span-2 justify-around' : ''} />
             {side && <div className="col-span-2 flex items-center gap-2 pt-1 text-[10.5px] font-black text-[#6E1B1B]"><span>شکل متن</span><span className="flex-1 h-px bg-[#EBDBCE]" /></div>}
             <div className={`flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] ${side ? 'col-span-2 justify-around' : ''}`}>
               <button

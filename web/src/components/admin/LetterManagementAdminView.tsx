@@ -32,6 +32,7 @@ import { useAppContext } from '../../context/AppContext';
 import { LetterThumbnail } from '../letters/LetterThumbnail';
 import { LetterPreviewModal } from '../letters/LetterPreviewModal';
 import { matchesAll } from '../../lib/searchAll';
+import { formatLetterNumber, DEFAULT_LETTER_NUMBERING, NUMBER_PATTERNS } from '../../lib/letterNumbering';
 
 interface LetterManagementAdminViewProps {
   settings: SystemSettings;
@@ -66,19 +67,7 @@ export const LetterManagementAdminView: React.FC<LetterManagementAdminViewProps>
 
   // Compute live sample letter number based on pattern
   const generatePreviewNumber = () => {
-    const num = toPersianDigits(String(numbering.nextNumber));
-    const yr = toPersianDigits(numbering.year);
-    const pfx = numbering.prefix || 'ات';
-
-    switch (numbering.formatPattern) {
-      case 'PREFIX_YEAR_NUM':
-        return `${pfx}-${yr}-${num}`;
-      case 'NUM_PREFIX_YEAR':
-        return `${num}/${pfx}/${yr}`;
-      case 'YEAR_NUM_PREFIX':
-      default:
-        return `${yr}/${num}/${pfx}`;
-    }
+    return formatLetterNumber({ ...DEFAULT_LETTER_NUMBERING, ...numbering });
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -221,9 +210,7 @@ export const LetterManagementAdminView: React.FC<LetterManagementAdminViewProps>
               onChange={(e) => setNumbering({ ...numbering, formatPattern: e.target.value as any })}
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none cursor-pointer"
             >
-              <option value="YEAR_NUM_PREFIX">سال / شماره / پیشوند (پیش‌فرض استاندارد)</option>
-              <option value="NUM_PREFIX_YEAR">شماره / پیشوند / سال</option>
-              <option value="PREFIX_YEAR_NUM">پیشوند - سال - شماره</option>
+              {NUMBER_PATTERNS.map((pt) => <option key={pt.id} value={pt.id}>{pt.parts}</option>)}
             </select>
           </div>
         </div>

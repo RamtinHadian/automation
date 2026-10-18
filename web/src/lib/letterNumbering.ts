@@ -24,16 +24,42 @@ export function formatLetterNumber(settings?: LetterNumberingSettings): string {
     year = `${year}${sep}${toPersianDigits(String(jm).padStart(2, '0'))}`;
   }
 
+  const pad = (n: number, w: number) => toPersianDigits(String(n || 1001).padStart(w, '0'));
+  const join = (...parts: string[]) => parts.filter(Boolean).join(sep);
+  const num6 = pad(cfg.nextNumber, 6);
   switch (cfg.formatPattern) {
+    case 'YEAR_NUM_PREFIX': return join(year, num, prefix);
+    case 'NUM_PREFIX_YEAR': return join(num, prefix, year);
+    case 'PREFIX_NUM': return join(prefix, num);
+    case 'NUM_PREFIX': return join(num, prefix);
+    case 'NUM_ONLY': return num;
+    case 'YEAR_NUM': return join(year, num);
+    case 'NUM_YEAR': return join(num, year);
+    case 'PREFIX_NUM_YEAR': return join(prefix, num, year);
+    case 'YEAR_PREFIX_NUM': return join(year, prefix, num);
+    case 'NUM_YEAR_PREFIX': return join(num, year, prefix);
+    case 'PREFIX_YEAR_NUM6': return join(prefix, year, num6);
+    case 'YEAR_NUM6': return join(year, num6);
+    case 'PREFIXYEAR_NUM': return `${prefix}${year}${sep}${num}`;
     case 'PREFIX_YEAR_NUM':
-      return prefix ? `${prefix}${sep}${year}${sep}${num}` : `${year}${sep}${num}`;
-    case 'YEAR_NUM_PREFIX':
-      return prefix ? `${year}${sep}${num}${sep}${prefix}` : `${year}${sep}${num}`;
-    case 'NUM_PREFIX_YEAR':
-      return prefix ? `${num}${sep}${prefix}${sep}${year}` : `${num}${sep}${year}`;
-    case 'PREFIX_NUM':
-      return prefix ? `${prefix}${sep}${num}` : `${num}`;
-    default:
-      return prefix ? `${prefix}${sep}${year}${sep}${num}` : `${year}${sep}${num}`;
+    default: return join(prefix, year, num);
   }
 }
+
+/** every ordering the console offers; the label is built from the parts so it follows the chosen separator */
+export const NUMBER_PATTERNS: { id: NonNullable<LetterNumberingSettings['formatPattern']>; parts: string }[] = [
+  { id: 'PREFIX_YEAR_NUM', parts: 'پیشوند · سال · شماره' },
+  { id: 'YEAR_NUM_PREFIX', parts: 'سال · شماره · پیشوند' },
+  { id: 'NUM_PREFIX_YEAR', parts: 'شماره · پیشوند · سال' },
+  { id: 'PREFIX_NUM_YEAR', parts: 'پیشوند · شماره · سال' },
+  { id: 'YEAR_PREFIX_NUM', parts: 'سال · پیشوند · شماره' },
+  { id: 'NUM_YEAR_PREFIX', parts: 'شماره · سال · پیشوند' },
+  { id: 'PREFIX_NUM', parts: 'پیشوند · شماره' },
+  { id: 'NUM_PREFIX', parts: 'شماره · پیشوند' },
+  { id: 'YEAR_NUM', parts: 'سال · شماره' },
+  { id: 'NUM_YEAR', parts: 'شماره · سال' },
+  { id: 'PREFIX_YEAR_NUM6', parts: 'پیشوند · سال · شماره شش‌رقمی' },
+  { id: 'YEAR_NUM6', parts: 'سال · شماره شش‌رقمی' },
+  { id: 'PREFIXYEAR_NUM', parts: 'پیشوندسال (چسبیده) · شماره' },
+  { id: 'NUM_ONLY', parts: 'فقط شماره' },
+];

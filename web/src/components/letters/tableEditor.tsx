@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlignCenter, AlignLeft, AlignRight, ArrowDownToLine, ArrowLeftToLine, ArrowRightToLine, ArrowUpToLine, Columns3, Combine, Grid3x3, Rows3, Split, Table2, Trash2, Palette, Rows4, SquareDashed, Heading } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, ArrowDownToLine, ArrowLeftToLine, ArrowRightToLine, ArrowUpToLine, Columns3, Combine, Grid3x3, Rows3, Split, Table2, Trash2, Palette, Rows4, SquareDashed, Heading, Undo2, Redo2, ALargeSmall, Highlighter, Baseline } from 'lucide-react';
 
 /* ---------------------------------------------------------------------------------------------------------------------------------------
    The editing of tables and numbers inside a letter body (a contentEditable box):
@@ -83,10 +83,193 @@ const normalize = (cols: HTMLTableColElement[]) => {
 };
 
 /** The numbers and the tables of one editor box. `enabled` lets an editor that appears later (an editing mode) switch the hook on. */
-export function useLetterBodyEditing(ref: React.RefObject<HTMLElement | null>, enabled = true, deps: unknown[] = []) {
+export interface BodyEditing {
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  /** make the selected text bigger (+) or smaller (-) by `delta` pixels */
+  stepFont: (delta: number) => void;
+  setColor: (kind: 'fore' | 'hilite', color: string) => void;
+}
+
+const caretOffset = (ed: HTMLElement): number | null => {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || !ed.contains(sel.anchorNode)) return null;
+  const r = document.createRange();
+  r.selectNodeContents(ed);
+  r.setEnd(sel.anchorNode as Node, sel.anchorOffset);
+  return r.toString().length;
+};
+const setCaretOffset = (ed: HTMLElement, n: number) => {
+  const w = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT);
+  let left = n;
+  let node = w.nextNode();
+  while (node) {
+    const len = (node.nodeValue || '').length;
+    if (left <= len) {
+      const r = document.createRange();
+      r.setStart(node, left);
+      r.collapse(true);
+      const s = window.getSelection();
+      s?.removeAllRanges();
+      s?.addRange(r);
+      return;
+    }
+    left -= len;
+    node = w.nextNode();
+  }
+};
+
+/** The numbers and the tables of one editor box, plus its own undo / redo (the tables are changed by code, which the browser's undo does not know). `enabled` lets an editor that appears later switch the hook on. */
+export function useLetterBodyEditing(ref: React.RefObject<HTMLElement | null>, enabled = true, deps: unknown[] = []): BodyEditing {
+  const hist = useRef<{ stack: string[]; i: number; timer: ReturnType<typeof setTimeout> | null; applying: boolean }>({ stack: [], i: -1, timer: null, applying: false });
+  const [, setVer] = useState(0);
+  const bump = () => setVer((v) => v + 1);
+
+  const snapshot = useCallback(() => {
+    const ed = ref.current;
+    const h = hist.current;
+    if (!ed) return;
+    const html = ed.innerHTML;
+    if (h.stack[h.i] === html) return;
+    h.stack = h.stack.slice(0, h.i + 1);
+    h.stack.push(html);
+    if (h.stack.length > 120) h.stack.shift();
+    h.i = h.stack.length - 1;
+    bump();
+  }, [ref]);
+  const flush = useCallback(() => {
+    const h = hist.current;
+    if (h.timer) {
+      clearTimeout(h.timer);
+      h.timer = null;
+    }
+    snapshot();
+  }, [snapshot]);
+  const apply = useCallback(
+    (html: string, caret: number | null) => {
+      const ed = ref.current;
+      if (!ed) return;
+      const h = hist.current;
+      h.applying = true;
+      ed.innerHTML = html;
+      ed.focus();
+      if (caret !== null) setCaretOffset(ed, caret);
+      tell(ed);
+      h.applying = false;
+      bump();
+    },
+    [ref]
+  );
+  const undo = useCallback(() => {
+    flush();
+    const h = hist.current;
+    const ed = ref.current;
+    if (h.i > 0 && ed) {
+      const c = caretOffset(ed);
+      h.i -= 1;
+      apply(h.stack[h.i], c);
+    }
+  }, [flush, apply, ref]);
+  const redo = useCallback(() => {
+    flush();
+    const h = hist.current;
+    const ed = ref.current;
+    if (h.i < h.stack.length - 1 && ed) {
+      const c = caretOffset(ed);
+      h.i += 1;
+      apply(h.stack[h.i], c);
+    }
+  }, [flush, apply, ref]);
+
+  const stepFont = useCallback(
+    (delta: number) => {
+      const ed = ref.current;
+      const sel = window.getSelection();
+      if (!ed || !sel || sel.rangeCount === 0 || sel.isCollapsed || !ed.contains(sel.anchorNode)) return;
+      // the size of the first letter of the selection (not of the box that holds it)
+      const range0 = sel.getRangeAt(0);
+      let first: Node | null = range0.startContainer.nodeType === 3 ? range0.startContainer : range0.startContainer.childNodes[range0.startOffset] || range0.startContainer;
+      while (first && first.nodeType !== 3 && first.firstChild) first = first.firstChild;
+      const startEl = (first && first.nodeType === 3 ? first.parentElement : (first as HTMLElement)) as HTMLElement;
+      const cur = parseFloat(getComputedStyle(startEl || ed).fontSize) || 13;
+      const size = Math.max(8, Math.min(60, Math.round(cur + delta)));
+      document.execCommand('styleWithCSS', false, 'false');
+      document.execCommand('fontSize', false, '7');
+      const made: HTMLElement[] = [];
+      ed.querySelectorAll('font[size="7"]').forEach((f) => {
+        const span = document.createElement('span');
+        span.style.fontSize = `${size}px`;
+        while (f.firstChild) span.appendChild(f.firstChild);
+        f.replaceWith(span);
+        made.push(span);
+      });
+      if (made.length) {
+        // keep the same text selected (anchored inside the new spans, so the next step reads the new size)
+        const textIn = (el: HTMLElement, last: boolean) => {
+          const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          let n = w.nextNode();
+          let keep: Node | null = null;
+          while (n) {
+            keep = n;
+            if (!last) break;
+            n = w.nextNode();
+          }
+          return keep;
+        };
+        const a = textIn(made[0], false);
+        const z = textIn(made[made.length - 1], true);
+        if (a && z) {
+          const r = document.createRange();
+          r.setStart(a, 0);
+          r.setEnd(z, (z.nodeValue || '').length);
+          sel.removeAllRanges();
+          sel.addRange(r);
+        }
+      }
+      tell(ed);
+    },
+    [ref]
+  );
+  const setColor = useCallback(
+    (kind: 'fore' | 'hilite', color: string) => {
+      const ed = ref.current;
+      if (!ed) return;
+      document.execCommand('styleWithCSS', false, 'true');
+      document.execCommand(kind === 'fore' ? 'foreColor' : 'hiliteColor', false, color);
+      tell(ed);
+    },
+    [ref]
+  );
+
   useEffect(() => {
     const ed = ref.current;
     if (!ed || !enabled) return;
+    const h = hist.current;
+    h.stack = [ed.innerHTML];
+    h.i = 0;
+    const onHistory = () => {
+      if (h.applying) return;
+      if (h.timer) clearTimeout(h.timer);
+      h.timer = setTimeout(() => {
+        h.timer = null;
+        snapshot();
+      }, 350);
+    };
+    const onHistoryKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (k === 'y' || (k === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    ed.addEventListener('input', onHistory);
+    ed.addEventListener('keydown', onHistoryKey);
 
     // ---- digits: after every change of the text (typing, a phone keyboard, paste, drop) ----
     const onInput = (e: Event) => {
@@ -227,6 +410,9 @@ export function useLetterBodyEditing(ref: React.RefObject<HTMLElement | null>, e
     // a text that already holds Latin digits when the editor opens
     if (HAS_LATIN_DIGIT.test(ed.textContent || '')) persianizeDigits(ed);
     return () => {
+      ed.removeEventListener('input', onHistory);
+      ed.removeEventListener('keydown', onHistoryKey);
+      if (h.timer) clearTimeout(h.timer);
       ed.removeEventListener('input', onInput);
       ed.removeEventListener('pointermove', onMove);
       ed.removeEventListener('pointerdown', onDown, true);
@@ -236,6 +422,9 @@ export function useLetterBodyEditing(ref: React.RefObject<HTMLElement | null>, e
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref, enabled, ...deps]);
+
+  const hh = hist.current;
+  return { undo, redo, canUndo: hh.i > 0, canRedo: hh.i < hh.stack.length - 1, stepFont, setColor };
 }
 
 function placeCaret(cell: HTMLElement | undefined) {
@@ -496,5 +685,94 @@ export const TableTools: React.FC<{ editorRef: React.RefObject<HTMLElement | nul
       <Btn title="حذف کل جدول" on={run(() => table.remove())} danger><Trash2 className="w-4 h-4" /></Btn>
     </div>,
     document.body
+  );
+};
+
+
+/* ------------------------------------------- the toolbar part: undo, redo, size, colours ------------------------------------------- */
+
+const TEXT_COLORS = ['#1A1A1A', '#3A241F', '#6E1B1B', '#DC2626', '#EA580C', '#D97706', '#15803D', '#0F766E', '#1D4ED8', '#4338CA', '#7E22CE', '#6B7280'];
+const COLOR_NAMES: Record<string, string> = {
+  '#1A1A1A': 'مشکی', '#3A241F': 'قهوه‌ای تیره', '#6E1B1B': 'زرشکی', '#DC2626': 'قرمز', '#EA580C': 'نارنجی', '#D97706': 'کهربایی',
+  '#15803D': 'سبز', '#0F766E': 'سبزآبی', '#1D4ED8': 'آبی', '#4338CA': 'نیلی', '#7E22CE': 'بنفش', '#6B7280': 'خاکستری',
+  '#FEF08A': 'زرد', '#BBF7D0': 'سبز روشن', '#BFDBFE': 'آبی روشن', '#FBCFE8': 'صورتی', '#FED7AA': 'نارنجی روشن', '#E5E7EB': 'خاکستری روشن',
+};
+const MARK_COLORS = ['#FEF08A', '#BBF7D0', '#BFDBFE', '#FBCFE8', '#FED7AA', '#E5E7EB'];
+
+const PaletteButton: React.FC<{ title: string; icon: React.ReactNode; colors: string[]; reset: string; resetLabel: string; onPick: (c: string) => void }> = ({ title, icon, colors, reset, resetLabel, onPick }) => {
+  const btn = useRef<HTMLButtonElement>(null);
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!at) return;
+    const close = (e: Event) => {
+      if (!(e.target as HTMLElement).closest?.('[data-color-palette]') && e.target !== btn.current && !btn.current?.contains(e.target as Node)) setAt(null);
+    };
+    document.addEventListener('mousedown', close);
+    window.addEventListener('scroll', () => setAt(null), true);
+    return () => document.removeEventListener('mousedown', close);
+  }, [at]);
+  return (
+    <>
+      <button
+        ref={btn}
+        type="button"
+        title={title}
+        aria-label={title}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          const r = btn.current!.getBoundingClientRect();
+          setAt(at ? null : { x: Math.min(window.innerWidth - 150, Math.max(150, r.left + r.width / 2)), y: r.bottom + 6 });
+        }}
+        className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F] cursor-pointer"
+      >
+        {icon}
+      </button>
+      {at &&
+        createPortal(
+          <div
+            data-color-palette
+            dir="rtl"
+            onMouseDown={(e) => e.preventDefault()}
+            style={{ position: 'fixed', left: at.x, top: at.y, transform: 'translateX(-50%)' }}
+            className="z-[400] w-[220px] bg-white border border-[#EBDBCE] rounded-2xl shadow-xl p-3 space-y-2"
+          >
+            <div className="text-[11px] font-black text-[#3A241F]">{title}</div>
+            <div className="grid grid-cols-6 gap-1.5">
+              {colors.map((c) => (
+                <button key={c} type="button" title={COLOR_NAMES[c] || 'رنگ'} data-color={c} onMouseDown={(e) => e.preventDefault()} onClick={() => { onPick(c); setAt(null); }} className="w-7 h-7 rounded-lg border border-black/10 cursor-pointer hover:scale-110 transition-transform" style={{ background: c }} />
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-[11px] font-bold text-[#503730] cursor-pointer">
+                رنگ دلخواه
+                <input type="color" defaultValue="#1d4ed8" onChange={(e) => onPick(e.target.value)} className="w-6 h-6 p-0 border-0 rounded cursor-pointer" />
+              </label>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { onPick(reset); setAt(null); }} className="mr-auto text-[11px] font-black text-[#6E1B1B] hover:underline cursor-pointer">{resetLabel}</button>
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
+  );
+};
+
+/** Undo and redo, bigger and smaller letters for the selected text, and the colour and marker palettes. Put it inside the tool bar of a letter editor. */
+export const RichExtras: React.FC<{ editing: BodyEditing; className?: string }> = ({ editing, className = '' }) => {
+  const Btn: React.FC<{ title: string; on: () => void; disabled?: boolean; children: React.ReactNode }> = ({ title, on, disabled, children }) => (
+    <button type="button" title={title} aria-label={title} disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={on} className="p-1.5 hover:bg-[#FAF5F1] rounded-lg text-[#3A241F] cursor-pointer disabled:opacity-35 disabled:cursor-default">
+      {children}
+    </button>
+  );
+  return (
+    <div className={`flex items-center gap-0.5 bg-white p-1 rounded-xl border border-[#EBDBCE] ${className}`} data-rich-extras>
+      <Btn title="واگرد (Ctrl+Z)" on={editing.undo} disabled={!editing.canUndo}><Undo2 className="w-3.5 h-3.5" /></Btn>
+      <Btn title="بازگرداندن (Ctrl+Y)" on={editing.redo} disabled={!editing.canRedo}><Redo2 className="w-3.5 h-3.5" /></Btn>
+      <span className="w-px h-4 bg-[#EBDBCE] mx-0.5" />
+      <Btn title="بزرگ‌تر کردن متن انتخاب‌شده" on={() => editing.stepFont(2)}><ALargeSmall className="w-4 h-4" /><span className="sr-only">بزرگ‌تر</span></Btn>
+      <Btn title="کوچک‌تر کردن متن انتخاب‌شده" on={() => editing.stepFont(-2)}><ALargeSmall className="w-3 h-3" /><span className="sr-only">کوچک‌تر</span></Btn>
+      <span className="w-px h-4 bg-[#EBDBCE] mx-0.5" />
+      <PaletteButton title="رنگ متن" icon={<Baseline className="w-4 h-4" />} colors={TEXT_COLORS} reset="#1A1A1A" resetLabel="رنگ اصلی" onPick={(c) => editing.setColor('fore', c)} />
+      <PaletteButton title="رنگ نشانه‌گذاری (هایلایت)" icon={<Highlighter className="w-4 h-4" />} colors={MARK_COLORS} reset="transparent" resetLabel="بدون رنگ" onPick={(c) => editing.setColor('hilite', c)} />
+    </div>
   );
 };

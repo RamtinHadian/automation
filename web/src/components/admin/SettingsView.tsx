@@ -43,7 +43,7 @@ import { ThemeManagementModal } from './ThemeManagementModal';
 import { COLOR_THEMES } from '../../lib/theme';
 import { buildProformaHtml, sampleProforma } from '../../lib/proformaPdf';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
-import { formatLetterNumber, DEFAULT_LETTER_NUMBERING } from '../../lib/letterNumbering';
+import { formatLetterNumber, DEFAULT_LETTER_NUMBERING, NUMBER_PATTERNS } from '../../lib/letterNumbering';
 import { useAppContext } from '../../context/AppContext';
 import { ProformaDesigner } from './ProformaDesigner';
 import { VoipStatusCard } from './VoipStatusCard';
@@ -716,10 +716,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
             >
-              <option value="PREFIX_YEAR_NUM">{`پیشوند ${currentNumbering.separator === '-' ? '-' : '/'} سال ${currentNumbering.separator === '-' ? '-' : '/'} شماره (مثال: ۱۰${currentNumbering.separator === '-' ? '-' : '/'}۱۴۰۵${currentNumbering.separator === '-' ? '-' : '/'}۱۰۰۱)`}</option>
-              <option value="YEAR_NUM_PREFIX">{`سال ${currentNumbering.separator === '-' ? '-' : '/'} شماره ${currentNumbering.separator === '-' ? '-' : '/'} پیشوند (مثال: ۱۴۰۵${currentNumbering.separator === '-' ? '-' : '/'}۱۰۰۱${currentNumbering.separator === '-' ? '-' : '/'}۱۰)`}</option>
-              <option value="NUM_PREFIX_YEAR">{`شماره ${currentNumbering.separator === '-' ? '-' : '/'} پیشوند ${currentNumbering.separator === '-' ? '-' : '/'} سال (مثال: ۱۰۰۱${currentNumbering.separator === '-' ? '-' : '/'}۱۰${currentNumbering.separator === '-' ? '-' : '/'}۱۴۰۵)`}</option>
-              <option value="PREFIX_NUM">{`پیشوند ${currentNumbering.separator === '-' ? '-' : '/'} شماره (مثال: ۱۰${currentNumbering.separator === '-' ? '-' : '/'}۱۰۰۱)`}</option>
+              {NUMBER_PATTERNS.map((pt) => (
+                <option key={pt.id} value={pt.id}>{`${pt.parts} (مثال: ${formatLetterNumber({ ...DEFAULT_LETTER_NUMBERING, ...currentNumbering, formatPattern: pt.id, nextNumber: currentNumbering.nextNumber || 1001 })})`}</option>
+              ))}
             </select>
           </div>
 

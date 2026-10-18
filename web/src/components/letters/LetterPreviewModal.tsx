@@ -72,7 +72,7 @@ import { toPersianDigits,
 import { DEFAULT_FONTS } from '../../lib/fonts';
 import { openAndDownloadPdfLetter } from '../../lib/pdfLetterGenerator';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
-import { TableTools, useLetterBodyEditing } from './tableEditor';
+import { RichExtras, TableTools, useLetterBodyEditing } from './tableEditor';
 
 /* =========================================================================
    WORD-LIKE POPUP EDITOR — opens as a full-screen popup with Word ribbon
@@ -99,7 +99,7 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
   onClose,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  useLetterBodyEditing(editorRef);
+  const editing = useLetterBodyEditing(editorRef);
   const [subject, setSubject] = useState(initialSubject);
   const [centerTitle, setCenterTitle] = useState(initialCenterTitle);
   const [footerNote, setFooterNote] = useState(initialFooterNote);
@@ -244,6 +244,8 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
             <option value="24px">۲۴</option>
           </select>
         </div>
+
+        <RichExtras editing={editing} className="shrink-0" />
 
         <div className="w-px h-5 bg-gray-300 mx-1 shrink-0" />
 
