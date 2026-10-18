@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, FileCheck2, FileText, KeyRound, Link2, RefreshCw, Search, Send, Unplug, Users, X } from 'lucide-react';
+import { Banknote, FileCheck2, FileText, KeyRound, ScrollText, Link2, RefreshCw, Search, Send, Unplug, Users, X } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
@@ -68,6 +68,7 @@ export const SepidarView: React.FC = () => {
   const [receiptFor, setReceiptFor] = useState<any | null>(null);
   // clicking a customer's name shows his financial position in Sepidar
   const [financeFor, setFinanceFor] = useState<{ id: string; name: string } | null>(null);
+  const [showReport, setShowReport] = useState(false);
   const [pair, setPair] = useState<{ code: string; expiresAt: string } | null>(null);
   const { currentUser } = useAppContext();
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
@@ -172,6 +173,11 @@ export const SepidarView: React.FC = () => {
               <KeyRound className="w-4 h-4" />
             </button>
           )}
+          {isAdmin && (
+            <button type="button" title="گزارش ابزار سپیدار (آنچه ابزار از سپیدار خوانده)" aria-label="گزارش ابزار سپیدار" onClick={() => setShowReport((v) => !v)} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white" data-tool-report-btn>
+              <ScrollText className="w-4 h-4" />
+            </button>
+          )}
           {can('refresh') && (
             <button type="button" title="بروزرسانی اطلاعات سپیدار" aria-label="بروزرسانی اطلاعات سپیدار" onClick={() => ask({ kind: 'refresh' }, 'درخواست بروزرسانی فرستاده شد.')} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white">
               <RefreshCw className="w-4 h-4" />
@@ -179,6 +185,19 @@ export const SepidarView: React.FC = () => {
           )}
         </span>
       </div>
+
+      {isAdmin && showReport && (
+        <div className="rounded-2xl border border-[#EBDBCE] bg-white p-3 space-y-1" data-tool-report>
+          <div className="text-[11px] font-black text-[#3A241F]">
+            گزارش ابزار سپیدار{(st.cache?.toolReport?.items || [])[0]?.at ? ` · ${timeOf((st.cache?.toolReport?.items || [])[0].at)}` : ''}
+          </div>
+          {((st.cache?.toolReport?.items || [])[0]?.lines || []).length === 0 ? (
+            <div className="text-[11px] font-bold text-[#8C6F66]">گزارشی نرسیده است؛ پس از بروزرسانی ابزار، یک‌بار «بروزرسانی اطلاعات سپیدار» را بزنید.</div>
+          ) : (
+            <pre className="max-h-64 overflow-auto text-[10.5px] leading-5 text-[#3A241F] whitespace-pre-wrap break-words" dir="rtl">{((st.cache?.toolReport?.items || [])[0].lines as string[]).join(String.fromCharCode(10))}</pre>
+          )}
+        </div>
+      )}
 
       <SubTabs
         tone="rose"

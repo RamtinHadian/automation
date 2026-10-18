@@ -30,7 +30,12 @@ const flag = (name) => {
 const cfgPath = flag('--config') || path.join(dir, 'config.json');
 const statePath = flag('--state') || path.join(dir, 'state.json');
 
-const log = (...a) => console.log(...a);
+const recentLog = [];
+const log = (...a) => {
+  console.log(...a);
+  recentLog.push(a.join(' '));
+  if (recentLog.length > 120) recentLog.shift();
+};
 const toLatin = (s) => String(s ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 
 function loadConfig() {
@@ -596,6 +601,7 @@ export async function pushCaches(cfg, sp, state) {
   const tryPush = async (cache, path, map) => {
     try {
       const list = await sp.get(path);
+      log(`  ${cache}: ${Array.isArray(list) ? list.length : 0} ردیف از ${path}${list && list[0] ? ' | فیلدها: ' + Object.keys(list[0]).slice(0, 12).join(',') : ''}`);
       await push(cache, (Array.isArray(list) ? list : []).map(map));
     } catch (e) {
       log(`  ${cache}: خوانده نشد (${e.message})`);
@@ -623,6 +629,12 @@ export async function pushCaches(cfg, sp, state) {
   for (const [ref, id] of Object.entries(state.customers || {})) links.push({ kind: 'customer', ref, sepidarId: id });
   for (const [ref, id] of Object.entries(state.quotations || {})) links.push({ kind: 'quotation', ref, sepidarId: id });
   if (links.length) await hoormandPost(cfg, '/sepidar/push', { links });
+  // what the program saw in Sepidar, for the manager's «گزارش ابزار» panel (it shows why a list is empty)
+  try {
+    await push('toolReport', [{ at: new Date().toISOString(), lines: recentLog.slice(-80) }]);
+  } catch {
+    /* an older Hoormand does not know the report */
+  }
 }
 
 async function cmdCache(cfg) {
