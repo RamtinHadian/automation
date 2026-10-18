@@ -199,9 +199,9 @@ func whState(w http.ResponseWriter, r *http.Request) {
 				if !whQtyAllowed(me) {
 					d["total"], d["byWarehouse"] = 0, map[string]float64{}
 				}
+				delete(d, "cost") // purchase prices are not shown anywhere: only the selling prices
 				if !whMoneyAllowed(me) {
 					delete(d, "prices")
-					delete(d, "cost")
 				}
 				prods = append(prods, d)
 		}
@@ -312,9 +312,9 @@ sql, args := `SELECT m.doc_date::text, m.warehouse_id, m.qty::float8, d.kind, d.
 	}
 p := jsonx.Decode(praw)
 	p["id"] = pid
+	delete(p, "cost") // purchase prices are not shown anywhere: only the selling prices
 	if !whMoneyAllowed(me) {
 		delete(p, "prices")
-		delete(p, "cost")
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"product": p, "rows": out, "balance": balance})
 }
@@ -386,11 +386,7 @@ func whProductPut(w http.ResponseWriter, r *http.Request) {
 		if msg != "" {
 			return nil, "", msg
 		}
-		cost, _ := whNum(b, "cost")
-		if cost < 0 {
-			return nil, "", "قیمت خرید نمی‌تواند منفی باشد."
-		}
-doc := jsonx.M{"cost": cost, "code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500),"active": active, "prices": prices}
+doc := jsonx.M{"code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500),"active": active, "prices": prices}
 		if !whMoneyAllowed(auth.Current(r)) {
 			whKeepMoney(r, doc)
 		}
@@ -1117,8 +1113,5 @@ func whSync(ctx context.Context, by auth.User, keyName string, body jsonx.M) (js
 
 // costFor: what a product costs the company is shown only to administrators (the profit report).
 func costFor(me auth.User, d jsonx.M) any {
-	if !me.IsAdmin() {
-		return nil
-	}
-	return d["cost"]
+	return nil // no purchase price is sent to anybody; only the selling prices are used
 }

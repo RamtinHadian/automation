@@ -182,7 +182,7 @@ export function generateOfficialLetterHtml(
   const padBottomPx = lh && !lh.image ? letterheadPad(lh.id, designW) - 2 : parseInt(containerPadding, 10);
   const pageHdesign = Math.round((designW * (isA5 ? 209 : isLetter ? 278.4 : 296)) / pageWmm);
   // what stands at the foot of every page: the people the letter is copied to, the address line and the note
-  const footH = (copies.length ? 14 + 22 * (copies.length + 1) : 0) + (lh && lhFooter ? 54 : 0) + (showFooter ? 26 : 0) + 6;
+  const footH = (lh && lhFooter ? 54 : 0) + (showFooter ? 26 : 0) + 6;
 
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -269,7 +269,9 @@ export function generateOfficialLetterHtml(
     .pg { width: 100%; border-collapse: collapse; height: ${pageHdesign}px; position: relative; z-index: 1; }
     .pg > thead, .pg > tfoot { display: table-header-group; }
     .pg > tfoot { display: table-footer-group; }
-    .pg-cell { vertical-align: top; padding: 0; }
+    .pg-cell { vertical-align: top; padding: 0; height: 1px; }
+    /* the copy-to list ends the letter: at the foot of the last page (the row takes what is left of the page) */
+    .pg-copies { vertical-align: bottom; padding: 0; }
     .fx-foot { position: absolute; left: ${containerPadding}; right: ${containerPadding}; bottom: ${padBottomPx}px; z-index: 2; }
     .header {
       border-bottom: none;
@@ -540,10 +542,11 @@ export function generateOfficialLetterHtml(
       </div>
     </div>
 
-      </td></tr></tbody>
+      </td></tr>
+      ${copies.length ? `<tr><td class="pg-copies"><div style="padding-top: 12px; font-size: 11.5px; font-weight: 700; line-height: 1.9; color: #3A241F;"><div style="color: #6E1B1B;">رونوشت:</div>${copies.map((c) => `<div>${c.replace(/</g, '&lt;')}</div>`).join('')}</div></td></tr>` : ''}
+      </tbody>
     </table>
     <div class="fx-foot">
-    ${copies.length ? `<div style="padding-top: 12px; font-size: 11.5px; font-weight: 700; line-height: 1.9; color: #3A241F;"><div style="color: #6E1B1B;">رونوشت:</div>${copies.map((c) => `<div>${c.replace(/</g, '&lt;')}</div>`).join('')}</div>` : ''}
 
     ${lh && lhFooter ? `<div style="padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
 

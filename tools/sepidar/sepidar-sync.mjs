@@ -613,7 +613,9 @@ export async function pushCaches(cfg, sp, state) {
   try {
     const [notes, items] = await Promise.all([sp.get('/api/PriceNoteItems'), sp.get('/api/Items')]);
     const byId = new Map(items.map((i) => [i.ItemID, i]));
-    await push('priceNotes', notes.map((n) => ({ saleTypeRef: n.SaleTypeRef, itemRef: n.ItemRef, code: byId.get(n.ItemRef)?.Code, title: byId.get(n.ItemRef)?.Title, fee: n.Fee, groupingRef: n.CustomerGroupingRef })));
+    // only SELLING prices go to Hoormand: a price note without a sale type, or one marked as a purchase price, is left out
+    const isSelling = (n) => n.SaleTypeRef != null && !/buy|purchase|supply/i.test(String(n.Type ?? n.PriceNoteType ?? n.Kind ?? ''));
+    await push('priceNotes', notes.filter(isSelling).map((n) => ({ saleTypeRef: n.SaleTypeRef, itemRef: n.ItemRef, code: byId.get(n.ItemRef)?.Code, title: byId.get(n.ItemRef)?.Title, fee: n.Fee, groupingRef: n.CustomerGroupingRef })));
   } catch (e) {
     log(`  priceNotes: خوانده نشد (${e.message})`);
   }

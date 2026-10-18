@@ -20,7 +20,6 @@ const REPORTS: [Kind, string, React.ElementType][] = [
   ['needs', 'نیاز مشتریان', Target],
   ['lost', 'دلایل ازدست‌رفتن فروش', XCircle],
   ['quality', 'کیفیت اطلاعات', ShieldAlert],
-  ['profit', 'سود مشتریان', Coins],
 ];
 const ACT_LABEL: Record<string, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد' };
 
