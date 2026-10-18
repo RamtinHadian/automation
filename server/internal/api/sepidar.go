@@ -1,6 +1,8 @@
 package api
 
 import (
+	"archive/zip"
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -109,6 +111,40 @@ func sepidarConnectorSeen(ctx context.Context) (seen, version string) {
 	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarConnector'`).Scan(&raw)
 	d := jsonx.Decode(raw)
 	return jsonx.Str(d, "lastSeenAt"), jsonx.Str(d, "name")
+}
+
+// GET /api/sepidar/tool-files: the program's current files as one zip, for a manager to copy onto the accounting computer by hand (needed once,
+// when the program there is too old to update itself). The settings and the key of the program are not in it.
+func sepidarToolZip(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if !me.IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	added := 0
+	for _, name := range sepidarToolFiles {
+		b, err := os.ReadFile(filepath.Join(sepidarToolDir(), name))
+		if err != nil {
+			continue
+		}
+		f, err := zw.Create(name)
+		if err != nil {
+			internalError(w)
+			return
+		}
+		_, _ = f.Write(b)
+		added++
+	}
+	_ = zw.Close()
+	if added == 0 {
+		httpx.Error(w, http.StatusNotFound, "فایل‌های برنامه روی این سرور نیست.")
+		return
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", `attachment; filename="sepidar-tool-update.zip"`)
+	_, _ = w.Write(buf.Bytes())
 }
 
 // GET /api/sepidar/connected: whether the Sepidar program has ever connected to this Hoormand (any signed-in person may ask; it switches on
@@ -902,4 +938,5 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/crm/sepidar-link", auth.Require(crmSepidarLink))
 	mux.HandleFunc("GET /api/sepidar/finance/{customerId}", auth.Require(sepidarFinance))
 	mux.HandleFunc("GET /api/sepidar/connected", auth.Require(sepidarConnected))
+	mux.HandleFunc("GET /api/sepidar/tool-files", auth.Require(sepidarToolZip))
 }

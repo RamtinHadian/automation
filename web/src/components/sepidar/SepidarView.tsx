@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, FileCheck2, FileText, Info, KeyRound, ScrollText, Link2, RefreshCw, Search, Send, Unplug, Users, X } from 'lucide-react';
+import { Banknote, Download, FileCheck2, FileText, Info, KeyRound, ScrollText, Link2, RefreshCw, Search, Send, Unplug, Users, X } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
@@ -184,6 +184,29 @@ export const SepidarView: React.FC = () => {
             <Info className="w-4 h-4" />
           </button>
           {isAdmin && (
+            <button
+              type="button"
+              title="دانلود فایل‌های تازهٔ برنامهٔ سپیدار (برای کپی روی کامپیوتر حسابداری)"
+              aria-label="دانلود فایل‌های برنامهٔ سپیدار"
+              data-tool-download
+              onClick={async () => {
+                try {
+                  const blob = await api.sepidarToolFiles();
+                  const a = document.createElement('a');
+                  a.href = URL.createObjectURL(blob);
+                  a.download = 'sepidar-tool-update.zip';
+                  a.click();
+                  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+                } catch (e) {
+                  showToast(e instanceof Error ? e.message : 'خطا');
+                }
+              }}
+              className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+          {isAdmin && (
             <button type="button" title="گزارش ابزار سپیدار (آنچه ابزار از سپیدار خوانده)" aria-label="گزارش ابزار سپیدار" onClick={() => setShowReport((v) => !v)} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white" data-tool-report-btn>
               <ScrollText className="w-4 h-4" />
             </button>
@@ -202,7 +225,7 @@ export const SepidarView: React.FC = () => {
             گزارش ابزار سپیدار{(st.cache?.toolReport?.items || [])[0]?.at ? ` · ${timeOf((st.cache?.toolReport?.items || [])[0].at)}` : ''}
           </div>
           {((st.cache?.toolReport?.items || [])[0]?.lines || []).length === 0 ? (
-            <div className="text-[11px] font-bold text-[#8C6F66]">گزارشی نرسیده است؛ پس از بروزرسانی ابزار، یک‌بار «بروزرسانی اطلاعات سپیدار» را بزنید.</div>
+            <div className="text-[11px] font-bold text-[#8C6F66]">گزارشی نرسیده است: یا ابزار روی کامپیوتر حسابداری هنوز نسخهٔ قدیمی است (با دکمهٔ دانلود کنار همین نوار، فایل‌های تازه را بگیرید و روی همان کامپیوتر جایگزین کنید)، یا بعد از بروزرسانی هنوز «بروزرسانی اطلاعات سپیدار» را نزده‌اید.</div>
           ) : (
             <pre className="max-h-64 overflow-auto text-[10.5px] leading-5 text-[#3A241F] whitespace-pre-wrap break-words" dir="rtl">{((st.cache?.toolReport?.items || [])[0].lines as string[]).join(String.fromCharCode(10))}</pre>
           )}

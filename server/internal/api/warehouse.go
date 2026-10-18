@@ -1055,6 +1055,9 @@ func whSync(ctx context.Context, by auth.User, keyName string, body jsonx.M) (js
 		return nil, fmt.Errorf("حجم اطلاعات از حد مجاز بیشتر است.")
 	}
 	complete := jsonx.Bool(body, "complete")
+	if len(stock) == 0 {
+		complete = false // a synchronisation without a single stock row must never zero the stock Hoormand holds (an older program could not read it)
+	}
 	tx, err := store.Pool.Begin(ctx)
 	if err != nil {
 		return nil, err

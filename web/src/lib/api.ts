@@ -558,6 +558,12 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
       invoiceTotal?: number;
       invoicesAt?: string;
     }>('GET', `/api/sepidar/finance/${encodeURIComponent(customerId)}${forCall ? '?for=call' : ''}`),
+  /** The files of the Sepidar program as a zip (managers), to copy onto the accounting computer by hand. */
+  sepidarToolFiles: async (): Promise<Blob> => {
+    const res = await fetch('/api/sepidar/tool-files', { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!res.ok) throw new Error('فایل‌ها دریافت نشد.');
+    return res.blob();
+  },
   sepidarConnected: () => request<{ connected: boolean }>('GET', '/api/sepidar/connected'),
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),
