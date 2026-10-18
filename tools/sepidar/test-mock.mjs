@@ -188,6 +188,10 @@ const pl = stockPayload(stocks, items, units, inventories);
 ok(pl.products.length === 2 && pl.products[1].unit === 'لیتر' && pl.warehouses.length === 2 && pl.complete === true, 'stock payload: goods only (the service is left out), units by title');
 ok(pl.stock.length === 2 && pl.stock.find((x) => x.productCode === '1001' && x.warehouseCode === 'A1').qty === 7.5, 'stock payload: the tracings of one product are summed');
 
+// Sepidar's real inventory spells two fields wrongly (StockeRef, Qunatity): they are read as they come
+const real = stockPayload(stocks, items, units, [{ ItemRef: items[0].ItemID, TracingRef: null, StockeRef: stocks[0].StockID, UnitRef: 1, Qunatity: 12 }]);
+ok(real.stock.length === 1 && real.stock[0].qty === 12, "stock payload: Sepidar's own spelling of the inventory fields (StockeRef, Qunatity) is read");
+
 // the whole program
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sepidar-test-'));
 const cfg = path.join(tmp, 'config.json');

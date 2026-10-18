@@ -239,8 +239,8 @@ export function stockPayload(stocks, items, units, inventories, groupOf = () => 
   const sums = new Map(); // "product|warehouse" -> quantity (a product with tracings has one row per tracing)
   for (const r of inventories) {
     const pc = codeOf.get(r.ItemRef ?? r.ItemID);
-    const wc = stockCode.get(r.StockRef ?? r.StockID);
-    const q = Number(r.Quantity ?? r.Qty ?? r.Balance ?? r.Remaining ?? r.CurrentQuantity ?? r.StockQuantity ?? r.Count ?? 0);
+    const wc = stockCode.get(r.StockRef ?? r.StockID ?? r.StockeRef); // (Sepidar's own spelling: «StockeRef»)
+    const q = Number(r.Quantity ?? r.Qunatity ?? r.Qty ?? r.Balance ?? r.Remaining ?? r.CurrentQuantity ?? r.StockQuantity ?? r.Count ?? 0); // («Qunatity»: Sepidar's own spelling)
     if (!pc || !wc || !Number.isFinite(q)) continue;
     sums.set(pc + '|' + wc, (sums.get(pc + '|' + wc) || 0) + q);
   }
@@ -288,7 +288,7 @@ async function readItemGroups(sp, items) {
     log('  گروه کالا: فیلد گروه در آیتم‌ها پیدا نشد.');
     return () => '';
   }
-  for (const path of ['/api/ItemCategories', '/api/ItemGroups', '/api/ItemGroupings', '/api/ItemCategory', '/api/Categories']) {
+  for (const path of ['/api/CodingGroups', '/api/CodingGroupings', '/api/ItemCodingGroups', '/api/Items/CodingGroups', '/api/ItemGroups', '/api/ItemGroupings', '/api/ItemCategories', '/api/ItemCategory', '/api/Categories']) {
     try {
       const rows = await sp.get(path);
       if (!Array.isArray(rows) || !rows.length) continue;
@@ -310,18 +310,19 @@ async function readItemGroups(sp, items) {
     }
   }
   log(`  گروه کالا: فهرست گروه‌ها پیدا نشد (فیلد کالا: ${field})`);
+  await discoverEndpoints(sp, /coding|group|categor/i);
   return () => '';
 }
 
 /** When no address gives the stock: ask the service itself which addresses it has (its documentation page / swagger) and list the ones about stock and items in the report. */
-async function discoverEndpoints(sp) {
+async function discoverEndpoints(sp, pattern = /stock|inventor|item|ware|balance/i) {
   const found = new Set();
   for (const doc of ['/swagger/docs/v1', '/swagger/v1/swagger.json', '/swagger/v1/swagger.yaml', '/help', '/api/help', '/api', '/']) {
     try {
       const data = await sp.raw('GET', doc);
       const text = typeof data === 'string' ? data : JSON.stringify(data);
       const paths = data && typeof data === 'object' && data.paths ? Object.keys(data.paths) : [...text.matchAll(/\/api\/[A-Za-z0-9_\/{}.-]+/g)].map((m) => m[0]);
-      paths.filter((x) => /stock|inventor|item|ware|balance/i.test(x)).forEach((x) => found.add(x));
+      paths.filter((x) => pattern.test(x)).forEach((x) => found.add(x));
       if (paths.length) {
         log(`  فهرست آدرس‌های سرویس از ${doc}: ${paths.length} آدرس`);
         break;
@@ -489,6 +490,12 @@ async function cmdSync(cfg) {
       log(`  مشتری ثبت شد: ${body.Name} ${body.LastName} (شناسه ${r.CustomerID})`);
     } catch (e) {
       report.customersFail++;
+      if (e && e.status === 403) {
+        // the Sepidar user may not register customers: one note, and the rest of the list is not tried again and again
+        log(`  خطا در ثبت مشتری «${body.Name} ${body.LastName}»: ${e.message}`);
+        log('  ثبت مشتری برای بقیه تا دور بعد انجام نمی‌شود (کاربر سپیدار اجازهٔ ثبت مشتری ندارد).');
+        break;
+      }
       log(`  خطا در ثبت مشتری «${body.Name} ${body.LastName}»: ${e.message}`);
     }
   }
@@ -719,7 +726,7 @@ export async function pushCaches(cfg, sp, state) {
   await tryPush('currencies', '/api/Currencies', (x) => pick(x, ['CurrencyID', 'Title', 'IsMain']));
   await tryPush('customerGroups', '/api/CustomerGroupings', (x) => pick(x, ['CustomerGroupingID', 'Title']));
   await tryPush('sepidarCustomers', '/api/Customers', (x) => ({ id: x.CustomerID, code: x.Code ?? x.CustomerCode ?? '', name: x.Title || `${x.Name || ''} ${x.LastName || ''}`.trim(), phones: [x.PhoneNumber, x.MobileNumber, x.Phone].filter(Boolean), nationalId: x.NationalID || '' }));
-  await tryPush('balances', '/api/Customers', (x) => pick(x, ['CustomerID', 'Title', 'Remainder', 'CreditRemainder']));
+  await tryPush('balances', '/api/Customers', (x) => ({ ...pick(x, ['CustomerID', 'Title', 'CreditRemainder', 'QuantityCreditRemainder', 'RemainderWithoutCheque']), Remainder: x.Remainder ?? x.AccountingRemainder ?? 0 }));
   try {
     const [notes, items] = await Promise.all([sp.get('/api/PriceNoteItems'), sp.get('/api/Items')]);
     const byId = new Map(items.map((i) => [i.ItemID, i]));
