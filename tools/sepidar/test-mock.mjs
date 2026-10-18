@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aesDecrypt, aesEncrypt, md5, guidFrom, Sepidar } from './sepidar-client.mjs';
-import { customerBody, quotationBody, stockPayload, matchSepidarCustomer } from './sepidar-sync.mjs';
+import { customerBody, quotationBody, stockPayload, matchSepidarCustomer, createCustomer } from './sepidar-sync.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 let failed = 0;
@@ -24,6 +24,8 @@ const std = (u) => Buffer.from(u, 'base64url').toString('base64');
 const xml = `<RSAKeyValue><Modulus>${std(jwk.n)}</Modulus><Exponent>${std(jwk.e)}</Exponent></RSAKeyValue>`;
 const used = new Set();
 let strictRawLe = false;
+let canRegister = true; // what the pretend Sepidar says about the user's right to register customers
+let customers403 = false; // the pretend Sepidar refuses the registration itself
 let toolMode = 'normal'; // 'broken' = the served console-fa.mjs has a syntax error (with a matching hash), 'damaged' = its bytes do not match the hash
 const servedTool = (n) => (n === 'console-fa.mjs' && toolMode === 'broken' ? Buffer.from('export const = ;' + String.fromCharCode(10)) : n === 'console-fa.mjs' && toolMode === 'damaged' ? Buffer.from('damaged bytes') : fs.readFileSync(path.join(dir, n)));
 const sp = { customers: [], quotations: [], registered: false, logins: 0 };
@@ -72,7 +74,7 @@ const sepidarServer = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url === '/api/users/login') {
     if (body.UserName !== 'admin' || body.PasswordHash !== md5('secret')) return send(res, 401, { Message: 'رمز عبور اشتباه است.' });
     sp.logins++;
-    return send(res, 200, { Token: 'tok-' + sp.logins, UserID: 1, Title: 'مدیر', CanRegisterCustomer: true });
+    return send(res, 200, { Token: 'tok-' + sp.logins, UserID: 1, Title: 'مدیر', CanRegisterCustomer: canRegister });
   }
   if (!/^Bearer tok-/.test(req.headers.authorization || '')) return send(res, 401, { Message: 'token' });
   if (req.method === 'GET' && url === '/api/Items') return send(res, 200, items);
@@ -93,6 +95,7 @@ const sepidarServer = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url === '/api/Stocks') return send(res, 200, stocks);
   if (req.method === 'GET' && url === '/api/Units') return send(res, 200, units);
   if (req.method === 'GET' && url === '/api/Items/Inventories') return send(res, 200, inventories);
+  if (req.method === 'POST' && url === '/api/Customers' && customers403) return send(res, 403, { Message: 'کاربر به منبع درخواست شده دسترسی ندارد.' });
   if (req.method === 'POST' && url === '/api/Customers') {
     if (sp.customers.some((c) => c.GUID === body.GUID)) return send(res, 400, { Message: 'duplicate' });
     const c = { ...body, CustomerID: 500 + sp.customers.length };
@@ -255,6 +258,30 @@ ok(r.code === 0 && /ورود موفق بود/.test(r.out), 'diag works from the 
   u = await upd(d2);
   ok(u.code !== 0 && /ناقص رسید/.test(u.out) && /an old copy/.test(fs.readFileSync(path.join(d2, 'console-fa.mjs'), 'utf8')), 'update: a file whose hash does not match is refused');
   toolMode = 'normal';
+}
+
+// a Sepidar user without the right to register customers: the program says what to change (and never makes the customer)
+{
+  const mk = () => new Sepidar({ url: `http://127.0.0.1:${sPort}`, serial: SERIAL, userName: 'admin', password: 'secret' }, { publicKeyXml: xml });
+  const before = sp.customers.length;
+  canRegister = false;
+  let msg = '';
+  try {
+    await createCustomer(mk(), { GUID: guidFrom('x'), Name: 'آزمایش', LastName: '', CustomerType: 1 });
+  } catch (e) {
+    msg = e.message;
+  }
+  ok(/اجازهٔ ثبت مشتری ندارد/.test(msg) && /«admin»/.test(msg) && sp.customers.length === before, 'a Sepidar user without the right to register customers: a clear message, no customer made' + String.fromCharCode(10) + msg);
+  canRegister = true;
+  customers403 = true;
+  msg = '';
+  try {
+    await createCustomer(mk(), { GUID: guidFrom('y'), Name: 'آزمایش', LastName: '', CustomerType: 1 });
+  } catch (e) {
+    msg = e.message;
+  }
+  ok(/\(403\)/.test(msg) && /مجوز ندارد/.test(msg) && /«admin»/.test(msg), 'a 403 from Sepidar is explained (which user needs which right)' + String.fromCharCode(10) + msg);
+  customers403 = false;
 }
 
 // a Sepidar that accepts only another shape of the encrypted code: the client tries the shapes and finds it

@@ -98,7 +98,8 @@ export class Sepidar {
     }
     if (!res.ok) {
       const msg = (data && (data.Message || data.message || data.error)) || (typeof data === 'string' ? data : '') || res.statusText;
-      throw new SepidarError(res.status, `سپیدار (${res.status}): ${msg}`);
+      const hint = res.status === 403 ? ` — کاربر «${this.cfg.userName}» در سپیدار برای این کار مجوز ندارد؛ در سپیدار به همین کاربر دسترسی لازم را بدهید.` : '';
+      throw new SepidarError(res.status, `سپیدار (${res.status}): ${msg}${hint}`);
     }
     return data;
   }
@@ -197,6 +198,7 @@ export class Sepidar {
         body: { UserName: this.cfg.userName, PasswordHash: md5(this.cfg.password) },
       });
       this.token = r.Token;
+      this.loginInfo = r; // what Sepidar says this user may do (CanRegisterCustomer…)
       this.state.generationVersion = v;
       this.state.shape = shape; // the shape that worked is tried first next time
       this.shape = shape;
@@ -257,6 +259,12 @@ export class Sepidar {
       }
       throw e;
     }
+  }
+
+  /** The login answer (the user's rights), signing in first when needed. */
+  async info() {
+    if (!this.token) await this.login();
+    return this.loginInfo || {};
   }
 
   get(path) {

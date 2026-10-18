@@ -26,6 +26,7 @@ import { DailyReportsView } from './DailyReportsView';
 import { Task, TaskPriority, TaskStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { matchesAll } from '../../lib/searchAll';
+import { SubTabs } from '../common/SubTabs';
 import {
   JALALI_MONTHS,
   formatTaskDate,
@@ -760,25 +761,13 @@ export const TasksView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      <div data-subtabs className="px-3.5 sm:px-8 pt-4 sm:pt-6">
-        <div className="inline-flex bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
-          {([
-            ['tasks', 'وظایف', ListChecks],
-            ['reports', 'گزارش روزانه', FileText],
-          ] as const).filter(([id]) => canSub(me, id === 'tasks' ? 'tasks.list' : 'tasks.reports')).map(([id, label, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                tab === id ? 'bg-white text-sky-700 shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="px-3.5 sm:px-8 pt-4 sm:pt-6">
+        <SubTabs
+          tone="sky"
+          value={tab}
+          onChange={(k) => setTab(k as 'tasks' | 'reports')}
+          tabs={([['tasks', 'وظایف', ListChecks], ['reports', 'گزارش روزانه', FileText]] as const).filter(([id]) => canSub(me, id === 'tasks' ? 'tasks.list' : 'tasks.reports')).map(([id, label, Icon]) => ({ id, label, Icon }))}
+        />
       </div>
       {tab === 'tasks' && canSub(me, 'tasks.list') ? <TasksBoard /> : tab === 'reports' && canSub(me, 'tasks.reports') ? <DailyReportsView /> : canSub(me, 'tasks.list') ? <TasksBoard /> : canSub(me, 'tasks.reports') ? <DailyReportsView /> : <div className="p-10 text-center text-xs font-bold text-[#8C6F66]">دسترسی شما به زیرمنوهای این بخش بسته است؛ از مدیر بخواهید در «جدول مجوزها» باز کند.</div>}
     </div>

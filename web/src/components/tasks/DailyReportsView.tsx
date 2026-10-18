@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   X,
   FileText,
+  Check,
 } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
@@ -308,8 +309,11 @@ export const DailyReportsView: React.FC = () => {
             </div>
 
             <div>
-              <label className={label}>ارسال گزارش برای (علاوه بر مدیران)</label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <label className={`${label} !mb-0`}>ارسال گزارش برای (علاوه بر مدیران)</label>
+                {form.recipientIds.length > 0 && <span className="text-[10px] font-black text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2 py-0.5">{toPersianDigits(form.recipientIds.length)} نفر انتخاب شد</span>}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2" data-report-recipients>
                 {recipientChoices.map((u) => {
                   const on = form.recipientIds.includes(u.id);
                   return (
@@ -317,12 +321,18 @@ export const DailyReportsView: React.FC = () => {
                       key={u.id}
                       type="button"
                       onClick={() => setForm({ ...form, recipientIds: on ? form.recipientIds.filter((x) => x !== u.id) : [...form.recipientIds, u.id] })}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold transition-all cursor-pointer ${
-                        on ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'
+                      className={`relative flex items-center gap-3 p-3 rounded-2xl border text-right transition-all cursor-pointer ${
+                        on ? 'bg-sky-50 border-sky-400 shadow-2xs' : 'bg-white border-[#EBDBCE] hover:bg-[#FAF5F1] hover:border-[#C98B6A]'
                       }`}
                     >
-                      <Avatar user={u} size={22} />
-                      {u.fullName}
+                      <Avatar user={u} size={36} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
+                        {u.departmentName ? <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{u.departmentName}</span> : null}
+                      </span>
+                      <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${on ? 'bg-sky-600 border-sky-600 text-white' : 'border-[#EBDBCE] text-transparent'}`}>
+                        <Check className="w-3 h-3" />
+                      </span>
                     </button>
                   );
                 })}

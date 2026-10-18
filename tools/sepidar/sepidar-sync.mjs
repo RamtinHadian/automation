@@ -132,6 +132,15 @@ function restartSelf() {
   setTimeout(() => process.exit(0), 300);
 }
 
+/** Registers a customer in Sepidar; when the Sepidar user has no right to do that, says exactly what to change instead of a bare 403. */
+export async function createCustomer(sp, body) {
+  const info = await sp.info();
+  if (info.CanRegisterCustomer === false) {
+    throw new Error(`کاربر «${sp.cfg.userName}» در سپیدار اجازهٔ ثبت مشتری ندارد. در سپیدار برای همین کاربر دسترسی «ثبت مشتری» (مشتریان ← ایجاد) را فعال کنید، بعد دوباره امتحان کنید.`);
+  }
+  return sp.post('/api/Customers', body);
+}
+
 /** The customer Sepidar already has for this body: the same mobile (last nine digits) or the same national code. takenIds = Sepidar customers already tied to another Hoormand customer. */
 export function matchSepidarCustomer(body, list, takenIds = new Set()) {
   const tail = (v) => {
@@ -357,7 +366,7 @@ async function cmdSync(cfg) {
       continue;
     }
     try {
-      const r = await sp.post('/api/Customers', body);
+      const r = await createCustomer(sp, body);
       state.customers[c.id] = r.CustomerID;
       refOf.set(c.id, r.CustomerID);
       saveState(state);
@@ -445,7 +454,7 @@ async function sepidarCustomerRef(cfg, sp, state, c) {
     return same.CustomerID;
   }
   if (!body.Name) throw new Error('مشتری نام ندارد.');
-  const r = await sp.post('/api/Customers', body);
+  const r = await createCustomer(sp, body);
   state.customers[c.id] = r.CustomerID;
   return r.CustomerID;
 }
@@ -460,7 +469,7 @@ export const jobHandlers = {
     state.customers ||= {};
     if (!found) {
       if (!body.Name) throw new Error('مشتری نام ندارد.');
-      const r = await sp.post('/api/Customers', body);
+      const r = await createCustomer(sp, body);
       state.customers[c.id] = r.CustomerID;
       return { sepidarId: r.CustomerID, message: 'مشتری در سپیدار ثبت شد.' };
     }

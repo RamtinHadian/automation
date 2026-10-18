@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, FileCheck2, FileText, RefreshCw, Search, Send, Unplug, Users, X } from 'lucide-react';
+import { Banknote, FileCheck2, FileText, KeyRound, Link2, RefreshCw, Search, Send, Unplug, Users, X } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
@@ -10,6 +10,7 @@ import { Modal, field, label } from '../crm/crmUi';
 import { matchesAll } from '../../lib/searchAll';
 import { CustomerFinance } from './CustomerFinance';
 import { BoxCard as Card, BoxGrid as List } from '../common/BoxCard';
+import { SubTabs } from '../common/SubTabs';
 
 interface Job {
   id: string;
@@ -46,6 +47,14 @@ const STATUS: Record<Job['status'], [string, string]> = {
   cancelled: ['لغو شد', 'bg-gray-50 text-gray-600 border-gray-200'],
 };
 const fmt = (n: number) => toPersianDigits(Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }));
+/** «۲ دقیقه پیش» for the last contact of the Sepidar program. */
+const ago = (iso: string) => {
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (m < 1) return 'لحظاتی پیش';
+  if (m < 60) return `${toPersianDigits(m)} دقیقه پیش`;
+  if (m < 1440) return `${toPersianDigits(Math.round(m / 60))} ساعت پیش`;
+  return `${toPersianDigits(Math.round(m / 1440))} روز پیش`;
+};
 const timeOf = (iso?: string) => (iso ? `${formatTaskDate(iso)} ${toPersianDigits(new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))}` : '');
 
 type Tab = 'deals' | 'customers' | 'invoices' | 'prices' | 'jobs';
@@ -124,52 +133,56 @@ export const SepidarView: React.FC = () => {
 
   return (
     <div className="space-y-4" dir="rtl">
-      <div className={`rounded-2xl border px-4 py-3 flex flex-wrap items-center gap-2 text-[11px] font-bold ${alive ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'}`}>
-        {alive ? <RefreshCw className="w-4 h-4" /> : <Unplug className="w-4 h-4" />}
-        <span>
-          {alive
-            ? `برنامهٔ سپیدار وصل است (آخرین تماس: ${timeOf(st.connectorSeenAt)}).`
-            : st.connectorSeenAt
-              ? `برنامهٔ سپیدار چند دقیقه است جواب نمی‌دهد (آخرین تماس: ${timeOf(st.connectorSeenAt)}). درخواست‌ها تا روشن‌شدنش در صف می‌مانند.`
-              : 'برنامهٔ سپیدار هنوز به هورمند وصل نشده است (راهنمای اتصال را ببینید).'}
+      <div
+        className={`rounded-2xl border px-3 py-2 flex items-center gap-2 text-[11px] font-black ${alive ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'}`}
+        title={alive ? `برنامهٔ سپیدار وصل است (آخرین تماس: ${timeOf(st.connectorSeenAt)})` : st.connectorSeenAt ? `آخرین تماس: ${timeOf(st.connectorSeenAt)}. درخواست‌ها تا روشن‌شدن برنامهٔ سپیدار در صف می‌مانند.` : 'برنامهٔ سپیدار هنوز به هورمند وصل نشده است (راهنمای اتصال را ببینید).'}
+        data-sepidar-status
+      >
+        <span className="relative flex h-2.5 w-2.5 shrink-0">
+          {alive && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />}
+          <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${alive ? 'bg-emerald-600' : 'bg-rose-500'}`} />
         </span>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                setPair(await api.sepidarPair());
-              } catch (e) {
-                showToast(e instanceof Error ? e.message : 'خطا');
-              }
-            }}
-            className="mr-auto underline font-black cursor-pointer"
-          >
-            ساخت کد اتصال
-          </button>
-        )}
-        {can('view') && (
-          <button type="button" onClick={() => ask({ kind: 'refresh' }, 'درخواست بروزرسانی فرستاده شد.')} className="mr-auto underline font-black cursor-pointer">
-            بروزرسانی اطلاعات سپیدار
-          </button>
-        )}
+        {alive ? <Link2 className="w-4 h-4 shrink-0" /> : <Unplug className="w-4 h-4 shrink-0" />}
+        <span className="truncate">{alive ? 'سپیدار وصل است' : st.connectorSeenAt ? 'سپیدار جواب نمی‌دهد' : 'سپیدار وصل نیست'}</span>
+        {st.connectorSeenAt && <span className="font-bold opacity-70 whitespace-nowrap">· {ago(st.connectorSeenAt)}</span>}
+        <span className="mr-auto flex items-center gap-1.5 shrink-0">
+          {isAdmin && (
+            <button
+              type="button"
+              title="ساخت کد اتصال"
+              aria-label="ساخت کد اتصال"
+              onClick={async () => {
+                try {
+                  setPair(await api.sepidarPair());
+                } catch (e) {
+                  showToast(e instanceof Error ? e.message : 'خطا');
+                }
+              }}
+              className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white"
+            >
+              <KeyRound className="w-4 h-4" />
+            </button>
+          )}
+          {can('view') && (
+            <button type="button" title="بروزرسانی اطلاعات سپیدار" aria-label="بروزرسانی اطلاعات سپیدار" onClick={() => ask({ kind: 'refresh' }, 'درخواست بروزرسانی فرستاده شد.')} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          )}
+        </span>
       </div>
 
-      <div data-subtabs className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1.5">
-          {tabs.filter((t) => t[2]).map(([k, t]) => (
-            <button key={k} type="button" onClick={() => setTab(k)} className={`px-3 sm:px-4 py-2 min-h-[40px] rounded-xl text-xs font-black whitespace-nowrap cursor-pointer border ${tab === k ? 'bg-rose-700 text-white border-rose-700' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}>
-              {t}
-            </button>
-          ))}
+      <SubTabs
+        tone="rose"
+        value={tab}
+        onChange={(k) => setTab(k as Tab)}
+        tabs={tabs.filter((t) => t[2]).map(([k, t]) => ({ id: k, label: t, Icon: ({ deals: FileText, customers: Users, invoices: FileCheck2, prices: Banknote, jobs: Send } as Record<string, React.ElementType>)[k] }))}
+      />
+      {tab !== 'jobs' && (
+        <div className="relative">
+          <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C6F66]" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در همهٔ اطلاعات: نام، شماره، کالا، مبلغ، تاریخ…" className={field + ' pr-9'} />
         </div>
-        {tab !== 'jobs' && (
-          <div className="relative mr-auto min-w-[180px] flex-1 max-w-xs">
-            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C6F66]" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در همهٔ اطلاعات: نام، شماره، کالا، مبلغ، تاریخ…" className={field + ' pr-9'} />
-          </div>
-        )}
-      </div>
+      )}
 
       {tab === 'deals' && (
         <List empty="فرصت فروشی با پیش‌فاکتور شماره‌دار نیست.">

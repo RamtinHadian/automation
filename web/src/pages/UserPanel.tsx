@@ -24,6 +24,7 @@ import { normPhone } from '../lib/customerImport';
 import { NotificationBell } from '../components/common/NotificationBell';
 import type { AppNotification } from '../lib/notifications';
 import { DEFAULT_SIGNATURE_HEIGHT } from '../lib/letterDefaults';
+import { SubTabs } from '../components/common/SubTabs';
 import {
   Users,
   ClipboardList,
@@ -1150,14 +1151,13 @@ export default function UserPanel() {
         {/* ========================================================================= */}
         {mainMenuTab === 'files' && (
           <div className="flex-1 flex flex-col">
-            <div data-subtabs className="grid grid-cols-2 sm:flex sm:items-center gap-2 px-4 sm:px-6 pt-4 pb-2">
-              {([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => (
-                <button key={id} type="button" onClick={() => setFilesSection(id)} className={`relative shrink-0 whitespace-nowrap min-h-[44px] sm:min-h-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black cursor-pointer border transition-colors ${filesSection === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
-                  <Icon className="w-4 h-4" />
-                  {label}
-                  {id === 'chat' && chatUnread > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{toPersianDigits(chatUnread > 99 ? '99+' : chatUnread)}</span>}
-                </button>
-              ))}
+            <div className="px-4 sm:px-6 pt-4 pb-2">
+              <SubTabs
+                tone="maroon"
+                value={filesSection}
+                onChange={(k) => setFilesSection(k as typeof filesSection)}
+                tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : 0 }))}
+              />
             </div>
             {filesSection === 'reminders' ? (
               <RemindersView />

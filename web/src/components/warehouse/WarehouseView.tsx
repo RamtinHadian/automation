@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Ban, Download, FileText, Package, Plus, Search, Warehouse as WarehouseIcon, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Ban, Boxes, Download, FileText, Package, Plus, Search, Warehouse as WarehouseIcon, X } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { canSub } from '../../lib/permissions';
 import { api, WhCard, WhDoc, WhKind, WhProduct, WhState, WhWarehouse } from '../../lib/api';
@@ -13,6 +13,7 @@ import { PersonPicker, customerItems } from '../common/PersonPicker';
 import { Modal, field, label } from '../crm/crmUi';
 import { matchesAll } from '../../lib/searchAll';
 import { BoxCard, BoxGrid, BoxStats } from '../common/BoxCard';
+import { SubTabs } from '../common/SubTabs';
 
 const KIND_LABEL: Record<WhKind, string> = { receipt: 'رسید ورود', issue: 'حواله خروج', transfer: 'انتقال بین انبارها', adjust: 'تعدیل انبارگردانی' };
 const KIND_COLOR: Record<WhKind, string> = {
@@ -106,29 +107,21 @@ export const WarehouseView: React.FC = () => {
         </div>
       )}
 
-      <div data-subtabs className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1.5 overflow-x-auto">
-          {tabs.map(([k, t]) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setTab(k)}
-              className={`px-4 py-2 min-h-[40px] rounded-xl text-xs font-black whitespace-nowrap cursor-pointer border ${tab === k ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}
-            >
-              {t}
+      <SubTabs
+        tone="amber"
+        value={tab}
+        onChange={(k) => setTab(k as typeof tab)}
+        tabs={tabs.map(([k, t]) => ({ id: k, label: t, Icon: ({ stock: Package, docs: FileText, products: Boxes, warehouses: WarehouseIcon } as Record<string, React.ElementType>)[k] }))}
+      />
+      {!sepidar && mayWrite && (
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.keys(KIND_LABEL) as WhKind[]).map((k) => (
+            <button key={k} type="button" onClick={() => setDocForm(k)} className={`px-3 py-2 min-h-[40px] rounded-xl text-[11px] font-black border cursor-pointer ${KIND_COLOR[k]}`}>
+              + {KIND_LABEL[k]}
             </button>
           ))}
         </div>
-        {!sepidar && mayWrite && (
-          <div className="mr-auto flex flex-wrap gap-1.5">
-            {(Object.keys(KIND_LABEL) as WhKind[]).map((k) => (
-              <button key={k} type="button" onClick={() => setDocForm(k)} className={`px-3 py-2 min-h-[40px] rounded-xl text-[11px] font-black border cursor-pointer ${KIND_COLOR[k]}`}>
-                + {KIND_LABEL[k]}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       {shownTab === 'stock' && <StockTab st={st} onCard={setCardOf} />}
       {shownTab === 'docs' && <DocsTab st={st} onOpen={setDocOpen} />}

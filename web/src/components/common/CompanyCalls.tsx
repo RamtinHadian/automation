@@ -5,6 +5,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
 import { matchesAll } from '../../lib/searchAll';
 import { RecordingButton } from './CallLog';
+import { SubTabs } from './SubTabs';
 
 const dur = (s: number) => (s > 0 ? toPersianDigits(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`) : '');
 const clock = (iso: string) => toPersianDigits(new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }));
@@ -121,19 +122,13 @@ export const CompanyCalls: React.FC = () => {
         </div>
       </div>
 
-      <div data-subtabs className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1.5">
-          {FILTERS.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setFilter(id)}
-              className={`px-3 sm:px-4 py-2 min-h-[40px] rounded-xl text-xs font-black whitespace-nowrap cursor-pointer border ${filter === id ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <SubTabs
+        tone="emerald"
+        value={filter}
+        onChange={(k) => setFilter(k as Filter)}
+        tabs={FILTERS.map(([id, label]) => ({ id, label, Icon: ({ all: Phone, in: PhoneIncoming, out: PhoneOutgoing, internal: Users, missed: PhoneMissed, rec: Headphones } as Record<string, React.ElementType>)[id] }))}
+      />
+      <div className="flex flex-wrap items-center gap-2">
         <select value={who} onChange={(e) => setWho(e.target.value)} className="min-h-[40px] rounded-xl border border-[#EBDBCE] bg-white px-3 text-xs font-bold text-[#3A241F]" aria-label="فیلتر همکار یا داخلی">
           <option value="">همهٔ همکاران و داخلی‌ها</option>
           {people.map(([ext, label]) => (
