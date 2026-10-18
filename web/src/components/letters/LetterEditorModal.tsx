@@ -104,6 +104,8 @@ interface LetterEditorModalProps {
     showOrgName?: boolean;
     showSubject?: boolean;
     customFooterNote?: string;
+    /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
+    copyTo?: string[];
     letterhead?: LetterheadChoice;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
@@ -306,6 +308,14 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [extraNote, setExtraNote] = useState('');
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: string; dataUrl: string } | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  // «رونوشت»: the people the letter is copied to; they are printed at the bottom of the sheet, above the address line
+  const [copies, setCopies] = useState<string[]>(() => editTransfer?.copyTo || []);
+  const [copyDraft, setCopyDraft] = useState('');
+  const addCopy = () => {
+    const v = copyDraft.trim();
+    if (v && !copies.includes(v)) setCopies([...copies, v]);
+    setCopyDraft('');
+  };
 
   // Draggable Elements State (Signature, Center Title, Subject)
   const [signatureAlign, setSignatureAlign] = useState<'left' | 'center' | 'right'>(() => (['left', 'center', 'right'].includes(prefs.signatureAlign) ? prefs.signatureAlign : 'left'));
@@ -679,6 +689,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
       showOrgName: showOrgName ? undefined : false,
       showSubject: showSubject ? undefined : false,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
+      copyTo: copies.length ? copies : undefined,
       letterhead: lhPaper && lh ? lh : undefined,
       bodyOffsetX,
       bodyOffsetY,
@@ -1233,9 +1244,16 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
               </div>
             </div>
 
+            {copies.length > 0 && (
+              <div className="mt-auto pt-4 text-[11px] leading-6 font-bold text-[#3A241F] shrink-0" data-copy-to>
+                <span className="text-[#6E1B1B]">رونوشت: </span>
+                {copies.join('، ')}
+              </div>
+            )}
+
             {/* The address and the phone of the chosen letterhead: dragged like every other part of the header */}
             {lhPaper && lh && letterheadFooterText(lh) && (
-              <MoveBox offset={{ x: lh.offsetX || 0, y: lh.offsetY || 0 }} onChange={(o) => setLh({ ...lh, offsetX: o.x, offsetY: o.y })} locked={layoutLocked} scale={zoom} className="mt-auto pt-4 text-center text-[10.5px] font-bold leading-6 px-2">
+              <MoveBox offset={{ x: lh.offsetX || 0, y: lh.offsetY || 0 }} onChange={(o) => setLh({ ...lh, offsetX: o.x, offsetY: o.y })} locked={layoutLocked} scale={zoom} className={`${copies.length ? '' : 'mt-auto'} pt-2 text-center text-[10.5px] font-bold leading-6 px-2`}>
                 <span style={{ color: letterheadColor(lh.id) }}>{toPersianDigits(letterheadFooterText(lh))}</span>
               </MoveBox>
             )}
@@ -1408,6 +1426,33 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
               <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-7 text-center">{toPersianDigits(bodyPaddingX)}px</span>
             </div>
 
+            <div className={`${side ? 'col-span-2' : ''} flex flex-col gap-1.5 bg-white p-1.5 rounded-xl border border-[#EBDBCE]`} data-copy-field>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-black text-[#6E1B1B] shrink-0">رونوشت:</span>
+                <input
+                  list="copy-people"
+                  value={copyDraft}
+                  onChange={(e) => setCopyDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCopy(); } }}
+                  placeholder="نام و سمت"
+                  className="flex-1 min-w-0 px-2 py-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-lg text-[11px] font-bold text-[#3A241F] focus:outline-none"
+                />
+                <datalist id="copy-people">
+                  {staffList.filter((u) => u.isActive !== false).map((u) => <option key={u.id} value={`${u.fullName} - ${u.departmentName}`} />)}
+                </datalist>
+                <button type="button" onClick={addCopy} title="افزودن به رونوشت" aria-label="افزودن به رونوشت" className="w-7 h-7 shrink-0 rounded-lg bg-[#6E1B1B] text-white font-black text-base leading-none cursor-pointer hover:bg-[#D34A32]">+</button>
+              </div>
+              {copies.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {copies.map((c) => (
+                    <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FAF5F1] border border-[#EBDBCE] text-[10.5px] font-bold text-[#3A241F]">
+                      {c}
+                      <button type="button" onClick={() => setCopies(copies.filter((x) => x !== c))} aria-label={`حذف ${c}`} className="text-[#8C6F66] hover:text-rose-600 cursor-pointer leading-none">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             {side && <div className="col-span-2 flex items-center gap-2 pt-1 text-[10.5px] font-black text-[#6E1B1B]"><span>افزودنی‌ها</span><span className="flex-1 h-px bg-[#EBDBCE]" /></div>}
             <div className={`relative flex items-center gap-1 bg-white p-1 rounded-xl border border-[#EBDBCE] ${side ? 'justify-center' : ''}`}>
               <button

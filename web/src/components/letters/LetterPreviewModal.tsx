@@ -441,6 +441,8 @@ interface LetterPreviewModalProps {
       customHeaderCompanySubtitle?: string;
       customHeaderCenterTitle?: string;
       customFooterNote?: string;
+      /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
+      copyTo?: string[];
       metaOffsetX?: number;
       metaOffsetY?: number;
       headerCenterFontFamily?: string;
@@ -2145,8 +2147,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               </div>
             </div>
 
+            {letter.copyTo && letter.copyTo.length > 0 && (
+              <div className="mt-auto pt-4 text-[11px] leading-6 font-bold text-[#3A241F] shrink-0" data-copy-to>
+                <span className="text-[#6E1B1B]">رونوشت: </span>
+                {letter.copyTo.join('، ')}
+              </div>
+            )}
+
             {letter.letterhead && letterheadFooterText(letter.letterhead) && (
-              <div className="mt-auto pt-4 text-center text-[10.5px] font-bold leading-6 px-2" style={{ color: letterheadColor(letter.letterhead.id), transform: `translate(${letter.letterhead.offsetX || 0}px, ${letter.letterhead.offsetY || 0}px)` }}>
+              <div className={`${letter.copyTo && letter.copyTo.length > 0 ? '' : 'mt-auto'} pt-2 text-center text-[10.5px] font-bold leading-6 px-2`} style={{ color: letterheadColor(letter.letterhead.id), transform: `translate(${letter.letterhead.offsetX || 0}px, ${letter.letterhead.offsetY || 0}px)` }}>
                 {toPersianDigits(letterheadFooterText(letter.letterhead))}
               </div>
             )}

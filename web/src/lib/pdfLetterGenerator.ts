@@ -16,6 +16,8 @@ export interface LetterPrintOverrides {
   customHeaderTitle?: string;
   customBody?: string;
   customFooterNote?: string;
+  /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
+  copyTo?: string[];
   showFooterNote?: boolean;
   headerCenterOffsetX?: number;
   headerCenterOffsetY?: number;
@@ -172,6 +174,7 @@ export function generateOfficialLetterHtml(
   // the ready-made letterhead: a decoration at the top and the bottom of the sheet and the address / phone line in the footer
   const lh = transfer.letterhead;
   const lhFooter = lh ? letterheadFooterText(lh) : '';
+  const copies = (overrides?.copyTo || transfer.copyTo || []).filter(Boolean);
   const lhPadTop = lh && !lh.image ? `${letterheadPad(lh.id, parseInt(containerMaxWidth, 10))}px` : containerPadding;
   const lhPadBottom = lh && !lh.image ? `${letterheadPad(lh.id, parseInt(containerMaxWidth, 10)) - 2}px` : containerPadding;
 
@@ -523,10 +526,12 @@ export function generateOfficialLetterHtml(
       </div>
     </div>
 
-    ${lh && lhFooter ? `<div style="margin-top: auto; padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
+    ${copies.length ? `<div style="margin-top: auto; padding-top: 12px; font-size: 11.5px; font-weight: 700; line-height: 1.9; color: #3A241F;"><span style="color: #6E1B1B;">رونوشت: </span>${copies.map((c) => c.replace(/</g, '&lt;')).join('، ')}</div>` : ''}
+
+    ${lh && lhFooter ? `<div style="margin-top: ${copies.length ? '0' : 'auto'}; padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
 
     ${showFooter ? `
-    <div class="footer"${lh && lhFooter ? ' style="margin-top: 0;"' : ''}>
+    <div class="footer"${(lh && lhFooter) || copies.length ? ' style="margin-top: 0;"' : ''}>
       <div>${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
     </div>
     ` : ''}

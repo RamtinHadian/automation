@@ -621,6 +621,8 @@ export default function UserPanel() {
     showOrgName?: boolean;
     showSubject?: boolean;
     customFooterNote?: string;
+    /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
+    copyTo?: string[];
     letterhead?: import('../lib/letterheads').LetterheadChoice;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
@@ -724,6 +726,7 @@ export default function UserPanel() {
       showOrgName: letterData.showOrgName,
       showSubject: letterData.showSubject,
       customFooterNote: letterData.customFooterNote,
+      copyTo: letterData.copyTo,
       letterhead: letterData.letterhead,
       bodyOffsetX: letterData.bodyOffsetX,
       bodyOffsetY: letterData.bodyOffsetY,

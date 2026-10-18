@@ -140,6 +140,8 @@ interface AppContextType {
     showOrgName?: boolean;
     showSubject?: boolean;
     customFooterNote?: string;
+    /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
+    copyTo?: string[];
     letterhead?: import('../lib/letterheads').LetterheadChoice;
     bodyOffsetX?: number;
     bodyOffsetY?: number;
@@ -188,6 +190,8 @@ interface AppContextType {
       customHeaderCompanySubtitle?: string;
       customHeaderCenterTitle?: string;
       customFooterNote?: string;
+      /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
+      copyTo?: string[];
       letterhead?: import('../lib/letterheads').LetterheadChoice;
       metaOffsetX?: number;
       metaOffsetY?: number;
@@ -741,6 +745,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showOrgName,
       showSubject,
       customFooterNote,
+      copyTo,
       letterhead,
       bodyOffsetX,
       bodyOffsetY,
@@ -798,6 +803,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showOrgName?: boolean;
       showSubject?: boolean;
       customFooterNote?: string;
+      /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
+      copyTo?: string[];
       letterhead?: import('../lib/letterheads').LetterheadChoice;
       bodyOffsetX?: number;
       bodyOffsetY?: number;
@@ -900,6 +907,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             showOrgName,
             showSubject,
             customFooterNote,
+            copyTo,
             letterhead,
             bodyOffsetX,
             bodyOffsetY,
@@ -946,12 +954,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setAuditLogs((prev) => [{ ...newLog, details: `ویرایش نامه "${newTransfer.fileName}" قبل از امضا.` }, ...prev]);
             showToast('نامه ویرایش شد.');
             onDone();
+            setTimeout(() => reloadRef.current(), 2500);
             return;
           }
           setTransfers((prev) => [newTransfer, ...prev]);
           setAuditLogs((prev) => [newLog, ...prev]);
           showToast(`فایل "${newTransfer.fileName}" با موفقیت برای ${recipient.fullName} ارسال شد.`);
           onDone();
+          // once the save has reached the server, take the lists from it, so the letter shows up (for the signer too) without a page refresh
+          const settle = (n: number) => {
+            if (hasPendingWrites() && n < 20) {
+              setTimeout(() => settle(n + 1), 500);
+              return;
+            }
+            reloadRef.current();
+          };
+          setTimeout(() => settle(0), 800);
         })
         .catch((err) => {
           showToast(`ذخیره فایل روی این سیستم ناموفق بود: ${err instanceof Error ? err.message : 'خطای ناشناخته'}`);
@@ -1164,6 +1182,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         customHeaderCompanySubtitle?: string;
         customHeaderCenterTitle?: string;
         customFooterNote?: string;
+        /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
+        copyTo?: string[];
         metaOffsetX?: number;
         metaOffsetY?: number;
         headerCenterFontFamily?: string;
