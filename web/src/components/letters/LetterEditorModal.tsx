@@ -1246,8 +1246,8 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
 
             {copies.length > 0 && (
               <div className="mt-auto pt-4 text-[11px] leading-6 font-bold text-[#3A241F] shrink-0" data-copy-to>
-                <span className="text-[#6E1B1B]">رونوشت: </span>
-                {copies.join('، ')}
+                <div className="text-[#6E1B1B]">رونوشت:</div>
+                {copies.map((c) => <div key={c}>{c}</div>)}
               </div>
             )}
 

@@ -217,8 +217,8 @@ export function quotationBody(deal, customerRef, itemsByCode, sync) {
 export function stockPayload(stocks, items, units, inventories) {
   const unitTitle = new Map(units.map((u) => [u.UnitID, u.Title]));
   const stockCode = new Map(stocks.map((w) => [w.StockID, String(w.Code ?? w.StockID).trim()]));
-  const goods = items.filter((i) => (i.Type === undefined || i.Type === 1) && String(i.Code ?? '').trim());
-  const codeOf = new Map(goods.map((i) => [i.ItemID, String(i.Code).trim()]));
+  const goods = items.filter((i) => i.Type !== 2 && String(i.Code ?? i.ItemCode ?? '').trim());
+  const codeOf = new Map(goods.map((i) => [i.ItemID, String(i.Code ?? i.ItemCode).trim()]));
   const sums = new Map(); // "product|warehouse" -> quantity (a product with tracings has one row per tracing)
   for (const r of inventories) {
     const pc = codeOf.get(r.ItemRef ?? r.ItemID);
@@ -230,16 +230,41 @@ export function stockPayload(stocks, items, units, inventories) {
   return {
     complete: true,
     warehouses: stocks.map((w) => ({ code: String(w.Code ?? w.StockID).trim(), title: w.Title || String(w.Code), active: w.IsActive !== false })),
-    products: goods.map((i) => ({ code: String(i.Code).trim(), title: i.Title || String(i.Code), unit: unitTitle.get(i.UnitRef) || '', barcode: i.Barcode || '', active: i.IsActive !== false })),
+    products: goods.map((i) => ({ code: String(i.Code ?? i.ItemCode).trim(), title: i.Title || String(i.Code ?? i.ItemCode), unit: unitTitle.get(i.UnitRef) || '', barcode: i.Barcode || '', active: i.IsActive !== false })),
     stock: [...sums].map(([k, qty]) => { const [productCode, warehouseCode] = k.split('|'); return { productCode, warehouseCode, qty: Math.max(0, Math.round(qty * 1000) / 1000) }; }),
   };
+}
+
+/** Sepidar's versions differ in where the stock lives: the configured address first, then the usual ones; the first that answers with rows wins. */
+async function readInventories(sp, cfg) {
+  const paths = [...new Set([cfg.sync.inventoryPath, '/api/Items/Inventories', '/api/ItemStocks', '/api/Inventories', '/api/Stocks/Inventories', '/api/StockItems'].filter(Boolean))];
+  for (const path of paths) {
+    try {
+      const rows = await sp.get(path);
+      log(`  موجودی از ${path}: ${Array.isArray(rows) ? rows.length : 'پاسخ نامعتبر'} ردیف`);
+      if (Array.isArray(rows) && rows.length) return { rows, path };
+    } catch (e) {
+      log(`  ${path}: ${e.message}`);
+    }
+  }
+  return { rows: [], path: null };
 }
 
 async function cmdStock(cfg) {
   const state = loadState();
   const sp = client(cfg, state);
-  const [stocks, items, units, inventories] = await Promise.all([sp.get('/api/Stocks'), sp.get('/api/Items'), sp.get('/api/Units'), sp.get(cfg.sync.inventoryPath)]);
+  const [stocks, items, units] = await Promise.all([sp.get('/api/Stocks'), sp.get('/api/Items'), sp.get('/api/Units')]);
+  const { rows: inventories } = await readInventories(sp, cfg);
   const pay = stockPayload(stocks, items, units, inventories);
+  // no stock rows read (an address that does not exist in this Sepidar, or nothing matched): never tell Hoormand that every product has none
+  if (!pay.stock.length) {
+    pay.complete = false;
+    log('  هشدار: هیچ ردیف موجودی‌ای از سپیدار خوانده نشد؛ موجودی‌های هورمند دست نمی‌خورد. فیلدهای پایین را برای بررسی بفرستید.');
+  }
+  // what came from Sepidar, so that an empty warehouse page can be explained from the log
+  const firstKeys = (a) => (a && a[0] ? Object.keys(a[0]).slice(0, 14).join(',') : '-');
+  log(`  سپیدار داد: ${stocks.length} انبار، ${items.length} آیتم، ${inventories.length} ردیف موجودی`);
+  log(`  فیلدهای آیتم: ${firstKeys(items)} | فیلدهای موجودی: ${firstKeys(inventories)}`);
   log(`موجودی: ${pay.warehouses.length} انبار، ${pay.products.length} کالا، ${pay.stock.length} ردیف موجودی در سپیدار`);
   if (!apply) {
     log('(فقط نمایش؛ برای فرستادن به هورمند --apply را اضافه کنید)');

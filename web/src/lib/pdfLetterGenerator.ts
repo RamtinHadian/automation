@@ -177,6 +177,12 @@ export function generateOfficialLetterHtml(
   const copies = (overrides?.copyTo || transfer.copyTo || []).filter(Boolean);
   const lhPadTop = lh && !lh.image ? `${letterheadPad(lh.id, parseInt(containerMaxWidth, 10))}px` : containerPadding;
   const lhPadBottom = lh && !lh.image ? `${letterheadPad(lh.id, parseInt(containerMaxWidth, 10)) - 2}px` : containerPadding;
+  // the sheet is laid out in the editor's width; a printed page is that sheet enlarged, so its height in sheet pixels is fixed by the page's proportions
+  const padTopPx = lh && !lh.image ? letterheadPad(lh.id, designW) : parseInt(containerPadding, 10);
+  const padBottomPx = lh && !lh.image ? letterheadPad(lh.id, designW) - 2 : parseInt(containerPadding, 10);
+  const pageHdesign = Math.round((designW * (isA5 ? 209 : isLetter ? 278.4 : 296)) / pageWmm);
+  // what stands at the foot of every page: the people the letter is copied to, the address line and the note
+  const footH = (copies.length ? 14 + 22 * (copies.length + 1) : 0) + (lh && lhFooter ? 54 : 0) + (showFooter ? 26 : 0) + 6;
 
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -213,25 +219,22 @@ export function generateOfficialLetterHtml(
       .no-print {
         display: none !important;
       }
+      /* The sheet keeps the width it has in the editor and is enlarged to the page width, so every distance matches the editor.
+         A long letter runs on to the next page(s): the letterhead, the address line and the watermark are repeated on every page. */
       .letter-container {
-        /* the sheet keeps the width it has in the editor and is enlarged to the page by the script below, so every distance matches the editor */
+        zoom: ${pageWmm * 96 / 25.4 / designW};
         width: ${designW}px !important;
         max-width: ${designW}px !important;
-        height: ${pagePrintHeight} !important;
-        min-height: ${pagePrintHeight} !important;
-        max-height: ${pagePrintHeight} !important;
-        padding: ${lhPadTop} ${containerPadding} ${lhPadBottom} ${containerPadding} !important;
         margin: 0 !important;
         box-shadow: none !important;
         border-radius: 0 !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        overflow: hidden !important;
       }
-      .page-footer-wrapper {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
+      .lh-top, .lh-bottom, .fx-foot, .wm, .lh-img { position: fixed !important; }
+      .lh-top, .lh-bottom, .wm, .lh-img { left: 0 !important; right: 0 !important; }
+      .lh-top { top: 0 !important; }
+      .lh-bottom { bottom: 0 !important; }
+      .wm, .lh-img { top: 0 !important; bottom: 0 !important; }
+      .pg { height: ${pageHdesign}px !important; }
     }
     * {
       box-sizing: border-box;
@@ -245,23 +248,29 @@ export function generateOfficialLetterHtml(
       background: #f0ede9;
       line-height: 1.8;
     }
-    .lh-top, .lh-bottom { position: absolute; left: 0; right: 0; pointer-events: none; }
+    .lh-top, .lh-bottom, .wm, .lh-img { position: absolute; left: 0; right: 0; pointer-events: none; }
     .lh-top { top: 0; }
     .lh-bottom { bottom: 0; }
+    .wm, .lh-img { top: 0; bottom: 0; }
+    .wm { z-index: 5; background-repeat: repeat; }
+    .lh-img { z-index: 0; background-size: 100% 100%; background-repeat: no-repeat; background-position: center; }
     .letter-container {
       position: relative;
-      max-width: ${containerMaxWidth};
+      width: ${designW}px;
+      max-width: 100%;
       margin: 0 auto;
-      min-height: ${containerMinHeight};
       background: #ffffff;
-      padding: ${containerPadding};
+      padding: 0 ${containerPadding};
       border-radius: 6px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
       box-sizing: border-box;
     }
+    /* the sheet is a table so that its head and foot spacers are repeated on every printed page */
+    .pg { width: 100%; border-collapse: collapse; height: ${pageHdesign}px; position: relative; z-index: 1; }
+    .pg > thead, .pg > tfoot { display: table-header-group; }
+    .pg > tfoot { display: table-footer-group; }
+    .pg-cell { vertical-align: top; padding: 0; }
+    .fx-foot { position: absolute; left: ${containerPadding}; right: ${containerPadding}; bottom: ${padBottomPx}px; z-index: 2; }
     .header {
       border-bottom: none;
       padding-bottom: ${isA5 ? '5px' : '8px'};
@@ -471,9 +480,14 @@ export function generateOfficialLetterHtml(
     <button class="print-btn" onclick="window.print()">دریافت PDF / چاپ مستقیم</button>
   </div>
 
-  <div class="letter-container"${lh && !lh.image ? ' style="padding-top: ' + lhPadTop + '; padding-bottom: ' + lhPadBottom + ';"' : ''}${lh && lh.image ? ` style="background: url(${lh.image}) center / 100% 100% no-repeat;"` : ''}>
-    ${!isSigned ? `<div style="position: absolute; inset: 0; pointer-events: none; z-index: 5; background-image: ${UNSIGNED_WATERMARK.replace(/"/g, "'")}; background-repeat: repeat;"></div>` : ''}
+  <div class="letter-container">
+    ${!isSigned ? `<div class="wm" style="background-image: ${UNSIGNED_WATERMARK.replace(/"/g, "'")};"></div>` : ''}
+    ${lh && lh.image ? `<div class="lh-img" style="background-image: url(${lh.image});"></div>` : ''}
     ${lh && !lh.image ? `<div class="lh-top">${letterheadSvg(lh.id, 'top')}</div><div class="lh-bottom">${letterheadSvg(lh.id, 'bottom')}</div>` : ''}
+    <table class="pg" cellspacing="0" cellpadding="0">
+      <thead><tr><td style="height: ${padTopPx}px; padding: 0;"></td></tr></thead>
+      <tfoot><tr><td style="height: ${padBottomPx + footH}px; padding: 0;"></td></tr></tfoot>
+      <tbody><tr><td class="pg-cell">
     <div class="header">
       <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);${orgScale > 1.2 ? ' max-width: 60%;' : ''}">
         ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" style="transform: translate(${logoOffsetX}px, ${logoOffsetY}px);${logoSize ? ` width: ${logoSize}px; height: ${logoSize}px; max-width: none; flex-shrink: 0; object-fit: contain;` : ''}" />` : ''}
@@ -526,48 +540,23 @@ export function generateOfficialLetterHtml(
       </div>
     </div>
 
-    ${copies.length ? `<div style="margin-top: auto; padding-top: 12px; font-size: 11.5px; font-weight: 700; line-height: 1.9; color: #3A241F;"><span style="color: #6E1B1B;">رونوشت: </span>${copies.map((c) => c.replace(/</g, '&lt;')).join('، ')}</div>` : ''}
+      </td></tr></tbody>
+    </table>
+    <div class="fx-foot">
+    ${copies.length ? `<div style="padding-top: 12px; font-size: 11.5px; font-weight: 700; line-height: 1.9; color: #3A241F;"><div style="color: #6E1B1B;">رونوشت:</div>${copies.map((c) => `<div>${c.replace(/</g, '&lt;')}</div>`).join('')}</div>` : ''}
 
-    ${lh && lhFooter ? `<div style="margin-top: ${copies.length ? '0' : 'auto'}; padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
+    ${lh && lhFooter ? `<div style="padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
 
     ${showFooter ? `
     <div class="footer"${(lh && lhFooter) || copies.length ? ' style="margin-top: 0;"' : ''}>
       <div>${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
     </div>
     ` : ''}
+    </div>
   </div>
 <script>
-// When the letter is longer than one page, its whole sheet is shrunk just enough to fit, so the footer never goes to a second page.
-(function () {
-  var PAGE_MM = ${isA5 ? 209 : isLetter ? 278.4 : 296};
-  var PAGE_W_MM = ${pageWmm};
-  var DESIGN_W = ${designW};
-  var PX = 96 / 25.4;
-  var PROPS = ['width', 'height', 'min-height', 'max-height'];
-  function reset(c) { c.style.zoom = ''; PROPS.forEach(function (p) { c.style.removeProperty(p); }); }
-  function fit() {
-    var c = document.querySelector('.letter-container');
-    if (!c) return;
-    reset(c);
-    c.style.setProperty('width', DESIGN_W + 'px', 'important');
-    c.style.setProperty('height', 'auto', 'important'); c.style.setProperty('min-height', '0', 'important'); c.style.setProperty('max-height', 'none', 'important');
-    var natural = c.scrollHeight;
-    ['height', 'min-height', 'max-height'].forEach(function (p) { c.style.removeProperty(p); });
-    // enlarge the sheet to the width of the page; a long letter is shrunk just enough to keep the footer on the first page
-    var base = (PAGE_W_MM * PX) / DESIGN_W;
-    var z = Math.min(base, (PAGE_MM * PX) / (natural * 1.03));
-    var h = (PAGE_MM * PX) / z + 'px';
-    c.style.zoom = String(z);
-    c.style.setProperty('width', DESIGN_W + 'px', 'important');
-    c.style.setProperty('max-width', DESIGN_W + 'px', 'important');
-    c.style.setProperty('height', h, 'important');
-    c.style.setProperty('min-height', h, 'important');
-    c.style.setProperty('max-height', h, 'important');
-  }
-  window.__fitPrint = fit;
-  window.addEventListener('beforeprint', fit);
-  window.addEventListener('afterprint', function () { var c = document.querySelector('.letter-container'); if (c) reset(c); });
-})();
+// the sheet is paged by the browser (see the .pg table); kept so that older callers that ask for a re-fit do no harm
+window.__fitPrint = function () {};
 </script>
 </body>
 </html>`;

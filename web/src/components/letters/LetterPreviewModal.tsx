@@ -2149,8 +2149,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
             {letter.copyTo && letter.copyTo.length > 0 && (
               <div className="mt-auto pt-4 text-[11px] leading-6 font-bold text-[#3A241F] shrink-0" data-copy-to>
-                <span className="text-[#6E1B1B]">رونوشت: </span>
-                {letter.copyTo.join('، ')}
+                <div className="text-[#6E1B1B]">رونوشت:</div>
+                {letter.copyTo.map((c) => <div key={c}>{c}</div>)}
               </div>
             )}
 
