@@ -1,3 +1,4 @@
+import { SEPIDAR_FIELDS, useSepidarConnected } from '../../lib/sepidarCustomerFields';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, Landmark, Printer, Phone, Smartphone, Star, Store, Trash2, User as UserIcon, X } from 'lucide-react';
 import { Customer, CustomerStatus, User } from '../../types';
@@ -129,6 +130,7 @@ export const CustomerForm: React.FC<{
   const [landlineDraft, setLandlineDraft] = useState('');
   const [tagDraft, setTagDraft] = useState('');
   const patch = (u: Partial<Customer>) => setC((p) => ({ ...p, ...u }));
+  const sepidarOn = useSepidarConnected();
   const isCompany = c.kind === 'COMPANY';
   const isShop = c.kind === 'SHOP';
 
@@ -653,6 +655,28 @@ export const CustomerForm: React.FC<{
             )}
           </div>
         </Section>
+
+        {sepidarOn && (
+          <Section title="اطلاعات سپیدار">
+            <p className="text-[11px] font-bold text-[#8C6F66]">این گروه فقط روی هورمندی که به سپیدار وصل است دیده می‌شود. مقدارها همان‌هایی است که سپیدار برای این مشتری نگه می‌دارد.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-sepidar-section>
+              {SEPIDAR_FIELDS.map((f) => (
+                <div key={f.id}>
+                  <label className={label}>{f.label}</label>
+                  {f.kind === 'bool' ? (
+                    <select className={field} value={c.sepidarInfo?.[f.id] || ''} onChange={(e) => patch({ sepidarInfo: { ...c.sepidarInfo, [f.id]: e.target.value } })}>
+                      <option value="">—</option>
+                      <option value="بله">بله</option>
+                      <option value="خیر">خیر</option>
+                    </select>
+                  ) : (
+                    <input className={field} inputMode={f.kind === 'num' ? 'decimal' : undefined} value={c.sepidarInfo?.[f.id] || ''} onChange={(e) => patch({ sepidarInfo: { ...c.sepidarInfo, [f.id]: e.target.value } })} placeholder={f.kind === 'date' ? 'مثلاً ۱۳۷۰/۰۵/۱۲' : undefined} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
 
         <Section title="نیاز مشتری">
           <div>

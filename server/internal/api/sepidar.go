@@ -111,6 +111,13 @@ func sepidarConnectorSeen(ctx context.Context) (seen, version string) {
 	return jsonx.Str(d, "lastSeenAt"), jsonx.Str(d, "name")
 }
 
+// GET /api/sepidar/connected: whether the Sepidar program has ever connected to this Hoormand (any signed-in person may ask; it switches on
+// the Sepidar parts of the customer form).
+func sepidarConnected(w http.ResponseWriter, r *http.Request) {
+	seen, _ := sepidarConnectorSeen(r.Context())
+	httpx.JSON(w, http.StatusOK, map[string]any{"connected": seen != ""})
+}
+
 // GET /api/sepidar: everything the Sepidar page shows (according to the person's rights)
 func sepidarState(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
@@ -894,4 +901,5 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/ext/v1/sepidar/tool/{name}", extAuth("sepidar.connect", extSepidarToolFile))
 	mux.HandleFunc("POST /api/crm/sepidar-link", auth.Require(crmSepidarLink))
 	mux.HandleFunc("GET /api/sepidar/finance/{customerId}", auth.Require(sepidarFinance))
+	mux.HandleFunc("GET /api/sepidar/connected", auth.Require(sepidarConnected))
 }

@@ -1,17 +1,22 @@
 import { jalaliToGregorian } from './taskDates';
+import { SEPIDAR_FIELDS } from './sepidarCustomerFields';
 // Reading a customer list exported from accounting software (Excel / CSV) and turning rows into customers.
 
-export type ImportField =
+export type BaseImportField =
   | 'name' | 'firstName' | 'lastName' | 'company' | 'kind' | 'fatherName' | 'nationalCode' | 'idNumber' | 'birthDate' | 'gender'
   | 'companyType' | 'nationalId' | 'economicCode' | 'registrationNumber' | 'registrationDate' | 'repName' | 'repPosition' | 'repMobile'
   | 'shopType' | 'licenseNumber' | 'mobile' | 'mobile2' | 'phone' | 'phone2' | 'faxNumber' | 'email' | 'website'
   | 'province' | 'city' | 'postalCode' | 'address' | 'source' | 'tags' | 'interest' | 'notes';
 
 /** Every field a customer has in Hoormand that a spreadsheet can hold: the keys are the header texts the column is recognised by. */
-export const IMPORT_FIELDS: { id: ImportField; label: string; keys: string[] }[] = [
-  { id: 'name', label: 'نام مشتری * (یا عنوان / نام کامل)', keys: ['نام مشتری', 'نام و نام خانوادگی', 'نام طرف حساب', 'عنوان مشتری', 'عنوان', 'طرف حساب', 'نام شخص', 'نام', 'name', 'customer'] },
+/** A field of the import: the base ones above, and (where Hoormand is connected to Sepidar) «sp_<id>» for each Sepidar-only customer field. */
+export type ImportField = BaseImportField | `sp_${string}`;
+export interface ImportFieldDef { id: ImportField; label: string; keys: string[]; exactOnly?: boolean }
+
+export const IMPORT_FIELDS: ImportFieldDef[] = [
+  { id: 'name', label: 'نام مشتری * (یا عنوان / نام کامل)', keys: ['نام مشتری', 'نام کامل', 'نام و نام خانوادگی', 'نام طرف حساب', 'عنوان مشتری', 'عنوان', 'طرف حساب', 'نام شخص', 'نام', 'name', 'customer'] },
   { id: 'lastName', label: 'نام خانوادگی (در صورت جدا بودن، به نام اضافه می‌شود)', keys: ['نام خانوادگی', 'family', 'last name', 'lastname'] },
-  { id: 'firstName', label: 'نام کوچک (اگر ستون جدا دارد)', keys: ['نام کوچک', 'first name', 'firstname'] },
+  { id: 'firstName', label: 'نام کوچک (اگر ستون جدا دارد)', keys: ['نام کوچک', 'first name', 'firstname', 'نام'] },
   { id: 'company', label: 'شرکت / سازمان', keys: ['نام شرکت', 'شرکت', 'سازمان', 'company'] },
   { id: 'kind', label: 'نوع مشتری (حقیقی / حقوقی / فروشگاه)', keys: ['نوع مشتری', 'نوع شخص', 'نوع', 'kind', 'type'] },
   { id: 'fatherName', label: 'نام پدر', keys: ['نام پدر', 'پدر', 'father'] },
@@ -33,15 +38,15 @@ export const IMPORT_FIELDS: { id: ImportField; label: string; keys: string[] }[]
   { id: 'mobile2', label: 'موبایل دوم', keys: ['موبایل 2', 'موبایل دوم', 'همراه 2', 'همراه دوم'] },
   { id: 'phone', label: 'تلفن ثابت', keys: ['تلفن', 'شماره تماس', 'تلفن ثابت', 'تلفن 1', 'phone', 'tel'] },
   { id: 'phone2', label: 'تلفن دوم', keys: ['تلفن 2', 'تلفن دوم', 'شماره تماس 2'] },
-  { id: 'faxNumber', label: 'فکس', keys: ['فکس', 'fax'] },
+  { id: 'faxNumber', label: 'فکس', keys: ['فکس', 'شماره دورنگار', 'دورنگار', 'fax'] },
   { id: 'email', label: 'ایمیل', keys: ['ایمیل', 'پست الکترونیک', 'email', 'mail'] },
   { id: 'website', label: 'وب‌سایت', keys: ['وب سایت', 'وبسایت', 'سایت', 'website', 'web'] },
   { id: 'province', label: 'استان', keys: ['استان', 'province', 'state'] },
   { id: 'city', label: 'شهر', keys: ['شهر', 'city'] },
   { id: 'postalCode', label: 'کد پستی', keys: ['کد پستی', 'کدپستی', 'postal', 'zip'] },
-  { id: 'address', label: 'آدرس', keys: ['آدرس', 'نشانی', 'address'] },
+  { id: 'address', label: 'آدرس', keys: ['آدرس', 'آدرس اصلی', 'نشانی', 'address'] },
   { id: 'source', label: 'روش آشنایی / منبع', keys: ['روش آشنایی', 'منبع', 'source'] },
-  { id: 'tags', label: 'برچسب‌ها (با ویرگول جدا)', keys: ['برچسب', 'تگ', 'گروه', 'گروه مشتری', 'tags', 'group'] },
+  { id: 'tags', label: 'برچسب‌ها (با ویرگول جدا)', keys: ['برچسب', 'تگ', 'گروه', 'tags', 'group'] },
   { id: 'interest', label: 'دنبال چه چیزی است', keys: ['نیاز', 'علاقه', 'دنبال', 'interest'] },
   { id: 'notes', label: 'توضیحات', keys: ['توضیحات', 'یادداشت', 'شرح', 'description', 'note'] },
 ];
@@ -82,13 +87,18 @@ export const callerNameOnly = (name: unknown, number: unknown): string => {
 };
 
 /** Best-guess column for every field from the header texts (-1 = none). Each column is used once. */
-export const guessMapping = (headers: string[]): Record<ImportField, number> => {
+/** The fields of the import: the base ones, plus the Sepidar-only customer fields where Hoormand is connected to Sepidar. */
+export const importFields = (withSepidar: boolean): ImportFieldDef[] =>
+  withSepidar ? [...IMPORT_FIELDS, ...SEPIDAR_FIELDS.map((f) => ({ id: `sp_${f.id}` as ImportField, label: `سپیدار · ${f.label}`, keys: f.keys, exactOnly: true }))] : IMPORT_FIELDS;
+
+export const guessMapping = (headers: string[], fields: ImportFieldDef[] = IMPORT_FIELDS): Record<ImportField, number> => {
   const h = headers.map((x) => normText(x).toLowerCase());
   const used = new Set<number>();
   const out = {} as Record<ImportField, number>;
   // exact header matches first, then «contains»
   for (const mode of ['exact', 'contains'] as const) {
-    for (const f of IMPORT_FIELDS) {
+    for (const f of fields) {
+      if (f.exactOnly && mode === 'contains') continue;
       if (out[f.id] !== undefined && out[f.id] >= 0) continue;
       let idx = -1;
       for (const k of f.keys) {
@@ -100,7 +110,7 @@ export const guessMapping = (headers: string[]): Record<ImportField, number> => 
       if (idx >= 0) used.add(idx);
     }
   }
-  for (const f of IMPORT_FIELDS) if (out[f.id] === undefined) out[f.id] = -1;
+  for (const f of fields) if (out[f.id] === undefined) out[f.id] = -1;
   return out;
 };
 
@@ -153,14 +163,14 @@ export const importKind = (v: unknown): 'PERSON' | 'COMPANY' | 'SHOP' | undefine
  * Brings any customer sheet (the export of an accounting program, an old list…) to Hoormand's standard: one column for every customer field, in the
  * order of IMPORT_FIELDS, headed with the field's own name. Returns null when no «name» column can be found. `unknown` lists the headers that no field took.
  */
-export const standardize = (rows: string[][]): { rows: string[][]; unknown: string[] } | null => {
+export const standardize = (rows: string[][], fields: ImportFieldDef[] = IMPORT_FIELDS): { rows: string[][]; unknown: string[] } | null => {
   if (rows.length < 2) return null;
-  const map = guessMapping(rows[0]);
+  const map = guessMapping(rows[0], fields);
   if (map.name < 0 && map.company < 0 && map.firstName < 0) return null;
   const taken = new Set(Object.values(map).filter((i) => i >= 0));
   const unknown = rows[0].map((h, i) => (!taken.has(i) && String(h || '').trim() ? String(h).trim() : '')).filter(Boolean);
-  const header = IMPORT_FIELDS.map((f) => f.keys[0]);
-  const body = rows.slice(1).map((r) => IMPORT_FIELDS.map((f) => (map[f.id] >= 0 ? String(r[map[f.id]] ?? '').trim() : '')));
+  const header = fields.map((f) => f.keys[0]);
+  const body = rows.slice(1).map((r) => fields.map((f) => (map[f.id] >= 0 ? String(r[map[f.id]] ?? '').trim() : '')));
   return { rows: [header, ...body], unknown };
 };
 

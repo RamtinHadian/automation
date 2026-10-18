@@ -554,6 +554,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
       invoiceTotal?: number;
       invoicesAt?: string;
     }>('GET', `/api/sepidar/finance/${encodeURIComponent(customerId)}${forCall ? '?for=call' : ''}`),
+  sepidarConnected: () => request<{ connected: boolean }>('GET', '/api/sepidar/connected'),
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),
   sepidarCancel: (id: string) => request<{ ok: true }>('POST', `/api/sepidar/jobs/${encodeURIComponent(id)}/cancel`, {}),

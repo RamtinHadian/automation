@@ -2,7 +2,8 @@ import React, { useMemo, useRef, useState } from 'react';
 import { FileSpreadsheet, Upload, X, Download } from 'lucide-react';
 import { Customer, CustomerStatus } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
-import { IMPORT_FIELDS, ImportField, guessMapping, importDate, importGender, importKind, normPhone, normText, readTable, sampleCsv, standardize, downloadStandardSheet } from '../../lib/customerImport';
+import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
+import { importFields, ImportField, guessMapping, importDate, importGender, importKind, normPhone, normText, readTable, sampleCsv, standardize, downloadStandardSheet } from '../../lib/customerImport';
 
 const uid = () => 'cu-' + Math.random().toString(36).substring(2, 10);
 const sel = 'w-full px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden';
@@ -19,7 +20,10 @@ export const CustomerImportModal: React.FC<{
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
   const [hasHeader, setHasHeader] = useState(true);
-  const [map, setMap] = useState<Record<ImportField, number>>(() => Object.fromEntries(IMPORT_FIELDS.map((f) => [f.id, -1])) as Record<ImportField, number>);
+  const [map, setMap] = useState<Record<ImportField, number>>(() => Object.fromEntries(importFields(false).map((f) => [f.id, -1])) as Record<ImportField, number>);
+  const connected = useSepidarConnected();
+  // where Hoormand is connected to Sepidar, the Sepidar-only customer fields can be filled from the sheet too
+  const fields = useMemo(() => importFields(connected), [connected]);
   const [sources, setSources] = useState<{ name: string; count: number; unknown: string[] }[]>([]);
   const [status, setStatus] = useState<CustomerStatus>('ACTIVE');
   const [skipDup, setSkipDup] = useState(true);
@@ -36,14 +40,14 @@ export const CustomerImportModal: React.FC<{
       for (const f of files) {
         const r = await readTable(f);
         if (r.length === 0) throw new Error('empty');
-        const std = standardize(r);
+        const std = standardize(r, fields);
         if (std) {
           merged = merged ? [...merged, ...std.rows.slice(1)] : std.rows;
           src.push({ name: f.name, count: std.rows.length - 1, unknown: std.unknown });
         } else if (!merged) {
           setRows(r);
           setFileName(f.name);
-          setMap(guessMapping(r[0]));
+          setMap(guessMapping(r[0], fields));
           setHasHeader(true);
           setSources([]);
           return;
@@ -54,7 +58,7 @@ export const CustomerImportModal: React.FC<{
       if (merged) {
         setRows(merged);
         setFileName(src.map((x) => x.name).join(' + '));
-        setMap(guessMapping(merged[0]));
+        setMap(guessMapping(merged[0], fields));
         setHasHeader(true);
         setSources(src);
       }
@@ -77,12 +81,23 @@ export const CustomerImportModal: React.FC<{
     let dup = 0;
     const get = (r: string[], f: ImportField) => (map[f] >= 0 ? normText(r[map[f]]) : '');
     const opt = (v: string) => (v ? v : undefined);
+    const sepidarInfo = (r: string[]) => {
+      const out: Record<string, string> = {};
+      for (const f of fields) {
+        const id = String(f.id);
+        if (!id.startsWith('sp_')) continue;
+        const v = get(r, f.id);
+        if (v) out[id.slice(3)] = v;
+      }
+      return Object.keys(out).length ? out : undefined;
+    };
     for (const r of data) {
       // the name: a full name, or the first name and the family name from two columns
       const first = get(r, 'firstName');
       const family = get(r, 'lastName');
       const main = get(r, 'name');
-      const name = [main, family].filter(Boolean).join(' ') || [first, family].filter(Boolean).join(' ') || get(r, 'company');
+      // «نام کامل» already holds the family name: it is not added a second time
+      const name = [main, main.includes(family) ? '' : family].filter(Boolean).join(' ') || [first, family].filter(Boolean).join(' ') || get(r, 'company');
       if (!name) {
         noName++;
         continue;
@@ -126,6 +141,7 @@ export const CustomerImportModal: React.FC<{
         website: opt(get(r, 'website')),
         faxNumber: opt(normPhone(map.faxNumber >= 0 ? r[map.faxNumber] : '')),
         interest: opt(get(r, 'interest')),
+        sepidarInfo: sepidarInfo(r),
         phones,
         email: get(r, 'email'),
         address: get(r, 'address'),
@@ -140,7 +156,7 @@ export const CustomerImportModal: React.FC<{
       });
     }
     return { ok, noName, dup };
-  }, [data, map, existing, status, skipDup, ownerId, ownerName]);
+  }, [data, map, existing, status, skipDup, ownerId, ownerName, fields]);
 
   const download = () => {
     const a = document.createElement('a');
@@ -233,13 +249,13 @@ export const CustomerImportModal: React.FC<{
                   checked={hasHeader}
                   onChange={(e) => {
                     setHasHeader(e.target.checked);
-                    setMap(guessMapping(e.target.checked ? rows[0] : []));
+                    setMap(guessMapping(e.target.checked ? rows[0] : [], fields));
                   }}
                 />
                 ردیف اول عنوان ستون‌هاست
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {IMPORT_FIELDS.map((f) => (
+                {fields.filter((f) => !String(f.id).startsWith('sp_')).map((f) => (
                   <div key={f.id}>
                     <label className="block text-[11px] font-black text-[#3A241F] mb-1.5">{f.label}</label>
                     <select className={sel} value={map[f.id]} onChange={(e) => setMap((m) => ({ ...m, [f.id]: Number(e.target.value) }))}>
@@ -252,6 +268,24 @@ export const CustomerImportModal: React.FC<{
                     </select>
                   </div>
                 ))}
+                {connected && (
+                  <details className="sm:col-span-2 rounded-2xl border border-rose-200 bg-rose-50/40 px-3 py-2" data-import-sepidar>
+                    <summary className="text-[11px] font-black text-rose-800 cursor-pointer">اطلاعات سپیدار (سقف اعتبار، نرخ تخفیف، گروه‌ها، لیست سیاه، …)؛ ستون‌های خروجی سپیدار خودکار شناخته می‌شوند</summary>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      {fields.filter((f) => String(f.id).startsWith('sp_')).map((f) => (
+                        <div key={f.id}>
+                          <label className="block text-[11px] font-black text-[#3A241F] mb-1.5">{f.label.replace('سپیدار · ', '')}</label>
+                          <select className={sel} value={map[f.id] ?? -1} onChange={(e) => setMap((m) => ({ ...m, [f.id]: Number(e.target.value) }))}>
+                            <option value={-1}>— ندارد —</option>
+                            {headers.map((h, i) => (
+                              <option key={i} value={i}>{h}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
                 <div>
                   <label className="block text-[11px] font-black text-[#3A241F] mb-1.5">وضعیت مشتریان واردشده</label>
                   <select className={sel} value={status} onChange={(e) => setStatus(e.target.value as CustomerStatus)}>

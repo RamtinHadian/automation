@@ -118,6 +118,8 @@ export interface CustomerFile {
 export interface Customer {
   id: string;
   name: string;
+  /** What Sepidar keeps about the customer (credit ceiling, discount rate, groups, black list…): only used where Hoormand is connected to Sepidar. */
+  sepidarInfo?: Record<string, string>;
   /** Files kept on the customer's page. */
   attachments?: CustomerFile[];
   /** Set when the customer opened the company bot (Telegram / Bale) with his link. */

@@ -71,6 +71,7 @@ import { QuoteForm } from './QuoteForm';
 import { CustomerSummaryStrip } from './CustomerSummary';
 import { buildCustomerIndex, matchesQuery } from '../../lib/customerSearch';
 import { canSub, canSeeSalesTotals } from '../../lib/permissions';
+import { SEPIDAR_FIELDS, sepidarValueText } from '../../lib/sepidarCustomerFields';
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -1419,6 +1420,19 @@ const CustomerDetail: React.FC<{
           </div>
         );
       })()}
+      {c.sepidarInfo && SEPIDAR_FIELDS.some((f) => c.sepidarInfo?.[f.id]) && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-3 space-y-2" data-sepidar-info>
+          <div className="text-[11px] font-black text-rose-800">اطلاعات سپیدار</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {SEPIDAR_FIELDS.filter((f) => c.sepidarInfo?.[f.id]).map((f) => (
+              <div key={f.id} className="bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 min-w-0">
+                <div className="text-[10px] font-black text-[#8C6F66]">{f.label}</div>
+                <div className="text-xs font-bold text-[#3A241F] truncate">{toPersianDigits(sepidarValueText(f, c.sepidarInfo![f.id]))}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {referred.length > 0 && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs font-bold text-emerald-900">
           این مشتری {toPersianDigits(referred.length)} مشتری را معرفی کرده است: {referred.map((x) => x.name).join('، ')}.
