@@ -310,11 +310,32 @@ async function readItemGroups(sp, items) {
   return () => '';
 }
 
+/** When no address gives the stock: ask the service itself which addresses it has (its documentation page / swagger) and list the ones about stock and items in the report. */
+async function discoverEndpoints(sp) {
+  const found = new Set();
+  for (const doc of ['/swagger/docs/v1', '/swagger/v1/swagger.json', '/swagger/v1/swagger.yaml', '/help', '/api/help', '/api', '/']) {
+    try {
+      const data = await sp.raw('GET', doc);
+      const text = typeof data === 'string' ? data : JSON.stringify(data);
+      const paths = data && typeof data === 'object' && data.paths ? Object.keys(data.paths) : [...text.matchAll(/\/api\/[A-Za-z0-9_\/{}.-]+/g)].map((m) => m[0]);
+      paths.filter((x) => /stock|inventor|item|ware|balance/i.test(x)).forEach((x) => found.add(x));
+      if (paths.length) {
+        log(`  فهرست آدرس‌های سرویس از ${doc}: ${paths.length} آدرس`);
+        break;
+      }
+    } catch {
+      /* the next page */
+    }
+  }
+  log(found.size ? `  آدرس‌های مربوط به کالا و انبار در سرویس: ${[...found].slice(0, 40).join(' | ')}` : '  فهرست آدرس‌های سرویس پیدا نشد (صفحهٔ راهنمای سرویس باز نشد).');
+}
+
 async function cmdStock(cfg) {
   const state = loadState();
   const sp = client(cfg, state);
   const [stocks, items, units] = await Promise.all([sp.get('/api/Stocks'), sp.get('/api/Items'), sp.get('/api/Units')]);
   const { rows: inventories } = await readInventories(sp, cfg, stocks);
+  if (!inventories.length) await discoverEndpoints(sp);
   const groupOf = await readItemGroups(sp, items);
   const pay = stockPayload(stocks, items, units, inventories, groupOf);
   // no stock rows read (an address that does not exist in this Sepidar, or nothing matched): never tell Hoormand that every product has none
