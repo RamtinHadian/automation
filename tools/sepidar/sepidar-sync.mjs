@@ -738,6 +738,43 @@ export async function pushCaches(cfg, sp, state) {
   }
 }
 
+/**
+ * Windows only. A scheduled task every 5 minutes starts the program again when it is not running (it was closed, it crashed, or the computer
+ * started and nobody has signed in yet), so «سپیدار جواب نمی‌دهد» in Hoormand mends itself. Made once, from the folder the program runs in.
+ */
+function ensureWatchdog() {
+  if (process.platform !== 'win32') return;
+  try {
+    try {
+      execFileSync('schtasks', ['/Query', '/TN', 'HoormandSepidarWatch'], { stdio: 'pipe' });
+      return; // already there
+    } catch {
+      /* not there yet */
+    }
+    const q = (x) => '""' + x + '""';
+    const vbs = path.join(dir, 'نگهبان.vbs');
+    const start = `cmd /c cd /d ${q(dir)} && ${q(process.execPath)} ${q(path.join(dir, 'sepidar-sync.mjs'))} watch --apply >> ${q(path.join(dir, 'sepidar.log'))} 2>&1`;
+    fs.writeFileSync(
+      vbs,
+      [
+        'Set svc = GetObject("winmgmts:' + '\\\\.' + '\\root\\cimv2")',
+        `Set procs = svc.ExecQuery("Select CommandLine From Win32_Process Where Name = 'node.exe'")`,
+        'running = False',
+        'For Each p In procs',
+        '  If Not IsNull(p.CommandLine) Then',
+        '    If InStr(p.CommandLine, "sepidar-sync.mjs") > 0 And InStr(p.CommandLine, "watch") > 0 Then running = True',
+        '  End If',
+        'Next',
+        `If Not running Then CreateObject("Wscript.Shell").Run "${start}", 0, False`,
+      ].join(String.fromCharCode(13, 10)) + String.fromCharCode(13, 10),
+    );
+    execFileSync('schtasks', ['/Create', '/TN', 'HoormandSepidarWatch', '/SC', 'MINUTE', '/MO', '5', '/RL', 'LIMITED', '/F', '/TR', `wscript.exe "${vbs}"`], { stdio: 'pipe' });
+    log('نگهبان ساخته شد: هر ۵ دقیقه بررسی می‌شود برنامه روشن باشد و اگر خاموش بود خودش دوباره روشن می‌شود.');
+  } catch (e) {
+    log(`  نگهبان ساخته نشد (${String(e.message).slice(0, 100)}); برای ساخت آن یک‌بار برنامه را با «Run as administrator» اجرا کنید.`);
+  }
+}
+
 async function cmdCache(cfg) {
   const state = loadState();
   const sp = client(cfg, state);
@@ -923,6 +960,7 @@ async function main() {
     // requests from Hoormand's people are looked at every few seconds; the full synchronisation runs every intervalMinutes
     let nextFull = 0;
     let nextUpdate = 0;
+    ensureWatchdog();
     for (;;) {
       try {
         if (cfg.autoUpdate !== false && Date.now() >= nextUpdate) {
