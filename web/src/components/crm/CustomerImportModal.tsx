@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { FileSpreadsheet, Upload, X, Download } from 'lucide-react';
 import { Customer, CustomerStatus } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
-import { IMPORT_FIELDS, ImportField, guessMapping, normPhone, normText, readTable, sampleCsv } from '../../lib/customerImport';
+import { IMPORT_FIELDS, ImportField, guessMapping, importDate, importGender, importKind, normPhone, normText, readTable, sampleCsv, standardize, downloadStandardSheet } from '../../lib/customerImport';
 
 const uid = () => 'cu-' + Math.random().toString(36).substring(2, 10);
 const sel = 'w-full px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden';
@@ -19,23 +19,46 @@ export const CustomerImportModal: React.FC<{
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
   const [hasHeader, setHasHeader] = useState(true);
-  const [map, setMap] = useState<Record<ImportField, number>>({ name: -1, company: -1, mobile: -1, phone: -1, email: -1, address: -1, notes: -1 });
+  const [map, setMap] = useState<Record<ImportField, number>>(() => Object.fromEntries(IMPORT_FIELDS.map((f) => [f.id, -1])) as Record<ImportField, number>);
+  const [sources, setSources] = useState<{ name: string; count: number; unknown: string[] }[]>([]);
   const [status, setStatus] = useState<CustomerStatus>('ACTIVE');
   const [skipDup, setSkipDup] = useState(true);
   const input = useRef<HTMLInputElement>(null);
 
-  const pick = async (f: File | undefined) => {
-    if (!f) return;
+  // One or several files: every one is brought to Hoormand's standard columns and the rows are put together in one list
+  // (the first file whose columns are not recognised is kept as it is, to be mapped by hand).
+  const pick = async (files: File[]) => {
+    if (!files.length) return;
     setError('');
     try {
-      const r = await readTable(f);
-      if (r.length === 0) throw new Error('empty');
-      setRows(r);
-      setFileName(f.name);
-      setMap(guessMapping(r[0]));
-      setHasHeader(true);
+      let merged: string[][] | null = rows && sources.length ? rows : null;
+      const src = merged ? [...sources] : [];
+      for (const f of files) {
+        const r = await readTable(f);
+        if (r.length === 0) throw new Error('empty');
+        const std = standardize(r);
+        if (std) {
+          merged = merged ? [...merged, ...std.rows.slice(1)] : std.rows;
+          src.push({ name: f.name, count: std.rows.length - 1, unknown: std.unknown });
+        } else if (!merged) {
+          setRows(r);
+          setFileName(f.name);
+          setMap(guessMapping(r[0]));
+          setHasHeader(true);
+          setSources([]);
+          return;
+        } else {
+          setError(`ستون «نام» در فایل «${f.name}» پیدا نشد؛ این فایل به لیست اضافه نشد.`);
+        }
+      }
+      if (merged) {
+        setRows(merged);
+        setFileName(src.map((x) => x.name).join(' + '));
+        setMap(guessMapping(merged[0]));
+        setHasHeader(true);
+        setSources(src);
+      }
     } catch {
-      setRows(null);
       setError('فایل خوانده نشد. یک فایل اکسل (xlsx یا xls) یا CSV معتبر انتخاب کنید.');
     }
   };
@@ -47,34 +70,68 @@ export const CustomerImportModal: React.FC<{
   // Turn rows into customers; count what is skipped and why.
   const result = useMemo(() => {
     const known = new Set(existing.flatMap((c) => c.phones.map(normPhone)).filter(Boolean));
+    const knownIds = new Set(existing.flatMap((c) => [c.nationalCode, c.nationalId]).map((x) => normText(x)).filter(Boolean));
     const seen = new Set<string>();
     const ok: Customer[] = [];
     let noName = 0;
     let dup = 0;
     const get = (r: string[], f: ImportField) => (map[f] >= 0 ? normText(r[map[f]]) : '');
+    const opt = (v: string) => (v ? v : undefined);
     for (const r of data) {
-      const name = get(r, 'name') || get(r, 'company');
+      // the name: a full name, or the first name and the family name from two columns
+      const first = get(r, 'firstName');
+      const family = get(r, 'lastName');
+      const main = get(r, 'name');
+      const name = [main, family].filter(Boolean).join(' ') || [first, family].filter(Boolean).join(' ') || get(r, 'company');
       if (!name) {
         noName++;
         continue;
       }
-      const phones = [...new Set([normPhone(map.mobile >= 0 ? r[map.mobile] : ''), normPhone(map.phone >= 0 ? r[map.phone] : '')].filter(Boolean))];
-      if (skipDup && phones.length && phones.some((p) => known.has(p) || seen.has(p))) {
+      const phones = [...new Set(['mobile', 'mobile2', 'phone', 'phone2'].map((f) => normPhone(map[f as ImportField] >= 0 ? r[map[f as ImportField]] : '')).filter(Boolean))];
+      const ids = [get(r, 'nationalCode'), get(r, 'nationalId')].filter(Boolean);
+      if (skipDup && ((phones.length && phones.some((p) => known.has(p) || seen.has(p))) || ids.some((x) => knownIds.has(x) || seen.has(x)))) {
         dup++;
         continue;
       }
       phones.forEach((p) => seen.add(p));
+      ids.forEach((x) => seen.add(x));
       const now = new Date().toISOString();
+      const kind = importKind(get(r, 'kind')) || (get(r, 'nationalId') || get(r, 'economicCode') ? 'COMPANY' : undefined);
+      const repMobile = normPhone(map.repMobile >= 0 ? r[map.repMobile] : '');
       ok.push({
         id: uid(),
         name,
         company: get(r, 'company') && get(r, 'name') ? get(r, 'company') : '',
+        kind,
+        firstName: opt(first || (main && family ? main : '')),
+        lastName: opt(family),
+        fatherName: opt(get(r, 'fatherName')),
+        nationalCode: opt(get(r, 'nationalCode')),
+        idNumber: opt(get(r, 'idNumber')),
+        birthDate: importDate(get(r, 'birthDate')),
+        gender: importGender(get(r, 'gender')),
+        companyType: opt(get(r, 'companyType')),
+        nationalId: opt(get(r, 'nationalId')),
+        economicCode: opt(get(r, 'economicCode')),
+        registrationNumber: opt(get(r, 'registrationNumber')),
+        registrationDate: importDate(get(r, 'registrationDate')),
+        repName: opt(get(r, 'repName')),
+        repPosition: opt(get(r, 'repPosition')),
+        repMobile: opt(repMobile),
+        shopType: opt(get(r, 'shopType')),
+        licenseNumber: opt(get(r, 'licenseNumber')),
+        province: opt(get(r, 'province')),
+        city: opt(get(r, 'city')),
+        postalCode: opt(get(r, 'postalCode')),
+        website: opt(get(r, 'website')),
+        faxNumber: opt(normPhone(map.faxNumber >= 0 ? r[map.faxNumber] : '')),
+        interest: opt(get(r, 'interest')),
         phones,
         email: get(r, 'email'),
         address: get(r, 'address'),
         status,
-        source: 'ورود از اکسل',
-        tags: [],
+        source: get(r, 'source') || 'ورود از اکسل',
+        tags: get(r, 'tags') ? [...new Set(get(r, 'tags').split(/[,،;؛]/).map((t) => t.trim()).filter(Boolean))] : [],
         ownerId,
         ownerName,
         notes: get(r, 'notes'),
@@ -111,9 +168,10 @@ export const CustomerImportModal: React.FC<{
             ref={input}
             type="file"
             accept=".xlsx,.xls,.csv,.txt"
+            multiple
             className="hidden"
             onChange={(e) => {
-              pick(e.target.files?.[0]);
+              pick(Array.from(e.target.files || []));
               e.target.value = '';
             }}
           />
@@ -142,10 +200,33 @@ export const CustomerImportModal: React.FC<{
                 <span className="font-black text-[#3A241F] truncate" dir="ltr">
                   {fileName}
                 </span>
-                <button type="button" onClick={() => input.current?.click()} className="text-violet-700 font-black cursor-pointer">
-                  انتخاب فایل دیگر
-                </button>
+                <span className="flex flex-wrap items-center gap-3">
+                  <button type="button" onClick={() => input.current?.click()} className="text-violet-700 font-black cursor-pointer" data-import-add>
+                    {sources.length ? 'افزودن فایل دیگر به همین لیست' : 'انتخاب فایل دیگر'}
+                  </button>
+                  {sources.length > 0 && (
+                    <button type="button" onClick={() => { setRows(null); setSources([]); setFileName(''); }} className="text-[#8C6F66] font-black cursor-pointer">
+                      شروع از نو
+                    </button>
+                  )}
+                  {sources.length > 0 && rows && (
+                    <button type="button" onClick={() => void downloadStandardSheet(rows)} className="text-emerald-700 font-black cursor-pointer" data-import-standard>
+                      دانلود فایل استاندارد هورمند (اکسل)
+                    </button>
+                  )}
+                </span>
               </div>
+              {sources.length > 0 && rows && (
+                <div className="rounded-2xl border border-[#EBDBCE] bg-[#FAF5F1] px-3 py-2 text-[11px] font-bold text-[#5A4640] space-y-1" data-import-sources>
+                  <div className="font-black text-[#3A241F]">لیست یکپارچه با ستون‌های استاندارد هورمند: {toPersianDigits(Math.max(0, rows.length - 1))} ردیف از {toPersianDigits(sources.length)} فایل</div>
+                  {sources.map((x) => (
+                    <div key={x.name}>
+                      <span dir="ltr">{x.name}</span> · {toPersianDigits(x.count)} ردیف
+                      {x.unknown.length > 0 && <span className="text-amber-700"> · ستون‌هایی که فیلدی در هورمند ندارند و وارد نمی‌شوند: {x.unknown.join('، ')}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
               <label className="flex items-center gap-2 text-xs font-bold text-[#3A241F] cursor-pointer">
                 <input
                   type="checkbox"
@@ -182,7 +263,7 @@ export const CustomerImportModal: React.FC<{
               </div>
               <label className="flex items-center gap-2 text-xs font-bold text-[#3A241F] cursor-pointer">
                 <input type="checkbox" checked={skipDup} onChange={(e) => setSkipDup(e.target.checked)} />
-                مشتریانی که شمارهٔ تلفنشان قبلاً در سامانه هست، اضافه نشوند
+                مشتریانی که شمارهٔ تلفن یا کد ملی‌شان قبلاً در سامانه هست، اضافه نشوند
               </label>
               <div className="rounded-2xl border border-[#EBDBCE] overflow-x-auto">
                 <table className="w-full text-[11px]">
