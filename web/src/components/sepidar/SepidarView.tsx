@@ -135,6 +135,9 @@ export const SepidarView: React.FC = () => {
   const BtnS = 'px-3 py-1.5 min-h-[34px] rounded-lg text-[11px] font-black border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 
   const dealRows = deals.filter((d: any) => d.proformaNumber && matchesAll(d, q));
+  // the pre-invoices Sepidar itself holds and Hoormand did not send (typed in Sepidar, or sent from another place)
+  const tiedQuotations = new Set(st.links.filter((l) => l.kind === 'quotation').map((l) => l.sepidarId));
+  const sepidarQuotes = (st.cache?.quotations?.items || []).filter((x: any) => !tiedQuotations.has(x.ID ?? x.QuotationID) && matchesAll(x, q, x.CustomerName || balances.get(x.CustomerRef)?.Title || customerOfSepidar.get(x.CustomerRef) || ''));
   const custRows = customers.filter((c) => matchesAll(c, q));
   const balances = new Map<number, any>((st.cache?.balances?.items || []).map((b) => [b.CustomerID, b]));
   const accountName = new Map<number, string>((st.cache?.bankAccounts?.items || []).map((a) => [a.BankAccountID, a.DlTitle]));
@@ -210,7 +213,7 @@ export const SepidarView: React.FC = () => {
         tone="rose"
         value={cur}
         onChange={(k) => setTab(k as Tab)}
-        tabs={tabs.filter((t) => t[2]).map(([k, t]) => ({ id: k, label: t, Icon: ({ deals: FileText, customers: Users, invoices: FileCheck2, prices: Banknote, jobs: Send } as Record<string, React.ElementType>)[k] }))}
+        tabs={tabs.filter((t) => t[2]).map(([k, t]) => ({ id: k, label: t, count: k === 'customers' ? customers.length : undefined, Icon: ({ deals: FileText, customers: Users, invoices: FileCheck2, prices: Banknote, jobs: Send } as Record<string, React.ElementType>)[k] }))}
       />
       {cur !== 'jobs' && (
         <div className="relative">
@@ -220,7 +223,28 @@ export const SepidarView: React.FC = () => {
       )}
 
       {cur === 'deals' && (
-        <List empty="فرصت فروشی با پیش‌فاکتور شماره‌دار نیست.">
+        <List empty="پیش‌فاکتوری نیست. پیش‌فاکتورهای هورمند و پیش‌فاکتورهای ثبت‌شده در خود سپیدار این‌جا می‌آید؛ «بروزرسانی اطلاعات سپیدار» را بزنید.">
+          {sepidarQuotes.slice(0, 300).map((x: any) => (
+            <Card
+              key={'sq' + (x.ID ?? x.Number)}
+              icon={<FileText className="w-5 h-5" />}
+              tone="sky"
+              title={x.CustomerName || balances.get(x.CustomerRef)?.Title || customerOfSepidar.get(x.CustomerRef) || 'مشتری سپیدار ' + toPersianDigits(x.CustomerRef)}
+              sub={`پیش‌فاکتور سپیدار ${toPersianDigits(x.Number)}${x.Date ? ' · ' + formatTaskDate(String(x.Date).slice(0, 10)) : ''}`}
+              badge={['ثبت‌شده در سپیدار', 'bg-sky-50 text-sky-800 border-sky-200']}
+              facts={[
+                ['مبلغ', x.Price != null ? fmt(x.Price) : '—'],
+                ['خالص', fmt(x.NetPrice ?? x.Price)],
+              ]}
+            >
+              {(x.Description || x.Goods) && (
+                <div className="px-1 space-y-0.5 text-[11px] leading-5 font-bold text-[#5A4640]">
+                  {x.Goods && <div><span className="text-[#8C6F66]">کالاها: </span>{x.Goods}</div>}
+                  {x.Description && <div><span className="text-[#8C6F66]">توضیحات: </span>{x.Description}</div>}
+                </div>
+              )}
+            </Card>
+          ))}
           {dealRows.map((d: any) => {
             const qt = linkMap.get('quotation:' + d.id);
             const inv = linkMap.get('invoice:' + d.id);

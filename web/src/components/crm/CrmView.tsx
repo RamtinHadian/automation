@@ -559,6 +559,7 @@ export const CrmView: React.FC = () => {
           >
             <Icon className="w-4 h-4 lg:w-3.5 lg:h-3.5 xl:w-4 xl:h-4 shrink-0" />
             <span className="truncate">{({ 'فرصت‌های فروش': 'فرصت‌ها', 'باشگاه مشتریان': 'باشگاه', 'پیامک گروهی': 'پیامک', 'پیش‌فاکتورهای ارسالی': 'پیش‌فاکتورها' } as Record<string, string>)[text] || text}</span>
+            {id === 'customers' && <span className="text-[10px] font-bold opacity-60 tabular-nums" data-customer-count>{toPersianDigits(customers.length)}</span>}
             {id === 'proformas' && pendingProformas.length > 0 && <span className="bg-amber-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(pendingProformas.length)}</span>}
             {id === 'followups' && overdueFollowups.length > 0 && <span className="bg-rose-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(overdueFollowups.length)}</span>}
           </button>

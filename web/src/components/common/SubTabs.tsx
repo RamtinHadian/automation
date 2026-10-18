@@ -16,6 +16,8 @@ export interface SubTab {
   Icon?: React.ElementType;
   /** a small red number on the tab */
   badge?: number;
+  /** a small quiet number after the name (how many there are) */
+  count?: number;
 }
 
 /**
@@ -24,7 +26,7 @@ export interface SubTab {
  */
 export const SubTabs: React.FC<{ tabs: SubTab[]; value: string; onChange: (id: string) => void; tone?: keyof typeof ACTIVE | string; className?: string }> = ({ tabs, value, onChange, tone = 'violet', className = '' }) => (
   <div data-subtabs className={`flex flex-wrap lg:flex-nowrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 ${className}`}>
-    {tabs.map(({ id, label, Icon, badge }) => (
+    {tabs.map(({ id, label, Icon, badge, count }) => (
       <button
         key={id}
         type="button"
@@ -36,6 +38,7 @@ export const SubTabs: React.FC<{ tabs: SubTab[]; value: string; onChange: (id: s
       >
         {Icon ? <Icon className="w-4 h-4 lg:w-3.5 lg:h-3.5 xl:w-4 xl:h-4 shrink-0" /> : null}
         <span className="truncate">{label}</span>
+        {count !== undefined ? <span className="text-[10px] font-bold opacity-60 shrink-0" data-count>{count.toLocaleString('fa-IR')}</span> : null}
         {badge ? <span className="bg-rose-500 text-white text-[10px] rounded-full px-1.5">{badge.toLocaleString('fa-IR')}</span> : null}
       </button>
     ))}

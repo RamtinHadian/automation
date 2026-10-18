@@ -622,7 +622,12 @@ export async function pushCaches(cfg, sp, state) {
     Description: [x.Description, x.Title, x.Comment, x.Memo].filter(Boolean).join(' · ').slice(0, 400),
     Goods: (Array.isArray(x.Items) ? x.Items : []).map((it) => titleOfItem.get(it.ItemRef) || it.Title || it.Description || '').filter(Boolean).slice(0, 30).join('، ').slice(0, 600),
   }));
-  await tryPush('quotations', '/api/Quotations', (x) => pick(x, ['ID', 'Number', 'Date', 'CustomerRef', 'Price', 'NetPrice']));
+  await tryPush('quotations', '/api/Quotations', (x) => ({
+    ...pick(x, ['ID', 'Number', 'Date', 'CustomerRef', 'Price', 'NetPrice']),
+    CustomerName: nameOfCustomer.get(x.CustomerRef) || x.CustomerTitle || x.CustomerName || '',
+    Description: [x.Description, x.Title, x.Comment, x.Memo].filter(Boolean).join(' · ').slice(0, 400),
+    Goods: (Array.isArray(x.Items) ? x.Items : []).map((it) => titleOfItem.get(it.ItemRef) || it.Title || it.Description || '').filter(Boolean).slice(0, 30).join('، ').slice(0, 600),
+  }));
   await tryPush('banks', '/api/banks', (x) => pick(x, ['BankID', 'Title']));
   await tryPush('bankAccounts', '/api/BankAccounts', (x) => pick(x, ['BankAccountID', 'DlCode', 'DlTitle', 'CurrencyRef']));
   await tryPush('saleTypes', '/api/SaleTypes', (x) => pick(x, ['SaleTypeID', 'Title']));
