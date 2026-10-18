@@ -88,7 +88,9 @@ export function generateOfficialLetterHtml(
   const pagePrintHeight = isA5 ? '209mm' : isLetter ? '278.4mm' : '296mm';
   const containerMaxWidth = isA5 ? '580px' : isLetter ? '700px' : '720px';
   const containerMinHeight = isA5 ? '600px' : isLetter ? '720px' : '760px';
-  const containerPadding = isA5 ? '32px' : isLetter ? '40px' : '48px';
+  const containerPadding = isA5 ? '28px' : isLetter ? '36px' : '40px'; // the same paddings as the sheet in the editor
+  const designW = parseInt(containerMaxWidth, 10);
+  const pageWmm = isA5 ? 148 : isLetter ? 215.9 : 210;
 
   const allFonts = [...DEFAULT_FONTS, ...(settings.customFonts || [])];
   const activeFontFamily = overrides?.letterFontFamily || transfer.letterFontFamily;
@@ -209,8 +211,9 @@ export function generateOfficialLetterHtml(
         display: none !important;
       }
       .letter-container {
-        width: 100% !important;
-        max-width: 100% !important;
+        /* the sheet keeps the width it has in the editor and is enlarged to the page by the script below, so every distance matches the editor */
+        width: ${designW}px !important;
+        max-width: ${designW}px !important;
         height: ${pagePrintHeight} !important;
         min-height: ${pagePrintHeight} !important;
         max-height: ${pagePrintHeight} !important;
@@ -532,6 +535,8 @@ export function generateOfficialLetterHtml(
 // When the letter is longer than one page, its whole sheet is shrunk just enough to fit, so the footer never goes to a second page.
 (function () {
   var PAGE_MM = ${isA5 ? 209 : isLetter ? 278.4 : 296};
+  var PAGE_W_MM = ${pageWmm};
+  var DESIGN_W = ${designW};
   var PX = 96 / 25.4;
   var PROPS = ['width', 'height', 'min-height', 'max-height'];
   function reset(c) { c.style.zoom = ''; PROPS.forEach(function (p) { c.style.removeProperty(p); }); }
@@ -539,19 +544,20 @@ export function generateOfficialLetterHtml(
     var c = document.querySelector('.letter-container');
     if (!c) return;
     reset(c);
+    c.style.setProperty('width', DESIGN_W + 'px', 'important');
+    c.style.setProperty('height', 'auto', 'important'); c.style.setProperty('min-height', '0', 'important'); c.style.setProperty('max-height', 'none', 'important');
     var natural = c.scrollHeight;
-    c.style.height = 'auto'; c.style.minHeight = '0'; c.style.maxHeight = 'none';
-    natural = Math.max(natural, c.scrollHeight);
     ['height', 'min-height', 'max-height'].forEach(function (p) { c.style.removeProperty(p); });
-    var z = Math.min(1, (PAGE_MM * PX) / (natural * 1.03));
-    if (z < 0.999) {
-      c.style.zoom = String(z);
-      var h = (PAGE_MM / z) + 'mm';
-      c.style.setProperty('width', (100 / z) + '%', 'important');
-      c.style.setProperty('height', h, 'important');
-      c.style.setProperty('min-height', h, 'important');
-      c.style.setProperty('max-height', h, 'important');
-    }
+    // enlarge the sheet to the width of the page; a long letter is shrunk just enough to keep the footer on the first page
+    var base = (PAGE_W_MM * PX) / DESIGN_W;
+    var z = Math.min(base, (PAGE_MM * PX) / (natural * 1.03));
+    var h = (PAGE_MM * PX) / z + 'px';
+    c.style.zoom = String(z);
+    c.style.setProperty('width', DESIGN_W + 'px', 'important');
+    c.style.setProperty('max-width', DESIGN_W + 'px', 'important');
+    c.style.setProperty('height', h, 'important');
+    c.style.setProperty('min-height', h, 'important');
+    c.style.setProperty('max-height', h, 'important');
   }
   window.__fitPrint = fit;
   window.addEventListener('beforeprint', fit);

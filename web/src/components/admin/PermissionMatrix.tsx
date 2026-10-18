@@ -93,7 +93,8 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
             ))}
             <col style={{ width: 92 }} />
           </colgroup>
-          <thead className="sticky top-0 z-20">
+          {/* the page area has padding (12 / 24 / 32px): the header sticks at minus that, flush with the top edge, so no row shows above it */}
+          <thead className="sticky top-[-12px] sm:top-[-24px] lg:top-[-32px] z-20">
             <tr>
               <th rowSpan={2} className="bg-[#FAF5F1] border-b-2 border-b-[#EBDBCE] border-l border-[#EBDBCE] py-3 px-3 text-[11px] font-black text-[#8C6F66]">کارمند</th>
               {menuCols.map(({ m, cols }) =>
