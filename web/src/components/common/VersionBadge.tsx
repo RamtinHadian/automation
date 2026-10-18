@@ -27,8 +27,12 @@ export const VersionBadge: React.FC<{ className?: string; withDate?: boolean }> 
         setV(x);
       }).catch(() => {});
     load();
-    const t = window.setInterval(load, 5 * 60 * 1000);
-    return () => { stop = true; window.clearInterval(t); };
+    // the server is updated within half a minute of a release, so the page asks every 30 seconds (and when the person comes back to it)
+    const t = window.setInterval(() => { if (!document.hidden) load(); }, 30 * 1000);
+    const wake = () => { if (!document.hidden) load(); };
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    return () => { stop = true; window.clearInterval(t); document.removeEventListener('visibilitychange', wake); window.removeEventListener('focus', wake); };
   }, []);
   if (!v) return null;
   return (
@@ -37,7 +41,7 @@ export const VersionBadge: React.FC<{ className?: string; withDate?: boolean }> 
         نسخه {v.version === 'dev' ? 'آزمایشی' : toPersianDigits(v.version)}{withDate && v.date ? ` (${jalaliDate(v.date)})` : ''}
       </button>
       {fresh && (
-        <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black cursor-pointer">
+        <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black cursor-pointer animate-pulse">
           <RefreshCw className="w-3 h-3" />
           نسخهٔ جدید آماده است؛ تازه‌سازی
         </button>

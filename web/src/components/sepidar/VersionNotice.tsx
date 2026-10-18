@@ -50,7 +50,7 @@ export const VersionNotice: React.FC<{ enabled: boolean }> = ({ enabled }) => {
         }
       }).catch(() => {});
     check();
-    const t = window.setInterval(check, 5 * 60 * 1000);
+    const t = window.setInterval(() => { if (!document.hidden) check(); }, 30 * 1000);
     return () => { stop = true; window.clearInterval(t); };
   }, [enabled, installed]);
 
