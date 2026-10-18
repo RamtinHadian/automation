@@ -56,13 +56,15 @@ export const WarehouseView: React.FC = () => {
   if (!st) return <div className="p-8 text-center text-xs font-bold text-[#8C6F66]">در حال دریافت…</div>;
 
   const sepidar = st.mode === 'sepidar';
-  const low = st.products.filter((p) => (p.minQty || 0) > 0 && p.total < (p.minQty || 0));
-  const tabs = ([
-    ['stock', 'موجودی'],
-    ['docs', 'اسناد'],
-    ['products', 'کالاها'],
-    ['warehouses', 'انبارها'],
-  ] as [Tab, string][]).filter(([k]) => canSub(currentUser, 'warehouse.' + k));
+const qtyOk = st.limits ? st.limits.qty : true;
+	const kindsOk = (st.limits?.kinds ?? (Object.keys(KIND_LABEL) as WhKind[])) as WhKind[];
+	const low = qtyOk ? st.products.filter((p) => (p.minQty || 0) > 0 && p.total < (p.minQty || 0)) : [];
+	const tabs = ([
+		['stock', 'موجودی'],
+		['docs', 'اسناد'],
+		['products', 'کالاها'],
+		['warehouses', 'انبارها'],
+	] as [Tab, string][]).filter(([k]) => canSub(currentUser, 'warehouse.' + k) && (k === 'stock' ? qtyOk : k === 'docs' ? qtyOk && kindsOk.length > 0 : true));
   const shownTab: Tab | null = tabs.some(([k]) => k === tab) ? tab : tabs[0]?.[0] ?? null;
   const mayWrite = canSub(currentUser, 'warehouse.write');
 
@@ -115,8 +117,8 @@ export const WarehouseView: React.FC = () => {
       />
       {!sepidar && mayWrite && (
         <div className="flex flex-wrap gap-1.5">
-          {(Object.keys(KIND_LABEL) as WhKind[]).map((k) => (
-            <button key={k} type="button" onClick={() => setDocForm(k)} className={`px-3 py-2 min-h-[40px] rounded-xl text-[11px] font-black border cursor-pointer ${KIND_COLOR[k]}`}>
+{(Object.keys(KIND_LABEL) as WhKind[]).filter((k) => kindsOk.includes(k)).map((k) => (
+			<button key={k} type="button" onClick={() => setDocForm(k)} className={`px-3 py-2 min-h-[40px] rounded-xl text-[11px] font-black border cursor-pointer ${KIND_COLOR[k]}`}>
               + {KIND_LABEL[k]}
             </button>
           ))}
@@ -261,8 +263,8 @@ const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, on
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <select value={kind} onChange={(e) => setKind(e.target.value)} className={field}>
-          <option value="">همهٔ انواع</option>
-          {(Object.keys(KIND_LABEL) as WhKind[]).map((k) => (
+<option value="">همهٔ انواع</option>
+          {(Object.keys(KIND_LABEL) as WhKind[]).filter((k) => !st.limits || st.limits.kinds.includes(k)).map((k) => (
             <option key={k} value={k}>{KIND_LABEL[k]}</option>
           ))}
         </select>
@@ -599,10 +601,10 @@ const ProductsTab: React.FC<{ st: WhState; sepidar: boolean; onEdit: (p: Partial
             sub={[toPersianDigits(p.code), p.unit, p.group].filter(Boolean).join(' · ')}
             badge={p.active === false ? ['غیرفعال', 'bg-slate-50 text-slate-600 border-slate-200'] : null}
             facts={[
-              ['موجودی', fmt(p.total)],
+['موجودی', st.limits && !st.limits.qty ? '—' : fmt(p.total)],
               ['حداقل موجودی', p.minQty ? fmt(p.minQty) : '—'],
               ...(p.barcode ? [['بارکد', toPersianDigits(p.barcode)] as [string, React.ReactNode]] : []),
-              ...(p.prices || []).slice(0, 3).map((x) => [x.title, `${formatMoney(x.amount)} ${unitName()}`] as [string, React.ReactNode]),
+...(st.limits && !st.limits.money ? [] : p.prices || []).slice(0, 3).map((x) => [x.title, `${formatMoney(x.amount)} ${unitName()}`] as [string, React.ReactNode]),
             ]}
           />
         ))}
@@ -614,7 +616,7 @@ const ProductsTab: React.FC<{ st: WhState; sepidar: boolean; onEdit: (p: Partial
 const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
 
 const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin: boolean; onClose: () => void; onSaved: () => void }> = ({ p, sepidar, isAdmin, onClose, onSaved }) => {
-  const { showToast } = useAppContext();
+const { showToast, currentUser } = useAppContext();
   const isNew = !p.id;
   const [f, setF] = useState({ code: p.code || '', title: p.title || '', unit: p.unit || 'عدد', group: p.group || '', barcode: p.barcode || '', minQty: p.minQty ? String(p.minQty) : '', note: p.note || '', active: p.active !== false });
   const [prices, setPrices] = useState<{ title: string; amount: string }[]>((p.prices || []).map((x) => ({ title: x.title, amount: String(toDisplay(x.amount)) })));
@@ -666,9 +668,9 @@ const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin:
         <div><span className={label}>بارکد</span><input value={f.barcode} disabled={lockBase} onChange={(e) => setF({ ...f, barcode: e.target.value })} className={field} /></div>
         <div><span className={label}>حداقل موجودی (برای هشدار)</span><input value={f.minQty} onChange={(e) => setF({ ...f, minQty: e.target.value })} inputMode="decimal" className={field} /></div>
         <div className="flex items-end"><label className="flex items-center gap-2 text-xs font-bold cursor-pointer"><input type="checkbox" disabled={lockBase} checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} className="w-4 h-4" /> فعال</label></div>
-        <div className="sm:col-span-2"><span className={label}>قیمت خرید یا تمام‌شدهٔ هر واحد ({unitName()}؛ برای گزارش سود مشتریان)</span><MoneyInput value={cost} onChange={setCost} placeholder="اختیاری" className={field} /></div>
+{canSub(currentUser, 'warehouse.money') && <div className="sm:col-span-2"><span className={label}>قیمت خرید یا تمام‌شدهٔ هر واحد ({unitName()}؛ برای گزارش سود مشتریان)</span><MoneyInput value={cost} onChange={setCost} placeholder="اختیاری" className={field} /></div>}
         <div className="sm:col-span-2"><span className={label}>یادداشت</span><input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} className={field} /></div>
-        <div className="sm:col-span-2 space-y-2">
+{canSub(currentUser, 'warehouse.money') && <div className="sm:col-span-2 space-y-2">
           <span className={label}>قیمت‌ها (مثلاً خرده‌فروشی، عمده، نمایندگی)</span>
           {prices.map((x, i) => (
             <div key={i} className="flex items-center gap-2">
@@ -680,7 +682,7 @@ const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin:
           {prices.length < 12 && (
             <button type="button" onClick={() => setPrices((r) => [...r, { title: '', amount: '' }])} className="flex items-center gap-1 text-[11px] font-black text-amber-700 cursor-pointer"><Plus className="w-4 h-4" /> قیمت دیگر</button>
           )}
-        </div>
+</div>}
       </div>
     </Modal>
   );

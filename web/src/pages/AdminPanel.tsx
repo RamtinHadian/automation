@@ -42,7 +42,8 @@ import { ServerAddressCard } from '../components/admin/ServerAddressCard';
 import { TransfersMonitor } from '../components/admin/TransfersMonitor';
 import { SettingsView } from '../components/admin/SettingsView';
 import { LetterManagementAdminView } from '../components/admin/LetterManagementAdminView';
-import { Stamp, Trash2 } from 'lucide-react';
+import { Stamp, Trash2, CalendarCheck2 } from 'lucide-react';
+import { LeaveAdminView } from '../components/admin/LeaveAdminView';
 import { DepartmentManagementView } from '../components/admin/DepartmentManagementView';
 import { ThemeSelector } from '../components/common/ThemeSelector';
 import { toPersianDigits } from '../lib/jalali';
@@ -132,7 +133,7 @@ export default function AdminPanel() {
     }
   }, [isAdminAuthenticated, staffList, currentUser.id, setCurrentUser]);
 
-  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'letters' | 'transfers' | 'audit' | 'analytics' | 'stats' | 'support' | 'settings'>('users');
+  const [activeTab, setActiveTab] =useState<'users' | 'departments' | 'letters' | 'transfers' | 'audit' | 'analytics' | 'stats' | 'support' | 'leaves' | 'settings'>('users');
   const [transfersSearch, setTransfersSearch] = useState('');
   // which files still exist on the server (and how big): read when the monitoring page is open
   const [fileSizes, setFileSizes] = useState<Record<string, number> | null>(null);
@@ -487,6 +488,7 @@ export default function AdminPanel() {
             <IconTab active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} label="واحدهای سازمانی" count={badge('departments')} alert icon={<Shield className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'transfers'} onClick={() => setActiveTab('transfers')} label="مانیتورینگ انتقالات" count={badge('transfers')} alert icon={<Activity className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} label="گزارشات ممیزی" count={badge('audit')} alert icon={<FileSearch className="w-[18px] h-[18px]" />} />
+<IconTab active={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')} label="مرخصی و مساعده" icon={<CalendarCheck2 className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} label="گزارشات آماری مدیریتی" icon={<BarChart3 className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} label="آمار و مصرف حافظه" icon={<PieChartIcon className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'support'} onClick={() => setActiveTab('support')} label="تنظیمات پشتیبانی" icon={<Headset className="w-[18px] h-[18px]" />} />
@@ -568,7 +570,8 @@ export default function AdminPanel() {
             <AuditLogsView logs={auditLogs} />
           )}
 
-          {activeTab === 'stats' && <ManagementReports />}
+{activeTab === 'stats' && <ManagementReports />}
+          {activeTab === 'leaves' && <LeaveAdminView />}
           {activeTab === 'support' && <SupportAdmin toast={showToast} />}
 
           {activeTab === 'analytics' && (

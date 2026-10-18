@@ -27,23 +27,39 @@ import (
 
 // sepidarPerms are the rights a person can be given (the keys are what the console sends).
 var sepidarPerms = []struct{ Key, Title string }{
-	{"view", "دیدن اطلاعات سپیدار (فاکتورها، قیمت‌ها، مانده مشتری، وضعیت اتصال)"},
-	{"customer", "ثبت و بروزرسانی مشتری در سپیدار"},
-	{"quotation", "ارسال، بستن و حذف پیش‌فاکتور در سپیدار"},
+	{"view", "دیدن همهٔ اطلاعات (فاکتورها، قیمت‌ها، مانده مشتری، وضعیت اتصال، بروزرسانی)"},
+	{"viewInvoices", "دیدن فاکتورهای فروش"},
+	{"viewPrices", "دیدن قیمت‌ها"},
+	{"viewBalance", "دیدن مانده و وضعیت مالی مشتری"},
+	{"refresh", "بروزرسانی اطلاعات سپیدار"},
+	{"customer", "ثبت و بروزرسانی مشتری در سپیدار (هر دو)"},
+	{"customerNew", "ثبت مشتری تازه در سپیدار"},
+	{"customerUpdate", "بروزرسانی مشتریِ ثبت‌شده در سپیدار"},
+	{"quotation", "پیش‌فاکتور: ارسال، بستن و حذف (همه)"},
+	{"quotationSend", "ارسال پیش‌فاکتور به سپیدار"},
+	{"quotationClose", "بستن و بازکردن پیش‌فاکتور"},
+	{"quotationDelete", "حذف پیش‌فاکتور از سپیدار"},
 	{"invoice", "صدور فاکتور فروش از روی پیش‌فاکتور"},
 	{"receipt", "ثبت دریافتی (رسید) برای فاکتور"},
 }
 
+// a broad right includes the small ones under it (so what people were given before keeps working); a small right can also be given alone
+var sepidarImplies = map[string][]string{
+	"view":      {"viewInvoices", "viewPrices", "viewBalance", "refresh"},
+	"customer":  {"customerNew", "customerUpdate"},
+	"quotation": {"quotationSend", "quotationClose", "quotationDelete"},
+}
+
 // the jobs and the right each one needs
 var sepidarJobs = map[string]struct{ Perm, Title string }{
-	"customer.send":       {"customer", "ثبت یا بروزرسانی مشتری"},
-	"quotation.send":      {"quotation", "ارسال پیش‌فاکتور"},
-	"quotation.close":     {"quotation", "بستن پیش‌فاکتور"},
-	"quotation.unclose":   {"quotation", "بازکردن پیش‌فاکتور"},
-	"quotation.delete":    {"quotation", "حذف پیش‌فاکتور"},
+	"customer.send":       {"customerNew", "ثبت یا بروزرسانی مشتری"},
+	"quotation.send":      {"quotationSend", "ارسال پیش‌فاکتور"},
+	"quotation.close":     {"quotationClose", "بستن پیش‌فاکتور"},
+	"quotation.unclose":   {"quotationClose", "بازکردن پیش‌فاکتور"},
+	"quotation.delete":    {"quotationDelete", "حذف پیش‌فاکتور"},
 	"invoice.fromProforma": {"invoice", "صدور فاکتور"},
 	"receipt.add":         {"receipt", "ثبت دریافتی"},
-	"refresh":             {"view", "بروزرسانی اطلاعات سپیدار"},
+	"refresh":             {"refresh", "بروزرسانی اطلاعات سپیدار"},
 }
 
 // what the program may store as a copy of Sepidar's data
@@ -53,7 +69,31 @@ func sepidarCan(me auth.User, perm string) bool {
 	if me.IsAdmin() {
 		return true
 	}
-	return jsonx.Contains(jsonx.Strings(me.M, "sepidarPerms"), perm)
+	have := jsonx.Strings(me.M, "sepidarPerms")
+	if jsonx.Contains(have, perm) {
+		return true
+	}
+	for broad, small := range sepidarImplies {
+		if jsonx.Contains(have, broad) && jsonx.Contains(small, perm) {
+			return true
+		}
+	}
+	return false
+}
+
+// which right shows which copy of Sepidar's data (the rest are lists the forms need: banks, accounts, sale types…)
+func sepidarCanSeeCache(me auth.User, key string) bool {
+	switch key {
+	case "invoices", "quotations":
+		return sepidarCan(me, "viewInvoices") || sepidarCan(me, "receipt") || sepidarCan(me, "invoice")
+	case "priceNotes":
+		return sepidarCan(me, "viewPrices")
+	case "balances":
+		return sepidarCan(me, "viewBalance")
+	case "sepidarCustomers":
+		return false
+	}
+	return sepidarAny(me)
 }
 
 func sepidarAny(me auth.User) bool { return me.IsAdmin() || len(jsonx.Strings(me.M, "sepidarPerms")) > 0 }
@@ -123,7 +163,7 @@ func sepidarState(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 	out["links"] = links
-	if sepidarCan(me, "view") {
+	{
 		cache := map[string]any{}
 		rows, err = store.Pool.Query(ctx, `SELECT key, data, updated_at FROM sepidar_cache`)
 		if err == nil {
@@ -131,7 +171,7 @@ func sepidarState(w http.ResponseWriter, r *http.Request) {
 				var key string
 				var data []byte
 				var at time.Time
-				if rows.Scan(&key, &data, &at) == nil && key != "sepidarCustomers" { // the full list is only for the duplicate check
+				if rows.Scan(&key, &data, &at) == nil && sepidarCanSeeCache(me, key) { // the full list is only for the duplicate check
 					var v any
 					_ = json.Unmarshal(data, &v)
 					cache[key] = jsonx.M{"items": v, "at": at.Format(time.RFC3339)}
@@ -157,7 +197,11 @@ func sepidarJobCreate(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "نوع درخواست نامعتبر است.")
 		return
 	}
-	if !sepidarCan(me, def.Perm) {
+	allowed := sepidarCan(me, def.Perm)
+	if kind == "customer.send" {
+		allowed = sepidarCan(me, "customerNew") || sepidarCan(me, "customerUpdate") // decided below by whether the customer is in Sepidar already
+	}
+	if !allowed {
 		httpx.Error(w, http.StatusForbidden, "اجازهٔ «"+def.Title+"» برای شما در کنسول مدیریت باز نشده است.")
 		return
 	}
@@ -177,6 +221,14 @@ func sepidarJobCreate(w http.ResponseWriter, r *http.Request) {
 		_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM crm_customers WHERE id = $1`, ref).Scan(&n)
 		if n == 0 {
 			bad("مشتری پیدا نشد.")
+			return
+		}
+		need, what := "customerNew", "ثبت مشتری تازه در سپیدار"
+		if hasLink("customer", ref) {
+			need, what = "customerUpdate", "بروزرسانی مشتری در سپیدار"
+		}
+		if !sepidarCan(me, need) {
+			httpx.Error(w, http.StatusForbidden, "اجازهٔ «"+what+"» برای شما در کنسول مدیریت باز نشده است.")
 			return
 		}
 		data["customerId"] = ref
@@ -455,7 +507,7 @@ func cacheItems(ctx context.Context, key string) ([]map[string]any, string) {
 // Only people who may see Sepidar's data AND may work with this customer get it (a salesperson does not see a colleague's customer's money).
 func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	if !sepidarCan(me, "view") {
+	if !sepidarCan(me, "viewBalance") {
 		httpx.Forbidden(w)
 		return
 	}
@@ -597,7 +649,7 @@ func crmSepidarLink(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "مشتری مشخص نیست.")
 		return
 	}
-	if !me.IsAdmin() && !sepidarCan(me, "customer") && !crmOwnsCustomer(r, me, cid) {
+	if !me.IsAdmin() && !sepidarCan(me, "customerNew") && !sepidarCan(me, "customerUpdate") && !crmOwnsCustomer(r, me, cid) {
 		httpx.Forbidden(w)
 		return
 	}

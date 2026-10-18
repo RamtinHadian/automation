@@ -1156,7 +1156,7 @@ export default function UserPanel() {
                 tone="maroon"
                 value={filesSection}
                 onChange={(k) => setFilesSection(k as typeof filesSection)}
-                tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'درخواست مرخصی', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : 0 }))}
+                tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'مرخصی و مساعده', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : 0 }))}
               />
             </div>
             {filesSection === 'reminders' ? (

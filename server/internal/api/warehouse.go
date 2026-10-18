@@ -36,6 +36,30 @@ var (
 
 func canUseWarehouse(me auth.User) bool { return me.IsAdmin() || jsonx.Bool(me.M, "canUseWarehouse") }
 
+// The finer rights of the warehouse menu are the sub-menus the administrator switched off for a person (user.hiddenSub, the table of permissions):
+// «warehouse.qty» the numbers of stock, «warehouse.money» prices and costs, «warehouse.docs» the documents and «warehouse.doc.<kind>» one sort of document.
+// Administrators have all of them. These are checked here, not only in the page, so a hidden thing is never sent.
+func subOff(me auth.User, id string) bool {
+	return !me.IsAdmin() && jsonx.Contains(jsonx.Strings(me.M, "hiddenSub"), id)
+}
+
+func whQtyAllowed(me auth.User) bool   { return !subOff(me, "warehouse.qty") }
+func whMoneyAllowed(me auth.User) bool { return !subOff(me, "warehouse.money") }
+func whKindAllowed(me auth.User, kind string) bool {
+	return !subOff(me, "warehouse.docs") && !subOff(me, "warehouse.doc."+kind) && whQtyAllowed(me)
+}
+
+// the sorts of document this person may see
+func whAllowedKinds(me auth.User) []string {
+	out := []string{}
+	for _, k := range []string{"receipt", "issue", "transfer", "adjust"} {
+		if whKindAllowed(me, k) {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
 func whDenied(w http.ResponseWriter, me auth.User) bool {
 	if !canUseWarehouse(me) {
 		httpx.Error(w, http.StatusForbidden, "اجازهٔ انبارداری برای شما فعال نشده است؛ از مدیر بخواهید در کنسول مدیریت به شما اجازه بدهد.")
@@ -127,7 +151,8 @@ func whListDocs(ctx context.Context, where string, args []any, limit, offset int
 
 // GET /api/warehouse: warehouses, products with their stock, and the latest documents.
 func whState(w http.ResponseWriter, r *http.Request) {
-	if whDenied(w, auth.Current(r)) {
+	me := auth.Current(r)
+	if whDenied(w, me) {
 		return
 	}
 	ctx := r.Context()
@@ -170,27 +195,46 @@ func whState(w http.ResponseWriter, r *http.Request) {
 				by[wh] = n
 				total += n
 			}
-			d["total"], d["byWarehouse"] = math.Round(total*1000)/1000, by
-			prods = append(prods, d)
+				d["total"], d["byWarehouse"] = math.Round(total*1000)/1000, by
+				if !whQtyAllowed(me) {
+					d["total"], d["byWarehouse"] = 0, map[string]float64{}
+				}
+				if !whMoneyAllowed(me) {
+					delete(d, "prices")
+					delete(d, "cost")
+				}
+				prods = append(prods, d)
 		}
 	}
 	rows.Close()
-	recent, err := whListDocs(ctx, "", nil, 20, 0)
-	if err != nil {
-		internalError(w)
-		return
+	kinds := whAllowedKinds(me)
+	recent := []jsonx.M{}
+	if len(kinds) > 0 {
+		var err error
+		recent, err = whListDocs(ctx, "WHERE kind = ANY($1::text[])", []any{kinds}, 20, 0)
+		if err != nil {
+			internalError(w)
+			return
+		}
 	}
 	mode, last, source := whModeInfo(ctx)
-	httpx.JSON(w, http.StatusOK, map[string]any{"warehouses": whs, "products": prods, "recent": recent, "kinds": whKinds, "mode": mode, "lastSyncAt": last, "source": source})
+	httpx.JSON(w, http.StatusOK, map[string]any{"warehouses": whs, "products": prods, "recent": recent, "kinds": whKinds, "mode": mode, "lastSyncAt": last, "source": source,
+		"limits": map[string]any{"qty": whQtyAllowed(me), "money": whMoneyAllowed(me), "kinds": kinds}})
 }
 
 // GET /api/warehouse/docs?kind=&warehouse=&product=&from=&to=&limit=&offset=
 func whDocs(w http.ResponseWriter, r *http.Request) {
-	if whDenied(w, auth.Current(r)) {
+	me := auth.Current(r)
+	if whDenied(w, me) {
+		return
+	}
+	kinds := whAllowedKinds(me)
+	if len(kinds) == 0 {
+		httpx.JSON(w, http.StatusOK, map[string]any{"docs": []jsonx.M{}, "limit": 0, "offset": 0})
 		return
 	}
 	q := r.URL.Query()
-	where, args := "WHERE true", []any{}
+	where, args := "WHERE kind = ANY($1::text[])", []any{kinds}
 	add := func(cond string, v any) {
 		args = append(args, v)
 		where += " AND " + strings.ReplaceAll(cond, "?", "$"+strconv.Itoa(len(args)))
@@ -221,7 +265,12 @@ func whDocs(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/warehouse/card?product=&warehouse=: the card of one product (every movement and the running balance).
 func whCard(w http.ResponseWriter, r *http.Request) {
-	if whDenied(w, auth.Current(r)) {
+	me := auth.Current(r)
+	if whDenied(w, me) {
+		return
+	}
+	if !whQtyAllowed(me) {
+		httpx.Error(w, http.StatusForbidden, "دیدن موجودی تعدادی برای شما در جدول مجوزها بسته شده است.")
 		return
 	}
 	pid, wid := r.URL.Query().Get("product"), r.URL.Query().Get("warehouse")
@@ -230,10 +279,10 @@ func whCard(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "کالا پیدا نشد.")
 		return
 	}
-	sql, args := `SELECT m.doc_date::text, m.warehouse_id, m.qty::float8, d.kind, d.number, d.data FROM wh_moves m JOIN wh_docs d ON d.id = m.doc_id WHERE m.product_id = $1 AND NOT m.voided`, []any{pid}
+sql, args := `SELECT m.doc_date::text, m.warehouse_id, m.qty::float8, d.kind, d.number, d.data FROM wh_moves m JOIN wh_docs d ON d.id = m.doc_id WHERE m.product_id = $1 AND NOT m.voided AND d.kind = ANY($2::text[])`, []any{pid, whAllowedKinds(me)}
 	if wid != "" {
 		args = append(args, wid)
-		sql += ` AND m.warehouse_id = $2`
+		sql += ` AND m.warehouse_id = $3`
 	}
 	rows, err := store.Pool.Query(r.Context(), sql+` ORDER BY m.doc_date, m.id`, args...)
 	if err != nil {
@@ -261,8 +310,12 @@ func whCard(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, row)
 	}
-	p := jsonx.Decode(praw)
+p := jsonx.Decode(praw)
 	p["id"] = pid
+	if !whMoneyAllowed(me) {
+		delete(p, "prices")
+		delete(p, "cost")
+	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"product": p, "rows": out, "balance": balance})
 }
 
@@ -337,8 +390,29 @@ func whProductPut(w http.ResponseWriter, r *http.Request) {
 		if cost < 0 {
 			return nil, "", "قیمت خرید نمی‌تواند منفی باشد."
 		}
-		return jsonx.M{"cost": cost, "code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500), "active": active, "prices": prices}, code, ""
+doc := jsonx.M{"cost": cost, "code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500),"active": active, "prices": prices}
+		if !whMoneyAllowed(auth.Current(r)) {
+			whKeepMoney(r, doc)
+		}
+		return doc, code, ""
 	})
+}
+
+// whKeepMoney: a person who may not see prices and costs saves a product without them; the ones already stored stay as they are.
+func whKeepMoney(r *http.Request, doc jsonx.M) {
+	var raw []byte
+	delete(doc, "prices")
+	delete(doc, "cost")
+	if store.Pool.QueryRow(r.Context(), `SELECT data FROM wh_products WHERE id = $1`, r.PathValue("id")).Scan(&raw) != nil {
+		return
+	}
+	old := jsonx.Decode(raw)
+	if v, ok := old["prices"]; ok {
+		doc["prices"] = v
+	}
+	if v, ok := old["cost"]; ok {
+		doc["cost"] = v
+	}
 }
 
 // whPrices: a product can have several named prices (retail, wholesale, agent…).
@@ -465,8 +539,12 @@ func whCreateDoc(w http.ResponseWriter, r *http.Request) {
 	}
 	bad := func(msg string) { httpx.Error(w, http.StatusBadRequest, msg) }
 	kind := jsonx.Str(body, "kind")
-	if _, ok := whKinds[kind]; !ok {
+if _, ok := whKinds[kind]; !ok {
 		bad("نوع سند نامعتبر است.")
+		return
+	}
+	if !whKindAllowed(me, kind) {
+		httpx.Error(w, http.StatusForbidden, "ثبت و دیدن «"+whKinds[kind]+"» برای شما در جدول مجوزها بسته شده است.")
 		return
 	}
 	date := jsonx.Str(body, "date")

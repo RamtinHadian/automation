@@ -113,13 +113,22 @@ export const SepidarView: React.FC = () => {
 
   const alive = st.connectorSeenAt && Date.now() - new Date(st.connectorSeenAt).getTime() < 3 * 60 * 1000;
   const tabs: [Tab, string, boolean][] = [
-    ['deals', 'پیش‌فاکتور و فاکتور', can('quotation') || can('invoice') || can('receipt') || can('view')],
-    ['customers', 'مشتریان', can('customer') || can('view')],
-    ['invoices', 'فاکتورهای فروش', can('view')],
-    ['prices', 'قیمت‌ها', can('view')],
+    ['deals', 'پیش‌فاکتور و فاکتور', can('quotationSend') || can('quotationClose') || can('quotationDelete') || can('invoice') || can('receipt') || can('view')],
+    ['customers', 'مشتریان', can('customerNew') || can('customerUpdate') || can('viewBalance')],
+    ['invoices', 'فاکتورهای فروش', can('viewInvoices')],
+    ['prices', 'قیمت‌ها', can('viewPrices')],
     ['jobs', 'درخواست‌ها', true],
   ];
+  const cur = tabs.filter((t) => t[2]).some(([k]) => k === tab) ? tab : tabs.find((t) => t[2])?.[0] ?? 'jobs';
   const needle = q.trim().toLowerCase();
+  const nameBtn = (id: string, name: string, tone = 'rose') =>
+    can('viewBalance') ? (
+      <button type="button" onClick={() => setFinanceFor({ id, name })} className={`font-black underline decoration-dotted underline-offset-4 hover:text-${tone}-800 cursor-pointer text-right`} title="وضعیت مالی مشتری در سپیدار">
+        {name}
+      </button>
+    ) : (
+      name
+    );
   const BtnS = 'px-3 py-1.5 min-h-[34px] rounded-lg text-[11px] font-black border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 
   const dealRows = deals.filter((d: any) => d.proformaNumber && matchesAll(d, q));
@@ -163,7 +172,7 @@ export const SepidarView: React.FC = () => {
               <KeyRound className="w-4 h-4" />
             </button>
           )}
-          {can('view') && (
+          {can('refresh') && (
             <button type="button" title="بروزرسانی اطلاعات سپیدار" aria-label="بروزرسانی اطلاعات سپیدار" onClick={() => ask({ kind: 'refresh' }, 'درخواست بروزرسانی فرستاده شد.')} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white">
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -173,18 +182,18 @@ export const SepidarView: React.FC = () => {
 
       <SubTabs
         tone="rose"
-        value={tab}
+        value={cur}
         onChange={(k) => setTab(k as Tab)}
         tabs={tabs.filter((t) => t[2]).map(([k, t]) => ({ id: k, label: t, Icon: ({ deals: FileText, customers: Users, invoices: FileCheck2, prices: Banknote, jobs: Send } as Record<string, React.ElementType>)[k] }))}
       />
-      {tab !== 'jobs' && (
+      {cur !== 'jobs' && (
         <div className="relative">
           <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C6F66]" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در همهٔ اطلاعات: نام، شماره، کالا، مبلغ، تاریخ…" className={field + ' pr-9'} />
         </div>
       )}
 
-      {tab === 'deals' && (
+      {cur === 'deals' && (
         <List empty="فرصت فروشی با پیش‌فاکتور شماره‌دار نیست.">
           {dealRows.map((d: any) => {
             const qt = linkMap.get('quotation:' + d.id);
@@ -198,9 +207,7 @@ export const SepidarView: React.FC = () => {
                 icon={<FileText className="w-5 h-5" />}
                 tone="rose"
                 title={
-                  <button type="button" onClick={() => setFinanceFor({ id: d.customerId, name: d.customerName })} className="font-black underline decoration-dotted underline-offset-4 hover:text-rose-800 cursor-pointer text-right" title="وضعیت مالی مشتری در سپیدار">
-                    {d.customerName}
-                  </button>
+                  nameBtn(d.customerId, d.customerName)
                 }
                 sub={`پیش‌فاکتور ${toPersianDigits(d.proformaNumber)}${d.title ? ' · ' + d.title : ''}`}
                 badge={inv ? ['فاکتور شد', 'bg-emerald-50 text-emerald-800 border-emerald-200'] : qt ? ['در سپیدار', 'bg-sky-50 text-sky-800 border-sky-200'] : ['هنوز در سپیدار نیست', 'bg-amber-50 text-amber-800 border-amber-200']}
@@ -211,14 +218,14 @@ export const SepidarView: React.FC = () => {
                   ['دریافتی', paid ? fmt(paid) : '—'],
                 ]}
               >
-                {!qt && can('quotation') && <button type="button" disabled={wait('quotation.send')} onClick={() => ask({ kind: 'quotation.send', dealId: d.id }, 'پیش‌فاکتور برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-rose-700 text-white border-rose-700`}><Send className="w-3.5 h-3.5 inline ml-1" />ارسال به سپیدار</button>}
+                {!qt && can('quotationSend') && <button type="button" disabled={wait('quotation.send')} onClick={() => ask({ kind: 'quotation.send', dealId: d.id }, 'پیش‌فاکتور برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-rose-700 text-white border-rose-700`}><Send className="w-3.5 h-3.5 inline ml-1" />ارسال به سپیدار</button>}
                 {qt && !inv && can('invoice') && <button type="button" disabled={wait('invoice.fromProforma')} onClick={async () => (await askConfirm('فاکتور فروش در سپیدار صادر شود؟', { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' })) && ask({ kind: 'invoice.fromProforma', dealId: d.id }, 'صدور فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-emerald-700 text-white border-emerald-700`}><FileCheck2 className="w-3.5 h-3.5 inline ml-1" />صدور فاکتور</button>}
                 {inv && can('receipt') && <button type="button" onClick={() => setReceiptFor(d)} className={`${BtnS} bg-sky-700 text-white border-sky-700`}><Banknote className="w-3.5 h-3.5 inline ml-1" />ثبت دریافتی</button>}
-                {qt && !inv && can('quotation') && (
+                {qt && !inv && (
                   <>
-                    <button type="button" disabled={wait('quotation.close')} onClick={() => ask({ kind: 'quotation.close', dealId: d.id }, 'بستن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بستن پیش‌فاکتور</button>
-                    <button type="button" disabled={wait('quotation.unclose')} onClick={() => ask({ kind: 'quotation.unclose', dealId: d.id }, 'بازکردن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بازکردن</button>
-                    <button type="button" disabled={wait('quotation.delete')} onClick={async () => (await askConfirm('پیش‌فاکتور از سپیدار حذف شود؟')) && ask({ kind: 'quotation.delete', dealId: d.id }, 'حذف پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-rose-200 text-rose-700`}>حذف از سپیدار</button>
+                    {can('quotationClose') && <button type="button" disabled={wait('quotation.close')} onClick={() => ask({ kind: 'quotation.close', dealId: d.id }, 'بستن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بستن پیش‌فاکتور</button>}
+                    {can('quotationClose') && <button type="button" disabled={wait('quotation.unclose')} onClick={() => ask({ kind: 'quotation.unclose', dealId: d.id }, 'بازکردن پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>بازکردن</button>}
+                    {can('quotationDelete') && <button type="button" disabled={wait('quotation.delete')} onClick={async () => (await askConfirm('پیش‌فاکتور از سپیدار حذف شود؟')) && ask({ kind: 'quotation.delete', dealId: d.id }, 'حذف پیش‌فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-white border-rose-200 text-rose-700`}>حذف از سپیدار</button>}
                   </>
                 )}
               </Card>
@@ -227,7 +234,7 @@ export const SepidarView: React.FC = () => {
         </List>
       )}
 
-      {tab === 'customers' && (
+      {cur === 'customers' && (
         <List empty="مشتری‌ای پیدا نشد.">
           {custRows.slice(0, 300).map((c) => {
             const l = linkMap.get('customer:' + c.id);
@@ -238,9 +245,7 @@ export const SepidarView: React.FC = () => {
                 icon={<Users className="w-5 h-5" />}
                 tone="rose"
                 title={
-                  <button type="button" onClick={() => setFinanceFor({ id: c.id, name: c.name })} className="font-black underline decoration-dotted underline-offset-4 hover:text-rose-800 cursor-pointer text-right" title="وضعیت مالی مشتری در سپیدار">
-                    {c.name}
-                  </button>
+                  nameBtn(c.id, c.name)
                 }
                 sub={[c.company, c.phones?.[0] ? toPersianDigits(c.phones[0]) : ''].filter(Boolean).join(' · ')}
                 badge={l ? ['در سپیدار', 'bg-emerald-50 text-emerald-800 border-emerald-200'] : ['هنوز در سپیدار نیست', 'bg-amber-50 text-amber-800 border-amber-200']}
@@ -249,7 +254,7 @@ export const SepidarView: React.FC = () => {
                   ['مانده حساب', bal ? fmt(bal.Remainder) : '—'],
                 ]}
               >
-                {can('customer') && (
+                {(l ? can('customerUpdate') : can('customerNew')) && (
                   <button type="button" disabled={busy.has('customer.send:' + c.id)} onClick={() => ask({ kind: 'customer.send', customerId: c.id }, 'درخواست برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>
                     {l ? 'بروزرسانی در سپیدار' : 'ثبت در سپیدار'}
                   </button>
@@ -260,7 +265,7 @@ export const SepidarView: React.FC = () => {
         </List>
       )}
 
-      {tab === 'invoices' && (
+      {cur === 'invoices' && (
         <>
           <InvoicesSummary rows={invoiceRows} />
           <List empty="فاکتوری دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
@@ -275,9 +280,7 @@ export const SepidarView: React.FC = () => {
                   tone="emerald"
                   title={
                     hoormandCustomerId ? (
-                      <button type="button" onClick={() => setFinanceFor({ id: hoormandCustomerId, name: cname })} className="font-black underline decoration-dotted underline-offset-4 hover:text-emerald-800 cursor-pointer text-right" title="وضعیت مالی مشتری در سپیدار">
-                        {cname}
-                      </button>
+                      nameBtn(hoormandCustomerId, cname)
                     ) : (
                       cname
                     )
@@ -297,7 +300,7 @@ export const SepidarView: React.FC = () => {
         </>
       )}
 
-      {tab === 'prices' && (
+      {cur === 'prices' && (
         <List empty="لیست قیمتی دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
           {(st.cache?.priceNotes?.items || []).filter((p: any) => matchesAll(p, q)).slice(0, 300).map((p: any, i: number) => (
             <Card
@@ -316,7 +319,7 @@ export const SepidarView: React.FC = () => {
         </List>
       )}
 
-      {tab === 'jobs' && (
+      {cur === 'jobs' && (
         <List empty="درخواستی ثبت نشده است.">
           {st.jobs.map((j) => (
             <Card

@@ -96,6 +96,14 @@ export interface Announcement {
 
 export interface LeaveRequest {
   id: string;
+  /** a leave (default) or an advance payment */
+  kind?: 'leave' | 'advance';
+  amount?: number;
+  installments?: number;
+  needDate?: string;
+  /** after the approval: who the request was sent on to */
+  forwardIds?: string[];
+  forwardNames?: string[];
   userId: string;
   userName: string;
   departmentName?: string;
@@ -296,6 +304,8 @@ export interface WhDoc {
   voidedByName?: string;
 }
 export interface WhState {
+  /** what this person may see (the permission table): the numbers of stock, the money, and which sorts of document */
+  limits?: { qty: boolean; money: boolean; kinds: WhKind[] };
   warehouses: WhWarehouse[];
   products: WhProduct[];
   recent: WhDoc[];
@@ -378,9 +388,9 @@ export const api = {
   announcementCreate: (b: { title: string; text: string; important: boolean; pinned: boolean; banner?: boolean; bannerDays?: number; eventDate?: string }) => request<{ ok: true; id: string }>('POST', '/api/announcements', b),
   announcementDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/announcements/${encodeURIComponent(id)}`),
   announcementPin: (id: string, pinned: boolean) => request<{ ok: true }>('POST', `/api/announcements/${encodeURIComponent(id)}/pin`, { pinned }),
-  leaves: (scope: 'mine' | 'all') => request<{ leaves: LeaveRequest[]; canDecide: boolean }>('GET', '/api/leaves?scope=' + scope),
-  leaveCreate: (b: { type: string; fromDate: string; toDate: string; fromTime?: string; toTime?: string; reason: string }) => request<{ ok: true; to?: string[]; id: string }>('POST', '/api/leaves', b),
-  leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string) => request<{ ok: true }>('POST', `/api/leaves/${encodeURIComponent(id)}/decide`, { status, note }),
+leaves: (scope: 'mine' | 'all' | 'forwarded') => request<{ leaves: LeaveRequest[]; canDecide: boolean }>('GET', '/api/leaves?scope=' + scope),
+leaveCreate: (b: { kind?: 'leave' | 'advance'; type?: string; fromDate?: string; toDate?: string; fromTime?: string; toTime?: string; reason: string; amount?: number; installments?: number; needDate?: string }) => request<{ ok: true; to?: string[]; id: string }>('POST', '/api/leaves', b),
+leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forwardTo: string[] = []) => request<{ ok: true }>('POST', `/api/leaves/${encodeURIComponent(id)}/decide`, { status, note, forwardTo }),
   leaveCancel: (id: string) => request<{ ok: true }>('DELETE', `/api/leaves/${encodeURIComponent(id)}`),
   netWatch: () => request<any>('GET', '/api/admin/netwatch'),
   serverInfo: () => request<any>('GET', '/api/admin/server-info'),
