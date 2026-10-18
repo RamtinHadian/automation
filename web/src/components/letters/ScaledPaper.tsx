@@ -20,7 +20,7 @@ export const ScaledPaper: React.FC<{ enabled: boolean; width: number; zoom: numb
 
   if (!enabled) return <>{children}</>;
   return (
-    <div className="mx-auto" style={{ width: width * zoom, height: height * zoom }}>
+    <div className="mx-auto" data-letter-paper style={{ width: width * zoom, height: height * zoom }}>
       <div ref={inner} style={{ width, transform: `scale(${zoom})`, transformOrigin: 'top right' }}>
         {children}
       </div>

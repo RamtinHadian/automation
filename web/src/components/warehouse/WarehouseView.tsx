@@ -12,6 +12,7 @@ import { JalaliDateField } from '../tasks/TasksView';
 import { PersonPicker, customerItems } from '../common/PersonPicker';
 import { Modal, field, label } from '../crm/crmUi';
 import { matchesAll } from '../../lib/searchAll';
+import { BoxCard, BoxGrid, BoxStats } from '../common/BoxCard';
 
 const KIND_LABEL: Record<WhKind, string> = { receipt: 'رسید ورود', issue: 'حواله خروج', transfer: 'انتقال بین انبارها', adjust: 'تعدیل انبارگردانی' };
 const KIND_COLOR: Record<WhKind, string> = {
@@ -205,32 +206,37 @@ const StockTab: React.FC<{ st: WhState; onCard: (p: WhProduct) => void }> = ({ s
           <Download className="w-4 h-4" /> خروجی اکسل
         </button>
       </div>
-      {rows.length === 0 ? (
-        <Empty text={st.products.length ? 'کالایی با این شرط پیدا نشد.' : 'هنوز کالایی تعریف نشده است. از «کالاها» شروع کنید.'} />
-      ) : (
-        <div className="bg-white rounded-2xl border border-[#EBDBCE] divide-y divide-[#F3E8DF] overflow-hidden">
-          {rows.map((p) => {
-            const lowRow = (p.minQty || 0) > 0 && p.total < (p.minQty || 0);
-            return (
-              <button key={p.id} type="button" onClick={() => onCard(p)} className="w-full text-right px-4 py-3 flex items-center gap-3 hover:bg-[#FAF5F1] cursor-pointer">
-                <Package className="w-4 h-4 text-amber-600 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-black text-[#3A241F] truncate">{p.title}</div>
-                  <div className="text-[10px] font-bold text-[#8C6F66] truncate">
-                    {toPersianDigits(p.code)}
-                    {p.group ? ` · ${p.group}` : ''}
-                    {!wh && st.warehouses.length > 1 ? ' · ' + st.warehouses.filter((w) => p.byWarehouse[w.id]).map((w) => `${w.title}: ${fmt(p.byWarehouse[w.id])}`).join('، ') : ''}
-                  </div>
-                </div>
-                <div className={`text-sm font-black whitespace-nowrap ${lowRow ? 'text-rose-700' : qtyOf(p) === 0 ? 'text-[#8C6F66]' : 'text-[#3A241F]'}`}>
-                  {fmt(qtyOf(p))} <span className="text-[10px] font-bold text-[#8C6F66]">{p.unit}</span>
-                </div>
-                {lowRow && <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <BoxStats
+        items={[
+          ['کالاها', fmt(st.products.filter((p) => p.active !== false).length)],
+          ['انبارها', fmt(st.warehouses.length)],
+          ['زیر حداقل', fmt(st.products.filter((p) => p.active !== false && (p.minQty || 0) > 0 && p.total < (p.minQty || 0)).length), 'border-rose-200 bg-rose-50 text-rose-800'],
+          ['ناموجود', fmt(st.products.filter((p) => p.active !== false && p.total <= 0).length), 'border-slate-200 bg-slate-50 text-slate-700'],
+        ]}
+      />
+      <BoxGrid empty={st.products.length ? 'کالایی با این شرط پیدا نشد.' : 'هنوز کالایی تعریف نشده است. از «کالاها» شروع کنید.'}>
+        {rows.map((p) => {
+          const lowRow = (p.minQty || 0) > 0 && p.total < (p.minQty || 0);
+          const qty = qtyOf(p);
+          const where = st.warehouses.filter((w) => p.byWarehouse[w.id]);
+          return (
+            <BoxCard
+              key={p.id}
+              onClick={() => onCard(p)}
+              icon={<Package className="w-5 h-5" />}
+              tone={lowRow ? 'rose' : qty === 0 ? 'slate' : 'amber'}
+              title={p.title}
+              sub={[toPersianDigits(p.code), p.group].filter(Boolean).join(' · ')}
+              badge={lowRow ? ['کمبود', 'bg-rose-50 text-rose-700 border-rose-200'] : qty === 0 ? ['ناموجود', 'bg-slate-50 text-slate-600 border-slate-200'] : ['موجود', 'bg-emerald-50 text-emerald-800 border-emerald-200']}
+              facts={[
+                ['موجودی', <span key="q" className={lowRow ? 'text-rose-700' : ''}>{fmt(qty)} <span className="text-[10px] font-bold text-[#8C6F66]">{p.unit}</span></span>],
+                ['حداقل موجودی', p.minQty ? fmt(p.minQty) : '—'],
+                ...(!wh && st.warehouses.length > 1 ? where.slice(0, 4).map((w) => [w.title, fmt(p.byWarehouse[w.id])] as [string, React.ReactNode]) : []),
+              ]}
+            />
+          );
+        })}
+      </BoxGrid>
       {wh && <div className="text-[10px] font-bold text-[#8C6F66]">موجودی نشان‌داده‌شده فقط برای «{whName(wh)}» است.</div>}
     </div>
   );
@@ -286,23 +292,24 @@ const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, on
       ) : docs.length === 0 ? (
         <Empty text="سندی پیدا نشد." />
       ) : (
-        <div className="bg-white rounded-2xl border border-[#EBDBCE] divide-y divide-[#F3E8DF] overflow-hidden">
+        <BoxGrid empty="سندی پیدا نشد.">
           {docs.map((d) => (
-            <button key={d.id} type="button" onClick={() => onOpen(d)} className={`w-full text-right px-4 py-3 flex items-center gap-3 hover:bg-[#FAF5F1] cursor-pointer ${d.voided ? 'opacity-60' : ''}`}>
-              <span className={`text-[10px] font-black px-2 py-1 rounded-lg border whitespace-nowrap ${KIND_COLOR[d.kind]}`}>{KIND_LABEL[d.kind]}</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-black text-[#3A241F] truncate">
-                  شمارهٔ {toPersianDigits(d.number)} · {d.warehouseName}
-                  {d.toWarehouseName ? ` ← ${d.toWarehouseName}` : ''}
-                </div>
-                <div className="text-[10px] font-bold text-[#8C6F66] truncate">
-                  {formatTaskDate(d.date)} · {toPersianDigits(d.lines.length)} ردیف{d.party ? ` · ${d.party}` : ''}
-                </div>
-              </div>
-              {d.voided && <span className="text-[10px] font-black text-rose-700 border border-rose-200 rounded-lg px-2 py-0.5">باطل</span>}
-            </button>
+            <BoxCard
+              key={d.id}
+              onClick={() => onOpen(d)}
+              dim={!!d.voided}
+              icon={<FileText className="w-5 h-5" />}
+              tone={d.kind === 'receipt' ? 'emerald' : d.kind === 'issue' ? 'rose' : d.kind === 'transfer' ? 'sky' : 'amber'}
+              title={`${KIND_LABEL[d.kind]} شمارهٔ ${toPersianDigits(d.number)}`}
+              sub={`${formatTaskDate(d.date)} · ${d.warehouseName}${d.toWarehouseName ? ` ← ${d.toWarehouseName}` : ''}`}
+              badge={d.voided ? ['باطل', 'bg-rose-50 text-rose-700 border-rose-200'] : [KIND_LABEL[d.kind], KIND_COLOR[d.kind]]}
+              facts={[
+                ['ردیف‌ها', fmt(d.lines.length)],
+                ['طرف حساب', d.party || '—'],
+              ]}
+            />
           ))}
-        </div>
+        </BoxGrid>
       )}
     </div>
   );
@@ -587,22 +594,26 @@ const ProductsTab: React.FC<{ st: WhState; sepidar: boolean; onEdit: (p: Partial
           </button>
         )}
       </div>
-      {rows.length === 0 ? (
-        <Empty text="کالایی ثبت نشده است." />
-      ) : (
-        <div className="bg-white rounded-2xl border border-[#EBDBCE] divide-y divide-[#F3E8DF] overflow-hidden">
-          {rows.map((p) => (
-            <button key={p.id} type="button" onClick={() => onEdit(p)} className={`w-full text-right px-4 py-3 flex items-center gap-3 hover:bg-[#FAF5F1] cursor-pointer ${p.active === false ? 'opacity-50' : ''}`}>
-              <FileText className="w-4 h-4 text-amber-600 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-black text-[#3A241F] truncate">{p.title}</div>
-                <div className="text-[10px] font-bold text-[#8C6F66] truncate">{toPersianDigits(p.code)} · {p.unit}{p.group ? ` · ${p.group}` : ''}{p.minQty ? ` · حداقل ${fmt(p.minQty)}` : ''}{(p.prices || []).map((x) => ` · ${x.title}: ${formatMoney(x.amount)} ${unitName()}`).join('')}</div>
-              </div>
-              <div className="text-xs font-black whitespace-nowrap">{fmt(p.total)}</div>
-            </button>
-          ))}
-        </div>
-      )}
+      <BoxGrid empty="کالایی ثبت نشده است.">
+        {rows.map((p) => (
+          <BoxCard
+            key={p.id}
+            onClick={() => onEdit(p)}
+            dim={p.active === false}
+            icon={<Package className="w-5 h-5" />}
+            tone="amber"
+            title={p.title}
+            sub={[toPersianDigits(p.code), p.unit, p.group].filter(Boolean).join(' · ')}
+            badge={p.active === false ? ['غیرفعال', 'bg-slate-50 text-slate-600 border-slate-200'] : null}
+            facts={[
+              ['موجودی', fmt(p.total)],
+              ['حداقل موجودی', p.minQty ? fmt(p.minQty) : '—'],
+              ...(p.barcode ? [['بارکد', toPersianDigits(p.barcode)] as [string, React.ReactNode]] : []),
+              ...(p.prices || []).slice(0, 3).map((x) => [x.title, `${formatMoney(x.amount)} ${unitName()}`] as [string, React.ReactNode]),
+            ]}
+          />
+        ))}
+      </BoxGrid>
     </div>
   );
 };
@@ -692,21 +703,27 @@ const WarehousesTab: React.FC<{ st: WhState; sepidar: boolean; onEdit: (w: Parti
           <Plus className="w-4 h-4" /> انبار جدید
         </button>
       )}
-      {st.warehouses.length === 0 ? (
-        <Empty text="هنوز انباری تعریف نشده است." />
-      ) : (
-        <div className="bg-white rounded-2xl border border-[#EBDBCE] divide-y divide-[#F3E8DF] overflow-hidden">
-          {st.warehouses.map((w) => (
-            <button key={w.id} type="button" onClick={() => onEdit(w)} className={`w-full text-right px-4 py-3 flex items-center gap-3 hover:bg-[#FAF5F1] cursor-pointer ${w.active === false ? 'opacity-50' : ''}`}>
-              <ArrowLeftRight className="w-4 h-4 text-amber-600 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-black text-[#3A241F] truncate">{w.title}</div>
-                <div className="text-[10px] font-bold text-[#8C6F66] truncate">{[w.code && toPersianDigits(w.code), w.location, keeper(w.keeperId) && 'انباردار: ' + keeper(w.keeperId)].filter(Boolean).join(' · ')}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
+      <BoxGrid empty="هنوز انباری تعریف نشده است.">
+        {st.warehouses.map((w) => {
+          const items = st.products.filter((p) => (p.byWarehouse[w.id] || 0) !== 0);
+          return (
+            <BoxCard
+              key={w.id}
+              onClick={() => onEdit(w)}
+              dim={w.active === false}
+              icon={<WarehouseIcon className="w-5 h-5" />}
+              tone="amber"
+              title={w.title}
+              sub={[w.code && toPersianDigits(w.code), w.location].filter(Boolean).join(' · ')}
+              badge={w.active === false ? ['غیرفعال', 'bg-slate-50 text-slate-600 border-slate-200'] : null}
+              facts={[
+                ['انباردار', keeper(w.keeperId) || '—'],
+                ['کالای موجود', fmt(items.length)],
+              ]}
+            />
+          );
+        })}
+      </BoxGrid>
     </div>
   );
 };

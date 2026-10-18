@@ -46,7 +46,7 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
       const el = box.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY;
-      const reserve = 0;
+      const reserve = window.innerWidth < 768 ? 88 : 0; // the phone has a bottom menu bar
       setHeight(Math.max(300, window.innerHeight - (top - window.scrollY) - reserve));
     };
     // the typing bar floats at the very bottom of the window, exactly under the conversation column
@@ -54,7 +54,7 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
       const el = threadRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setDock({ left: r.left, width: r.width, bottom: 0 });
+      setDock({ left: r.left, width: r.width, bottom: window.innerWidth < 768 ? 88 : 0 });
     };
     const all = () => { fit(); place(); };
     // the page itself does not scroll while the chat is open (so the chat, the typing bar and the window bottom always line up);

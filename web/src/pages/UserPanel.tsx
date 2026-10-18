@@ -792,10 +792,10 @@ export default function UserPanel() {
       <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 h-full">
       {/* The window never scrolls: only this area does. On a computer the header and the main menu stay pinned at its top (the sub-menus of every
           page pin themselves right under them, see data-subtabs in index.css); on a phone the main menu is the bottom bar and the header scrolls away. */}
-      <div ref={shellScrollRef} data-app-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-6 sm:pb-0 flex flex-col">
+      <div ref={shellScrollRef} data-app-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-28 sm:pb-0 flex flex-col">
 
         {/* Top Header */}
-        <BannerStrip />
+        <div className="max-sm:hidden"><BannerStrip /></div>
         <div ref={shellPinRef} className="sm:sticky sm:top-0 sm:z-30 bg-[#FAF5F1] shrink-0">
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
@@ -848,10 +848,12 @@ export default function UserPanel() {
             {(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && (
               <button
                 onClick={() => { window.location.href = '/admin'; }}
-                className="flex items-center gap-1.5 px-3 py-2 bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-2xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+                className="flex items-center gap-1.5 w-9 h-9 sm:w-auto sm:h-auto justify-center sm:px-3 sm:py-2 bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-2xl text-xs font-bold shadow-xs transition-all cursor-pointer"
                 title="رفتن به کنسول مدیریت"
+                aria-label="پنل مدیریت"
               >
-                <span>پنل مدیریت</span>
+                <ShieldCheck className="w-4 h-4 sm:hidden" />
+                <span className="hidden sm:inline">پنل مدیریت</span>
               </button>
             )}
 
@@ -1140,6 +1142,8 @@ export default function UserPanel() {
           </div>
         </div>
         </div>
+
+        <div className="sm:hidden"><BannerStrip /></div>
 
         {/* ========================================================================= */}
         {/* VIEW 1: FILE TRANSFER MODE (ارسال فایل) */}
@@ -2213,13 +2217,74 @@ export default function UserPanel() {
         </div>
       )}
 
-      {/* The main menu is the row at the top of the page on a phone (it scrolls away with the page); this small button brings the page back to its top. */}
+      {/* ========================================================================= */}
+      {/* PERSISTENT MOBILE FLOATING BOTTOM DOCK NAVIGATION (Position: Fixed, 16px bottom) */}
+      {/* ========================================================================= */}
+      <nav
+        aria-label="منوی شناور موبایل"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] inset-x-3 sm:hidden z-40 max-w-md mx-auto backdrop-blur-xl border border-white/10 shadow-[0_16px_48px_rgba(0,0,0,0.45)] rounded-full p-1.5 flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        dir="rtl"
+        style={{ background: 'color-mix(in srgb, var(--theme-dark-bg, #3A241F) 94%, transparent)' }}
+      >
+        {([
+          { id: 'files', label: 'امور اداری', Icon: ArrowLeftRight, show: true, badge: menuBadge('files') },
+          { id: 'letters', label: 'نامه‌ها', Icon: Stamp, show: canAccessLettersMenu, badge: menuBadge('letters') },
+          { id: 'tasks', label: 'وظایف', Icon: ClipboardList, show: canAccessTasksMenu, badge: menuBadge('tasks') },
+          { id: 'crm', label: 'مشتریان', Icon: Users, show: canAccessCrmMenu, badge: menuBadge('crm') },
+          { id: 'sepidar', label: 'سپیدار', Icon: Landmark, show: canAccessSepidarMenu, badge: menuBadge('sepidar') },
+          { id: 'warehouse', label: 'انبار', Icon: Warehouse, show: canAccessWarehouseMenu, badge: menuBadge('warehouse') },
+          { id: 'warranty', label: 'گارانتی', Icon: ShieldCheck, show: canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty'), badge: menuBadge('warranty') },
+          { id: 'support', label: 'پشتیبانی', Icon: Headset, show: canAccessWarrantyMenu && canSub(currentUser, 'warranty.support'), badge: menuBadge('support') },
+          { id: 'calls', label: 'تماس‌ها', Icon: Phone, show: canAccessCallsMenu, badge: 0 },
+          { id: 'stats', label: 'گزارشات', Icon: BarChart3, show: canAccessStatsMenu, badge: 0 },
+        ] as const)
+          .filter((t) => t.show)
+          .map(({ id, label, Icon, badge }) => {
+            const on = mainMenuTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => openMenu(id)}
+                aria-label={label}
+                aria-current={on ? 'page' : undefined}
+                ref={(el) => { if (on && el) el.scrollIntoView({ inline: 'center', block: 'nearest' }); }}
+                className={`relative shrink-0 h-11 flex items-center justify-center gap-1.5 rounded-full transition-all duration-300 active:scale-95 cursor-pointer ${
+                  on ? 'bg-white text-[#2A1A16] pl-3.5 pr-3 shadow-md' : 'w-11 text-white/70 hover:text-white'
+                }`}
+              >
+                <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={on ? 2.4 : 1.9} />
+                {on && <span className="text-[11px] font-black whitespace-nowrap">{label}</span>}
+                {badge > 0 && (
+                  <span className="absolute -top-0.5 -left-0.5 bg-rose-500 text-white text-[9px] font-black min-w-[16px] h-4 leading-4 text-center px-1 rounded-full border-2 border-[var(--theme-dark-bg,#3A241F)]">
+                    {toPersianDigits(badge > 99 ? '99+' : badge)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+        {/* the profile and settings menu */}
+        <button
+          type="button"
+          onClick={() => setShowMobileMenu(true)}
+          aria-label="پروفایل"
+          title="منوی کاربری"
+          className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full text-white/70 hover:text-white transition-all active:scale-95 cursor-pointer"
+        >
+          <span className="w-7 h-7 rounded-full bg-gradient-to-br from-[#6E1B1B] to-[#D34A32] text-white flex items-center justify-center shadow-2xs">
+            <UserIcon className="w-3.5 h-3.5" />
+          </span>
+        </button>
+      </nav>
+
+      {/* The main menu is the floating bar at the bottom on a phone; this small button, just above it, brings the page back to its top. */}
       <button
         type="button"
         onClick={() => shellScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
         aria-label="بازگشت به بالای صفحه"
         title="بالای صفحه"
-        className={`fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-40 w-11 h-11 rounded-full flex items-center justify-center text-white border border-white/15 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-md active:scale-90 transition-all duration-300 cursor-pointer ${showTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+        className={`fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] sm:bottom-6 left-4 z-30 w-11 h-11 rounded-full flex items-center justify-center text-white border border-white/15 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-md active:scale-90 transition-all duration-300 cursor-pointer ${showTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
         style={{ background: 'color-mix(in srgb, var(--theme-dark-bg, #3A241F) 90%, transparent)' }}
       >
         <ChevronUp className="w-5 h-5" strokeWidth={2.4} />

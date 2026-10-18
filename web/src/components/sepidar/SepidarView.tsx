@@ -9,6 +9,7 @@ import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label } from '../crm/crmUi';
 import { matchesAll } from '../../lib/searchAll';
 import { CustomerFinance } from './CustomerFinance';
+import { BoxCard as Card, BoxGrid as List } from '../common/BoxCard';
 
 interface Job {
   id: string;
@@ -351,50 +352,6 @@ export const SepidarView: React.FC = () => {
     </div>
   );
 };
-
-const List: React.FC<{ empty: string; children: React.ReactNode }> = ({ empty, children }) => {
-  const items = React.Children.toArray(children).flat();
-  return items.length === 0 ? (
-    <div className="bg-white rounded-2xl border border-dashed border-[#EBDBCE] p-8 text-center text-xs font-bold text-[#8C6F66]">{empty}</div>
-  ) : (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">{items}</div>
-  );
-};
-
-const TONES: Record<string, string> = { rose: 'bg-rose-100 text-rose-700', emerald: 'bg-emerald-100 text-emerald-700', amber: 'bg-amber-100 text-amber-700', sky: 'bg-sky-100 text-sky-700' };
-
-/** One box of the Sepidar page: the same look as the customer boxes of the CRM (icon, title, small line, numbers, actions at the bottom). */
-const Card: React.FC<{
-  icon: React.ReactNode;
-  tone: keyof typeof TONES | string;
-  title: React.ReactNode;
-  sub?: string;
-  badge?: [string, string] | null;
-  facts?: [string, React.ReactNode][];
-  children?: React.ReactNode;
-}> = ({ icon, tone, title, sub, badge, facts = [], children }) => (
-  <div className="rounded-2xl border border-[#EBDBCE] bg-white p-4 flex flex-col gap-3 shadow-2xs hover:shadow-md transition-shadow" data-sepidar-card>
-    <div className="flex items-start gap-3">
-      <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${TONES[tone] || TONES.rose}`}>{icon}</span>
-      <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-black text-[#3A241F] leading-6 break-words">{title}</div>
-        {sub ? <div className="text-[11px] font-bold text-[#8C6F66] leading-5 break-words">{sub}</div> : null}
-      </div>
-      {badge ? <span className={`text-[10px] font-black px-2 py-1 rounded-lg border whitespace-nowrap shrink-0 ${badge[1]}`}>{badge[0]}</span> : null}
-    </div>
-    {facts.length > 0 && (
-      <div className="grid grid-cols-2 gap-2">
-        {facts.map(([k, v]) => (
-          <div key={k} className="rounded-xl bg-[#FAF5F1] border border-[#EBDBCE]/70 px-3 py-1.5 min-w-0">
-            <div className="text-[10px] font-bold text-[#8C6F66]">{k}</div>
-            <div className="text-xs font-black text-[#3A241F] break-words">{v}</div>
-          </div>
-        ))}
-      </div>
-    )}
-    {children ? <div className="flex flex-wrap gap-1.5 mt-auto pt-1">{children}</div> : null}
-  </div>
-);
 
 /** The sales invoices that Sepidar issued: how many and their total (of what is shown). */
 const InvoicesSummary: React.FC<{ rows: any[] }> = ({ rows }) => {

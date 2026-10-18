@@ -249,7 +249,7 @@ export const WarrantyView: React.FC = () => {
   );
 
   return (
-    <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-8 select-none overflow-x-clip" data-warranty-view>
+    <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-32 sm:pb-8 select-none overflow-x-clip" data-warranty-view>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="font-black text-lg text-[#3A241F]">گارانتی</h2>

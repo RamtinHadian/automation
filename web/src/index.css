@@ -337,7 +337,7 @@ html.night [data-error-popups] > div {
     animation: sheetUp 0.22s ease-out;
   }
   /* one height for every field of a form (inputs, selects, the chooser buttons), and a finger-sized footer */
-  .fixed.inset-0 .bg-white :is(input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):not([type='color']), select) {
+  .fixed.inset-0 .bg-white :is(input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):not([type='color']):not([data-letter-paper] *), select:not([data-letter-paper] *)) {
     min-height: 48px;
     border-radius: 0.875rem;
   }
@@ -380,10 +380,12 @@ html.night [data-error-popups] > div {
 
 /* Sub-menus of the pages: the window does not scroll, only the page area (UserPanel, data-app-scroll) does. On a computer the header and the main
    menu stay pinned at the top of that area and the sub-menu of the open page pins itself right under them (--shell-top = their height). */
-[data-subtabs] {
-  position: sticky;
-  top: var(--shell-top, 0px);
-  z-index: 20;
-  background-color: #fff;
-  box-shadow: 0 6px 8px -8px rgba(58, 36, 31, 0.35);
+@media (min-width: 640px) {
+  [data-subtabs] {
+    position: sticky;
+    top: var(--shell-top, 0px);
+    z-index: 20;
+    background-color: #fff;
+    box-shadow: 0 6px 8px -8px rgba(58, 36, 31, 0.35);
+  }
 }
