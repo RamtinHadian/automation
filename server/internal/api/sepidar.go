@@ -48,6 +48,8 @@ var sepidarPerms = []struct{ Key, Title string }{
 // a broad right includes the small ones under it (so what people were given before keeps working); a small right can also be given alone
 var sepidarImplies = map[string][]string{
 	"view":      {"viewInvoices", "viewPrices", "viewBalance", "viewCredit", "callFinance", "refresh"},
+	// whoever could see the balance before the pop-up right existed keeps seeing it there
+	"viewBalance": {"callFinance"},
 	"customer":  {"customerNew", "customerUpdate"},
 	"quotation": {"quotationSend", "quotationClose", "quotationDelete"},
 }
@@ -529,8 +531,32 @@ func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var sid int64
 	if store.Pool.QueryRow(ctx, `SELECT sepidar_id FROM sepidar_links WHERE kind = 'customer' AND ref = $1`, cid).Scan(&sid) != nil {
-		httpx.JSON(w, http.StatusOK, map[string]any{"linked": false})
-		return
+		// not tied by Hoormand's tool: the customer may still exist in Sepidar under the same phone number or national code
+		sid = 0
+		var raw []byte
+		if store.Pool.QueryRow(ctx, `SELECT data FROM crm_customers WHERE id = $1`, cid).Scan(&raw) == nil {
+			var doc map[string]any
+			_ = json.Unmarshal(raw, &doc)
+			var keys []string
+			for _, p := range jsonx.Strings(doc, "phones") {
+				if d := digitsOnly(p); len(d) >= 9 {
+					keys = append(keys, d[len(d)-9:])
+				}
+			}
+			if d := digitsOnly(jsonx.Str(doc, "phone")); len(d) >= 9 {
+				keys = append(keys, d[len(d)-9:])
+			}
+			nat := digitsOnly(jsonx.Str(doc, "nationalCode"))
+			if found, _ := sepidarCustomerMatches(r, keys, nat, digitsOnly(jsonx.Str(doc, "nationalId")), ""); len(found) > 0 {
+				if n, ok := found[0]["sepidarId"].(int64); ok {
+					sid = n
+				}
+			}
+		}
+		if sid == 0 {
+			httpx.JSON(w, http.StatusOK, map[string]any{"linked": false})
+			return
+		}
 	}
 	out := map[string]any{"linked": true, "sepidarId": sid}
 	balances, balAt := cacheItems(ctx, "balances")

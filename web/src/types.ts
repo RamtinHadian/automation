@@ -570,7 +570,7 @@ export interface LetterNumberingSettings {
   nextNumber: number; // شماره بعدی اندیکاتور (مثال: 1001)
   incrementStep?: number; // گام افزایش خودکار پلکانی (مثال: 1 یا 5)
   year: string; // سال صدور (مثال: "1404" یا "1405")
-  formatPattern: 'PREFIX_YEAR_NUM' | 'YEAR_NUM_PREFIX' | 'NUM_PREFIX_YEAR' | 'PREFIX_NUM' | 'NUM_PREFIX' | 'NUM_ONLY' | 'YEAR_NUM' | 'NUM_YEAR' | 'PREFIX_NUM_YEAR' | 'YEAR_PREFIX_NUM' | 'NUM_YEAR_PREFIX' | 'PREFIX_YEAR_NUM6' | 'YEAR_NUM6' | 'PREFIXYEAR_NUM';
+  formatPattern: string; // a token list such as 'P_Y_N' (see lib/letterNumbering.ts); the older names like 'PREFIX_YEAR_NUM' still work
   requireAttachmentForFinancial?: boolean;
   allowUniversalReferral?: boolean;
   defaultFooterNote?: string;

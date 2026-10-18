@@ -93,9 +93,9 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
             ))}
             <col style={{ width: 92 }} />
           </colgroup>
-          <thead className="sticky top-0 z-20 shadow-[0_2px_6px_rgba(110,27,27,0.12)]">
+          <thead className="sticky top-0 z-20">
             <tr>
-              <th rowSpan={2} className="bg-[#FAF5F1] border-b border-l border-[#EBDBCE] py-3 px-3 text-[11px] font-black text-[#8C6F66]">کارمند</th>
+              <th rowSpan={2} className="bg-[#FAF5F1] border-b-2 border-b-[#EBDBCE] border-l border-[#EBDBCE] py-3 px-3 text-[11px] font-black text-[#8C6F66]">کارمند</th>
               {menuCols.map(({ m, cols }) =>
                 cols.length === 1 ? (
                   // a menu with one column only (no sub-menus): its title stands upright over the whole header height, there is no room for it across
@@ -116,7 +116,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
             <tr className="bg-[#FAF5F1]">
               {menuCols.filter(({ cols }) => cols.length > 1).flatMap(({ m, cols }) =>
                 cols.map((c, i) => (
-                  <th key={c.id} className={`border-b border-[#EBDBCE] px-0 pt-2 pb-1 text-center align-bottom ${i === 0 ? 'border-r-2 border-r-white' : 'border-l border-l-[#F3E8DF]'}`} style={{ background: c.isMain ? `${m.tone}14` : undefined }}>
+                  <th key={c.id} className={`border-b border-[#EBDBCE] px-0 pt-2 pb-1 text-center align-bottom ${i === 0 ? 'border-r-2 border-r-white' : 'border-l border-l-[#F3E8DF]'}`} style={{ background: c.isMain ? `linear-gradient(${m.tone}14, ${m.tone}14), #FAF5F1` : '#FAF5F1' }}>
                     <button type="button" title={c.hint} onClick={() => colAll(c)} className="mx-auto block h-[190px] text-[10.5px] font-black leading-4 cursor-pointer hover:underline whitespace-nowrap" style={{ color: m.tone, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
                       {c.isMain ? '' : '↳ '}
                       {c.label}
@@ -132,7 +132,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
               const admin = isAdminUser(u);
               const given = COLUMNS.filter((c) => colOn(u, c)).length;
               return (
-                <tr key={u.id} className="border-b border-[#F3E8DF] last:border-0 hover:bg-[#FFFBF8]">
+                <tr key={u.id} className="border-b border-[#F3E8DF] last:border-0">
                   <td className="bg-white border-l border-[#EBDBCE] py-2 px-3">
                     <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
                     <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</span>
@@ -155,7 +155,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                             aria-label={`${c.label} برای ${u.fullName}`}
                             title={dim ? 'خود منو برای این کارمند بسته است' : `${c.label}: ${u.fullName}`}
                             onClick={() => toggle(u, c)}
-                            className={`inline-flex w-5 h-5 rounded-md items-center justify-center cursor-pointer transition-all active:scale-90 border-2 ${dim ? 'opacity-45' : ''}`}
+                            className={`inline-flex w-5 h-5 rounded-md items-center justify-center cursor-pointer border-2 ${dim ? 'opacity-45' : ''}`}
                             style={on ? { background: tone, borderColor: tone } : { background: '#fff', borderColor: '#D9C7BC' }}
                             data-perm={c.id}
                             data-user={u.id}

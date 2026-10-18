@@ -43,7 +43,7 @@ import { ThemeManagementModal } from './ThemeManagementModal';
 import { COLOR_THEMES } from '../../lib/theme';
 import { buildProformaHtml, sampleProforma } from '../../lib/proformaPdf';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
-import { formatLetterNumber, DEFAULT_LETTER_NUMBERING, NUMBER_PATTERNS } from '../../lib/letterNumbering';
+import { formatLetterNumber, DEFAULT_LETTER_NUMBERING, NUMBER_PATTERNS, normalizePattern } from '../../lib/letterNumbering';
 import { useAppContext } from '../../context/AppContext';
 import { ProformaDesigner } from './ProformaDesigner';
 import { VoipStatusCard } from './VoipStatusCard';
@@ -320,6 +320,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const currentNumbering = settings.letterNumbering || DEFAULT_LETTER_NUMBERING;
   const sampleFormattedNumber = formatLetterNumber(currentNumbering);
+  // every ordering with its example; two orderings that read the same with the current prefix (e.g. an empty one) are listed once
+  const patternOptions = (() => {
+    const seen = new Set<string>();
+    const out: { id: string; label: string }[] = [];
+    for (const pt of NUMBER_PATTERNS) {
+      const ex = formatLetterNumber({ ...DEFAULT_LETTER_NUMBERING, ...currentNumbering, formatPattern: pt.id, nextNumber: currentNumbering.nextNumber || 1001 });
+      if (seen.has(ex) && pt.id !== normalizePattern(currentNumbering.formatPattern)) continue;
+      seen.add(ex);
+      out.push({ id: pt.id, label: `${pt.parts} (مثال: ${ex})` });
+    }
+    return out;
+  })();
 
   // Active default font display name
   const activeDefaultFont = fonts.find((f) => f.id === settings.defaultLetterFontId) || fonts[0] || { name: 'وزیرمتن' };
@@ -708,7 +720,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               الگوی ساخت ساختار شماره نامه:
             </label>
             <select
-              value={currentNumbering.formatPattern}
+              value={normalizePattern(currentNumbering.formatPattern)}
               onChange={(e) =>
                 handleNumberingChange({
                   formatPattern: e.target.value as LetterNumberingSettings['formatPattern'],
@@ -716,8 +728,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none"
             >
-              {NUMBER_PATTERNS.map((pt) => (
-                <option key={pt.id} value={pt.id}>{`${pt.parts} (مثال: ${formatLetterNumber({ ...DEFAULT_LETTER_NUMBERING, ...currentNumbering, formatPattern: pt.id, nextNumber: currentNumbering.nextNumber || 1001 })})`}</option>
+              {patternOptions.map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
               ))}
             </select>
           </div>

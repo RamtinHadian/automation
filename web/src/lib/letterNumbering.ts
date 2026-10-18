@@ -6,60 +6,55 @@ export const DEFAULT_LETTER_NUMBERING: LetterNumberingSettings = {
   nextNumber: 1001,
   incrementStep: 1,
   year: '1405',
-  formatPattern: 'PREFIX_YEAR_NUM',
+  formatPattern: 'P_Y_N',
   defaultFooterNote: 'سامانه مکاتبات و اسناد رسمی اداری',
   showFooterNote: true,
 };
 
+type Tok = 'P' | 'Y' | 'M' | 'N' | 'N6' | 'PY' | 'YM';
+const TOKEN_NAME: Record<Tok, string> = { P: 'پیشوند', Y: 'سال', M: 'ماه', N: 'شماره', N6: 'شماره شش‌رقمی', PY: 'پیشوندسال چسبیده', YM: 'سال‌ماه چسبیده' };
+
+/** the first four orderings were stored under these names before the catalog grew */
+const LEGACY: Record<string, string> = {
+  PREFIX_YEAR_NUM: 'P_Y_N', YEAR_NUM_PREFIX: 'Y_N_P', NUM_PREFIX_YEAR: 'N_P_Y', PREFIX_NUM: 'P_N',
+  NUM_PREFIX: 'N_P', NUM_ONLY: 'N', YEAR_NUM: 'Y_N', NUM_YEAR: 'N_Y', PREFIX_NUM_YEAR: 'P_N_Y', YEAR_PREFIX_NUM: 'Y_P_N',
+  NUM_YEAR_PREFIX: 'N_Y_P', PREFIX_YEAR_NUM6: 'P_Y_N6', YEAR_NUM6: 'Y_N6', PREFIXYEAR_NUM: 'PY_N',
+};
+
+const perms = (t: Tok[]): Tok[][] => (t.length < 2 ? [t] : t.flatMap((x, i) => perms([...t.slice(0, i), ...t.slice(i + 1)]).map((r) => [x, ...r])));
+const seq = (s: string) => s.split('_') as Tok[];
+
+/** the 50 orderings the console offers, written as token lists: P prefix, Y year, M month, N number, N6 number in six digits, PY / YM glued parts */
+const PATTERN_TOKENS: Tok[][] = [
+  ...perms(['P', 'Y', 'N']),
+  ...perms(['P', 'Y', 'N6']),
+  ...['P_N', 'N_P', 'Y_N', 'N_Y', 'P_Y', 'Y_P', 'P_N6', 'N6_P', 'Y_N6', 'N6_Y', 'N', 'N6'].map(seq),
+  ...['P_Y_M_N', 'P_Y_M_N6', 'Y_M_N', 'Y_M_N6', 'N_Y_M', 'Y_M_N_P', 'P_N_Y_M', 'N_P_Y_M', 'P_M_N', 'Y_P_M_N', 'N_Y_M_P', 'M_N', 'N_M', 'Y_M'].map(seq),
+  ...['PY_N', 'N_PY', 'PY_N6', 'N6_PY', 'YM_N', 'N_YM', 'P_YM_N', 'P_N_YM', 'YM_N_P', 'N_P_YM', 'YM_N6', 'P_YM_N6'].map(seq),
+];
+
+export const NUMBER_PATTERNS: { id: string; parts: string }[] = PATTERN_TOKENS.map((t) => ({ id: t.join('_'), parts: t.map((x) => TOKEN_NAME[x]).join(' · ') }));
+
+/** the stored pattern in the new token form (older settings hold names like 'PREFIX_YEAR_NUM') */
+export const normalizePattern = (p?: string): string => LEGACY[p || ''] || p || 'P_Y_N';
+
 export function formatLetterNumber(settings?: LetterNumberingSettings): string {
   const cfg = settings || DEFAULT_LETTER_NUMBERING;
   const prefix = (cfg.prefix || '').trim();
-  const num = toPersianDigits(cfg.nextNumber || 1001);
+  const n = cfg.nextNumber || 1001;
   const sep = cfg.separator === '-' ? '-' : '/';
-  let year = toPersianDigits((cfg.year || '1405').trim());
-  if (cfg.includeMonth) {
-    // the month of today's Persian date, always two digits, so every month brings its own number into the letter number
-    const d = new Date();
-    const [, jm] = gregorianToJalali(d.getFullYear(), d.getMonth() + 1, d.getDate());
-    year = `${year}${sep}${toPersianDigits(String(jm).padStart(2, '0'))}`;
-  }
-
-  const pad = (n: number, w: number) => toPersianDigits(String(n || 1001).padStart(w, '0'));
-  const join = (...parts: string[]) => parts.filter(Boolean).join(sep);
-  const num6 = pad(cfg.nextNumber, 6);
-  switch (cfg.formatPattern) {
-    case 'YEAR_NUM_PREFIX': return join(year, num, prefix);
-    case 'NUM_PREFIX_YEAR': return join(num, prefix, year);
-    case 'PREFIX_NUM': return join(prefix, num);
-    case 'NUM_PREFIX': return join(num, prefix);
-    case 'NUM_ONLY': return num;
-    case 'YEAR_NUM': return join(year, num);
-    case 'NUM_YEAR': return join(num, year);
-    case 'PREFIX_NUM_YEAR': return join(prefix, num, year);
-    case 'YEAR_PREFIX_NUM': return join(year, prefix, num);
-    case 'NUM_YEAR_PREFIX': return join(num, year, prefix);
-    case 'PREFIX_YEAR_NUM6': return join(prefix, year, num6);
-    case 'YEAR_NUM6': return join(year, num6);
-    case 'PREFIXYEAR_NUM': return `${prefix}${year}${sep}${num}`;
-    case 'PREFIX_YEAR_NUM':
-    default: return join(prefix, year, num);
-  }
+  const baseYear = toPersianDigits((cfg.year || '1405').trim());
+  const d = new Date();
+  const [, jm] = gregorianToJalali(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  const month = toPersianDigits(String(jm).padStart(2, '0'));
+  const id = normalizePattern(cfg.formatPattern);
+  const toks = id.split('_') as Tok[];
+  // the old «include the month» switch puts the month after the year, unless the pattern already has a month of its own
+  const ownMonth = toks.some((t) => t === 'M' || t === 'YM');
+  const year = cfg.includeMonth && !ownMonth ? `${baseYear}${sep}${month}` : baseYear;
+  const value: Record<Tok, string> = {
+    P: prefix, Y: year, M: month, N: toPersianDigits(n), N6: toPersianDigits(String(n).padStart(6, '0')),
+    PY: prefix ? `${prefix}${year}` : year, YM: `${baseYear}${month}`,
+  };
+  return toks.map((t) => value[t]).filter(Boolean).join(sep);
 }
-
-/** every ordering the console offers; the label is built from the parts so it follows the chosen separator */
-export const NUMBER_PATTERNS: { id: NonNullable<LetterNumberingSettings['formatPattern']>; parts: string }[] = [
-  { id: 'PREFIX_YEAR_NUM', parts: 'پیشوند · سال · شماره' },
-  { id: 'YEAR_NUM_PREFIX', parts: 'سال · شماره · پیشوند' },
-  { id: 'NUM_PREFIX_YEAR', parts: 'شماره · پیشوند · سال' },
-  { id: 'PREFIX_NUM_YEAR', parts: 'پیشوند · شماره · سال' },
-  { id: 'YEAR_PREFIX_NUM', parts: 'سال · پیشوند · شماره' },
-  { id: 'NUM_YEAR_PREFIX', parts: 'شماره · سال · پیشوند' },
-  { id: 'PREFIX_NUM', parts: 'پیشوند · شماره' },
-  { id: 'NUM_PREFIX', parts: 'شماره · پیشوند' },
-  { id: 'YEAR_NUM', parts: 'سال · شماره' },
-  { id: 'NUM_YEAR', parts: 'شماره · سال' },
-  { id: 'PREFIX_YEAR_NUM6', parts: 'پیشوند · سال · شماره شش‌رقمی' },
-  { id: 'YEAR_NUM6', parts: 'سال · شماره شش‌رقمی' },
-  { id: 'PREFIXYEAR_NUM', parts: 'پیشوندسال (چسبیده) · شماره' },
-  { id: 'NUM_ONLY', parts: 'فقط شماره' },
-];

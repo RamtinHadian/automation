@@ -32,7 +32,7 @@ import { useAppContext } from '../../context/AppContext';
 import { LetterThumbnail } from '../letters/LetterThumbnail';
 import { LetterPreviewModal } from '../letters/LetterPreviewModal';
 import { matchesAll } from '../../lib/searchAll';
-import { formatLetterNumber, DEFAULT_LETTER_NUMBERING, NUMBER_PATTERNS } from '../../lib/letterNumbering';
+import { formatLetterNumber, DEFAULT_LETTER_NUMBERING, NUMBER_PATTERNS, normalizePattern } from '../../lib/letterNumbering';
 
 interface LetterManagementAdminViewProps {
   settings: SystemSettings;
@@ -54,7 +54,7 @@ export const LetterManagementAdminView: React.FC<LetterManagementAdminViewProps>
     prefix: 'ات',
     nextNumber: 1001,
     year: '1405',
-    formatPattern: 'YEAR_NUM_PREFIX',
+    formatPattern: 'Y_N_P',
     requireAttachmentForFinancial: true,
     allowUniversalReferral: true,
     defaultFooterNote: 'سامانه اتوماسیون سازمانی • دارای اعتبار اداری و تاییدیه دیجیتال',
@@ -206,7 +206,7 @@ export const LetterManagementAdminView: React.FC<LetterManagementAdminViewProps>
               الگوی چینش اجزای شماره:
             </label>
             <select
-              value={numbering.formatPattern}
+              value={normalizePattern(numbering.formatPattern)}
               onChange={(e) => setNumbering({ ...numbering, formatPattern: e.target.value as any })}
               className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl font-bold text-[#3A241F] focus:border-amber-600 focus:outline-none cursor-pointer"
             >
