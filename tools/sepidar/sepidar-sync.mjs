@@ -33,7 +33,10 @@ const statePath = flag('--state') || path.join(dir, 'state.json');
 const recentLog = [];
 const log = (...a) => {
   console.log(...a);
-  recentLog.push(a.join(' '));
+  // the report in Hoormand is for finding what went wrong: the one-line-per-customer notes of the customer synchronisation would fill it, so they are left out
+  const line = a.join(' ');
+  if (/از قبل هست|مشتری تازه ساخته نشد|ثبت شد:|بروز شد:/.test(line)) return;
+  recentLog.push(line);
   if (recentLog.length > 120) recentLog.shift();
 };
 const toLatin = (s) => String(s ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
