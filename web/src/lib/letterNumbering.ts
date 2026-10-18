@@ -58,3 +58,19 @@ export function formatLetterNumber(settings?: LetterNumberingSettings): string {
   };
   return toks.map((t) => value[t]).filter(Boolean).join(sep);
 }
+
+/**
+ * The number offered to a new letter: the counter's next number, moved on past every number an existing letter already carries
+ * (a letter still waiting for its signature has taken its number although the counter only moves when it is signed).
+ */
+export function nextFreeLetterNumber(settings: LetterNumberingSettings | undefined, taken: (string | undefined)[]): string {
+  const cfg = { ...DEFAULT_LETTER_NUMBERING, ...(settings || {}) };
+  const used = new Set(taken.filter(Boolean).map((n) => toPersianDigits(String(n).trim())));
+  const step = Math.max(1, cfg.incrementStep || 1);
+  let n = cfg.nextNumber || 1001;
+  for (let i = 0; i < 5000; i++, n += step) {
+    const candidate = formatLetterNumber({ ...cfg, nextNumber: n });
+    if (!used.has(candidate)) return candidate;
+  }
+  return formatLetterNumber(cfg);
+}

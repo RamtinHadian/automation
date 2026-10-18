@@ -47,7 +47,7 @@ import {
 import { FileTransfer, User, LetterNumberingSettings } from '../../types';
 import { formatCurrentJalaliDateTime, toPersianDigits, convertNumbersInHtmlToPersian } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
-import { formatLetterNumber } from '../../lib/letterNumbering';
+import { formatLetterNumber, nextFreeLetterNumber } from '../../lib/letterNumbering';
 import { countPages } from '../../lib/pageCount';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { RichExtras, TableTools, useLetterBodyEditing } from './tableEditor';
@@ -237,7 +237,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   letterNumbering,
   onSendLetter,
 }) => {
-  const { fonts, settings, setSettings, setStaffList, setCurrentUser, showToast } = useAppContext();
+  const { fonts, settings, setSettings, setStaffList, setCurrentUser, showToast, transfers } = useAppContext();
   // whoever may write letters defines the organisation's letter layout and ready-made texts, like an admin
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN' || !!currentUser.canSendOfficialLetters || !!currentUser.canSignOfficialLetters;
   const orgTpl = settings.letterTemplate;
@@ -296,7 +296,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [customDate, setCustomDate] = useState(() => formatCurrentJalaliDateTime().split(' - ')[0]);
   const [letterNumber, setLetterNumber] = useState(() => {
     if (editTransfer?.letterNumber) return editTransfer.letterNumber;
-    return formatLetterNumber(settings.letterNumbering || letterNumbering);
+    // never the number of a letter that already exists (signed or still waiting for its signature)
+    return nextFreeLetterNumber(settings.letterNumbering || letterNumbering, transfers.filter((t) => t.isOfficialLetter).map((t) => t.letterNumber));
   });
   const [attachment, setAttachment] = useState('ندارد');
   // Official letters can only be sent for signature to the CEO / authorised signatories.
@@ -693,17 +694,17 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
 
   const getPageDimensions = () => {
     // Phones: fixed design width (set in style) and the computer paddings; the whole sheet is zoomed to fit.
-    if (fitZ.isPhone) return pageSize === 'A5' ? 'min-h-[600px] p-7' : pageSize === 'Letter' ? 'min-h-[720px] p-9' : 'min-h-[760px] p-10';
+    if (fitZ.isPhone) return pageSize === 'A5' ? 'min-h-[820px] p-7' : pageSize === 'Letter' ? 'min-h-[906px] p-9' : 'min-h-[1018px] p-10';
     switch (pageSize) {
       case 'A5':
-        return 'max-w-[580px] min-h-[600px] p-4 sm:p-7';
+        return 'max-w-[580px] min-h-[820px] p-4 sm:p-7';
       case 'Letter':
-        return 'max-w-[700px] min-h-[720px] p-5 sm:p-9';
+        return 'max-w-[700px] min-h-[906px] p-5 sm:p-9';
       case 'Letterhead':
-        return 'max-w-[740px] min-h-[780px] p-6 sm:p-10';
+        return 'max-w-[740px] min-h-[1046px] p-6 sm:p-10';
       case 'A4':
       default:
-        return 'max-w-[720px] min-h-[760px] p-6 sm:p-10';
+        return 'max-w-[720px] min-h-[1018px] p-6 sm:p-10';
     }
   };
 

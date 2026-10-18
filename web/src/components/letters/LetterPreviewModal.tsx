@@ -1648,10 +1648,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily, ...(letter.letterhead && !letter.letterhead.image ? { paddingTop: letterheadPad(letter.letterhead.id, paperWidth(pageSize)), paddingBottom: letterheadPad(letter.letterhead.id, paperWidth(pageSize)) - 2 } : {}), ...letterheadBackground(letter.letterhead) }}
             className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 w-full text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
               pageSize === 'A5'
-                ? `${scaled ? '' : 'max-w-[580px]'} min-h-[600px] ${scaled ? 'p-7' : 'p-4 sm:p-7'} text-xs`
+                ? `${scaled ? '' : 'max-w-[580px]'} min-h-[820px] ${scaled ? 'p-7' : 'p-4 sm:p-7'} text-xs`
                 : pageSize === 'Letter'
-                ? `${scaled ? '' : 'max-w-[700px]'} min-h-[720px] ${scaled ? 'p-9' : 'p-5 sm:p-9'} text-xs`
-                : `${scaled ? '' : 'max-w-[720px]'} min-h-[760px] ${scaled ? 'p-10' : 'p-6 sm:p-10'} text-xs`
+                ? `${scaled ? '' : 'max-w-[700px]'} min-h-[906px] ${scaled ? 'p-9' : 'p-5 sm:p-9'} text-xs`
+                : `${scaled ? '' : 'max-w-[720px]'} min-h-[1018px] ${scaled ? 'p-10' : 'p-6 sm:p-10'} text-xs`
             }`}
           >
             {letter.letterhead && !letter.letterhead.image && (
