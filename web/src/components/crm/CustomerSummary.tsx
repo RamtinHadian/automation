@@ -4,6 +4,8 @@ import { BadgeDollarSign, Briefcase, MessageSquare, PhoneCall, Tag, X } from 'lu
 import { CrmActivity, Customer, Deal } from '../../types';
 import { VoipCall } from '../../lib/api';
 import { formatMoney, unitName } from '../../lib/money';
+import { useAppContext } from '../../context/AppContext';
+import { canSeeSalesTotals } from '../../lib/permissions';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
 
@@ -50,6 +52,7 @@ const Stat: React.FC<{ icon: React.ReactNode; title: string; value: string; sub:
 
 /** The small pop-up at the top of a customer's page; one click opens the whole picture over the full screen. */
 export const CustomerSummaryStrip: React.FC<{ customer: Customer; deals: Deal[]; activities: CrmActivity[]; calls: VoipCall[] }> = ({ customer, deals, activities, calls }) => {
+  const { currentUser } = useAppContext();
   const [hidden, setHidden] = useState(false);
   const [full, setFull] = useState(false);
   const s = useMemo(() => summarize(customer, deals, activities, calls), [customer, deals, activities, calls]);
@@ -61,9 +64,9 @@ export const CustomerSummaryStrip: React.FC<{ customer: Customer; deals: Deal[];
         <button type="button" onClick={() => setFull(true)} className="w-full text-right px-3.5 py-3 cursor-pointer">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3 pl-8">
             <Stat icon={<MessageSquare className="w-4 h-4" />} title="تعامل‌ها" value={`${toPersianDigits(s.others.length)} مورد، ${toPersianDigits(s.callCount)} تماس`} sub={`آخرین: ${ago(s.last)}`} />
-            <Stat icon={<BadgeDollarSign className="w-4 h-4" />} title="فروش" value={s.won.length ? `${formatMoney(s.wonTotal)} ${unitName()}` : 'خریدی ثبت نشده'} sub={s.won.length ? `${toPersianDigits(s.won.length)} خرید، آخرین ${formatTaskDate((s.won[0].closedAt || s.won[0].updatedAt).slice(0, 10))}` : 'هنوز فروشی نداشته'} />
+            {canSeeSalesTotals(currentUser) && <Stat icon={<BadgeDollarSign className="w-4 h-4" />} title="فروش" value={s.won.length ? `${formatMoney(s.wonTotal)} ${unitName()}` : 'خریدی ثبت نشده'} sub={s.won.length ? `${toPersianDigits(s.won.length)} خرید، آخرین ${formatTaskDate((s.won[0].closedAt || s.won[0].updatedAt).slice(0, 10))}` : 'هنوز فروشی نداشته'} />}
             <Stat icon={<Tag className="w-4 h-4" />} title="قیمت‌های داده‌شده" value={`${toPersianDigits(s.quotes.length)} مورد`} sub={q ? `${q.itemName || ''}: ${formatMoney(q.price || 0)}` : 'قیمتی ثبت نشده'} />
-            <Stat icon={<Briefcase className="w-4 h-4" />} title="فرصت‌های باز" value={`${toPersianDigits(s.open.length)} فرصت`} sub={s.open.length ? `${formatMoney(s.openTotal)} ${unitName()}` : '—'} />
+            {canSeeSalesTotals(currentUser) && <Stat icon={<Briefcase className="w-4 h-4" />} title="فرصت‌های باز" value={`${toPersianDigits(s.open.length)} فرصت`} sub={s.open.length ? `${formatMoney(s.openTotal)} ${unitName()}` : '—'} />}
           </div>
           <div className="mt-2 text-[10px] font-bold opacity-80">برای دیدن همهٔ تعامل‌ها و فروش‌ها بزنید</div>
         </button>
@@ -90,6 +93,7 @@ const Block: React.FC<{ title: string; count: number; children: React.ReactNode 
 
 /** Everything about the customer over the whole screen; a click anywhere closes it. */
 const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: VoipCall[]; onClose: () => void }> = ({ customer, s, calls, onClose }) => {
+  const { currentUser } = useAppContext();
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', esc);
@@ -111,8 +115,10 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            ['مجموع خرید', `${formatMoney(s.wonTotal)} ${unitName()}`],
-            ['تعداد خرید', toPersianDigits(s.won.length)],
+            ...(canSeeSalesTotals(currentUser) ? [
+              ['مجموع خرید', `${formatMoney(s.wonTotal)} ${unitName()}`],
+              ['تعداد خرید', toPersianDigits(s.won.length)],
+            ] : []),
             ['قیمت‌های داده‌شده', toPersianDigits(s.quotes.length)],
             ['آخرین تعامل', ago(s.last)],
           ].map(([k, v]) => (

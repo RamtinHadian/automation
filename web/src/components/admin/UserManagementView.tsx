@@ -53,7 +53,8 @@ interface UserManagementViewProps {
     extension?: string;
   }) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
-  onDeleteUser: (userId: string) => void;
+  /** kept for compatibility: users are never deleted, only switched off */
+  onDeleteUser?: (userId: string) => void;
 }
 
 export const UserManagementView: React.FC<UserManagementViewProps> = ({
@@ -77,7 +78,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     window.setTimeout(reloadState, 3000);
   };
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
-  const [view, setView] = useState<'list' | 'matrix'>('list');
+  const [view, setView] = useState<'list' | 'matrix' | 'inactive'>('list');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -102,10 +103,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   });
   const [newForm, setNewForm] = useState<UserForm>(emptyForm);
 
+  // nobody is ever deleted: a person who is switched off goes to the folder of the inactive ones, from where they come back with one click
+  const inactiveUsers = users.filter((u) => u.isActive === false);
   const filteredUsers = users.filter((u) => {
     const matchesSearch = matchesAll(u, search);
     const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
-    return matchesSearch && matchesRole;
+    return u.isActive !== false && matchesSearch && matchesRole;
   });
 
   const handleCreateUser = () => {
@@ -165,12 +168,36 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
       {/* two views of the same people: the list, and the table of permissions (a tick for each section of each employee) */}
       <div className="inline-flex gap-1 p-1 rounded-2xl bg-[#FAF5F1] border border-[#EBDBCE]">
-        {([['list', 'فهرست کاربران'], ['matrix', 'جدول مجوزها']] as const).map(([id, text]) => (
+        {([['list', 'فهرست کاربران'], ['matrix', 'جدول مجوزها'], ['inactive', `پوشهٔ غیرفعال‌ها (${toPersianDigits(inactiveUsers.length)})`]] as const).map(([id, text]) => (
           <button key={id} type="button" onClick={() => setView(id)} data-users-view={id} className={`px-5 py-2 rounded-xl text-xs font-black cursor-pointer transition-all ${view === id ? 'bg-[#6E1B1B] text-white shadow-md' : 'text-[#8C6F66] hover:text-[#3A241F]'}`}>
             {text}
           </button>
         ))}
       </div>
+
+      {view === 'inactive' && (
+        <div className="space-y-3" data-inactive-folder>
+          <p className="text-[11px] font-bold text-[#8C6F66]">کاربری که غیرفعال می‌شود از سامانه حذف نمی‌شود: نامه‌ها، فایل‌ها و سابقه‌اش می‌ماند و فقط نمی‌تواند وارد شود. با «بازگرداندن» دوباره فعال می‌شود.</p>
+          {inactiveUsers.length === 0 ? (
+            <div className="text-center text-xs font-bold text-gray-400 py-12 bg-white border border-dashed border-[#EBDBCE] rounded-2xl">کاربر غیرفعالی نیست.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {inactiveUsers.map((u) => (
+                <div key={u.id} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-black text-[#3A241F] truncate">{u.fullName}</div>
+                    <div className="text-[11px] font-bold text-[#8C6F66] truncate">{u.departmentName} · {u.email}</div>
+                  </div>
+                  <button type="button" onClick={() => onUpdateUser(u.id, { isActive: true })} data-restore-user={u.id} className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-black cursor-pointer hover:bg-emerald-100">
+                    <UserCheck className="w-4 h-4" />
+                    بازگرداندن
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {view === 'matrix' && <PermissionMatrix users={users} departments={departments} onUpdateUser={onUpdateUser} />}
 
@@ -332,21 +359,14 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => onUpdateUser(user.id, { isActive: !user.isActive })}
+                          onClick={async () => { if (await askConfirm(`«${user.fullName}» غیرفعال شود؟ دسترسی‌اش قطع می‌شود و به پوشهٔ «غیرفعال‌ها» می‌رود؛ هر زمان بخواهید از همان‌جا برمی‌گردانید. هیچ اطلاعاتی پاک نمی‌شود.`, { title: 'غیرفعال کردن کاربر؟', confirmText: 'بله، غیرفعال شود' })) onUpdateUser(user.id, { isActive: false }); }}
                           className={`p-1.5 rounded-lg transition-colors cursor-pointer ${user.isActive
                             ? 'text-[#8C6F66] hover:text-[#D34A32] hover:bg-[#F6D9CD]/40'
                             : 'text-[#6E1B1B] hover:bg-[#F6D9CD]/40'
                             }`}
-                          title={user.isActive ? 'مسدود کردن' : 'فعال‌سازی'}
+                          title="غیرفعال کردن (به پوشهٔ غیرفعال‌ها می‌رود)"
                         >
-                          {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                        </button>
-                        <button
-                          onClick={async () => (await askConfirm(`حساب «${user.fullName}» حذف شود؟ دسترسی این همکار به سامانه همین لحظه قطع می‌شود و این کار قابل بازگشت نیست.`, { title: 'حذف حساب کارمند؟', confirmText: 'بله، حساب حذف شود' })) && onDeleteUser(user.id)}
-                          className="p-1.5 text-[#8C6F66] hover:text-[#D34A32] hover:bg-[#F6D9CD]/40 rounded-lg transition-colors cursor-pointer"
-                          title="حذف حساب کارمند"
-                        >
-                          <Trash2 className="w-4 h-4" />
+                          <UserX className="w-4 h-4" />
                         </button>
                       </div>
                     </td>

@@ -609,6 +609,11 @@ func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 			delete(out, k)
 		}
 	}
+	// the count and the sum of a customer's invoices are totals of sales: the managing director's only
+	if !jsonx.Bool(me.M, "canSignOfficialLetters") {
+		delete(out, "invoiceCount")
+		delete(out, "invoiceTotal")
+	}
 	if !seeBalance && !seeCredit {
 		delete(out, "balanceAt")
 	}

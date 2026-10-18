@@ -9,6 +9,8 @@ import { missingStats } from '../../lib/missingItems';
 import { hoursText, isOpenTicket, resolveSla, responseSla, subState, TICKET_STATUS } from '../../lib/support';
 import { CLAIM_STATUS, daysBetween, isOpenClaim, warrantyState } from '../../lib/warranty';
 import { todayIso } from '../../lib/taskDates';
+import { useAppContext } from '../../context/AppContext';
+import { canSeeSalesTotals } from '../../lib/permissions';
 
 const compactM = (n: number) => compact(toDisplay(n));
 
@@ -21,6 +23,8 @@ const RANGES = [
 
 /** The management dashboard: the numbers and charts behind decisions about work, letters, sales and phone. */
 export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
+  // sums of money and numbers of sales are the managing director's only
+  const seesTotals = canSeeSalesTotals(useAppContext().currentUser);
   // Always read the whole company's numbers from the server, so it works in the user panel too (not only for admins).
   const [data, setData] = useState<Awaited<ReturnType<typeof api.statsData>> | null>(null);
   const [failed, setFailed] = useState(false);
@@ -109,7 +113,7 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
   }
   if (k.lettersPending > 0) insights.push({ tone: 'warn', text: `${toPersianDigits(k.lettersPending)} نامه منتظر امضاست${k.avgSignHours !== null ? `؛ میانگین زمان امضا در این دوره ${toPersianDigits(Math.round(k.avgSignHours))} ساعت بوده` : ''}.` });
   if (s.missingReportsToday.length > 0) insights.push({ tone: 'info', text: `امروز ${toPersianDigits(s.missingReportsToday.length)} نفر هنوز گزارش روزانه نداده‌اند: ${s.missingReportsToday.slice(0, 4).join('، ')}${s.missingReportsToday.length > 4 ? ' و ...' : ''}.` });
-  if (k.winRate !== null) insights.push({ tone: 'info', text: `از فرصت‌های بسته‌شدهٔ این دوره ${toPersianDigits(k.winRate)}٪ به فروش موفق رسیده است؛ مجموع فروش ${compactM(k.wonValue)} ${unitName()}.` });
+  if (k.winRate !== null && seesTotals) insights.push({ tone: 'info', text: `از فرصت‌های بسته‌شدهٔ این دوره ${toPersianDigits(k.winRate)}٪ به فروش موفق رسیده است؛ مجموع فروش ${compactM(k.wonValue)} ${unitName()}.` });
   const missedCalls = callDays.reduce((a, d) => a + d.missed, 0);
   if (missedCalls > 0) insights.push({ tone: 'warn', text: `در ۷ روز اخیر ${toPersianDigits(missedCalls)} تماس ورودی بی‌پاسخ مانده است.` });
   const idleDeals = deals.filter((d) => ['NEW', 'CONTACTED'].includes(d.stage) && Date.now() - new Date(d.updatedAt).getTime() > 14 * 86400000).length;
@@ -153,8 +157,8 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
         <Kpi accent={C.blue} icon={<Send className="w-5 h-5" />} label={`فایل تبادل‌شده (${rangeLabel})`} value={fa(k.filesSent)} sub={k.avgSignHours !== null ? `میانگین امضا: ${toPersianDigits(Math.round(k.avgSignHours))} ساعت` : undefined} />
         <Kpi accent={C.aqua} icon={<ClipboardCheck className="w-5 h-5" />} label={`وظیفهٔ انجام‌شده (${rangeLabel})`} value={fa(k.tasksDone)} sub={k.completionRate !== null ? `${toPersianDigits(k.completionRate)}٪ نسبت به وظایف تازه` : `از ${toPersianDigits(k.tasksCreated)} وظیفهٔ تازه`} tone="good" />
         <Kpi accent={C.red} icon={<CalendarCheck className="w-5 h-5" />} label="وظایف معوق (الان)" value={fa(k.tasksOverdue)} sub={`${toPersianDigits(k.tasksOpen)} وظیفهٔ باز`} tone={k.tasksOverdue ? 'bad' : 'good'} />
-        <Kpi accent={C.orange} icon={<Banknote className="w-5 h-5" />} label={`ارزش فرصت‌های باز (${unitName()})`} value={compactM(k.pipelineValue)} sub={`${toPersianDigits(k.openDeals)} فرصت در جریان`} />
-        <Kpi accent={C.green} icon={<TrendingUp className="w-5 h-5" />} label={`فروش موفق (${rangeLabel})`} value={compactM(k.wonValue)} sub={k.winRate !== null ? `نرخ موفقیت ${toPersianDigits(k.winRate)}٪ · ${toPersianDigits(k.wonCount)} فروش` : `${toPersianDigits(k.wonCount)} فروش`} tone="good" />
+        {seesTotals && <Kpi accent={C.orange} icon={<Banknote className="w-5 h-5" />} label={`ارزش فرصت‌های باز (${unitName()})`} value={compactM(k.pipelineValue)} sub={`${toPersianDigits(k.openDeals)} فرصت در جریان`} />}
+        {seesTotals && <Kpi accent={C.green} icon={<TrendingUp className="w-5 h-5" />} label={`فروش موفق (${rangeLabel})`} value={compactM(k.wonValue)} sub={k.winRate !== null ? `نرخ موفقیت ${toPersianDigits(k.winRate)}٪ · ${toPersianDigits(k.wonCount)} فروش` : `${toPersianDigits(k.wonCount)} فروش`} tone="good" />}
         <Kpi accent={C.magenta} icon={<UserPlus className="w-5 h-5" />} label={`مشتری جدید (${rangeLabel})`} value={fa(k.newCustomers)} sub={`${toPersianDigits(k.proformas)} پیش‌فاکتور · ${compactM(k.proformaValue)}`} />
         <Kpi accent={C.yellow} icon={<Phone className="w-5 h-5" />} label="تماس بی‌پاسخ (۷ روز)" value={fa(missedCalls)} sub={callDays.length ? `از ${toPersianDigits(callDays.reduce((a, d) => a + d.total, 0))} تماس` : 'هنوز تماسی ثبت نشده'} tone={missedCalls ? 'bad' : 'good'} />
       </div>
@@ -172,20 +176,20 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
           <HBars rows={s.taskLoad.map((t) => ({ label: t.name, segments: [{ value: t.open - t.overdue, color: C.blue, name: 'در جریان' }, { value: t.overdue, color: C.red, name: 'معوق' }] }))} empty="وظیفهٔ بازی نیست." />
         </ChartCard>
 
-        <ChartCard title="قیف فروش" subtitle="تعداد فرصت در هر مرحله؛ مبلغ کنار هر ردیف">
+        {seesTotals && (<ChartCard title="قیف فروش" subtitle="تعداد فرصت در هر مرحله؛ مبلغ کنار هر ردیف">
           <HBars
             format={(v) => toPersianDigits(v)}
             rows={s.funnel.map((f, i) => ({ label: f.label, segments: [{ value: f.count, color: RAMP[i] }], note: `${compactM(f.value)} ${unitName()}` }))}
           />
-        </ChartCard>
+        </ChartCard>)}
 
-        <ChartCard title="فروش موفق هر ماه" subtitle={`مجموع مبلغ فروش (${unitName()})`}>
+        {seesTotals && (<ChartCard title="فروش موفق هر ماه" subtitle={`مجموع مبلغ فروش (${unitName()})`}>
           <Columns labels={s.wonByMonth.map((m) => m.label)} series={[{ name: 'فروش', color: C.green, values: s.wonByMonth.map((m) => m.value) }]} format={(v) => compactM(v)} />
-        </ChartCard>
+        </ChartCard>)}
 
-        <ChartCard title="فروش هر کارشناس" subtitle={`مبلغ فروش موفق در ${rangeLabel} اخیر`}>
+        {seesTotals && (<ChartCard title="فروش هر کارشناس" subtitle={`مبلغ فروش موفق در ${rangeLabel} اخیر`}>
           <HBars format={(v) => compactM(v)} rows={s.salesByOwner.map((o) => ({ label: o.name, segments: [{ value: o.won, color: C.green }], note: `${toPersianDigits(o.count)} فروش` }))} empty="در این دوره فروش موفقی ثبت نشده." />
-        </ChartCard>
+        </ChartCard>)}
 
         <ChartCard title="مشتریان از کجا آمده‌اند؟" subtitle="منبع آشنایی مشتریان">
           <Donut centerLabel="مشتری" data={s.sources.map((x, i) => ({ label: x.label, value: x.value, color: [C.blue, C.orange, C.aqua, C.violet, C.magenta, C.yellow][i] }))} />

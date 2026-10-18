@@ -10,6 +10,7 @@ import { Modal, field, label } from '../crm/crmUi';
 import { matchesAll } from '../../lib/searchAll';
 import { CustomerFinance } from './CustomerFinance';
 import { OPEN_VERSION_NOTICE } from './VersionNotice';
+import { canSeeSalesTotals } from '../../lib/permissions';
 import { BoxCard as Card, BoxGrid as List } from '../common/BoxCard';
 import { SubTabs } from '../common/SubTabs';
 
@@ -290,7 +291,7 @@ export const SepidarView: React.FC = () => {
 
       {cur === 'invoices' && (
         <>
-          <InvoicesSummary rows={invoiceRows} />
+          {canSeeSalesTotals(currentUser) && <InvoicesSummary rows={invoiceRows} />}
           <List empty="فاکتوری دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
             {invoiceRows.slice(0, 300).map((i: any) => {
               const cname = customerOfSepidar.get(i.CustomerRef) || balances.get(i.CustomerRef)?.Title || 'مشتری سپیدار ' + toPersianDigits(i.CustomerRef);

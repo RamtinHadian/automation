@@ -39,6 +39,12 @@ export interface MenuDef {
   subs: SubDef[];
 }
 
+/**
+ * The totals of money and the numbers of sales (sums over many sales, per customer or per period) are for the managing director only:
+ * the one person with the right to sign official letters. Even the other administrators do not see them.
+ */
+export const canSeeSalesTotals = (u?: Pick<User, 'canSignOfficialLetters'> | null): boolean => !!u?.canSignOfficialLetters;
+
 const flag = (id: string, key: PermDef['key'], label: string, hint: string): PermDef => ({ id, kind: 'flag', key, label, hint });
 const listItem = (id: string, key: PermDef['key'], item: string, label: string, hint: string): PermDef => ({ id, kind: 'list', key, item, label, hint });
 

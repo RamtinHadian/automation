@@ -9,6 +9,8 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
 import { field, label } from './crmUi';
+import { useAppContext } from '../../context/AppContext';
+import { canSeeSalesTotals } from '../../lib/permissions';
 
 type Kind = 'buyers' | 'interactions' | 'quotes' | 'dormant' | 'needs' | 'lost' | 'quality' | 'profit';
 
@@ -33,7 +35,9 @@ const when = (iso?: string) => (iso ? `${formatTaskDate(localDay(iso))} · ${toP
 const Cell: React.FC<{ children: React.ReactNode; strong?: boolean; className?: string }> = ({ children, strong, className }) => <td className={`px-3 py-2 text-[11px] ${strong ? 'font-black text-[#3A241F]' : 'font-bold text-[#5A4640]'} ${className || ''}`}>{children}</td>;
 
 export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activities: CrmActivity[]; staff: User[]; index: Map<string, string>; onOpenCustomer: (id: string) => void; isAdmin?: boolean }> = ({ customers, deals, activities, staff, index, onOpenCustomer, isAdmin }) => {
-  const [kind, setKind] = useState<Kind>('buyers');
+  const { currentUser } = useAppContext();
+  // the report of buyers is a report of sums of money and numbers of sales: the managing director's only
+  const [kind, setKind] = useState<Kind>(canSeeSalesTotals(currentUser) ? 'buyers' : 'interactions');
   const [from, setFrom] = useState<string | undefined>(dayIso(-30));
   const [to, setTo] = useState<string | undefined>(todayIso());
   const [q, setQ] = useState('');
@@ -212,7 +216,7 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
   return (
     <div className="space-y-3" data-crm-reports>
       <div className="flex flex-wrap gap-1.5">
-        {REPORTS.filter(([k]) => k !== 'profit' || isAdmin).map(([k, t, Icon]) => (
+        {REPORTS.filter(([k]) => k !== 'buyers' || canSeeSalesTotals(currentUser)).map(([k, t, Icon]) => (
           <button key={k} type="button" onClick={() => setKind(k)} className={`${chip(kind === k)} flex items-center gap-1.5 min-h-[40px]`}>
             <Icon className="w-4 h-4" />
             {t}

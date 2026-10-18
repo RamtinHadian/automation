@@ -227,11 +227,8 @@ func removeStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		httpx.Error(w, http.StatusBadRequest, "cannot delete yourself")
 		return
 	}
-	if _, err := store.Pool.Exec(r.Context(), `DELETE FROM users WHERE id = $1`, id); err != nil {
-		internalError(w)
-		return
-	}
-	httpx.OK(w)
+	// nobody is ever deleted from the system: a person is switched off (isActive = false) and can be switched on again
+	httpx.Error(w, http.StatusConflict, "کاربر از سامانه حذف نمی‌شود؛ او را غیرفعال کنید (از پوشهٔ غیرفعال‌ها دوباره فعال می‌شود).")
 }
 
 // ---------- departments ----------

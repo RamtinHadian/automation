@@ -5,6 +5,7 @@ import { formatMoney, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
 import { normPhone } from '../../lib/customerImport';
 import { useAppContext } from '../../context/AppContext';
+import { canSeeSalesTotals } from '../../lib/permissions';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
 
@@ -24,7 +25,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const Icon = k.icon || FileText;
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(() => !isAudioReady() && isSoundEnabled());
-  const { deals, customers, activities } = useAppContext();
+  const { deals, customers, activities, currentUser } = useAppContext();
   const isCall = n.kind === 'call';
   const cust = isCall && n.ref?.type === 'customer' ? customers.find((c) => c.id === n.ref!.id) : undefined;
   const summary = React.useMemo(() => {
@@ -84,7 +85,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
       {isCall && cust && summary && (
         <div className="px-3.5 py-2 bg-emerald-50 border-t border-emerald-100 flex items-center justify-between gap-2 text-[11px] font-bold text-emerald-900">
           <span className="min-w-0">
-            {summary.wonCount > 0 ? `تا حالا ${formatMoney(summary.bought)} ${unitName()} خرید (${toPersianDigits(summary.wonCount)} فروش)` : 'هنوز خریدی ثبت نشده'}
+            {canSeeSalesTotals(currentUser) ? (summary.wonCount > 0 ? `تا حالا ${formatMoney(summary.bought)} ${unitName()} خرید (${toPersianDigits(summary.wonCount)} فروش)` : 'هنوز خریدی ثبت نشده') : 'مشتری شناخته‌شده'}
             {summary.quotes > 0 ? ` · ${toPersianDigits(summary.quotes)} پیش‌فاکتور` : ''}
           </span>
           <button

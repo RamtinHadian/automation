@@ -4,6 +4,7 @@ import { Customer, Deal } from '../../types';
 import { api } from '../../lib/api';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
+import { canSeeSalesTotals } from '../../lib/permissions';
 import { birthMonthDay, buildMembers, ClubConfig, ClubTier, DEFAULT_CLUB, Member, normalizeClub, TIER_TONES } from '../../lib/club';
 import { formatMoney, formatNumber, fromDisplay, toDisplay, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
@@ -22,7 +23,7 @@ const TierBadge: React.FC<{ tier: ClubTier; index: number }> = ({ tier, index })
 );
 
 export const ClubView: React.FC<{ customers: Customer[]; deals: Deal[]; isAdmin: boolean; smsEnabled: boolean; onOpenCustomer: (id: string) => void }> = ({ customers, deals, isAdmin, smsEnabled, onOpenCustomer }) => {
-  const { showToast } = useAppContext();
+  const { showToast, currentUser } = useAppContext();
   const [cfg, setCfg] = useState<ClubConfig>(DEFAULT_CLUB);
   const [draft, setDraft] = useState<ClubConfig | null>(null);
   const [tierFilter, setTierFilter] = useState<string>('');
@@ -163,7 +164,7 @@ export const ClubView: React.FC<{ customers: Customer[]; deals: Deal[]; isAdmin:
                   <th className="px-3 py-2">مشتری</th>
                   <th className="px-3 py-2">سطح</th>
                   <th className="px-3 py-2">امتیاز</th>
-                  <th className="px-3 py-2">مجموع خرید</th>
+                  {canSeeSalesTotals(currentUser) && <th className="px-3 py-2">مجموع خرید</th>}
                   <th className="px-3 py-2">آخرین خرید</th>
                   <th className="px-3 py-2">پیشرفت</th>
                   <th className="px-3 py-2" />
@@ -177,9 +178,9 @@ export const ClubView: React.FC<{ customers: Customer[]; deals: Deal[]; isAdmin:
                       <TierBadge tier={m.tier} index={m.tierIndex} />
                     </td>
                     <td className="px-3 py-2 text-[11px] font-black text-violet-700">{fa(m.points)}</td>
-                    <td className="px-3 py-2 text-[11px] font-bold text-[#5A4640]">
+                    {canSeeSalesTotals(currentUser) && <td className="px-3 py-2 text-[11px] font-bold text-[#5A4640]">
                       {formatMoney(m.total)} {unitName()}
-                    </td>
+                    </td>}
                     <td className="px-3 py-2 text-[11px] font-bold text-[#5A4640]">{formatTaskDate(m.last.slice(0, 10)) || '—'}</td>
                     <td className="px-3 py-2">{progress(m)}</td>
                     <td className="px-3 py-2">{smsBtn(m.customer)}</td>
@@ -198,9 +199,9 @@ export const ClubView: React.FC<{ customers: Customer[]; deals: Deal[]; isAdmin:
                     <span>
                       <span className="text-violet-700 font-black">{fa(m.points)}</span> امتیاز
                     </span>
-                    <span>
+                    {canSeeSalesTotals(currentUser) && <span>
                       {formatMoney(m.total)} {unitName()}
-                    </span>
+                    </span>}
                   </div>
                   <div className="flex items-end justify-between gap-2">
                     {progress(m)}

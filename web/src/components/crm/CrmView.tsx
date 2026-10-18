@@ -70,7 +70,7 @@ import { LOST_REASONS } from '../../lib/lostReasons';
 import { QuoteForm } from './QuoteForm';
 import { CustomerSummaryStrip } from './CustomerSummary';
 import { buildCustomerIndex, matchesQuery } from '../../lib/customerSearch';
-import { canSub } from '../../lib/permissions';
+import { canSub, canSeeSalesTotals } from '../../lib/permissions';
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -351,7 +351,7 @@ export const CrmView: React.FC = () => {
   const withSms = smsEnabled ? ([...baseTabs, smsTab] as const) : baseTabs;
   const allTabs = isAnyApprover(currentUser, settings) ? ([...withSms, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : withSms;
   // the sub-menus the administrator switched off for this person are not drawn (sms and proformas have their own rights)
-  const tabs = allTabs.filter(([id]) => (id === 'board' ? seesTeamUI : true) && (id === 'sms' || id === 'proformas' || canSub(currentUser, 'crm.' + id)));
+  const tabs = allTabs.filter(([id]) => (id === 'board' ? seesTeamUI && canSeeSalesTotals(currentUser) : true) && (id === 'sms' || id === 'proformas' || canSub(currentUser, 'crm.' + id)));
   useEffect(() => {
     if (!tabs.some(([id]) => id === tab) && tabs[0]) setTab(tabs[0][0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -570,8 +570,10 @@ export const CrmView: React.FC = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { l: 'مشتریان', v: toPersianDigits(stats.customers), i: Users, c: 'bg-violet-100 text-violet-700' },
-              { l: `فرصت‌های در جریان (${toPersianDigits(stats.openDeals.length)})`, v: `${toman(stats.openValue)} ${unitName()}`, i: Briefcase, c: 'bg-sky-100 text-sky-700' },
-              { l: `فروش موفق این ماه (${toPersianDigits(stats.wonMonth.length)})`, v: `${toman(stats.wonMonth.reduce((s, d) => s + d.amount, 0))} ${unitName()}`, i: Trophy, c: 'bg-emerald-100 text-emerald-700' },
+              ...(canSeeSalesTotals(currentUser) ? [
+                { l: `فرصت‌های در جریان (${toPersianDigits(stats.openDeals.length)})`, v: `${toman(stats.openValue)} ${unitName()}`, i: Briefcase, c: 'bg-sky-100 text-sky-700' },
+                { l: `فروش موفق این ماه (${toPersianDigits(stats.wonMonth.length)})`, v: `${toman(stats.wonMonth.reduce((s, d) => s + d.amount, 0))} ${unitName()}`, i: Trophy, c: 'bg-emerald-100 text-emerald-700' },
+              ] : []),
               { l: 'پیگیری عقب‌افتاده', v: toPersianDigits(overdueFollowups.length), i: AlertTriangle, c: 'bg-rose-100 text-rose-700' },
             ].map((s) => (
               <div key={s.l} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 flex items-center gap-3 min-w-0">
@@ -607,7 +609,7 @@ export const CrmView: React.FC = () => {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <section className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-3">
+            {canSeeSalesTotals(currentUser) && <section className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-3">
               <h3 className="font-black text-sm text-[#3A241F]">قیف فروش</h3>
               {STAGES.filter((s) => OPEN_STAGES.includes(s.id)).map((s) => {
                 const list = deals.filter((d) => d.stage === s.id);
@@ -628,7 +630,7 @@ export const CrmView: React.FC = () => {
                   </div>
                 );
               })}
-            </section>
+            </section>}
 
             <section className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-2.5">
               <h3 className="font-black text-sm text-[#3A241F]">پیگیری‌های امروز و عقب‌افتاده</h3>
@@ -801,7 +803,7 @@ export const CrmView: React.FC = () => {
                     </div>
                     <span className="text-[10px] font-black text-[#8C6F66]">{toPersianDigits(list.length)}</span>
                   </div>
-                  <div className="text-[10px] font-bold text-[#8C6F66] px-1">{toman(list.reduce((x, d) => x + d.amount, 0))} {unitName()}</div>
+                  {canSeeSalesTotals(currentUser) && <div className="text-[10px] font-bold text-[#8C6F66] px-1">{toman(list.reduce((x, d) => x + d.amount, 0))} {unitName()}</div>}
                   {list.map(dealCard)}
                   {list.length === 0 && <div className="text-center text-[10px] text-gray-400 font-bold py-4 border border-dashed border-[#EBDBCE] rounded-2xl">خالی</div>}
                 </div>
@@ -1419,8 +1421,9 @@ const CustomerDetail: React.FC<{
       })()}
       {referred.length > 0 && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs font-bold text-emerald-900">
-          این مشتری {toPersianDigits(referred.length)} مشتری را معرفی کرده است: {referred.map((x) => x.name).join('، ')}. فروش موفق از آن‌ها:{' '}
-          {toman(allDeals.filter((d) => d.stage === 'WON' && referred.some((x) => x.id === d.customerId)).reduce((s, d) => s + d.amount, 0))} {unitName()}
+          این مشتری {toPersianDigits(referred.length)} مشتری را معرفی کرده است: {referred.map((x) => x.name).join('، ')}.
+          {canSeeSalesTotals(me) && <> فروش موفق از آن‌ها:{' '}
+          {toman(allDeals.filter((d) => d.stage === 'WON' && referred.some((x) => x.id === d.customerId)).reduce((s, d) => s + d.amount, 0))} {unitName()}</>}
         </div>
       )}
       {c.tags.length > 0 && (
