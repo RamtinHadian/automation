@@ -22,7 +22,7 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
     let alive = true;
     setState('loading');
     api
-      .sepidarFinance(customerId)
+      .sepidarFinance(customerId, !!compact)
       .then((d) => {
         if (!alive) return;
         setData(d);
@@ -32,7 +32,7 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
     return () => {
       alive = false;
     };
-  }, [customerId]);
+  }, [customerId, compact]);
 
   if (state !== 'ok' || !data) return null;
   if (!data.linked) {
@@ -46,16 +46,24 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
   const word = !hasBalance ? 'مانده نامشخص' : rem > 0 ? 'بدهکار' : rem < 0 ? 'بستانکار' : 'تسویه‌شده';
   const stale = data.balanceAt ? Date.now() - new Date(data.balanceAt).getTime() > 24 * 3600 * 1000 : false;
 
+  const hasCredit = typeof data.creditRemainder === 'number';
+  const hasInvoices = !!data.invoices && data.invoices.length > 0;
+  if (!hasBalance && !hasCredit && !hasInvoices && data.invoiceCount === undefined) return null; // nothing this person may see
+
   if (compact) {
     return (
       <div className="px-3.5 py-2 bg-rose-50 border-t border-rose-100 flex items-center justify-between gap-2 text-[11px] font-bold text-rose-950" data-call-finance>
         <span className="flex items-center gap-1.5 min-w-0">
           <Landmark className="w-3.5 h-3.5 shrink-0 text-rose-700" />
           <span className="truncate">وضعیت مالی (سپیدار):</span>
-          <span className={`font-black ${tone}`}>
-            {word}
-            {hasBalance && rem !== 0 ? ` ${fmt(rem)}` : ''}
-          </span>
+          {hasBalance ? (
+            <span className={`font-black ${tone}`}>
+              {word}
+              {rem !== 0 ? ` ${fmt(rem)}` : ''}
+            </span>
+          ) : hasCredit ? (
+            <span className="font-black text-[#3A241F]">اعتبار {fmt(data.creditRemainder!)}</span>
+          ) : null}
         </span>
         {data.invoices && data.invoices[0] && <span className="shrink-0 text-[10px] text-[#8C6F66]">آخرین فاکتور {toPersianDigits(data.invoices[0].number)}</span>}
       </div>
@@ -69,25 +77,33 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
         وضعیت مالی در سپیدار{data.title ? ` · ${data.title}` : ''}
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
+        {hasBalance && (
+          <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
           <div className="text-[10px] font-bold text-[#8C6F66]">مانده حساب</div>
           <div className={`text-sm font-black ${tone}`}>
             {word}
             {hasBalance && rem !== 0 ? ` ${fmt(rem)}` : ''}
           </div>
         </div>
-        <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
+        )}
+        {hasCredit && (
+          <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
           <div className="text-[10px] font-bold text-[#8C6F66]">مانده اعتبار</div>
           <div className="text-sm font-black text-[#3A241F]">{typeof data.creditRemainder === 'number' ? fmt(data.creditRemainder) : '—'}</div>
         </div>
-        <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
+        )}
+        {data.invoiceCount !== undefined && (
+          <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
           <div className="text-[10px] font-bold text-[#8C6F66]">تعداد فاکتورها</div>
           <div className="text-sm font-black text-[#3A241F]">{toPersianDigits(data.invoiceCount ?? 0)}</div>
         </div>
-        <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
+        )}
+        {data.invoiceCount !== undefined && (
+          <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
           <div className="text-[10px] font-bold text-[#8C6F66]">جمع فاکتورها</div>
           <div className="text-sm font-black text-[#3A241F]">{fmt(data.invoiceTotal ?? 0)}</div>
         </div>
+        )}
       </div>
       {data.invoices && data.invoices.length > 0 && (
         <div className="space-y-1">

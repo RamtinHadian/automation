@@ -97,7 +97,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
           </button>
         </div>
       )}
-      {isCall && cust && <CustomerFinance customerId={cust.id} compact />}
+      {isCall && (cust || n.ref?.type === 'customer') && <CustomerFinance customerId={cust ? cust.id : n.ref!.id} compact />}
       {isCall && cust && history && (history.quotes.length > 0 || history.talks.length > 0 || history.interest || history.open > 0) && (
         <button type="button" onClick={onOpen} className="w-full text-right px-3.5 py-2.5 bg-violet-50 border-t border-violet-100 space-y-1.5 cursor-pointer hover:bg-violet-100/70" data-call-history>
           <div className="text-[10px] font-black text-violet-800">سابقهٔ این مشتری (برای جزئیات بزنید)</div>

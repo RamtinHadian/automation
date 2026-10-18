@@ -276,6 +276,37 @@ func popup(ev Event, ext string) {
 	}
 	notify.Notify(ctx, []string{uid}, note, "")
 	Logf("پاپ‌آپ برای کاربر %s فرستاده شد: %s", uid, note.Title)
+	// the people allowed to see every call of the company (user right «canSeeAllCalls», and the top manager) get one pop-up per call
+	if firstTime("callwatch|" + pick(ev, "Linkedid", "LinkedID", "Uniqueid", "UniqueID") + "|" + number) {
+		if watchers := callWatchers(ctx, uid); len(watchers) > 0 {
+			wn := note
+			wn.Body = strings.TrimSpace(wn.Body + " · به " + ownerName(ctx, uid))
+			notify.Notify(ctx, watchers, wn, "")
+		}
+	}
+}
+
+// callWatchers lists who sees every incoming call of the company, except the person the call is for.
+func callWatchers(ctx context.Context, except string) []string {
+	rows, err := store.Pool.Query(ctx, `SELECT id FROM users WHERE id <> $1 AND COALESCE(data->>'isActive', 'true') <> 'false' AND (data->>'canSeeAllCalls' = 'true' OR data->>'role' = 'SUPER_ADMIN')`, except)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func ownerName(ctx context.Context, uid string) string {
+	var n string
+	_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'fullName', '') FROM users WHERE id = $1`, uid).Scan(&n)
+	return n
 }
 
 // WatchCalls turns "a phone is ringing" events into a pop-up for the owner of that extension. It reacts to

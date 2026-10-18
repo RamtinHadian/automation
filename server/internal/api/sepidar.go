@@ -31,6 +31,8 @@ var sepidarPerms = []struct{ Key, Title string }{
 	{"viewInvoices", "دیدن فاکتورهای فروش"},
 	{"viewPrices", "دیدن قیمت‌ها"},
 	{"viewBalance", "دیدن مانده و وضعیت مالی مشتری"},
+	{"viewCredit", "دیدن مانده اعتبار مشتری"},
+	{"callFinance", "نمایش وضعیت مالی مشتری در پاپ‌آپ تماس"},
 	{"refresh", "بروزرسانی اطلاعات سپیدار"},
 	{"customer", "ثبت و بروزرسانی مشتری در سپیدار (هر دو)"},
 	{"customerNew", "ثبت مشتری تازه در سپیدار"},
@@ -45,7 +47,7 @@ var sepidarPerms = []struct{ Key, Title string }{
 
 // a broad right includes the small ones under it (so what people were given before keeps working); a small right can also be given alone
 var sepidarImplies = map[string][]string{
-	"view":      {"viewInvoices", "viewPrices", "viewBalance", "refresh"},
+	"view":      {"viewInvoices", "viewPrices", "viewBalance", "viewCredit", "callFinance", "refresh"},
 	"customer":  {"customerNew", "customerUpdate"},
 	"quotation": {"quotationSend", "quotationClose", "quotationDelete"},
 }
@@ -507,12 +509,20 @@ func cacheItems(ctx context.Context, key string) ([]map[string]any, string) {
 // Only people who may see Sepidar's data AND may work with this customer get it (a salesperson does not see a colleague's customer's money).
 func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	if !sepidarCan(me, "viewBalance") {
+	seeBalance, seeCredit, seeInvoices := sepidarCan(me, "viewBalance"), sepidarCan(me, "viewCredit"), sepidarCan(me, "viewInvoices")
+	if !seeBalance && !seeCredit && !seeInvoices {
 		httpx.Forbidden(w)
 		return
 	}
 	cid := r.PathValue("customerId")
-	if !crmOwnsCustomer(r, me, cid) {
+	// the call pop-up: only for people given «نمایش وضعیت مالی در پاپ‌آپ تماس»; whoever sees every call of the company sees the caller's money too
+	fromCall := r.URL.Query().Get("for") == "call"
+	if fromCall && !sepidarCan(me, "callFinance") {
+		httpx.Forbidden(w)
+		return
+	}
+	watcher := fromCall && (me.IsAdmin() || jsonx.Bool(me.M, "canSeeAllCalls"))
+	if !watcher && !crmOwnsCustomer(r, me, cid) {
 		httpx.Forbidden(w)
 		return
 	}
@@ -527,10 +537,10 @@ func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 	for _, b := range balances {
 		if id, _ := whNum(b, "CustomerID"); int64(id) == sid {
 			out["title"] = jsonx.Str(b, "Title")
-			if v, ok := whNum(b, "Remainder"); ok {
+			if v, ok := whNum(b, "Remainder"); ok && seeBalance {
 				out["remainder"] = v
 			}
-			if v, ok := whNum(b, "CreditRemainder"); ok {
+			if v, ok := whNum(b, "CreditRemainder"); ok && seeCredit {
 				out["creditRemainder"] = v
 			}
 			break
@@ -566,6 +576,14 @@ func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 	out["invoiceCount"] = count
 	out["invoiceTotal"] = total
 	out["invoicesAt"] = invAt
+	if !seeInvoices {
+		for _, k := range []string{"invoices", "invoiceCount", "invoiceTotal", "invoicesAt"} {
+			delete(out, k)
+		}
+	}
+	if !seeBalance && !seeCredit {
+		delete(out, "balanceAt")
+	}
 	httpx.JSON(w, http.StatusOK, out)
 }
 

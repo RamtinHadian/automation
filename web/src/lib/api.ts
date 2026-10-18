@@ -541,7 +541,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   reminderDone: (id: string) => request<{ ok: true }>('POST', `/api/reminders/${encodeURIComponent(id)}/done`, {}),
   reminderSnooze: (id: string, minutes: number) => request<{ ok: true }>('POST', `/api/reminders/${encodeURIComponent(id)}/snooze`, { minutes }),
   sepidar: () => request<Record<string, unknown>>('GET', '/api/sepidar'),
-  sepidarFinance: (customerId: string) =>
+  sepidarFinance: (customerId: string, forCall = false) =>
     request<{
       linked: boolean;
       sepidarId?: number;
@@ -553,7 +553,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
       invoiceCount?: number;
       invoiceTotal?: number;
       invoicesAt?: string;
-    }>('GET', `/api/sepidar/finance/${encodeURIComponent(customerId)}`),
+    }>('GET', `/api/sepidar/finance/${encodeURIComponent(customerId)}${forCall ? '?for=call' : ''}`),
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),
   sepidarCancel: (id: string) => request<{ ok: true }>('POST', `/api/sepidar/jobs/${encodeURIComponent(id)}/cancel`, {}),
