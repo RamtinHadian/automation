@@ -233,13 +233,17 @@ func popup(ev Event, ext string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	uid, _, ok := userByExtension(ctx, ext)
+	ownerless := false
 	if !ok {
-		if digitsOnly.MatchString(ext) {
-			Logf("داخلی %s زنگ می‌خورد اما هیچ کاربری این شمارهٔ داخلی را ندارد (در پنل مدیریت، فرم کاربر، داخلی را وارد کنید).", ext)
+		if !digitsOnly.MatchString(ext) {
+			return
 		}
-		return
+		// an extension nobody owns in Hoormand (a diverted or follow-me number): the people who see every call of the company are told
+		ownerless = true
+		Logf("داخلی %s صاحب ندارد؛ پاپ‌آپ برای کسانی که همهٔ تماس‌های شرکت را می‌بینند فرستاده می‌شود.", ext)
+	} else {
+		Logf("داخلی %s برای کاربر %s زنگ می‌خورد.", ext, uid)
 	}
-	Logf("داخلی %s برای کاربر %s زنگ می‌خورد.", ext, uid)
 	number, callerName := callerOf(ev)
 	for try := 0; number == "" && try < 6; try++ { // the trunk may report the caller's number a moment after the call arrives
 		time.Sleep(400 * time.Millisecond)
@@ -273,6 +277,14 @@ func popup(ev Event, ext string) {
 	} else {
 		// an unknown number: the pop-up offers «ذخیره به‌عنوان مشتری»
 		note.Ref = map[string]any{"type": "phone", "id": number}
+	}
+	if ownerless {
+		note.Body = strings.TrimSpace(note.Body + " (داخلی بدون صاحب)")
+		if watchers := callWatchers(ctx, ""); len(watchers) > 0 {
+			notify.Notify(ctx, watchers, note, "")
+			Logf("پاپ‌آپ تماس داخلی بی‌صاحب %s فرستاده شد: %s", ext, note.Title)
+		}
+		return
 	}
 	notify.Notify(ctx, []string{uid}, note, "")
 	Logf("پاپ‌آپ برای کاربر %s فرستاده شد: %s", uid, note.Title)

@@ -299,6 +299,9 @@ func finalize(st *callState, ended time.Time) {
 			// a number that is not in the phone bank: opening the notification offers «save the number»
 			note.Ref = map[string]any{"type": "phone", "id": other}
 		}
+		if len(uids) == 0 { // an extension nobody owns: the people who see every call of the company
+			uids = callWatchers(ctx, "")
+		}
 		notify.Notify(ctx, uids, note, "")
 	}
 
