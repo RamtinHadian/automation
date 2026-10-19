@@ -1309,6 +1309,23 @@ const CustomerDetail: React.FC<{
         </>
       }
     >
+      {deals.some((d) => d.stage !== 'WON' && d.stage !== 'LOST') && (
+        <section className="space-y-1.5 rounded-2xl border-2 border-violet-300 bg-violet-50 p-3" data-open-deals>
+          <h4 className="font-black text-xs text-violet-900">فرصت فروش باز این مشتری</h4>
+          {deals.filter((d) => d.stage !== 'WON' && d.stage !== 'LOST').map((d) => {
+            const s = stageOf(d.stage);
+            return (
+              <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className="w-full flex items-center justify-between gap-2 bg-white border border-violet-200 rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
+                <span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] font-black text-violet-700">{toman(d.amount)} {unitShort()}</span>
+                  <span className={`text-[10px] font-black flex items-center gap-1 ${s.head}`}><span className={`w-2 h-2 rounded-full ${s.dot}`} />{s.label}</span>
+                </span>
+              </button>
+            );
+          })}
+        </section>
+      )}
       <CustomerSummaryStrip customer={c} deals={allDeals.filter((d) => d.customerId === c.id)} activities={activities} calls={calls} />
       <CustomerFiles customerId={c.id} files={c.attachments || []} me={me.id} isAdmin={isAdmin} onChange={onAttachments} />
       <div className="flex flex-wrap items-center gap-2">
@@ -1462,7 +1479,7 @@ const CustomerDetail: React.FC<{
         {deals.length === 0 ? (
           <div className="text-center text-[11px] text-gray-400 font-bold py-3 border border-dashed border-[#EBDBCE] rounded-xl">فرصتی ثبت نشده است.</div>
         ) : (
-          deals.map((d) => {
+          [...deals].sort((x, y) => Number(x.stage === 'WON' || x.stage === 'LOST') - Number(y.stage === 'WON' || y.stage === 'LOST')).map((d) => {
             const s = stageOf(d.stage);
             return (
               <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className="w-full flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">

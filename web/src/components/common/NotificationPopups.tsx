@@ -42,7 +42,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
     return {
       quotes: mine.filter((a) => a.type === 'QUOTE').sort(byNew).slice(0, 3),
       talks: mine.filter((a) => a.type !== 'QUOTE' && a.type !== 'MISSING' && (a.text || '').trim()).sort(byNew).slice(0, 5),
-      open: deals.filter((d) => d.customerId === cust.id && d.stage !== 'WON' && d.stage !== 'LOST').length,
+      openDeals: deals.filter((d) => d.customerId === cust.id && d.stage !== 'WON' && d.stage !== 'LOST'),
       interest: (cust.interest || '').trim(),
     };
   }, [cust, activities, deals]);
@@ -99,9 +99,15 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         </div>
       )}
       {isCall && (cust || n.ref?.type === 'customer') && <CustomerFinance customerId={cust ? cust.id : n.ref!.id} compact />}
-      {isCall && cust && history && (history.quotes.length > 0 || history.talks.length > 0 || history.interest || history.open > 0) && (
+      {isCall && cust && history && (history.quotes.length > 0 || history.talks.length > 0 || history.interest || history.openDeals.length > 0) && (
         <button type="button" onClick={onOpen} className="w-full text-right px-3.5 py-2.5 bg-violet-50 border-t border-violet-100 space-y-1.5 cursor-pointer hover:bg-violet-100/70" data-call-history>
           <div className="text-[10px] font-black text-violet-800">سابقهٔ این مشتری (برای جزئیات بزنید)</div>
+          {history.openDeals.map((d) => (
+            <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg bg-violet-200/70 px-2 py-1 text-[11px] font-black text-violet-900">
+              <span className="truncate">فرصت فروش باز: {d.title}</span>
+              <span className="shrink-0">{formatMoney(d.amount || 0)} {unitName()}</span>
+            </div>
+          ))}
           {history.interest && <div className="text-[11px] font-bold text-[#3A241F]">دنبال: {history.interest}</div>}
           {history.quotes.map((a) => (
             <div key={a.id} className="flex items-center justify-between gap-2 text-[11px] font-bold text-[#3A241F]">
@@ -112,7 +118,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
           {history.talks.map((a) => (
             <div key={a.id} className="text-[11px] text-[#5A4640] leading-5 line-clamp-2">• {a.text}</div>
           ))}
-          {history.open > 0 && <div className="text-[11px] font-bold text-violet-800">{toPersianDigits(history.open)} فرصت فروش باز</div>}
+          
         </button>
       )}
       {unknownNumber && (
