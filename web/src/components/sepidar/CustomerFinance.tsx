@@ -52,7 +52,7 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
 
   if (compact) {
     return (
-      <div className="px-3.5 py-2 bg-rose-50 border-t border-rose-100 flex items-center justify-between gap-2 text-[11px] font-bold text-rose-950" data-call-finance>
+      <div className={`px-3.5 border-t border-rose-100 flex items-center justify-between gap-2 font-bold text-rose-950 ${hasBalance && rem > 0 ? 'py-3 bg-rose-100 text-[13px]' : 'py-2 bg-rose-50 text-[11px]'}`} data-call-finance>
         <span className="flex items-center gap-1.5 min-w-0">
           <Landmark className="w-3.5 h-3.5 shrink-0 text-rose-700" />
           <span className="truncate">وضعیت مالی (سپیدار):</span>

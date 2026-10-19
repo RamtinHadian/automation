@@ -41,13 +41,13 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
     const byNew = (a: { createdAt: string }, b: { createdAt: string }) => b.createdAt.localeCompare(a.createdAt);
     return {
       quotes: mine.filter((a) => a.type === 'QUOTE').sort(byNew).slice(0, 3),
-      talks: mine.filter((a) => a.type !== 'QUOTE' && a.type !== 'MISSING').sort(byNew).slice(0, 3),
+      talks: mine.filter((a) => a.type !== 'QUOTE' && a.type !== 'MISSING' && (a.text || '').trim()).sort(byNew).slice(0, 5),
       open: deals.filter((d) => d.customerId === cust.id && d.stage !== 'WON' && d.stage !== 'LOST').length,
       interest: (cust.interest || '').trim(),
     };
   }, [cust, activities, deals]);
   const unknownNumber = isCall && n.ref?.type === 'phone' ? n.ref.id : '';
-  const total = useRef(showMs() * (cust ? 3 : 1)); // a known caller's card stays longer: there is something to read
+  const total = useRef(isCall ? Math.max(showMs() * (cust ? 5 : 2), cust ? 45000 : 20000) : showMs()); // a call card (above all a known caller's) stays long enough to read
   const left = useRef(total.current);
   const startedAt = useRef(Date.now());
 
@@ -110,7 +110,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
             </div>
           ))}
           {history.talks.map((a) => (
-            <div key={a.id} className="text-[11px] text-[#5A4640] truncate">• {a.text}</div>
+            <div key={a.id} className="text-[11px] text-[#5A4640] leading-5 line-clamp-2">• {a.text}</div>
           ))}
           {history.open > 0 && <div className="text-[11px] font-bold text-violet-800">{toPersianDigits(history.open)} فرصت فروش باز</div>}
         </button>
