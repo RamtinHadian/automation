@@ -274,11 +274,17 @@ func normalizeEvent(ev Event) {
 		switch strings.ToLower(ev["SubEvent"]) {
 		case "begin":
 			ev["Event"] = "DialBegin"
+			if pick(ev, "Uniqueid", "UniqueID") == "" {
+				ev["Uniqueid"] = pick(ev, "SrcUniqueID", "SrcUniqueid")
+			}
 			if ev["DestChannel"] == "" {
 				ev["DestChannel"] = ev["Destination"]
 			}
 		case "end":
 			ev["Event"] = "DialEnd"
+			if pick(ev, "Uniqueid", "UniqueID") == "" {
+				ev["Uniqueid"] = pick(ev, "SrcUniqueID", "SrcUniqueid", "UniqueID")
+			}
 		}
 	}
 	switch ev["Event"] {

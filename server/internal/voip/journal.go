@@ -264,7 +264,10 @@ func finalize(st *callState, ended time.Time) {
 			custID, custName = cid, cname
 		}
 	}
-	exts := st.legExts
+	exts := append([]string{}, st.legExts...) // never nil: the column is NOT NULL
+	if direction == "in" && len(exts) == 0 && ext != "" {
+		exts = []string{ext}
+	}
 	if direction != "in" && ext != "" {
 		exts = addUnique(append([]string{}, exts...), ext)
 	}
