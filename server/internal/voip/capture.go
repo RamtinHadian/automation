@@ -13,7 +13,7 @@ import (
 
 const (
 	captureFor = 60 * time.Second
-	captureMax = 250
+	captureMax = 300
 )
 
 var (
@@ -30,13 +30,11 @@ func StartCapture() {
 	capLines = nil
 }
 
-// captureEvent keeps one short line per event while a recording is running.
+// captureEvent keeps one short line per event, always: the last captureMax events are there to be read in the console right after a call
+// (the recording button only clears them), so nobody has to be quick enough to press it before the test call.
 func captureEvent(ev Event) {
 	capMu.Lock()
 	defer capMu.Unlock()
-	if time.Now().After(capUntil) || len(capLines) >= captureMax {
-		return
-	}
 	if ev["Event"] == "VarSet" { // hundreds of lines per call that say nothing useful here
 		return
 	}
@@ -51,6 +49,9 @@ func captureEvent(ev Event) {
 		}
 	}
 	capLines = append(capLines, b.String())
+	if len(capLines) > captureMax {
+		capLines = capLines[len(capLines)-captureMax:]
+	}
 }
 
 // CaptureState says whether a recording is running, how many seconds are left, and what was recorded so far.
