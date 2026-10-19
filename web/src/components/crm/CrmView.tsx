@@ -1005,8 +1005,8 @@ export const CrmView: React.FC = () => {
           }}
           onMerge={isAdmin ? () => setMergeFor(customerById.get(openCustomer)!) : undefined}
           onAttachments={(files) => saveCustomer({ ...customerById.get(openCustomer)!, attachments: files })}
-          onNewDeal={() => setEditingDeal({ deal: newDeal(openCustomer), isNew: true })}
-          onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })}
+          onNewDeal={() => { const nd = newDeal(openCustomer); setOpenCustomer(null); setEditingDeal({ deal: nd, isNew: true }); }}
+          onOpenDeal={(d) => { setOpenCustomer(null); setEditingDeal({ deal: d, isNew: false }); }}
           onAddActivity={(type, text, extra) => addActivity(openCustomer, type, text, extra)}
           onToggle={toggleDone}
           onDeleteActivity={(a) => setActivities((prev) => prev.filter((x) => x.id !== a.id))}
