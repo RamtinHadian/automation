@@ -1,6 +1,7 @@
 package voip
 
 import (
+	"regexp"
 	"context"
 	"strconv"
 	"strings"
@@ -42,7 +43,8 @@ func recordCdr(ev Event) {
 	srcUID, srcName, srcIsExt := userByExtension(ctx, src)
 	dstUID, dstName, dstIsExt := userByExtension(ctx, dst)
 	if !srcIsExt && !dstIsExt {
-		return // a leg between trunks, a ring group or the phone system's own helper steps
+		recordCompanyCall(ctx, ev, src, dst) // a call that rang a ring group, a queue or an IVR (or was forwarded outside): nobody's own extension, but the company's call
+		return
 	}
 	ended := time.Now()
 	total, _ := strconv.Atoi(ev["Duration"])
@@ -115,4 +117,78 @@ func recordCdr(ev Event) {
 		notify.Notify(ctx, []string{userID}, note, "")
 	}
 	Logf("تماس از روی سوابق تلفن‌سانتر ثبت شد: %s %s ↔ %s (%s)", map[string]string{"in": "ورودی", "out": "خروجی", "internal": "داخلی"}[direction], ext, other, map[string]string{"answered": "پاسخ داده شد", "missed": "بی‌پاسخ", "busy": "مشغول", "failed": "ناموفق"}[status])
+}
+
+var longNumber = regexp.MustCompile(`^\+?[0-9]{7,}$`)
+var shortNumber = regexp.MustCompile(`^[0-9]{2,6}$`)
+
+// recordCompanyCall writes the call of an outside caller to a number of the company that belongs to nobody's own extension (a ring group, a
+// queue, the IVR, the main number) or that the phone system forwarded outside. It has no owner: the managers see it in the company's calls,
+// and the people allowed to see every call of the company hear about it when nobody answered. The legs of one call (the ring group's leg, then the
+// forwarded one) are one row.
+func recordCompanyCall(ctx context.Context, ev Event, src, dst string) {
+	if !longNumber.MatchString(src) || !(shortNumber.MatchString(dst) || longNumber.MatchString(dst)) {
+		return // not an outside caller (helper steps of the phone system between its own numbers)
+	}
+	ended := time.Now()
+	total, _ := strconv.Atoi(ev["Duration"])
+	billable, _ := strconv.Atoi(ev["BillableSeconds"])
+	started := ended.Add(-time.Duration(total) * time.Second)
+	status := cdrStatus(ev["Disposition"])
+	if status != "answered" {
+		billable = 0
+	}
+	other, otherName := src, ev["CallerID"]
+	if i := strings.Index(otherName, "<"); i >= 0 {
+		otherName = strings.Trim(strings.TrimSpace(otherName[:i]), `"`)
+	}
+	if otherName == other {
+		otherName = ""
+	}
+	id := strings.TrimSpace(ev["UniqueID"])
+	if id == "" {
+		id = "cdr-" + strconv.FormatInt(ended.UnixNano(), 36)
+	}
+	// the same caller within two minutes is the same call (the second leg of a forward): one row
+	var exists int
+	_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM voip_calls WHERE id = $1 OR (other_num = $2 AND started_at BETWEEN $3 AND $4)`,
+		id, other, started.Add(-2*time.Minute), started.Add(2*time.Minute)).Scan(&exists)
+	if exists > 0 {
+		return
+	}
+	var custID, custName string
+	if cid, cname, ok := customerByPhone(ctx, other); ok {
+		custID, custName = cid, cname
+	}
+	var answeredAt any
+	if status == "answered" {
+		answeredAt = ended.Add(-time.Duration(billable) * time.Second)
+	}
+	ext := ""
+	if shortNumber.MatchString(dst) {
+		ext = dst // the company's number the caller reached (400…)
+	}
+	if _, err := store.Pool.Exec(ctx,
+		`INSERT INTO voip_calls (id, started_at, answered_at, ended_at, direction, status, ext, exts, user_id, other_num, other_name, customer_id, customer_name, duration_sec)
+		 VALUES ($1, $2, $3, $4, 'in', $5, $6, $7, '', $8, $9, $10, $11, $12) ON CONFLICT (id) DO NOTHING`,
+		id, started, answeredAt, ended, status, ext, []string{}, other, otherName, custID, custName, billable); err != nil {
+		Logf("ثبت تماس شرکت از روی سوابق تلفن‌سانتر نشد: %v", err)
+		return
+	}
+	if status != "answered" {
+		who := other
+		if custName != "" {
+			who = custName + " (" + other + ")"
+		}
+		note := notify.Note{Kind: "call", Label: "تماس بی‌پاسخ", Title: "تماس بی‌پاسخ از " + who, Body: "به شمارهٔ " + dst, Repeat: true}
+		if custID != "" {
+			note.Ref = map[string]any{"type": "customer", "id": custID}
+		} else {
+			note.Ref = map[string]any{"type": "phone", "id": other}
+		}
+		if watchers := callWatchers(ctx, ""); len(watchers) > 0 {
+			notify.Notify(ctx, watchers, note, "")
+		}
+	}
+	Logf("تماس شرکت از روی سوابق تلفن‌سانتر ثبت شد: %s ← %s (%s)", dst, other, map[string]string{"answered": "پاسخ داده شد", "missed": "بی‌پاسخ", "busy": "مشغول", "failed": "ناموفق"}[status])
 }
