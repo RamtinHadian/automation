@@ -343,6 +343,11 @@ func WatchCalls(c *Client) {
 			}
 			go popup(ev, extNum)
 		case "Newexten":
+			// the call reaches an extension in the dialplan (also one nobody owns that only forwards to a mobile): tell at once, not at hang-up
+			if ext := pick(ev, "Extension", "Exten"); arrivalContext.MatchString(ev["Context"]) && digitsOnly.MatchString(ext) && ev["Priority"] == "1" {
+				go popup(ev, ext)
+				return
+			}
 			if !strings.EqualFold(ev["Application"], "Dial") {
 				return
 			}
