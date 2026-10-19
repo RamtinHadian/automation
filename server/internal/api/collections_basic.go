@@ -116,7 +116,7 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 			}
 			for _, c := range []struct{ key, label string }{
 				{"role", "نقش"}, {"canUseTasks", "دسترسی وظایف"}, {"canUseCrm", "دسترسی مشتریان"}, {"canViewStats", "دسترسی گزارشات آماری"}, {"canPostAnnouncements", "دسترسی تابلو اعلانات"}, {"canUseWarranty", "دسترسی گارانتی"}, {"canSendSms", "اجازهٔ ارسال پیامک"}, {"canUseWarehouse", "دسترسی انبارداری"},
-				{"extension", "شمارهٔ داخلی"}, {"isActive", "فعال‌بودن حساب"}, {"departmentId", "واحد سازمانی"},
+				{"extension", "شمارهٔ داخلی"}, {"extensions", "داخلی‌های بیشتر"}, {"isActive", "فعال‌بودن حساب"}, {"departmentId", "واحد سازمانی"},
 			} {
 				if jsonx.Str(existing, c.key) != jsonx.Str(merged, c.key) || jsonx.Bool(existing, c.key) != jsonx.Bool(merged, c.key) {
 					changes = append(changes, c.label)

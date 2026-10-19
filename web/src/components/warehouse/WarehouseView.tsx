@@ -5,6 +5,7 @@ import { canSub } from '../../lib/permissions';
 import { api, WhCard, WhDoc, WhKind, WhProduct, WhState, WhWarehouse } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
+import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
 import { formatMoney, fromDisplay, toDisplay, unitName } from '../../lib/money';
 import { MoneyInput, digitsOf } from '../common/MoneyInput';
 import { formatTaskDate, todayIso } from '../../lib/taskDates';
@@ -39,6 +40,7 @@ export const WarehouseView: React.FC = () => {
   const [docOpen, setDocOpen] = useState<WhDoc | null>(null);
   const [prodEdit, setProdEdit] = useState<Partial<WhProduct> | null>(null);
   const [group, setGroup] = useState('');
+  const sepidarOn = useSepidarConnected(); // a hook: it stays above every early return of this component
   const [whEdit, setWhEdit] = useState<Partial<WhWarehouse> | null>(null);
 
   const load = useCallback(async () => {
@@ -63,7 +65,7 @@ export const WarehouseView: React.FC = () => {
   const groups: [string, string, number][] = [...groupCount.entries()].sort((a, b) => a[0].localeCompare(b[0], 'fa')).map(([g, n]) => [g, g, n]);
 const qtyOk = st.limits ? st.limits.qty : true;
 	const kindsOk = (st.limits?.kinds ?? (Object.keys(KIND_LABEL) as WhKind[])) as WhKind[];
-	const low = qtyOk ? st.products.filter((p) => (p.minQty || 0) > 0 && p.total < (p.minQty || 0)) : [];
+	const low = qtyOk ? st.products.filter((p) => p.kind !== 'service' && (p.minQty || 0) > 0 && p.total < (p.minQty || 0)) : [];
 	const tabs = ([
 		['stock', 'موجودی'],
 		['docs', 'اسناد'],
@@ -95,7 +97,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
         ) : (
           <span>موجودی در خود هورمند نگهداری می‌شود.</span>
         )}
-        {isAdmin && (
+        {isAdmin && sepidarOn && (
           <button type="button" onClick={() => setMode(sepidar ? 'standalone' : 'sepidar')} className="mr-auto text-[11px] font-black underline cursor-pointer">
             {sepidar ? 'برگشت به حالت مستقل' : 'حالت متصل به سپیدار'}
           </button>
@@ -187,7 +189,7 @@ const StockTab: React.FC<{ st: WhState; group: string; onCard: (p: WhProduct) =>
   const [onlyLow, setOnlyLow] = useState(false);
   const rows = useMemo(() => {
     const names = (p: WhProduct) => Object.entries(p.byWarehouse || {}).filter(([, n]) => n).map(([id]) => st.warehouses.find((w) => w.id === id)?.title || '');
-    return st.products.filter((p) => p.active !== false && (!group || (p.group || 'بدون گروه') === group) && matchesAll(p, q, names(p)) && (!onlyLow || ((p.minQty || 0) > 0 && p.total < (p.minQty || 0))) && (!wh || (p.byWarehouse[wh] || 0) !== 0));
+    return st.products.filter((p) => p.active !== false && p.kind !== 'service' && (!group || (p.group || 'بدون گروه') === group) && matchesAll(p, q, names(p)) && (!onlyLow || ((p.minQty || 0) > 0 && p.total < (p.minQty || 0))) && (!wh || (p.byWarehouse[wh] || 0) !== 0));
   }, [st, q, wh, onlyLow, group]);
   const qtyOf = (p: WhProduct) => (wh ? p.byWarehouse[wh] || 0 : p.total);
   const whName = (id: string) => st.warehouses.find((w) => w.id === id)?.title || '';
@@ -217,10 +219,10 @@ const StockTab: React.FC<{ st: WhState; group: string; onCard: (p: WhProduct) =>
       </div>
       <BoxStats
         items={[
-          ['کالاها', fmt(st.products.filter((p) => p.active !== false).length)],
+          ['کالاها', fmt(st.products.filter((p) => p.active !== false && p.kind !== 'service').length)],
           ['انبارها', fmt(st.warehouses.length)],
-          ['زیر حداقل', fmt(st.products.filter((p) => p.active !== false && (p.minQty || 0) > 0 && p.total < (p.minQty || 0)).length), 'border-rose-200 bg-rose-50 text-rose-800'],
-          ['ناموجود', fmt(st.products.filter((p) => p.active !== false && p.total <= 0).length), 'border-slate-200 bg-slate-50 text-slate-700'],
+          ['زیر حداقل', fmt(st.products.filter((p) => p.active !== false && p.kind !== 'service' && (p.minQty || 0) > 0 && p.total < (p.minQty || 0)).length), 'border-rose-200 bg-rose-50 text-rose-800'],
+          ['ناموجود', fmt(st.products.filter((p) => p.active !== false && p.kind !== 'service' && p.total <= 0).length), 'border-slate-200 bg-slate-50 text-slate-700'],
         ]}
       />
       <BoxGrid empty={st.products.length ? 'کالایی با این شرط پیدا نشد.' : 'هنوز کالایی تعریف نشده است. از «کالاها» شروع کنید.'}>
@@ -405,7 +407,7 @@ const DocForm: React.FC<{ st: WhState; kind: WhKind; customers: { id: string; na
   const [note, setNote] = useState('');
   const [rows, setRows] = useState<Row[]>([{ productId: '', qty: '' }]);
   const [busy, setBusy] = useState(false);
-  const prods = st.products.filter((p) => p.active !== false);
+  const prods = st.products.filter((p) => p.active !== false && p.kind !== 'service'); // a service has no stock: it is not in warehouse documents
   const items = prods.map((p) => ({ id: p.id, name: p.title, sub: `${toPersianDigits(p.code)} · موجودی ${fmt(p.byWarehouse[wid] || 0)} ${p.unit}` }));
   const setRow = (i: number, patch: Partial<Row>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const unitOf = (id: string) => prods.find((p) => p.id === id)?.unit || '';
@@ -613,10 +615,9 @@ const ProductsTab: React.FC<{ st: WhState; group: string; sepidar: boolean; onEd
             tone="amber"
             title={p.title}
             sub={[toPersianDigits(p.code), p.unit, p.group].filter(Boolean).join(' · ')}
-            badge={p.active === false ? ['غیرفعال', 'bg-slate-50 text-slate-600 border-slate-200'] : null}
+            badge={p.active === false ? ['غیرفعال', 'bg-slate-50 text-slate-600 border-slate-200'] : p.kind === 'service' ? ['خدمت', 'bg-sky-50 text-sky-800 border-sky-200'] : null}
             facts={[
-['موجودی', st.limits && !st.limits.qty ? '—' : fmt(p.total)],
-              ['حداقل موجودی', p.minQty ? fmt(p.minQty) : '—'],
+...(p.kind === 'service' ? [] : [['موجودی', st.limits && !st.limits.qty ? '—' : fmt(p.total)] as [string, React.ReactNode], ['حداقل موجودی', p.minQty ? fmt(p.minQty) : '—'] as [string, React.ReactNode]]),
               ...(p.barcode ? [['بارکد', toPersianDigits(p.barcode)] as [string, React.ReactNode]] : []),
 ...(st.limits && !st.limits.money ? [] : p.prices || []).slice(0, 3).map((x) => [x.title, `${formatMoney(x.amount)} ${unitName()}`] as [string, React.ReactNode]),
             ]}
@@ -632,7 +633,7 @@ const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(
 const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin: boolean; onClose: () => void; onSaved: () => void }> = ({ p, sepidar, isAdmin, onClose, onSaved }) => {
 const { showToast, currentUser } = useAppContext();
   const isNew = !p.id;
-  const [f, setF] = useState({ code: p.code || '', title: p.title || '', unit: p.unit || 'عدد', group: p.group || '', barcode: p.barcode || '', minQty: p.minQty ? String(p.minQty) : '', note: p.note || '', active: p.active !== false });
+  const [f, setF] = useState({ code: p.code || '', title: p.title || '', unit: p.unit || 'عدد', group: p.group || '', barcode: p.barcode || '', minQty: p.minQty ? String(p.minQty) : '', note: p.note || '', active: p.active !== false, kind: (p.kind === 'service' ? 'service' : 'good') as 'good' | 'service' });
   const [prices, setPrices] = useState<{ title: string; amount: string }[]>((p.prices || []).map((x) => ({ title: x.title, amount: String(toDisplay(x.amount)) })));
   const [busy, setBusy] = useState(false);
   const lockBase = sepidar; // code, name and unit belong to the accounting program
@@ -678,6 +679,7 @@ const { showToast, currentUser } = useAppContext();
         <div><span className={label}>کد کالا</span><input value={f.code} disabled={lockBase} onChange={(e) => setF({ ...f, code: e.target.value })} className={field} /></div>
         <div><span className={label}>واحد</span><input value={f.unit} disabled={lockBase} onChange={(e) => setF({ ...f, unit: e.target.value })} className={field} /></div>
         <div className="sm:col-span-2"><span className={label}>نام کالا</span><input value={f.title} disabled={lockBase} onChange={(e) => setF({ ...f, title: e.target.value })} className={field} /></div>
+        <div><span className={label}>نوع</span><select value={f.kind} disabled={lockBase && !!p.id} onChange={(e) => setF({ ...f, kind: e.target.value as 'good' | 'service' })} className={field} data-product-kind><option value="good">کالا (موجودی دارد)</option><option value="service">خدمت (موجودی ندارد)</option></select></div>
         <div><span className={label}>گروه</span><input value={f.group} disabled={lockBase} onChange={(e) => setF({ ...f, group: e.target.value })} className={field} /></div>
         <div><span className={label}>بارکد</span><input value={f.barcode} disabled={lockBase} onChange={(e) => setF({ ...f, barcode: e.target.value })} className={field} /></div>
         <div><span className={label}>حداقل موجودی (برای هشدار)</span><input value={f.minQty} onChange={(e) => setF({ ...f, minQty: e.target.value })} inputMode="decimal" className={field} /></div>

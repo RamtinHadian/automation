@@ -176,8 +176,10 @@ func canHearCall(r *http.Request, me auth.User, id string) bool {
 	if uid == me.ID() {
 		return true
 	}
-	if ext := jsonx.Str(me.M, "extension"); ext != "" && jsonx.Contains(exts, ext) {
-		return true
+	for _, ext := range userExts(me) {
+		if jsonx.Contains(exts, ext) {
+			return true
+		}
 	}
 	return cid != "" && me.CanUseCrm()
 }

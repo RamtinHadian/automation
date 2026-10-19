@@ -212,4 +212,12 @@ export const colPatchMany = (u: User, cols: Column[], on: boolean): Partial<User
  * Is this sub-menu open for the person? Administrators see everything; everybody else sees every sub-menu of a menu they may enter
  * unless the administrator switched it off. Use it where a sub-menu, tab or tool is drawn:  canSub(currentUser, 'crm.reports').
  */
-export const canSub = (u: Pick<User, 'role' | 'hiddenSub'>, id: string): boolean => isAdminUser(u) || !(u.hiddenSub || []).includes(id);
+export const canSub = (u: Pick<User, 'role' | 'hiddenSub'>, id: string): boolean => !(u.hiddenSub || []).includes(id);
+
+/**
+ * An administrator can also be kept from seeing a menu or sub-menu (the permission table has ticks for them too): the ticks switched off are in
+ * hiddenSub, a whole menu as «menu:<id>». The older rights an administrator holds as part of the role (the flagged sub-menus) cannot be taken away.
+ * This only decides what is drawn for them; the server's checks for an administrator stay as they were.
+ */
+export const adminMenuHidden = (u: Pick<User, 'role' | 'hiddenSub'>, menuId: string): boolean => isAdminUser(u) && (u.hiddenSub || []).includes('menu:' + menuId);
+export const adminHideId = (c: { id: string; menuId: string; isMain: boolean }): string => (c.isMain ? 'menu:' + c.menuId : c.id);

@@ -253,6 +253,8 @@ export interface WhProduct {
   title: string;
   unit: string;
   group?: string;
+  /** «service» = a service (a licence, an installation…): it is sold and priced but has no stock, no warehouse documents */
+  kind?: 'good' | 'service';
   /** everything the accounting program keeps about the product (name → text) */
   sepidar?: Record<string, string>;
   barcode?: string;
@@ -339,15 +341,37 @@ export interface Reminder {
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const token = getToken();
-  const res = await fetch(url, {
-    method,
-    cache: method === 'GET' ? 'no-store' : undefined,
-    headers: {
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const send = () =>
+    fetch(url, {
+      method,
+      cache: method === 'GET' ? 'no-store' : undefined,
+      headers: {
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  // The server may be restarting for an update for a few seconds («Failed to fetch»): a request that can safely be sent twice (reading, saving the same
+  // record, deleting) is tried again after 2 and 5 seconds; a new record (POST) is not repeated, because it could be created twice.
+  const again = method === 'GET' || method === 'PUT' || method === 'DELETE';
+  let res: Response;
+  try {
+    res = await send();
+  } catch {
+    res = undefined as unknown as Response;
+    if (again) {
+      for (const wait of [2000, 5000]) {
+        await new Promise((r) => setTimeout(r, wait));
+        try {
+          res = await send();
+          break;
+        } catch {
+          /* the next try */
+        }
+      }
+    }
+    if (!res) throw new ApiError(0, 'ارتباط با سرور برقرار نشد؛ شاید سرور همین حالا برای به‌روزرسانی چند ثانیه دوباره راه می‌افتد. کمی بعد دوباره امتحان کنید.');
+  }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401 && token && onUnauthorized) onUnauthorized();
@@ -564,7 +588,8 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     if (!res.ok) throw new Error('فایل‌ها دریافت نشد.');
     return res.blob();
   },
-  sepidarConnected: () => request<{ connected: boolean }>('GET', '/api/sepidar/connected'),
+  sepidarConnected: () => request<{ connected: boolean; choice: 'yes' | 'no' | 'auto'; seen: boolean }>('GET', '/api/sepidar/connected'),
+  sepidarSetSwitch: (value: 'yes' | 'no') => request<{ ok: true }>('PUT', '/api/sepidar/switch', { value }),
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),
   sepidarCancel: (id: string) => request<{ ok: true }>('POST', `/api/sepidar/jobs/${encodeURIComponent(id)}/cancel`, {}),

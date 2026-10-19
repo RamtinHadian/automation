@@ -150,14 +150,67 @@ func sepidarToolZip(w http.ResponseWriter, r *http.Request) {
 // GET /api/sepidar/connected: whether the Sepidar program has ever connected to this Hoormand (any signed-in person may ask; it switches on
 // the Sepidar parts of the customer form).
 func sepidarConnected(w http.ResponseWriter, r *http.Request) {
-	seen, _ := sepidarConnectorSeen(r.Context())
-	httpx.JSON(w, http.StatusOK, map[string]any{"connected": seen != ""})
+	ctx := r.Context()
+	seen, _ := sepidarConnectorSeen(ctx)
+	choice := sepidarChoice(ctx)
+	if choice == "" {
+		choice = "auto"
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"connected": sepidarEnabled(ctx), "choice": choice, "seen": seen != ""})
+}
+
+// sepidarChoice is what the manager picked in the console: «yes» (سپیدار دارم), «no» (سپیدار ندارم) or "" (not picked yet).
+func sepidarChoice(ctx context.Context) string {
+	var raw []byte
+	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarSwitch'`).Scan(&raw)
+	v := jsonx.Str(jsonx.Decode(raw), "value")
+	if v == "yes" || v == "no" {
+		return v
+	}
+	return ""
+}
+
+// sepidarEnabled: the Sepidar menus, the Sepidar parts of the customer and the warehouse that follows Sepidar exist only where the manager said «yes»;
+// nothing picked = on when the program has connected before (installations that worked before keep working).
+func sepidarEnabled(ctx context.Context) bool {
+	switch sepidarChoice(ctx) {
+	case "yes":
+		return true
+	case "no":
+		return false
+	}
+	seen, _ := sepidarConnectorSeen(ctx)
+	return seen != ""
+}
+
+// PUT /api/sepidar/switch {value: "yes" | "no"} (administrators): «سپیدار دارم / ندارم». Without Sepidar the warehouse is Hoormand's own.
+func sepidarSetSwitch(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if !me.IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	v := jsonx.Str(body, "value")
+	if v != "yes" && v != "no" {
+		httpx.Error(w, http.StatusBadRequest, "گزینهٔ نامعتبر است.")
+		return
+	}
+	_, _ = store.Pool.Exec(r.Context(), `INSERT INTO settings (key, data) VALUES ('sepidarSwitch', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`, jsonx.Encode(jsonx.M{"value": v}))
+	if v == "no" {
+		whStoreMode(r.Context(), "standalone", "", false) // the warehouse is Hoormand's own from now on
+	}
+	auditLine(r, me, "WARNING", "سپیدار: "+map[string]string{"yes": "دارم (منوها و ارتباط با سپیدار فعال)", "no": "ندارم (منوهای سپیدار برداشته و انبار مستقل شد)"}[v])
+	httpx.OK(w)
 }
 
 // GET /api/sepidar: everything the Sepidar page shows (according to the person's rights)
 func sepidarState(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	if !sepidarAny(me) {
+	if !sepidarAny(me) || !sepidarEnabled(r.Context()) {
 		httpx.Forbidden(w)
 		return
 	}
@@ -236,6 +289,10 @@ func sepidarState(w http.ResponseWriter, r *http.Request) {
 // POST /api/sepidar/jobs {kind, dealId | customerId, bankAccountId, amount, date, description}
 func sepidarJobCreate(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
+	if !sepidarEnabled(r.Context()) {
+		httpx.Error(w, http.StatusConflict, "سپیدار برای این سامانه خاموش است.")
+		return
+	}
 	body, ok := httpx.ReadBody(w, r)
 	if !ok {
 		return
@@ -556,6 +613,10 @@ func cacheItems(ctx context.Context, key string) ([]map[string]any, string) {
 // Only people who may see Sepidar's data AND may work with this customer get it (a salesperson does not see a colleague's customer's money).
 func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
+	if !sepidarEnabled(r.Context()) {
+		httpx.Forbidden(w)
+		return
+	}
 	seeBalance, seeCredit, seeInvoices := sepidarCan(me, "viewBalance"), sepidarCan(me, "viewCredit"), sepidarCan(me, "viewInvoices")
 	if !seeBalance && !seeCredit && !seeInvoices {
 		httpx.Forbidden(w)
@@ -938,5 +999,6 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/crm/sepidar-link", auth.Require(crmSepidarLink))
 	mux.HandleFunc("GET /api/sepidar/finance/{customerId}", auth.Require(sepidarFinance))
 	mux.HandleFunc("GET /api/sepidar/connected", auth.Require(sepidarConnected))
+	mux.HandleFunc("PUT /api/sepidar/switch", auth.Require(sepidarSetSwitch))
 	mux.HandleFunc("GET /api/sepidar/tool-files", auth.Require(sepidarToolZip))
 }

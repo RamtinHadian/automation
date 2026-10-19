@@ -77,7 +77,8 @@ func (c *Client) Run(ctx context.Context) {
 }
 
 func (c *Client) session(ctx context.Context) error {
-	d := net.Dialer{Timeout: 8 * time.Second}
+	// KeepAlive: the operating system itself probes an idle connection, so one that a router or the phone system dropped without a word is noticed
+	d := net.Dialer{Timeout: 8 * time.Second, KeepAlive: 15 * time.Second}
 	conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(c.cfg.Host, c.cfg.Port))
 	if err != nil {
 		return err
@@ -91,6 +92,9 @@ func (c *Client) session(ctx context.Context) error {
 		conn.Close()
 	}()
 
+	sessionDone := make(chan struct{})
+	defer close(sessionDone)
+	_ = conn.SetReadDeadline(time.Now().Add(15 * time.Second))
 	r := bufio.NewReader(conn)
 	if _, err := r.ReadString('\n'); err != nil { // banner: "Asterisk Call Manager/x.y"
 		return err
@@ -110,9 +114,28 @@ func (c *Client) session(ctx context.Context) error {
 		}
 		c.connected.Store(true)
 		Logf("به صندوق تلفن وصل شد؛ منتظر تماس هستم.")
+		// A Ping every 20 seconds: the phone system answers it, so the line is read at least that often. When nothing arrives for 70 seconds
+		// (the connection died silently, which a plain read would wait on for ever) the reader gives up and the connection is made again.
+		go func() {
+			t := time.NewTicker(20 * time.Second)
+			defer t.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-sessionDone:
+					return
+				case <-t.C:
+					if err := c.send(map[string]string{"Action": "Ping", "ActionID": c.nextID()}); err != nil {
+						return
+					}
+				}
+			}
+		}()
 	}()
 
 	for {
+		_ = conn.SetReadDeadline(time.Now().Add(70 * time.Second))
 		ev, err := readBlock(r)
 		if err != nil {
 			return err

@@ -475,6 +475,9 @@ func whProductPut(w http.ResponseWriter, r *http.Request) {
 			return nil, "", msg
 		}
 doc := jsonx.M{"code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500),"active": active, "prices": prices}
+		if jsonx.Str(b, "kind") == "service" { // a service is sold and priced but has no stock and no warehouse documents
+			doc["kind"] = "service"
+		}
 		if !whMoneyAllowed(auth.Current(r)) {
 			whKeepMoney(r, doc)
 		}
@@ -692,6 +695,10 @@ if _, ok := whKinds[kind]; !ok {
 		p := jsonx.Decode(praw)
 		if v, ok := p["active"].(bool); ok && !v {
 			bad("کالای «" + jsonx.Str(p, "title") + "» غیرفعال است.")
+			return
+		}
+		if jsonx.Str(p, "kind") == "service" {
+			bad("«" + jsonx.Str(p, "title") + "» خدمت است و موجودی ندارد؛ سند انبار برایش ثبت نمی‌شود.")
 			return
 		}
 		if seen[pid] {
@@ -944,7 +951,7 @@ func whModeInfo(ctx context.Context) (mode, lastSync, source string) {
 	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'warehouse'`).Scan(&raw)
 	d := jsonx.Decode(raw)
 	mode = jsonx.Str(d, "mode")
-	if mode != "sepidar" {
+	if mode != "sepidar" || sepidarChoice(ctx) == "no" { // «سپیدار ندارم»: the warehouse is Hoormand's own
 		mode = "standalone"
 	}
 	return mode, jsonx.Str(d, "lastSyncAt"), jsonx.Str(d, "source")
@@ -978,6 +985,10 @@ func whSetMode(w http.ResponseWriter, r *http.Request) {
 	mode := jsonx.Str(body, "mode")
 	if mode != "standalone" && mode != "sepidar" {
 		httpx.Error(w, http.StatusBadRequest, "حالت نامعتبر است.")
+		return
+	}
+	if mode == "sepidar" && sepidarChoice(r.Context()) == "no" {
+		httpx.Error(w, http.StatusConflict, "سپیدار برای این سامانه خاموش است (کنسول مدیریت ← «سپیدار دارم / ندارم»).")
 		return
 	}
 	whStoreMode(r.Context(), mode, "", false)
@@ -1050,6 +1061,9 @@ func whCode(s string) string { return strings.TrimSpace(faDigits.Replace(s)) }
 // new there is new here), and the stock of every warehouse is set by one adjustment document that holds only the differences, so the card of each
 // product shows what happened.
 func whSync(ctx context.Context, by auth.User, keyName string, body jsonx.M) (jsonx.M, error) {
+	if sepidarChoice(ctx) == "no" {
+		return nil, fmt.Errorf("سپیدار برای این سامانه خاموش است؛ انبار مستقل است.")
+	}
 	warehouses, products, stock := jsonx.Arr(body, "warehouses"), jsonx.Arr(body, "products"), jsonx.Arr(body, "stock")
 	if len(warehouses) > 500 || len(products) > 50000 || len(stock) > 200000 {
 		return nil, fmt.Errorf("حجم اطلاعات از حد مجاز بیشتر است.")
@@ -1121,6 +1135,11 @@ func whSync(ctx context.Context, by auth.User, keyName string, body jsonx.M) (js
 		}
 		if b := whText(m, "barcode", 60); b != "" {
 			d["barcode"] = b
+		}
+		if jsonx.Str(m, "kind") == "service" {
+			d["kind"] = "service"
+		} else if _, has := m["kind"]; has {
+			delete(d, "kind")
 		}
 		if ex := whExtra(m); len(ex) > 0 {
 			d["sepidar"] = ex

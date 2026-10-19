@@ -234,7 +234,9 @@ const scalars = (o, skip) =>
 export function stockPayload(stocks, items, units, inventories, groupOf = () => '') {
   const unitTitle = new Map(units.map((u) => [u.UnitID, u.Title]));
   const stockCode = new Map(stocks.map((w) => [w.StockID, String(w.Code ?? w.StockID).trim()]));
-  const goods = items.filter((i) => i.Type !== 2 && String(i.Code ?? i.ItemCode ?? '').trim());
+  // goods and services: a service (Type 2) is sent too (it is sold and priced), marked as such, and has no stock
+  const listed = items.filter((i) => String(i.Code ?? i.ItemCode ?? '').trim());
+  const goods = listed.filter((i) => i.Type !== 2);
   const codeOf = new Map(goods.map((i) => [i.ItemID, String(i.Code ?? i.ItemCode).trim()]));
   const sums = new Map(); // "product|warehouse" -> quantity (a product with tracings has one row per tracing)
   for (const r of inventories) {
@@ -247,7 +249,7 @@ export function stockPayload(stocks, items, units, inventories, groupOf = () => 
   return {
     complete: true,
     warehouses: stocks.map((w) => ({ code: String(w.Code ?? w.StockID).trim(), title: w.Title || String(w.Code), active: w.IsActive !== false, location: String(w.Address ?? w.Location ?? '').slice(0, 200), extra: scalars(w, ['StockID', 'Code', 'Title', 'IsActive']) })),
-    products: goods.map((i) => ({ code: String(i.Code ?? i.ItemCode).trim(), title: i.Title || String(i.Code ?? i.ItemCode), unit: unitTitle.get(i.UnitRef) || '', group: groupOf(i) || '', barcode: i.Barcode || '', active: i.IsActive !== false, extra: scalars(i, ['ItemID', 'Code', 'Title', 'Barcode', 'IsActive']) })),
+    products: listed.map((i) => ({ kind: i.Type === 2 ? 'service' : 'good', code: String(i.Code ?? i.ItemCode).trim(), title: i.Title || String(i.Code ?? i.ItemCode), unit: unitTitle.get(i.UnitRef) || '', group: groupOf(i) || '', barcode: i.Barcode || '', active: i.IsActive !== false, extra: scalars(i, ['ItemID', 'Code', 'Title', 'Barcode', 'IsActive']) })),
     stock: [...sums].map(([k, qty]) => { const [productCode, warehouseCode] = k.split('|'); return { productCode, warehouseCode, qty: Math.max(0, Math.round(qty * 1000) / 1000) }; }),
   };
 }

@@ -52,6 +52,8 @@ export interface User {
   canPostAnnouncements?: boolean;
   /** Phone extension on the company phone system (for incoming-call pop-ups and click-to-call). */
   extension?: string;
+  /** more extensions of the same person (a desk phone and a softphone…), besides the main one */
+  extensions?: string[];
   /** Mobile number for SMS notifications (optional). */
   mobile?: string;
   /** The user's own letter-editor settings (fonts, sizes, positions...), restored every time the editor opens. */

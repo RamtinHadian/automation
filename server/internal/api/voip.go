@@ -1,6 +1,7 @@
 package api
 
 import (
+	"strings"
 	"encoding/json"
 	"net/http"
 	"regexp"
@@ -23,6 +24,20 @@ var phone *voip.Client
 func SetPhone(c *voip.Client) { phone = c }
 
 var onlyDigits = regexp.MustCompile(`^[0-9*#+]{1,20}$`)
+
+// userExts: every phone extension of a person: the main one (used to ring them first when they start a call) and the extra ones
+// («extensions»: the same person can have more than one phone, e.g. a desk phone and a softphone).
+func userExts(me auth.User) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, e := range append([]string{jsonx.Str(me.M, "extension")}, jsonx.Strings(me.M, "extensions")...) {
+		if e = strings.TrimSpace(e); e != "" && !seen[e] {
+			seen[e] = true
+			out = append(out, e)
+		}
+	}
+	return out
+}
 
 // voipStatus tells the page whether the phone integration is on and which extension the user has.
 func voipStatus(w http.ResponseWriter, r *http.Request) {
@@ -154,8 +169,7 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 		}
 		where = "TRUE"
 	default:
-		ext := jsonx.Str(me.M, "extension")
-		where, args = "(user_id = $1 OR ($2 <> '' AND $2 = ANY(exts)))", []any{me.ID(), ext}
+		where, args = "(user_id = $1 OR exts && $2::text[])", []any{me.ID(), userExts(me)}
 	}
 	rows, err := store.Pool.Query(r.Context(),
 		`SELECT id, started_at, direction, status, ext, user_id, other_num, other_name, customer_id, customer_name, duration_sec,

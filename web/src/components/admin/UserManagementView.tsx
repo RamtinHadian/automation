@@ -51,6 +51,7 @@ interface UserManagementViewProps {
     canSendSms?: boolean;
     canUseWarehouse?: boolean;
     extension?: string;
+    extensions?: string[];
   }) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
   /** kept for compatibility: users are never deleted, only switched off */
@@ -132,6 +133,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       canSendSms: newForm.canSendSms,
       canUseWarehouse: newForm.canUseWarehouse,
       extension: (newForm.extension || '').trim(),
+      extensions: (newForm.extensions || []).map((x) => x.trim()).filter(Boolean),
     });
 
     if (newForm.canSignOfficialLetters) afterCeoChange();
@@ -413,8 +415,15 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               window.alert('رمز عبور باید حداقل ۶ کاراکتر باشد.');
               return;
             }
+            // an extension belongs to one person only
+            const mine = [editingUser.extension || '', ...(editingUser.extensions || [])].map((x) => x.trim()).filter(Boolean);
+            const clash = mine.find((x, i) => mine.indexOf(x) !== i) || mine.find((x) => users.some((u) => u.id !== editingUser.id && u.isActive !== false && [u.extension || '', ...(u.extensions || [])].includes(x)));
+            if (clash) {
+              window.alert(`داخلی ${clash} تکراری است؛ هر داخلی فقط برای یک نفر می‌تواند باشد.`);
+              return;
+            }
             const ceoBefore = !!users.find((u) => u.id === editingUser.id)?.canSignOfficialLetters;
-            onUpdateUser(editingUser.id, { ...editingUser, fullName: name, email: login });
+            onUpdateUser(editingUser.id, { ...editingUser, fullName: name, email: login, extensions: (editingUser.extensions || []).map((x) => x.trim()).filter(Boolean) });
             if (ceoBefore !== !!editingUser.canSignOfficialLetters) afterCeoChange();
             setEditingUser(null);
           }}

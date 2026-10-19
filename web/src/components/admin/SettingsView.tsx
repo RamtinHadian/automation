@@ -39,6 +39,7 @@ import {
 import { SystemSettings, LetterNumberingSettings } from '../../types';
 import { FontManagementModal } from './FontManagementModal';
 import { ApiKeysCard } from './ApiKeysCard';
+import { SepidarSwitchCard } from './SepidarSwitchCard';
 import { ThemeManagementModal } from './ThemeManagementModal';
 import { COLOR_THEMES } from '../../lib/theme';
 import { buildProformaHtml, sampleProforma } from '../../lib/proformaPdf';
@@ -569,7 +570,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'msgr' && <MessengerSettingsCard />}
 
-      {section === 'api' && <ApiKeysCard />}
+      {section === 'api' && (
+        <>
+          <SepidarSwitchCard />
+          <ApiKeysCard />
+        </>
+      )}
 
       {section === 'backup' && <BackupSettingsCard />}
 

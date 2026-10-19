@@ -236,6 +236,7 @@ interface AppContextType {
     canSendSms?: boolean;
     canUseWarehouse?: boolean;
     extension?: string;
+    extensions?: string[];
   }) => void;
   handleUpdateUser: (userId: string, updates: Partial<User>) => void;
   handleDeleteUser: (userId: string) => void;
@@ -1385,6 +1386,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       canSendSms?: boolean;
       canUseWarehouse?: boolean;
       extension?: string;
+      extensions?: string[];
     }) => {
       const dept = departments.find((d) => d.id === data.departmentId) || departments[0];
       const newUser: User = {
@@ -1412,6 +1414,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         canSendSms: !!data.canSendSms,
         canUseWarehouse: !!data.canUseWarehouse,
         ...(data.extension ? { extension: data.extension } : {}),
+        ...(data.extensions && data.extensions.length ? { extensions: data.extensions } : {}),
       };
 
       const newLog: AuditLog = {

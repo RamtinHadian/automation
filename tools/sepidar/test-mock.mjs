@@ -185,7 +185,7 @@ ok(quotationBody(deals[1], 500, map, { priceMultiplier: 1 }).skip?.includes('999
 
 // the stock payload: goods only, tracings summed, units by title
 const pl = stockPayload(stocks, items, units, inventories);
-ok(pl.products.length === 2 && pl.products[1].unit === 'لیتر' && pl.warehouses.length === 2 && pl.complete === true, 'stock payload: goods only (the service is left out), units by title');
+ok(pl.products.length === 3 && pl.products.filter((x) => x.kind === 'service').length === 1 && pl.products.find((x) => x.unit === 'لیتر') && pl.warehouses.length === 2 && pl.complete === true, 'stock payload: goods and the service (marked as a service, no stock), units by title');
 ok(pl.stock.length === 2 && pl.stock.find((x) => x.productCode === '1001' && x.warehouseCode === 'A1').qty === 7.5, 'stock payload: the tracings of one product are summed');
 
 // Sepidar's real inventory spells two fields wrongly (StockeRef, Qunatity): they are read as they come

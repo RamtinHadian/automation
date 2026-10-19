@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { DayNightToggle } from '../components/common/DayNightToggle';
 import { askConfirm } from '../lib/confirmDialog';
 import { matchesAll } from '../lib/searchAll';
-import { canSub } from '../lib/permissions';
+import { adminMenuHidden, canSub } from '../lib/permissions';
 import { ManagementReports } from '../components/admin/ManagementReports';
 import { VersionBadge } from '../components/common/VersionBadge';
 import { ChatView } from '../components/chat/ChatView';
@@ -14,6 +14,7 @@ import { WarrantyView } from '../components/warranty/WarrantyView';
 import { WarehouseView } from '../components/warehouse/WarehouseView';
 import { SepidarView } from '../components/sepidar/SepidarView';
 import { VersionNotice } from '../components/sepidar/VersionNotice';
+import { useSepidarConnected } from '../lib/sepidarCustomerFields';
 import { CompanyCalls } from '../components/common/CompanyCalls';
 import { ReminderPopup, RemindersView } from '../components/reminders/Reminders';
 import { SupportView } from '../components/support/SupportView';
@@ -212,9 +213,10 @@ export default function UserPanel() {
   // Only the person who holds the CEO tick may sign; the chief admin can still write and send letters.
   const canSignOfficial = Boolean(currentUser.canSignOfficialLetters === true);
   const canSendOfficial = Boolean(currentUser.canSendOfficialLetters === true || canSignOfficial || currentUser.role === 'SUPER_ADMIN');
-  const canAccessLettersMenu = canSendOfficial || canSignOfficial;
+  const hid = (menu: string) => adminMenuHidden(currentUser, menu); // a menu the permission table switched off for this administrator
+  const canAccessLettersMenu = (canSendOfficial || canSignOfficial) && !hid('letters');
   const canAccessTasksMenu = Boolean(
-    currentUser.canUseTasks === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN'
+    (currentUser.canUseTasks === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && !hid('tasks')
   );
 
   // Ensure user cannot stay on letters tab if permission is revoked
@@ -364,9 +366,10 @@ export default function UserPanel() {
       }, 350);
     } else setMainMenuTab('files');
   };
-  const canAccessCrmMenu = Boolean(currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
+  const canAccessCrmMenu = Boolean((currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && !hid('crm'));
   // the warranty menu: admins, people with the warranty switch, and everybody who works with customers
-  const canAccessSepidarMenu = Boolean(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN' || (currentUser.sepidarPerms || []).length > 0);
+  const sepidarOn = useSepidarConnected(); // «سپیدار دارم / ندارم» of the console: without Sepidar there are no Sepidar menus
+  const canAccessSepidarMenu = Boolean(sepidarOn && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN' || (currentUser.sepidarPerms || []).length > 0) && !hid('sepidar'));
   useEffect(() => {
     if (!canAccessSepidarMenu && mainMenuTab === 'sepidar') setMainMenuTab('files');
   }, [canAccessSepidarMenu, mainMenuTab]);
@@ -378,11 +381,11 @@ export default function UserPanel() {
       if (first) setFilesSection(first);
     }
   }, [currentUser, filesSection]);
-  const canAccessWarehouseMenu = Boolean(currentUser.canUseWarehouse === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN');
+  const canAccessWarehouseMenu = Boolean((currentUser.canUseWarehouse === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && !hid('warehouse'));
   useEffect(() => {
     if (!canAccessWarehouseMenu && mainMenuTab === 'warehouse') setMainMenuTab('files');
   }, [canAccessWarehouseMenu, mainMenuTab]);
-  const canAccessWarrantyMenu = Boolean(currentUser.canUseWarranty === true || canAccessCrmMenu);
+  const canAccessWarrantyMenu = Boolean((currentUser.canUseWarranty === true || canAccessCrmMenu) && !hid('warranty'));
   useEffect(() => {
     if (!canAccessWarrantyMenu && (mainMenuTab === 'warranty' || mainMenuTab === 'support')) setMainMenuTab('files');
   }, [canAccessWarrantyMenu, mainMenuTab]);
@@ -406,7 +409,7 @@ export default function UserPanel() {
   useEffect(() => {
     if (!canAccessCrmMenu && mainMenuTab === 'crm') setMainMenuTab('files');
   }, [canAccessCrmMenu, mainMenuTab]);
-  const canAccessStatsMenu = Boolean(currentUser.canViewStats === true || currentUser.role === 'SUPER_ADMIN');
+  const canAccessStatsMenu = Boolean((currentUser.canViewStats === true || currentUser.role === 'SUPER_ADMIN') && !hid('stats'));
   useEffect(() => {
     if (!canAccessStatsMenu && mainMenuTab === 'stats') setMainMenuTab('files');
   }, [canAccessStatsMenu, mainMenuTab]);

@@ -23,6 +23,8 @@ export interface UserForm {
   canSignOfficialLetters?: boolean;
   canSendOfficialLetters?: boolean;
   extension?: string;
+  /** more extensions of the same person, besides the main one */
+  extensions?: string[];
   mobile?: string;
   storageQuotaGB: number;
 }
@@ -157,7 +159,39 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
                   <Phone className="w-3 h-3 text-[#8C6F66]" />
                   شمارهٔ داخلی
                 </label>
-                <input dir="ltr" inputMode="numeric" value={form.extension || ''} onChange={(e) => set({ extension: e.target.value.replace(/[^0-9]/g, '') })} placeholder="۵۰۱" className={`${field} font-mono text-right`} />
+                <div className="flex items-center gap-2">
+                  <input dir="ltr" inputMode="numeric" value={form.extension || ''} onChange={(e) => set({ extension: e.target.value.replace(/[^0-9]/g, '') })} placeholder="۵۰۱" className={`${field} font-mono text-right`} />
+                  <button
+                    type="button"
+                    onClick={() => set({ extensions: [...(form.extensions || []), ''] })}
+                    title="افزودن داخلی دیگر برای همین شخص"
+                    aria-label="افزودن داخلی دیگر"
+                    data-add-extension
+                    className="w-10 h-10 shrink-0 rounded-xl bg-[#6E1B1B] text-white font-black text-lg leading-none cursor-pointer hover:bg-[#D34A32]"
+                  >
+                    +
+                  </button>
+                </div>
+                {(form.extensions || []).length > 0 && (
+                  <div className="mt-2 space-y-2" data-extra-extensions>
+                    <div className="text-[10px] font-bold text-[#8C6F66]">داخلی‌های بیشتر این شخص (تماس‌هایشان هم برای او پاپ‌آپ و ثبت می‌شود)</div>
+                    {(form.extensions || []).map((x, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input
+                          dir="ltr"
+                          inputMode="numeric"
+                          value={x}
+                          onChange={(e) => set({ extensions: (form.extensions || []).map((y, j) => (j === i ? e.target.value.replace(/[^0-9]/g, '') : y)) })}
+                          placeholder="۵۰۲"
+                          className={`${field} font-mono text-right`}
+                        />
+                        <button type="button" onClick={() => set({ extensions: (form.extensions || []).filter((_, j) => j !== i) })} aria-label="حذف این داخلی" title="حذف این داخلی" className="w-10 h-10 shrink-0 rounded-xl border border-[#EBDBCE] text-[#8C6F66] hover:text-rose-600 cursor-pointer">
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               {mode === 'edit' && (
                 <div>

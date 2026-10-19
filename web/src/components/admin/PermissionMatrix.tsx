@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Check, Lock, Search, ShieldCheck } from 'lucide-react';
 import { Department, User } from '../../types';
-import { COLUMNS, Column, MENUS, colOn, colPatch, colPatchMany, isAdminUser } from '../../lib/permissions';
+import { COLUMNS, Column, MENUS, adminHideId, colOn, colPatch, colPatchMany, isAdminUser } from '../../lib/permissions';
 import { toPersianDigits } from '../../lib/jalali';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
@@ -37,7 +37,18 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
     return true;
   };
 
+  // An administrator can be kept from seeing a menu or a sub-menu too (the ticks of the role itself, the flagged ones, stay)
+  const adminEditable = (c: Column) => c.isMain || !c.def;
+  const adminOn = (u: User, c: Column) => !(u.hiddenSub || []).includes(adminHideId(c));
   const toggle = (u: User, c: Column) => {
+    if (isAdminUser(u)) {
+      const id = adminHideId(c);
+      const on = !adminOn(u, c);
+      const cur = (u.hiddenSub || []).filter((x) => x !== id);
+      onUpdateUser(u.id, { hiddenSub: on ? cur : [...cur, id] });
+      showToast(`«${c.label}» برای ${u.fullName} ${on ? 'نمایش داده می‌شود' : 'نمایش داده نمی‌شود'}.`);
+      return;
+    }
     const on = !colOn(u, c);
     onUpdateUser(u.id, colPatch(u, c, on));
     showToast(`«${c.label}» برای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
@@ -140,12 +151,13 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                   </td>
                   {COLUMNS.map((c) => {
                     const tone = toneOf(c.menuId);
-                    const on = admin || colOn(u, c);
+                    const editableAdmin = admin && adminEditable(c);
+                    const on = admin ? (editableAdmin ? adminOn(u, c) : true) : colOn(u, c);
                     const dim = !admin && !c.isMain && !menuOpen(u, c.menuId);
                     return (
                       <td key={c.id} className="border-l border-[#F3E8DF] text-center py-1.5 px-0">
-                        {admin ? (
-                          <span title="مدیران همه‌چیز را دارند" className="inline-flex w-5 h-5 rounded-md items-center justify-center opacity-40" style={{ background: tone }}>
+                        {admin && !editableAdmin ? (
+                          <span title="این مجوز جزو نقش مدیر است" className="inline-flex w-5 h-5 rounded-md items-center justify-center opacity-40" style={{ background: tone }}>
                             <Check className="w-3.5 h-3.5 text-white" />
                           </span>
                         ) : (
@@ -241,7 +253,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
         })}
       </div>
       <p className="text-[11px] leading-6 text-[#8C6F66]">
-        «مدیرعامل / صاحب امضای مجاز» فقط یک نفر است و از «ویرایش کاربر» تعیین می‌شود. هر تیک همان لحظه ذخیره می‌شود و کارمند از تغییر مجوزهایش با یک اعلان باخبر می‌شود. هر منو یا زیرمنوی تازه‌ای که به سامانه اضافه شود، یک ستون در همین جدول می‌گیرد.
+        برای مدیران هم می‌توانید منو و زیرمنو را تیک بزنید یا بردارید (فقط نمایش آن برایشان). «مدیرعامل / صاحب امضای مجاز» فقط یک نفر است و از «ویرایش کاربر» تعیین می‌شود. هر تیک همان لحظه ذخیره می‌شود و کارمند از تغییر مجوزهایش با یک اعلان باخبر می‌شود. هر منو یا زیرمنوی تازه‌ای که به سامانه اضافه شود، یک ستون در همین جدول می‌گیرد.
       </p>
     </div>
   );

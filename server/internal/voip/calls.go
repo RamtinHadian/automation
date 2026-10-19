@@ -52,7 +52,7 @@ func pick(ev Event, keys ...string) string {
 func userByExtension(ctx context.Context, ext string) (id, name string, ok bool) {
 	err := store.Pool.QueryRow(ctx,
 		`SELECT id, COALESCE(data->>'fullName', '') FROM users
-		 WHERE data->>'extension' = $1 AND COALESCE((data->>'isActive')::boolean, true) LIMIT 1`, ext).Scan(&id, &name)
+		 WHERE (data->>'extension' = $1 OR COALESCE(data->'extensions', '[]'::jsonb) @> to_jsonb($1::text)) AND COALESCE((data->>'isActive')::boolean, true) LIMIT 1`, ext).Scan(&id, &name)
 	return id, name, err == nil
 }
 
