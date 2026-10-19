@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Ban, Boxes, Download, FileText, Package, Plus, Search, Warehouse as WarehouseIcon, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Ban, Boxes, ChevronDown, ChevronLeft, Download, FileText, Folder, Package, Plus, Search, Warehouse as WarehouseIcon, X } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { canSub } from '../../lib/permissions';
 import { api, WhCard, WhDoc, WhKind, WhProduct, WhState, WhWarehouse } from '../../lib/api';
@@ -132,7 +132,10 @@ const qtyOk = st.limits ? st.limits.qty : true;
         </div>
       )}
 
-      {(shownTab === 'stock' || shownTab === 'products') && groups.length > 1 && (
+      {(shownTab === 'stock' || shownTab === 'products') && groups.length > 1 && groups.some(([g]) => g.includes(' / ')) && (
+        <GroupTree products={st.products} value={group} onChange={setGroup} />
+      )}
+      {(shownTab === 'stock' || shownTab === 'products') && groups.length > 1 && !groups.some(([g]) => g.includes(' / ')) && (
         <div className="flex flex-wrap gap-1.5" data-group-bar>
           {[['', 'همهٔ گروه‌ها', st.products.length] as [string, string, number], ...groups].map(([g, text, n]) => (
             <button key={g || 'all'} type="button" onClick={() => setGroup(g)} className={`px-3 py-1.5 rounded-full text-[11px] font-black border cursor-pointer ${group === g ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-amber-50'}`}>
@@ -183,13 +186,76 @@ const csvDownload = (name: string, rows: (string | number)[][]) => {
   URL.revokeObjectURL(url);
 };
 
+/** A product is in a group when its group is that one or one of its sub-groups («پدر / فرزند»). */
+const inGroup = (p: WhProduct, group: string): boolean => {
+  if (!group) return true;
+  const g = p.group || 'بدون گروه';
+  return g === group || g.startsWith(group + ' / ');
+};
+
+/** The groups of the products as a tree, the way Sepidar shows them (a group, its sub-groups, how many products each holds). */
+const GroupTree: React.FC<{ products: WhProduct[]; value: string; onChange: (g: string) => void }> = ({ products, value, onChange }) => {
+  type Node = { name: string; path: string; count: number; kids: Map<string, Node> };
+  const root: Node = { name: '', path: '', count: 0, kids: new Map() };
+  for (const p of products) {
+    let node = root;
+    let path = '';
+    for (const part of (p.group || 'بدون گروه').split(' / ')) {
+      path = path ? path + ' / ' + part : part;
+      let k = node.kids.get(part);
+      if (!k) {
+        k = { name: part, path, count: 0, kids: new Map() };
+        node.kids.set(part, k);
+      }
+      k.count++;
+      node = k;
+    }
+  }
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (path: string) => setOpen((o) => { const n = new Set(o); if (n.has(path)) n.delete(path); else n.add(path); return n; });
+  const row = (n: Node, depth: number): React.ReactNode => {
+    const kids = [...n.kids.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+    const isOpen = open.has(n.path) || value === n.path || value.startsWith(n.path + ' / ');
+    return (
+      <div key={n.path}>
+        <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 ${value === n.path ? 'bg-amber-100' : 'hover:bg-amber-50'}`} style={{ paddingRight: 8 + depth * 18 }}>
+          {kids.length > 0 ? (
+            <button type="button" onClick={() => toggle(n.path)} aria-label="باز و بسته" className="w-5 h-5 flex items-center justify-center text-[#8C6F66] cursor-pointer">
+              {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+          ) : (
+            <span className="w-5" />
+          )}
+          <Folder className="w-4 h-4 text-amber-600 shrink-0" />
+          <button type="button" onClick={() => onChange(value === n.path ? '' : n.path)} className="flex-1 min-w-0 text-right text-[12px] font-black text-[#3A241F] truncate cursor-pointer" data-group-node={n.path}>
+            {n.name}
+          </button>
+          <span className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(n.count)}</span>
+        </div>
+        {isOpen && kids.map((k) => row(k, depth + 1))}
+      </div>
+    );
+  };
+  const top = [...root.kids.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+  return (
+    <div className="rounded-2xl border border-[#EBDBCE] bg-white p-2 space-y-0.5 max-h-72 overflow-y-auto" data-group-tree>
+      <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 cursor-pointer ${value === '' ? 'bg-amber-100' : 'hover:bg-amber-50'}`} onClick={() => onChange('')}>
+        <Boxes className="w-4 h-4 text-amber-700" />
+        <span className="flex-1 text-[12px] font-black text-[#3A241F]">همهٔ گروه‌ها</span>
+        <span className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(products.length)}</span>
+      </div>
+      {top.map((n) => row(n, 0))}
+    </div>
+  );
+};
+
 const StockTab: React.FC<{ st: WhState; group: string; onCard: (p: WhProduct) => void }> = ({ st, group, onCard }) => {
   const [q, setQ] = useState('');
   const [wh, setWh] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
   const rows = useMemo(() => {
     const names = (p: WhProduct) => Object.entries(p.byWarehouse || {}).filter(([, n]) => n).map(([id]) => st.warehouses.find((w) => w.id === id)?.title || '');
-    return st.products.filter((p) => p.active !== false && p.kind !== 'service' && (!group || (p.group || 'بدون گروه') === group) && matchesAll(p, q, names(p)) && (!onlyLow || ((p.minQty || 0) > 0 && p.total < (p.minQty || 0))) && (!wh || (p.byWarehouse[wh] || 0) !== 0));
+    return st.products.filter((p) => p.active !== false && p.kind !== 'service' && inGroup(p, group) && matchesAll(p, q, names(p)) && (!onlyLow || ((p.minQty || 0) > 0 && p.total < (p.minQty || 0))) && (!wh || (p.byWarehouse[wh] || 0) !== 0));
   }, [st, q, wh, onlyLow, group]);
   const qtyOf = (p: WhProduct) => (wh ? p.byWarehouse[wh] || 0 : p.total);
   const whName = (id: string) => st.warehouses.find((w) => w.id === id)?.title || '';
@@ -594,7 +660,7 @@ const CardModal: React.FC<{ st: WhState; product: WhProduct; onClose: () => void
 
 const ProductsTab: React.FC<{ st: WhState; group: string; sepidar: boolean; onEdit: (p: Partial<WhProduct>) => void; onCard: (p: WhProduct) => void }> = ({ st, group, sepidar, onEdit }) => {
   const [q, setQ] = useState('');
-  const rows = st.products.filter((p) => (!group || (p.group || 'بدون گروه') === group) && matchesAll(p, q, Object.keys(p.byWarehouse || {}).map((id) => st.warehouses.find((w) => w.id === id)?.title || '')));
+  const rows = st.products.filter((p) => inGroup(p, group) && matchesAll(p, q, Object.keys(p.byWarehouse || {}).map((id) => st.warehouses.find((w) => w.id === id)?.title || '')));
   return (
     <div className="space-y-3">
       <div className="flex gap-2">

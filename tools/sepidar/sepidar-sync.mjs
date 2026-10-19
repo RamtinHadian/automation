@@ -311,9 +311,10 @@ async function readItemGroups(sp, items) {
       /* try the next address */
     }
   }
-  log(`  گروه کالا: فهرست گروه‌ها پیدا نشد (فیلد کالا: ${field})`);
+  log(`  گروه کالا: فهرست نام گروه‌ها پیدا نشد (فیلد کالا: ${field}); کالاها فعلاً با شمارهٔ گروه جدا می‌شوند.`);
   await discoverEndpoints(sp, /coding|group|categor/i);
-  return () => '';
+  // the names are not available: the products are at least kept apart, by the number of their group
+  return (item) => (item[field] != null && item[field] !== '' ? `گروه شمارهٔ ${item[field]}` : '');
 }
 
 /** When no address gives the stock: ask the service itself which addresses it has (its documentation page / swagger) and list the ones about stock and items in the report. */

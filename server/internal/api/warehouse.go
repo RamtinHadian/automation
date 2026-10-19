@@ -190,7 +190,12 @@ func whGroupOK(me auth.User, group string) bool {
 	if group == "" {
 		group = whNoGroup
 	}
-	return jsonx.Contains(list, group)
+	for _, g := range list { // a group also opens its sub-groups («پدر / فرزند»)
+		if group == g || strings.HasPrefix(group, g+" / ") {
+			return true
+		}
+	}
+	return false
 }
 
 // whGroupDocs keeps, in each document, only the lines of the products the person may see (a document with none left is left out).
@@ -559,6 +564,17 @@ func whDelete(table, col string, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
+	// a warehouse (or a product) that still holds stock is never deleted
+	var onHand float64
+	_ = store.Pool.QueryRow(r.Context(), `SELECT COALESCE(SUM(qty), 0)::float8 FROM wh_moves WHERE `+col+` = $1 AND NOT voided`, id).Scan(&onHand)
+	if math.Abs(onHand) > 0.0004 {
+		what := "این انبار"
+		if col == "product_id" {
+			what = "این کالا"
+		}
+		httpx.Error(w, http.StatusConflict, what+" هنوز موجودی دارد؛ تا موجودی هست حذف نمی‌شود. اول موجودی را منتقل یا با حواله خارج کنید، یا به‌جای حذف آن را غیرفعال کنید.")
+		return
+	}
 	var used int
 	_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM wh_moves WHERE `+col+` = $1`, id).Scan(&used)
 	if used > 0 {
