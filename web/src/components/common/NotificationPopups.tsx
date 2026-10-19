@@ -82,6 +82,17 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         </span>
       </button>
 
+      {isCall && cust && history && history.openDeals.length > 0 && (
+        <button type="button" onClick={onOpen} className="w-full text-right px-3.5 py-2.5 bg-violet-100 border-t-2 border-violet-400 space-y-1.5 cursor-pointer hover:bg-violet-200/70" data-call-open-deals>
+          <div className="text-[11px] font-black text-violet-900">فرصت فروش باز</div>
+          {history.openDeals.map((d) => (
+            <div key={d.id} className="flex items-center justify-between gap-2 text-[12px] font-black text-violet-950">
+              <span className="truncate">{d.title}</span>
+              <span className="shrink-0">{formatMoney(d.amount || 0)} {unitName()}</span>
+            </div>
+          ))}
+        </button>
+      )}
       {isCall && cust && summary && (
         <div className="px-3.5 py-2 bg-emerald-50 border-t border-emerald-100 flex items-center justify-between gap-2 text-[11px] font-bold text-emerald-900">
           <span className="min-w-0">
@@ -99,15 +110,9 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         </div>
       )}
       {isCall && (cust || n.ref?.type === 'customer') && <CustomerFinance customerId={cust ? cust.id : n.ref!.id} compact />}
-      {isCall && cust && history && (history.quotes.length > 0 || history.talks.length > 0 || history.interest || history.openDeals.length > 0) && (
+      {isCall && cust && history && (history.quotes.length > 0 || history.talks.length > 0 || history.interest) && (
         <button type="button" onClick={onOpen} className="w-full text-right px-3.5 py-2.5 bg-violet-50 border-t border-violet-100 space-y-1.5 cursor-pointer hover:bg-violet-100/70" data-call-history>
           <div className="text-[10px] font-black text-violet-800">سابقهٔ این مشتری (برای جزئیات بزنید)</div>
-          {history.openDeals.map((d) => (
-            <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg bg-violet-200/70 px-2 py-1 text-[11px] font-black text-violet-900">
-              <span className="truncate">فرصت فروش باز: {d.title}</span>
-              <span className="shrink-0">{formatMoney(d.amount || 0)} {unitName()}</span>
-            </div>
-          ))}
           {history.interest && <div className="text-[11px] font-bold text-[#3A241F]">دنبال: {history.interest}</div>}
           {history.quotes.map((a) => (
             <div key={a.id} className="flex items-center justify-between gap-2 text-[11px] font-bold text-[#3A241F]">
