@@ -67,6 +67,9 @@ func recordCdr(ev Event) {
 	if i := strings.Index(otherName, "<"); i >= 0 { // «"Ali" <0912...>» -> Ali
 		otherName = strings.Trim(strings.TrimSpace(otherName[:i]), `"`)
 	}
+	if direction != "internal" {
+		other = FullNumber(other)
+	}
 	if otherName == other {
 		otherName = ""
 	}
@@ -142,6 +145,7 @@ func recordCompanyCall(ctx context.Context, ev Event, src, dst string) {
 	if i := strings.Index(otherName, "<"); i >= 0 {
 		otherName = strings.Trim(strings.TrimSpace(otherName[:i]), `"`)
 	}
+	other = FullNumber(other)
 	if otherName == other {
 		otherName = ""
 	}

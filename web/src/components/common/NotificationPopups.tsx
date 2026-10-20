@@ -4,6 +4,7 @@ import { BarChart3, MessageCircle, Phone, AlertTriangle, ClipboardList, FileText
 import { formatMoney, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
 import { normPhone } from '../../lib/customerImport';
+import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { useAppContext } from '../../context/AppContext';
 import { canSeeSalesTotals } from '../../lib/permissions';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
@@ -46,7 +47,8 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
       interest: (cust.interest || '').trim(),
     };
   }, [cust, activities, deals]);
-  const unknownNumber = isCall && n.ref?.type === 'phone' ? n.ref.id : '';
+  const area = useVoipArea();
+  const unknownNumber = isCall && n.ref?.type === 'phone' ? fullPhone(n.ref.id, area) : '';
   const total = useRef(isCall ? Math.max(showMs() * (cust ? 5 : 2), cust ? 45000 : 20000) : showMs()); // a call card (above all a known caller's) stays long enough to read
   const left = useRef(total.current);
   const startedAt = useRef(Date.now());

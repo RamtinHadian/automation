@@ -47,7 +47,58 @@ func voipStatus(w http.ResponseWriter, r *http.Request) {
 		"enabled":   DemoMode || (phone != nil && phone.Enabled()),
 		"connected": DemoMode || (phone != nil && phone.Connected()),
 		"extension": jsonx.Str(me.M, "extension"),
+		"areaCode":  voip.AreaCode(),
 	})
+}
+
+// voipAreaGet / voipAreaSet: the city (area code) of the company's phone line, chosen in the console; local numbers get it as a prefix.
+func voipAreaGet(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	var raw []byte
+	d := jsonx.M{}
+	if store.Pool.QueryRow(r.Context(), `SELECT data FROM settings WHERE key = 'voipArea'`).Scan(&raw) == nil {
+		d = jsonx.Decode(raw)
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"code": jsonx.Str(d, "code"), "city": jsonx.Str(d, "city")})
+}
+
+func voipAreaSet(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	var body struct {
+		Code string `json:"code"`
+		City string `json:"city"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "درخواست نامعتبر است.")
+		return
+	}
+	code := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, body.Code)
+	if code != "" && (len(code) < 2 || len(code) > 4 || code[0] != '0') {
+		httpx.Error(w, http.StatusBadRequest, "پیش‌شماره باید با صفر شروع شود (مثلاً ۰۳۱).")
+		return
+	}
+	city := strings.TrimSpace(body.City)
+	if len(city) > 60 {
+		city = city[:60]
+	}
+	d := jsonx.M{"code": code, "city": city}
+	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO settings (key, data) VALUES ('voipArea', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`, jsonx.Encode(d)); err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "ذخیره نشد.")
+		return
+	}
+	voip.ResetArea()
+	httpx.JSON(w, http.StatusOK, map[string]any{"code": code, "city": city})
 }
 
 // voipLog is the phone-system diary for admins: connection state, how many events arrived and what was done with the calls.

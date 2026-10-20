@@ -5,6 +5,7 @@ import { api, VoipCall } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
 import { callerNameOnly, normPhone } from '../../lib/customerImport';
+import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { useAppContext } from '../../context/AppContext';
 import { matchesAll } from '../../lib/searchAll';
 
@@ -67,13 +68,15 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
   busy,
   empty = 'تماسی ثبت نشده است.',
 }) => {
+  const area = useVoipArea();
   if (calls.length === 0) return <div className="py-10 text-center text-xs font-bold text-gray-400">{empty}</div>;
   return (
     <div className="divide-y divide-[#EBDBCE]/60">
       {calls.map((c) => {
         const missed = c.direction === 'in' && c.status !== 'answered';
         const Icon = missed ? PhoneMissed : c.direction === 'out' ? PhoneOutgoing : c.direction === 'internal' ? Users : PhoneIncoming;
-        const who = c.customerName || c.name || c.number;
+        const shownNumber = c.direction === 'internal' ? c.number : fullPhone(c.number, area);
+        const who = c.customerName || c.name || shownNumber;
         const callable = onCall && c.number && /^[0-9*#+]+$/.test(c.number);
         return (
           <div key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
@@ -84,7 +87,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
               <span className="block text-xs font-black text-[#3A241F] truncate">{who}</span>
               <span className="block text-[10px] text-[#8C6F66] truncate">
                 {c.customerName && c.name ? `${c.name} · ` : ''}
-                <span dir="ltr">{toPersianDigits(c.number)}</span> · {c.direction === 'in' ? 'ورودی' : c.direction === 'out' ? 'خروجی' : 'داخلی'} · {STATUS_TEXT[c.status] || c.status}
+                <span dir="ltr">{toPersianDigits(shownNumber)}</span> · {c.direction === 'in' ? 'ورودی' : c.direction === 'out' ? 'خروجی' : 'داخلی'} · {STATUS_TEXT[c.status] || c.status}
                 {c.duration > 0 ? ` · ${dur(c.duration)}` : ''}
                 {showUser && c.userName ? ` · ${c.userName}` : ''}
               </span>
@@ -137,6 +140,7 @@ type Filter = 'all' | 'missed' | 'in' | 'out';
 /** «Call history» window: my calls (admins can switch to the whole company), with filters, search and call-back. */
 export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> = ({ onClose, isAdmin }) => {
   const { showToast, currentUser, notifications, markNotificationsRead } = useAppContext();
+  const area = useVoipArea();
   const canSaveCustomer = currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
   const [calls, setCalls] = useState<VoipCall[] | null>(null);
   // an administrator starts with the whole company: calls to a number nobody owns (a diverted number…) belong to nobody's own list
@@ -213,7 +217,7 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
   const saveAsCustomer = (number: string, name: string) => {
     try {
       // the number goes into the mobile or the landline box (decided from the number itself); it is never used as the name
-      sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: normPhone(number) || number, name: callerNameOnly(name, number) }));
+      sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: normPhone(fullPhone(number, area)) || fullPhone(number, area), name: callerNameOnly(name, number) }));
     } catch {
       /* storage unavailable */
     }

@@ -6,6 +6,7 @@ import { formatTaskDate } from '../../lib/taskDates';
 import { matchesAll } from '../../lib/searchAll';
 import { RecordingButton } from './CallLog';
 import { SubTabs } from './SubTabs';
+import { fullPhone, useVoipArea } from '../../lib/voipArea';
 
 const dur = (s: number) => (s > 0 ? toPersianDigits(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`) : '');
 const clock = (iso: string) => toPersianDigits(new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }));
@@ -22,9 +23,9 @@ const FILTERS: [Filter, string][] = [
 ];
 
 /** One call written as a sentence: who rang whom, on which extension, and which colleague sits at it. */
-function sentence(c: VoipCall): React.ReactNode {
+function sentence(c: VoipCall, area: string): React.ReactNode {
   const other = c.customerName || c.name;
-  const num = <b dir="ltr" className="font-black">{toPersianDigits(c.number)}</b>;
+  const num = <b dir="ltr" className="font-black">{toPersianDigits(c.direction === 'internal' ? c.number : fullPhone(c.number, area))}</b>;
   const person = other ? (
     <>
       «<b>{other}</b>» ({num})
@@ -48,6 +49,7 @@ function sentence(c: VoipCall): React.ReactNode {
  * with a player for the recording when the phone system has one. Listening is written to the audit log.
  */
 export const CompanyCalls: React.FC = () => {
+  const area = useVoipArea();
   const [calls, setCalls] = useState<VoipCall[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
@@ -164,7 +166,7 @@ export const CompanyCalls: React.FC = () => {
                       <Icon className="w-4 h-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-[#3A241F] leading-6">{sentence(c)}</div>
+                      <div className="text-xs font-bold text-[#3A241F] leading-6">{sentence(c, area)}</div>
                       <div className="text-[10px] font-bold text-[#8C6F66] mt-0.5">
                         {STATUS_TEXT[c.status] || c.status}
                         {c.duration > 0 ? ` · مدت ${dur(c.duration)}` : ''}

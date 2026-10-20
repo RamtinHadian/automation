@@ -5,6 +5,8 @@ import { CallList } from '../common/CallLog';
 import { formatTaskDate } from '../../lib/taskDates';
 import { toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
+import { IRAN_AREA_CODES } from '../../lib/iranAreaCodes';
+import { resetVoipArea } from '../../lib/voipArea';
 
 interface VoipLog {
   enabled: boolean;
@@ -51,7 +53,66 @@ const RecordingSetup: React.FC = () => {
   );
 };
 
-/** Connection state of the company phone system/** Connection state of the company phone system plus a diary of what happened to recent calls. */
+/** The city of the company's phone line: its area code goes in front of local numbers (calls, pop-ups, «save as customer»). */
+const AreaSetup: React.FC = () => {
+  const { showToast } = useAppContext();
+  const [city, setCity] = useState('');
+  const [code, setCode] = useState('');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    api.voipArea().then((a) => {
+      setCity(a.city);
+      setCode(a.code);
+    }).catch(() => {});
+  }, []);
+  const save = async (nextCity: string, nextCode: string) => {
+    setSaving(true);
+    try {
+      const r = await api.voipSetArea(nextCode, nextCity);
+      setCity(r.city);
+      setCode(r.code);
+      resetVoipArea();
+      showToast(r.code ? `پیش‌شمارهٔ ${toPersianDigits(r.code)} برای شماره‌های محلی گذاشته می‌شود.` : 'پیش‌شماره برداشته شد.');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'ذخیره نشد.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const known = IRAN_AREA_CODES.some((c) => c.city === city);
+  return (
+    <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-4 space-y-2" data-voip-area>
+      <div className="font-black text-[#3A241F]">شهر خط تلفن شرکت (پیش‌شمارهٔ شماره‌های محلی)</div>
+      <p className="text-[11px] text-[#8C6F66] leading-6">
+        تلفن‌سانتر شهری، تماس‌های همان شهر را بدون پیش‌شماره می‌فرستد (مثلاً ۳۳۹۲۰۱۲۳). شهر را انتخاب کنید تا پیش‌شماره‌اش (اصفهان: ۰۳۱) جلوی این شماره‌ها بیاید و هنگام «ذخیره به‌عنوان مشتری» هم با پیش‌شماره ذخیره شود. شمارهٔ موبایل و داخلی‌ها تغییر نمی‌کنند.
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          value={known ? city : city ? '__other' : ''}
+          disabled={saving}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === '') return void save('', '');
+            const c = IRAN_AREA_CODES.find((x) => x.city === v);
+            if (c) void save(c.city, c.code);
+          }}
+          className="px-3 py-2 rounded-xl border border-[#EBDBCE] bg-white text-xs font-bold"
+        >
+          <option value="">بدون پیش‌شماره</option>
+          {IRAN_AREA_CODES.map((c) => (
+            <option key={c.city} value={c.city}>
+              {c.city} ({toPersianDigits(c.code)})
+            </option>
+          ))}
+          {city && !known && <option value="__other">{city}</option>}
+        </select>
+        <span className="text-[11px] font-bold text-[#503730]">{code ? `پیش‌شماره: ${toPersianDigits(code)}` : 'پیش‌شماره‌ای تنظیم نشده است'}</span>
+      </div>
+    </div>
+  );
+};
+
+/** Connection state of the company phone system plus a diary of what happened to recent calls. */
 export const VoipStatusCard: React.FC = () => {
   const { showToast } = useAppContext();
   const [log, setLog] = useState<VoipLog | null>(null);
@@ -121,6 +182,7 @@ export const VoipStatusCard: React.FC = () => {
         </div>
       </div>
 
+      <AreaSetup />
       <RecordingSetup />
       <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-4 space-y-2" data-voip-capture>
         <div className="flex items-center justify-between gap-3 flex-wrap">

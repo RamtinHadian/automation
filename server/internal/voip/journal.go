@@ -260,6 +260,7 @@ func finalize(st *callState, ended time.Time) {
 
 	var custID, custName string
 	if direction != "internal" {
+		other = FullNumber(other)
 		if cid, cname, ok := customerByPhone(ctx, other); ok {
 			custID, custName = cid, cname
 		}

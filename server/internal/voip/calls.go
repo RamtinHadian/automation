@@ -250,6 +250,7 @@ func popup(ev Event, ext string) {
 		number, callerName = callerOf(ev)
 	}
 	number, callerName = realCaller(ctx, ev, ext, number, callerName)
+	number = FullNumber(number)
 	if number == ext { // the first leg of a call the person started from the app rings their own phone
 		Logf("داخلی %s برای تماسی که خودش از برنامه شروع کرده زنگ می‌خورد؛ پاپ‌آپ لازم نیست.", ext)
 		return
