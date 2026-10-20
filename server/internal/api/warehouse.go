@@ -354,6 +354,7 @@ func whDocs(w http.ResponseWriter, r *http.Request) {
 	}
 	docs = whGroupDocs(r.Context(), me, docs)
 	if offset == 0 { // the invoices of Sepidar come first-page only (they are a copy, not a table of their own)
+		docs = append(docs, whStockDocs(r.Context(), me, q.Get("kind"), q.Get("warehouse"), q.Get("product"), q.Get("from"), q.Get("to"))...)
 		docs = append(docs, whSaleDocs(r.Context(), me, q.Get("kind"), q.Get("warehouse"), q.Get("product"), q.Get("from"), q.Get("to"))...)
 		sort.SliceStable(docs, func(i, j int) bool { return jsonx.Str(docs[i], "date") > jsonx.Str(docs[j], "date") })
 		if len(docs) > limit {
@@ -960,6 +961,7 @@ func registerWarehouse(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/warehouse/mode", auth.Require(whSetMode))
 	mux.HandleFunc("GET /api/warehouse", auth.Require(whState))
 	mux.HandleFunc("GET /api/warehouse/docs", auth.Require(whDocs))
+	mux.HandleFunc("POST /api/warehouse/sepidar-docs", auth.Require(whSepDocsImport))
 	mux.HandleFunc("GET /api/warehouse/card", auth.Require(whCard))
 	mux.HandleFunc("PUT /api/warehouse/products/{id}", auth.Require(whProductPut))
 	mux.HandleFunc("DELETE /api/warehouse/products/{id}", auth.Require(whProductDelete))

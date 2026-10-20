@@ -15,6 +15,7 @@ import { Modal, field, label } from '../crm/crmUi';
 import { matchesAll } from '../../lib/searchAll';
 import { BoxCard, BoxGrid, BoxStats } from '../common/BoxCard';
 import { SubTabs } from '../common/SubTabs';
+import { SepidarDocsImport } from './SepidarDocsImport';
 
 const KIND_LABEL: Record<WhKind, string> = { receipt: 'رسید ورود', issue: 'حواله خروج', transfer: 'انتقال بین انبارها', adjust: 'تعدیل انبارگردانی' };
 const KIND_COLOR: Record<WhKind, string> = {
@@ -145,7 +146,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
         </div>
       )}
       {shownTab === 'stock' && <StockTab st={st} group={group} onCard={setCardOf} />}
-      {shownTab === 'docs' && <DocsTab st={st} onOpen={setDocOpen} />}
+      {shownTab === 'docs' && <DocsTab st={st} onOpen={setDocOpen} isAdmin={isAdmin} sepidar={sepidar} />}
       {shownTab === 'products' && <ProductsTab st={st} group={group} sepidar={sepidar} onEdit={setProdEdit} onCard={setCardOf} />}
       {shownTab === 'warehouses' && <WarehousesTab st={st} sepidar={sepidar} onEdit={setWhEdit} />}
 
@@ -328,26 +329,30 @@ const Empty: React.FC<{ text: string }> = ({ text }) => <div className="bg-white
 
 // ---------- documents ----------
 
-const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, onOpen }) => {
+const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void; isAdmin: boolean; sepidar: boolean }> = ({ st, onOpen, isAdmin, sepidar }) => {
   const [kind, setKind] = useState('');
   const [wh, setWh] = useState('');
   const [from, setFrom] = useState<string | undefined>();
   const [to, setTo] = useState<string | undefined>();
   const [auto, setAuto] = useState(false);
+  const [q, setQ] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [reload, setReload] = useState(0);
   const [docs, setDocs] = useState<WhDoc[] | null>(null);
   useEffect(() => {
-    const q: Record<string, string> = { limit: '200' };
-    if (kind) q.kind = kind;
-    if (wh) q.warehouse = wh;
-    if (from) q.from = from;
-    if (to) q.to = to;
-    if (auto) q.auto = '1';
+    const query: Record<string, string> = { limit: '500' };
+    if (kind) query.kind = kind;
+    if (wh) query.warehouse = wh;
+    if (from) query.from = from;
+    if (to) query.to = to;
+    if (auto) query.auto = '1';
     let live = true;
-    api.warehouseDocs(q).then((r) => live && setDocs(r.docs)).catch(() => live && setDocs([]));
+    api.warehouseDocs(query).then((r) => live && setDocs(r.docs)).catch(() => live && setDocs([]));
     return () => {
       live = false;
     };
-  }, [kind, wh, from, to, auto, st]);
+  }, [kind, wh, from, to, auto, st, reload]);
+  const shown = useMemo(() => (docs || []).filter((d) => matchesAll(d, q, [KIND_LABEL[d.kind], d.subtype === 'issueReturn' ? 'برگشت از خروج انبار' : ''])), [docs, q]);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -356,6 +361,7 @@ const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, on
           {(Object.keys(KIND_LABEL) as WhKind[]).filter((k) => !st.limits || st.limits.kinds.includes(k)).map((k) => (
             <option key={k} value={k}>{KIND_LABEL[k]}</option>
           ))}
+          {(!st.limits || st.limits.kinds.includes('issue')) && <option value="issueReturn">برگشت از خروج انبار (سپیدار)</option>}
         </select>
         <select value={wh} onChange={(e) => setWh(e.target.value)} className={field}>
           <option value="">همهٔ انبارها</option>
@@ -370,6 +376,17 @@ const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, on
           <JalaliDateField value={to} onChange={setTo} />
         </div>
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="w-4 h-4 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در اسناد: شماره، تاریخ، انبار، طرف حساب، تحویل‌گیرنده، توضیحات، کد یا نام کالا…" className={field + ' pr-9'} data-docs-search />
+        </div>
+        {isAdmin && (
+          <button type="button" onClick={() => setImporting(true)} className="px-3 py-2.5 rounded-xl border border-sky-200 bg-sky-50 text-sky-800 text-[11px] font-black cursor-pointer" data-import-sepidar-docs>
+            ورود خروج و برگشت خروج انبار از اکسل سپیدار
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold text-[#8C6F66]">
         <span>تاریخ‌های بالا: از تاریخ و تا تاریخ (اختیاری)؛ فقط سندهای همان بازه می‌آید.</span>
         <label className="flex items-center gap-1.5 cursor-pointer">
@@ -379,20 +396,20 @@ const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, on
       </div>
       {!docs ? (
         <Empty text="در حال دریافت…" />
-      ) : docs.length === 0 ? (
-        <Empty text="سندی پیدا نشد." />
+      ) : shown.length === 0 ? (
+        <Empty text={q.trim() ? 'سندی با این جستجو پیدا نشد.' : sepidar ? 'سندی پیدا نشد. در حالت متصل به سپیدار، رسید و حواله در سپیدار ثبت می‌شود؛ خروج‌ها را با دکمهٔ «ورود خروج و برگشت خروج انبار از اکسل سپیدار» بیاورید.' : 'سندی پیدا نشد.'} />
       ) : (
         <BoxGrid empty="سندی پیدا نشد.">
-          {docs.map((d) => (
+          {shown.map((d) => (
             <BoxCard
               key={d.id}
               onClick={() => onOpen(d)}
               dim={!!d.voided}
               icon={<FileText className="w-5 h-5" />}
               tone={d.kind === 'receipt' ? 'emerald' : d.kind === 'issue' ? 'rose' : d.kind === 'transfer' ? 'sky' : 'amber'}
-              title={`${KIND_LABEL[d.kind]} شمارهٔ ${toPersianDigits(d.number)}`}
+              title={`${d.subtype === 'issueReturn' ? 'برگشت از خروج انبار' : d.source === 'sepidar' ? 'خروج انبار' : KIND_LABEL[d.kind]} شمارهٔ ${toPersianDigits(d.number)}`}
               sub={`${formatTaskDate(d.date)} · ${d.warehouseName}${d.toWarehouseName ? ` ← ${d.toWarehouseName}` : ''}`}
-              badge={d.voided ? ['باطل', 'bg-rose-50 text-rose-700 border-rose-200'] : [KIND_LABEL[d.kind], KIND_COLOR[d.kind]]}
+              badge={d.voided ? ['باطل', 'bg-rose-50 text-rose-700 border-rose-200'] : d.subtype === 'issueReturn' ? ['برگشت از خروج', 'bg-emerald-50 text-emerald-800 border-emerald-200'] : [KIND_LABEL[d.kind], KIND_COLOR[d.kind]]}
               facts={[
                 ['ردیف‌ها', fmt(d.lines.length)],
                 ['طرف حساب', d.party || '—'],
@@ -401,6 +418,7 @@ const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, on
           ))}
         </BoxGrid>
       )}
+      {importing && <SepidarDocsImport onClose={() => setImporting(false)} onDone={() => { setImporting(false); setReload((n) => n + 1); }} />}
     </div>
   );
 };

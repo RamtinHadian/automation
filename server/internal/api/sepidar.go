@@ -69,7 +69,7 @@ var sepidarJobs = map[string]struct{ Perm, Title string }{
 }
 
 // what the program may store as a copy of Sepidar's data
-var sepidarCaches = map[string]bool{"sepidarCustomers": true, "invoices": true, "banks": true, "bankAccounts": true, "priceNotes": true, "saleTypes": true, "currencies": true, "customerGroups": true, "balances": true, "quotations": true, "toolReport": true, "saleDocs": true}
+var sepidarCaches = map[string]bool{"sepidarCustomers": true, "invoices": true, "banks": true, "bankAccounts": true, "priceNotes": true, "saleTypes": true, "currencies": true, "customerGroups": true, "balances": true, "quotations": true, "toolReport": true, "saleDocs": true, "stockDocs": true}
 
 func sepidarCan(me auth.User, perm string) bool {
 	if me.IsAdmin() {
