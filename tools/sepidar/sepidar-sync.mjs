@@ -611,7 +611,13 @@ export const jobHandlers = {
   async 'quotation.send'(cfg, sp, state, job) {
     const deal = await hoormandGetOne(cfg, '/deals/' + encodeURIComponent(job.data.dealId));
     const c = await hoormandGetOne(cfg, '/customers/' + encodeURIComponent(deal.customerId));
-    const customerRef = await sepidarCustomerRef(cfg, sp, state, c);
+    let customerRef;
+    try {
+      customerRef = await sepidarCustomerRef(cfg, sp, state, c);
+    } catch (e) {
+      // a quotation needs its customer in Sepidar: say that first, then why the customer could not be put there
+      throw new Error(`پیش‌فاکتور فرستاده نشد، چون مشتری «${c.name || c.company || ''}» هنوز در سپیدار نیست و ثبت او هم نشد: ${e.message}`);
+    }
     const items = await sp.get('/api/Items');
     const itemsByCode = new Map(items.filter((i) => i.IsActive !== false && i.IsSellable !== false).map((i) => [String(i.Code).trim(), i]));
     const q = quotationBody(deal, customerRef, itemsByCode, cfg.sync);

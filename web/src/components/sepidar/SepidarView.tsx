@@ -103,6 +103,16 @@ export const SepidarView: React.FC = () => {
     }
   };
 
+  // the reason the last try of this kind failed (shown on the card itself, not only in the «درخواست‌ها» list)
+  const failNote = (kind: string, key: 'dealId' | 'customerId', id: string): React.ReactNode => {
+    const last = (st?.jobs || []).filter((j) => j.kind === kind && j.data[key] === id).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+    if (!last || last.status !== 'failed') return null;
+    return (
+      <div className="w-full rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-bold leading-6 text-rose-900" data-send-failed>
+        ارسال به سپیدار انجام نشد: {last.result?.message || 'دلیلش نوشته نشده است.'}
+      </div>
+    );
+  };
   const linkMap = useMemo(() => {
     const m = new Map<string, Link>();
     (st?.links || []).forEach((l) => m.set(l.kind + ':' + l.ref, l));
@@ -312,6 +322,7 @@ export const SepidarView: React.FC = () => {
                   ['دریافتی', paid ? fmt(paid) : '—'],
                 ]}
               >
+                {!qt && failNote('quotation.send', 'dealId', d.id)}
                 {!qt && can('quotationSend') && <button type="button" disabled={wait('quotation.send')} onClick={() => ask({ kind: 'quotation.send', dealId: d.id }, 'پیش‌فاکتور برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-rose-700 text-white border-rose-700`}><Send className="w-3.5 h-3.5 inline ml-1" />ارسال به سپیدار</button>}
                 {qt && !inv && can('invoice') && <button type="button" disabled={wait('invoice.fromProforma')} onClick={async () => (await askConfirm('فاکتور فروش در سپیدار صادر شود؟', { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' })) && ask({ kind: 'invoice.fromProforma', dealId: d.id }, 'صدور فاکتور در صف قرار گرفت.')} className={`${BtnS} bg-emerald-700 text-white border-emerald-700`}><FileCheck2 className="w-3.5 h-3.5 inline ml-1" />صدور فاکتور</button>}
                 {inv && can('receipt') && <button type="button" onClick={() => setReceiptFor(d)} className={`${BtnS} bg-sky-700 text-white border-sky-700`}><Banknote className="w-3.5 h-3.5 inline ml-1" />ثبت دریافتی</button>}
@@ -348,6 +359,7 @@ export const SepidarView: React.FC = () => {
                   ['مانده حساب', bal ? fmt(bal.Remainder) : '—'],
                 ]}
               >
+                {!l && failNote('customer.send', 'customerId', c.id)}
                 {(l ? can('customerUpdate') : can('customerNew')) && (
                   <button type="button" disabled={busy.has('customer.send:' + c.id)} onClick={() => ask({ kind: 'customer.send', customerId: c.id }, 'درخواست برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>
                     {l ? 'بروزرسانی در سپیدار' : 'ثبت در سپیدار'}
