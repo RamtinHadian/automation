@@ -85,6 +85,7 @@ const sepidarServer = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url === '/api/Receipts/BasedOnInvoice') { sp.receipt = body; return send(res, 200, { ReceiptID: 55 }); }
   if (req.method === 'GET' && url.startsWith('/api/Customers/') && url.length > 15) return send(res, 200, { ...(sp.customers.find((c) => '/api/Customers/' + c.CustomerID === url) || {}), Version: 'v1' });
   if (req.method === 'PUT' && url.startsWith('/api/Customers/')) { sp.put = body; return send(res, 200, {}); }
+  if (req.method === 'GET' && url === '/api/Invoices/700') return send(res, 200, { InvoiceID: 700, Number: 31, Date: '2026-10-15T00:00:00', CustomerRef: 500, InvoiceItems: [{ ItemRef: 7, Quantity: 3 }, { ItemRef: 8, Quantity: 2 }] });
   if (req.method === 'GET' && url === '/api/Invoices') return send(res, 200, [{ InvoiceID: 700, Number: 31, CustomerRef: 500, NetPrice: 1000 }]);
   if (req.method === 'GET' && url === '/api/banks') return send(res, 200, [{ BankID: 1, Title: 'ملت' }]);
   if (req.method === 'GET' && url === '/api/BankAccounts') return send(res, 200, [{ BankAccountID: 9, DlCode: '1', DlTitle: 'حساب ملت', CurrencyRef: 1 }]);
@@ -336,6 +337,7 @@ ok(hoormandResults['sj-7']?.ok === true && sp.put?.Version === 'v1' && sp.put.Na
 hoormandJobs.push({ id: 'sj-8', kind: 'refresh', data: {} });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-8']?.ok === true && hoormandCaches.invoices?.length === 1 && hoormandCaches.bankAccounts?.[0].BankAccountID === 9 && hoormandCaches.balances?.[0].Remainder === 1234 && hoormandCaches.priceNotes?.[0].code === '1001' && hoormandLinks.some((l) => l.kind === 'customer'), 'refresh sends invoices, bank accounts, balances, price lists and the links');
+ok(hoormandCaches.saleDocs?.length === 1 && hoormandCaches.saleDocs[0].number === 31 && hoormandCaches.saleDocs[0].date === '2026-10-15' && hoormandCaches.saleDocs[0].lines.length === 2 && hoormandCaches.saleDocs[0].lines[0].code === '1001' && hoormandCaches.saleDocs[0].lines[0].qty === 3, 'the lines of the sales invoices are sent as saleDocs (goods that left the warehouse)');
 hoormandJobs.push({ id: 'sj-9', kind: 'nonsense', data: {} });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-9']?.ok === false, 'an unknown job kind is reported, not ignored');

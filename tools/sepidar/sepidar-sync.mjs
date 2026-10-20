@@ -717,6 +717,33 @@ export async function pushCaches(cfg, sp, state) {
     Description: [x.Description, x.Title, x.Comment, x.Memo].filter(Boolean).join(' · ').slice(0, 400),
     Goods: (Array.isArray(x.Items) ? x.Items : []).map((it) => titleOfItem.get(it.ItemRef) || it.Title || it.Description || '').filter(Boolean).slice(0, 30).join('، ').slice(0, 600),
   }));
+  // The goods leave the warehouse with the sales invoices: the lines of the newest invoices are sent too («saleDocs»), so that Hoormand
+  // can show them as outgoing documents. The list of invoices has no lines; each invoice is opened once and remembered in state.json.
+  try {
+    const codeOfItem = new Map();
+    for (const i of await sp.get('/api/Items')) codeOfItem.set(i.ItemID, { code: String(i.Code ?? ''), title: i.Title || '' });
+    const list = await sp.get('/api/Invoices');
+    const known = (state.saleDocs = state.saleDocs || {});
+    const day = (x) => String(x.Date || '').slice(0, 10);
+    const fresh = (Array.isArray(list) ? list : []).filter((x) => !known[String(x.InvoiceID ?? x.ID)]).sort((a, b) => day(b).localeCompare(day(a))).slice(0, 25);
+    for (const x of fresh) {
+      const id = x.InvoiceID ?? x.ID;
+      try {
+        const full = await sp.get('/api/Invoices/' + id);
+        const lines = (Array.isArray(full.InvoiceItems) ? full.InvoiceItems : []).map((it) => ({ code: codeOfItem.get(it.ItemRef)?.code || '', title: codeOfItem.get(it.ItemRef)?.title || '', qty: Number(it.Quantity) || 0 })).filter((l) => l.qty);
+        known[String(id)] = { id: String(id), number: full.Number ?? x.Number, date: day(full) || day(x), customerName: nameOfCustomer.get(full.CustomerRef ?? x.CustomerRef) || '', lines };
+      } catch (e) {
+        log(`  اقلام فاکتور ${id} خوانده نشد (${String(e.message).slice(0, 80)})`);
+      }
+    }
+    const docs = Object.values(known).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 400);
+    for (const k of Object.keys(known)) if (!docs.includes(known[k])) delete known[k];
+    log(`  saleDocs: ${docs.length} فاکتور با اقلام (${fresh.length} تازه)`);
+    await push('saleDocs', docs);
+    saveState(state);
+  } catch (e) {
+    log(`  saleDocs: خوانده نشد (${e.message})`);
+  }
   await tryPush('quotations', '/api/Quotations', (x) => ({
     ...pick(x, ['ID', 'Number', 'Date', 'CustomerRef', 'Price', 'NetPrice']),
     CustomerName: nameOfCustomer.get(x.CustomerRef) || x.CustomerTitle || x.CustomerName || '',

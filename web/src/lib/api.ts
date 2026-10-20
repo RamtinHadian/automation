@@ -308,6 +308,8 @@ export interface WhDoc {
   voided?: boolean;
   voidReason?: string;
   voidedByName?: string;
+  /** a copy of a Sepidar sales invoice (goods that left the warehouse), shown read-only */
+  source?: 'sepidar';
 }
 export interface WhState {
   /** what this person may see (the permission table): the numbers of stock, the money, and which sorts of document */

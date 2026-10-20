@@ -1,6 +1,7 @@
 package api
 
 import (
+	"sort"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -352,6 +353,13 @@ func whDocs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	docs = whGroupDocs(r.Context(), me, docs)
+	if offset == 0 { // the invoices of Sepidar come first-page only (they are a copy, not a table of their own)
+		docs = append(docs, whSaleDocs(r.Context(), me, q.Get("kind"), q.Get("warehouse"), q.Get("product"), q.Get("from"), q.Get("to"))...)
+		sort.SliceStable(docs, func(i, j int) bool { return jsonx.Str(docs[i], "date") > jsonx.Str(docs[j], "date") })
+		if len(docs) > limit {
+			docs = docs[:limit]
+		}
+	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"docs": docs, "limit": limit, "offset": offset})
 }
 

@@ -429,7 +429,7 @@ const DocModal: React.FC<{ doc: WhDoc; isAdmin: boolean; onClose: () => void; on
       onTop
       footer={
         <>
-          {isAdmin && !doc.voided ? (
+          {isAdmin && !doc.voided && doc.source !== 'sepidar' ? (
             asking ? (
               <button type="button" disabled={busy} onClick={doVoid} className="px-4 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-black cursor-pointer">ابطال قطعی سند</button>
             ) : (

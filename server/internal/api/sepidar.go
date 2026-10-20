@@ -69,7 +69,7 @@ var sepidarJobs = map[string]struct{ Perm, Title string }{
 }
 
 // what the program may store as a copy of Sepidar's data
-var sepidarCaches = map[string]bool{"sepidarCustomers": true, "invoices": true, "banks": true, "bankAccounts": true, "priceNotes": true, "saleTypes": true, "currencies": true, "customerGroups": true, "balances": true, "quotations": true, "toolReport": true}
+var sepidarCaches = map[string]bool{"sepidarCustomers": true, "invoices": true, "banks": true, "bankAccounts": true, "priceNotes": true, "saleTypes": true, "currencies": true, "customerGroups": true, "balances": true, "quotations": true, "toolReport": true, "saleDocs": true}
 
 func sepidarCan(me auth.User, perm string) bool {
 	if me.IsAdmin() {
@@ -90,7 +90,7 @@ func sepidarCan(me auth.User, perm string) bool {
 // which right shows which copy of Sepidar's data (the rest are lists the forms need: banks, accounts, sale types…)
 func sepidarCanSeeCache(me auth.User, key string) bool {
 	switch key {
-	case "invoices", "quotations":
+	case "invoices", "quotations", "saleDocs":
 		return sepidarCan(me, "viewInvoices") || sepidarCan(me, "receipt") || sepidarCan(me, "invoice")
 	case "priceNotes":
 		return sepidarCan(me, "viewPrices")
