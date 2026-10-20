@@ -181,8 +181,10 @@ func sameLenNumber(s string) bool {
 	return letters == 0
 }
 
-// arrivalContext: where the dialplan hands a call to an extension (directly, or from an inbound route / IVR).
-var arrivalContext = regexp.MustCompile(`^(ext-local|from-did-direct)$`)
+// arrivalContext: where the dialplan hands a call to a number inside the company: an extension (directly, or from an inbound route / IVR),
+// a ring group, a queue, a conference, an IVR or an announcement. Any number the person creates in the phone system (100, 400, 500…) is
+// handled the same way: nothing here depends on the number itself. Calls that merely pass «from-internal» (dialling out) are not arrivals.
+var arrivalContext = regexp.MustCompile(`^(ext-local|ext-group|ext-queues|ext-meetme|ext-findmefollow|ext-fax|from-did-direct|ivr-[0-9]+|app-[a-z0-9-]+)$`)
 
 // appDataExt: the extensions in what «Dial» was told to call, e.g. «SIP/500&SIP/501,30,tT» or «Local/500@from-internal/n».
 var appDataExt = regexp.MustCompile(`^(?:(?:SIP|PJSIP|IAX2)/|Local/(?:FMPR-)?)([0-9]{2,8})(?:@.*)?$`)
