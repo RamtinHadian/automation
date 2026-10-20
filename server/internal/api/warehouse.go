@@ -327,6 +327,9 @@ func whDocs(w http.ResponseWriter, r *http.Request) {
 		args = append(args, v)
 		where += " AND " + strings.ReplaceAll(cond, "?", "$"+strconv.Itoa(len(args)))
 	}
+	if q.Get("auto") != "1" { // the automatic stock synchronisations of the Sepidar program are not documents anybody wrote: shown only on request
+		where += " AND COALESCE(data->>'auto', '') <> 'true'"
+	}
 	if k := q.Get("kind"); k != "" {
 		add("kind = ?", k)
 	}

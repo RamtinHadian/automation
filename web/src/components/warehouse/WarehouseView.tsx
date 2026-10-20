@@ -291,6 +291,11 @@ const StockTab: React.FC<{ st: WhState; group: string; onCard: (p: WhProduct) =>
           ['ناموجود', fmt(st.products.filter((p) => p.active !== false && p.kind !== 'service' && p.total <= 0).length), 'border-slate-200 bg-slate-50 text-slate-700'],
         ]}
       />
+            {(st.limits ? st.limits.qty : true) && (
+        <div className="text-[11px] font-black text-[#503730]" data-stock-totals>
+          {fmt(rows.length)} ردیف کالا · جمع تعداد موجودی: {fmt(rows.reduce((s, p) => s + qtyOf(p), 0))}
+        </div>
+      )}
       <BoxGrid empty={st.products.length ? 'کالایی با این شرط پیدا نشد.' : 'هنوز کالایی تعریف نشده است. از «کالاها» شروع کنید.'}>
         {rows.map((p) => {
           const lowRow = (p.minQty || 0) > 0 && p.total < (p.minQty || 0);
@@ -328,6 +333,7 @@ const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, on
   const [wh, setWh] = useState('');
   const [from, setFrom] = useState<string | undefined>();
   const [to, setTo] = useState<string | undefined>();
+  const [auto, setAuto] = useState(false);
   const [docs, setDocs] = useState<WhDoc[] | null>(null);
   useEffect(() => {
     const q: Record<string, string> = { limit: '200' };
@@ -335,12 +341,13 @@ const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, on
     if (wh) q.warehouse = wh;
     if (from) q.from = from;
     if (to) q.to = to;
+    if (auto) q.auto = '1';
     let live = true;
     api.warehouseDocs(q).then((r) => live && setDocs(r.docs)).catch(() => live && setDocs([]));
     return () => {
       live = false;
     };
-  }, [kind, wh, from, to, st]);
+  }, [kind, wh, from, to, auto, st]);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -363,7 +370,13 @@ const DocsTab: React.FC<{ st: WhState; onOpen: (d: WhDoc) => void }> = ({ st, on
           <JalaliDateField value={to} onChange={setTo} />
         </div>
       </div>
-      <div className="text-[10px] font-bold text-[#8C6F66]">تاریخ‌های بالا: از تاریخ و تا تاریخ (اختیاری)</div>
+      <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold text-[#8C6F66]">
+        <span>تاریخ‌های بالا: از تاریخ و تا تاریخ (اختیاری)؛ فقط سندهای همان بازه می‌آید.</span>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} data-show-auto-docs />
+          نمایش تعدیل‌های خودکار همگام‌سازی با سپیدار
+        </label>
+      </div>
       {!docs ? (
         <Empty text="در حال دریافت…" />
       ) : docs.length === 0 ? (
@@ -788,17 +801,35 @@ const SepidarInfo: React.FC<{ info?: Record<string, string> }> = ({ info }) => {
 
 const WarehousesTab: React.FC<{ st: WhState; sepidar: boolean; onEdit: (w: Partial<WhWarehouse>) => void }> = ({ st, sepidar, onEdit }) => {
   const { staffList } = useAppContext();
+  const [q, setQ] = useState('');
+  const qtyOk = st.limits ? st.limits.qty : true;
   const keeper = (id?: string) => staffList.find((u) => u.id === id)?.fullName || '';
+  // a warehouse is found by its own data (name, code, place, keeper, note) and by the goods that are in it (name, code, barcode, group)
+  const rows = useMemo(
+    () =>
+      st.warehouses
+        .map((w) => ({ w, items: st.products.filter((p) => p.kind !== 'service' && (p.byWarehouse[w.id] || 0) !== 0) }))
+        .filter(({ w, items }) => matchesAll(w, q, [keeper(w.keeperId), ...items.flatMap((p) => [p.title, p.code, p.barcode || '', p.group || ''])])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [st, q, staffList],
+  );
   return (
     <div className="space-y-3">
-      {!sepidar && (
-        <button type="button" onClick={() => onEdit({ active: true })} className="flex items-center gap-1 px-4 py-2 min-h-[40px] rounded-xl bg-amber-600 text-white text-xs font-black cursor-pointer">
-          <Plus className="w-4 h-4" /> انبار جدید
-        </button>
-      )}
-      <BoxGrid empty="هنوز انباری تعریف نشده است.">
-        {st.warehouses.map((w) => {
-          const items = st.products.filter((p) => (p.byWarehouse[w.id] || 0) !== 0);
+      <div className="flex flex-wrap items-center gap-2">
+        {!sepidar && (
+          <button type="button" onClick={() => onEdit({ active: true })} className="flex items-center gap-1 px-4 py-2 min-h-[40px] rounded-xl bg-amber-600 text-white text-xs font-black cursor-pointer">
+            <Plus className="w-4 h-4" /> انبار جدید
+          </button>
+        )}
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="w-4 h-4 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در انبارها: نام، کد، محل، انباردار، یادداشت یا نام و کد کالای داخل انبار…" className={field + ' pr-9'} data-warehouse-search />
+        </div>
+      </div>
+      {q.trim() && <div className="text-[10px] font-bold text-[#8C6F66]">{fmt(rows.length)} انبار از {fmt(st.warehouses.length)} با این جستجو می‌خواند (همهٔ کلمه‌ها باید در اطلاعات انبار یا کالاهای آن باشد).</div>}
+      <BoxGrid empty={q.trim() ? 'انباری با این جستجو پیدا نشد.' : 'هنوز انباری تعریف نشده است.'}>
+        {rows.map(({ w, items }) => {
+          const total = items.reduce((s, p) => s + (p.byWarehouse[w.id] || 0), 0);
           return (
             <BoxCard
               key={w.id}
@@ -811,7 +842,8 @@ const WarehousesTab: React.FC<{ st: WhState; sepidar: boolean; onEdit: (w: Parti
               badge={w.active === false ? ['غیرفعال', 'bg-slate-50 text-slate-600 border-slate-200'] : null}
               facts={[
                 ['انباردار', keeper(w.keeperId) || '—'],
-                ['کالای موجود', fmt(items.length)],
+                ['تعداد کل موجودی', qtyOk ? fmt(total) : '—'],
+                ['تعداد ردیف کالا', fmt(items.length)],
               ]}
             />
           );
