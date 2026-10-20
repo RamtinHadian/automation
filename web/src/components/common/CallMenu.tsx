@@ -1,3 +1,4 @@
+import { placeCall } from '../../lib/callFrom';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { History, Phone, PhoneCall, Search } from 'lucide-react';
@@ -80,7 +81,7 @@ export const CallMenu: React.FC = () => {
   const call = async (to: string, label: string) => {
     setBusy(to);
     try {
-      await api.voipCall(to);
+      if (!(await placeCall(currentUser, to))) return;
       showToast(`تلفن داخلی شما (${toPersianDigits(status.extension)}) زنگ می‌خورد؛ گوشی را بردارید تا با ${label} وصل شود.`);
       setOpen(false);
     } catch (e) {

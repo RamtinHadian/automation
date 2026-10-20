@@ -25,6 +25,20 @@ func SetPhone(c *voip.Client) { phone = c }
 
 var onlyDigits = regexp.MustCompile(`^[0-9*#+]{1,20}$`)
 
+// pickExtension: the extension a call starts from: the main one, or one of the person's own extensions they chose in the call window.
+func pickExtension(me auth.User, body jsonx.M, main string) (string, bool) {
+	pick := strings.TrimSpace(jsonx.Str(body, "from"))
+	if pick == "" {
+		return main, true
+	}
+	for _, e := range userExts(me) {
+		if e == pick {
+			return pick, true
+		}
+	}
+	return main, false
+}
+
 // userExts: every phone extension of a person: the main one (used to ring them first when they start a call) and the extra ones
 // («extensions»: the same person can have more than one phone, e.g. a desk phone and a softphone).
 func userExts(me auth.User) []string {
@@ -170,6 +184,11 @@ func voipCall(w http.ResponseWriter, r *http.Request) {
 	}
 	me := auth.Current(r)
 	from := jsonx.Str(me.M, "extension")
+	from, ok = pickExtension(me, body, from)
+	if !ok {
+		httpx.Error(w, http.StatusBadRequest, "این شمارهٔ داخلی برای شما نیست.")
+		return
+	}
 	if from == "" {
 		httpx.Error(w, http.StatusBadRequest, "شمارهٔ داخلی شما در پنل مدیریت تعریف نشده است.")
 		return
@@ -294,7 +313,11 @@ func demoCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	me := auth.Current(r)
-	ext := jsonx.Str(me.M, "extension")
+	ext, okExt := pickExtension(me, body, jsonx.Str(me.M, "extension"))
+	if !okExt {
+		httpx.Error(w, http.StatusBadRequest, "این شمارهٔ داخلی برای شما نیست.")
+		return
+	}
 	target := jsonx.Str(body, "to")
 	name := ""
 	if !onlyDigits.MatchString(target) { // a colleague's user id

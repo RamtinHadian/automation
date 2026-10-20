@@ -13,6 +13,7 @@ import { DayNightToggle } from './components/common/DayNightToggle';
 import { ErrorPopups } from './components/common/ErrorPopups';
 import { LicenseGate } from './components/common/LicenseGate';
 import { ConfirmHost } from './lib/confirmDialog';
+import { CallFromHost } from './lib/callFrom';
 import { CalculatorHost } from './components/common/Calculator';
 
 function AppRoutes() {
@@ -70,6 +71,7 @@ export function App() {
     <LicenseGate>
       <ErrorPopups />
       <ConfirmHost />
+      <CallFromHost />
       <AppProvider>
         <AppRoutes />
       </AppProvider>

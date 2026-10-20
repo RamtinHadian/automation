@@ -1,3 +1,4 @@
+import { placeCall } from '../../lib/callFrom';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -312,7 +313,7 @@ export const CrmView: React.FC = () => {
 
   const call = async (number: string, name: string) => {
     try {
-      await api.voipCall(number);
+      if (!(await placeCall(currentUser, number))) return;
       showToast(`تلفن داخلی شما زنگ می‌خورد؛ با برداشتن گوشی با ${name} وصل می‌شوید.`);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'تماس برقرار نشد.');

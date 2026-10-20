@@ -6,6 +6,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
 import { callerNameOnly, normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
+import { placeCall } from '../../lib/callFrom';
 import { useAppContext } from '../../context/AppContext';
 import { matchesAll } from '../../lib/searchAll';
 
@@ -204,7 +205,7 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
   const callBack = async (number: string) => {
     setBusy(number);
     try {
-      await api.voipCall(number);
+      if (!(await placeCall(currentUser, number))) return;
       showToast('تلفن داخلی شما زنگ می‌خورد؛ گوشی را بردارید تا تماس وصل شود.');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'تماس برقرار نشد.');
