@@ -56,6 +56,17 @@ export interface LetterPrintOverrides {
   signatureImgOffsetY?: number;
 }
 
+/** The letterhead's decoration as a CSS background: it repeats on every printed page (inline SVG in a fixed box is dropped after page 1 by the browser). */
+function lhBandHeight(svg: string, width: number): number {
+  const vb = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg);
+  return vb ? Math.round((width * parseFloat(vb[2])) / parseFloat(vb[1])) : 80;
+}
+function lhBand(svg: string, width: number): string {
+  const h = lhBandHeight(svg, width);
+  const uri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+  return `height: ${h}px; background-image: url('${uri}'); background-repeat: no-repeat; background-size: 100% 100%;`;
+}
+
 export function generateOfficialLetterHtml(
   transfer: FileTransfer,
   settings: SystemSettings,
@@ -229,12 +240,9 @@ export function generateOfficialLetterHtml(
         box-shadow: none !important;
         border-radius: 0 !important;
       }
-      .lh-top, .lh-bottom, .fx-foot, .wm, .lh-img { position: fixed !important; }
-      .lh-top, .lh-bottom, .wm, .lh-img { left: 0 !important; right: 0 !important; }
-      .lh-top { top: 0 !important; }
-      .lh-bottom { bottom: 0 !important; }
+      .fx-foot, .wm, .lh-img { position: fixed !important; }
+      .wm, .lh-img { left: 0 !important; right: 0 !important; }
       .wm, .lh-img { top: 0 !important; bottom: 0 !important; }
-      .pg { height: ${pageHdesign}px !important; }
     }
     * {
       box-sizing: border-box;
@@ -248,9 +256,9 @@ export function generateOfficialLetterHtml(
       background: #f0ede9;
       line-height: 1.8;
     }
-    .lh-top, .lh-bottom, .wm, .lh-img { position: absolute; left: 0; right: 0; pointer-events: none; }
-    .lh-top { top: 0; }
-    .lh-bottom { bottom: 0; }
+    .wm, .lh-img { position: absolute; left: 0; right: 0; pointer-events: none; }
+    /* the letterhead's top and foot bands sit in the head / foot cells of the sheet's table: in the flow, so the browser repeats them on every page */
+    .lh-band { margin: 0 -${containerPadding}; }
     .wm, .lh-img { top: 0; bottom: 0; }
     .wm { z-index: 5; background-repeat: repeat; }
     .lh-img { z-index: 0; background-size: 100% 100%; background-repeat: no-repeat; background-position: center; }
@@ -485,10 +493,9 @@ export function generateOfficialLetterHtml(
   <div class="letter-container">
     ${!isSigned ? `<div class="wm" style="background-image: ${UNSIGNED_WATERMARK.replace(/"/g, "'")};"></div>` : ''}
     ${lh && lh.image ? `<div class="lh-img" style="background-image: url(${lh.image});"></div>` : ''}
-    ${lh && !lh.image ? `<div class="lh-top">${letterheadSvg(lh.id, 'top')}</div><div class="lh-bottom">${letterheadSvg(lh.id, 'bottom')}</div>` : ''}
     <table class="pg" cellspacing="0" cellpadding="0">
-      <thead><tr><td style="height: ${padTopPx}px; padding: 0;"></td></tr></thead>
-      <tfoot><tr><td style="height: ${padBottomPx + footH}px; padding: 0;"></td></tr></tfoot>
+      <thead><tr><td style="height: ${padTopPx}px; padding: 0; vertical-align: top;">${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'top'), designW)}"></div>` : ''}</td></tr></thead>
+      <tfoot><tr><td style="height: ${padBottomPx + footH}px; padding: 0; vertical-align: bottom;">${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'bottom'), designW)}"></div>` : ''}</td></tr></tfoot>
       <tbody><tr><td class="pg-cell">
     <div class="header">
       <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);${orgScale > 1.2 ? ' max-width: 60%;' : ''}">
@@ -558,8 +565,27 @@ export function generateOfficialLetterHtml(
     </div>
   </div>
 <script>
-// the sheet is paged by the browser (see the .pg table); kept so that older callers that ask for a re-fit do no harm
-window.__fitPrint = function () {};
+// The sheet is paged by the browser (the .pg table repeats its head and foot on every page). Its height is made a whole number of
+// pages, so that the foot band and the foot lines of the LAST page sit at the bottom of that page and not right under the text.
+(function () {
+  var PAGE = ${pageHdesign};
+  function fit() {
+    var t = document.querySelector('.pg');
+    if (!t) return;
+    t.style.height = 'auto';
+    var head = t.tHead ? t.tHead.offsetHeight : 0;
+    var foot = t.tFoot ? t.tFoot.offsetHeight : 0;
+    var room = PAGE - head - foot; // what one printed page holds of the letter
+    var body = t.offsetHeight - head - foot;
+    var pages = Math.max(1, Math.ceil((body - 3) / room));
+    // the head and foot are drawn again on every further page, so the table needs that much less height than whole pages
+    t.style.height = (head + foot + pages * room - 4) + 'px';
+  }
+  window.__fitPrint = fit;
+  window.addEventListener('load', function () { fit(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit); setTimeout(fit, 300); });
+  window.addEventListener('beforeprint', fit);
+  if (window.matchMedia) { var mq = window.matchMedia('print'); if (mq.addEventListener) mq.addEventListener('change', function (e) { if (e.matches) fit(); }); }
+})();
 </script>
 </body>
 </html>`;
