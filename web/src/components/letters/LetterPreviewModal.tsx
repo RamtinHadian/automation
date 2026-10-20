@@ -70,8 +70,10 @@ import { FileTransfer, SystemSettings, User } from '../../types';
 import { toPersianDigits,
   convertNumbersInHtmlToPersian, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { DEFAULT_FONTS } from '../../lib/fonts';
-import { openAndDownloadPdfLetter } from '../../lib/pdfLetterGenerator';
+import { openAndDownloadPdfLetter, generateOfficialLetterHtml } from '../../lib/pdfLetterGenerator';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
+import { PageGuides } from './PageGuides';
+import { usePrintBreaks } from './usePrintBreaks';
 import { RichExtras, TableTools, useLetterBodyEditing } from './tableEditor';
 
 /* =========================================================================
@@ -99,6 +101,7 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
   onClose,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const paperRef = useRef<HTMLDivElement>(null);
   const editing = useLetterBodyEditing(editorRef);
   const [subject, setSubject] = useState(initialSubject);
   const [centerTitle, setCenterTitle] = useState(initialCenterTitle);
@@ -345,9 +348,11 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
       {/* ─── Document Canvas (white paper on dark background) ─── */}
       <div className="flex-1 overflow-y-auto bg-[#404040] flex justify-center py-8 px-4">
         <div
-          className="bg-white shadow-2xl w-full max-w-3xl min-h-[600px] rounded-sm"
+          ref={paperRef}
+          className="bg-white shadow-2xl w-full max-w-3xl min-h-[600px] rounded-sm relative"
           style={{ minHeight: '842px' }}
         >
+          <PageGuides targetRef={paperRef} paper="A4" spacers={{ padTop: 64, padBottom: 64, footH: 32 }} />
           {/* A4-like paper with proper margins */}
           <div
             ref={editorRef}
@@ -635,6 +640,27 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   }, [isOpen, letter?.id, letter?.signatureStatus]);
 
   const editorBodyRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  // what a printed page keeps free at its top and foot (the same numbers as lib/pdfLetterGenerator), so the guide lines are where the pages really end
+  const guideSpacers = (() => {
+    const lh = letter?.letterhead;
+    const real = !!lh && !lh.image;
+    const pad = real ? letterheadPad(lh!.id, paperWidth(pageSize)) : pageSize === 'A5' ? 28 : pageSize === 'Letter' ? 36 : 40;
+    const footShown = letter?.showFooterNote !== undefined ? !!letter.showFooterNote : settings?.showFooterNote !== false && settings?.letterNumbering?.showFooterNote !== false;
+    const lhFooter = lh ? letterheadFooterText(lh) : '';
+    return { padTop: pad, padBottom: real ? pad - 2 : pad, footH: (lh && lhFooter ? 54 : 0) + (footShown ? 26 : 0) + 6 };
+  })();
+  const bodyViewRef = useRef<HTMLDivElement>(null);
+  const makeHtmlRef = useRef<() => string>(() => '');
+  // where the printed pages really end: the letter is laid out like the print and the places are carried to this sheet
+  const pageBreaks = usePrintBreaks({
+    enabled: !!isOpen && !!letter,
+    sheet: sheetRef,
+    getBody: () => editorBodyRef.current ?? bodyViewRef.current,
+    makeHtml: () => makeHtmlRef.current(),
+    paper: pageSize === 'Letter' ? 'Letter' : pageSize === 'A5' ? 'A5' : 'A4',
+    deps: [customBody, pageSize, letter, footerNote, headerSubject, headerNumber, headerDate, headerCompanyTitle, headerCompanySubtitle, headerCenterTitle, signatureHeight, bodyFontFamily, isEditingBody, actionTab === 'NONE'],
+  });
   useLetterBodyEditing(editorBodyRef, isOpen, [isOpen, letter?.id, letter?.signatureStatus]);
   const [selectedFontSize, setSelectedFontSize] = useState<string>('13px');
   const [showFormattingSidebar, setShowFormattingSidebar] = useState<boolean>(false);
@@ -955,8 +981,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
     setActionTab('NONE');
   };
 
-  const handleDownloadCustomPdf = () => {
-    openAndDownloadPdfLetter(letter, settings, currentUser, {
+  // everything the printed letter is made from (shared by the print button and by the page guide lines, which measure the same print layout)
+  const printOverrides = () => ({
       pageSize: pageSize,
       customNumber: toPersianDigits(headerNumber),
       customDate: toPersianDigits(headerDate),
@@ -1004,7 +1030,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       showOrgName,
       showSubject,
     });
-  };
+  makeHtmlRef.current = () => generateOfficialLetterHtml(letter, settings, currentUser, printOverrides());
+  const handleDownloadCustomPdf = () => openAndDownloadPdfLetter(letter, settings, currentUser, printOverrides());
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-1.5 sm:p-4 overflow-y-auto animate-in fade-in select-none font-sans">
@@ -1647,6 +1674,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           {/* Virtual Official Paper Sheet */}
           <ScaledPaper enabled={scaled} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
+            ref={sheetRef}
             style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily, ...(letter.letterhead && !letter.letterhead.image ? { paddingTop: letterheadPad(letter.letterhead.id, paperWidth(pageSize)), paddingBottom: letterheadPad(letter.letterhead.id, paperWidth(pageSize)) - 2 } : {}), ...letterheadBackground(letter.letterhead) }}
             className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 w-full text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
               pageSize === 'A5'
@@ -1656,6 +1684,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 : `${scaled ? '' : 'max-w-[720px]'} min-h-[1018px] ${scaled ? 'p-10' : 'p-6 sm:p-10'} text-xs`
             }`}
           >
+            <PageGuides targetRef={sheetRef} paper={pageSize === 'Letter' ? 'Letter' : pageSize === 'A5' ? 'A5' : 'A4'} spacers={guideSpacers} ys={pageBreaks} />
             {letter.letterhead && !letter.letterhead.image && (
               <>
                 <div className="absolute inset-x-0 top-0 pointer-events-none rounded-t-2xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(letter.letterhead.id, 'top') }} />
@@ -1899,6 +1928,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 </>
               ) : (
                 <div
+                  ref={bodyViewRef}
                   dangerouslySetInnerHTML={{ __html: customBody }}
                   className="w-full min-h-[160px] text-[#222] p-2 leading-relaxed"
                   style={{
