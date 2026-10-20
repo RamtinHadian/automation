@@ -1049,6 +1049,17 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <span className="bg-[#563D34] text-[#F6D9CD] border border-[#C98B6A]/50 text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                   📄 قطع: {pageSize === 'A5' ? 'A5' : pageSize === 'Letter' ? 'Letter' : 'A4'}
                 </span>
+                {pageBreaks && (
+                  <button
+                    type="button"
+                    onClick={() => document.querySelector('[data-page-break]')?.scrollIntoView({ block: 'center', behavior: 'smooth' })}
+                    title={pageBreaks.length > 0 ? 'رفتن به جایی که صفحهٔ اول تمام می‌شود (خط‌چین آبی)' : 'نامه در یک صفحه جا می‌شود'}
+                    className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 border cursor-pointer ${pageBreaks.length > 0 ? 'bg-sky-500/25 text-sky-200 border-sky-400/60' : 'bg-[#563D34] text-[#F6D9CD] border-[#C98B6A]/50'}`}
+                    data-page-count
+                  >
+                    {pageBreaks.length > 0 ? `این نامه ${toPersianDigits(pageBreaks.length + 1)} صفحه است · دیدن خط پایان صفحه` : 'یک صفحه'}
+                  </button>
+                )}
                 {isSigned && (
                   <span className="bg-emerald-500/25 text-emerald-200 border border-emerald-500/50 text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                     <Lock className="w-3 h-3 text-emerald-300" />
