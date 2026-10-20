@@ -267,6 +267,8 @@ func popup(ev Event, ext string) {
 	}
 	if _, name, ok := userByExtension(ctx, number); ok && name != "" {
 		who = name + " (" + number + ")"
+	} else if sn, ok := StaffByPhone(ctx, number); ok {
+		who = sn + " (همکار شرکت · " + number + ")"
 	} else if callerName != "" && callerName != number && !sameDigits(callerName, number) {
 		who = callerName + " (" + number + ")"
 	}
@@ -275,6 +277,10 @@ func popup(ev Event, ext string) {
 		note.Title = "تماس ورودی از مشتری: " + cname
 		note.Body = number + " · داخلی " + ext
 		note.Ref = map[string]any{"type": "customer", "id": cid}
+	} else if sn, isStaff := StaffByPhone(ctx, number); isStaff {
+		// a colleague ringing from their mobile: no «save as customer»
+		note.Title = "تماس از همکار: " + sn
+		note.Body = number + " · داخلی " + ext
 	} else {
 		// an unknown number: the pop-up offers «ذخیره به‌عنوان مشتری»
 		note.Ref = map[string]any{"type": "phone", "id": number}

@@ -107,7 +107,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
                 <BarChart3 className="w-4 h-4" />
               </button>
             )}
-            {onSaveCustomer && !c.customerName && c.direction !== 'internal' && /^[0-9+]{7,}$/.test(c.number) && (
+            {onSaveCustomer && !c.customerName && !(c.name || '').endsWith('(همکار شرکت)') && c.direction !== 'internal' && /^[0-9+]{7,}$/.test(c.number) && (
               <button
                 type="button"
                 onClick={() => onSaveCustomer(c.number, c.name)}

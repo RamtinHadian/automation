@@ -231,6 +231,7 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
+	staff := voip.StaffPhones(r.Context())
 	out := []jsonx.M{}
 	for rows.Next() {
 		var id, direction, status, ext, uid, num, name, cid, cname, uname string
@@ -238,6 +239,12 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 		var dur int
 		if rows.Scan(&id, &started, &direction, &status, &ext, &uid, &num, &name, &cid, &cname, &dur, &uname) != nil {
 			continue
+		}
+		// a colleague who rings from their mobile is shown by name (the numbers on their user card)
+		if direction != "internal" && cname == "" {
+			if sn, ok := voip.MatchStaff(staff, num); ok {
+				name = sn + " (همکار شرکت)"
+			}
 		}
 		out = append(out, jsonx.M{"id": id, "startedAt": started.UTC().Format("2006-01-02T15:04:05.000Z"), "direction": direction, "status": status,
 			"ext": ext, "userId": uid, "userName": uname, "number": num, "name": name, "customerId": cid, "customerName": cname, "duration": dur, "hasRecording": recordingFile(id) != ""})

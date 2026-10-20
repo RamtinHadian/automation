@@ -423,7 +423,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               return;
             }
             const ceoBefore = !!users.find((u) => u.id === editingUser.id)?.canSignOfficialLetters;
-            onUpdateUser(editingUser.id, { ...editingUser, fullName: name, email: login, extensions: (editingUser.extensions || []).map((x) => x.trim()).filter(Boolean) });
+            onUpdateUser(editingUser.id, { ...editingUser, fullName: name, email: login, extensions: (editingUser.extensions || []).map((x) => x.trim()).filter(Boolean), mobiles: (editingUser.mobiles || []).map((x) => x.trim()).filter(Boolean) });
             if (ceoBefore !== !!editingUser.canSignOfficialLetters) afterCeoChange();
             setEditingUser(null);
           }}

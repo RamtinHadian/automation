@@ -26,6 +26,8 @@ export interface UserForm {
   /** more extensions of the same person, besides the main one */
   extensions?: string[];
   mobile?: string;
+  /** more phone numbers of the same person (a second mobile, a home line…), besides the main one */
+  mobiles?: string[];
   storageQuotaGB: number;
 }
 
@@ -199,7 +201,39 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
                     <Smartphone className="w-3 h-3 text-[#8C6F66]" />
                     موبایل (پیامک)
                   </label>
-                  <input dir="ltr" inputMode="tel" value={form.mobile || ''} onChange={(e) => set({ mobile: e.target.value.replace(/[^0-9+]/g, '') })} placeholder="09121234567" className={`${field} font-mono text-right`} />
+                  <div className="flex items-center gap-2">
+                    <input dir="ltr" inputMode="tel" value={form.mobile || ''} onChange={(e) => set({ mobile: e.target.value.replace(/[^0-9+]/g, '') })} placeholder="09121234567" className={`${field} font-mono text-right`} />
+                    <button
+                      type="button"
+                      onClick={() => set({ mobiles: [...(form.mobiles || []), ''] })}
+                      title="افزودن شمارهٔ دیگر برای همین شخص"
+                      aria-label="افزودن شمارهٔ دیگر"
+                      data-add-mobile
+                      className="w-10 h-10 shrink-0 rounded-xl bg-[#6E1B1B] text-white font-black text-lg leading-none cursor-pointer hover:bg-[#D34A32]"
+                    >
+                      +
+                    </button>
+                  </div>
+                  {(form.mobiles || []).length > 0 && (
+                    <div className="mt-2 space-y-2" data-extra-mobiles>
+                      <div className="text-[10px] font-bold text-[#8C6F66]">شماره‌های بیشتر این شخص (وقتی با یکی از آن‌ها تماس بگیرد، در فهرست تماس‌ها با نام او نوشته می‌شود)</div>
+                      {(form.mobiles || []).map((x, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input
+                            dir="ltr"
+                            inputMode="tel"
+                            value={x}
+                            onChange={(e) => set({ mobiles: (form.mobiles || []).map((y, j) => (j === i ? e.target.value.replace(/[^0-9+]/g, '') : y)) })}
+                            placeholder="09131234567"
+                            className={`${field} font-mono text-right`}
+                          />
+                          <button type="button" onClick={() => set({ mobiles: (form.mobiles || []).filter((_, j) => j !== i) })} aria-label="حذف این شماره" title="حذف این شماره" className="w-10 h-10 shrink-0 rounded-xl border border-[#EBDBCE] text-[#8C6F66] hover:text-rose-600 cursor-pointer">
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

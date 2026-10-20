@@ -56,6 +56,8 @@ export interface User {
   extensions?: string[];
   /** Mobile number for SMS notifications (optional). */
   mobile?: string;
+  /** more phone numbers of the same person, besides the main mobile */
+  mobiles?: string[];
   /** The user's own letter-editor settings (fonts, sizes, positions...), restored every time the editor opens. */
   letterPrefs?: Record<string, unknown>;
   themeId?: string;
