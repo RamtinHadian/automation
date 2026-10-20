@@ -72,6 +72,7 @@ export const SepidarView: React.FC = () => {
   const [financeFor, setFinanceFor] = useState<{ id: string; name: string } | null>(null);
   const [showReport, setShowReport] = useState(false);
   const [pair, setPair] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [invSort, setInvSort] = useState<'dateDesc' | 'dateAsc' | 'numDesc' | 'numAsc' | 'amountDesc' | 'amountAsc'>('dateDesc');
   const { currentUser } = useAppContext();
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
   // the connection tools (pairing code, version, tool files, tool log, refresh) belong to the top admin and the CEO only
@@ -148,7 +149,14 @@ export const SepidarView: React.FC = () => {
   st.links.filter((l) => l.kind === 'customer').forEach((l) => customerOfSepidar.set(l.sepidarId, customers.find((c) => c.id === l.ref)?.name || ''));
   // the customer's name comes from every place that knows it: the invoice itself (the program sends it), the tied Hoormand customer, the balances
   const invoiceCustomer = (i: any): string => i.CustomerName || customerOfSepidar.get(i.CustomerRef) || balances.get(i.CustomerRef)?.Title || '';
-  const invoiceRows = (st.cache?.invoices?.items || []).filter((i: any) => matchesAll(i, q, invoiceCustomer(i), balances.get(i.CustomerRef)?.Title || ''));
+  const invoiceRows = (st.cache?.invoices?.items || [])
+    .filter((i: any) => matchesAll(i, q, invoiceCustomer(i), balances.get(i.CustomerRef)?.Title || ''))
+    .sort((a: any, b: any) => {
+      const date = String(a.Date || '').localeCompare(String(b.Date || '')) || (Number(a.Number) || 0) - (Number(b.Number) || 0);
+      const num = (Number(a.Number) || 0) - (Number(b.Number) || 0);
+      const amount = (Number(a.NetPrice ?? a.Price) || 0) - (Number(b.NetPrice ?? b.Price) || 0);
+      return { dateDesc: -date, dateAsc: date, numDesc: -num, numAsc: num, amountDesc: -amount, amountAsc: amount }[invSort];
+    });
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -343,6 +351,17 @@ export const SepidarView: React.FC = () => {
       {cur === 'invoices' && (
         <>
           {canSeeSalesTotals(currentUser) && <InvoicesSummary rows={invoiceRows} />}
+          <div className="flex items-center gap-2 text-[11px] font-black text-[#503730]">
+            <span>مرتب‌سازی:</span>
+            <select value={invSort} onChange={(e) => setInvSort(e.target.value as typeof invSort)} className="px-3 py-2 rounded-xl border border-[#EBDBCE] bg-white text-xs font-bold" data-invoice-sort>
+              <option value="dateDesc">تاریخ ثبت (جدیدترین اول)</option>
+              <option value="dateAsc">تاریخ ثبت (قدیمی‌ترین اول)</option>
+              <option value="numDesc">شمارهٔ فاکتور (بزرگ‌ترین اول)</option>
+              <option value="numAsc">شمارهٔ فاکتور (کوچک‌ترین اول)</option>
+              <option value="amountDesc">مبلغ خالص (بیشترین اول)</option>
+              <option value="amountAsc">مبلغ خالص (کمترین اول)</option>
+            </select>
+          </div>
           <List empty="فاکتوری دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
             {invoiceRows.slice(0, 300).map((i: any) => {
               const cname = invoiceCustomer(i) || 'مشتری سپیدار ' + toPersianDigits(i.CustomerRef);
