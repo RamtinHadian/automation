@@ -149,8 +149,19 @@ export const SepidarView: React.FC = () => {
   st.links.filter((l) => l.kind === 'customer').forEach((l) => customerOfSepidar.set(l.sepidarId, customers.find((c) => c.id === l.ref)?.name || ''));
   // the customer's name comes from every place that knows it: the invoice itself (the program sends it), the tied Hoormand customer, the balances
   const invoiceCustomer = (i: any): string => i.CustomerName || customerOfSepidar.get(i.CustomerRef) || balances.get(i.CustomerRef)?.Title || '';
+  // what is written on an invoice, as the person sees it: the lines of the invoice (code, name, quantity), the date as «۲۸ مهر ۱۴۰۵», the amounts with separators
+  const saleLines = new Map<string, any[]>((st.cache?.saleDocs?.items || []).map((d: any) => [String(d.id), d.lines || []]));
+  const invoiceWords = (i: any): string[] => {
+    const lines = saleLines.get(String(i.InvoiceID ?? i.ID)) || [];
+    return [
+      i.Date ? formatTaskDate(String(i.Date).slice(0, 10)) : '',
+      `فاکتور فروش ${i.Number ?? ''}`,
+      ...[i.Price, i.Discount, i.Tax, i.NetPrice].filter((x) => x != null).map((x) => fmt(x)),
+      ...lines.flatMap((l: any) => [l.code, l.title, String(l.qty ?? '')]),
+    ].filter(Boolean) as string[];
+  };
   const invoiceRows = (st.cache?.invoices?.items || [])
-    .filter((i: any) => matchesAll(i, q, invoiceCustomer(i), balances.get(i.CustomerRef)?.Title || ''))
+    .filter((i: any) => matchesAll(i, q, invoiceCustomer(i), balances.get(i.CustomerRef)?.Title || '', invoiceWords(i)))
     .sort((a: any, b: any) => {
       const date = String(a.Date || '').localeCompare(String(b.Date || '')) || (Number(a.Number) || 0) - (Number(b.Number) || 0);
       const num = (Number(a.Number) || 0) - (Number(b.Number) || 0);
@@ -251,7 +262,7 @@ export const SepidarView: React.FC = () => {
       {cur !== 'jobs' && (
         <div className="relative">
           <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C6F66]" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در همهٔ اطلاعات: نام، شماره، کالا، مبلغ، تاریخ…" className={field + ' pr-9'} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={cur === 'invoices' ? 'جستجو در فاکتورها: تاریخ (۱۴۰۵/۰۷/۲۸ یا ۲۸ مهر)، شماره، مشتری، کالا، مبلغ، توضیحات…' : 'جستجو در همهٔ اطلاعات: نام، شماره، کالا، مبلغ، تاریخ…'} className={field + ' pr-9'} />
         </div>
       )}
 
@@ -388,9 +399,9 @@ export const SepidarView: React.FC = () => {
                     ['خالص', fmt(i.NetPrice ?? i.Price)],
                   ]}
                 >
-                  {(i.Description || i.Goods) && (
+                  {(i.Description || i.Goods || (saleLines.get(String(i.InvoiceID ?? i.ID)) || []).length > 0) && (
                     <div className="px-1 space-y-0.5 text-[11px] leading-5 font-bold text-[#5A4640]">
-                      {i.Goods && <div><span className="text-[#8C6F66]">کالاها: </span>{i.Goods}</div>}
+                      {(i.Goods || (saleLines.get(String(i.InvoiceID ?? i.ID)) || []).length > 0) && <div><span className="text-[#8C6F66]">کالاها: </span>{i.Goods || (saleLines.get(String(i.InvoiceID ?? i.ID)) || []).map((l: any) => `${l.title || l.code}${l.qty ? ' (' + toPersianDigits(l.qty) + ')' : ''}`).join('، ')}</div>}
                       {i.Description && <div><span className="text-[#8C6F66]">توضیحات: </span>{i.Description}</div>}
                     </div>
                   )}
