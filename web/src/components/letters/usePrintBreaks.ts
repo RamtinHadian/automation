@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { RATIO } from './PageGuides';
 
+// the paragraphs of a body (the body is often wrapped in one div: its children are the paragraphs)
+const blocksOf = (el: HTMLElement): Element[] => {
+  let cur: Element = el;
+  while (cur.children.length === 1 && cur.children[0].children.length > 0) cur = cur.children[0];
+  return Array.from(cur.children);
+};
+
 /**
  * Where the printed pages of a letter end, in the pixels of the sheet the writer sees.
  *
@@ -64,9 +71,9 @@ export function usePrintBreaks(opts: {
         }
         // the paragraphs of the body, in the print and on the screen
         const pr = printBody.getBoundingClientRect();
-        const pBlocks = Array.from(printBody.children).map((c) => c.getBoundingClientRect());
+        const pBlocks = blocksOf(printBody).map((c) => c.getBoundingClientRect());
         const vr = body.getBoundingClientRect();
-        const vBlocks = Array.from(body.children).map((c) => c.getBoundingClientRect());
+        const vBlocks = blocksOf(body).map((c) => c.getBoundingClientRect());
         const sr = sheet.getBoundingClientRect();
         const scale = sr.width / (sheet.offsetWidth || 1) || 1; // the sheet on the screen may be zoomed
         const sameBlocks = pBlocks.length === vBlocks.length && pBlocks.length > 0;

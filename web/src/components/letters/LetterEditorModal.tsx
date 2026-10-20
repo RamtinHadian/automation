@@ -7,6 +7,9 @@ import { LETTERHEAD_TOTAL, LetterheadChoice, letterheadBackground, letterheadCol
 import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
+import { PageGuides } from './PageGuides';
+import { usePrintBreaks } from './usePrintBreaks';
+import { generateOfficialLetterHtml } from '../../lib/pdfLetterGenerator';
 import { LetterTextTemplatesModal, bodyToText } from './LetterTextTemplatesModal';
 import { useFitZoom } from '../../lib/useFitZoom';
 import { SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT, signatureAreaHeight } from '../../lib/letterDefaults';
@@ -461,6 +464,24 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
 const editing = useLetterBodyEditing(editorRef); // Persian digits while typing, tables with draggable borders, undo / redo
   const paperSheetRef = useRef<HTMLDivElement>(null);
+  // the dashed lines that show where the printed pages end: the letter is laid out like the print and the places are carried onto this sheet
+  const makeHtmlRef = useRef<() => string>(() => '');
+  const [bodyTick, setBodyTick] = useState(0);
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!isOpen || !el || typeof MutationObserver === 'undefined') return;
+    const mo = new MutationObserver(() => setBodyTick((n) => n + 1)); // typing, a pasted table, a dragged table border…
+    mo.observe(el, { childList: true, subtree: true, characterData: true, attributes: true });
+    return () => mo.disconnect();
+  }, [isOpen]);
+  const pageBreaks = usePrintBreaks({
+    enabled: !!isOpen,
+    sheet: paperSheetRef,
+    getBody: () => editorRef.current,
+    makeHtml: () => makeHtmlRef.current(),
+    paper: pageSize === 'Letter' ? 'Letter' : pageSize === 'A5' ? 'A5' : 'A4',
+    deps: [bodyTick, pageSize, lh, subject, letterNumber, signerName, signerTitle, copies, headerCenterTitle, bodyPaddingX, bodyOffsetX, bodyOffsetY, selectedFontFamily, selectedFontSize, signatureHeight, stampHeightOverride, logoSize, orgTextScale],
+  });
 
   if (!isOpen) return null;
 
@@ -633,18 +654,11 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
     if (activeDragItem !== 'NONE') setActiveDragItem('NONE');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const rawHtml = editorRef.current?.innerHTML || '';
+  // everything the letter is made of (what is sent, and what the page guide lines lay out like the print)
+  const buildLetterData = (rawHtml: string) => {
     const convertedHtml = convertNumbersInHtmlToPersian(rawHtml);
-    if (!rawHtml.trim() || !subject.trim()) {
-      alert('لطفاً عنوان و متن نامه را تکمیل کنید.');
-      return;
-    }
-
     const contentHtml = `<div style="font-family: '${selectedFontFamily}', 'Vazirmatn', 'B Nazanin', Tahoma, sans-serif; font-size: ${selectedFontSize}; line-height: 2.2; padding-left: ${bodyPaddingX}px; padding-right: ${bodyPaddingX}px; transform: translateX(${bodyOffsetX}px);">${convertedHtml}</div>`;
-
-    onSendLetter({
+    return {
       title: subject,
       contentHtml,
       pageSize,
@@ -699,9 +713,35 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
       attachmentFileName: attachedFile?.name,
       attachmentFileSize: attachedFile?.size,
       attachmentFileDataUrl: attachedFile?.dataUrl,
-    });
+    };
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const rawHtml = editorRef.current?.innerHTML || '';
+    if (!rawHtml.trim() || !subject.trim()) {
+      alert('لطفاً عنوان و متن نامه را تکمیل کنید.');
+      return;
+    }
+    onSendLetter(buildLetterData(rawHtml));
     onClose();
   };
+  makeHtmlRef.current = () => {
+    const d = buildLetterData(editorRef.current?.innerHTML || '');
+    const draft = {
+      ...d,
+      id: 'draft',
+      fileName: d.title,
+      sender: currentUser,
+      sentAt: new Date().toISOString(),
+      status: 'PENDING',
+      signatureStatus: 'PENDING_SIGNATURE',
+      isOfficialLetter: true,
+      letterContentHtml: d.contentHtml,
+    };
+    return generateOfficialLetterHtml(draft as never, settings, currentUser, { pageSize });
+  };
+
 
   const getPageDimensions = () => {
     // Phones: fixed design width (set in style) and the computer paddings; the whole sheet is zoomed to fit.
@@ -921,6 +961,19 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
 
         {/* Main Document Workspace Canvas */}
         <div className={side ? 'order-2 flex-1 min-w-0 flex flex-col' : 'contents'}>
+        {pageBreaks && (
+          <div className={`${side ? 'order-first' : 'order-3'} flex justify-center bg-[#E5DCD2]/60 pt-2`}>
+            <button
+              type="button"
+              onClick={() => document.querySelector('[data-page-break]')?.scrollIntoView({ block: 'center', behavior: 'smooth' })}
+              title={pageBreaks.length > 0 ? 'رفتن به جایی که صفحهٔ اول تمام می‌شود (خط‌چین آبی)' : 'نامه در یک صفحه جا می‌شود'}
+              className={`text-[11px] font-black px-3 py-1 rounded-full border cursor-pointer ${pageBreaks.length > 0 ? 'bg-sky-100 text-sky-900 border-sky-300' : 'bg-white text-[#503730] border-[#EBDBCE]'}`}
+              data-page-count
+            >
+              {pageBreaks.length > 0 ? `این نامه ${toPersianDigits(pageBreaks.length + 1)} صفحه است · دیدن خط پایان صفحه` : 'نامه یک صفحه است'}
+            </button>
+          </div>
+        )}
         {(fitZ.isPhone || side) && <div className={side ? 'order-first' : 'order-3'}><ZoomBar zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} /></div>}
         <div className={`${side ? 'min-h-0 min-w-0' : 'order-3'} flex-1 overflow-auto ${fitZ.isPhone ? 'p-2 block' : side ? 'p-3 flex justify-center' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
@@ -931,6 +984,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
             style={{ fontFamily: selectedFontFamily, ...(lhPaper && lh && !lh.image ? { paddingTop: letterheadPad(lh.id, paperWidth(pageSize)), paddingBottom: letterheadPad(lh.id, paperWidth(pageSize)) - 2 } : {}), ...(lhPaper ? letterheadBackground(lh) : {}) }}
             className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 w-full transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
           >
+            <PageGuides targetRef={paperSheetRef} paper={pageSize === 'Letter' ? 'Letter' : pageSize === 'A5' ? 'A5' : 'A4'} ys={pageBreaks} />
             {lhPaper && lh && !lh.image && (
               <>
                 <div className="absolute inset-x-0 top-0 pointer-events-none rounded-t-xl overflow-hidden" dangerouslySetInnerHTML={{ __html: letterheadSvg(lh.id, 'top') }} />
