@@ -98,10 +98,15 @@ func sepidarCanSeeCache(me auth.User, key string) bool {
 		return sepidarCan(me, "viewBalance")
 	case "sepidarCustomers":
 		return false
-	case "toolReport": // the program's own log: managers only
-		return me.IsAdmin()
+	case "toolReport": // the program's own log: the top admin and the CEO only
+		return sepidarTop(me)
 	}
 	return sepidarAny(me)
+}
+
+// sepidarTop: the connection tools (pairing code, tool files, tool log, «refresh Sepidar») are for the top admin and the CEO only.
+func sepidarTop(me auth.User) bool {
+	return jsonx.Str(me.M, "role") == "SUPER_ADMIN" || jsonx.Bool(me.M, "canSignOfficialLetters")
 }
 
 func sepidarAny(me auth.User) bool { return me.IsAdmin() || len(jsonx.Strings(me.M, "sepidarPerms")) > 0 }
@@ -117,7 +122,7 @@ func sepidarConnectorSeen(ctx context.Context) (seen, version string) {
 // when the program there is too old to update itself). The settings and the key of the program are not in it.
 func sepidarToolZip(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	if !me.IsAdmin() {
+	if !sepidarTop(me) {
 		httpx.Forbidden(w)
 		return
 	}
@@ -399,6 +404,10 @@ func sepidarJobCreate(w http.ResponseWriter, r *http.Request) {
 			ref = ref + "#" + randomHex(3)
 		}
 	case "refresh":
+		if !sepidarTop(me) {
+			httpx.Forbidden(w)
+			return
+		}
 		ref = "refresh"
 	}
 	// the program needs the number Sepidar gave the record it works on
@@ -916,7 +925,7 @@ func pairNormalize(c string) string {
 // POST /api/sepidar/pair (administrators): makes a code that is valid for fifteen minutes and can be used once.
 func sepidarPairCreate(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	if !me.IsAdmin() {
+	if !sepidarTop(me) {
 		httpx.Forbidden(w)
 		return
 	}

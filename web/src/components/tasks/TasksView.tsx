@@ -224,6 +224,8 @@ const TasksBoard: React.FC = () => {
     showToast('وظیفه حذف شد.');
   };
 
+  const createdStamp = (iso: string) => `${formatTaskDate(iso.slice(0, 10))} – ${toPersianDigits(new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}`;
+
   const renderCard = (t: Task) => {
     const p = prio(t.priority);
     const done = t.checklist.filter((c) => c.done).length;
@@ -280,6 +282,7 @@ const TasksBoard: React.FC = () => {
           </div>
           <span className="text-[10px] text-[#8C6F66]">از: {t.creatorName}</span>
         </div>
+        <div className="text-[10px] font-bold text-[#8C6F66] border-t border-[#EBDBCE]/60 pt-1.5" data-task-stamp>ثبت: {createdStamp(t.createdAt)}</div>
       </div>
     );
   };
@@ -464,7 +467,7 @@ const TasksBoard: React.FC = () => {
                     <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${st.dot}`} title={st.label} />
                     <div className="flex-1 min-w-[160px]">
                       <div className="font-black text-[13px] text-[#3A241F]">{t.title}</div>
-                      <div className="text-[10px] text-[#8C6F66]">سازنده: {t.creatorName}</div>
+                      <div className="text-[10px] text-[#8C6F66]">سازنده: {t.creatorName} · ثبت: {createdStamp(t.createdAt)}</div>
                     </div>
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${p.cls}`}>{p.label}</span>
                     <span className={`text-[11px] font-bold ${st.head}`}>{st.label}</span>

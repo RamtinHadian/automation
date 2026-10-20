@@ -1573,7 +1573,7 @@ export default function UserPanel() {
         {mainMenuTab === 'warranty' && canAccessWarrantyMenu && canSub(currentUser, 'warranty.warranty') && <WarrantyView />}
         {mainMenuTab === 'warehouse' && canAccessWarehouseMenu && <WarehouseView />}
         {mainMenuTab === 'sepidar' && canAccessSepidarMenu && <SepidarView />}
-        <VersionNotice enabled={canAccessSepidarMenu} />
+        <VersionNotice enabled={canAccessSepidarMenu && (currentUser.role === 'SUPER_ADMIN' || !!currentUser.canSignOfficialLetters)} />
         {mainMenuTab === 'calls' && canAccessCallsMenu && <CompanyCalls />}
         {mainMenuTab === 'support' && canAccessWarrantyMenu && canSub(currentUser, 'warranty.support') && <SupportView />}
         {mainMenuTab === 'stats' && canAccessStatsMenu && (

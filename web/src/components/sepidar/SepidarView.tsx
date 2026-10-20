@@ -74,6 +74,8 @@ export const SepidarView: React.FC = () => {
   const [pair, setPair] = useState<{ code: string; expiresAt: string } | null>(null);
   const { currentUser } = useAppContext();
   const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  // the connection tools (pairing code, version, tool files, tool log, refresh) belong to the top admin and the CEO only
+  const isTop = currentUser.role === 'SUPER_ADMIN' || !!currentUser.canSignOfficialLetters;
 
   const load = useCallback(async () => {
     try {
@@ -163,7 +165,7 @@ export const SepidarView: React.FC = () => {
         <span className="truncate">{alive ? 'سپیدار وصل است' : st.connectorSeenAt ? 'سپیدار جواب نمی‌دهد' : 'سپیدار وصل نیست'}</span>
         {st.connectorSeenAt && <span className="font-bold opacity-70 whitespace-nowrap">· {ago(st.connectorSeenAt)}</span>}
         <span className="mr-auto flex items-center gap-1.5 shrink-0">
-          {isAdmin && (
+          {isTop && (
             <button
               type="button"
               title="ساخت کد اتصال"
@@ -180,10 +182,10 @@ export const SepidarView: React.FC = () => {
               <KeyRound className="w-4 h-4" />
             </button>
           )}
-          <button type="button" title="نسخهٔ هورمند روی این سیستم" aria-label="نسخهٔ هورمند" onClick={() => window.dispatchEvent(new Event(OPEN_VERSION_NOTICE))} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white" data-version-notice-btn>
+          {isTop && (<button type="button" title="نسخهٔ هورمند روی این سیستم" aria-label="نسخهٔ هورمند" onClick={() => window.dispatchEvent(new Event(OPEN_VERSION_NOTICE))} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white" data-version-notice-btn>
             <Info className="w-4 h-4" />
-          </button>
-          {isAdmin && (
+          </button>)}
+          {isTop && (
             <button
               type="button"
               title="دانلود فایل‌های تازهٔ برنامهٔ سپیدار (برای کپی روی کامپیوتر حسابداری)"
@@ -206,12 +208,12 @@ export const SepidarView: React.FC = () => {
               <Download className="w-4 h-4" />
             </button>
           )}
-          {isAdmin && (
+          {isTop && (
             <button type="button" title="گزارش ابزار سپیدار (آنچه ابزار از سپیدار خوانده)" aria-label="گزارش ابزار سپیدار" onClick={() => setShowReport((v) => !v)} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white" data-tool-report-btn>
               <ScrollText className="w-4 h-4" />
             </button>
           )}
-          {can('refresh') && (
+          {isTop && (
             <button type="button" title="بروزرسانی اطلاعات سپیدار" aria-label="بروزرسانی اطلاعات سپیدار" onClick={() => ask({ kind: 'refresh' }, 'درخواست بروزرسانی فرستاده شد.')} className="w-8 h-8 rounded-xl bg-white/80 border border-current/20 flex items-center justify-center cursor-pointer hover:bg-white">
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -219,7 +221,7 @@ export const SepidarView: React.FC = () => {
         </span>
       </div>
 
-      {isAdmin && showReport && (
+      {isTop && showReport && (
         <div className="rounded-2xl border border-[#EBDBCE] bg-white p-3 space-y-1" data-tool-report>
           <div className="text-[11px] font-black text-[#3A241F]">
             گزارش ابزار سپیدار{(st.cache?.toolReport?.items || [])[0]?.at ? ` · ${timeOf((st.cache?.toolReport?.items || [])[0].at)}` : ''}
