@@ -72,7 +72,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
 		['docs', 'اسناد'],
 		['products', 'کالاها'],
 		['warehouses', 'انبارها'],
-	] as [Tab, string][]).filter(([k]) => canSub(currentUser, 'warehouse.' + k) && (k === 'stock' ? qtyOk : k === 'docs' ? qtyOk && kindsOk.length > 0 : true));
+	] as [Tab, string][]).filter(([k]) => canSub(currentUser, 'warehouse.' + k) && (k === 'stock' ? qtyOk : k === 'docs' ? qtyOk && kindsOk.length > 0 && !sepidar : true));
   const shownTab: Tab | null = tabs.some(([k]) => k === tab) ? tab : tabs[0]?.[0] ?? null;
   const mayWrite = canSub(currentUser, 'warehouse.write');
 

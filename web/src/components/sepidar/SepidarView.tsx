@@ -119,7 +119,7 @@ export const SepidarView: React.FC = () => {
 
   const alive = st.connectorSeenAt && Date.now() - new Date(st.connectorSeenAt).getTime() < 3 * 60 * 1000;
   const tabs: [Tab, string, boolean][] = [
-    ['deals', 'پیش‌فاکتور و فاکتور', can('quotationSend') || can('quotationClose') || can('quotationDelete') || can('invoice') || can('receipt') || can('view')],
+    ['deals', 'پیش‌فاکتور', can('quotationSend') || can('quotationClose') || can('quotationDelete') || can('invoice') || can('receipt') || can('view')],
     ['customers', 'مشتریان', can('customerNew') || can('customerUpdate') || can('viewBalance')],
     ['invoices', 'فاکتورهای فروش', can('viewInvoices')],
     ['prices', 'قیمت‌ها', can('viewPrices')],
