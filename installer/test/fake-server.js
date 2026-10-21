@@ -66,6 +66,8 @@ function answer(script) {
   if (/docker compose ps/.test(script)) return out('app running\ndb running\nbackup running\n');
   if (/git fetch origin frontend/.test(script)) { st.fixedGit = true; return out("Reset branch 'frontend'\n"); }
   if (/auto-update\.sh/.test(script)) return st.fixedGit ? out('update service installed/repaired\n') : out('', 128, 'fatal: Cannot fast-forward to multiple branches.\n');
+  if (script === 'hostname') return out((st.host || 'ubuntu') + '\n');
+  const hm = /hostnamectl set-hostname (\S+)/.exec(script); if (hm) { st.host = hm[1]; return out(hm[1] + '\n'); }
   // Nginx tab
   if (/nginx -v/.test(script)) return out(st.nginx ? 'nginx version: nginx/1.24.0 (Ubuntu)\n' : '');
   if (/##FILE/.test(script)) return out('##FILE /etc/nginx/sites-enabled/old.conf\nserver {\n listen 80;\n server_name old.example.com;\n location / { proxy_pass http://192.168.88.15:8080; }\n}\n');

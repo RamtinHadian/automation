@@ -227,8 +227,17 @@ class Session {
     this.name = name;
     this.dir = name === 'automation' ? '/opt/automation' : '/opt/' + name;
     this.domain = String(opts.domain || '').trim().toLowerCase().replace(/[^a-z0-9.-]/g, '');
+    // the machine's own name (optional): set first, before anything is installed
+    const hostName = String(opts.hostname || '').trim().toLowerCase();
+    if (hostName && !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(hostName)) {
+      this.send({ type: 'stopped', step: 'hostname', note: 'نام سرور فقط حرف انگلیسی کوچک، عدد و خط تیره باشد (و با خط تیره شروع یا تمام نشود).' });
+      this.running = false;
+      return;
+    }
+    this.hostName = hostName;
     this.log('نصب «' + name + '» در ' + this.dir + ' روی پورت ' + port + (this.domain ? ' با دامنهٔ ' + this.domain : ''), 'gray');
     this.steps = [
+      ...(hostName ? [{ id: 'hostname', title: 'نام سرور (hostname)', status: 'wait' }] : []),
       { id: 'system', title: 'بررسی سرور', status: 'wait' },
       { id: 'network', title: 'بررسی اینترنت و GitHub', status: 'wait' },
       { id: 'docker', title: 'نصب Docker', status: 'wait' },
@@ -242,6 +251,7 @@ class Session {
     ];
     this.send({ type: 'steps', steps: this.steps });
     const steps = {
+      hostname: () => this.stepHostname(),
       system: () => this.stepSystem(),
       network: () => this.stepNetwork(),
       docker: () => this.stepDocker(),
@@ -274,6 +284,19 @@ class Session {
       this.log(`✓ ${r.note || 'انجام شد'}`, 'green');
     }
     this.running = false;
+  }
+
+  /** Gives the machine the name typed in the form (and keeps /etc/hosts in step, so that sudo does not complain). */
+  async stepHostname() {
+    const name = this.hostName;
+    const cur = (await this.run('hostname', { quiet: true })).out.trim();
+    if (cur === name) return { ok: true, note: 'نام سرور از قبل «' + name + '» است.' };
+    const r = await this.run(
+      'hostnamectl set-hostname ' + name + ' && { if grep -q "^127.0.1.1" /etc/hosts; then sed -i "s/^127.0.1.1.*/127.0.1.1 ' + name + '/" /etc/hosts; else echo "127.0.1.1 ' + name + '" >> /etc/hosts; fi; } && hostname',
+      { root: true });
+    const now = (await this.run('hostname', { quiet: true })).out.trim();
+    if (r.code !== 0 || now !== name) return { ok: false, note: 'نام سرور عوض نشد.' };
+    return { ok: true, note: 'نام سرور از «' + cur + '» به «' + name + '» عوض شد.' };
   }
 
   async stepSystem() {
@@ -918,7 +941,7 @@ wss.on('connection', (ws) => {
     } else if (m.type === 'nginx-apply') {
       s.nginxApply({ sites: m.sites, https: m.https, email: m.email });
     } else if (m.type === 'start') {
-      s.install({ appPort: m.appPort, name: m.name, domain: m.domain });
+      s.install({ appPort: m.appPort, name: m.name, domain: m.domain, hostname: m.hostname });
     } else if (m.type === 'ip-answer') {
       if (s.pending) {
         const f = s.pending;

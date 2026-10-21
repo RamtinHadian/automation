@@ -91,7 +91,7 @@
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ngHttps" style="width:auto;direction:rtl"> گواهی HTTPS هم بگیر (Let's Encrypt؛ دامنه‌ها باید به IP عمومی شما اشاره کنند)</label>
         <input id="ngEmail" placeholder="ایمیل برای گواهی (فقط اگر HTTPS تیک خورده)" style="display:none;margin-top:6px" />
       </div>
-      <div id="installFields"><label>پورت برنامه (پیش‌فرض ۸۰۸۰؛ برای نصب دوم مثلاً ۸۰۸۱)</label><input id="appPort" value="8080" />
+      <div id="installFields"><label>نام سرور (hostname؛ اختیاری، مثلاً hoormand-newco). خالی = همان نام فعلی می‌ماند</label><input id="instHost" placeholder="فقط حرف انگلیسی کوچک، عدد و خط تیره" autocomplete="off" /><label>پورت برنامه (پیش‌فرض ۸۰۸۰؛ برای نصب دوم مثلاً ۸۰۸۱)</label><input id="appPort" value="8080" />
       <label>نام نصب (برای CRM دوم یک نام تازه، مثلاً crm2)</label><input id="instName" value="automation" />
       <label>دامنه (اختیاری، مثلاً crm2.ramtinai.com)</label><input id="instDomain" placeholder="خالی = فقط با آدرس و پورت" /></div>
       <button class="full" id="connectBtn">اتصال به سرور</button>
@@ -182,7 +182,7 @@
     else if (m.type === 'connected' && m.mode === 'nginx') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = false; $('startBtn').textContent = 'اعمال تنظیم انجینکس'; $('connErr').style.display = 'none'; ['host','port','user','pass'].forEach(function (i) { $(i).disabled = true; }); ws.send(JSON.stringify({ type: 'nginx-scan' })); }
     else if (m.type === 'nginx-info') showNginxInfo(m);
     else if (m.type === 'nginx-done') { var rr = $('result'); rr.style.display = 'block'; rr.innerHTML = '<h2>✓ انجینکس تنظیم شد</h2>' + m.sites.map(function (x) { return (m.https ? 'https' : 'http') + '://<b>' + esc(x.domain) + '</b> ← ' + esc(x.target); }).join('<br>') + '<br><span class="note">در روتر میکروتیک فقط پورت ۸۰ و ۴۴۳ را به آدرس داخلی همین سرور بدهید و برای هر دامنه یک A-Record به IP عمومی بسازید (بدون پورت). برای سایت دیگر، یک خط تازه اضافه کنید و دوباره «اعمال» را بزنید.</span>'; $('startBtn').disabled = false; $('startBtn').textContent = 'اعمال تنظیم انجینکس'; }
-    else if (m.type === 'connected') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = true; $('startBtn').textContent = 'در حال نصب...'; sendStart(); $('connErr').style.display = 'none'; ['host','port','user','pass','appPort','instName','instDomain'].forEach(function (i) { $(i).disabled = true; }); }
+    else if (m.type === 'connected') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = true; $('startBtn').textContent = 'در حال نصب...'; sendStart(); $('connErr').style.display = 'none'; ['host','port','user','pass','appPort','instName','instDomain','instHost'].forEach(function (i) { $(i).disabled = true; }); }
     else if (m.type === 'connect-failed') { $('connectBtn').disabled = false; $('connErr').textContent = m.note; $('connErr').style.display = 'block'; }
     else if (m.type === 'steps') renderSteps(m.steps);
     else if (m.type === 'shot') setTimeout(function () { snap(m.title, m.ok); }, 250);
@@ -314,7 +314,7 @@
     if (mode === 'voip') {
       ws.send(JSON.stringify({ type: 'voip-start', appHost: $('vApp').value.trim(), amiUser: $('vUser').value.trim(), amiSecret: $('vSecret').value.trim(),
         appSsh: $('aHost').value.trim() ? { host: $('aHost').value.trim(), port: $('aPort').value.trim(), user: $('aUser').value.trim(), password: $('aPass').value, dir: $('aDir').value.trim() } : null }));
-    } else ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value, name: $('instName').value, domain: $('instDomain').value }));
+    } else ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value, name: $('instName').value, domain: $('instDomain').value, hostname: $('instHost').value }));
   }
   $('connectBtn').onclick = function () {
     if (!$('host').value.trim() || !$('user').value.trim() || !$('pass').value) { $('connErr').textContent = 'آدرس، نام کاربری و رمز را وارد کنید.'; $('connErr').style.display = 'block'; return; }
