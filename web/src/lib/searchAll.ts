@@ -1,4 +1,4 @@
-import { fold } from './customerSearch';
+import { fold, tokenHit } from './customerSearch';
 import { gregorianToJalali } from './jalali';
 
 export { fold };
@@ -157,5 +157,5 @@ export function matchesAll(obj: unknown, query: string, ...extra: unknown[]): bo
   }
   for (const r of dates) if (!hasDate(meta.dates, r) && !(r.alt && hasDate(meta.dates, r.alt))) return false;
   for (const t of times) if (!meta.times.has(t)) return false;
-  return words.every((tok) => line.includes(tok) || (MONTHS.includes(tok) && hasDate(meta.dates, { m: monthNo(tok) })));
+  return words.every((tok) => tokenHit(line, tok) || (MONTHS.includes(tok) && hasDate(meta.dates, { m: monthNo(tok) })));
 }

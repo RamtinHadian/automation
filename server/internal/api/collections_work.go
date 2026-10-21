@@ -144,7 +144,7 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	case jsonx.Contains(assignees, me.ID()):
 		// Assignees may move the task along, tick the checklist and comment; nothing else.
 		doc = jsonx.Copy(before)
-		for _, k := range []string{"status", "checklist", "comments", "archived"} {
+		for _, k := range []string{"status", "checklist", "comments", "archived", "reviewerIds"} {
 			if v, ok := data[k]; ok && v != nil {
 				doc[k] = v
 			}
@@ -206,6 +206,23 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 			if !jsonx.Contains(added, u) {
 				others = append(others, u)
 			}
+		}
+		if st == "REVIEW" {
+			// sent for review: the creator and the people chosen for it are told first (they are the ones who must look at it)
+			var reviewers []string
+			for _, u := range append([]string{jsonx.Str(doc, "creatorId")}, jsonx.Strings(doc, "reviewerIds")...) {
+				if u != "" && !jsonx.Contains(reviewers, u) {
+					reviewers = append(reviewers, u)
+				}
+			}
+			notify.Notify(ctx, reviewers, notify.Note{Kind: "task", Label: "در انتظار بررسی", Title: "وظیفه برای بررسی آماده است: " + title, Body: "توسط " + me.Name(), Ref: rf, Repeat: true}, me.ID())
+			var rest []string
+			for _, u := range others {
+				if !jsonx.Contains(reviewers, u) {
+					rest = append(rest, u)
+				}
+			}
+			others = rest
 		}
 		notify.Notify(ctx, others, notify.Note{Kind: "task", Label: label, Title: "وضعیت وظیفه تغییر کرد: " + shown, Body: title + " — توسط " + me.Name(), Ref: rf}, me.ID())
 	}

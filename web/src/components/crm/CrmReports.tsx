@@ -42,6 +42,15 @@ export const CrmReports: React.FC<{ customers: Customer[]; deals: Deal[]; activi
   const [to, setTo] = useState<string | undefined>(todayIso());
   const [q, setQ] = useState('');
   const [who, setWho] = useState('');
+  // the prices given are listed over ALL time when the report is first opened (the 30-day window of the other reports hid older prices)
+  const quotesOpened = React.useRef(false);
+  useEffect(() => {
+    if (kind === 'quotes' && !quotesOpened.current) {
+      quotesOpened.current = true;
+      setFrom(undefined);
+      setTo(undefined);
+    }
+  }, [kind]);
   const [types, setTypes] = useState<string[]>([]);
   const [notBought, setNotBought] = useState(false);
   const [dormantDays, setDormantDays] = useState(60);

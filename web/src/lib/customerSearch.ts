@@ -53,5 +53,24 @@ export function matchesQuery(line: string | undefined, query: string): boolean {
   const q = fold(query).trim();
   if (!q) return true;
   if (!line) return false;
-  return q.split(/\s+/).every((tok) => line.includes(tok));
+  return q.split(/\s+/).every((tok) => tokenHit(line, tok));
+}
+
+const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const reCache = new Map<string, RegExp>();
+
+/**
+ * One typed word against a folded line. A word with letters must be found as the START of a word, with its letters exactly in the order typed
+ * («یشم» finds «یشمی…» and not «پیشمرگ» or a name that merely holds those three letters); a number is found anywhere (the middle of a phone number).
+ */
+export function tokenHit(line: string, tok: string): boolean {
+  if (!tok) return true;
+  if (/[0-9]/.test(tok)) return line.includes(tok);
+  let re = reCache.get(tok);
+  if (!re) {
+    re = new RegExp('(^|[\\s\\-/:()،,.؛;«»"\'_|#])' + esc(tok));
+    if (reCache.size > 500) reCache.clear();
+    reCache.set(tok, re);
+  }
+  return re.test(line);
 }

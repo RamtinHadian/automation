@@ -340,7 +340,7 @@ export const CrmView: React.FC = () => {
   const baseTabs = [
     ['today', 'امروز من', Sparkles],
     ['overview', 'خلاصه', TrendingUp],
-    ['customers', 'مشتریان', Users],
+    ['customers', 'لیست مشتریان', Users],
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
     ['followups', 'پیگیری‌ها', ListChecks],
     ['reports', 'گزارش‌ها', BarChart3],

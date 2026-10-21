@@ -633,6 +633,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
           <div>
             <label className={label}>مسئول(ان) انجام</label>
             <PersonPickerMulti title="مسئول(ان) انجام" placeholder="انتخاب مسئول انجام…" items={staffItems(staff)} values={t.assigneeIds} disabled={!fullEdit} onChange={(ids) => patch({ assigneeIds: ids })} />
+            <div className="mt-2">
+              <PersonPickerMulti title="اطلاع‌رسانی هنگام بررسی" placeholder="افراد دیگری که با «در انتظار بررسی» شدن خبردار شوند…" items={staffItems(staff)} values={t.reviewerIds || []} disabled={!(fullEdit || canMove)} onChange={(ids) => patch({ reviewerIds: ids })} />
+              <div className="text-[10px] font-bold text-[#8C6F66] mt-1">وقتی وظیفه به «در انتظار بررسی» برود، سازندهٔ آن و این افراد اعلان می‌گیرند.</div>
+            </div>
           </div>
 
           <div>

@@ -387,6 +387,8 @@ export interface Task {
   creatorId: string;
   creatorName: string;
   assigneeIds: string[];
+  /** more people told when the task is sent for review («در انتظار بررسی»), besides its creator */
+  reviewerIds?: string[];
   /** Due date as yyyy-mm-dd. */
   dueDate?: string;
   checklist: TaskChecklistItem[];
