@@ -11,7 +11,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await type('host', '127.0.0.1'); await type('port', '2222'); await type('user', 'paya'); await type('pass', 'pw');
   await p.click('#connectBtn'); await sleep(3500);
   console.log('info:', (await p.$eval('#ngInfo', (e) => e.innerText)).replace(/\n+/g, ' / '));
-  await p.type('#ngSites', 'crm.example.com 192.168.88.11:8080\ndemo.example.com 192.168.88.12');
+  await p.type('#ngDomain', 'crm.example.com'); await p.type('#ngTarget', '192.168.88.11'); await p.click('#ngAdd'); await p.type('#ngDomain', 'demo.example.com'); await p.type('#ngTarget', '192.168.88.12:8081'); await p.click('#ngAdd'); console.log('list:', (await p.$eval('#ngSites', (e) => e.value)).split(String.fromCharCode(10)).join(' | '));
   await p.click('#startBtn');
   for (let i = 0; i < 40; i++) { await sleep(1000); if (await p.$eval('#result', (e) => getComputedStyle(e).display !== 'none')) break; }
   console.log('steps:', await p.$$eval('#steps li', (l) => l.map((x) => x.className + ':' + x.querySelector('.t').textContent).join(' | ')));

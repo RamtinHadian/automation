@@ -82,8 +82,12 @@
           <label>رمز AMI (خالی = خودکار ساخته می‌شود؛ فقط حرف و عدد)</label><input id="vSecret" autocomplete="off" /></details></div>
       <div id="nginxFields" style="display:none">
         <div id="ngInfo" class="guide" style="display:none"></div>
-        <label>سایت‌ها: هر خط یک دامنه و آدرس داخلی سرور هورمند آن (مثلاً <span dir="ltr">crm.example.com 192.168.88.11:8080</span>)</label>
-        <textarea id="ngSites" rows="5" dir="ltr" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#faf5f1;font-size:13px;font-family:Consolas,monospace" placeholder="crm.example.com 192.168.88.11:8080&#10;demo.example.com 192.168.88.12:8080"></textarea>
+        <div style="font-weight:bold;font-size:13px;color:#7a1c20;margin-top:10px">افزودن سایت تازه</div>
+        <label>نام سایت (دامنه)</label><input id="ngDomain" placeholder="مثلاً crm.example.com" autocomplete="off" />
+        <label>آدرس داخلی سرور هورمند آن (IP و در صورت نیاز پورت؛ بدون پورت = ۸۰۸۰)</label><input id="ngTarget" placeholder="مثلاً 10.10.20.11 یا 10.10.20.11:8080" autocomplete="off" />
+        <button class="sec full" id="ngAdd" type="button" style="margin-top:8px">+ افزودن به فهرست</button>
+        <label>فهرست سایت‌هایی که اعمال می‌شود (هر خط: نام سایت، فاصله، آدرس)</label>
+        <textarea id="ngSites" rows="5" dir="ltr" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#faf5f1;font-size:13px;font-family:Consolas,monospace" placeholder="با دکمهٔ «افزودن» پر می‌شود"></textarea>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ngHttps" style="width:auto;direction:rtl"> گواهی HTTPS هم بگیر (Let's Encrypt؛ دامنه‌ها باید به IP عمومی شما اشاره کنند)</label>
         <input id="ngEmail" placeholder="ایمیل برای گواهی (فقط اگر HTTPS تیک خورده)" style="display:none;margin-top:6px" />
       </div>
@@ -280,15 +284,24 @@
   }
   var GUIDE_INSTALL = '<b>کدام سرور را بنویسم؟</b> همان سروری که برنامهٔ هورمند باید روی آن نصب شود (اوبونتو).<ol><li><b>آدرس و پورت:</b> از داخل شبکه آدرس داخلی سرور و پورت 22 (مثلاً 192.168.2.248). از بیرون شبکه IP عمومی و پورتی که روتر به آن سرور داده است (مثلاً 37.255.238.219 و 2292).</li><li><b>نام کاربری و رمز:</b> کاربر خود سرور اوبونتو (نه ایزابل) که دسترسی sudo دارد.</li></ol>';
   var GUIDE_VOIP = '<b>در این صفحه دو سرور مختلف هست؛ قاطی نکنید:</b><ol><li><b>بالای فرم (آدرس، پورت، کاربر، رمز) = خود ایزابل</b> (دستگاه تلفن). از داخل شبکه: آدرس داخلی ایزابل و پورت 22. از بیرون: IP عمومی و پورتی که روتر به ایزابل می‌دهد (مثلاً 2200). کاربر <b>root</b> و رمز SSH خود ایزابل.</li><li><b>فرم دوم = سروری که هورمند روی آن نصب است</b> (از بیرون مثلاً IP عمومی و پورت 2292 یا 2293، با کاربر و رمز همان سرور اوبونتو). پنل خودش آدرس داخلی و پوشهٔ برنامه را از آن می‌خواند، به ایزابل می‌گوید فقط همین سرور مجاز است، تنظیم را در برنامه می‌نویسد و برنامه را دوباره راه می‌اندازد؛ شما کاری ندارید.</li></ol>';
-  var GUIDE_NGINX = '<b>انجینکس چیست؟</b> یک «درِ ورودی» است: چند دامنه به یک IP عمومی می‌رسند و انجینکس بر اساس نام دامنه هر کدام را به سرور هورمند خودش می‌فرستد؛ داده‌ها کاملاً جدا می‌مانند.<ol><li>به ماشینی وصل شوید که انجینکس روی آن است یا باید نصب شود (می‌تواند یک VM کوچک اوبونتو باشد). پنل با SSH کار می‌کند؛ نیازی به تلنت یا تایپ دستور نیست.</li><li>بعد از اتصال، آدرس‌های داخلی این ماشین و سایت‌هایی که قبلاً تنظیم شده نشان داده می‌شود.</li><li>سایت‌های تازه را بنویسید و «اعمال» را بزنید. در روتر هم فقط پورت ۸۰ و ۴۴۳ را به همین ماشین بدهید.</li></ol>';
+  var GUIDE_NGINX = '<b>انجینکس چیست؟</b> «درِ ورودی» چند سایت است: چند دامنه به یک IP عمومی می‌رسند و انجینکس هر کدام را به سرور هورمند خودش می‌فرستد؛ داده‌ها جدا می‌مانند.<ol><li>آدرس و ورود SSH <b>ماشین انجینکس</b> را بنویسید (یک VM اوبونتو؛ اگر انجینکس ندارد خود پنل نصبش می‌کند) و «اتصال» را بزنید.</li><li>پنل آدرس‌های داخلی ماشین و سایت‌های قبلی را نشان می‌دهد.</li><li>فقط <b>نام سایت</b> (مثلاً crm.example.com) و <b>IP سرور هورمند آن</b> (مثلاً 10.10.20.11) را بنویسید و «افزودن» را بزنید؛ بقیه را پنل خودش پر می‌کند (پورت ۸۰۸۰، پروکسی، وب‌سوکت، حجم آپلود).</li><li>«اعمال» را بزنید. سایت‌های قبلی پاک نمی‌شوند؛ هر بار فقط سایت‌های تازه را اضافه کنید.</li></ol>';
   function showNginxInfo(m) {
     var h = '<b>آدرس‌های داخلی این ماشین:</b> ' + (m.lan.length ? m.lan.map(function (x) { return '<span dir="ltr">' + esc(x) + '</span>'; }).join('، ') : 'خوانده نشد') + '<br>' +
       '<b>انجینکس:</b> ' + (m.installed ? esc(m.version) : 'نصب نیست (با «اعمال» نصب می‌شود)') + '<br>';
     h += m.sites.length ? '<b>سایت‌های تنظیم‌شده از قبل (برای ویرایش، کلیک کنید):</b><br>' + m.sites.map(function (x, i) { return '<a href="#" data-i="' + i + '" style="direction:ltr;display:inline-block">' + (x.https ? '🔒 ' : '') + esc(x.domain) + ' ← ' + esc(x.target) + '</a>'; }).join('<br>') : '<b>هنوز سایتی تنظیم نشده.</b>';
-    if (m.neighbours.length) h += '<br><b>دستگاه‌های دیده‌شده در شبکه (برای آدرس سرور هورمند):</b> ' + m.neighbours.map(function (x) { return '<span dir="ltr">' + esc(x) + '</span>'; }).join('، ');
+    if (m.neighbours.length) h += '<br><b>دستگاه‌های دیده‌شده در شبکه (برای آدرس سرور هورمند):</b> ' + m.neighbours.map(function (x) { return '<a href="#" class="nb" dir="ltr" data-ip="' + esc(x) + '">' + esc(x) + '</a>'; }).join('، ') + ' (برای پر کردن آدرس، روی یکی کلیک کنید)';
     var box = $('ngInfo'); box.innerHTML = h; box.style.display = 'block';
+    Array.prototype.forEach.call(box.querySelectorAll('a.nb'), function (a) { a.onclick = function (ev) { ev.preventDefault(); $('ngTarget').value = a.dataset.ip; $('ngDomain').focus(); }; });
     Array.prototype.forEach.call(box.querySelectorAll('a[data-i]'), function (a) { a.onclick = function (ev) { ev.preventDefault(); var x = m.sites[Number(a.dataset.i)]; var lines = $('ngSites').value.split('\n').filter(function (l) { return l.trim() && l.trim().split(/\s+/)[0] !== x.domain; }); lines.push(x.domain + ' ' + x.target); $('ngSites').value = lines.join('\n'); }; });
   }
+  function addSite(d, t) {
+    d = (d || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, ''); t = (t || '').trim();
+    if (!/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/.test(d)) { alert('نام سایت درست نیست؛ مثل crm.example.com بنویسید.'); return false; }
+    if (!/^(\d{1,3}\.){3}\d{1,3}(:\d{2,5})?$/.test(t)) { alert('آدرس داخلی درست نیست؛ مثل 10.10.20.11 یا 10.10.20.11:8080 بنویسید.'); return false; }
+    var lines = $('ngSites').value.split('\n').filter(function (l) { return l.trim() && l.trim().split(/\s+/)[0] !== d; });
+    lines.push(d + ' ' + (t.indexOf(':') < 0 ? t + ':8080' : t)); $('ngSites').value = lines.join('\n'); return true;
+  }
+  $('ngAdd').onclick = function () { if (addSite($('ngDomain').value, $('ngTarget').value)) { $('ngDomain').value = ''; $('ngTarget').value = ''; $('ngDomain').focus(); } };
   $('ngHttps').onchange = function () { $('ngEmail').style.display = $('ngHttps').checked ? 'block' : 'none'; };
   $('tabNginx').onclick = function () { setMode('nginx'); };
   $('tabInstall').onclick = function () { setMode('install'); }; $('tabVoip').onclick = function () { setMode('voip'); }; setMode(mode);
