@@ -15,7 +15,7 @@ export const isNight = () => {
 export const applyNight = (on: boolean) => {
   document.documentElement.classList.toggle('night', on);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', on ? '#0f0f10' : '#6E1B1B');
+  if (meta) meta.setAttribute('content', on ? '#0f0f10' : '#FAF5F1');
   try {
     localStorage.setItem(KEY, on ? '1' : '0');
   } catch {

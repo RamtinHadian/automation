@@ -800,6 +800,8 @@ export default function UserPanel() {
       <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 h-full">
       {/* The window never scrolls: only this area does. On a computer the header and the main menu stay pinned at its top (the sub-menus of every
           page pin themselves right under them, see data-subtabs in index.css); on a phone the main menu is the bottom bar and the header scrolls away. */}
+      {/* phone: a solid strip as tall as the status bar / notch, so the content that scrolls under it is not shown through iOS's blurred status bar (the dark haze at the top) */}
+      <div className="sm:hidden fixed inset-x-0 top-0 z-[60] bg-[#FAF5F1] pointer-events-none" style={{ height: 'env(safe-area-inset-top, 0px)' }} aria-hidden data-status-cover />
       <div ref={shellScrollRef} data-app-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-28 sm:pb-0 flex flex-col">
 
         {/* Top Header */}
