@@ -181,12 +181,12 @@ export default function UserPanel() {
     category: FileCategory;
   } | null>(null);
 
-  const otherStaff = staffList.filter((u) => u.id !== currentUser.id);
+  const otherStaff = staffList.filter((u) => u.id !== currentUser.id && u.isActive !== false);
   // A letter can only be referred to active people who may write, send or sign official letters.
   const referralStaff = otherStaff.filter(
     (u) => u.isActive !== false && (u.canSendOfficialLetters === true || u.canSignOfficialLetters === true || u.role === 'SUPER_ADMIN')
   );
-  const signatoriesList = staffList.filter((u) => u.canSignOfficialLetters);
+  const signatoriesList = staffList.filter((u) => u.canSignOfficialLetters && u.isActive !== false);
 
   const [recipientId, setRecipientId] = useState<string>('');
   const [letterRecipientId, setLetterRecipientId] = useState<string>('');
@@ -421,7 +421,7 @@ export default function UserPanel() {
   useEffect(() => {
     if (!canAccessTasksMenu && mainMenuTab === 'tasks') setMainMenuTab('files');
   }, [canAccessTasksMenu, mainMenuTab]);
-  const activeRecipientId = recipientId || otherStaff[0]?.id || staffList[0]?.id || '';
+  const activeRecipientId = recipientId || otherStaff[0]?.id || '';
   const activeLetterRecipientId = letterRecipientId || signatoriesList[0]?.id || otherStaff[0]?.id || '';
 
   const fileInputRef = useRef<HTMLInputElement>(null);

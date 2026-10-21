@@ -32,7 +32,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
   const [submitting, setSubmitting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const filtered = staffList.filter((u) =>
+  const filtered = staffList.filter((u) => u.isActive !== false).filter((u) =>
     u.fullName.toLowerCase().includes(usernameQuery.toLowerCase().trim()) ||
     u.email.toLowerCase().includes(usernameQuery.toLowerCase().trim())
   );

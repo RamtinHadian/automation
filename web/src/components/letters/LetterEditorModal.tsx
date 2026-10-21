@@ -306,7 +306,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   });
   const [attachment, setAttachment] = useState('ندارد');
   // Official letters can only be sent for signature to the CEO / authorised signatories.
-  const signers = staffList.filter((u) => u.canSignOfficialLetters);
+  const signers = staffList.filter((u) => u.canSignOfficialLetters && u.isActive !== false);
   const [recipientId, setRecipientId] = useState(editTransfer?.recipients[0]?.id || signers[0]?.id || '');
   const [extraNote, setExtraNote] = useState('');
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: string; dataUrl: string } | null>(null);

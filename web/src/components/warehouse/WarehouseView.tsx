@@ -916,7 +916,7 @@ const WarehouseModal: React.FC<{ w: Partial<WhWarehouse>; sepidar: boolean; isAd
         <div><span className={label}>محل</span><input value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} className={field} /></div>
         <div>
           <span className={label}>انباردار</span>
-          <PersonPicker value={f.keeperId} onChange={(id) => setF({ ...f, keeperId: id })} items={staffList.map((u) => ({ id: u.id, name: u.fullName, sub: u.departmentName }))} title="انتخاب انباردار" placeholder="بدون انباردار" emptyLabel="بدون انباردار" />
+          <PersonPicker value={f.keeperId} onChange={(id) => setF({ ...f, keeperId: id })} items={staffList.filter((u) => u.isActive !== false || u.id === f.keeperId).map((u) => ({ id: u.id, name: u.fullName, sub: u.departmentName }))} title="انتخاب انباردار" placeholder="بدون انباردار" emptyLabel="بدون انباردار" />
         </div>
         <div className="sm:col-span-2"><span className={label}>یادداشت</span><input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} className={field} /></div>
         <label className="flex items-center gap-2 text-xs font-bold cursor-pointer"><input type="checkbox" disabled={sepidar} checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} className="w-4 h-4" /> فعال</label>

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"regexp"
 	"strings"
@@ -167,6 +168,15 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		delete(doc, "archived")
 	}
 	newAssignees := jsonx.Strings(doc, "assigneeIds")
+	// a switched-off person can no longer be given work (people who already hold it keep it until it is moved)
+	if off := inactiveAmong(ctx, newAssignees); len(off) > 0 {
+		for _, a := range newAssignees {
+			if jsonx.Contains(off, a) && !jsonx.Contains(assignees, a) {
+				httpx.Error(w, http.StatusBadRequest, "کارمند غیرفعال را نمی‌شود مسئول وظیفه کرد.")
+				return
+			}
+		}
+	}
 	if _, err := store.Pool.Exec(ctx,
 		`INSERT INTO tasks (id, creator_id, assignee_ids, data) VALUES ($1, $2, $3, $4::jsonb)
 		 ON CONFLICT (id) DO UPDATE SET assignee_ids = $3, data = $4::jsonb`,
@@ -313,6 +323,31 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		}
 	}
 	recipients := jsonx.IDs(data, "recipients")
+	// nothing is sent to a switched-off person
+	if off := inactiveAmong(ctx, recipients); len(off) > 0 {
+		var keep []string
+		for _, rid := range recipients {
+			if !jsonx.Contains(off, rid) {
+				keep = append(keep, rid)
+			}
+		}
+		if len(keep) == 0 && !exists {
+			httpx.Error(w, http.StatusBadRequest, "گیرنده غیرفعال است و چیزی برایش فرستاده نمی‌شود.")
+			return
+		}
+		if !exists {
+			recipients = keep
+			var objs []any
+			for _, v := range jsonx.Arr(data, "recipients") {
+				if o, ok := v.(map[string]any); ok {
+					if id, _ := o["id"].(string); !jsonx.Contains(off, id) {
+						objs = append(objs, o)
+					}
+				}
+			}
+			data["recipients"] = objs
+		}
+	}
 
 	doc := jsonx.Copy(data)
 	doc["id"] = id
@@ -423,4 +458,24 @@ func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id str
 		Kind: "alert", Label: label, Title: what + " حذف شد: " + jsonx.Str(doc, "fileName"), Body: "توسط " + me.Name(), Repeat: true,
 	}, me.ID())
 	httpx.OK(w)
+}
+
+// inactiveAmong returns those of the given people who are switched off (isActive = false).
+func inactiveAmong(ctx context.Context, ids []string) []string {
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := store.Pool.Query(ctx, `SELECT id FROM users WHERE id = ANY($1) AND data->>'isActive' = 'false'`, ids)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil {
+			out = append(out, id)
+		}
+	}
+	return out
 }

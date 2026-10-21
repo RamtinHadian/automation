@@ -54,6 +54,10 @@ func Notify(ctx context.Context, userIDs []string, n Note, exceptID string) {
 			continue
 		}
 		seen[uid] = true
+		var off bool
+		if store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'isActive', 'true') = 'false' FROM users WHERE id = $1`, uid).Scan(&off) == nil && off {
+			continue // a switched-off person gets nothing
+		}
 		doc := jsonx.M{
 			"id": newID(), "userId": uid, "kind": n.Kind, "label": n.Label, "title": n.Title, "body": n.Body,
 			"ref": nil, "from": from, "createdAt": time.Now().UTC().Format("2006-01-02T15:04:05.000Z"), "read": false,

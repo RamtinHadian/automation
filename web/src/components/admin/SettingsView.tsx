@@ -585,7 +585,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {section === 'proforma' && (
       <>
       <ProformaIssuersCard
-        staff={staffList.map((u) => ({ id: u.id, name: u.fullName }))}
+        staff={staffList.filter((u) => u.isActive !== false).map((u) => ({ id: u.id, name: u.fullName }))}
         settings={settings}
         setSettings={setSettings}
         unofficialChildren={
