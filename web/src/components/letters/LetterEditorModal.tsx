@@ -7,7 +7,7 @@ import { LETTERHEAD_TOTAL, LetterheadChoice, letterheadBackground, letterheadCol
 import { hwheel } from '../../lib/hscroll';
 import { ZoomBar } from './ZoomBar';
 import { ScaledPaper } from './ScaledPaper';
-import { PageGuides } from './PageGuides';
+import { PageGuides, RATIO } from './PageGuides';
 import { usePrintBreaks } from './usePrintBreaks';
 import { generateOfficialLetterHtml } from '../../lib/pdfLetterGenerator';
 import { LetterTextTemplatesModal, bodyToText } from './LetterTextTemplatesModal';
@@ -981,7 +981,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
           <ScaledPaper enabled={fitZ.isPhone || fitZ.zoom !== 1} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
           <div
             ref={paperSheetRef}
-            style={{ fontFamily: selectedFontFamily, ...(lhPaper && lh && !lh.image ? { paddingTop: letterheadPad(lh.id, paperWidth(pageSize)), paddingBottom: letterheadPad(lh.id, paperWidth(pageSize)) - 2 } : {}), ...(lhPaper ? letterheadBackground(lh) : {}) }}
+            style={{ fontFamily: selectedFontFamily, minHeight: Math.round((({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720) * (RATIO[pageSize === 'A5' ? 'A5' : pageSize === 'Letter' ? 'Letter' : 'A4']) * ((pageBreaks?.length ?? 0) + 1)), ...(lhPaper && lh && !lh.image ? { paddingTop: letterheadPad(lh.id, paperWidth(pageSize)), paddingBottom: letterheadPad(lh.id, paperWidth(pageSize)) - 2 } : {}), ...(lhPaper ? letterheadBackground(lh) : {}) }}
             className={`bg-white official-letter-sheet rounded-xl shadow-2xl border border-[#C98B6A]/30 w-full transition-all text-[#3A241F] flex flex-col justify-between relative ${getPageDimensions()}`}
           >
             <PageGuides targetRef={paperSheetRef} paper={pageSize === 'Letter' ? 'Letter' : pageSize === 'A5' ? 'A5' : 'A4'} ys={pageBreaks} />
