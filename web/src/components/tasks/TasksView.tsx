@@ -1,7 +1,6 @@
 import { managedStaffIds } from '../../lib/unit';
 import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import React, { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { askConfirm } from '../../lib/confirmDialog';
 import { canSub } from '../../lib/permissions';
 import {
@@ -207,8 +206,7 @@ const TasksBoard: React.FC = () => {
     let dir = 0;
     const onOver = (e: DragEvent) => {
       const edge = 90;
-      dir = e.clientY < 150 ? -1 : e.clientY > window.innerHeight - edge ? 1 : 0; // the strip of drop targets (top, 130px) does not scroll
-      if (e.clientY < 70) dir = 0;
+      dir = e.clientY < 150 ? -1 : e.clientY > window.innerHeight - edge ? 1 : 0; 
     };
     const timer = window.setInterval(() => {
       if (!dir) return;
@@ -312,36 +310,6 @@ const TasksBoard: React.FC = () => {
 
   return (
     <div className="flex-1 p-3.5 sm:p-8 space-y-4 sm:space-y-5 pb-32 sm:pb-8 select-none overflow-x-clip">
-      {/* while a card is being dragged, the four columns are shown at the top of the screen as drop targets, wherever the page is scrolled to */}
-      {dragId && createPortal(
-        <div dir="rtl" className="fixed top-2 inset-x-2 sm:inset-x-6 z-[2147483000] rounded-3xl bg-white/95 backdrop-blur border-2 border-sky-300 shadow-2xl p-2.5" data-drop-strip>
-          <div className="text-[10px] font-black text-sky-800 mb-1.5 px-1">کارت را روی وضعیت مورد نظر رها کنید</div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {STATUSES.map((c) => (
-              <div
-                key={c.id}
-                data-drop-target={c.id}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(c.id);
-                }}
-                onDragLeave={() => setDragOver((x) => (x === c.id ? null : x))}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragId) moveTask(dragId, c.id);
-                  setDragId(null);
-                  setDragOver(null);
-                }}
-                className={`flex items-center justify-between gap-2 rounded-2xl border-2 border-dashed px-3 py-2.5 text-[12px] font-black transition-colors ${dragOver === c.id ? 'bg-sky-100 border-sky-500 text-sky-900' : 'bg-[#FAF5F1] border-[#C98B6A]/50 text-[#3A241F]'}`}
-              >
-                <span className="flex items-center gap-2"><span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />{c.label}</span>
-                <span className="text-[10px] font-black text-[#8C6F66]">{toPersianDigits(visible.filter((t) => t.status === c.id).length)}</span>
-              </div>
-            ))}
-          </div>
-        </div>,
-        document.body,
-      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -460,7 +428,7 @@ const TasksBoard: React.FC = () => {
       )}
 
       {view === 'board' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch" data-kanban>
           {STATUSES.map((col) => {
             const items = visible.filter((t) => t.status === col.id);
             return (
