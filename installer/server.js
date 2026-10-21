@@ -451,6 +451,165 @@ class Session {
   }
 
 
+  // ---------------------------------------------------------------- Nginx: one front door for several Hoormand servers
+  /** Reads this machine's LAN addresses and the sites Nginx already forwards (domain -> inside address), and sends them to the page. */
+  async nginxScan() {
+    const ip4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+    const lan = (await this.run("(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i==\"src\") print $(i+1)}'; hostname -I 2>/dev/null | tr ' ' '\\n') | grep -E '^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)' | awk '!s[$0]++'", { quiet: true })).out.split(/\s+/).filter((x) => ip4.test(x));
+    const ver = (await this.run('nginx -v 2>&1 | head -1', { quiet: true })).out.trim();
+    const installed = /nginx\/\d/.test(ver);
+    // every server block: its names and where it forwards to (a simple reader: enough for what this panel writes and for ordinary files)
+    const raw = installed ? (await this.run("for f in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do [ -f \"$f\" ] && { echo \"##FILE $f\"; cat \"$f\"; }; done 2>/dev/null", { root: true, quiet: true })).out : '';
+    const sites = [];
+    for (const chunk of raw.split(/^##FILE /m).slice(1)) {
+      const nl = chunk.indexOf('\n');
+      const file = chunk.slice(0, nl).trim();
+      const body = chunk.slice(nl + 1);
+      for (const blk of body.split(/\bserver\s*\{/).slice(1)) {
+        const names = /server_name\s+([^;]+);/.exec(blk);
+        const pass = /proxy_pass\s+https?:\/\/([^\s;\/]+)/.exec(blk);
+        if (!names || !pass) continue;
+        const https = /listen\s+[^;]*443/.test(blk);
+        for (const d of names[1].trim().split(/\s+/)) if (d && d !== '_' && !sites.some((y) => y.domain === d && y.target === pass[1])) sites.push({ domain: d, target: pass[1], https, file });
+      }
+    }
+    // neighbours seen on the LAN: handy as suggestions for the inside address of each Hoormand server
+    const neigh = (await this.run("ip -4 neigh 2>/dev/null | awk '$1 ~ /^(10\\.|192\\.168\\.|172\\.)/ && $NF != \"FAILED\" {print $1}' | sort -u | head -40", { quiet: true })).out.split(/\s+/).filter((x) => ip4.test(x));
+    this.send({ type: 'nginx-info', lan, installed, version: ver, sites, neighbours: neigh });
+    this.log(installed ? 'Nginx روی این سرور هست (' + ver + '). ' + sites.length + ' سایت از قبل تنظیم شده.' : 'Nginx هنوز روی این سرور نصب نیست؛ با «اعمال» نصب می‌شود.', 'gray');
+  }
+
+  /** Installs Nginx (when missing) and adds one site block per domain; each block forwards to the inside address of one Hoormand server. */
+  async nginxApply(o) {
+    if (this.running) return;
+    this.running = true;
+    this.cancelled = false;
+    const domRe = /^(?=.{4,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
+    const tgtRe = /^(\d{1,3}\.){3}\d{1,3}:\d{2,5}$/;
+    const sites = [];
+    for (const x of Array.isArray(o.sites) ? o.sites : []) {
+      const domain = String(x.domain || '').trim().toLowerCase();
+      let target = String(x.target || '').trim();
+      if (/^(\d{1,3}\.){3}\d{1,3}$/.test(target)) target += ':8080';
+      if (!domRe.test(domain) || !tgtRe.test(target)) {
+        this.send({ type: 'stopped', step: 'sites', note: 'دامنه یا آدرس داخلی یکی از ردیف‌ها درست نیست: ' + domain + ' ' + target + ' (دامنه مثل crm.example.com و مقصد مثل 192.168.88.11:8080)' });
+        this.running = false;
+        return;
+      }
+      if (!sites.some((y) => y.domain === domain)) sites.push({ domain, target });
+    }
+    if (!sites.length) {
+      this.send({ type: 'stopped', step: 'sites', note: 'دست‌کم یک دامنه و آدرس داخلی وارد کنید.' });
+      this.running = false;
+      return;
+    }
+    const https = !!o.https;
+    const email = String(o.email || '').trim();
+    if (https && !/^[^\s@;'"\\]+@[^\s@;'"\\]+\.[a-z]{2,}$/i.test(email)) {
+      this.send({ type: 'stopped', step: 'sites', note: 'برای گواهی HTTPS یک ایمیل درست بنویسید.' });
+      this.running = false;
+      return;
+    }
+    this.steps = [
+      { id: 'sys', title: 'بررسی سرور', status: 'wait' },
+      { id: 'inst', title: 'نصب Nginx' + (https ? ' و Certbot' : ''), status: 'wait' },
+      { id: 'back', title: 'دسترسی به سرورهای هورمند', status: 'wait' },
+      { id: 'conf', title: 'نوشتن تنظیم دامنه‌ها', status: 'wait' },
+      { id: 'fw', title: 'فایروال (پورت ۸۰ و ۴۴۳)', status: 'wait' },
+      ...(https ? [{ id: 'ssl', title: 'گواهی HTTPS (Let\'s Encrypt)', status: 'wait' }] : []),
+    ];
+    this.send({ type: 'steps', steps: this.steps });
+    const steps = {
+      sys: async () => {
+        const r = await this.run('. /etc/os-release 2>/dev/null; echo "$PRETTY_NAME"; command -v apt-get >/dev/null && echo apt', { quiet: true });
+        if (this.user !== 'root') {
+          const t = await this.run('true', { root: true, quiet: true });
+          if (t.code !== 0) return { ok: false, note: 'این کاربر دسترسی sudo ندارد؛ با کاربری وارد شوید که sudo دارد (یا root).' };
+        }
+        if (!/apt/.test(r.out)) return { ok: false, note: 'این سرور اوبونتو/دبیان نیست؛ Nginx را دستی نصب کنید و دوباره امتحان کنید.' };
+        return { ok: true, note: r.out.split('\n')[0] };
+      },
+      inst: async () => {
+        const has = await this.run('command -v nginx >/dev/null && echo yes', { quiet: true });
+        const hasCb = await this.run('command -v certbot >/dev/null && echo yes', { quiet: true });
+        if (/yes/.test(has.out) && (!https || /yes/.test(hasCb.out))) return { ok: true, note: 'از قبل نصب است.' };
+        const pk = 'nginx' + (https ? ' certbot python3-certbot-nginx' : '');
+        const r = await this.runJob('export DEBIAN_FRONTEND=noninteractive; apt-get update -y && apt-get install -y ' + pk + ' && systemctl enable --now nginx', { label: 'apt-get install ' + pk });
+        if (r.code !== 0) return { ok: false, note: 'نصب Nginx انجام نشد (اینترنت یا مخزن‌های apt سرور را بررسی کنید).' };
+        return { ok: true, note: 'نصب شد.' };
+      },
+      back: async () => {
+        const bad = [];
+        for (const x of sites) {
+          const r = await this.run('curl -s -o /dev/null -m 6 -w "%{http_code}" http://' + x.target + '/ || true', { quiet: true });
+          const code = r.out.trim().slice(-3);
+          if (/^[1-5]\d\d$/.test(code)) this.log(x.target + ' جواب داد (' + code + ').', 'gray');
+          else { this.log(x.target + ' جواب نداد.', 'yellow'); bad.push(x.target); }
+        }
+        return { ok: true, note: bad.length ? 'این آدرس‌ها هنوز جواب نمی‌دهند: ' + bad.join('، ') + ' (تنظیم نوشته می‌شود؛ هورمند آن سرور و فایروالش را بررسی کنید.)' : 'همهٔ سرورهای هورمند جواب دادند.' };
+      },
+      conf: async () => {
+        const proxy = ['proxy_http_version 1.1;', 'proxy_set_header Host $host;', 'proxy_set_header X-Real-IP $remote_addr;', 'proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;', 'proxy_set_header X-Forwarded-Proto $scheme;', 'proxy_set_header Upgrade $http_upgrade;', 'proxy_set_header Connection $connection_upgrade;', 'proxy_read_timeout 3600s;', 'proxy_buffering off;', 'client_max_body_size 500m;', ''].join('\n');
+        const b64 = (t) => Buffer.from(t).toString('base64');
+        let sh = 'set -e\nmkdir -p /etc/nginx/hoormand-backup && cp -a /etc/nginx/sites-available /etc/nginx/hoormand-backup/ 2>/dev/null || true\n';
+        sh += 'echo ' + b64("map $http_upgrade $connection_upgrade { default upgrade; '' close; }\n") + ' | base64 -d > /etc/nginx/conf.d/hoormand-upgrade.conf\n';
+        sh += 'echo ' + b64(proxy) + ' | base64 -d > /etc/nginx/hoormand-proxy.conf\n';
+        const written = [];
+        for (const x of sites) {
+          const f = '/etc/nginx/sites-available/hoormand-' + x.domain + '.conf';
+          // the same domain in a file of someone else is left alone (two blocks for one name would fight)
+          sh += 'if grep -lqs "server_name[^;]*[[:space:]]' + x.domain.replace(/\./g, '\\.') + '[[:space:];]" /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf 2>/dev/null && [ ! -f ' + f + ' ]; then echo "EXISTS ' + x.domain + '"; else\n';
+          const blk = 'server {\n\tlisten 80;\n\tlisten [::]:80;\n\tserver_name ' + x.domain + ';\n\tlocation / {\n\t\tproxy_pass http://' + x.target + ';\n\t\tinclude /etc/nginx/hoormand-proxy.conf;\n\t}\n}\n';
+          sh += ' echo ' + b64(blk) + ' | base64 -d > ' + f + '; ln -sf ' + f + ' /etc/nginx/sites-enabled/hoormand-' + x.domain + '.conf; echo "WROTE ' + x.domain + '"\nfi\n';
+          written.push(x.domain);
+        }
+        // someone who types the bare IP must not land on one of the sites: a catch-all closes the connection (only when no default server exists yet)
+        sh += 'if ! grep -rqsE "listen[^;]*default_server" /etc/nginx/sites-enabled /etc/nginx/conf.d --exclude=hoormand-default.conf; then printf "server {\n\tlisten 80 default_server;\n\tlisten [::]:80 default_server;\n\tserver_name _;\n\treturn 444;\n}\n" > /etc/nginx/conf.d/hoormand-default.conf; fi\n';
+        sh += 'if nginx -t 2>&1; then systemctl reload nginx && echo RELOADED; else echo BADCONF; fi\n';
+        const r = await this.run(sh, { root: true });
+        if (/BADCONF/.test(r.out) || !/RELOADED/.test(r.out)) {
+          // go back to the way it was: drop what this run wrote
+          await this.run(written.map((d) => 'rm -f /etc/nginx/sites-enabled/hoormand-' + d + '.conf').join('; ') + '; nginx -t >/dev/null 2>&1 && systemctl reload nginx', { root: true, quiet: true });
+          return { ok: false, note: 'تنظیم Nginx معتبر نبود و برگردانده شد. متن خطا را در صفحهٔ سرور ببینید.' };
+        }
+        const skipped = (r.out.match(/EXISTS \S+/g) || []).map((x) => x.slice(7));
+        this.nginxDomains = sites.filter((x) => !skipped.includes(x.domain)).map((x) => x.domain);
+        return { ok: true, note: (this.nginxDomains.length ? this.nginxDomains.length + ' دامنه اضافه یا به‌روز شد' : 'دامنه‌ای اضافه نشد') + (skipped.length ? '؛ این‌ها از قبل در فایل دیگری بودند و دست نخوردند: ' + skipped.join('، ') : '') + '.' };
+      },
+      fw: async () => {
+        const s = await this.run('command -v ufw >/dev/null && ufw status || echo "ufw-not-installed"', { root: true, quiet: true });
+        if (/not-installed|inactive/i.test(s.out) && !/Status: active/i.test(s.out)) return { ok: true, note: 'فایروال روشن نیست؛ چیزی لازم نیست.' };
+        const r = await this.run('ufw allow 80/tcp && ufw allow 443/tcp', { root: true });
+        return r.code === 0 ? { ok: true, note: 'پورت‌های ۸۰ و ۴۴۳ باز شد.' } : { ok: false, note: 'باز کردن پورت در فایروال نشد.' };
+      },
+      ssl: async () => {
+        const ds = this.nginxDomains && this.nginxDomains.length ? this.nginxDomains : sites.map((x) => x.domain);
+        const r = await this.runJob('certbot --nginx --non-interactive --agree-tos --redirect -m ' + sq(email) + ' ' + ds.map((d) => '-d ' + d).join(' '), { label: 'certbot --nginx ' + ds.join(' ') });
+        if (r.code !== 0) return { ok: false, note: 'گواهی گرفته نشد. باید A-Record دامنه به IP عمومی شما اشاره کند و پورت ۸۰ و ۴۴۳ در روتر به همین سرور برسد؛ بعد دوباره «اعمال» را بزنید. (تنظیم HTTP کار می‌کند.)' };
+        return { ok: true, note: 'گواهی گرفته شد و تمدید خودکار فعال است.' };
+      },
+    };
+    for (const st of this.steps) {
+      if (this.cancelled || !this.conn) break;
+      this.setStep(st.id, 'run');
+      this.log('\n━━━ ' + st.title + ' ━━━', 'yellow');
+      let r;
+      try { r = await steps[st.id](); } catch (e) { r = { ok: false, note: 'خطای غیرمنتظره: ' + e.message }; }
+      this.setStep(st.id, r.ok ? 'ok' : 'fail', r.note);
+      this.send({ type: 'shot', id: st.id, title: st.title, ok: r.ok });
+      if (!r.ok) {
+        this.log('\n✗ ' + (r.note || 'این مرحله انجام نشد.'), 'red');
+        this.send({ type: 'stopped', step: st.id, note: r.note || '' });
+        this.running = false;
+        return;
+      }
+      this.log('✓ ' + (r.note || 'انجام شد'), 'green');
+    }
+    this.running = false;
+    this.send({ type: 'nginx-done', sites, https });
+    await this.nginxScan();
+  }
+
   /**
    * Connects the program to the Issabel / Asterisk phone system: makes the AMI user, lets this program's server in, and
    * (when its SSH login is given) writes the AMI lines into that server's .env and restarts the program there.
@@ -754,6 +913,10 @@ wss.on('connection', (ws) => {
       }
     } else if (m.type === 'voip-start') {
       s.voipSetup({ appHost: m.appHost, amiUser: m.amiUser, amiSecret: m.amiSecret, appSsh: m.appSsh });
+    } else if (m.type === 'nginx-scan') {
+      s.nginxScan();
+    } else if (m.type === 'nginx-apply') {
+      s.nginxApply({ sites: m.sites, https: m.https, email: m.email });
     } else if (m.type === 'start') {
       s.install({ appPort: m.appPort, name: m.name, domain: m.domain });
     } else if (m.type === 'ip-answer') {

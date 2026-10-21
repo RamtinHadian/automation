@@ -13,6 +13,7 @@ function answer(script) {
   log.push(script.slice(0, 90));
   if (process.env.FAKEDEBUG) console.log('CMD', script.slice(0, 110).split('\n').join(' '));
   const out = (stdout = '', code = 0, stderr = '') => ({ stdout, code, stderr });
+  if (/PRETTY_NAME"; command -v apt-get/.test(script)) return out('Ubuntu 24.04 LTS\napt\n');
   if (/^stat -c %s \/tmp\/hoormand-src\.tgz/.test(script)) return out(String(st.uploadedBytes || 0) + '\n');
   // Issabel / phone-system commands
   if (/ip -4 route get 1\.1\.1\.1/.test(script)) return out('192.168.2.100\n');
@@ -65,6 +66,14 @@ function answer(script) {
   if (/docker compose ps/.test(script)) return out('app running\ndb running\nbackup running\n');
   if (/git fetch origin frontend/.test(script)) { st.fixedGit = true; return out("Reset branch 'frontend'\n"); }
   if (/auto-update\.sh/.test(script)) return st.fixedGit ? out('update service installed/repaired\n') : out('', 128, 'fatal: Cannot fast-forward to multiple branches.\n');
+  // Nginx tab
+  if (/nginx -v/.test(script)) return out(st.nginx ? 'nginx version: nginx/1.24.0 (Ubuntu)\n' : '');
+  if (/##FILE/.test(script)) return out('##FILE /etc/nginx/sites-enabled/old.conf\nserver {\n listen 80;\n server_name old.example.com;\n location / { proxy_pass http://192.168.88.15:8080; }\n}\n');
+  if (/ip -4 neigh/.test(script)) return out('192.168.88.11\n192.168.88.12\n');
+  if (/command -v nginx/.test(script)) return out(st.nginx ? 'yes\n' : '');
+  if (/apt-get install -y nginx/.test(script)) { st.nginx = true; return out('installed\n'); }
+  if (/curl -s -o \/dev\/null -m 6/.test(script)) return out('200');
+  if (/RELOADED/.test(script)) { st.nginxConf = script; require('fs').writeFileSync(process.env.NGCONF_OUT || 'nginx-conf-test.sh', script); return out('WROTE x\nRELOADED\n'); }
   if (/systemctl is-active/.test(script)) return out('active\n');
   if (/ufw allow/.test(script)) { st.port = true; return out('Rule added\n'); }
   if (/ufw status/.test(script)) return out('Status: active\n\nTo                         Action      From\n--                         ------      ----\n22/tcp                     ALLOW       Anywhere\n' + (st.port ? '8080/tcp                   ALLOW       Anywhere\n' : ''));

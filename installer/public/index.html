@@ -61,7 +61,7 @@
 </style>
 </head>
 <body>
-<header><h1>پنل نصب هورمند</h1><nav class="tabs"><button id="tabInstall" class="on">نصب برنامه روی سرور</button><button id="tabVoip">اتصال به تلفن ایزابل (ویپ)</button></nav><span>این صفحه فقط روی کامپیوتر خودتان اجرا می‌شود؛ رمز SSH جایی ذخیره نمی‌شود.</span></header>
+<header><h1>پنل نصب هورمند</h1><nav class="tabs"><button id="tabInstall" class="on">نصب برنامه روی سرور</button><button id="tabVoip">اتصال به تلفن ایزابل (ویپ)</button><button id="tabNginx">پروکسی انجینکس (چند دامنه، چند سرور)</button></nav><span>این صفحه فقط روی کامپیوتر خودتان اجرا می‌شود؛ رمز SSH جایی ذخیره نمی‌شود.</span></header>
 <main>
   <section>
     <div class="card" id="loginCard">
@@ -80,6 +80,13 @@
           <label>پوشهٔ برنامه روی آن سرور (خالی = خودکار)</label><input id="aDir" placeholder="مثلاً /opt/automation" />
           <label>نام کاربر AMI (پیش‌فرض hoormand)</label><input id="vUser" value="hoormand" />
           <label>رمز AMI (خالی = خودکار ساخته می‌شود؛ فقط حرف و عدد)</label><input id="vSecret" autocomplete="off" /></details></div>
+      <div id="nginxFields" style="display:none">
+        <div id="ngInfo" class="guide" style="display:none"></div>
+        <label>سایت‌ها: هر خط یک دامنه و آدرس داخلی سرور هورمند آن (مثلاً <span dir="ltr">crm.example.com 192.168.88.11:8080</span>)</label>
+        <textarea id="ngSites" rows="5" dir="ltr" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#faf5f1;font-size:13px;font-family:Consolas,monospace" placeholder="crm.example.com 192.168.88.11:8080&#10;demo.example.com 192.168.88.12:8080"></textarea>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ngHttps" style="width:auto;direction:rtl"> گواهی HTTPS هم بگیر (Let's Encrypt؛ دامنه‌ها باید به IP عمومی شما اشاره کنند)</label>
+        <input id="ngEmail" placeholder="ایمیل برای گواهی (فقط اگر HTTPS تیک خورده)" style="display:none;margin-top:6px" />
+      </div>
       <div id="installFields"><label>پورت برنامه (پیش‌فرض ۸۰۸۰؛ برای نصب دوم مثلاً ۸۰۸۱)</label><input id="appPort" value="8080" />
       <label>نام نصب (برای CRM دوم یک نام تازه، مثلاً crm2)</label><input id="instName" value="automation" />
       <label>دامنه (اختیاری، مثلاً crm2.ramtinai.com)</label><input id="instDomain" placeholder="خالی = فقط با آدرس و پورت" /></div>
@@ -168,10 +175,14 @@
   ws.onmessage = function (e) {
     var m = JSON.parse(e.data);
     if (m.type === 'log') { term.write(m.data); report.push(plain(m.data)); }
+    else if (m.type === 'connected' && m.mode === 'nginx') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = false; $('startBtn').textContent = 'اعمال تنظیم انجینکس'; $('connErr').style.display = 'none'; ['host','port','user','pass'].forEach(function (i) { $(i).disabled = true; }); ws.send(JSON.stringify({ type: 'nginx-scan' })); }
+    else if (m.type === 'nginx-info') showNginxInfo(m);
+    else if (m.type === 'nginx-done') { var rr = $('result'); rr.style.display = 'block'; rr.innerHTML = '<h2>✓ انجینکس تنظیم شد</h2>' + m.sites.map(function (x) { return (m.https ? 'https' : 'http') + '://<b>' + esc(x.domain) + '</b> ← ' + esc(x.target); }).join('<br>') + '<br><span class="note">در روتر میکروتیک فقط پورت ۸۰ و ۴۴۳ را به آدرس داخلی همین سرور بدهید و برای هر دامنه یک A-Record به IP عمومی بسازید (بدون پورت). برای سایت دیگر، یک خط تازه اضافه کنید و دوباره «اعمال» را بزنید.</span>'; $('startBtn').disabled = false; $('startBtn').textContent = 'اعمال تنظیم انجینکس'; }
     else if (m.type === 'connected') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = true; $('startBtn').textContent = 'در حال نصب...'; sendStart(); $('connErr').style.display = 'none'; ['host','port','user','pass','appPort','instName','instDomain'].forEach(function (i) { $(i).disabled = true; }); }
     else if (m.type === 'connect-failed') { $('connectBtn').disabled = false; $('connErr').textContent = m.note; $('connErr').style.display = 'block'; }
     else if (m.type === 'steps') renderSteps(m.steps);
     else if (m.type === 'shot') setTimeout(function () { snap(m.title, m.ok); }, 250);
+    else if (m.type === 'stopped' && mode === 'nginx') { $('stopBox').style.display = 'block'; $('stopBox').innerHTML = '<b>تنظیم انجینکس متوقف شد.</b><br>' + esc(m.note) + '<br>اصلاح کنید و دوباره «اعمال» را بزنید.'; $('startBtn').disabled = false; $('startBtn').textContent = 'اعمال تنظیم انجینکس'; }
     else if (m.type === 'stopped') { $('stopBox').style.display = 'block'; $('stopBox').innerHTML = '<b>نصب در این مرحله متوقف شد.</b><br>' + esc(m.note) + '<br>اسکرین‌شات این مرحله ساخته شده؛ با «کپی گزارش» یا اسکرین‌شات‌ها برای پشتیبانی بفرستید. بعد از رفع مشکل دوباره «شروع نصب» را بزنید.'; $('startBtn').disabled = false; $('startBtn').textContent = 'تلاش دوباره'; }
     else if (m.type === 'ask-ip') askIp(m);
     else if (m.type === 'voip-done') showVoipDone(m);
@@ -257,10 +268,11 @@
   var mode = 'install';
   function setMode(m) {
     mode = m;
-    $('tabInstall').className = m === 'install' ? 'on' : ''; $('tabVoip').className = m === 'voip' ? 'on' : '';
-    $('installFields').style.display = m === 'install' ? '' : 'none'; $('voipFields').style.display = m === 'voip' ? '' : 'none';
-    $('startBtn').textContent = m === 'voip' ? 'شروع تنظیم ایزابل' : 'شروع نصب';
-    $('guide').innerHTML = m === 'voip' ? GUIDE_VOIP : GUIDE_INSTALL;
+    $('tabInstall').className = m === 'install' ? 'on' : ''; $('tabVoip').className = m === 'voip' ? 'on' : ''; $('tabNginx').className = m === 'nginx' ? 'on' : '';
+    $('installFields').style.display = m === 'install' ? '' : 'none'; $('voipFields').style.display = m === 'voip' ? '' : 'none'; $('nginxFields').style.display = m === 'nginx' ? '' : 'none';
+    $('startBtn').textContent = m === 'voip' ? 'شروع تنظیم ایزابل' : m === 'nginx' ? 'اعمال تنظیم انجینکس' : 'شروع نصب';
+    $('guide').innerHTML = m === 'voip' ? GUIDE_VOIP : m === 'nginx' ? GUIDE_NGINX : GUIDE_INSTALL;
+    if (m === 'nginx') { $('lbHost').innerHTML = 'آدرس و پورت SSH <b>ماشینی که انجینکس روی آن است (یا نصب می‌شود)</b>'; $('lbUser').innerHTML = 'نام کاربری آن ماشین (اوبونتو، با sudo)'; $('lbPass').innerHTML = 'رمز SSH آن ماشین'; var t2 = document.querySelector('#loginCard h2'); if (t2) t2.textContent = '۱. ورود به ماشین انجینکس (SSH)'; return; }
     $('lbHost').innerHTML = m === 'voip' ? 'آدرس و پورت SSH <b>ایزابل</b> (دستگاه تلفن؛ پورت چپ: مثلاً 2200 در روتر شما)' : 'آدرس و پورت SSH <b>سروری که برنامه روی آن نصب می‌شود</b> (پورت چپ: مثلاً 2292 = سرور 248، 2293 = mitto)';
     $('lbUser').innerHTML = m === 'voip' ? 'نام کاربری <b>ایزابل</b> (معمولاً root)' : 'نام کاربری همان سرور (اوبونتو)';
     $('lbPass').innerHTML = m === 'voip' ? 'رمز SSH <b>ایزابل</b>' : 'رمز SSH همان سرور';
@@ -268,8 +280,24 @@
   }
   var GUIDE_INSTALL = '<b>کدام سرور را بنویسم؟</b> همان سروری که برنامهٔ هورمند باید روی آن نصب شود (اوبونتو).<ol><li><b>آدرس و پورت:</b> از داخل شبکه آدرس داخلی سرور و پورت 22 (مثلاً 192.168.2.248). از بیرون شبکه IP عمومی و پورتی که روتر به آن سرور داده است (مثلاً 37.255.238.219 و 2292).</li><li><b>نام کاربری و رمز:</b> کاربر خود سرور اوبونتو (نه ایزابل) که دسترسی sudo دارد.</li></ol>';
   var GUIDE_VOIP = '<b>در این صفحه دو سرور مختلف هست؛ قاطی نکنید:</b><ol><li><b>بالای فرم (آدرس، پورت، کاربر، رمز) = خود ایزابل</b> (دستگاه تلفن). از داخل شبکه: آدرس داخلی ایزابل و پورت 22. از بیرون: IP عمومی و پورتی که روتر به ایزابل می‌دهد (مثلاً 2200). کاربر <b>root</b> و رمز SSH خود ایزابل.</li><li><b>فرم دوم = سروری که هورمند روی آن نصب است</b> (از بیرون مثلاً IP عمومی و پورت 2292 یا 2293، با کاربر و رمز همان سرور اوبونتو). پنل خودش آدرس داخلی و پوشهٔ برنامه را از آن می‌خواند، به ایزابل می‌گوید فقط همین سرور مجاز است، تنظیم را در برنامه می‌نویسد و برنامه را دوباره راه می‌اندازد؛ شما کاری ندارید.</li></ol>';
+  var GUIDE_NGINX = '<b>انجینکس چیست؟</b> یک «درِ ورودی» است: چند دامنه به یک IP عمومی می‌رسند و انجینکس بر اساس نام دامنه هر کدام را به سرور هورمند خودش می‌فرستد؛ داده‌ها کاملاً جدا می‌مانند.<ol><li>به ماشینی وصل شوید که انجینکس روی آن است یا باید نصب شود (می‌تواند یک VM کوچک اوبونتو باشد). پنل با SSH کار می‌کند؛ نیازی به تلنت یا تایپ دستور نیست.</li><li>بعد از اتصال، آدرس‌های داخلی این ماشین و سایت‌هایی که قبلاً تنظیم شده نشان داده می‌شود.</li><li>سایت‌های تازه را بنویسید و «اعمال» را بزنید. در روتر هم فقط پورت ۸۰ و ۴۴۳ را به همین ماشین بدهید.</li></ol>';
+  function showNginxInfo(m) {
+    var h = '<b>آدرس‌های داخلی این ماشین:</b> ' + (m.lan.length ? m.lan.map(function (x) { return '<span dir="ltr">' + esc(x) + '</span>'; }).join('، ') : 'خوانده نشد') + '<br>' +
+      '<b>انجینکس:</b> ' + (m.installed ? esc(m.version) : 'نصب نیست (با «اعمال» نصب می‌شود)') + '<br>';
+    h += m.sites.length ? '<b>سایت‌های تنظیم‌شده از قبل (برای ویرایش، کلیک کنید):</b><br>' + m.sites.map(function (x, i) { return '<a href="#" data-i="' + i + '" style="direction:ltr;display:inline-block">' + (x.https ? '🔒 ' : '') + esc(x.domain) + ' ← ' + esc(x.target) + '</a>'; }).join('<br>') : '<b>هنوز سایتی تنظیم نشده.</b>';
+    if (m.neighbours.length) h += '<br><b>دستگاه‌های دیده‌شده در شبکه (برای آدرس سرور هورمند):</b> ' + m.neighbours.map(function (x) { return '<span dir="ltr">' + esc(x) + '</span>'; }).join('، ');
+    var box = $('ngInfo'); box.innerHTML = h; box.style.display = 'block';
+    Array.prototype.forEach.call(box.querySelectorAll('a[data-i]'), function (a) { a.onclick = function (ev) { ev.preventDefault(); var x = m.sites[Number(a.dataset.i)]; var lines = $('ngSites').value.split('\n').filter(function (l) { return l.trim() && l.trim().split(/\s+/)[0] !== x.domain; }); lines.push(x.domain + ' ' + x.target); $('ngSites').value = lines.join('\n'); }; });
+  }
+  $('ngHttps').onchange = function () { $('ngEmail').style.display = $('ngHttps').checked ? 'block' : 'none'; };
+  $('tabNginx').onclick = function () { setMode('nginx'); };
   $('tabInstall').onclick = function () { setMode('install'); }; $('tabVoip').onclick = function () { setMode('voip'); }; setMode(mode);
   function sendStart() {
+    if (mode === 'nginx') {
+      var rows = $('ngSites').value.split('\n').map(function (l) { return l.trim().split(/\s+/); }).filter(function (p) { return p[0]; }).map(function (p) { return { domain: p[0], target: p[1] || '' }; });
+      ws.send(JSON.stringify({ type: 'nginx-apply', sites: rows, https: $('ngHttps').checked, email: $('ngEmail').value.trim() }));
+      return;
+    }
     if (mode === 'voip') {
       ws.send(JSON.stringify({ type: 'voip-start', appHost: $('vApp').value.trim(), amiUser: $('vUser').value.trim(), amiSecret: $('vSecret').value.trim(),
         appSsh: $('aHost').value.trim() ? { host: $('aHost').value.trim(), port: $('aPort').value.trim(), user: $('aUser').value.trim(), password: $('aPass').value, dir: $('aDir').value.trim() } : null }));
