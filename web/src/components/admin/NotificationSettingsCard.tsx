@@ -188,6 +188,22 @@ export const NotificationSettingsCard: React.FC<{ settings: SystemSettings; onSa
 
       <div className={card}>
         <h3 className="font-black text-sm text-[#3A241F]">هر نوع ناتیف، یک صدا و رفتار</h3>
+        <button
+          type="button"
+          onClick={() => {
+            // every notification audible again: no kind or event set to «بدون صدا» / switched off, no quiet hours; the volume at least 60%
+            const kinds: NonNullable<NotifySettings['kinds']> = {};
+            for (const [k, r] of Object.entries(cfg.kinds || {})) kinds[k as Kind] = { ...r, enabled: true, sound: !r.sound || r.sound === NO_SOUND ? undefined : r.sound };
+            const events: NonNullable<NotifySettings['events']> = {};
+            for (const [l, r] of Object.entries(cfg.events || {})) events[l] = { ...r, enabled: true, sound: !r.sound || r.sound === NO_SOUND ? undefined : r.sound };
+            patch({ enabled: true, kinds, events, quiet: cfg.quiet ? { ...cfg.quiet, enabled: false } : undefined, volume: Math.max(cfg.volume ?? DEFAULT_NOTIFY.volume, 0.6) });
+            showToast('همهٔ ناتیفیکیشن‌ها با صدا شد؛ برای اعمال، «ذخیره» را بزنید.');
+          }}
+          className="self-start px-4 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-[11px] font-black cursor-pointer"
+          data-all-with-sound
+        >
+          همهٔ ناتیفیکیشن‌ها با صدا (بازگرداندن به پیش‌فرض)
+        </button>
         <div className="space-y-2">
           {KINDS.map((k) => {
             const r = resolveRule(cfg, k);
