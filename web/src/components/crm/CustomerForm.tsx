@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, Landmark, Printer, Phone, Smartphone, Star, Store, Trash2, User as UserIcon, X } from 'lucide-react';
 import { Customer, CustomerStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
-import { isMobileNumber, normPhone, normText } from '../../lib/customerImport';
+import { isCompleteMobile, isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label, SOURCES } from './crmUi';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
@@ -532,6 +532,11 @@ export const CustomerForm: React.FC<{
               onFax={(p) => patch({ faxNumber: p || undefined })}
             />
           </div>
+          {mobiles.some((p) => !isCompleteMobile(p)) && (
+            <p className="text-[11px] font-bold text-amber-700 mt-2" data-short-mobile>
+              یکی از موبایل‌ها ۱۱ رقم نیست ({mobiles.filter((p) => !isCompleteMobile(p)).map((p) => normPhone(p) || p).join('، ')}). اگر کامل نیست آن را اصلاح کنید.
+            </p>
+          )}
         </Section>
 
         <Section title="نشانی و راه‌های ارتباطی">

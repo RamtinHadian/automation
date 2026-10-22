@@ -47,7 +47,7 @@ import { CustomerForm } from './CustomerForm';
 import { ProformaSection } from './ProformaSection';
 import { QuickProformaDialog } from './QuickProformaDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
-import { callerNameOnly, normPhone, normText } from '../../lib/customerImport';
+import { callerNameOnly, isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 import { remainingText, STATE_LABEL, warrantyState, codeText } from '../../lib/warranty';
 import { subRemaining, subState, SUB_STATE, isOpenTicket } from '../../lib/support';
 import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
@@ -1347,8 +1347,8 @@ const CustomerDetail: React.FC<{
       {c.phones.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
           {([
-            ['موبایل‌ها', c.phones.filter((p) => /^\+?(98)?0?9\d{9}$/.test(p)), Smartphone, 'text-emerald-600'],
-            ['تلفن‌های ثابت', c.phones.filter((p) => !/^\+?(98)?0?9\d{9}$/.test(p)), Phone, 'text-sky-600'],
+            ['موبایل‌ها', c.phones.filter((p) => isMobileNumber(p)), Smartphone, 'text-emerald-600'],
+            ['تلفن‌های ثابت', c.phones.filter((p) => !isMobileNumber(p)), Phone, 'text-sky-600'],
           ] as const).map(([title, list, Icon, tone]) =>
             list.length === 0 ? null : (
               <div key={title} className="rounded-2xl border border-[#EBDBCE] bg-white p-3 space-y-2">

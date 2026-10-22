@@ -74,8 +74,13 @@ export const normPhone = (v: unknown): string => {
   return s.length >= 5 ? s : '';
 };
 
-/** Mobile (09…) or landline: decided from the number itself, in any of the ways the phone system or a person writes it. */
-export const isMobileNumber = (v: unknown): boolean => /^09\d{9}$/.test(normPhone(v));
+/**
+ * Mobile (09…) or landline: decided from the number itself, in any of the ways the phone system or a person writes it.
+ * Every number that starts with 09 is a mobile, even when a digit is missing (a landline never starts with 09), so a short or long one still lands among the mobiles.
+ */
+export const isMobileNumber = (v: unknown): boolean => /^09\d{3,}$/.test(normPhone(v));
+/** A mobile with exactly the 11 digits it should have. */
+export const isCompleteMobile = (v: unknown): boolean => /^09\d{9}$/.test(normPhone(v));
 
 /** The caller's name from the phone system, or '' when it is only the number again (many phone systems send the number as the name). */
 export const callerNameOnly = (name: unknown, number: unknown): string => {
