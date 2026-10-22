@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, Landmark, Printer, Phone, Smartphone, Star, Store, Trash2, User as UserIcon, X } from 'lucide-react';
 import { Customer, CustomerStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
+import { isoToJalaliParts, todayIso } from '../../lib/taskDates';
 import { isCompleteMobile, isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label, SOURCES } from './crmUi';
@@ -400,7 +401,7 @@ export const CustomerForm: React.FC<{
                 </div>
                 <div className="sm:col-span-2">
                   <label className={label}>تاریخ تولد مالک</label>
-                  <JalaliDateField value={c.birthDate} minYear={1300} onChange={(v) => patch({ birthDate: v })} />
+                  <JalaliDateField value={c.birthDate} minYear={1300} maxYear={isoToJalaliParts(todayIso())![0]} onChange={(v) => patch({ birthDate: v })} />
                 </div>
               </div>
             </Section>
@@ -439,7 +440,7 @@ export const CustomerForm: React.FC<{
               </div>
               <div className="sm:col-span-2">
                 <label className={label}>تاریخ تولد</label>
-                <JalaliDateField value={c.birthDate} minYear={1300} onChange={(v) => patch({ birthDate: v })} />
+                <JalaliDateField value={c.birthDate} minYear={1300} maxYear={isoToJalaliParts(todayIso())![0]} onChange={(v) => patch({ birthDate: v })} />
               </div>
               <div>
                 <label className={label}>شغل / محل کار</label>
@@ -479,7 +480,7 @@ export const CustomerForm: React.FC<{
               </div>
               <div className="sm:col-span-3">
                 <label className={label}>تاریخ ثبت</label>
-                <JalaliDateField value={c.registrationDate} minYear={1380} onChange={(v) => patch({ registrationDate: v })} />
+                <JalaliDateField value={c.registrationDate} minYear={1380} maxYear={isoToJalaliParts(todayIso())![0]} onChange={(v) => patch({ registrationDate: v })} />
               </div>
             </div>
             <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3.5 space-y-3">
