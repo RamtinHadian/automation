@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Link2, PackageSearch, Plus, Send, Trash2, X } from 'lucide-react';
 import { api } from '../../lib/api';
-import { renderProformaPdf } from '../../lib/proformaFile';
+import { downloadBlob, renderProformaJpeg, renderProformaPdf } from '../../lib/proformaFile';
 import { formatTaskDate } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
 import { approvalRequired, canApproveProforma, proformaReleased } from '../../lib/proformaApproval';
@@ -195,7 +195,7 @@ export const ProformaModal: React.FC<{
     amount: totals.payable,
   });
 
-  const sendTo = async (ch: 'telegram' | 'bale') => {
+  const sendTo = async (ch: 'telegram' | 'bale', format: 'pdf' | 'jpg' = 'pdf') => {
     if (!okItems.length || !released) return;
     if (problems.length) {
       showToast('اطلاعات پیش‌فاکتور رسمی کامل نیست: ' + problems.join('، '));
@@ -209,9 +209,9 @@ export const ProformaModal: React.FC<{
     try {
       const next = build();
       onSave(next);
-      const blob = await renderProformaPdf({ deal: next, customer, settings, issuerName });
+      const blob = format === 'jpg' ? await renderProformaJpeg({ deal: next, customer, settings, issuerName }) : await renderProformaPdf({ deal: next, customer, settings, issuerName });
       const caption = toPersianDigits(`پیش‌فاکتور شمارهٔ ${next.proformaNumber}\nمبلغ قابل پرداخت: ${toman(totals.payable)} ${unitName()}\nاعتبار تا: ${formatTaskDate(valid)}`);
-      await api.msgrSendFile({ channel: ch, chatId: chat[ch].trim(), customerId: customer.id, caption, file: blob, filename: `${next.proformaNumber || 'proforma'}.pdf` });
+      await api.msgrSendFile({ channel: ch, chatId: chat[ch].trim(), customerId: customer.id, caption, file: blob, filename: `${next.proformaNumber || 'proforma'}.${format}` });
       showToast(`پیش‌فاکتور در ${ch === 'bale' ? 'بله' : 'تلگرام'} ارسال شد.`);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'ارسال نشد.');
@@ -254,6 +254,28 @@ export const ProformaModal: React.FC<{
       status === 'PENDING' ? 'پیش‌فاکتور برای تایید مدیرعامل فرستاده شد.' : status === 'APPROVED' ? 'پیش‌فاکتور تایید شد؛ مهر و امضای مدیرعامل درج شد.' : 'پیش‌فاکتور رد شد.'
     );
     onClose();
+  };
+
+  // «ذخیره و دریافت JPG»: saves the proforma and downloads the invoice as one picture
+  const [jpgBusy, setJpgBusy] = useState(false);
+  const saveJpg = async () => {
+    if (!okItems.length || jpgBusy) return;
+    if (problems.length) {
+      showToast('اطلاعات پیش‌فاکتور رسمی کامل نیست: ' + problems.join('، '));
+      return;
+    }
+    setJpgBusy(true);
+    try {
+      const next = build();
+      onSave(next);
+      const blob = await renderProformaJpeg({ deal: next, customer, settings, issuerName });
+      downloadBlob(blob, `${next.proformaNumber || 'proforma'}.jpg`);
+      showToast('تصویر JPG پیش‌فاکتور ساخته و دریافت شد.');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'ساخت JPG ممکن نشد.');
+    } finally {
+      setJpgBusy(false);
+    }
   };
 
   const save = (pdf: boolean) => {
@@ -540,6 +562,10 @@ export const ProformaModal: React.FC<{
                         <Send className="w-3.5 h-3.5" />
                         {sending === ch ? 'در حال ساخت و ارسال...' : 'ذخیره و ارسال PDF'}
                       </button>
+                      <button type="button" disabled={sending !== null || !okItems.length || !chat[ch].trim() || !released} onClick={() => sendTo(ch, 'jpg')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50 cursor-pointer" data-send-jpg>
+                        <Send className="w-3.5 h-3.5" />
+                        ذخیره و ارسال JPG
+                      </button>
                       <button type="button" onClick={() => copyLink(ch)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black text-[#3A241F] bg-white border border-[#EBDBCE] cursor-pointer">
                         <Link2 className="w-3.5 h-3.5" />
                         کپی لینک اتصال مشتری
@@ -580,7 +606,10 @@ export const ProformaModal: React.FC<{
                 </button>
               )
             ) : (
+              <>
               <button type="button" disabled={!okItems.length} onClick={() => save(true)} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">ذخیره و ساخت PDF</button>
+              <button type="button" disabled={!okItems.length || jpgBusy} onClick={saveJpg} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50 cursor-pointer" data-save-jpg>{jpgBusy ? 'در حال ساخت JPG...' : 'ذخیره و دریافت JPG'}</button>
+              </>
             )}
           </div>
         </div>

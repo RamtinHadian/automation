@@ -1,5 +1,5 @@
-import React from 'react';
-import { CheckCircle2, Clock, FileText, Printer, XCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, Clock, FileText, Image, Printer, XCircle } from 'lucide-react';
 import { Customer, Deal } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -8,6 +8,7 @@ import { formatMoney, unitName } from '../../lib/money';
 import { issuerOf, issuersOf } from '../../lib/proformaIssuer';
 import { approvalRequired, proformaReleased } from '../../lib/proformaApproval';
 import { openProformaPdf, proformaTotals } from '../../lib/proformaPdf';
+import { downloadBlob, renderProformaJpeg } from '../../lib/proformaFile';
 
 /**
  * «پیش‌فاکتور» block of a sales opportunity: issue one (with the right company when there are several), see its number,
@@ -21,7 +22,8 @@ export const ProformaSection: React.FC<{
   /** open the proforma window; with a company id when the person chose one */
   onOpen: (issuerId?: string) => void;
 }> = ({ deal, customer, ready, onOpen }) => {
-  const { settings, currentUser } = useAppContext();
+  const { settings, currentUser, showToast } = useAppContext();
+  const [jpgBusy, setJpgBusy] = useState(false);
   const issuers = issuersOf(settings);
   const has = !!deal.proformaNumber && !!deal.items?.length;
   const required = approvalRequired(settings, deal.proformaIssuerId);
@@ -120,6 +122,27 @@ export const ProformaSection: React.FC<{
         >
           <Printer className="w-3.5 h-3.5" />
           چاپ / PDF
+        </button>
+        <button
+          type="button"
+          disabled={!released || jpgBusy}
+          title={released ? 'دریافت پیش‌فاکتور به‌صورت تصویر JPG' : 'پس از تایید مدیرعامل'}
+          onClick={async () => {
+            setJpgBusy(true);
+            try {
+              const blob = await renderProformaJpeg({ deal, customer, settings, issuerName: currentUser.fullName });
+              downloadBlob(blob, `${deal.proformaNumber || 'proforma'}.jpg`);
+            } catch (e) {
+              showToast(e instanceof Error ? e.message : 'ساخت JPG ممکن نشد.');
+            } finally {
+              setJpgBusy(false);
+            }
+          }}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-black bg-white border border-sky-200 text-sky-800 hover:bg-sky-50 disabled:opacity-50 cursor-pointer"
+          data-proforma-jpg
+        >
+          <Image className="w-3.5 h-3.5" />
+          {jpgBusy ? 'در حال ساخت…' : 'دریافت JPG'}
         </button>
         {issuers.length > 1 && (
           <span className="text-[10px] text-[#8C6F66] self-center">برای پیش‌فاکتور دیگر با شرکت دیگر، یک فرصت جدید بسازید یا در پنجرهٔ پیش‌فاکتور صادرکننده را عوض کنید.</span>

@@ -140,6 +140,26 @@ function pdfFromJpegs(pages: { data: Uint8Array; w: number; h: number }[], lands
   return new Blob(parts as BlobPart[], { type: 'application/pdf' });
 }
 
+/** Builds the proforma as ONE JPG picture (the whole invoice, however long) in the browser. */
+export async function renderProformaJpeg(input: ProformaRenderInput): Promise<Blob> {
+  const landscape = usesOfficialForm(input);
+  const { w: PAGE_W, h: PAGE_H } = landscape ? LANDSCAPE : PORTRAIT;
+  const canvas = await drawInvoice(input, PAGE_W, PAGE_H);
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('ساخت تصویر ممکن نشد.'))), 'image/jpeg', 0.93));
+}
+
+/** Saves a file from the browser (the download goes to the user's folder). */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
 /** Builds the proforma as a PDF file in the browser (no server-side browser needed). */
 export async function renderProformaPdf(input: ProformaRenderInput): Promise<Blob> {
   const landscape = usesOfficialForm(input);
