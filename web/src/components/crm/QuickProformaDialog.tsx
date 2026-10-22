@@ -5,6 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import { issuersOf, MAIN_ISSUER_ID } from '../../lib/proformaIssuer';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, unitName } from '../../lib/money';
+import { formatTaskDate } from '../../lib/taskDates';
 import { Modal, field, label } from './crmUi';
 import { fold, matchesQuery } from '../../lib/customerSearch';
 
@@ -29,7 +30,8 @@ export const QuickProformaDialog: React.FC<{
   const issuers = issuersOf(settings);
   const [issuerId, setIssuerId] = useState(MAIN_ISSUER_ID);
   const [customerId, setCustomerId] = useState('');
-  const [dealId, setDealId] = useState(''); // an opportunity of that customer, or '' for a new one
+  const [dealId, setDealId] = useState(''); // '' = not chosen yet, 'new' = a new opportunity, else the id of one of that customer's opportunities
+  const [showClosed, setShowClosed] = useState(false);
   const [title, setTitle] = useState('');
   const [q, setQ] = useState('');
 
@@ -45,19 +47,21 @@ export const QuickProformaDialog: React.FC<{
 
   const customer = customers.find((c) => c.id === customerId);
   const mine = customerId ? dealsOf.get(customerId) || [] : [];
+  const openOnes = mine.filter(open);
+  const closedOnes = mine.filter((d) => !open(d));
   const chosen = mine.find((d) => d.id === dealId);
-  const ready = !!customerId && (dealId ? !!chosen : !!title.trim());
+  const ready = !!customerId && (dealId === 'new' ? !!title.trim() : !!chosen);
   const pickCustomer = (id: string) => {
     setCustomerId(id);
-    // the newest open opportunity is the likely one; a customer without any gets a new opportunity
-    const first = (dealsOf.get(id) || []).find(open);
-    setDealId(first ? first.id : '');
+    // a customer with an open opportunity is asked which it is (nothing is chosen for them); one without any gets a new opportunity
+    setDealId((dealsOf.get(id) || []).some(open) ? '' : 'new');
+    setShowClosed(false);
     setTitle('');
   };
   const go = () => {
     if (!ready) return;
-    if (chosen) onExisting(chosen, issuerId);
-    else onNew({ title: title.trim(), customerId }, issuerId);
+    if (dealId === 'new') onNew({ title: title.trim(), customerId }, issuerId);
+    else if (chosen) onExisting(chosen, issuerId);
   };
 
   return (
@@ -131,36 +135,68 @@ export const QuickProformaDialog: React.FC<{
       </div>
 
       {customer && (
-        <div data-deal-choice>
-          <div className={label}>پیش‌فاکتور به کدام فرصت فروش {customer.name} وصل شود؟</div>
-          <div className="rounded-2xl border border-[#EBDBCE] divide-y divide-[#EBDBCE]/60 overflow-hidden">
-            {mine.map((d) => (
-              <button key={d.id} type="button" onClick={() => setDealId(d.id)} className={`w-full text-right px-3.5 py-2.5 cursor-pointer ${dealId === d.id ? 'bg-violet-50' : 'bg-white hover:bg-[#FAF5F1]'}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-black text-xs text-[#3A241F] truncate">{d.title}</span>
-                  {d.proformaNumber && <span className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 shrink-0">پیش‌فاکتور دارد</span>}
+        <div data-deal-choice className="space-y-3">
+          {openOnes.length > 0 ? (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50/60 p-3.5 space-y-3" data-open-deal-question>
+              <div className="text-xs font-black text-[#3A241F] leading-6">
+                {customer.name} {openOnes.length === 1 ? 'یک فرصت فروش باز دارد' : `${toPersianDigits(openOnes.length)} فرصت فروش باز دارد`}.
+                <br />
+                این پیش‌فاکتور را به {openOnes.length === 1 ? 'همین فرصت' : 'یکی از این فرصت‌ها'} وصل کنم، یا پیش‌فاکتور جدیدی است؟
+              </div>
+              {openOnes.map((d) => (
+                <div key={d.id} className={`rounded-xl border bg-white p-3 space-y-2 ${dealId === d.id ? 'border-violet-500 ring-2 ring-violet-200' : 'border-[#EBDBCE]'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-black text-xs text-[#3A241F] leading-6">{d.title}</div>
+                    <span className="shrink-0 text-[10px] font-black text-amber-800 bg-amber-100 rounded-full px-2 py-0.5">{STAGE_TEXT[d.stage] || d.stage}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-bold text-[#6B514A]">
+                    {d.amount ? <div>مبلغ: <b className="text-[#3A241F]">{formatMoney(d.amount)} {unitName()}</b></div> : null}
+                    {d.ownerName ? <div>مسئول: <b className="text-[#3A241F]">{d.ownerName}</b></div> : null}
+                    {d.createdAt ? <div>ساخته شده: <b className="text-[#3A241F]">{formatTaskDate(d.createdAt.slice(0, 10))}</b></div> : null}
+                    {d.updatedAt ? <div>آخرین تغییر: <b className="text-[#3A241F]">{formatTaskDate(d.updatedAt.slice(0, 10))}</b></div> : null}
+                    {d.expectedClose ? <div>پیش‌بینی بسته‌شدن: <b className="text-[#3A241F]">{formatTaskDate(d.expectedClose)}</b></div> : null}
+                    {d.items?.length ? <div>اقلام: <b className="text-[#3A241F]">{toPersianDigits(d.items.length)} ردیف</b></div> : null}
+                  </div>
+                  {d.notes?.trim() && <div className="text-[11px] font-medium text-[#6B514A] leading-6 bg-[#FAF5F1] rounded-lg px-2.5 py-1.5">{d.notes.trim()}</div>}
+                  {d.proformaNumber && (
+                    <div className="text-[11px] font-bold text-violet-700">پیش‌فاکتور {toPersianDigits(d.proformaNumber)} از قبل دارد؛ اتصال، همان را برای ویرایش باز می‌کند (صادرکنندهٔ آن عوض نمی‌شود).</div>
+                  )}
+                  <button type="button" onClick={() => setDealId(d.id)} className={`w-full py-2 rounded-xl text-xs font-black cursor-pointer border ${dealId === d.id ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-violet-700 border-violet-300 hover:bg-violet-50'}`} data-link-deal>
+                    {dealId === d.id ? '✓ به این فرصت وصل می‌شود' : 'اتصال به این فرصت'}
+                  </button>
                 </div>
-                <div className="text-[11px] font-bold text-[#8C6F66] truncate">
-                  {STAGE_TEXT[d.stage] || d.stage}
-                  {d.amount ? ` · ${formatMoney(d.amount)} ${unitName()}` : ''}
-                </div>
+              ))}
+              <button type="button" onClick={() => setDealId('new')} className={`w-full py-2.5 rounded-xl text-xs font-black cursor-pointer border ${dealId === 'new' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-violet-50'}`} data-deal-new>
+                {dealId === 'new' ? '✓ پیش‌فاکتور جدید (با فرصت فروش تازه)' : 'نه، این یک پیش‌فاکتور جدید است'}
               </button>
-            ))}
-            <button type="button" onClick={() => setDealId('')} className={`w-full text-right px-3.5 py-2.5 cursor-pointer ${!dealId ? 'bg-violet-50' : 'bg-white hover:bg-[#FAF5F1]'}`} data-deal-new>
-              <span className="font-black text-xs text-violet-700">+ فرصت فروش جدید برای این مشتری</span>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 text-[11px] font-bold text-[#6B514A] leading-6" data-no-open-deal>
+              {customer.name} فرصت فروش بازی ندارد؛ برای این پیش‌فاکتور یک فرصت جدید ساخته می‌شود.
+              {closedOnes.length > 0 && (
+                <>
+                  {' '}
+                  <button type="button" onClick={() => setShowClosed((v) => !v)} className="text-violet-700 underline cursor-pointer">
+                    {showClosed ? 'پنهان‌کردن' : `دیدن ${toPersianDigits(closedOnes.length)} فرصت بسته‌شده`}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {(openOnes.length === 0 && showClosed ? closedOnes : []).map((d) => (
+            <button key={d.id} type="button" onClick={() => setDealId(d.id)} className={`w-full text-right px-3.5 py-2.5 rounded-xl border cursor-pointer ${dealId === d.id ? 'border-violet-500 bg-violet-50' : 'border-[#EBDBCE] bg-white hover:bg-[#FAF5F1]'}`}>
+              <div className="font-black text-xs text-[#3A241F] truncate">{d.title}</div>
+              <div className="text-[11px] font-bold text-[#8C6F66] truncate">{STAGE_TEXT[d.stage] || d.stage}{d.amount ? ` · ${formatMoney(d.amount)} ${unitName()}` : ''}</div>
             </button>
-          </div>
-          {!dealId && (
-            <div className="mt-3">
+          ))}
+
+          {dealId === 'new' && (
+            <div>
               <label className={label}>عنوان فرصت جدید *</label>
               <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثلاً: تامین تجهیزات شبکه" data-deal-title />
               <p className="text-[11px] text-[#8C6F66] font-medium leading-6 mt-1.5">یک فرصت فروش با همین عنوان ساخته می‌شود و پیش‌فاکتور به آن وصل می‌شود.</p>
             </div>
-          )}
-          {chosen?.proformaNumber && (
-            <p className="mt-2 text-[11px] font-bold text-amber-700">
-              این فرصت از قبل پیش‌فاکتور {toPersianDigits(chosen.proformaNumber)} را دارد؛ ادامه، همان را برای ویرایش باز می‌کند (صادرکنندهٔ آن عوض نمی‌شود).
-            </p>
           )}
         </div>
       )}
