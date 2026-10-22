@@ -773,7 +773,7 @@ const UnitField: React.FC<{ value: string; kind: string; disabled: boolean; onCh
 const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin: boolean; onClose: () => void; onSaved: () => void }> = ({ p, sepidar, isAdmin, onClose, onSaved }) => {
 const { showToast, currentUser } = useAppContext();
   const isNew = !p.id;
-  const [f, setF] = useState({ code: p.code || '', title: p.title || '', unit: p.unit || 'عدد', group: p.group || '', barcode: p.barcode || '', minQty: p.minQty ? String(p.minQty) : '', note: p.note || '', active: p.active !== false, kind: (p.kind === 'service' ? 'service' : 'good') as 'good' | 'service' });
+  const [f, setF] = useState({ code: p.code || '', title: p.title || '', unit: p.unit || 'عدد', group: p.group || '', barcode: p.barcode || '', minQty: p.minQty ? String(p.minQty) : '', warrantyMonths: p.warrantyMonths ? String(p.warrantyMonths) : '', note: p.note || '', active: p.active !== false, kind: (p.kind === 'service' ? 'service' : 'good') as 'good' | 'service' });
   const [prices, setPrices] = useState<{ title: string; amount: string }[]>((p.prices || []).map((x) => ({ title: x.title, amount: String(toDisplay(x.amount)) })));
   const [busy, setBusy] = useState(false);
   const lockBase = sepidar; // code, name and unit belong to the accounting program
@@ -786,7 +786,7 @@ const { showToast, currentUser } = useAppContext();
     if (pr.some((x) => !x.title || !Number.isFinite(x.amount) || x.amount <= 0)) return showToast('برای هر قیمت، عنوان و مبلغ (بیشتر از صفر) را درست بنویسید.');
     setBusy(true);
     try {
-      await api.whProductSave(p.id || newId('p'), { ...f, minQty, prices: pr });
+      await api.whProductSave(p.id || newId('p'), { ...f, minQty, prices: pr, warrantyMonths: Math.min(120, Math.max(0, Number(digitsOf(f.warrantyMonths)) || 0)) });
       showToast('کالا ذخیره شد.');
       onSaved();
     } catch (e) {
@@ -824,6 +824,9 @@ const { showToast, currentUser } = useAppContext();
         <div><span className={label}>گروه</span><input value={f.group} disabled={lockBase} onChange={(e) => setF({ ...f, group: e.target.value })} className={field} /></div>
         <div><span className={label}>بارکد</span><input value={f.barcode} disabled={lockBase} onChange={(e) => setF({ ...f, barcode: e.target.value })} className={field} /></div>
         <div><span className={label}>حداقل موجودی (برای هشدار)</span><input value={f.minQty} onChange={(e) => setF({ ...f, minQty: e.target.value })} inputMode="decimal" className={field} /></div>
+        {f.kind !== 'service' && (
+          <div><span className={label}>گارانتی (ماه؛ خالی = گارانتی ندارد)</span><input value={f.warrantyMonths} onChange={(e) => setF({ ...f, warrantyMonths: e.target.value })} inputMode="numeric" placeholder="مثلاً ۱۸" className={field} data-product-warranty /></div>
+        )}
         <div className="flex items-end"><label className="flex items-center gap-2 text-xs font-bold cursor-pointer"><input type="checkbox" disabled={lockBase} checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} className="w-4 h-4" /> فعال</label></div>
         <div className="sm:col-span-2"><span className={label}>یادداشت</span><input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} className={field} /></div>
 {canSub(currentUser, 'warehouse.money') && <div className="sm:col-span-2 space-y-2">

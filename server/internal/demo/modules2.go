@@ -54,7 +54,7 @@ func addWarehouse(ctx context.Context, now time.Time, by map[string]account) err
 	byID := map[string]prod{}
 	for _, p := range prods {
 		byID[p.id] = p
-		doc := jsonx.M{"id": p.id, "code": p.code, "title": p.title, "unit": p.unit, "group": p.group, "minQty": p.min, "barcode": "62" + p.code + "0001", "note": "", "active": true, "prices": p.prices, "cost": map[string]int{"p-router": 2700000, "p-switch": 4600000, "p-toner": 850000, "p-ssd": 1750000, "p-ups": 7500000, "p-av": 300000}[p.id]}
+		doc := jsonx.M{"id": p.id, "code": p.code, "title": p.title, "unit": p.unit, "group": p.group, "minQty": p.min, "barcode": "62" + p.code + "0001", "note": "", "active": true, "prices": p.prices, "warrantyMonths": map[string]int{"p-router": 18, "p-switch": 24, "p-ssd": 12, "p-ups": 12}[p.id], "cost": map[string]int{"p-router": 2700000, "p-switch": 4600000, "p-toner": 850000, "p-ssd": 1750000, "p-ups": 7500000, "p-av": 300000}[p.id]}
 		if err := exec(ctx, `INSERT INTO wh_products (id, code, data) VALUES ($1, $2, $3::jsonb)`, p.id, p.code, jsonx.Encode(doc)); err != nil {
 			return err
 		}

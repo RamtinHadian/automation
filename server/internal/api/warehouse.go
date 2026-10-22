@@ -466,7 +466,7 @@ func whSave(table string, w http.ResponseWriter, r *http.Request, build func(bod
 // PUT /api/warehouse/products/{id}
 func whProductPut(w http.ResponseWriter, r *http.Request) {
 	if whMode(r.Context()) == "sepidar" {
-		whLimitedUpdate("wh_products", []string{"minQty", "note", "prices", "cost"}, w, r)
+		whLimitedUpdate("wh_products", []string{"minQty", "note", "prices", "cost", "warrantyMonths"}, w, r)
 		return
 	}
 	whSave("wh_products", w, r, func(b jsonx.M) (jsonx.M, string, string) {
@@ -491,7 +491,7 @@ func whProductPut(w http.ResponseWriter, r *http.Request) {
 		if msg != "" {
 			return nil, "", msg
 		}
-doc := jsonx.M{"code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500),"active": active, "prices": prices}
+doc := jsonx.M{"code": code, "title": title, "unit": unit, "group": whText(b, "group", 60), "minQty": minQty, "barcode": whText(b, "barcode", 60), "note": whText(b, "note", 500),"active": active, "prices": prices, "warrantyMonths": whWarrantyMonths(b)}
 		if jsonx.Str(b, "kind") == "service" { // a service is sold and priced but has no stock and no warehouse documents
 			doc["kind"] = "service"
 		}
@@ -951,7 +951,7 @@ func crmProducts(w http.ResponseWriter, r *http.Request) {
 		for _, n := range bal[id] {
 			total += n
 		}
-		out = append(out, jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "kind": jsonx.Str(d, "kind"), "total": math.Round(total*1000) / 1000, "prices": d["prices"], "cost": costFor(me, d)})
+		out = append(out, jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "kind": jsonx.Str(d, "kind"), "warrantyMonths": jsonx.Int(d, "warrantyMonths"), "total": math.Round(total*1000) / 1000, "prices": d["prices"], "cost": costFor(me, d)})
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"products": out})
 }
@@ -1054,6 +1054,10 @@ func whLimitedUpdate(table string, keep []string, w http.ResponseWriter, r *http
 				d[k] = prices
 				continue
 			}
+		if k == "warrantyMonths" {
+			d[k] = whWarrantyMonths(body)
+			continue
+		}
 		if k == "minQty" {
 			v, ok := whNum(body, k)
 			if !ok || v < 0 {
@@ -1262,4 +1266,16 @@ func whSync(ctx context.Context, by auth.User, keyName string, body jsonx.M) (js
 // costFor: what a product costs the company is shown only to administrators (the profit report).
 func costFor(me auth.User, d jsonx.M) any {
 	return nil // no purchase price is sent to anybody; only the selling prices are used
+}
+
+// whWarrantyMonths: how many months of warranty a product carries (0 = none), kept between 0 and 120.
+func whWarrantyMonths(b jsonx.M) int {
+	n, _ := whNum(b, "warrantyMonths")
+	if n < 0 {
+		return 0
+	}
+	if n > 120 {
+		return 120
+	}
+	return int(n)
 }

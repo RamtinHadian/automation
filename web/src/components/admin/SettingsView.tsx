@@ -35,6 +35,7 @@ import {
   Bell,
   DatabaseBackup,
   KeyRound,
+  ScrollText,
 } from 'lucide-react';
 import { SystemSettings, LetterNumberingSettings } from '../../types';
 import { FontManagementModal } from './FontManagementModal';
@@ -46,6 +47,7 @@ import { buildProformaHtml, sampleProforma } from '../../lib/proformaPdf';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { formatLetterNumber, DEFAULT_LETTER_NUMBERING, NUMBER_PATTERNS, normalizePattern } from '../../lib/letterNumbering';
 import { useAppContext } from '../../context/AppContext';
+import { MinutesSettingsCard } from './MinutesSettingsCard';
 import { ProformaDesigner } from './ProformaDesigner';
 import { VoipStatusCard } from './VoipStatusCard';
 import { SmsSettingsCard } from './SmsSettingsCard';
@@ -131,7 +133,7 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
-type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'api' | 'notify' | 'proforma' | 'letters' | 'signature' | 'look' | 'policies' | 'backup' | 'license';
+type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'backup' | 'license';
 
 /** Each group of settings has its own tab under the page title. */
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -139,6 +141,7 @@ const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.Compo
   { id: 'letters', label: 'نامه‌نگاری و شماره‌گذاری', Icon: Hash },
   { id: 'signature', label: 'مهر و امضا', Icon: Stamp },
   { id: 'proforma', label: 'پیش‌فاکتور', Icon: FileText },
+  { id: 'minutes', label: 'صورتجلسه', Icon: ScrollText },
   { id: 'look', label: 'فونت و رنگ', Icon: Palette },
   { id: 'policies', label: 'فایل‌ها و محدودیت‌ها', Icon: HardDrive },
   { id: 'notify', label: 'ناتیفیکیشن و صدا', Icon: Bell },
@@ -581,6 +584,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'license' && <LicenseCard />}
 
+
+      {section === 'minutes' && <MinutesSettingsCard settings={settings} setSettings={setSettings} />}
 
       {section === 'proforma' && (
       <>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Clock, FileText, Image, Printer, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, Image, Printer, ScrollText, XCircle } from 'lucide-react';
 import { Customer, Deal } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -9,6 +9,7 @@ import { issuerOf, issuersOf } from '../../lib/proformaIssuer';
 import { approvalRequired, proformaReleased } from '../../lib/proformaApproval';
 import { openProformaPdf, proformaTotals } from '../../lib/proformaPdf';
 import { downloadBlob, renderProformaJpeg } from '../../lib/proformaFile';
+import { DeliveryMinutesDialog } from '../minutes/DeliveryMinutesDialog';
 
 /**
  * «پیش‌فاکتور» block of a sales opportunity: issue one (with the right company when there are several), see its number,
@@ -24,6 +25,7 @@ export const ProformaSection: React.FC<{
 }> = ({ deal, customer, ready, onOpen }) => {
   const { settings, currentUser, showToast } = useAppContext();
   const [jpgBusy, setJpgBusy] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
   const issuers = issuersOf(settings);
   const has = !!deal.proformaNumber && !!deal.items?.length;
   const required = approvalRequired(settings, deal.proformaIssuerId);
@@ -144,6 +146,18 @@ export const ProformaSection: React.FC<{
           <Image className="w-3.5 h-3.5" />
           {jpgBusy ? 'در حال ساخت…' : 'دریافت JPG'}
         </button>
+        <button
+          type="button"
+          disabled={!released}
+          title={released ? 'صورتجلسهٔ تحویل کالاهای این پیش‌فاکتور (با امکان صدور گواهی گارانتی)' : 'پس از تایید مدیرعامل'}
+          onClick={() => setDeliveryOpen(true)}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-black bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 cursor-pointer"
+          data-delivery-minutes
+        >
+          <ScrollText className="w-3.5 h-3.5" />
+          صورتجلسه تحویل
+        </button>
+        {deliveryOpen && <DeliveryMinutesDialog deal={deal} customer={customer} issuerName={issuerOf(deal, settings).name || issuerOf(deal, settings).label || currentUser.fullName} onClose={() => setDeliveryOpen(false)} />}
         {issuers.length > 1 && (
           <span className="text-[10px] text-[#8C6F66] self-center">برای پیش‌فاکتور دیگر با شرکت دیگر، یک فرصت جدید بسازید یا در پنجرهٔ پیش‌فاکتور صادرکننده را عوض کنید.</span>
         )}

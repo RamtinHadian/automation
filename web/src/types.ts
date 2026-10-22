@@ -612,6 +612,8 @@ export interface SystemSettings {
   proformaCompanyName?: string;
   notifySettings?: NotifySettings;
   proformaTemplate?: ProformaTemplate;
+  /** numbering, printed look and the sorts of meeting minutes */
+  minutesConfig?: MinutesConfig;
   companyAddress?: string;
   companyPhone?: string;
   companyEconomicCode?: string;
@@ -960,9 +962,119 @@ export interface Minutes {
   nextTime?: string;
   nextPlace?: string;
   copies?: string;
+  /** the sort of minutes (see MinutesConfig.types); empty = the general one */
+  typeId?: string;
+  /** the two sides of a handover (e.g. who delivers and who receives) */
+  parties?: { first: MinutesParty; second: MinutesParty };
+  /** the goods handed over (minutes of a delivery) */
+  goods?: MinutesGoodsLine[];
+  /** the values of the extra fields of the type (invoice number, order number …), by field id */
+  fields?: Record<string, string>;
+  /** the conditions / remarks written under the goods */
+  conditions?: string;
+  /** the customer and the opportunity the minutes were made from (delivery after a proforma) */
+  customerId?: string;
+  dealId?: string;
+  /** the proforma these goods come from */
+  proformaNumber?: string;
   status: 'DRAFT' | 'FINAL';
   authorId?: string;
   authorName?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MinutesParty {
+  name: string;
+  position?: string;
+  phone?: string;
+}
+
+export interface MinutesGoodsLine {
+  title: string;
+  code?: string;
+  qty: number;
+  unit?: string;
+  note?: string;
+  /** months of warranty the product carries (from the warehouse); 0 or missing = none */
+  warrantyMonths?: number;
+  /** serial / batch number written for the warranty certificate */
+  serial?: string;
+}
+
+/** How the number of a minutes sheet is made: tokens {PREFIX} {TYPE} {YYYY} {YY} and {NNN} (as many N as digits). */
+export interface MinutesNumbering {
+  pattern: string;
+  prefix: string;
+  start: number;
+  /** each sort of minutes counts on its own */
+  perType: boolean;
+}
+
+/** How the printed sheet of the minutes looks (set in the admin console). */
+export interface MinutesDesign {
+  presetId: string;
+  primary: string;
+  accent: string;
+  headFill: string;
+  text: string;
+  headerStyle: 'classic' | 'boxed' | 'band' | 'plain';
+  logoPosition: 'right' | 'left' | 'center';
+  /** height of the logo in mm */
+  logoSize: number;
+  showLogo: boolean;
+  showOrgName: boolean;
+  showSubtitle: boolean;
+  showNumberBox: boolean;
+  fontSize: number;
+  tableStyle: 'lined' | 'striped' | 'bordered';
+  radius: number;
+  pageBorder: boolean;
+  showStatusColumn: boolean;
+  showSignColumn: boolean;
+  /** height of each signature box in mm */
+  signHeight: number;
+  footerText: string;
+  showFooterContact: boolean;
+}
+
+/** One sort of minutes (general meeting, delivery of goods …): which parts it has and what it says. */
+export interface MinutesType {
+  id: string;
+  title: string;
+  /** the big title printed on the sheet */
+  printTitle: string;
+  /** used for {PREFIX}/{TYPE} in the number */
+  prefix: string;
+  /** the opening sentence; {{title}} {{date}} {{time}} {{place}} {{count}} are filled in */
+  intro: string;
+  closing: string;
+  sections: {
+    attendees: boolean;
+    agenda: boolean;
+    discussion: boolean;
+    decisions: boolean;
+    nextMeeting: boolean;
+    copies: boolean;
+    parties: boolean;
+    goods: boolean;
+  };
+  partyLabels: [string, string];
+  goodsColumns: { code: boolean; unit: boolean; note: boolean };
+  goodsNoteLabel: string;
+  conditionsLabel: string;
+  /** extra fields to fill in for this sort (invoice number, order number …) */
+  fields: { id: string; label: string; kind: 'text' | 'date' }[];
+  defaultAgenda: string[];
+  defaultConditions: string;
+  /** the labels of the boxes at the foot where people sign */
+  signs: string[];
+  builtin?: boolean;
+  active: boolean;
+}
+
+export interface MinutesConfig {
+  numbering: MinutesNumbering;
+  design: MinutesDesign;
+  types: MinutesType[];
 }

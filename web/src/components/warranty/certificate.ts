@@ -7,10 +7,17 @@ import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
 /** Opens the printable warranty certificate (A5-ish page: logo, the details, the terms and the signature boxes). */
-export const printCertificate = (w: Warranty, settings: WarrantySettings, company: string): boolean => {
-  const win = window.open('', '_blank');
+export const printCertificate = (w: Warranty, settings: WarrantySettings, company: string): boolean => printCertificates([w], settings, company);
+
+/**
+ * Prints one certificate per warranty on separate pages in one window. `into` is a window that was opened earlier (so a pop-up blocker does
+ * not stop it when the certificates are made after a wait); without it a new window is opened.
+ */
+export const printCertificates = (list: Warranty[], settings: WarrantySettings, company: string, into?: Window | null): boolean => {
+  const win = into || window.open('', '_blank');
   if (!win) return false;
   const issued = dayText(todayIso());
+  const sheetOf = (w: Warranty) => {
   const autoSeal = `<svg class="seal" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" font-family="Vazirmatn, Tahoma, sans-serif" fill="#1F4E8C" text-anchor="middle">
     <circle cx="80" cy="80" r="76" fill="none" stroke="#1F4E8C" stroke-width="3"/><circle cx="80" cy="80" r="68" fill="none" stroke="#1F4E8C" stroke-width="1"/>
     <text x="80" y="52" font-size="13" font-weight="800">${esc(company.slice(0, 22))}</text>
@@ -22,7 +29,29 @@ export const printCertificate = (w: Warranty, settings: WarrantySettings, compan
   const row = (k: string, v: string) => (v ? `<tr><th>${k}</th><td>${esc(v)}</td></tr>` : '');
   const km = w.maxKm && w.maxKm > 0 ? `${toPersianDigits(w.maxKm.toLocaleString('en-US')).replace(/,/g, '٬')} کیلومتر` : '';
   const terms = (settings.terms || '').split(/\r?\n/).filter((l) => l.trim()).map((l) => `<li>${esc(l.trim())}</li>`).join('');
-  win.document.write(`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گواهی گارانتی ${esc(w.warrantyNo)}</title>
+  return `<div class="sheet">
+  <div class="top"><img src="/images/logo-full.png" alt=""><div class="co">${esc(company)}</div></div>
+  <h1>گواهی گارانتی</h1>
+  <div class="no">شمارهٔ گارانتی: <b>${esc(codeText(w.warrantyNo))}</b></div>
+  <table>
+    ${row('نام مشتری', w.customerName)}
+    ${row('نام کالا', w.productName)}
+    ${row('کد کالا', w.productCode ? toPersianDigits(w.productCode) : '')}
+    ${row('شمارهٔ سریال / بچ', w.serial ? toPersianDigits(w.serial) : '')}
+    ${row('شمارهٔ فاکتور فروش', w.invoiceNumber ? toPersianDigits(w.invoiceNumber) : '')}
+    ${row('تاریخ فروش', dayText(w.saleDate))}
+    ${row('شروع گارانتی', dayText(w.startDate))}
+    ${row('پایان گارانتی', dayText(w.endDate))}
+    ${row('مدت گارانتی', `${toPersianDigits(w.months)} ماه`)}
+    ${row('سقف کارکرد', km)}
+    ${row('توضیحات', w.notes || '')}
+  </table>
+  ${terms ? `<h2>شرایط گارانتی</h2><ol>${terms}</ol>` : ''}
+  <div class="sign"><div class="seller">${stampHtml}مهر و امضای فروشنده${signHtml}</div><div>امضای مشتری</div></div>
+  <div class="foot">این گواهی همراه با فاکتور خرید معتبر است.</div>
+</div>`;
+  };
+  win.document.write(`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گواهی گارانتی ${esc(list.map((x) => x.warrantyNo).join('، '))}</title>
 <style>
   @font-face { font-family: 'Vazirmatn'; src: url('${location.origin}${fontUrl}') format('woff2'); font-weight: 100 900; }
   @page { size: A4; margin: 14mm; }
@@ -54,27 +83,7 @@ export const printCertificate = (w: Warranty, settings: WarrantySettings, compan
   .noprint button { font: inherit; padding: 8px 22px; border-radius: 10px; border: 0; background: #6E1B1B; color: #fff; cursor: pointer; }
 </style></head><body>
 <div class="noprint"><label><input type="checkbox" id="dg" checked> مهر و امضای دیجیتال</label><button onclick="window.print()">چاپ گواهی</button></div>
-<div class="sheet">
-  <div class="top"><img src="/images/logo-full.png" alt=""><div class="co">${esc(company)}</div></div>
-  <h1>گواهی گارانتی</h1>
-  <div class="no">شمارهٔ گارانتی: <b>${esc(codeText(w.warrantyNo))}</b></div>
-  <table>
-    ${row('نام مشتری', w.customerName)}
-    ${row('نام کالا', w.productName)}
-    ${row('کد کالا', w.productCode ? toPersianDigits(w.productCode) : '')}
-    ${row('شمارهٔ سریال / بچ', w.serial ? toPersianDigits(w.serial) : '')}
-    ${row('شمارهٔ فاکتور فروش', w.invoiceNumber ? toPersianDigits(w.invoiceNumber) : '')}
-    ${row('تاریخ فروش', dayText(w.saleDate))}
-    ${row('شروع گارانتی', dayText(w.startDate))}
-    ${row('پایان گارانتی', dayText(w.endDate))}
-    ${row('مدت گارانتی', `${toPersianDigits(w.months)} ماه`)}
-    ${row('سقف کارکرد', km)}
-    ${row('توضیحات', w.notes || '')}
-  </table>
-  ${terms ? `<h2>شرایط گارانتی</h2><ol>${terms}</ol>` : ''}
-  <div class="sign"><div class="seller">${stampHtml}مهر و امضای فروشنده${signHtml}</div><div>امضای مشتری</div></div>
-  <div class="foot">این گواهی همراه با فاکتور خرید معتبر است.</div>
-</div>
+${list.map(sheetOf).join('<div style="page-break-after:always"></div>')}
 <script>
 document.getElementById('dg').addEventListener('change', function (e) { document.body.classList.toggle('plain', !e.target.checked); });
 window.addEventListener('load', function () { (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { setTimeout(function () { window.print(); }, 300); }); });
