@@ -6,14 +6,13 @@ import { issuersOf, MAIN_ISSUER_ID } from '../../lib/proformaIssuer';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, unitName } from '../../lib/money';
 import { Modal, field, label } from './crmUi';
-import { PersonPicker, customerItems } from '../common/PersonPicker';
-import { matchesAll } from '../../lib/searchAll';
+import { fold, matchesQuery } from '../../lib/customerSearch';
 
 const STAGE_TEXT: Record<string, string> = { NEW: 'جدید', CONTACTED: 'تماس گرفته شد', PROPOSAL: 'پیشنهاد ارسال شد', NEGOTIATION: 'مذاکره', WON: 'فروش موفق', LOST: 'از دست رفت' };
 
 /**
- * «صدور پیش‌فاکتور»: pick the company that issues it and the sales opportunity it belongs to (an existing one, or a new one
- * made right here). A proforma never exists without an opportunity.
+ * «صدور پیش‌فاکتور»: pick the company that issues it, then the CUSTOMER (searchable list of names), then one of that customer's opportunities
+ * or a new one made right here. A proforma never exists without an opportunity.
  */
 export const QuickProformaDialog: React.FC<{
   deals: Deal[];
@@ -29,23 +28,35 @@ export const QuickProformaDialog: React.FC<{
   const { settings } = useAppContext();
   const issuers = issuersOf(settings);
   const [issuerId, setIssuerId] = useState(MAIN_ISSUER_ID);
-  const [mode, setMode] = useState<'existing' | 'new'>(deals.length ? 'existing' : 'new');
-  const [dealId, setDealId] = useState('');
-  const [title, setTitle] = useState('');
   const [customerId, setCustomerId] = useState('');
+  const [dealId, setDealId] = useState(''); // an opportunity of that customer, or '' for a new one
+  const [title, setTitle] = useState('');
   const [q, setQ] = useState('');
 
-  const list = useMemo(() => {
-    return [...deals]
-      .filter((d) => matchesAll(d, q))
-      .sort((a, b) => Number(['WON', 'LOST'].includes(a.stage)) - Number(['WON', 'LOST'].includes(b.stage)) || b.updatedAt.localeCompare(a.updatedAt));
-  }, [deals, q]);
+  const open = (d: Deal) => !['WON', 'LOST'].includes(d.stage);
+  const dealsOf = useMemo(() => {
+    const by = new Map<string, Deal[]>();
+    for (const d of deals) (by.get(d.customerId) || by.set(d.customerId, []).get(d.customerId)!).push(d);
+    for (const l of by.values()) l.sort((x, y) => Number(open(y)) - Number(open(x)) || y.updatedAt.localeCompare(x.updatedAt));
+    return by;
+  }, [deals]);
+  const lines = useMemo(() => new Map(customers.map((c) => [c.id, fold([c.name, c.company || '', c.nationalId || '', ...(c.phones || [])].join(' '))])), [customers]);
+  const list = useMemo(() => customers.filter((c) => matchesQuery(lines.get(c.id), q)).slice(0, 60), [customers, lines, q]);
 
-  const chosen = deals.find((d) => d.id === dealId);
-  const ready = mode === 'existing' ? !!chosen : !!title.trim() && !!customerId;
+  const customer = customers.find((c) => c.id === customerId);
+  const mine = customerId ? dealsOf.get(customerId) || [] : [];
+  const chosen = mine.find((d) => d.id === dealId);
+  const ready = !!customerId && (dealId ? !!chosen : !!title.trim());
+  const pickCustomer = (id: string) => {
+    setCustomerId(id);
+    // the newest open opportunity is the likely one; a customer without any gets a new opportunity
+    const first = (dealsOf.get(id) || []).find(open);
+    setDealId(first ? first.id : '');
+    setTitle('');
+  };
   const go = () => {
     if (!ready) return;
-    if (mode === 'existing' && chosen) onExisting(chosen, issuerId);
+    if (chosen) onExisting(chosen, issuerId);
     else onNew({ title: title.trim(), customerId }, issuerId);
   };
 
@@ -88,72 +99,71 @@ export const QuickProformaDialog: React.FC<{
       )}
 
       <div>
-        <div className={`${label} flex items-center gap-1.5`}>
-          <Link2 className="w-3.5 h-3.5 text-violet-600" />
-          فرصت فروش مربوط به این پیش‌فاکتور *
+        <div className={`${label} flex items-center justify-between gap-2`}>
+          <span className="flex items-center gap-1.5">
+            <Link2 className="w-3.5 h-3.5 text-violet-600" />
+            مشتری *
+          </span>
+          <button type="button" onClick={() => onCreateCustomer((c) => pickCustomer(c.id))} className="text-[11px] font-black text-violet-700 hover:underline cursor-pointer" data-new-customer>
+            + مشتری جدید (اگر در فهرست نیست)
+          </button>
         </div>
-        <div className="flex gap-2 mb-3">
-          {([['existing', 'یکی از فرصت‌های موجود'], ['new', 'فرصت جدید']] as const).map(([k, text]) => (
-            <button
-              key={k}
-              type="button"
-              disabled={k === 'existing' && deals.length === 0}
-              onClick={() => setMode(k)}
-              className={`flex-1 py-2 rounded-xl text-xs font-black border cursor-pointer disabled:opacity-40 ${mode === k ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-violet-50'}`}
-            >
-              {text}
-            </button>
-          ))}
-        </div>
-
-        {mode === 'existing' ? (
-          <div className="space-y-2">
-            <input className={field} placeholder="جستجو در عنوان فرصت یا نام مشتری..." value={q} onChange={(e) => setQ(e.target.value)} />
-            <div className="max-h-64 overflow-y-auto rounded-2xl border border-[#EBDBCE] divide-y divide-[#EBDBCE]/60">
-              {list.length === 0 && <div className="p-4 text-center text-[11px] font-bold text-gray-400">فرصتی پیدا نشد.</div>}
-              {list.map((d) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => setDealId(d.id)}
-                  className={`w-full text-right px-3.5 py-2.5 cursor-pointer ${dealId === d.id ? 'bg-violet-50' : 'bg-white hover:bg-[#FAF5F1]'}`}
-                >
+        <div className="space-y-2">
+          <input className={field} placeholder="نام مشتری، شرکت یا شماره…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus data-customer-search />
+          <div className="max-h-56 overflow-y-auto rounded-2xl border border-[#EBDBCE] divide-y divide-[#EBDBCE]/60" data-customer-list>
+            {list.length === 0 && <div className="p-4 text-center text-[11px] font-bold text-gray-400">مشتری‌ای پیدا نشد. «مشتری جدید» را بزنید.</div>}
+            {list.map((c) => {
+              const n = (dealsOf.get(c.id) || []).length;
+              return (
+                <button key={c.id} type="button" onClick={() => pickCustomer(c.id)} className={`w-full text-right px-3.5 py-2.5 cursor-pointer ${customerId === c.id ? 'bg-violet-50' : 'bg-white hover:bg-[#FAF5F1]'}`}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-black text-xs text-[#3A241F] truncate">{d.title}</span>
-                    {d.proformaNumber && <span className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 shrink-0">پیش‌فاکتور دارد</span>}
+                    <span className="font-black text-xs text-[#3A241F] truncate">{c.name}</span>
+                    {customerId === c.id && <CheckCircle2 className="w-4 h-4 text-violet-600 shrink-0" />}
                   </div>
                   <div className="text-[11px] font-bold text-[#8C6F66] truncate">
-                    {d.customerName} · {STAGE_TEXT[d.stage] || d.stage}
-                    {d.amount ? ` · ${formatMoney(d.amount)} ${unitName()}` : ''}
+                    {[c.company && c.company !== c.name ? c.company : '', (c.phones || [])[0] ? toPersianDigits((c.phones || [])[0]) : '', n ? `${toPersianDigits(n)} فرصت` : 'بدون فرصت'].filter(Boolean).join(' · ')}
                   </div>
                 </button>
-              ))}
-            </div>
-            {chosen?.proformaNumber && (
-              <p className="text-[11px] font-bold text-amber-700">
-                این فرصت از قبل پیش‌فاکتور {toPersianDigits(chosen.proformaNumber)} را دارد؛ ادامه، همان را برای ویرایش باز می‌کند (صادرکنندهٔ آن عوض نمی‌شود).
-              </p>
-            )}
+              );
+            })}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="sm:col-span-2">
-              <label className={label}>عنوان فرصت *</label>
-              <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثلاً: تامین تجهیزات شبکه" autoFocus />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={`${label} flex items-center justify-between`}>
-                <span>مشتری *</span>
-                <button type="button" onClick={() => onCreateCustomer((c) => setCustomerId(c.id))} className="text-[11px] font-black text-violet-700 hover:underline cursor-pointer">
-                  + مشتری جدید (اگر در فهرست نیست)
-                </button>
-              </label>
-              <PersonPicker title="انتخاب مشتری" items={customerItems(customers)} value={customerId} onChange={setCustomerId} emptyLabel="انتخاب مشتری..." />
-            </div>
-            <p className="sm:col-span-2 text-[11px] text-[#8C6F66] font-medium leading-6">یک فرصت فروش با همین عنوان ساخته می‌شود و پیش‌فاکتور به آن وصل می‌شود.</p>
-          </div>
-        )}
+        </div>
       </div>
+
+      {customer && (
+        <div data-deal-choice>
+          <div className={label}>پیش‌فاکتور به کدام فرصت فروش {customer.name} وصل شود؟</div>
+          <div className="rounded-2xl border border-[#EBDBCE] divide-y divide-[#EBDBCE]/60 overflow-hidden">
+            {mine.map((d) => (
+              <button key={d.id} type="button" onClick={() => setDealId(d.id)} className={`w-full text-right px-3.5 py-2.5 cursor-pointer ${dealId === d.id ? 'bg-violet-50' : 'bg-white hover:bg-[#FAF5F1]'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-black text-xs text-[#3A241F] truncate">{d.title}</span>
+                  {d.proformaNumber && <span className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 shrink-0">پیش‌فاکتور دارد</span>}
+                </div>
+                <div className="text-[11px] font-bold text-[#8C6F66] truncate">
+                  {STAGE_TEXT[d.stage] || d.stage}
+                  {d.amount ? ` · ${formatMoney(d.amount)} ${unitName()}` : ''}
+                </div>
+              </button>
+            ))}
+            <button type="button" onClick={() => setDealId('')} className={`w-full text-right px-3.5 py-2.5 cursor-pointer ${!dealId ? 'bg-violet-50' : 'bg-white hover:bg-[#FAF5F1]'}`} data-deal-new>
+              <span className="font-black text-xs text-violet-700">+ فرصت فروش جدید برای این مشتری</span>
+            </button>
+          </div>
+          {!dealId && (
+            <div className="mt-3">
+              <label className={label}>عنوان فرصت جدید *</label>
+              <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثلاً: تامین تجهیزات شبکه" data-deal-title />
+              <p className="text-[11px] text-[#8C6F66] font-medium leading-6 mt-1.5">یک فرصت فروش با همین عنوان ساخته می‌شود و پیش‌فاکتور به آن وصل می‌شود.</p>
+            </div>
+          )}
+          {chosen?.proformaNumber && (
+            <p className="mt-2 text-[11px] font-bold text-amber-700">
+              این فرصت از قبل پیش‌فاکتور {toPersianDigits(chosen.proformaNumber)} را دارد؛ ادامه، همان را برای ویرایش باز می‌کند (صادرکنندهٔ آن عوض نمی‌شود).
+            </p>
+          )}
+        </div>
+      )}
     </Modal>
   );
 };
