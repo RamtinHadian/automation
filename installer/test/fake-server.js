@@ -68,6 +68,15 @@ function answer(script) {
   if (/auto-update\.sh/.test(script)) return st.fixedGit ? out('update service installed/repaired\n') : out('', 128, 'fatal: Cannot fast-forward to multiple branches.\n');
   if (script === 'hostname') return out((st.host || 'ubuntu') + '\n');
   const hm = /hostnamectl set-hostname (\S+)/.exec(script); if (hm) { st.host = hm[1]; return out(hm[1] + '\n'); }
+  // enable-demo.cjs
+  if (/com\.docker\.compose\.project\.working_dir/.test(script)) return out('/opt/demo\n');
+  if (/git -c safe.directory='\*' fetch -q origin frontend/.test(script)) return out('نسخه: 1.40.7\n');
+  if (/grep -q '\^DEMO/.test(script)) return out();
+  if (/grep -E '\^\(DEMO\|PORT/.test(script)) return out('DEMO=1\nPORT=8080\n');
+  if (/setsid nohup bash -c 'docker compose up/.test(script)) return out('started\n');
+  if (/hoormand-demo\.exit/.test(script) && /wc -c/.test(script)) return out('42\n0\n');
+  if (/tail -c \+/.test(script)) return out('Container demo-app-1 Started\n');
+  if (/api\/auth\/login/.test(script)) return out('{"token":"abc"}');
   // Nginx tab
   if (/nginx -v/.test(script)) return out(st.nginx ? 'nginx version: nginx/1.24.0 (Ubuntu)\n' : '');
   if (/##FILE/.test(script)) return out('##FILE /etc/nginx/sites-enabled/old.conf\nserver {\n listen 80;\n server_name old.example.com;\n location / { proxy_pass http://192.168.88.15:8080; }\n}\n');
