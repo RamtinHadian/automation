@@ -587,12 +587,12 @@ class Session {
           written.push(x.domain);
         }
         // someone who types the bare IP must not land on one of the sites: a catch-all closes the connection (only when no default server exists yet)
-        sh += 'if ! grep -rqsE "listen[^;]*default_server" /etc/nginx/sites-enabled /etc/nginx/conf.d --exclude=hoormand-default.conf; then printf "server {\n\tlisten 80 default_server;\n\tlisten [::]:80 default_server;\n\tserver_name _;\n\treturn 444;\n}\n" > /etc/nginx/conf.d/hoormand-default.conf; fi\n';
+        sh += 'rm -f /etc/nginx/conf.d/hoormand-default.conf; if ! grep -qsE "listen[^;]*default_server" /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf 2>/dev/null; then printf "server {\n\tlisten 80 default_server;\n\tlisten [::]:80 default_server;\n\tserver_name _;\n\treturn 444;\n}\n" > /etc/nginx/conf.d/hoormand-default.conf; fi\n';
         sh += 'if nginx -t 2>&1; then systemctl reload nginx && echo RELOADED; else echo BADCONF; fi\n';
         const r = await this.run(sh, { root: true });
         if (/BADCONF/.test(r.out) || !/RELOADED/.test(r.out)) {
           // go back to the way it was: drop what this run wrote
-          await this.run(written.map((d) => 'rm -f /etc/nginx/sites-enabled/hoormand-' + d + '.conf').join('; ') + '; nginx -t >/dev/null 2>&1 && systemctl reload nginx', { root: true, quiet: true });
+          await this.run(written.map((d) => 'rm -f /etc/nginx/sites-enabled/hoormand-' + d + '.conf').join('; ') + '; rm -f /etc/nginx/conf.d/hoormand-default.conf; nginx -t >/dev/null 2>&1 && systemctl reload nginx', { root: true, quiet: true });
           return { ok: false, note: 'تنظیم Nginx معتبر نبود و برگردانده شد. متن خطا را در صفحهٔ سرور ببینید.' };
         }
         const skipped = (r.out.match(/EXISTS \S+/g) || []).map((x) => x.slice(7));
