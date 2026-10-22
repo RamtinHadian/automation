@@ -727,6 +727,49 @@ const ProductsTab: React.FC<{ st: WhState; group: string; sepidar: boolean; onEd
 
 const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
 
+/** The units a product or service is counted in (pick one, or write another). The ones that fit the kind come first. */
+const GOODS_UNITS = ['عدد', 'دستگاه', 'بسته', 'جعبه', 'کارتن', 'شاخه', 'متر', 'رول', 'جفت', 'ست', 'کیلوگرم', 'گرم', 'لیتر', 'لایسنس'];
+const SERVICE_UNITS = ['مورد', 'ساعت', 'روز', 'ماه', 'سال', 'جلسه', 'نفر', 'لایسنس'];
+const UnitField: React.FC<{ value: string; kind: string; disabled: boolean; onChange: (unit: string) => void }> = ({ value, kind, disabled, onChange }) => {
+  const first = kind === 'service' ? SERVICE_UNITS : GOODS_UNITS;
+  const rest = (kind === 'service' ? GOODS_UNITS : SERVICE_UNITS).filter((u) => !first.includes(u));
+  const known = [...first, ...rest];
+  const [other, setOther] = useState(!!value && !known.includes(value));
+  return (
+    <div data-unit-field>
+      <span className={label}>واحد شمارش</span>
+      <select
+        value={other ? '__other' : value}
+        disabled={disabled}
+        onChange={(e) => {
+          if (e.target.value === '__other') {
+            setOther(true);
+            onChange('');
+          } else {
+            setOther(false);
+            onChange(e.target.value);
+          }
+        }}
+        className={field}
+        data-unit-select
+      >
+        <optgroup label={kind === 'service' ? 'واحدهای خدمت' : 'واحدهای کالا'}>
+          {first.map((u) => (
+            <option key={u} value={u}>{u}</option>
+          ))}
+        </optgroup>
+        <optgroup label={kind === 'service' ? 'واحدهای کالا' : 'واحدهای خدمت'}>
+          {rest.map((u) => (
+            <option key={u} value={u}>{u}</option>
+          ))}
+        </optgroup>
+        <option value="__other">واحد دیگر (می‌نویسم)…</option>
+      </select>
+      {other && <input value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} placeholder="مثلاً: طاقه، پالت" className={`${field} mt-1.5`} autoFocus={!value} data-unit-custom />}
+    </div>
+  );
+};
+
 const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin: boolean; onClose: () => void; onSaved: () => void }> = ({ p, sepidar, isAdmin, onClose, onSaved }) => {
 const { showToast, currentUser } = useAppContext();
   const isNew = !p.id;
@@ -736,6 +779,7 @@ const { showToast, currentUser } = useAppContext();
   const lockBase = sepidar; // code, name and unit belong to the accounting program
   const save = async () => {
     if (!f.code.trim() || !f.title.trim()) return showToast('کد و نام کالا را بنویسید.');
+    if (!f.unit.trim()) return showToast('واحد شمارش را انتخاب کنید یا بنویسید.');
     const minQty = f.minQty.trim() ? parseNum(f.minQty) : 0;
     if (!Number.isFinite(minQty) || minQty < 0) return showToast('حداقل موجودی درست نیست.');
     const pr = prices.filter((x) => x.title.trim() || x.amount.trim()).map((x) => ({ title: x.title.trim(), amount: fromDisplay(Number(digitsOf(x.amount)) || 0) }));
@@ -774,7 +818,7 @@ const { showToast, currentUser } = useAppContext();
       <SepidarInfo info={p.sepidar} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><span className={label}>کد کالا</span><input value={f.code} disabled={lockBase} onChange={(e) => setF({ ...f, code: e.target.value })} className={field} /></div>
-        <div><span className={label}>واحد</span><input value={f.unit} disabled={lockBase} onChange={(e) => setF({ ...f, unit: e.target.value })} className={field} /></div>
+        <UnitField value={f.unit} kind={f.kind} disabled={lockBase} onChange={(unit) => setF({ ...f, unit })} />
         <div className="sm:col-span-2"><span className={label}>نام کالا</span><input value={f.title} disabled={lockBase} onChange={(e) => setF({ ...f, title: e.target.value })} className={field} /></div>
         <div><span className={label}>نوع</span><select value={f.kind} disabled={lockBase && !!p.id} onChange={(e) => setF({ ...f, kind: e.target.value as 'good' | 'service' })} className={field} data-product-kind><option value="good">کالا (موجودی دارد)</option><option value="service">خدمت (موجودی ندارد)</option></select></div>
         <div><span className={label}>گروه</span><input value={f.group} disabled={lockBase} onChange={(e) => setF({ ...f, group: e.target.value })} className={field} /></div>
