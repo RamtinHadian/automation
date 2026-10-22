@@ -33,6 +33,7 @@ services:
       AMI_SECRET: ${AMI_SECRET:-}
       VOIP_RECORDING_KEY: ${VOIP_RECORDING_KEY:-}
       DEMO: ${DEMO:-}
+      DEMO_THEME: ${DEMO_THEME:-}
       SMSIR_BASE: ${SMSIR_BASE:-}
       TELEGRAM_BASE: ${TELEGRAM_BASE:-}
       BALE_BASE: ${BALE_BASE:-}

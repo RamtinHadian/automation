@@ -512,6 +512,9 @@ func Reset(ctx context.Context) error {
 	if err := addBulk(ctx, now, string(hash), by); err != nil {
 		return err
 	}
+	if err := addITData(ctx, now, by); err != nil { // before addModules, so these customers get every field too
+		return err
+	}
 	if err := addModules(ctx, now, by); err != nil {
 		return err
 	}
