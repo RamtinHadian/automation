@@ -60,6 +60,7 @@ export const MENUS: MenuDef[] = [
       { id: 'files.board', label: 'تابلو اعلانات', hint: 'اخبار و اطلاعیه‌ها را می‌بیند.' },
       { id: 'files.board.post', label: 'انتشار در تابلو', hint: 'می‌تواند اخبار و اطلاعیه را برای همه منتشر کند.', flag: flag('board.post', 'canPostAnnouncements', 'انتشار در تابلو اعلانات', 'می‌تواند اخبار و اطلاعیه را برای همه منتشر کند.') },
       { id: 'files.reminders', label: 'یادآور', hint: 'یادآورهای شخصی خودش را می‌سازد.' },
+      { id: 'files.minutes', label: 'صورتجلسه', hint: 'صورتجلسه می‌نویسد، چاپ و JPG می‌گیرد و صورتجلسه‌هایی را که در آن‌ها نامش آمده می‌بیند.' },
     ],
   },
   {

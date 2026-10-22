@@ -17,6 +17,7 @@ import { VersionNotice } from '../components/sepidar/VersionNotice';
 import { useSepidarConnected } from '../lib/sepidarCustomerFields';
 import { CompanyCalls } from '../components/common/CompanyCalls';
 import { ReminderPopup, RemindersView } from '../components/reminders/Reminders';
+import { MinutesView } from '../components/minutes/MinutesView';
 import { SupportView } from '../components/support/SupportView';
 import { useCompanyName } from '../lib/useCompanyName';
 import { TasksView } from '../components/tasks/TasksView';
@@ -80,6 +81,7 @@ import {
   Warehouse,
   Landmark,
   BellRing,
+  ScrollText,
   Phone,
   ChevronUp,
 } from 'lucide-react';
@@ -134,7 +136,7 @@ export default function UserPanel() {
   } = useAppContext();
 
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
-  const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders'>('files');
+  const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders' | 'minutes'>('files');
   const [chatPeer, setChatPeer] = useState('');
   const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar' | 'calls'>('files');
 
@@ -237,7 +239,7 @@ export default function UserPanel() {
     if (t === 'customer' || t === 'deal') return 'crm';
     if (t === 'task' || t === 'report') return 'tasks';
     if (t === 'letter') return 'letters';
-    if (t === 'file' || t === 'chat' || t === 'leave' || t === 'announcement') return 'files';
+    if (t === 'file' || t === 'chat' || t === 'leave' || t === 'announcement' || t === 'minutes') return 'files';
     if (n.kind === 'file' || n.kind === 'chat') return 'files';
     if (n.kind === 'letter') return 'letters';
     if (n.kind === 'task') return 'tasks';
@@ -297,6 +299,10 @@ export default function UserPanel() {
       }
       window.dispatchEvent(new Event('open-warranty-item'));
       setMainMenuTab('warranty');
+    } else if (type === 'minutes') {
+      setFilesSection('minutes');
+      setMainMenuTab('files');
+      window.dispatchEvent(new Event('open-minutes-item'));
     } else if (type === 'reminder') {
       setFilesSection('reminders');
       setMainMenuTab('files');
@@ -374,7 +380,7 @@ export default function UserPanel() {
     if (!canAccessSepidarMenu && mainMenuTab === 'sepidar') setMainMenuTab('files');
   }, [canAccessSepidarMenu, mainMenuTab]);
   useEffect(() => {
-    const order = ['files', 'chat', 'leave', 'board', 'reminders'] as const;
+    const order = ['files', 'chat', 'leave', 'board', 'reminders', 'minutes'] as const;
     const sub = (id: string) => 'files.' + (id === 'files' ? 'transfer' : id);
     if (!canSub(currentUser, sub(filesSection))) {
       const first = order.find((id) => canSub(currentUser, sub(id)));
@@ -1166,10 +1172,12 @@ export default function UserPanel() {
                 tone="maroon"
                 value={filesSection}
                 onChange={(k) => setFilesSection(k as typeof filesSection)}
-                tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'مرخصی و مساعده', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : 0 }))}
+                tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'مرخصی و مساعده', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing], ['minutes', 'صورتجلسه', ScrollText]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : 0 }))}
               />
             </div>
-            {filesSection === 'reminders' ? (
+            {filesSection === 'minutes' ? (
+              <MinutesView />
+            ) : filesSection === 'reminders' ? (
               <RemindersView />
             ) : filesSection === 'board' ? (
               <BoardView />

@@ -244,6 +244,16 @@ var schema = []string{
 	)`,
 	`CREATE INDEX IF NOT EXISTS reminders_user_idx ON reminders (user_id, status, due_at)`,
 	`CREATE INDEX IF NOT EXISTS reminders_due_idx ON reminders (status, due_at)`,
+	// meeting minutes («صورتجلسه»): one document per sheet; the colleagues named in it are kept apart so the list can be filtered
+	`CREATE TABLE IF NOT EXISTS minutes (
+	  id TEXT PRIMARY KEY,
+	  author_id TEXT NOT NULL,
+	  attendee_ids TEXT[] NOT NULL DEFAULT '{}',
+	  data JSONB NOT NULL,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
+	`CREATE INDEX IF NOT EXISTS minutes_author_idx ON minutes (author_id)`,
 	// the bridge to the accounting program Sepidar: asks (jobs), what is known about each record there (links) and copies of its data (cache)
 	`CREATE TABLE IF NOT EXISTS sepidar_jobs (
 	  id TEXT PRIMARY KEY,

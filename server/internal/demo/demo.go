@@ -226,7 +226,7 @@ func Reset(ctx context.Context) error {
 	if err := exec(ctx, `DELETE FROM settings WHERE key IN ('warehouse', 'sepidarConnector', 'sepidarPairing', 'crmTargets', 'crmRules')`); err != nil {
 		return err
 	}
-	if err := exec(ctx, `TRUNCATE users, departments, transfers, transfer_hidden, audit_logs, tasks, notifications, push_subscriptions,
+	if err := exec(ctx, `TRUNCATE users, departments, minutes, transfers, transfer_hidden, audit_logs, tasks, notifications, push_subscriptions,
 		daily_reports, leave_requests, crm_customers, crm_deals, crm_activities, voip_calls, chat_messages, warranties, warranty_claims, support_subs, support_tickets, support_plans`); err != nil {
 		return err
 	}
@@ -519,6 +519,9 @@ func Reset(ctx context.Context) error {
 		return err
 	}
 	if err := addEnrichment(ctx, now, by); err != nil {
+		return err
+	}
+	if err := addMinutes(ctx, now, by); err != nil {
 		return err
 	}
 	store.BackfillDealCreators(ctx) // the sample opportunities also say who made them

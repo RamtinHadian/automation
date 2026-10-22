@@ -165,6 +165,7 @@ func Router(cfg config.Config) http.Handler {
 	registerCrmFiles(mux)
 	registerSepidar(mux)
 	registerReminders(mux)
+	registerMinutes(mux)
 
 	mux.HandleFunc("GET /api/config", iceConfig(cfg))
 	mux.HandleFunc("GET /api/health", health)

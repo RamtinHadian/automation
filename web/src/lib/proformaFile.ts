@@ -36,7 +36,11 @@ async function measure(html: string, PAGE_W: number, PAGE_H: number): Promise<nu
 
 /** Draws the invoice (with its real fonts, stamp and signature) onto one tall canvas by letting the browser render it inside an SVG. */
 async function drawInvoice(input: ProformaRenderInput, PAGE_W: number, PAGE_H: number): Promise<HTMLCanvasElement> {
-  const html = buildProformaHtml(input, 'preview');
+  return drawHtmlPage(buildProformaHtml(input, 'preview'), PAGE_W, PAGE_H);
+}
+
+/** Draws any page of ours (an HTML with one `.page` element and its own style) onto a canvas. */
+export async function drawHtmlPage(html: string, PAGE_W: number, PAGE_H: number): Promise<HTMLCanvasElement> {
   const height = await measure(html, PAGE_W, PAGE_H);
   const doc = new DOMParser().parseFromString(html, 'text/html');
   let css = doc.querySelector('style')?.textContent || '';
@@ -179,4 +183,10 @@ export async function renderProformaPdf(input: ProformaRenderInput): Promise<Blo
     pages.push({ data: await jpegBytes(slice), w: slice.width, h: slice.height });
   }
   return pdfFromJpegs(pages, landscape);
+}
+
+/** A4 portrait page as one JPG picture (used by the meeting minutes). */
+export async function renderHtmlJpeg(html: string): Promise<Blob> {
+  const canvas = await drawHtmlPage(html, PORTRAIT.w, PORTRAIT.h);
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('ساخت تصویر ممکن نشد.'))), 'image/jpeg', 0.93));
 }

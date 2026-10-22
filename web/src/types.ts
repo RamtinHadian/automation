@@ -919,3 +919,50 @@ export interface SupportSettings {
   aiKeySet: boolean;
   aiBaseUrl: string;
 }
+
+/** One person at a meeting: a colleague (userId set) or an outsider (name only). */
+export interface MinutesAttendee {
+  userId?: string;
+  name: string;
+  position?: string;
+  status: 'PRESENT' | 'ABSENT' | 'EXCUSED';
+}
+
+/** A decision of a meeting, with who carries it out and by when. */
+export interface MinutesDecision {
+  text: string;
+  owner?: string;
+  ownerUserId?: string;
+  /** YYYY-MM-DD */
+  due?: string;
+}
+
+/** Meeting minutes («صورتجلسه»). */
+export interface Minutes {
+  id: string;
+  number: string;
+  title: string;
+  /** the sort of meeting: board, staff, committee … (free text) */
+  kind?: string;
+  /** YYYY-MM-DD */
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  place?: string;
+  chair?: string;
+  secretary?: string;
+  attendees: MinutesAttendee[];
+  agenda: string[];
+  discussion?: string;
+  decisions: MinutesDecision[];
+  /** YYYY-MM-DD and HH:MM of the next meeting */
+  nextDate?: string;
+  nextTime?: string;
+  nextPlace?: string;
+  copies?: string;
+  status: 'DRAFT' | 'FINAL';
+  authorId?: string;
+  authorName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
