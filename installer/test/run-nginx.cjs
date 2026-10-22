@@ -4,6 +4,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
   const b = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
   const p = await b.newPage(); await p.setViewport({ width: 1300, height: 1100 });
+  p.on('dialog', (d) => d.accept());
   p.on('pageerror', (e) => console.log('PAGEERR', String(e).slice(0, 200)));
   await p.goto('http://127.0.0.1:7077/', { waitUntil: 'load' }); await sleep(800);
   await p.click('#tabNginx');

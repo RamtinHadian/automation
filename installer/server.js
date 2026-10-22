@@ -498,7 +498,8 @@ class Session {
     }
     // neighbours seen on the LAN: handy as suggestions for the inside address of each Hoormand server
     const neigh = (await this.run("ip -4 neigh 2>/dev/null | awk '$1 ~ /^(10\\.|192\\.168\\.|172\\.)/ && $NF != \"FAILED\" {print $1}' | sort -u | head -40", { quiet: true })).out.split(/\s+/).filter((x) => ip4.test(x));
-    this.send({ type: 'nginx-info', lan, installed, version: ver, sites, neighbours: neigh });
+    const hostname = (await this.run('hostname', { quiet: true })).out.trim();
+    this.send({ type: 'nginx-info', lan, installed, version: ver, sites, neighbours: neigh, hostname });
     this.log(installed ? 'Nginx روی این سرور هست (' + ver + '). ' + sites.length + ' سایت از قبل تنظیم شده.' : 'Nginx هنوز روی این سرور نصب نیست؛ با «اعمال» نصب می‌شود.', 'gray');
   }
 

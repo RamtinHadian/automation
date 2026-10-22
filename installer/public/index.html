@@ -285,8 +285,10 @@
   var GUIDE_INSTALL = '<b>کدام سرور را بنویسم؟</b> همان سروری که برنامهٔ هورمند باید روی آن نصب شود (اوبونتو).<ol><li><b>آدرس و پورت:</b> از داخل شبکه آدرس داخلی سرور و پورت 22 (مثلاً 192.168.2.248). از بیرون شبکه IP عمومی و پورتی که روتر به آن سرور داده است (مثلاً 37.255.238.219 و 2292).</li><li><b>نام کاربری و رمز:</b> کاربر خود سرور اوبونتو (نه ایزابل) که دسترسی sudo دارد.</li></ol>';
   var GUIDE_VOIP = '<b>در این صفحه دو سرور مختلف هست؛ قاطی نکنید:</b><ol><li><b>بالای فرم (آدرس، پورت، کاربر، رمز) = خود ایزابل</b> (دستگاه تلفن). از داخل شبکه: آدرس داخلی ایزابل و پورت 22. از بیرون: IP عمومی و پورتی که روتر به ایزابل می‌دهد (مثلاً 2200). کاربر <b>root</b> و رمز SSH خود ایزابل.</li><li><b>فرم دوم = سروری که هورمند روی آن نصب است</b> (از بیرون مثلاً IP عمومی و پورت 2292 یا 2293، با کاربر و رمز همان سرور اوبونتو). پنل خودش آدرس داخلی و پوشهٔ برنامه را از آن می‌خواند، به ایزابل می‌گوید فقط همین سرور مجاز است، تنظیم را در برنامه می‌نویسد و برنامه را دوباره راه می‌اندازد؛ شما کاری ندارید.</li></ol>';
   var GUIDE_NGINX = '<b>انجینکس چیست؟</b> «درِ ورودی» چند سایت است: چند دامنه به یک IP عمومی می‌رسند و انجینکس هر کدام را به سرور هورمند خودش می‌فرستد؛ داده‌ها جدا می‌مانند.<ol><li>آدرس و ورود SSH <b>ماشین انجینکس</b> را بنویسید (یک VM اوبونتو؛ اگر انجینکس ندارد خود پنل نصبش می‌کند) و «اتصال» را بزنید.</li><li>پنل آدرس‌های داخلی ماشین و سایت‌های قبلی را نشان می‌دهد.</li><li>فقط <b>نام سایت</b> (مثلاً crm.example.com) و <b>IP سرور هورمند آن</b> (مثلاً 10.10.20.11) را بنویسید و «افزودن» را بزنید؛ بقیه را پنل خودش پر می‌کند (پورت ۸۰۸۰، پروکسی، وب‌سوکت، حجم آپلود).</li><li>«اعمال» را بزنید. سایت‌های قبلی پاک نمی‌شوند؛ هر بار فقط سایت‌های تازه را اضافه کنید.</li></ol>';
+  var lastNg = null;
   function showNginxInfo(m) {
-    var h = '<b>آدرس‌های داخلی این ماشین:</b> ' + (m.lan.length ? m.lan.map(function (x) { return '<span dir="ltr">' + esc(x) + '</span>'; }).join('، ') : 'خوانده نشد') + '<br>' +
+    lastNg = m;
+    var h = '<b>نام ماشین:</b> <span dir="ltr">' + esc(m.hostname || '?') + '</span><br><b>آدرس‌های داخلی این ماشین:</b> ' + (m.lan.length ? m.lan.map(function (x) { return '<span dir="ltr">' + esc(x) + '</span>'; }).join('، ') : 'خوانده نشد') + '<br>' +
       '<b>انجینکس:</b> ' + (m.installed ? esc(m.version) : 'نصب نیست (با «اعمال» نصب می‌شود)') + '<br>';
     h += m.sites.length ? '<b>سایت‌های تنظیم‌شده از قبل (برای ویرایش، کلیک کنید):</b><br>' + m.sites.map(function (x, i) { return '<a href="#" data-i="' + i + '" style="direction:ltr;display:inline-block">' + (x.https ? '🔒 ' : '') + esc(x.domain) + ' ← ' + esc(x.target) + '</a>'; }).join('<br>') : '<b>هنوز سایتی تنظیم نشده.</b>';
     if (m.neighbours.length) h += '<br><b>دستگاه‌های دیده‌شده در شبکه (برای آدرس سرور هورمند):</b> ' + m.neighbours.map(function (x) { return '<a href="#" class="nb" dir="ltr" data-ip="' + esc(x) + '">' + esc(x) + '</a>'; }).join('، ') + ' (برای پر کردن آدرس، روی یکی کلیک کنید)';
@@ -322,7 +324,9 @@
     $('connectBtn').disabled = true;
     ws.send(JSON.stringify({ type: 'connect', mode: mode, host: $('host').value.trim(), port: $('port').value.trim(), username: $('user').value.trim(), password: $('pass').value }));
   };
-  $('startBtn').onclick = function () { $('startBtn').disabled = true; $('stopBox').style.display = 'none'; $('result').style.display = 'none'; $('startBtn').textContent = 'در حال نصب...'; sendStart(); };
+  $('startBtn').onclick = function () {
+    if (mode === 'nginx' && lastNg && !lastNg.installed && !confirm('روی این ماشین (' + (lastNg.hostname || '?') + '، ' + (lastNg.lan[0] || '') + ') Nginx نصب نیست و الان نصب می‌شود.\n\nمطمئنید این همان ماشین Nginx است، نه ماشین هورمند؟')) return;
+    $('startBtn').disabled = true; $('stopBox').style.display = 'none'; $('result').style.display = 'none'; $('startBtn').textContent = 'در حال نصب...'; sendStart(); };
   $('copyBtn').onclick = function () { navigator.clipboard.writeText(report.join('').split('\r').join('').slice(-12000)).then(function () { $('copyBtn').textContent = 'کپی شد ✓'; setTimeout(function () { $('copyBtn').textContent = 'کپی گزارش متنی (برای پشتیبانی)'; }, 2000); }); };
   $('shotAllBtn').onclick = function () { snap('همه', true); setTimeout(function () { shots.forEach(function (s, i) { setTimeout(function () { var a = document.createElement('a'); a.href = s.url; a.download = 'hoormand-install-' + s.name + '.png'; a.click(); }, i * 400); }); }, 600); };
 })();
