@@ -254,6 +254,17 @@ var schema = []string{
 	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
 	`CREATE INDEX IF NOT EXISTS minutes_author_idx ON minutes (author_id)`,
+	// the archive of minutes is never emptied: a finalised sheet cannot be deleted, not even by a mistaken query
+	`CREATE OR REPLACE FUNCTION protect_final_minutes() RETURNS trigger AS $$
+	BEGIN
+	  IF OLD.data->>'status' = 'FINAL' THEN
+	    RAISE EXCEPTION 'a finalised minutes sheet cannot be deleted';
+	  END IF;
+	  RETURN OLD;
+	END;
+	$$ LANGUAGE plpgsql`,
+	`DROP TRIGGER IF EXISTS minutes_protect ON minutes`,
+	`CREATE TRIGGER minutes_protect BEFORE DELETE ON minutes FOR EACH ROW EXECUTE FUNCTION protect_final_minutes()`,
 	// the bridge to the accounting program Sepidar: asks (jobs), what is known about each record there (links) and copies of its data (cache)
 	`CREATE TABLE IF NOT EXISTS sepidar_jobs (
 	  id TEXT PRIMARY KEY,

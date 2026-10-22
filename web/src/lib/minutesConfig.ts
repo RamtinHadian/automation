@@ -152,8 +152,8 @@ export const DEFAULT_MINUTES_DESIGN: MinutesDesign = {
   radius: 0,
   pageBorder: false,
   showStatusColumn: true,
-  showSignColumn: true,
-  signHeight: 30,
+  showSignColumn: false,
+  signHeight: 26,
   footerText: '',
   showFooterContact: false,
 };

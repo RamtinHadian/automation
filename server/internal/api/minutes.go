@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"automation/server/internal/auth"
 	"automation/server/internal/httpx"
@@ -68,10 +70,15 @@ func minutesPut(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "موضوع صورتجلسه را بنویسید.")
 		return
 	}
-	var author string
-	existed := store.Pool.QueryRow(ctx, `SELECT author_id FROM minutes WHERE id = $1`, id).Scan(&author) == nil
+	var author, prevStatus string
+	existed := store.Pool.QueryRow(ctx, `SELECT author_id, COALESCE(data->>'status', '') FROM minutes WHERE id = $1`, id).Scan(&author, &prevStatus) == nil
 	if existed && author != me.ID() && !me.IsAdmin() {
 		httpx.Forbidden(w)
+		return
+	}
+	// a finalised sheet lives in the archive and never changes (a correction is a new sheet)
+	if existed && prevStatus == "FINAL" {
+		httpx.Error(w, http.StatusConflict, "صورتجلسهٔ نهایی‌شده در بایگانی قفل است و تغییر نمی‌کند؛ برای اصلاح، یک صورتجلسهٔ اصلاحیه بسازید.")
 		return
 	}
 	if !existed {
@@ -102,8 +109,21 @@ func minutesPut(w http.ResponseWriter, r *http.Request) {
 	}
 	data["id"] = id
 	data["authorId"] = author
-	if jsonx.Str(data, "authorName") == "" {
+	// the person who made it is the one who first saved it, never what the client says
+	if !existed {
 		data["authorName"] = me.Name()
+	} else if prev := authorNameOf(ctx, author); prev != "" {
+		data["authorName"] = prev
+	}
+	if jsonx.Str(data, "status") == "FINAL" {
+		data["finalizedAt"] = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+		data["finalizedById"] = me.ID()
+		data["finalizedByName"] = me.Name()
+	} else {
+		data["status"] = "DRAFT"
+		delete(data, "finalizedAt")
+		delete(data, "finalizedById")
+		delete(data, "finalizedByName")
 	}
 	if _, err := store.Pool.Exec(ctx,
 		`INSERT INTO minutes (id, author_id, attendee_ids, data) VALUES ($1, $2, $3, $4::jsonb)
@@ -134,9 +154,14 @@ func minutesDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	var author string
-	if store.Pool.QueryRow(r.Context(), `SELECT author_id FROM minutes WHERE id = $1`, id).Scan(&author) != nil {
+	var author, status string
+	if store.Pool.QueryRow(r.Context(), `SELECT author_id, COALESCE(data->>'status', '') FROM minutes WHERE id = $1`, id).Scan(&author, &status) != nil {
 		httpx.OK(w)
+		return
+	}
+	// the archive is never emptied: a finalised sheet cannot be deleted, by nobody
+	if status == "FINAL" {
+		httpx.Error(w, http.StatusConflict, "صورتجلسهٔ نهایی‌شده در بایگانی می‌ماند و حذف نمی‌شود.")
 		return
 	}
 	if author != me.ID() && !me.IsAdmin() {
@@ -154,4 +179,10 @@ func registerMinutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/minutes", auth.Require(minutesList))
 	mux.HandleFunc("PUT /api/minutes/{id}", auth.Require(minutesPut))
 	mux.HandleFunc("DELETE /api/minutes/{id}", auth.Require(minutesDelete))
+}
+
+func authorNameOf(ctx context.Context, id string) string {
+	var n string
+	_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'fullName', '') FROM users WHERE id = $1`, id).Scan(&n)
+	return n
 }

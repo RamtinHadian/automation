@@ -977,9 +977,16 @@ export interface Minutes {
   dealId?: string;
   /** the proforma these goods come from */
   proformaNumber?: string;
+  /** FINAL = finalised: it is in the archive, locked, and cannot be deleted */
   status: 'DRAFT' | 'FINAL';
   authorId?: string;
+  /** who made it (set by the server from the person who first saved it) */
   authorName?: string;
+  finalizedAt?: string;
+  finalizedById?: string;
+  finalizedByName?: string;
+  /** a correction of a finalised sheet: the number of the sheet it corrects */
+  correctsNumber?: string;
   createdAt: string;
   updatedAt: string;
 }

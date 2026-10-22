@@ -79,6 +79,7 @@ export function buildMinutesHtml(m: Minutes, settings: SystemSettings, mode: 'pr
   const next = S.nextMeeting && m.nextDate ? `${formatTaskDate(m.nextDate)}${m.nextTime ? ` ساعت ${fa(m.nextTime)}` : ''}${m.nextPlace ? `، ${esc(m.nextPlace)}` : ''}` : '';
   // the people who sign: the first two boxes carry the names of the persons who are known
   const names: string[] = S.parties ? [m.parties?.first?.name || '', m.parties?.second?.name || ''] : [m.secretary || '', m.chair || ''];
+  const attSigns = S.attendees && present.length ? `<h2>امضای حاضرین</h2><div class="attsign">${present.map((a) => `<div class="a"><b>${esc(a.name)}</b>${a.position ? `<small>${esc(a.position)}</small>` : ''}</div>`).join('')}</div>` : '';
   const signs = t.signs.map((s, i) => `<div class="s">${esc(s)}<small>${esc(names[i] || '')}</small></div>`).join('');
   const toolbar = mode === 'print' ? `<div class="toolbar"><button onclick="window.print()">چاپ / ذخیره PDF</button></div>` : '';
   const numBox = d.showNumberBox ? `<div class="nums"><div><span>شمارهٔ صورتجلسه:</span><b>${esc(fa(m.number))}</b></div><div><span>تاریخ:</span><b>${m.date ? formatTaskDate(m.date) : ''}</b></div></div>` : '<div></div>';
@@ -119,14 +120,15 @@ export function buildMinutesHtml(m: Minutes, settings: SystemSettings, mode: 'pr
   * { box-sizing: border-box; }
   :root { --p: ${primary}; --a: ${accent}; --head: ${headFill}; --line: ${d.tableStyle === 'bordered' ? text : '#bbb'}; --r: ${Math.max(0, Math.min(24, Number(d.radius) || 0))}px; }
   html, body { margin: 0; padding: 0; background: ${mode === 'print' ? '#e9e4de' : '#fff'}; }
+  body, table, th, td, p, div, span, b, h1, h2, input, button { font-family: 'Vazirmatn', Tahoma, sans-serif; }
   body { font-family: 'Vazirmatn', Tahoma, sans-serif; color: ${text}; font-size: ${Math.max(9, Math.min(15, Number(d.fontSize) || 12))}px; line-height: 1.9; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; padding: 0 14mm; position: relative; ${d.pageBorder ? 'outline: 1.4px solid var(--p); outline-offset: -6mm;' : ''} }
   /* the sheet is a table so that the browser repeats its top margin and the signature boxes on EVERY printed page */
   table.pg { width: 100%; border-collapse: collapse; }
   table.pg > thead { display: table-header-group; } table.pg > tfoot { display: table-footer-group; }
   table.pg > thead > tr > td, table.pg > tbody > tr > td, table.pg > tfoot > tr > td { border: 0 !important; padding: 0 !important; background: none !important; }
-  .pg-sp { height: 12mm; } .pg-cell { vertical-align: top; } .pg-foot { vertical-align: bottom; padding-bottom: 12mm !important; padding-top: 8px !important; }
-  .pgbody { display: flex; flex-direction: column; gap: 10px; }
+  .pg-sp { height: 10mm; } .pg-hd { padding-bottom: 8px !important; } .pg-cell { vertical-align: top; } .pg-foot { vertical-align: bottom; padding-bottom: 10mm !important; padding-top: 6px !important; }
+  .pgbody { display: flex; flex-direction: column; gap: 7px; }
   .pgbody table tfoot { display: table-row-group; } /* the total of the goods is printed once, at the end (not on every page) */
   .head { display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; gap: 10px; padding-bottom: 8px; ${headStyle} }
   .head .logo { display: flex; align-items: center; gap: 8px; } .head .logo.end { justify-content: flex-end; }
@@ -141,7 +143,7 @@ export function buildMinutesHtml(m: Minutes, settings: SystemSettings, mode: 'pr
   .sub { text-align: center; font-size: 12.5px; font-weight: 700; margin: -4px 0 2px; }
   .intro { text-align: justify; margin: 0; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 3px 7px; vertical-align: middle; }
+  th, td { padding: 2px 6px; vertical-align: middle; }
   ${tableLook}
   th { background: var(--head); font-size: 11px; font-weight: 800; }
   .c { text-align: center; }
@@ -149,12 +151,15 @@ export function buildMinutesHtml(m: Minutes, settings: SystemSettings, mode: 'pr
   .meta small { color: #555; font-size: 10px; }
   tfoot td { background: var(--head); }
   .sig { width: 30mm; height: 9mm; }
-  h2 { font-size: 13px; margin: 6px 0 2px; padding: 1px 8px; background: var(--head); border-inline-start: 4px solid var(--a); border-radius: var(--r); }
+  h2 { font-size: 13px; margin: 4px 0 1px; padding: 1px 8px; background: var(--head); border-inline-start: 4px solid var(--a); border-radius: var(--r); }
   ol { margin: 2px 0; padding: 0; list-style: none; } ol li { padding: 1px 6px; }
   .txt { border: 1px solid var(--line); border-radius: var(--r); padding: 6px 9px; min-height: 16mm; text-align: justify; }
   .signs { display: grid; grid-template-columns: repeat(${Math.max(1, Math.min(4, t.signs.length))}, 1fr); gap: 8px; }
   .signs .s { border: 1px solid var(--line); border-radius: var(--r); height: ${Math.max(15, Math.min(60, Number(d.signHeight) || 30))}mm; padding: 4px 9px; font-weight: 800; font-size: 11.5px; }
-  .signs .s small { display: block; font-weight: 500; color: #555; font-size: 10.5px; }
+  .signs .s small { display: block; font-weight: 800; color: var(--text, #111); font-size: 12px; margin-top: 2px; }
+  .attsign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .attsign .a { border: 1px solid var(--line); border-radius: var(--r); min-height: 17mm; padding: 3px 8px; font-size: 11px; break-inside: avoid; }
+  .attsign .a b { display: block; font-size: 11.5px; } .attsign .a small { color: #555; font-size: 10px; }
   .foot { text-align: center; font-size: 10.5px; color: #555; }
   .copies { font-size: 11px; }
   .toolbar { position: fixed; top: 10px; left: 10px; } .toolbar button { font-family: inherit; font-weight: 800; border: 0; border-radius: 10px; padding: 9px 16px; cursor: pointer; background: #333; color: #fff; }
@@ -165,15 +170,15 @@ export function buildMinutesHtml(m: Minutes, settings: SystemSettings, mode: 'pr
 ${toolbar}
 <div class="page">
 <table class="pg">
-<thead><tr><td class="pg-sp"></td></tr></thead>
+<thead><tr><td class="pg-sp"></td></tr><tr><td class="pg-hd"><div class="head">${headCells}</div></td></tr></thead>
 <tbody><tr><td class="pg-cell"><div class="pgbody">
-  <div class="head">${headCells}</div>
   <h1>${esc(t.printTitle)}</h1>
   <div class="sub">${esc(m.title)}</div>
   <p class="intro">${fill(t.intro)}</p>
   <table class="meta">
     <tr><td class="k">موضوع</td><td colspan="3">${esc(m.title)}</td></tr>
     <tr><td class="k">زمان</td><td>${when}</td><td class="k">محل</td><td>${esc(m.place || '')}</td></tr>
+    <tr><td class="k">تهیه‌کننده</td><td>${esc(m.authorName || '')}</td><td class="k">وضعیت</td><td>${m.status === 'FINAL' ? `نهایی و بایگانی‌شده${m.finalizedAt ? ` (${formatTaskDate(m.finalizedAt.slice(0, 10))})` : ''}` : 'پیش‌نویس'}</td></tr>
     ${S.attendees ? `<tr><td class="k">رئیس جلسه</td><td>${esc(m.chair || '')}</td><td class="k">دبیر جلسه</td><td>${esc(m.secretary || '')}</td></tr>` : ''}
   </table>
   ${partiesHtml}
@@ -189,6 +194,7 @@ ${toolbar}
   ${S.decisions ? `<h2>${t.id === 'inspection' ? 'نتیجه و اقدامات لازم' : 'مصوبات'}</h2><table><thead><tr><th style="width:9mm">ردیف</th><th>شرح</th><th style="width:38mm">مسئول اجرا</th><th style="width:28mm">مهلت اجرا</th></tr></thead><tbody>${decisions || '<tr><td class="c" colspan="4">—</td></tr>'}</tbody></table>` : ''}
   ${next ? `<p class="intro"><b>جلسهٔ بعد:</b> ${next}</p>` : ''}
   <p class="intro">${fill(t.closing)}</p>
+  ${attSigns}
   ${S.copies && m.copies && m.copies.trim() ? `<div class="copies"><b>رونوشت:</b> ${esc(m.copies)}</div>` : ''}
   ${footTexts.length ? `<div class="foot">${footTexts.map(esc).join('<br>')}</div>` : ''}
 </div></td></tr></tbody>
@@ -203,11 +209,18 @@ ${
   function fit() {
     var t = document.querySelector('table.pg');
     if (!t) return;
+    var pb = t.querySelector('.pgbody');
+    pb.style.zoom = 1;
     t.style.height = 'auto';
     var head = t.tHead ? t.tHead.offsetHeight : 0;
     var foot = t.tFoot ? t.tFoot.offsetHeight : 0;
     var room = PAGE - head - foot; // what one printed page holds of the text
-    var body = t.offsetHeight - head - foot;
+    var size = function () { return t.offsetHeight - head - foot; };
+    // a sheet that only just overflows is shrunk a little so that it stays on ONE page (no page for a few lines)
+    var z = 1;
+    while (size() > room - 3 && z > 0.66) { z -= 0.02; pb.style.zoom = z; }
+    if (size() > room - 3) pb.style.zoom = 1; // really long: it takes several pages at its normal size
+    var body = size();
     var pages = Math.max(1, Math.ceil((body - 3) / room));
     // the top margin and the signature boxes are drawn again on every page, so the table needs that much less than whole pages
     t.style.height = (head + foot + pages * room - 4) + 'px';

@@ -44,6 +44,9 @@ func addMinutes(ctx context.Context, now time.Time, by map[string]account) error
 	}
 	for _, d := range docs {
 		d["createdAt"], d["updatedAt"] = iso(now.Add(-48*time.Hour)), iso(now.Add(-24*time.Hour))
+		if jsonx.Str(d, "status") == "FINAL" { // the archive: who made it and when it was finalised
+			d["finalizedAt"], d["finalizedById"], d["finalizedByName"] = iso(now.Add(-24*time.Hour)), jsonx.Str(d, "authorId"), jsonx.Str(d, "authorName")
+		}
 		ids := []string{}
 		for _, a := range d["attendees"].([]jsonx.M) {
 			if u, _ := a["userId"].(string); u != "" {

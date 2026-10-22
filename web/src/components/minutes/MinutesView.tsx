@@ -132,6 +132,7 @@ export const MinutesView: React.FC = () => {
   const [editing, setEditing] = useState<Minutes | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [menu, setMenu] = useState<'new' | 'sample' | null>(null);
+  const [view, setView] = useState<'all' | 'draft' | 'archive'>('all');
 
   const load = useCallback(() => {
     api.minutesList().then((r) => setList(r.minutes)).catch(() => setList([]));
@@ -148,10 +149,29 @@ export const MinutesView: React.FC = () => {
   const shown = useMemo(() => {
     if (!list) return [];
     const lines = (m: Minutes) => fold([m.number, m.title, m.place || '', m.chair || '', m.secretary || '', m.authorName || '', ...m.attendees.map((a) => a.name), ...m.decisions.map((d) => d.text), ...(m.goods || []).map((g) => g.title), m.parties?.first?.name || '', m.parties?.second?.name || '', ...Object.values(m.fields || {})].join(' '));
-    return list.filter((m) => (!typeFilter || (m.typeId || 'general') === typeFilter) && matchesQuery(lines(m), q));
-  }, [list, q, typeFilter]);
+    return list.filter((m) => (view === 'all' || (view === 'archive' ? m.status === 'FINAL' : m.status !== 'FINAL')) && (!typeFilter || (m.typeId || 'general') === typeFilter) && matchesQuery(lines(m), q));
+  }, [list, q, typeFilter, view]);
+  const nFinal = (list || []).filter((m) => m.status === 'FINAL').length;
 
-  const canEdit = (m: Minutes) => m.authorId === currentUser.id || currentUser.role === 'SUPER_ADMIN';
+  // a finalised sheet is in the archive: it is locked and never deleted; a correction is a new sheet made from it
+  const canEdit = (m: Minutes) => m.status !== 'FINAL' && (m.authorId === currentUser.id || currentUser.role === 'SUPER_ADMIN');
+  const correction = (m: Minutes) =>
+    setEditing({
+      ...m,
+      id: uid(),
+      number: nextMinutesNumber(cfg, m.typeId || 'general', todayIso(), list || []),
+      title: m.title.endsWith('(اصلاحیه)') ? m.title : `${m.title} (اصلاحیه)`,
+      date: todayIso(),
+      status: 'DRAFT',
+      correctsNumber: m.number,
+      authorId: undefined,
+      authorName: undefined,
+      finalizedAt: undefined,
+      finalizedById: undefined,
+      finalizedByName: undefined,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   const remove = async (m: Minutes) => {
     if (!(await askConfirm(`صورتجلسهٔ «${m.title}» حذف شود؟`))) return;
     try {
@@ -211,6 +231,14 @@ export const MinutesView: React.FC = () => {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-1.5" data-minutes-views>
+        {([['all', `همه (${toPersianDigits((list || []).length)})`], ['draft', `در حال تنظیم (${toPersianDigits((list || []).length - nFinal)})`], ['archive', `بایگانی صورتجلسه‌ها (${toPersianDigits(nFinal)})`]] as const).map(([k, l]) => (
+          <button key={k} type="button" onClick={() => setView(k)} className={`px-3.5 py-1.5 rounded-full text-[11px] font-black border cursor-pointer ${view === k ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-[#FAF5F1]'}`} data-minutes-view-tab={k}>
+            {k === 'archive' ? '🔒 ' : ''}{l}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="w-4 h-4 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" />
@@ -255,7 +283,11 @@ export const MinutesView: React.FC = () => {
                   {t.sections.decisions && <span>{toPersianDigits(m.decisions.filter((d) => d.text.trim()).length)} مصوبه</span>}
                   {t.sections.parties && m.parties?.first?.name && <span>{m.parties.first.name} ← {m.parties?.second?.name}</span>}
                 </div>
-                {m.authorName && <div className="text-[10px] text-[#8C6F66]">تنظیم‌کننده: {m.authorName}</div>}
+                <div className="text-[11px] font-bold text-[#6B514A] flex flex-wrap gap-x-4 gap-y-0.5" data-minutes-author>
+                  <span>تهیه‌کننده: <b className="text-[#3A241F]">{m.authorName || '—'}</b></span>
+                  {m.status === 'FINAL' && m.finalizedAt && <span>نهایی و بایگانی‌شده: {formatTaskDate(m.finalizedAt.slice(0, 10))}</span>}
+                  {m.correctsNumber && <span>اصلاحیهٔ {toPersianDigits(m.correctsNumber)}</span>}
+                </div>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button type="button" onClick={() => openMinutesPrint(m, settings)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black bg-white border border-[#EBDBCE] hover:bg-[#FAF5F1] cursor-pointer" data-minutes-print>
                     <Printer className="w-3.5 h-3.5" />
@@ -265,6 +297,11 @@ export const MinutesView: React.FC = () => {
                     <FileImage className="w-3.5 h-3.5" />
                     {busy === m.id ? 'در حال ساخت…' : 'JPG'}
                   </button>
+                  {m.status === 'FINAL' && (
+                    <button type="button" onClick={() => correction(m)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black bg-white border border-amber-200 text-amber-800 hover:bg-amber-50 cursor-pointer" title="صورتجلسهٔ نهایی‌شده تغییر نمی‌کند؛ اصلاحیه یک صورتجلسهٔ تازه از روی آن می‌سازد" data-minutes-correction>
+                      ایجاد اصلاحیه
+                    </button>
+                  )}
                   {canEdit(m) && (
                     <>
                       <button type="button" onClick={() => setEditing(m)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black text-white bg-[#6E1B1B] hover:bg-[#581717] cursor-pointer">
@@ -362,6 +399,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
     if (!m.title.trim()) return showToast('موضوع را بنویسید.');
     if (!m.date) return showToast('تاریخ را انتخاب کنید.');
     if (S.goods && !(m.goods || []).some((g) => g.title.trim()) && status === 'FINAL') return showToast('دست‌کم یک کالا در جدول بنویسید.');
+    if (status === 'FINAL' && !(await askConfirm('پس از نهایی‌کردن، صورتجلسه در بایگانی قفل می‌شود: دیگر ویرایش و حذف نمی‌شود (برای اصلاح، صورتجلسهٔ اصلاحیه ساخته می‌شود) و همکاران نام‌برده اعلان می‌گیرند.\n\nنهایی شود؟', { tone: 'warning', title: 'نهایی‌کردن صورتجلسه', confirmText: 'بله، نهایی و بایگانی شود', cancelText: 'هنوز نه' }))) return;
     const next = { ...clean(), status };
     // goods with a warranty: ask first, and open the print window at once (a window opened after a wait is stopped by the browser)
     let issue = false;
@@ -417,6 +455,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
     <Modal
       title={(exists ? 'ویرایش ' : 'جدید: ') + t.title}
       wide
+      onTop="max"
       onClose={onClose}
       footer={
         <>
