@@ -95,8 +95,6 @@ export function buildOfficialHtml(input: ProformaRenderInput, mode: 'print' | 'p
       <td class="n">${rial(r.unitPrice)}</td><td class="n">${rial(r.gross)}</td><td class="n">${rial(r.discount)}</td><td class="n">${rial(r.after)}</td><td class="n">${rial(r.tax)}</td><td class="n b">${rial(r.total)}</td></tr>`
     )
     .join('');
-  const empty = Math.max(0, 4 - rows.length);
-  const blankRows = Array.from({ length: empty }, (_, i) => `<tr class="e"><td class="c">${toPersianDigits(rows.length + i + 1)}</td>${'<td></td>'.repeat(10)}</tr>`).join('');
 
   const check = (on: boolean, text: string) => `<span class="ck"><i class="${on ? 'on' : ''}"></i>${text}</span>`;
   const printScript =
@@ -168,7 +166,7 @@ ${mode === 'print' ? '<div class="toolbar"><button onclick="window.print()">چا
     <div class="head">مشخصات کالا یا خدمات مورد معامله</div>
     <table class="items">
       <thead><tr><th style="width:26px">ردیف</th><th style="width:70px">کد کالا / شناسهٔ خدمت</th><th>شرح کالا یا خدمت</th><th style="width:44px">تعداد / مقدار</th><th style="width:50px">واحد اندازه‌گیری</th><th style="width:80px">مبلغ واحد (ریال)</th><th style="width:88px">مبلغ کل (ریال)</th><th style="width:76px">مبلغ تخفیف (ریال)</th><th style="width:88px">مبلغ کل پس از تخفیف (ریال)</th><th style="width:76px">جمع مالیات و عوارض (ریال)</th><th style="width:96px">جمع مبلغ کل پس از تخفیف به‌علاوهٔ مالیات و عوارض (ریال)</th></tr></thead>
-      <tbody>${body}${blankRows}</tbody>
+      <tbody>${body}</tbody>
       <tfoot><tr><td colspan="6" class="c">جمع کل</td><td class="n">${rial(sum('gross'))}</td><td class="n">${rial(sum('discount'))}</td><td class="n">${rial(sum('after'))}</td><td class="n">${rial(sum('tax'))}</td><td class="n">${rial(totalPayable)}</td></tr></tfoot>
     </table>
   </div>
