@@ -36,7 +36,7 @@ export function buildMinutesHtml(m: Minutes, settings: SystemSettings, mode: 'pr
   const text = safeColor(d.text, '#111111');
   const present = m.attendees.filter((a) => a.status === 'PRESENT');
   const decisionsList = m.decisions.filter((x) => x.text.trim());
-  const timeText = [m.startTime ? ` از ساعت ${fa(m.startTime)}` : '', m.endTime ? ` تا ساعت ${fa(m.endTime)}` : ''].join('');
+  const timeText = [m.startTime ? ` ${m.endTime ? "از " : ""}ساعت ${fa(m.startTime)}` : '', m.endTime ? ` تا ساعت ${fa(m.endTime)}` : ''].join('');
   const dateText = m.date ? formatTaskDate(m.date) : '…';
   const fill = (tpl: string) =>
     tpl
@@ -47,7 +47,7 @@ export function buildMinutesHtml(m: Minutes, settings: SystemSettings, mode: 'pr
       .replace(/\{\{count\}\}/g, fa(present.length || m.attendees.length))
       .replace(/\{\{decisions\}\}/g, fa(decisionsList.length))
       .replace(/\{\{copies\}\}/g, fa(Math.max(2, t.signs.length)));
-  const when = [m.date ? formatTaskDate(m.date) : '', m.startTime ? `از ساعت ${fa(m.startTime)}` : '', m.endTime ? `تا ساعت ${fa(m.endTime)}` : ''].filter(Boolean).join(' ');
+  const when = [m.date ? formatTaskDate(m.date) : '', m.startTime ? `${m.endTime ? 'از ' : ''}ساعت ${fa(m.startTime)}` : '', m.endTime ? `تا ساعت ${fa(m.endTime)}` : ''].filter(Boolean).join(' ');
   const SH = d.showStatusColumn;
   const SG = d.showSignColumn;
 

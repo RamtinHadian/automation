@@ -11,7 +11,7 @@ import { getMinutesConfig, nextMinutesNumber, typeOf } from '../../lib/minutesCo
 import { downloadBlob, renderHtmlJpeg } from '../../lib/proformaFile';
 import { Minutes, MinutesAttendee, MinutesConfig, MinutesDecision, MinutesGoodsLine, MinutesType } from '../../types';
 import { Modal, field, label } from '../crm/crmUi';
-import { PersonPicker, PersonPickerMulti, staffItems } from '../common/PersonPicker';
+import { PersonPicker, PersonPickerMulti, staffItems, customerItems } from '../common/PersonPicker';
 import { JalaliDateField } from '../tasks/TasksView';
 import { printCertificates } from '../warranty/certificate';
 import { warrantyEnd } from '../../lib/warranty';
@@ -20,6 +20,8 @@ import { Warranty } from '../../types';
 const uid = () => 'mn-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const STATUS_TEXT: Record<string, string> = { PRESENT: 'حاضر', ABSENT: 'غایب', EXCUSED: 'غایب موجه' };
 const addDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
+const nowHm = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 
 export const blank = (cfg: MinutesConfig, list: Minutes[], who: string, typeId = 'general'): Minutes => {
   const t = typeOf(cfg, typeId);
@@ -31,7 +33,7 @@ export const blank = (cfg: MinutesConfig, list: Minutes[], who: string, typeId =
     title: '',
     kind: '',
     date,
-    startTime: '',
+    startTime: nowHm(),
     endTime: '',
     place: '',
     chair: '',
@@ -153,25 +155,8 @@ export const MinutesView: React.FC = () => {
   }, [list, q, typeFilter, view]);
   const nFinal = (list || []).filter((m) => m.status === 'FINAL').length;
 
-  // a finalised sheet is in the archive: it is locked and never deleted; a correction is a new sheet made from it
+  // a finalised sheet is in the archive: it is locked and never deleted
   const canEdit = (m: Minutes) => m.status !== 'FINAL' && (m.authorId === currentUser.id || currentUser.role === 'SUPER_ADMIN');
-  const correction = (m: Minutes) =>
-    setEditing({
-      ...m,
-      id: uid(),
-      number: nextMinutesNumber(cfg, m.typeId || 'general', todayIso(), list || []),
-      title: m.title.endsWith('(اصلاحیه)') ? m.title : `${m.title} (اصلاحیه)`,
-      date: todayIso(),
-      status: 'DRAFT',
-      correctsNumber: m.number,
-      authorId: undefined,
-      authorName: undefined,
-      finalizedAt: undefined,
-      finalizedById: undefined,
-      finalizedByName: undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
   const remove = async (m: Minutes) => {
     if (!(await askConfirm(`صورتجلسهٔ «${m.title}» حذف شود؟`))) return;
     try {
@@ -297,11 +282,6 @@ export const MinutesView: React.FC = () => {
                     <FileImage className="w-3.5 h-3.5" />
                     {busy === m.id ? 'در حال ساخت…' : 'JPG'}
                   </button>
-                  {m.status === 'FINAL' && (
-                    <button type="button" onClick={() => correction(m)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black bg-white border border-amber-200 text-amber-800 hover:bg-amber-50 cursor-pointer" title="صورتجلسهٔ نهایی‌شده تغییر نمی‌کند؛ اصلاحیه یک صورتجلسهٔ تازه از روی آن می‌سازد" data-minutes-correction>
-                      ایجاد اصلاحیه
-                    </button>
-                  )}
                   {canEdit(m) && (
                     <>
                       <button type="button" onClick={() => setEditing(m)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black text-white bg-[#6E1B1B] hover:bg-[#581717] cursor-pointer">
@@ -337,7 +317,7 @@ export const MinutesView: React.FC = () => {
 };
 
 export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: MinutesConfig; onClose: () => void; onSaved: () => void }> = ({ initial, all, cfg, onClose, onSaved }) => {
-  const { staffList, settings, showToast, currentUser } = useAppContext();
+  const { staffList, settings, showToast, currentUser, customers } = useAppContext();
   const [m, setM] = useState<Minutes>(initial);
   const [saving, setSaving] = useState(false);
   const [numberTouched, setNumberTouched] = useState(false);
@@ -549,6 +529,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
             <div key={side} className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-2">
               <span className={label}>{t.partyLabels[i]}</span>
               <PersonPicker title={t.partyLabels[i]} items={staffItems(people)} value={people.find((u) => u.fullName === m.parties?.[side]?.name)?.id || ''} onChange={(id) => { const u = people.find((x) => x.id === id); if (u) setParty(side, { name: u.fullName, position: u.departmentName || m.parties?.[side]?.position || '' }); }} emptyLabel="انتخاب همکار (یا بنویسید)…" />
+              <PersonPicker title={'مشتری — ' + t.partyLabels[i]} items={customerItems(customers)} value="" onChange={(id) => { const c = customers.find((x) => x.id === id); if (c) setParty(side, { name: c.company && c.company !== c.name ? c.company : c.name, position: c.company && c.company !== c.name ? c.name : m.parties?.[side]?.position || '', phone: (c.phones || [])[0] || m.parties?.[side]?.phone || '' }); }} emptyLabel="انتخاب مشتری…" />
               <input className={field} value={m.parties?.[side]?.name || ''} onChange={(e) => setParty(side, { name: e.target.value })} placeholder="نام و نام خانوادگی / شرکت" />
               <input className={field} value={m.parties?.[side]?.position || ''} onChange={(e) => setParty(side, { position: e.target.value })} placeholder="سمت" />
               <input className={field} dir="ltr" value={m.parties?.[side]?.phone || ''} onChange={(e) => setParty(side, { phone: e.target.value })} placeholder="شمارهٔ تماس (اختیاری)" />

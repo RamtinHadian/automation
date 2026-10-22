@@ -27,7 +27,7 @@ export function deliveryMinutesFromDeal(deal: Deal, customer: Customer | undefin
     title: `تحویل کالاهای پیش‌فاکتور ${deal.proformaNumber || deal.title}`,
     kind: '',
     date,
-    startTime: '',
+    startTime: (() => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); })(),
     endTime: '',
     place: customer?.address || '',
     chair: '',
