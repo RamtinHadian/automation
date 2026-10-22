@@ -14,6 +14,7 @@ import { Customer, Deal, ProformaFields, ProformaIssuer, ProformaItem, SystemSet
 import { JalaliDateField } from '../tasks/TasksView';
 import { formatMoney, fromDisplay, unitName } from '../../lib/money';
 import { WarehousePicker, WarehouseProduct } from './WarehousePicker';
+import { fold, matchesQuery } from '../../lib/customerSearch';
 
 const toman = formatMoney;
 const parseNumber = (s: string) => {
@@ -65,6 +66,14 @@ export const ProformaModal: React.FC<{
   // the warehouse picker: it fills row `pickFor` (a number) or adds a new row ('new')
   const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
   const priceFor = (p: WarehouseProduct) => lastPriceFor(p.code)?.price || (p.prices && p.prices[0] ? p.prices[0].amount : 0);
+  // suggestions while a description is typed: the warehouse products that match the words, with price and stock (or «خدمات»)
+  const [sugRow, setSugRow] = useState<number | null>(null);
+  const catLines = useMemo(() => new Map(catalog.map((p) => [p.id, fold([p.code, p.title, p.group || ''].join(' '))])), [catalog]);
+  const suggestionsFor = (text: string) => (text.trim() ? catalog.filter((p) => matchesQuery(catLines.get(p.id), text)).slice(0, 7) : []);
+  const fillRow = (i: number, p: WarehouseProduct) => {
+    setItems((cur) => cur.map((x, idx) => (idx === i ? { ...x, title: p.title, unit: p.unit, unitPrice: priceFor(p), code: p.code, qty: x.qty || 1 } : x)));
+    setSugRow(null);
+  };
   const pickProduct = (p: WarehouseProduct) => {
     const line = { title: p.title, qty: 1, unit: p.unit, unitPrice: priceFor(p), code: p.code };
     setItems((cur) => {
@@ -319,7 +328,46 @@ export const ProformaModal: React.FC<{
             {items.map((it, i) => (
               <div key={i} className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-2">
                 <div className="flex gap-2">
-                  <input className={field} placeholder="شرح کالا یا خدمات *" value={it.title} onChange={(e) => patchItem(i, { title: e.target.value })} />
+                  <div className="relative flex-1 min-w-0">
+                    <input
+                      className={field}
+                      placeholder="شرح کالا یا خدمات * (برای پیشنهاد از انبار بنویسید)"
+                      value={it.title}
+                      onChange={(e) => { patchItem(i, { title: e.target.value }); setSugRow(i); }}
+                      onFocus={() => setSugRow(i)}
+                      onBlur={() => setSugRow((r) => (r === i ? null : r))}
+                      onKeyDown={(e) => { if (e.key === 'Escape') setSugRow(null); }}
+                      autoComplete="off"
+                      data-title-input
+                    />
+                    {sugRow === i && (() => {
+                      const list = suggestionsFor(it.title).filter((p) => !(p.code && p.code === it.code && p.title === it.title));
+                      if (list.length === 0) return null;
+                      return (
+                        <div className="absolute z-30 inset-x-0 top-full mt-1 rounded-xl border border-[#EBDBCE] bg-white shadow-xl overflow-hidden" data-title-suggestions>
+                          {list.map((p) => {
+                            const price = priceFor(p);
+                            return (
+                              <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => fillRow(i, p)} className="w-full text-right flex items-center justify-between gap-3 px-3 py-2 hover:bg-violet-50 cursor-pointer border-b border-[#EBDBCE]/50 last:border-b-0">
+                                <span className="min-w-0">
+                                  <span className="block text-xs font-black text-[#3A241F] truncate">{p.title}</span>
+                                  <span className="block text-[10px] font-bold text-[#8C6F66] truncate" dir="ltr">{p.code}{p.group ? ` · ${p.group}` : ''}</span>
+                                </span>
+                                <span className="shrink-0 text-left">
+                                  <span className="block text-[11px] font-black text-violet-700">{price ? `${toman(price)} ${unitName()}` : 'بدون قیمت'}</span>
+                                  {p.kind === 'service' ? (
+                                    <span className="block text-[10px] font-black text-sky-700">خدمات</span>
+                                  ) : (
+                                    <span className={`block text-[10px] font-bold ${p.total > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>موجودی: {toPersianDigits(p.total)} {p.unit}</span>
+                                  )}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
                   <button type="button" onClick={() => setPickFor(i)} className="shrink-0 flex items-center gap-1 px-2.5 py-2 rounded-xl text-[11px] font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer" title="پر کردن این ردیف از انبار" data-row-from-warehouse>
                     <PackageSearch className="w-3.5 h-3.5" />
                     از انبار
@@ -362,7 +410,7 @@ export const ProformaModal: React.FC<{
                   const last = lastPriceFor(it.code);
                   return (
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] font-bold" data-item-hints>
-                      <span className={p.total <= 0 || p.total < (it.qty || 0) ? 'text-rose-600' : 'text-emerald-700'}>موجودی انبار: {toPersianDigits(p.total)} {p.unit}{p.total < (it.qty || 0) ? ' (کمتر از تعداد درخواستی)' : ''}</span>
+                      {p.kind === 'service' ? <span className="text-sky-700">خدمات (موجودی ندارد)</span> : <span className={p.total <= 0 || p.total < (it.qty || 0) ? 'text-rose-600' : 'text-emerald-700'}>موجودی انبار: {toPersianDigits(p.total)} {p.unit}{p.total < (it.qty || 0) ? ' (کمتر از تعداد درخواستی)' : ''}</span>}
                       {last && <button type="button" onClick={() => patchItem(i, { unitPrice: last.price })} className="text-violet-700 underline cursor-pointer">آخرین قیمت به این مشتری: {formatMoney(last.price)}</button>}
                       {(p.prices || []).map((x) => (
                         <button key={x.title} type="button" onClick={() => patchItem(i, { unitPrice: x.amount })} className="px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800 cursor-pointer">{x.title}: {formatMoney(x.amount)}</button>

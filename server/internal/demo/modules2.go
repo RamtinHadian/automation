@@ -59,6 +59,20 @@ func addWarehouse(ctx context.Context, now time.Time, by map[string]account) err
 			return err
 		}
 	}
+	// services have no stock: the warehouse keeps their names and prices so a proforma can offer them (kind = service)
+	for _, sv := range []struct {
+		id, code, title, unit string
+		price                 int
+	}{
+		{"p-svc-install", "2001", "خدمات نصب و راه‌اندازی شبکه", "ساعت", 1200000},
+		{"p-svc-support", "2002", "پشتیبانی ماهانهٔ شبکه و سرور", "ماه", 7500000},
+		{"p-svc-train", "2003", "آموزش کاربران", "جلسه", 3000000},
+	} {
+		doc := jsonx.M{"id": sv.id, "code": sv.code, "title": sv.title, "unit": sv.unit, "group": "خدمات", "kind": "service", "minQty": 0, "note": "", "active": true, "prices": []jsonx.M{pr("تعرفه", sv.price)}}
+		if err := exec(ctx, `INSERT INTO wh_products (id, code, data) VALUES ($1, $2, $3::jsonb)`, sv.id, sv.code, jsonx.Encode(doc)); err != nil {
+			return err
+		}
+	}
 	type line struct {
 		pid string
 		qty float64

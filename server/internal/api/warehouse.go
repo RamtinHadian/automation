@@ -951,7 +951,7 @@ func crmProducts(w http.ResponseWriter, r *http.Request) {
 		for _, n := range bal[id] {
 			total += n
 		}
-		out = append(out, jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "total": math.Round(total*1000) / 1000, "prices": d["prices"], "cost": costFor(me, d)})
+		out = append(out, jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "kind": jsonx.Str(d, "kind"), "total": math.Round(total*1000) / 1000, "prices": d["prices"], "cost": costFor(me, d)})
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"products": out})
 }

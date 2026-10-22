@@ -11,6 +11,8 @@ export interface WarehouseProduct {
   title: string;
   unit: string;
   group?: string;
+  /** 'service' for a service (it has no stock); empty or 'goods' for a product */
+  kind?: string;
   total: number;
   prices?: { title: string; amount: number }[];
 }
@@ -69,7 +71,11 @@ export const WarehousePicker: React.FC<{
                 </span>
                 <span className="shrink-0 text-left">
                   <span className="block text-[11px] font-black text-violet-700">{price ? `${formatMoney(price)} ${unitName()}` : 'بدون قیمت'}</span>
-                  <span className={`block text-[10px] font-bold ${p.total > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>موجودی: {toPersianDigits(p.total)} {p.unit}</span>
+                  {p.kind === 'service' ? (
+                    <span className="block text-[10px] font-black text-sky-700">خدمات</span>
+                  ) : (
+                    <span className={`block text-[10px] font-bold ${p.total > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>موجودی: {toPersianDigits(p.total)} {p.unit}</span>
+                  )}
                 </span>
               </button>
             );
