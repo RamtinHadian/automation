@@ -607,9 +607,15 @@ class Session {
       },
       ssl: async () => {
         const ds = this.nginxDomains && this.nginxDomains.length ? this.nginxDomains : sites.map((x) => x.domain);
-        const r = await this.runJob('certbot --nginx --non-interactive --agree-tos --redirect -m ' + sq(email) + ' ' + ds.map((d) => '-d ' + d).join(' '), { label: 'certbot --nginx ' + ds.join(' ') });
-        if (r.code !== 0) return { ok: false, note: 'گواهی گرفته نشد. باید A-Record دامنه به IP عمومی شما اشاره کند و پورت ۸۰ و ۴۴۳ در روتر به همین سرور برسد؛ بعد دوباره «اعمال» را بزنید. (تنظیم HTTP کار می‌کند.)' };
-        return { ok: true, note: 'گواهی گرفته شد و تمدید خودکار فعال است.' };
+        // one certificate per domain: a domain that is not ready yet (its A-record still points elsewhere) must not stop the others
+        const good = [];
+        const bad = [];
+        for (const d of ds) {
+          const r = await this.runJob('certbot --nginx --non-interactive --agree-tos --redirect -m ' + sq(email) + ' -d ' + d, { label: 'certbot --nginx -d ' + d });
+          (r.code === 0 ? good : bad).push(d);
+        }
+        if (bad.length) return { ok: false, note: (good.length ? 'گواهی گرفته شد برای: ' + good.join('، ') + '. ' : '') + 'گواهی نگرفت برای: ' + bad.join('، ') + ' (A-Record آن باید به IP عمومی شما اشاره کند و پورت ۸۰ و ۴۴۳ در روتر به همین سرور برسد؛ یا آن دامنه را از فهرست بردارید.)' };
+        return { ok: true, note: 'گواهی گرفته شد و تمدید خودکار فعال است: ' + good.join('، ') + '.' };
       },
     };
     for (const st of this.steps) {
