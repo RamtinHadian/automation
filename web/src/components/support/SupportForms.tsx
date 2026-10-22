@@ -72,7 +72,10 @@ export const SubForm: React.FC<{
     }
   };
   const save = async () => {
-    if (!valid || saving || !startDate) return;
+    if (saving) return;
+    if (!customerId) return onError('مشتری را از فهرست زیر کادر جستجو انتخاب کنید (فقط نوشتن نام کافی نیست).');
+    if (!plan) return onError('یکی از پلن‌ها را انتخاب کنید.');
+    if (!startDate || m < 1) return onError('تاریخ شروع و مدت را وارد کنید.');
     setSaving(true);
     try {
       const saved = await api.supportSubPut(initial?.id || uid('ss'), { customerId, planId, startDate, months: m, endDate: end, price: fromDisplay(parseInt(toEn(price), 10) || 0), notes: notes.trim() });
@@ -92,7 +95,7 @@ export const SubForm: React.FC<{
       footer={
         <>
           <button type="button" onClick={onClose} className={cancelBtn}>انصراف</button>
-          <button type="button" onClick={save} disabled={!valid || saving} className={okBtn}>{saving ? 'در حال ذخیره…' : isNew ? 'ثبت اشتراک' : 'ذخیره'}</button>
+          <button type="button" onClick={save} disabled={saving} className={okBtn}>{saving ? 'در حال ذخیره…' : isNew ? 'ثبت اشتراک' : 'ذخیره'}</button>
         </>
       }
     >
