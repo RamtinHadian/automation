@@ -61,7 +61,7 @@
 </style>
 </head>
 <body>
-<header><h1>پنل نصب هورمند</h1><nav class="tabs"><button id="tabInstall" class="on">نصب برنامه روی سرور</button><button id="tabVoip">اتصال به تلفن ایزابل (ویپ)</button><button id="tabNginx">پروکسی انجینکس (چند دامنه، چند سرور)</button></nav><span>این صفحه فقط روی کامپیوتر خودتان اجرا می‌شود؛ رمز SSH جایی ذخیره نمی‌شود.</span></header>
+<header><h1>پنل نصب هورمند</h1><nav class="tabs"><button id="tabInstall" class="on">نصب برنامه روی سرور</button><button id="tabVoip">اتصال به تلفن ایزابل (ویپ)</button><button id="tabNginx">پروکسی انجینکس (چند دامنه، چند سرور)</button><button id="tabMig">انتقال کامل به سرور دیگر</button></nav><span>این صفحه فقط روی کامپیوتر خودتان اجرا می‌شود؛ رمز SSH جایی ذخیره نمی‌شود.</span></header>
 <main>
   <section>
     <div class="card" id="loginCard">
@@ -80,6 +80,14 @@
           <label>پوشهٔ برنامه روی آن سرور (خالی = خودکار)</label><input id="aDir" placeholder="مثلاً /opt/automation" />
           <label>نام کاربر AMI (پیش‌فرض hoormand)</label><input id="vUser" value="hoormand" />
           <label>رمز AMI (خالی = خودکار ساخته می‌شود؛ فقط حرف و عدد)</label><input id="vSecret" autocomplete="off" /></details></div>
+      <div id="migFields" style="display:none">
+        <div style="margin:16px 0 4px;font-weight:bold;font-size:13px;color:#7a1c20">۲. سرور مقصد (هورمند باید از قبل روی آن نصب شده باشد)</div>
+        <label>آدرس و پورت SSH <b>سرور مقصد</b></label><div class="row"><input id="tHost" placeholder="مثلاً 194.150.71.141" /><input id="tPort" value="22" /></div>
+        <label>نام کاربری سرور مقصد (با sudo)</label><input id="tUser" autocomplete="off" />
+        <label>رمز SSH سرور مقصد</label><input id="tPass" type="password" autocomplete="off" />
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="tRec" style="width:auto;direction:rtl"> ضبط مکالمات تلفن (پوشهٔ recordings) هم منتقل شود (حجمش ممکن است زیاد باشد)</label>
+        <p class="note">دیتابیس (نامه‌ها، امضا و مهر اسکن‌شده، مشتریان، وظایف و همه چیز) و پوشهٔ فایل‌ها منتقل می‌شود. اطلاعات فعلی سرور مقصد جایگزین می‌شود؛ پیش از آن یک نسخهٔ ایمنی در پوشهٔ backups همان سرور می‌ماند.</p>
+      </div>
       <div id="nginxFields" style="display:none">
         <div id="ngInfo" class="guide" style="display:none"></div>
         <div style="font-weight:bold;font-size:13px;color:#7a1c20;margin-top:10px">افزودن سایت تازه</div>
@@ -179,13 +187,15 @@
   ws.onmessage = function (e) {
     var m = JSON.parse(e.data);
     if (m.type === 'log') { term.write(m.data); report.push(plain(m.data)); }
+    else if (m.type === 'migrate-done') { var rm = $('result'); rm.style.display = 'block'; rm.innerHTML = '<h2>✓ انتقال کامل شد</h2>همهٔ اطلاعات هورمند به سرور <b>' + esc(m.to) + '</b> منتقل و بازیابی شد.<br><span class="note">۱) با کاربران و رمزهای همان سرور مبدأ وارد شوید (نشست‌های باز یک بار دوباره وارد می‌شوند). ۲) مجوز (لایسنس) به شناسهٔ سرور وصل است: اگر سرور مقصد فعال‌سازی نخواسته بود هیچ، وگرنه «کد نصب» را بفرستید و کد فعال‌سازی بگیرید. ۳) دامنه و انجینکس را به سرور مقصد ببرید. ۴) تا مطمئن نشدید سرور مبدأ را خاموش یا پاک نکنید.</span>'; $('startBtn').disabled = false; $('startBtn').textContent = 'انتقال دوباره'; }
     else if (m.type === 'connected' && m.mode === 'nginx') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = false; $('startBtn').textContent = 'اعمال تنظیم انجینکس'; $('connErr').style.display = 'none'; ['host','port','user','pass'].forEach(function (i) { $(i).disabled = true; }); ws.send(JSON.stringify({ type: 'nginx-scan' })); }
     else if (m.type === 'nginx-info') showNginxInfo(m);
     else if (m.type === 'nginx-done') { var rr = $('result'); rr.style.display = 'block'; rr.innerHTML = '<h2>✓ انجینکس تنظیم شد</h2>' + m.sites.map(function (x) { return (m.https ? 'https' : 'http') + '://<b>' + esc(x.domain) + '</b> ← ' + esc(x.target); }).join('<br>') + '<br><span class="note">در روتر میکروتیک فقط پورت ۸۰ و ۴۴۳ را به آدرس داخلی همین سرور بدهید و برای هر دامنه یک A-Record به IP عمومی بسازید (بدون پورت). برای سایت دیگر، یک خط تازه اضافه کنید و دوباره «اعمال» را بزنید.</span>'; $('startBtn').disabled = false; $('startBtn').textContent = 'اعمال تنظیم انجینکس'; }
-    else if (m.type === 'connected') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = true; $('startBtn').textContent = 'در حال نصب...'; sendStart(); $('connErr').style.display = 'none'; ['host','port','user','pass','appPort','instName','instDomain','instHost'].forEach(function (i) { $(i).disabled = true; }); }
+    else if (m.type === 'connected') { $('connectBtn').style.display = 'none'; $('startBtn').style.display = 'block'; $('startBtn').disabled = true; $('startBtn').textContent = 'در حال نصب...'; sendStart(); $('connErr').style.display = 'none'; ['host','port','user','pass','appPort','instName','instDomain','instHost','tHost','tPort','tUser','tPass'].forEach(function (i) { $(i).disabled = true; }); }
     else if (m.type === 'connect-failed') { $('connectBtn').disabled = false; $('connErr').textContent = m.note; $('connErr').style.display = 'block'; }
     else if (m.type === 'steps') renderSteps(m.steps);
     else if (m.type === 'shot') setTimeout(function () { snap(m.title, m.ok); }, 250);
+    else if (m.type === 'stopped' && mode === 'migrate') { $('stopBox').style.display = 'block'; $('stopBox').innerHTML = '<b>انتقال متوقف شد.</b><br>' + esc(m.note) + '<br>مشکل را رفع کنید و دوباره بزنید؛ سرور مبدأ هیچ تغییری نکرده است.'; $('startBtn').disabled = false; $('startBtn').textContent = 'تلاش دوباره'; }
     else if (m.type === 'stopped' && mode === 'nginx') { $('stopBox').style.display = 'block'; $('stopBox').innerHTML = '<b>تنظیم انجینکس متوقف شد.</b><br>' + esc(m.note) + '<br>اصلاح کنید و دوباره «اعمال» را بزنید.'; $('startBtn').disabled = false; $('startBtn').textContent = 'اعمال تنظیم انجینکس'; }
     else if (m.type === 'stopped') { $('stopBox').style.display = 'block'; $('stopBox').innerHTML = '<b>نصب در این مرحله متوقف شد.</b><br>' + esc(m.note) + '<br>اسکرین‌شات این مرحله ساخته شده؛ با «کپی گزارش» یا اسکرین‌شات‌ها برای پشتیبانی بفرستید. بعد از رفع مشکل دوباره «شروع نصب» را بزنید.'; $('startBtn').disabled = false; $('startBtn').textContent = 'تلاش دوباره'; }
     else if (m.type === 'ask-ip') askIp(m);
@@ -272,10 +282,11 @@
   var mode = 'install';
   function setMode(m) {
     mode = m;
-    $('tabInstall').className = m === 'install' ? 'on' : ''; $('tabVoip').className = m === 'voip' ? 'on' : ''; $('tabNginx').className = m === 'nginx' ? 'on' : '';
-    $('installFields').style.display = m === 'install' ? '' : 'none'; $('voipFields').style.display = m === 'voip' ? '' : 'none'; $('nginxFields').style.display = m === 'nginx' ? '' : 'none';
-    $('startBtn').textContent = m === 'voip' ? 'شروع تنظیم ایزابل' : m === 'nginx' ? 'اعمال تنظیم انجینکس' : 'شروع نصب';
-    $('guide').innerHTML = m === 'voip' ? GUIDE_VOIP : m === 'nginx' ? GUIDE_NGINX : GUIDE_INSTALL;
+    $('tabInstall').className = m === 'install' ? 'on' : ''; $('tabVoip').className = m === 'voip' ? 'on' : ''; $('tabNginx').className = m === 'nginx' ? 'on' : ''; $('tabMig').className = m === 'migrate' ? 'on' : '';
+    $('installFields').style.display = m === 'install' ? '' : 'none'; $('voipFields').style.display = m === 'voip' ? '' : 'none'; $('nginxFields').style.display = m === 'nginx' ? '' : 'none'; $('migFields').style.display = m === 'migrate' ? '' : 'none';
+    $('startBtn').textContent = m === 'voip' ? 'شروع تنظیم ایزابل' : m === 'nginx' ? 'اعمال تنظیم انجینکس' : m === 'migrate' ? 'شروع انتقال کامل' : 'شروع نصب';
+    $('guide').innerHTML = m === 'voip' ? GUIDE_VOIP : m === 'nginx' ? GUIDE_NGINX : m === 'migrate' ? GUIDE_MIG : GUIDE_INSTALL;
+    if (m === 'migrate') { $('lbHost').innerHTML = 'آدرس و پورت SSH <b>سرور مبدأ</b> (سروری که اطلاعات از آن گرفته می‌شود)'; $('lbUser').innerHTML = 'نام کاربری سرور مبدأ (با sudo)'; $('lbPass').innerHTML = 'رمز SSH سرور مبدأ'; var t3 = document.querySelector('#loginCard h2'); if (t3) t3.textContent = '۱. ورود به سرور مبدأ (SSH)'; return; }
     if (m === 'nginx') { $('lbHost').innerHTML = 'آدرس و پورت SSH <b>ماشینی که انجینکس روی آن است (یا نصب می‌شود)</b>'; $('lbUser').innerHTML = 'نام کاربری آن ماشین (اوبونتو، با sudo)'; $('lbPass').innerHTML = 'رمز SSH آن ماشین'; var t2 = document.querySelector('#loginCard h2'); if (t2) t2.textContent = '۱. ورود به ماشین انجینکس (SSH)'; return; }
     $('lbHost').innerHTML = m === 'voip' ? 'آدرس و پورت SSH <b>ایزابل</b> (دستگاه تلفن؛ پورت چپ: مثلاً 2200 در روتر شما)' : 'آدرس و پورت SSH <b>سروری که برنامه روی آن نصب می‌شود</b> (پورت چپ: مثلاً 2292 = سرور 248، 2293 = mitto)';
     $('lbUser').innerHTML = m === 'voip' ? 'نام کاربری <b>ایزابل</b> (معمولاً root)' : 'نام کاربری همان سرور (اوبونتو)';
@@ -305,9 +316,16 @@
   }
   $('ngAdd').onclick = function () { if (addSite($('ngDomain').value, $('ngTarget').value)) { $('ngDomain').value = ''; $('ngTarget').value = ''; $('ngDomain').focus(); } };
   $('ngHttps').onchange = function () { $('ngEmail').style.display = $('ngHttps').checked ? 'block' : 'none'; };
+  var GUIDE_MIG = '<b>انتقال کامل یک هورمند به سرور دیگر</b><ol><li>اول روی <b>سرور مقصد</b> هورمند را با «نصب برنامه روی سرور» نصب کنید (خالی و تازه).</li><li>بالا ورود SSH <b>سرور مبدأ</b> (جایی که اطلاعات هست) و پایین ورود SSH <b>سرور مقصد</b> را بنویسید.</li><li>«شروع انتقال کامل» را بزنید. پنل نسخهٔ کامل دیتابیس (نامه‌ها، امضاها، مشتریان و…) و پوشهٔ فایل‌ها را می‌گیرد، سالم بودنش را می‌سنجد، به مقصد می‌برد و آنجا بازیابی می‌کند.</li><li>به سرور مبدأ دست نمی‌زند؛ هر دو سرور بعد از کار سالم می‌مانند.</li></ol>';
+  $('tabMig').onclick = function () { setMode('migrate'); };
   $('tabNginx').onclick = function () { setMode('nginx'); };
   $('tabInstall').onclick = function () { setMode('install'); }; $('tabVoip').onclick = function () { setMode('voip'); }; setMode(mode);
   function sendStart() {
+    if (mode === 'migrate') {
+      if (!confirm('همهٔ اطلاعات سرور مقصد (' + $('tHost').value.trim() + ') با اطلاعات سرور مبدأ (' + $('host').value.trim() + ') جایگزین می‌شود. پیش از آن یک نسخهٔ ایمنی از مقصد گرفته می‌شود.\n\nادامه بدهم؟')) { $('startBtn').disabled = false; $('startBtn').textContent = 'شروع انتقال کامل'; return; }
+      ws.send(JSON.stringify({ type: 'migrate-start', recordings: $('tRec').checked, target: { host: $('tHost').value.trim(), port: $('tPort').value.trim(), user: $('tUser').value.trim(), password: $('tPass').value } }));
+      return;
+    }
     if (mode === 'nginx') {
       var rows = $('ngSites').value.split('\n').map(function (l) { return l.trim().split(/\s+/); }).filter(function (p) { return p[0]; }).map(function (p) { return { domain: p[0], target: p[1] || '' }; });
       ws.send(JSON.stringify({ type: 'nginx-apply', sites: rows, https: $('ngHttps').checked, email: $('ngEmail').value.trim() }));
@@ -320,6 +338,7 @@
   }
   $('connectBtn').onclick = function () {
     if (!$('host').value.trim() || !$('user').value.trim() || !$('pass').value) { $('connErr').textContent = 'آدرس، نام کاربری و رمز را وارد کنید.'; $('connErr').style.display = 'block'; return; }
+    if (mode === 'migrate' && !($('tHost').value.trim() && $('tUser').value.trim() && $('tPass').value)) { $('connErr').textContent = 'مشخصات SSH سرور مقصد (آدرس، نام کاربری، رمز) را در فرم دوم وارد کنید.'; $('connErr').style.display = 'block'; $('tHost').focus(); return; }
     if (mode === 'voip' && !($('aHost').value.trim() && $('aUser').value.trim() && $('aPass').value)) { $('connErr').textContent = 'مشخصات SSH سرور برنامه (آدرس، نام کاربری، رمز) را در فرم دوم وارد کنید تا پنل همه‌چیز را خودکار انجام دهد.'; $('connErr').style.display = 'block'; $('aHost').focus(); return; }
     $('connectBtn').disabled = true;
     ws.send(JSON.stringify({ type: 'connect', mode: mode, host: $('host').value.trim(), port: $('port').value.trim(), username: $('user').value.trim(), password: $('pass').value }));

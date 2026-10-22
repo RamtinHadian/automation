@@ -77,6 +77,15 @@ function answer(script) {
   if (/hoormand-demo\.exit/.test(script) && /wc -c/.test(script)) return out('42\n0\n');
   if (/tail -c \+/.test(script)) return out('Container demo-app-1 Started\n');
   if (/api\/auth\/login/.test(script)) return out('{"token":"abc"}');
+  // migrate tab (the same pretend server plays the source and the target)
+  if (/set -a; \. \.\/\.env; set \+a; echo "DBU=/.test(script)) return out('DBU=automation\nDBN=automation\nPORT=8080\nFILES=./files\nREC=./recordings\nVER=1.41.9\n');
+  if (/docker compose ps --status running/.test(script)) return out('db app \n');
+  if (/pg_dump -U 'automation'.*db\.dump/.test(script) && /PACKED/.test(script)) { st.packed = true; return out('1200 db.dump\n3400 files.tgz\nPACKED\n'); }
+  if (/sha256sum \/tmp\/hoormand-migrate/.test(script)) return out('abc123def\n');
+  if (/cat \/etc\/machine-id/.test(script)) return out('machine-' + Math.random().toString(36).slice(2) + '\n');
+  if (/df -Pk \/tmp/.test(script)) return out('9000000\n');
+  if (/pg_restore --no-owner -f -/.test(script) && /RESTORED/.test(script)) { st.restored = true; return out('نسخهٔ ایمنی: backups/x.safety\nRESTORED\n'); }
+  if (/rm -rf \/tmp\/hoormand-migrate/.test(script)) return out();
   // Nginx tab
   if (/nginx -v/.test(script)) return out(st.nginx ? 'nginx version: nginx/1.24.0 (Ubuntu)\n' : '');
   if (/##FILE/.test(script)) return out('##FILE /etc/nginx/sites-enabled/old.conf\nserver {\n listen 80;\n server_name old.example.com;\n location / { proxy_pass http://192.168.88.15:8080; }\n}\n');
@@ -112,6 +121,13 @@ new Server({ hostKeys: [privateKey] }, (client) => {
           stream.exit(r.code);
           stream.end();
         };
+        if (/^cat \/tmp\/hoormand-migrate\//.test(cmd)) { stream.write('DATA:' + cmd.split('/').pop()); stream.exit(0); stream.end(); return; }
+        if (/^cat > \/tmp\/hoormand-migrate\//.test(cmd)) {
+          let n = 0;
+          stream.on('data', (d) => (n += d.length));
+          stream.on('end', () => { console.log('SERVER got end, bytes', n); st.carried = (st.carried || 0) + n; stream.exit(0); stream.end(); });
+          return;
+        }
         if (/^cat > \/tmp\/hoormand-src\.tgz/.test(cmd)) {
           let n = 0;
           stream.on('data', (d) => (n += d.length));

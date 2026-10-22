@@ -474,6 +474,191 @@ class Session {
   }
 
 
+  // ---------------------------------------------------------------- full copy of a Hoormand server onto another one
+  /**
+   * Takes the whole of this server's Hoormand (database copy, the files folder, optionally the call recordings), carries it
+   * through this panel to the target server (a Hoormand that is already installed there) and restores it there.
+   * The target's own data is replaced; a safety copy of it is kept in its backups folder first.
+   */
+  async migrate(o) {
+    if (this.running) return;
+    this.running = true;
+    this.cancelled = false;
+    const T = o.target || {};
+    if (!T.host || !T.user || !T.password) {
+      this.send({ type: 'stopped', step: 'target', note: 'مشخصات SSH سرور مقصد (آدرس، نام کاربری، رمز) را بنویسید.' });
+      this.running = false;
+      return;
+    }
+    const withRec = !!o.recordings;
+    const WORK = '/tmp/hoormand-migrate';
+    this.steps = [
+      { id: 'src', title: 'شناسایی هورمند روی سرور مبدأ', status: 'wait' },
+      { id: 'pack', title: 'گرفتن نسخهٔ کامل (دیتابیس و فایل‌ها)', status: 'wait' },
+      { id: 'dst', title: 'اتصال به سرور مقصد', status: 'wait' },
+      { id: 'send', title: 'انتقال به سرور مقصد', status: 'wait' },
+      { id: 'restore', title: 'بازیابی روی سرور مقصد', status: 'wait' },
+      { id: 'check', title: 'آزمایش نهایی', status: 'wait' },
+    ];
+    this.send({ type: 'steps', steps: this.steps });
+    const dst = new Session(this.ws);
+    const src = this;
+    let srcInfo = null;
+    let dstInfo = null;
+    const finish = () => {
+      try { dst.conn && dst.conn.end(); } catch {}
+      this.running = false;
+    };
+    // where the program lives on a server and where its data folders are (read from the program's own .env)
+    const locate = async (sv, hint) => {
+      let dir = (await sv.run(`docker ps -q --filter label=com.docker.compose.service=app | head -1 | xargs -r docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`, { root: true, quiet: true })).out.trim().split('\n').pop().trim();
+      if (!dir.startsWith('/')) dir = (await sv.run(`for d in /opt/*/ /home/*/*/ /root/*/; do [ -f "$d/docker-compose.yml" ] && [ -d "$d/server" ] && echo "$d" && break; done`, { root: true, quiet: true })).out.trim().split('\n').pop().replace(/\/$/, '');
+      if (hint) dir = hint;
+      if (!dir.startsWith('/')) return null;
+      const r = await sv.run(
+        `cd ${sq(dir)} && [ -f .env ] && { set -a; . ./.env; set +a; echo "DBU=\${DB_USER:-automation}"; echo "DBN=\${DB_NAME:-automation}"; echo "PORT=\${PORT:-8080}"; echo "FILES=\${FILES_DIR:-./files}"; echo "REC=\${VOIP_RECORDINGS_DIR:-./recordings}"; echo "VER=$(cat VERSION 2>/dev/null | head -1)"; }`,
+        { root: true, quiet: true });
+      const g = (k) => (new RegExp('^' + k + '=(.*)$', 'm').exec(r.out) || [])[1] || '';
+      if (!g('DBU')) return null;
+      const abs = (v) => (v.startsWith('/') ? v : dir + '/' + v.replace(/^\.\//, ''));
+      return { dir, dbu: g('DBU'), dbn: g('DBN'), port: g('PORT') || '8080', files: abs(g('FILES') || './files'), rec: abs(g('REC') || './recordings'), ver: g('VER') };
+    };
+    // one file from a server to the other, through this panel, with progress and a check of the result
+    const carry = (name) =>
+      new Promise((resolve) => {
+        const srcPath = WORK + '/' + name;
+        src.conn.exec('cat ' + srcPath, (e1, s1) => {
+          if (e1) return resolve({ ok: false, note: e1.message });
+          dst.conn.exec('cat > ' + srcPath, (e2, s2) => {
+            if (e2) return resolve({ ok: false, note: e2.message });
+            let n = 0;
+            let lastShown = 0;
+            const t0 = Date.now();
+            const tick = setInterval(() => {
+              if (n !== lastShown) {
+                lastShown = n;
+                this.log('  ' + name + ': ' + (n / 1048576).toFixed(1) + ' مگابایت منتقل شد', 'gray');
+              }
+            }, 4000);
+            s1.on('data', (d) => (n += d.length));
+            s1.stderr.on('data', () => {});
+            s2.stderr.on('data', () => {});
+            s2.resume(); // the far side's end-of-file is only seen when the stream is being read
+            s1.pipe(s2);
+            s2.on('close', () => {
+              clearInterval(tick);
+              resolve({ ok: true, bytes: n, secs: Math.max(1, Math.round((Date.now() - t0) / 1000)) });
+            });
+            s1.on('error', () => resolve({ ok: false, note: 'ارتباط با سرور مبدأ قطع شد.' }));
+            s2.on('error', () => resolve({ ok: false, note: 'ارتباط با سرور مقصد قطع شد.' }));
+          });
+        });
+      });
+    const sum = async (sv, name) => ((await sv.run('sha256sum ' + WORK + '/' + name + " | awk '{print $1}'", { quiet: true })).out.trim().split('\n').pop().trim());
+    const steps = {
+      src: async () => {
+        srcInfo = await locate(src, '');
+        if (!srcInfo) return { ok: false, note: 'هورمند روی سرور مبدأ پیدا نشد (Docker یا پوشهٔ برنامه).' };
+        const up = await src.run(`cd ${sq(srcInfo.dir)} && docker compose ps --status running --services 2>/dev/null | tr '\\n' ' '`, { root: true, quiet: true });
+        if (!/\bdb\b/.test(up.out)) return { ok: false, note: 'دیتابیس هورمند روی سرور مبدأ بالا نیست؛ اول آن را روشن کنید (docker compose up -d).' };
+        return { ok: true, note: 'پوشهٔ برنامه ' + srcInfo.dir + (srcInfo.ver ? '، نسخه ' + srcInfo.ver : '') + '.' };
+      },
+      pack: async () => {
+        const me = src.user;
+        let sh = 'set -e\nrm -rf ' + WORK + '; mkdir -p ' + WORK + '\ncd ' + sq(srcInfo.dir) + '\n';
+        sh += 'docker compose exec -T db pg_dump -U ' + sq(srcInfo.dbu) + ' -d ' + sq(srcInfo.dbn) + ' -Fc > ' + WORK + '/db.dump\n';
+        sh += 'docker compose exec -T db pg_restore --list < ' + WORK + '/db.dump > /dev/null\n';
+        sh += '[ -d ' + sq(srcInfo.files) + ' ] && tar czf ' + WORK + '/files.tgz -C ' + sq(srcInfo.files) + ' . || tar czf ' + WORK + '/files.tgz --files-from /dev/null\n';
+        if (withRec) sh += '[ -d ' + sq(srcInfo.rec) + ' ] && tar czf ' + WORK + '/rec.tgz -C ' + sq(srcInfo.rec) + ' . || true\n';
+        sh += 'chown -R ' + sq(me) + ' ' + WORK + '; chmod 700 ' + WORK + '; chmod 600 ' + WORK + '/*\n';
+        sh += 'ls -l ' + WORK + " | awk 'NR>1 {print $5, $9}'\necho PACKED\n";
+        const r = await src.run(sh, { root: true });
+        if (!/PACKED/.test(r.out)) return { ok: false, note: 'گرفتن نسخه انجام نشد. خطای بالا را ببینید.' };
+        const names = ['db.dump', 'files.tgz'].concat(withRec && /rec\.tgz/.test(r.out) ? ['rec.tgz'] : []);
+        this.migNames = names;
+        return { ok: true, note: 'نسخهٔ دیتابیس و فایل‌ها آماده شد (و خوانده و آزمایش شد).' };
+      },
+      dst: async () => {
+        try {
+          await dst.connect({ host: T.host, port: T.port || 22, username: T.user, password: T.password });
+        } catch (e) {
+          return { ok: false, note: 'به سرور مقصد وصل نشدم: ' + e.message + ' (آدرس، پورت، نام کاربری و رمز را بررسی کنید.)' };
+        }
+        if (dst.user !== 'root') {
+          const t = await dst.run('true', { root: true, quiet: true });
+          if (t.code !== 0) return { ok: false, note: 'کاربر سرور مقصد دسترسی sudo ندارد.' };
+        }
+        dstInfo = await locate(dst, T.dir || '');
+        if (!dstInfo) return { ok: false, note: 'هورمند روی سرور مقصد نصب نیست. اول با «نصب برنامه روی سرور» آن را نصب کنید، بعد این کار را بزنید.' };
+        const same = (await src.run('cat /etc/machine-id 2>/dev/null', { quiet: true })).out.trim();
+        const same2 = (await dst.run('cat /etc/machine-id 2>/dev/null', { quiet: true })).out.trim();
+        if (same && same === same2 && srcInfo.dir === dstInfo.dir) return { ok: false, note: 'سرور مبدأ و مقصد یکی هستند.' };
+        const free = (await dst.run("df -Pk /tmp | awk 'NR==2 {print $4}'", { quiet: true })).out.trim();
+        this.log('فضای آزاد سرور مقصد: ' + (Number(free) / 1048576).toFixed(1) + ' گیگابایت', 'gray');
+        return { ok: true, note: 'مقصد: هورمند در ' + dstInfo.dir + (dstInfo.ver ? '، نسخه ' + dstInfo.ver : '') + '.' };
+      },
+      send: async () => {
+        await dst.run('rm -rf ' + WORK + '; mkdir -p ' + WORK + '; chmod 700 ' + WORK, { quiet: true });
+        for (const name of this.migNames) {
+          const r = await carry(name);
+          if (!r.ok) return { ok: false, note: 'انتقال ' + name + ' نشد: ' + (r.note || '') };
+          const a = await sum(src, name);
+          const b = await sum(dst, name);
+          if (!a || a !== b) return { ok: false, note: 'فایل ' + name + ' سالم به مقصد نرسید (جمع‌کنترل یکی نیست). دوباره امتحان کنید.' };
+          this.log('✓ ' + name + ' ' + (r.bytes / 1048576).toFixed(1) + ' مگابایت در ' + r.secs + ' ثانیه، سالم رسید.', 'green');
+        }
+        return { ok: true, note: 'همهٔ فایل‌ها سالم به مقصد رسید.' };
+      },
+      restore: async () => {
+        let sh = 'set -e\ncd ' + sq(dstInfo.dir) + '\nmkdir -p backups\nSAFE=backups/migrate-before-$(date +%Y%m%d-%H%M%S).dump.safety\n';
+        sh += 'docker compose exec -T db pg_dump -U ' + sq(dstInfo.dbu) + ' -d ' + sq(dstInfo.dbn) + ' -Fc > "$SAFE"\necho "نسخهٔ ایمنی داده‌های فعلی مقصد: $SAFE"\n';
+        sh += 'docker compose stop app\n';
+        sh += 'docker compose exec -T db sh -c "{ echo \'DROP SCHEMA public CASCADE; CREATE SCHEMA public;\'; pg_restore --no-owner -f - ; } | psql -U ' + dstInfo.dbu + ' -d ' + dstInfo.dbn + ' -q -1 -v ON_ERROR_STOP=1" < ' + WORK + '/db.dump\n';
+        sh += 'mkdir -p ' + sq(dstInfo.files) + '; tar xzf ' + WORK + '/files.tgz -C ' + sq(dstInfo.files) + '\n';
+        if (this.migNames.includes('rec.tgz')) sh += 'mkdir -p ' + sq(dstInfo.rec) + '; tar xzf ' + WORK + '/rec.tgz -C ' + sq(dstInfo.rec) + '\n';
+        sh += 'docker compose start app\necho RESTORED\n';
+        const r = await dst.run(sh, { root: true });
+        if (!/RESTORED/.test(r.out)) {
+          await dst.run('cd ' + sq(dstInfo.dir) + ' && docker compose start app', { root: true, quiet: true });
+          return { ok: false, note: 'بازیابی روی مقصد کامل نشد؛ برنامهٔ مقصد دوباره روشن شد و داده‌های قبلی‌اش دست‌نخورده است (بازیابی در یک تراکنش بود). خطای بالا را بفرستید.' };
+        }
+        return { ok: true, note: 'دیتابیس و فایل‌ها روی مقصد بازیابی شد.' };
+      },
+      check: async () => {
+        let code = '';
+        for (let i = 0; i < 20; i++) {
+          await sleep(3000);
+          const r = await dst.run('curl -s -o /dev/null -m 6 -w "%{http_code}" http://127.0.0.1:' + dstInfo.port + '/', { quiet: true });
+          code = r.out.trim().slice(-3);
+          if (code === '200') break;
+        }
+        // the temporary copies (they hold all the data) are removed from both servers
+        await src.run('rm -rf ' + WORK, { quiet: true });
+        await dst.run('rm -rf ' + WORK, { quiet: true });
+        if (code !== '200') return { ok: false, note: 'برنامهٔ مقصد هنوز جواب نمی‌دهد (کد ' + (code || '—') + '). چند دقیقه صبر کنید؛ اگر نشد: docker compose logs --tail 60 app' };
+        return { ok: true, note: 'برنامهٔ مقصد بالا است و جواب می‌دهد.' };
+      },
+    };
+    for (const st of this.steps) {
+      if (this.cancelled || !this.conn) break;
+      this.setStep(st.id, 'run');
+      this.log('\n━━━ ' + st.title + ' ━━━', 'yellow');
+      let r;
+      try { r = await steps[st.id](); } catch (e) { r = { ok: false, note: 'خطای غیرمنتظره: ' + e.message }; }
+      this.setStep(st.id, r.ok ? 'ok' : 'fail', r.note);
+      this.send({ type: 'shot', id: st.id, title: st.title, ok: r.ok });
+      if (!r.ok) {
+        this.log('\n✗ ' + (r.note || 'این مرحله انجام نشد.'), 'red');
+        this.send({ type: 'stopped', step: st.id, note: r.note || '' });
+        finish();
+        return;
+      }
+      this.log('✓ ' + (r.note || 'انجام شد'), 'green');
+    }
+    this.send({ type: 'migrate-done', from: srcInfo && srcInfo.dir, to: T.host, port: dstInfo && dstInfo.port });
+    finish();
+  }
+
   // ---------------------------------------------------------------- Nginx: one front door for several Hoormand servers
   /** Reads this machine's LAN addresses and the sites Nginx already forwards (domain -> inside address), and sends them to the page. */
   async nginxScan() {
@@ -943,6 +1128,8 @@ wss.on('connection', (ws) => {
       }
     } else if (m.type === 'voip-start') {
       s.voipSetup({ appHost: m.appHost, amiUser: m.amiUser, amiSecret: m.amiSecret, appSsh: m.appSsh });
+    } else if (m.type === 'migrate-start') {
+      s.migrate({ target: m.target, recordings: m.recordings });
     } else if (m.type === 'nginx-scan') {
       s.nginxScan();
     } else if (m.type === 'nginx-apply') {
