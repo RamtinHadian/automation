@@ -67,7 +67,7 @@ async function drawInvoice(input: ProformaRenderInput, PAGE_W: number, PAGE_H: n
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${PAGE_W}" height="${height}">` +
     `<foreignObject x="0" y="0" width="${PAGE_W}" height="${height}">` +
-    `<div xmlns="http://www.w3.org/1999/xhtml" class="pf-root" style="width:${PAGE_W}px;height:${height}px;background:#fff">` +
+    `<div xmlns="http://www.w3.org/1999/xhtml" class="pf-root" dir="rtl" lang="fa" style="width:${PAGE_W}px;height:${height}px;background:#fff;direction:rtl">` +
     `<style><![CDATA[${css}]]></style>${page}</div></foreignObject></svg>`;
 
   const img = new Image();
