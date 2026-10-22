@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FileText, Link2, Plus, Send, Trash2, X } from 'lucide-react';
+import { FileText, Link2, PackageSearch, Plus, Send, Trash2, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { renderProformaPdf } from '../../lib/proformaFile';
 import { formatTaskDate } from '../../lib/taskDates';
@@ -13,6 +13,7 @@ import { todayIso } from '../../lib/taskDates';
 import { Customer, Deal, ProformaFields, ProformaIssuer, ProformaItem, SystemSettings } from '../../types';
 import { JalaliDateField } from '../tasks/TasksView';
 import { formatMoney, fromDisplay, unitName } from '../../lib/money';
+import { WarehousePicker, WarehouseProduct } from './WarehousePicker';
 
 const toman = formatMoney;
 const parseNumber = (s: string) => {
@@ -40,7 +41,7 @@ export const ProformaModal: React.FC<{
   );
   const [discountPercent, setDiscountPercent] = useState(deal.discountPercent ?? (deal.proformaNumber ? 0 : defaultDiscount || 0));
   // the warehouse: what is in stock and the prices of the product, to put next to each line
-  const [catalog, setCatalog] = useState<{ code: string; title: string; unit: string; total: number; prices?: { title: string; amount: number }[] }[]>([]);
+  const [catalog, setCatalog] = useState<WarehouseProduct[]>([]);
   useEffect(() => {
     api.crmProducts().then((r) => setCatalog(r.products)).catch(() => setCatalog([]));
   }, []);
@@ -60,6 +61,21 @@ export const ProformaModal: React.FC<{
   const [date, setDate] = useState(deal.proformaAt || todayIso());
   const [valid, setValid] = useState(deal.validUntil || addDaysIso(deal.proformaAt || todayIso(), settings.proformaValidDays || 7));
   const [terms, setTerms] = useState(deal.terms ?? settings.proformaTerms ?? DEFAULT_PROFORMA_TERMS);
+
+  // the warehouse picker: it fills row `pickFor` (a number) or adds a new row ('new')
+  const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
+  const priceFor = (p: WarehouseProduct) => lastPriceFor(p.code)?.price || (p.prices && p.prices[0] ? p.prices[0].amount : 0);
+  const pickProduct = (p: WarehouseProduct) => {
+    const line = { title: p.title, qty: 1, unit: p.unit, unitPrice: priceFor(p), code: p.code };
+    setItems((cur) => {
+      if (typeof pickFor === 'number' && cur[pickFor]) return cur.map((x, idx) => (idx === pickFor ? { ...x, ...line, qty: x.qty || 1 } : x));
+      const last = cur[cur.length - 1];
+      // an empty last row is used instead of leaving it blank above the new one
+      if (last && !last.title.trim() && !last.code && !last.unitPrice) return [...cur.slice(0, -1), line];
+      return [...cur, line];
+    });
+    setPickFor(null);
+  };
 
   // Every text on the invoice can be changed here; what is typed is kept with this proforma.
   const tpl = useMemo(() => normalizeTemplate(settings.proformaTemplate), [settings.proformaTemplate]);
@@ -244,6 +260,7 @@ export const ProformaModal: React.FC<{
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={onClose}>
       <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col border border-[#EBDBCE] text-right">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#EBDBCE]">
@@ -303,6 +320,10 @@ export const ProformaModal: React.FC<{
               <div key={i} className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-2">
                 <div className="flex gap-2">
                   <input className={field} placeholder="شرح کالا یا خدمات *" value={it.title} onChange={(e) => patchItem(i, { title: e.target.value })} />
+                  <button type="button" onClick={() => setPickFor(i)} className="shrink-0 flex items-center gap-1 px-2.5 py-2 rounded-xl text-[11px] font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer" title="پر کردن این ردیف از انبار" data-row-from-warehouse>
+                    <PackageSearch className="w-3.5 h-3.5" />
+                    از انبار
+                  </button>
                   <button
                     type="button"
                     disabled={items.length === 1}
@@ -351,10 +372,16 @@ export const ProformaModal: React.FC<{
                 })()}
               </div>
             ))}
-            <button type="button" onClick={() => setItems((p) => [...p, { title: '', qty: 1, unitPrice: 0 }])} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer">
-              <Plus className="w-4 h-4" />
-              افزودن ردیف
-            </button>
+            <div className="flex flex-wrap gap-2" data-add-item-options>
+              <button type="button" onClick={() => setPickFor('new')} className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 cursor-pointer" data-add-from-warehouse>
+                <PackageSearch className="w-4 h-4" />
+                افزودن کالا از انبار
+              </button>
+              <button type="button" onClick={() => setItems((p) => [...p, { title: '', qty: 1, unitPrice: 0 }])} className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer" data-add-manual>
+                <Plus className="w-4 h-4" />
+                افزودن ردیف دستی
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -511,5 +538,7 @@ export const ProformaModal: React.FC<{
         </div>
       </div>
     </div>
+      {pickFor !== null && <WarehousePicker products={catalog} priceFor={priceFor} onPick={pickProduct} onClose={() => setPickFor(null)} />}
+    </>
   );
 };
