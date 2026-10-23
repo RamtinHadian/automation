@@ -843,6 +843,7 @@ class Session {
     const secret = String(o.amiSecret || '').replace(/[^A-Za-z0-9]/g, '') || require('crypto').randomBytes(12).toString('hex');
     let pbxHost = this.host; // replaced by the phone system's own LAN address when we reached it through the public IP
     let pbxCands = []; // all private addresses of the phone system (found in the first step)
+    let amiPort = '5038'; // becomes the local end of the SSH tunnel when the two networks cannot reach each other
     const app = o.appSsh && o.appSsh.host && o.appSsh.user && o.appSsh.password ? o.appSsh : null;
     this.steps = [
       ...(app ? [{ id: 'srv', title: 'شناسایی سرور برنامه', status: 'wait' }] : []),
@@ -986,6 +987,60 @@ class Session {
           }
           return '';
         };
+        // The two machines are in different places/networks: the program's server opens an SSH tunnel to the phone system (the SSH door we already use is open),
+        // carrying the AMI port to it and the recordings back. Nothing new is opened on the internet.
+        const tunnelFallback = async () => {
+          const pubHost = pbxLogin.host, pubPort = pbxLogin.port || 22;
+          this.log('\n— دو سرور در دو شبکه‌اند و به هم راه ندارند؛ اتصال امن با تونل SSH ساخته می‌شود (بدون نیاز به تغییر روتر) —', 'yellow');
+          try { this.conn && this.conn.end(); } catch {}
+          this.conn = null;
+          try { await this.connect({ host: app.host, port: app.port || 22, username: app.user, password: app.password }); } catch (e) { return { ok: false, note: 'به سرور برنامه وصل نشدم: ' + e.message }; }
+          const k = await this.run('command -v ssh >/dev/null || (apt-get install -y -qq openssh-client >/dev/null 2>&1); timeout 8 bash -c "echo > /dev/tcp/' + pubHost + '/' + pubPort + '" && echo ssh-reach-ok || echo ssh-reach-fail; [ -f /root/.ssh/hoormand_tun ] || (mkdir -p /root/.ssh && chmod 700 /root/.ssh && ssh-keygen -q -t ed25519 -N "" -f /root/.ssh/hoormand_tun -C hoormand-tunnel); cat /root/.ssh/hoormand_tun.pub', { root: true, quiet: true });
+          if (!/ssh-reach-ok/.test(k.out)) return { ok: false, note: 'سرور برنامه به درگاه SSH ایزابل (' + pubHost + ':' + pubPort + ') هم نمی‌رسد؛ احتمالاً فایروال ایزابل یا روتر آن فقط آدرس‌های مشخصی را برای SSH قبول می‌کند. آدرس بیرونی سرور برنامه را برای SSH مجاز کنید و دوباره اجرا کنید.' };
+          const pub = (/(ssh-ed25519 \S+)/.exec(k.out) || [])[1];
+          if (!pub) return { ok: false, note: 'کلید تونل روی سرور برنامه ساخته یا خوانده نشد.' };
+          this.log('سرور برنامه به درگاه SSH ایزابل می‌رسد؛ کلید تونل آماده است.', 'gray');
+          // phone system: a user that can do nothing but carry the AMI port; the AMI user accepts the local end; recordings go through the tunnel too
+          try { this.conn && this.conn.end(); } catch {}
+          this.conn = null;
+          try { await this.connect(pbxLogin); } catch (e) { return { ok: false, note: 'برگشتن به ایزابل نشد: ' + e.message }; }
+          const auth = 'no-pty,no-agent-forwarding,no-X11-forwarding,permitopen="127.0.0.1:5038" ' + pub;
+          const pscript = [
+            'id hoormand-tun >/dev/null 2>&1 || useradd -m -s /sbin/nologin hoormand-tun',
+            'mkdir -p /home/hoormand-tun/.ssh',
+            "echo '" + auth + "' > /home/hoormand-tun/.ssh/authorized_keys",
+            'chown -R hoormand-tun:hoormand-tun /home/hoormand-tun/.ssh; chmod 700 /home/hoormand-tun/.ssh; chmod 600 /home/hoormand-tun/.ssh/authorized_keys; restorecon -R /home/hoormand-tun/.ssh 2>/dev/null',
+            "f=/etc/asterisk/manager_custom.conf; grep -q 'permit = 127.0.0.1/' $f || sed -i '/^\\[" + user + "\\]/,/^\\[/ s|^permit = .*|&\\npermit = 127.0.0.1/255.255.255.255|' $f",
+            'asterisk -rx "manager reload" >/dev/null',
+            "[ -f /usr/local/bin/hoormand-push-recordings.sh ] && sed -i 's|^URL=.*|URL=http://127.0.0.1:18080/api/voip/recordings|' /usr/local/bin/hoormand-push-recordings.sh",
+            'echo tun-user-ok',
+          ].join('; ');
+          const pr = await this.run(pscript, { root: true, quiet: true });
+          if (!/tun-user-ok/.test(pr.out)) return { ok: false, note: 'کاربر تونل روی ایزابل ساخته نشد. خروجی بالا را بفرستید.' };
+          try { this.conn && this.conn.end(); } catch {}
+          this.conn = null;
+          try { await this.connect({ host: app.host, port: app.port || 22, username: app.user, password: app.password }); } catch (e) { return { ok: false, note: 'دوباره به سرور برنامه وصل نشدم: ' + e.message }; }
+          const gw = (await this.run("docker inspect $(docker ps --filter label=com.docker.compose.service=app -q | head -1) -f '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' 2>/dev/null", { root: true, quiet: true })).out.trim();
+          if (!ip4.test(gw)) return { ok: false, note: 'آدرس شبکهٔ داخلی Docker را از کانتینر برنامه نخواندم (برنامه روشن است؟).' };
+          const unit = [
+            '[Unit]',
+            'Description=Hoormand SSH tunnel to the phone system (AMI and recordings)',
+            'After=network-online.target docker.service',
+            'Wants=network-online.target',
+            '[Service]',
+            'ExecStart=/usr/bin/ssh -N -i /root/.ssh/hoormand_tun -p ' + pubPort + ' -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=20 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -L ' + gw + ':15038:127.0.0.1:5038 -R 127.0.0.1:18080:127.0.0.1:' + appPort + ' hoormand-tun@' + pubHost,
+            'Restart=always',
+            'RestartSec=5',
+            '[Install]',
+            'WantedBy=multi-user.target',
+            '',
+          ].join('\n');
+          const ub = Buffer.from(unit).toString('base64');
+          const ur = await this.run('echo ' + ub + ' | base64 -d > /etc/systemd/system/hoormand-ami-tunnel.service && systemctl daemon-reload && systemctl enable --now hoormand-ami-tunnel >/dev/null 2>&1; (command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q "Status: active" && ufw allow from ' + gw + '/16 to any port 15038 proto tcp >/dev/null 2>&1); sleep 5; timeout 6 bash -c "echo > /dev/tcp/' + gw + '/15038" && echo tun-ok || (echo tun-fail; systemctl status hoormand-ami-tunnel --no-pager 2>&1 | tail -6)', { root: true });
+          if (!/tun-ok/.test(ur.out)) return { ok: false, note: 'تونل ساخته شد ولی پورت محلی ' + gw + ':15038 جواب نمی‌دهد. خروجی بالا (وضعیت سرویس) را بفرستید.' };
+          this.log('تونل SSH برقرار است: برنامه از طریق ' + gw + ':15038 به ایزابل می‌رسد و ضبط‌ها از همان تونل برمی‌گردند (سرویس hoormand-ami-tunnel، همیشه روشن).', 'green');
+          return { ok: true, host: gw, port: '15038' };
+        };
         let okHost = await testHosts();
         if (!okHost) {
           // what does the network between the two machines do? (route, ping, the first hops)
@@ -1013,9 +1068,10 @@ class Session {
           } else if (!seenIps.length) {
             const fwl = (await this.run('iptables -L INPUT -n --line-numbers 2>/dev/null | head -12', { root: true, quiet: true })).out;
             if (fwl.trim()) this.log('قواعد فایروال ایزابل:\n' + fwl, 'gray');
-            try { this.conn && this.conn.end(); } catch {}
-            this.conn = null;
-            return { ok: false, note: 'هیچ بسته‌ای از سرور برنامه (' + appHost + ') به پورت ۵۰۳۸ ایزابل (' + tryHosts[0] + ') نرسید؛ یعنی مشکل در مسیر میان دو شبکه است، نه در ایزابل. سرور برنامه و ایزابل در دو شبکهٔ جدا هستند: در روتر یا فایروال شبکه (مثلاً میکروتیک) باید TCP پورت 5038 از ' + appHost + ' به ' + tryHosts[0] + ' مجاز باشد (قاعدهٔ forward، پیش از قواعد drop). بعد از آن دوباره اجرا کنید. خروجی بخش «بررسی مسیر شبکه» را هم بفرستید.' };
+            const t = await tunnelFallback();
+            if (!t.ok) return t;
+            okHost = t.host;
+            amiPort = t.port;
           } else {
             try { this.conn && this.conn.end(); } catch {}
             this.conn = null;
@@ -1024,7 +1080,7 @@ class Session {
         }
         if (!okHost) return { ok: false, note: 'سرور برنامه به ایزابل (' + tryHosts.join('، ') + ') پورت ۵۰۳۸ نمی‌رسد؛ چیزی در .env نوشته نشد. خطوط زرد بالا را بفرستید.' };
         pbxHost = okHost;
-        const lines = { AMI_HOST: pbxHost, AMI_PORT: '5038', AMI_USER: user, AMI_SECRET: secret, VOIP_RECORDING_KEY: recKey };
+        const lines = { AMI_HOST: pbxHost, AMI_PORT: amiPort, AMI_USER: user, AMI_SECRET: secret, VOIP_RECORDING_KEY: recKey };
         const upd = Object.entries(lines).map(([k, v]) => 'grep -q "^' + k + '=" .env && sed -i "s|^' + k + '=.*|' + k + '=' + v + '|" .env || echo "' + k + '=' + v + '" >> .env').join('; ');
         const r = await this.run('cd ' + dir + ' && [ -f .env ] && cp -n .env .env.bak-hoormand && ' + upd + ' && echo env-ok', { root: true, quiet: true });
         if (!/env-ok/.test(r.out)) return { ok: false, note: 'فایل .env در ' + dir + ' پیدا یا نوشته نشد.' };
@@ -1053,7 +1109,7 @@ class Session {
       }
       this.log('✓ ' + r.note, 'green');
     }
-    this.send({ type: 'voip-done', host: pbxHost, port: '5038', user, secret, appHost, wroteEnv: !!app });
+    this.send({ type: 'voip-done', host: pbxHost, port: amiPort, user, secret, appHost, wroteEnv: !!app });
     this.running = false;
   }
 
