@@ -447,3 +447,18 @@ html.night [data-error-popups] > div {
 [data-login-design='dark'] .login-btn:hover { background: #F6D9CD !important; }
 [data-login-design='glass'] .login-btn > span:first-child,
 [data-login-design='dark'] .login-btn > span:first-child { display: none; }
+
+/* the sign-in button is white in EVERY design (burgundy writing; on the light cards it also has a burgundy line); this comes last and is more specific than the card's text rules */
+[data-login-design] .login-card .login-btn,
+[data-login-design] .login-card .login-btn .relative {
+  color: #6E1B1B !important;
+  -webkit-text-fill-color: #6E1B1B;
+}
+[data-login-design] .login-card .login-btn {
+  background: #fff !important;
+  border: 1.5px solid #fff !important;
+  box-shadow: 0 8px 22px rgba(58, 36, 31, 0.18);
+}
+[data-login-design='simple'] .login-card .login-btn,
+[data-login-design='elegant'] .login-card .login-btn { border-color: #6E1B1B !important; }
+[data-login-design] .login-card .login-btn:hover { background: #F6D9CD !important; }
