@@ -1,6 +1,6 @@
-/* Every Latin digit (0-9) of the screen is drawn with the Persian digit shapes of Vazirmatn (the text itself is unchanged, so copying, searching and saving still work). */
+/* Every Latin digit (0-9) of the screen is drawn with the Persian digit shapes of Vazirmatn (a separate family that only owns the digits and sits in front of 'Vazirmatn' in the font lists, so it can never take the letters away) (the text itself is unchanged, so copying, searching and saving still work). */
 @font-face {
-  font-family: 'Vazirmatn';
+  font-family: 'Vazirmatn Digits';
   src: url('../node_modules/vazirmatn/misc/Farsi-Digits/fonts/webfonts/Vazirmatn-FD-Thin.woff2') format('woff2');
   font-weight: 100;
   font-style: normal;
@@ -8,7 +8,7 @@
   unicode-range: U+0030-0039;
 }
 @font-face {
-  font-family: 'Vazirmatn';
+  font-family: 'Vazirmatn Digits';
   src: url('../node_modules/vazirmatn/misc/Farsi-Digits/fonts/webfonts/Vazirmatn-FD-ExtraLight.woff2') format('woff2');
   font-weight: 200;
   font-style: normal;
@@ -16,7 +16,7 @@
   unicode-range: U+0030-0039;
 }
 @font-face {
-  font-family: 'Vazirmatn';
+  font-family: 'Vazirmatn Digits';
   src: url('../node_modules/vazirmatn/misc/Farsi-Digits/fonts/webfonts/Vazirmatn-FD-Light.woff2') format('woff2');
   font-weight: 300;
   font-style: normal;
@@ -24,7 +24,7 @@
   unicode-range: U+0030-0039;
 }
 @font-face {
-  font-family: 'Vazirmatn';
+  font-family: 'Vazirmatn Digits';
   src: url('../node_modules/vazirmatn/misc/Farsi-Digits/fonts/webfonts/Vazirmatn-FD-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
@@ -32,7 +32,7 @@
   unicode-range: U+0030-0039;
 }
 @font-face {
-  font-family: 'Vazirmatn';
+  font-family: 'Vazirmatn Digits';
   src: url('../node_modules/vazirmatn/misc/Farsi-Digits/fonts/webfonts/Vazirmatn-FD-Medium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
@@ -40,7 +40,7 @@
   unicode-range: U+0030-0039;
 }
 @font-face {
-  font-family: 'Vazirmatn';
+  font-family: 'Vazirmatn Digits';
   src: url('../node_modules/vazirmatn/misc/Farsi-Digits/fonts/webfonts/Vazirmatn-FD-SemiBold.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
@@ -48,7 +48,7 @@
   unicode-range: U+0030-0039;
 }
 @font-face {
-  font-family: 'Vazirmatn';
+  font-family: 'Vazirmatn Digits';
   src: url('../node_modules/vazirmatn/misc/Farsi-Digits/fonts/webfonts/Vazirmatn-FD-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
@@ -56,7 +56,7 @@
   unicode-range: U+0030-0039;
 }
 @font-face {
-  font-family: 'Vazirmatn';
+  font-family: 'Vazirmatn Digits';
   src: url('../node_modules/vazirmatn/misc/Farsi-Digits/fonts/webfonts/Vazirmatn-FD-ExtraBold.woff2') format('woff2');
   font-weight: 800;
   font-style: normal;
@@ -64,7 +64,7 @@
   unicode-range: U+0030-0039;
 }
 @font-face {
-  font-family: 'Vazirmatn';
+  font-family: 'Vazirmatn Digits';
   src: url('../node_modules/vazirmatn/misc/Farsi-Digits/fonts/webfonts/Vazirmatn-FD-Black.woff2') format('woff2');
   font-weight: 900;
   font-style: normal;

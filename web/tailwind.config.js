@@ -82,9 +82,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Vazirmatn', '"Plus Jakarta Sans"', 'Inter', 'Tahoma', 'system-ui', 'sans-serif'],
+        sans: ['"Vazirmatn Digits"', 'Vazirmatn', 'Tahoma', 'system-ui', 'sans-serif'],
         // Numbers, times, IDs and addresses that used a monospace font now use Vazirmatn too, so Persian digits look the same everywhere.
-        mono: ['Vazirmatn', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+        mono: ['"Vazirmatn Digits"', 'Vazirmatn', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       borderRadius: {
         '3xl': '1.5rem',
