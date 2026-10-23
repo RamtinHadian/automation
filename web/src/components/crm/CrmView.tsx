@@ -64,7 +64,7 @@ import { ClubView } from './ClubView';
 import { TodayView } from './TodayView';
 import { TeamView } from './TeamView';
 import { Rules, Targets, ruleViolation } from '../../lib/team';
-import { MergeButton, MergeModal, TransferButton, TransferModal } from './CrmAdminTools';
+import { MergeButton, MergeModal, TransferButton, TransferModal, ShareButton, ShareWithAgentModal } from './CrmAdminTools';
 import { managedStaffIds } from '../../lib/unit';
 import { CustomerFiles } from './CustomerFiles';
 import { CalendarView } from './CalendarView';
@@ -149,6 +149,7 @@ export const CrmView: React.FC = () => {
   useEffect(loadTeamSettings, []);
   const [mergeFor, setMergeFor] = useState<Customer | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [showAdv, setShowAdv] = useState(false);
   const [adv, setAdv] = useState({ province: '', city: '', source: '', tag: '', owner: '', kind: '', bought: '', quiet: '' });
   useEffect(() => {
@@ -320,6 +321,15 @@ export const CrmView: React.FC = () => {
       showToast(e instanceof Error ? e.message : 'تماس برقرار نشد.');
     }
   };
+  // a customer shown to a representative without numbers: the company's phone calls his mobile and connects him to the customer
+  const callHidden = async (c: Customer) => {
+    try {
+      await api.voipCallCustomer(c.id);
+      showToast(`تلفن شرکت موبایل شما را زنگ می‌زند؛ با پاسخ دادن به ${c.name} وصل می‌شوید.`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'تماس برقرار نشد.');
+    }
+  };
   const canCall = !!voip?.enabled && !!voip.extension;
   const canDelete = (ownerId: string) => isAdmin || ownerId === me;
 
@@ -386,8 +396,23 @@ export const CrmView: React.FC = () => {
         </div>
         <div className="flex items-center justify-between gap-2 text-[11px] text-[#8C6F66]">
           <span className="truncate" dir="ltr">
-            {c.phones[0] ? toPersianDigits(c.phones[0]) : '—'}
+            {c.hiddenContact ? 'شماره مخفی' : c.phones[0] ? toPersianDigits(c.phones[0]) : '—'}
           </span>
+          {c.hiddenContact && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void callHidden(c);
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 cursor-pointer"
+              title="تماس: تلفن شرکت موبایل شما را زنگ می‌زند و به مشتری وصل می‌کند"
+              data-hidden-call
+            >
+              <PhoneCall className="w-3.5 h-3.5" />
+              تماس
+            </button>
+          )}
           {c.phones[0] && canCall && (
             <button
               type="button"
@@ -510,6 +535,7 @@ export const CrmView: React.FC = () => {
         </div>
         <div className="grid grid-cols-2 sm:flex gap-2">
           {isAdmin && <TransferButton onClick={() => setTransferOpen(true)} />}
+          {(isAdmin || currentUser.canSignOfficialLetters) && staffList.some((u) => u.isAgent && u.isActive) && <ShareButton onClick={() => setShareOpen(true)} />}
           {canSub(currentUser, 'crm.phonebook') && <button
             onClick={() => setPhoneBook(true)}
             className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-sky-200 text-sky-700 hover:bg-sky-50 text-xs font-black cursor-pointer"
@@ -1004,7 +1030,9 @@ export const CrmView: React.FC = () => {
           onCall={call}
           onClose={() => setOpenCustomer(null)}
           onEdit={() => {
-            setEditingCustomer(customerById.get(openCustomer)!);
+            const cu = customerById.get(openCustomer)!;
+            if (cu.hiddenContact) return showToast('این مشتری فقط برای دیدن و تماس به شما نشان داده شده و قابل ویرایش نیست.');
+            setEditingCustomer(cu);
           }}
           onMerge={isAdmin ? () => setMergeFor(customerById.get(openCustomer)!) : undefined}
           onAttachments={(files) => saveCustomer({ ...customerById.get(openCustomer)!, attachments: files })}
@@ -1016,6 +1044,7 @@ export const CrmView: React.FC = () => {
         />
       )}
       {mergeFor && <MergeModal customer={mergeFor} customers={customers} onClose={() => setMergeFor(null)} onDone={(id) => { setMergeFor(null); setOpenCustomer(id); }} />}
+      {shareOpen && <ShareWithAgentModal customers={customers} staff={staffList} onClose={() => setShareOpen(false)} onSave={(list) => { setCustomers((prev) => prev.map((x) => list.find((y) => y.id === x.id) || x)); showToast('نمایش مشتریان به نماینده ذخیره شد.'); }} />}
       {transferOpen && <TransferModal staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN'))} customers={customers} deals={deals} activities={activities} onClose={() => setTransferOpen(false)} />}
     </div>
   );

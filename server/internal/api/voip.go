@@ -329,3 +329,49 @@ func demoCall(w http.ResponseWriter, r *http.Request) {
 		"demo-live-"+strconv.FormatInt(now.UnixNano(), 36), now, now.Add(30*time.Second), ext, []string{ext}, me.ID(), target, name)
 	httpx.OK(w)
 }
+
+// voipCallCustomer: a representative presses «call» on a customer whose numbers are hidden from him. The company's phone system calls the
+// representative's own mobile first and, when he answers, dials the customer's number; the number never reaches his screen.
+func voipCallCustomer(w http.ResponseWriter, r *http.Request) {
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	me := auth.Current(r)
+	cid := jsonx.Str(body, "customerId")
+	var raw []byte
+	if err := store.Pool.QueryRow(r.Context(), `SELECT data FROM crm_customers WHERE id = $1`, cid).Scan(&raw); err != nil {
+		httpx.Error(w, http.StatusNotFound, "مشتری پیدا نشد.")
+		return
+	}
+	cust := jsonx.Decode(raw)
+	shown := jsonx.Contains(jsonx.Strings(cust, "agentViewerIds"), me.ID())
+	if !shown && !crmOwnsCustomer(r, me, cid) {
+		httpx.Forbidden(w)
+		return
+	}
+	numbers := jsonx.Strings(cust, "phones")
+	if len(numbers) == 0 {
+		httpx.Error(w, http.StatusBadRequest, "برای این مشتری شماره‌ای ثبت نشده است.")
+		return
+	}
+	target := voip.FullNumber(numbers[0])
+	mobile := strings.TrimSpace(jsonx.Str(me.M, "mobile"))
+	if mobile == "" {
+		httpx.Error(w, http.StatusBadRequest, "شمارهٔ موبایل شما در پنل مدیریت تعریف نشده است؛ از مدیر بخواهید ثبت کند.")
+		return
+	}
+	if DemoMode {
+		httpx.JSON(w, http.StatusOK, map[string]any{"ok": true, "demo": true})
+		return
+	}
+	if phone == nil || !phone.Enabled() {
+		httpx.Error(w, http.StatusServiceUnavailable, "اتصال به تلفن سازمان تنظیم نشده است.")
+		return
+	}
+	if err := phone.Call(mobile, target); err != nil {
+		httpx.Error(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	httpx.OK(w)
+}

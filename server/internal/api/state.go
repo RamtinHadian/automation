@@ -114,6 +114,16 @@ func state(w http.ResponseWriter, r *http.Request) {
 			if customers, err = store.RawList(ctx, `SELECT data FROM crm_customers WHERE id IN `+crmMyCustomerIDs+` ORDER BY (data->>'name')`, id, managed); fail(err) {
 				return
 			}
+			// customers an administrator showed to this representative («agentViewerIds»): only their name and details without any number or address
+			if me.Isolated() {
+				shared, serr := store.RawList(ctx, `SELECT data FROM crm_customers WHERE data->'agentViewerIds' @> to_jsonb($1::text) AND id NOT IN `+crmMyCustomerIDs+` ORDER BY (data->>'name')`, id, managed)
+				if fail(serr) {
+					return
+				}
+				for _, raw := range shared {
+					customers = append(customers, json.RawMessage(jsonx.Encode(redactContacts(jsonx.Decode(raw)))))
+				}
+			}
 			if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals WHERE `+crmMyDeals+` ORDER BY id`, id, managed); fail(err) {
 				return
 			}

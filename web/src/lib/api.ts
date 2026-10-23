@@ -567,6 +567,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   voipLog: () => request<{ enabled: boolean; connected: boolean; eventCount: number; lastEvent: string | null; entries: { at: string; text: string }[]; capture?: { running: boolean; secondsLeft: number; lines: string[] } }>('GET', '/api/voip/log'),
   voipCapture: () => request<{ ok: true }>('POST', '/api/voip/capture'),
   voipTestPopup: () => request<{ ok: true }>('POST', '/api/voip/test-popup'),
+  voipCallCustomer: (customerId: string) => request<{ ok: true }>('POST', '/api/voip/call-customer', { customerId }),
   voipCall: (to: string, from?: string) => request<{ ok: true }>('POST', '/api/voip/call', from ? { to, from } : { to }),
   notifications: () => request<{ notifications: AppNotification[] }>('GET', '/api/notifications'),
   markNotificationsRead: (ids?: string[]) => request<{ ok: true }>('POST', '/api/notifications/read', { ids }),

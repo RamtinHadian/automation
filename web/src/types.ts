@@ -131,6 +131,10 @@ export interface CustomerFile {
 export interface Customer {
   id: string;
   name: string;
+  /** sales representatives (user ids) the administrator showed this customer to: they see the name only, no number or address, and can press «call» */
+  agentViewerIds?: string[];
+  /** the page got this customer without numbers and address (shown to a representative): only the call button works */
+  hiddenContact?: boolean;
   /** What Sepidar keeps about the customer (credit ceiling, discount rate, groups, black list…): only used where Hoormand is connected to Sepidar. */
   sepidarInfo?: Record<string, string>;
   /** Files kept on the customer's page. */

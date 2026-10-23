@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"automation/server/internal/auth"
+	"automation/server/internal/jsonx"
 	"automation/server/internal/store"
 )
 
@@ -71,4 +72,14 @@ func crmPeople(ctx context.Context, me auth.User) []string {
 		}
 	}
 	return out
+}
+
+// redactContacts: a customer shown to a representative without his numbers and address (he only sees who it is and can press «call»).
+func redactContacts(c jsonx.M) jsonx.M {
+	for _, k := range []string{"phones", "mobile", "mobiles", "email", "address", "province", "city", "postalCode", "website", "repMobile", "telegramChatId", "baleChatId", "reps", "nationalId", "economicCode", "registrationNumber", "attachments", "notes", "sepidarInfo", "referrer"} {
+		delete(c, k)
+	}
+	c["phones"] = []string{}
+	c["hiddenContact"] = true
+	return c
 }

@@ -157,6 +157,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("POST /api/msgr/send", auth.Require(msgrSendFile))
 	mux.HandleFunc("GET /api/voip/stats", auth.Require(voipStats))
 	mux.HandleFunc("POST /api/voip/call", auth.Require(voipCall))
+	mux.HandleFunc("POST /api/voip/call-customer", auth.Require(voipCallCustomer))
 	registerExtAPI(mux)
 	registerWarehouse(mux)
 	registerClub(mux)
