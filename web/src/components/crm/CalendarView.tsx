@@ -1,3 +1,4 @@
+import { CustomerSelect } from '../common/CustomerSelect';
 import React, { useMemo, useState } from 'react';
 import { CalendarDays, Cake, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { CrmActivity, Customer, Deal } from '../../types';
@@ -163,7 +164,7 @@ const AppointmentModal: React.FC<{ customers: Customer[]; date: string; onClose:
       </div>
       <div>
         <label className={label}>مشتری *</label>
-        <PersonPicker title="انتخاب مشتری" items={customerItems(customers)} value={cid} onChange={setCid} emptyLabel="انتخاب مشتری…" />
+        <CustomerSelect value={cid} onChange={setCid} emptyLabel="انتخاب مشتری…" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>

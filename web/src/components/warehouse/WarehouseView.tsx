@@ -1,3 +1,4 @@
+import { CustomerSelect } from '../common/CustomerSelect';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Ban, Boxes, ChevronDown, ChevronLeft, Download, FileText, Folder, Package, Plus, Search, Warehouse as WarehouseIcon, X } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -582,7 +583,7 @@ const DocForm: React.FC<{ st: WhState; kind: WhKind; customers: { id: string; na
             </div>
             <div>
               <span className={label}>مشتری (اختیاری)</span>
-              <PersonPicker value={customerId} onChange={setCustomerId} items={customerItems(customers)} title="انتخاب مشتری" placeholder="بدون مشتری" emptyLabel="بدون مشتری" />
+              <CustomerSelect value={customerId} onChange={setCustomerId} placeholder="بدون مشتری" emptyLabel="بدون مشتری" />
             </div>
           </>
         )}

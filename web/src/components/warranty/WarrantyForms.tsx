@@ -1,3 +1,4 @@
+import { QuickCustomerDialog } from '../common/CustomerSelect';
 import React, { useMemo, useState } from 'react';
 import { Camera, Search, X } from 'lucide-react';
 import { Customer, User, Warranty, WarrantySettings } from '../../types';
@@ -16,6 +17,7 @@ const MONTH_CHOICES = [3, 6, 12, 18, 24, 36, 48, 60];
 /** Pick a customer by typing part of the name, company or phone number. */
 export const CustomerPicker: React.FC<{ customers: Customer[]; value: string; onPick: (id: string) => void; disabled?: boolean }> = ({ customers, value, onPick, disabled }) => {
   const [q, setQ] = useState('');
+  const [adding, setAdding] = useState(false);
   const chosen = customers.find((c) => c.id === value);
   const hits = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -44,7 +46,13 @@ export const CustomerPicker: React.FC<{ customers: Customer[]; value: string; on
           ))}
         </div>
       )}
-      {q.trim() && hits.length === 0 && <div className="mt-1 text-[11px] font-bold text-[#8C6F66]">مشتری با این نام پیدا نشد؛ اول او را در بخش مشتریان ثبت کنید.</div>}
+      {q.trim() && hits.length === 0 && <div className="mt-1 text-[11px] font-bold text-[#8C6F66]">مشتری با این نام پیدا نشد.</div>}
+      {!disabled && (
+        <button type="button" onClick={() => setAdding(true)} className="mt-1.5 text-[11px] font-black text-teal-700 hover:underline cursor-pointer" data-picker-add>
+          + مشتری تازه{q.trim() ? ` «${q.trim()}»` : ''}
+        </button>
+      )}
+      {adding && <QuickCustomerDialog initialName={q.trim()} onClose={() => setAdding(false)} onCreated={(c) => { onPick(c.id); setAdding(false); }} />}
     </div>
   );
 };

@@ -50,8 +50,16 @@ export const SubForm: React.FC<{
   onClose: () => void;
   onSaved: (saved: SupportSub & { portalCode?: string }) => void;
   onError: (msg: string) => void;
-}> = ({ initial, presetCustomerId, customers, plans, onClose, onSaved, onError }) => {
+}> = ({ initial, presetCustomerId, customers, plans: plansProp, onClose, onSaved, onError }) => {
   const isNew = !initial;
+  // the plans are read again when the window opens, so a list that was empty (or old) on the page never leaves the window without plans
+  const [plans, setPlans] = useState<SupportPlan[]>(plansProp);
+  const [plansErr, setPlansErr] = useState('');
+  const loadPlans = () => {
+    setPlansErr('');
+    api.supportList().then((r) => setPlans(r.plans)).catch((e) => setPlansErr(e instanceof Error ? e.message : 'بارگیری نشد'));
+  };
+  React.useEffect(loadPlans, []);
   const usable = plans.filter((p) => p.active || p.id === initial?.planId);
   const [customerId, setCustomerId] = useState(initial?.customerId || presetCustomerId || '');
   const [planId, setPlanId] = useState(initial?.planId || '');
@@ -107,7 +115,7 @@ export const SubForm: React.FC<{
       <div>
         <label className={label}>پلن *</label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">{usable.map((p) => <PlanCard key={p.id} plan={p} selected={p.id === planId} onClick={() => pick(p)} />)}</div>
-        {usable.length === 0 && <div className="text-[11px] font-bold text-[#8C6F66]">هنوز پلنی تعریف نشده است؛ مدیر از زبانهٔ «پلن‌ها» پلن می‌سازد.</div>}
+        {usable.length === 0 && <div className="text-[11px] font-bold text-[#8C6F66]">{plansErr ? `پلن‌ها بارگیری نشد (${plansErr}). ` : 'پلن فعالی نیست؛ مدیر در زبانهٔ «پلن‌ها» پلن بسازد یا پلن غیرفعال را فعال کند. '}<button type="button" onClick={loadPlans} className="text-teal-700 underline cursor-pointer">بارگیری دوباره</button></div>}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>

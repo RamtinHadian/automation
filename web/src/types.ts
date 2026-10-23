@@ -158,6 +158,8 @@ export interface Customer {
   repName?: string;
   repPosition?: string;
   repMobile?: string;
+  /** more representatives / contact people of the company, besides the first one above */
+  reps?: { name: string; position?: string; mobile?: string }[];
   // --- address
   province?: string;
   city?: string;

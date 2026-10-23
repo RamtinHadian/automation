@@ -1416,6 +1416,7 @@ const CustomerDetail: React.FC<{
                 ['تاریخ ثبت', c.registrationDate ? formatTaskDate(c.registrationDate) : undefined],
                 ['نماینده', [c.repName, c.repPosition].filter(Boolean).join(' - ') || undefined],
                 ['موبایل نماینده', c.repMobile],
+                ...((c.reps || []).filter((r) => r.name || r.mobile).map((r, i) => [`نمایندهٔ ${toPersianDigits(i + 2)}`, [r.name, r.position, r.mobile].filter(Boolean).join(' - ')] as [string, string | undefined])),
               ]
             : [
                 ['نام پدر', c.fatherName],

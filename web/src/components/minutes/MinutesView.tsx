@@ -1,3 +1,4 @@
+import { CustomerSelect } from '../common/CustomerSelect';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, FileImage, FilePlus2, Pencil, Plus, Printer, Search, Trash2, UserPlus, Users, X } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -529,7 +530,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
             <div key={side} className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-2">
               <span className={label}>{t.partyLabels[i]}</span>
               <PersonPicker title={t.partyLabels[i]} items={staffItems(people)} value={people.find((u) => u.fullName === m.parties?.[side]?.name)?.id || ''} onChange={(id) => { const u = people.find((x) => x.id === id); if (u) setParty(side, { name: u.fullName, position: u.departmentName || m.parties?.[side]?.position || '' }); }} emptyLabel="انتخاب همکار (یا بنویسید)…" />
-              <PersonPicker title={'مشتری — ' + t.partyLabels[i]} items={customerItems(customers)} value="" onChange={(id) => { const c = customers.find((x) => x.id === id); if (c) setParty(side, { name: c.company && c.company !== c.name ? c.company : c.name, position: c.company && c.company !== c.name ? c.name : m.parties?.[side]?.position || '', phone: (c.phones || [])[0] || m.parties?.[side]?.phone || '' }); }} emptyLabel="انتخاب مشتری…" />
+              <CustomerSelect title={'مشتری — ' + t.partyLabels[i]} value="" onChange={(id) => { const c = customers.find((x) => x.id === id); if (c) setParty(side, { name: c.company && c.company !== c.name ? c.company : c.name, position: c.company && c.company !== c.name ? c.name : m.parties?.[side]?.position || '', phone: (c.phones || [])[0] || m.parties?.[side]?.phone || '' }); }} emptyLabel="انتخاب مشتری…" />
               <input className={field} value={m.parties?.[side]?.name || ''} onChange={(e) => setParty(side, { name: e.target.value })} placeholder="نام و نام خانوادگی / شرکت" />
               <input className={field} value={m.parties?.[side]?.position || ''} onChange={(e) => setParty(side, { position: e.target.value })} placeholder="سمت" />
               <input className={field} dir="ltr" value={m.parties?.[side]?.phone || ''} onChange={(e) => setParty(side, { phone: e.target.value })} placeholder="شمارهٔ تماس (اختیاری)" />

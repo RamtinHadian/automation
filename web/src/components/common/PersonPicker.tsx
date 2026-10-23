@@ -17,6 +17,9 @@ interface Common {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** a button inside the box that adds a new one (gets what was typed in the search field) */
+  onAdd?: (typed: string) => void;
+  addLabel?: string;
 }
 
 interface Box extends Common {
@@ -29,7 +32,7 @@ interface Box extends Common {
 }
 
 /** The choosing box: a window in the middle of the page with a search field and the list inside it (never a list under the page). */
-const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, onClose, emptyLabel }) => {
+const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, onClose, emptyLabel, onAdd, addLabel }) => {
   const [q, setQ] = useState('');
   const [draft, setDraft] = useState<string[]>(selected);
   const input = useRef<HTMLInputElement>(null);
@@ -71,6 +74,12 @@ const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, on
           </div>
         </div>
         <div className="p-3 overflow-y-auto flex-1 space-y-1" data-picker-list>
+          {onAdd && (
+            <button type="button" onClick={() => { onAdd(q.trim()); onClose(); }} className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[46px] rounded-xl text-xs font-black text-right text-[#6E1B1B] bg-[#FAF5F1] border border-dashed border-[#C98B6A] cursor-pointer" data-picker-add>
+              <span className="text-base leading-none">+</span>
+              {addLabel || 'افزودن'}{q.trim() ? ` «${q.trim()}»` : ''}
+            </button>
+          )}
           {!multiple && emptyLabel !== undefined && (
             <button type="button" onClick={() => choose('')} className={`w-full flex items-center gap-3 px-3 py-2.5 min-h-[46px] rounded-xl text-xs font-bold text-right cursor-pointer ${selected.length === 0 ? 'bg-[#F6D9CD]' : 'hover:bg-[#FAF5F1]'}`}>
               <span className="flex-1 text-[#8C6F66]">{emptyLabel}</span>

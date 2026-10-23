@@ -502,6 +502,24 @@ export const CustomerForm: React.FC<{
                   <input className={field} dir="ltr" inputMode="tel" value={c.repMobile || ''} onChange={(e) => patch({ repMobile: e.target.value })} />
                 </div>
               </div>
+              {(c.reps || []).map((r, i) => (
+                <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end border-t border-[#EBDBCE]/70 pt-3" data-extra-rep>
+                  <div>
+                    <label className={label}>نام نمایندهٔ {toPersianDigits(i + 2)}</label>
+                    <input className={field} value={r.name} onChange={(e) => patch({ reps: (c.reps || []).map((x, k) => (k === i ? { ...x, name: e.target.value } : x)) })} />
+                  </div>
+                  <div>
+                    <label className={label}>سمت</label>
+                    <input className={field} value={r.position || ''} onChange={(e) => patch({ reps: (c.reps || []).map((x, k) => (k === i ? { ...x, position: e.target.value } : x)) })} />
+                  </div>
+                  <div>
+                    <label className={label}>موبایل</label>
+                    <input className={field} dir="ltr" inputMode="tel" value={r.mobile || ''} onChange={(e) => patch({ reps: (c.reps || []).map((x, k) => (k === i ? { ...x, mobile: e.target.value } : x)) })} />
+                  </div>
+                  <button type="button" onClick={() => patch({ reps: (c.reps || []).filter((_, k) => k !== i) })} className="px-3 py-2.5 rounded-xl text-[11px] font-black text-rose-600 hover:bg-rose-50 cursor-pointer" aria-label="حذف نماینده">حذف</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => patch({ reps: [...(c.reps || []), { name: '', position: '', mobile: '' }] })} className="text-[11px] font-black text-violet-700 hover:underline cursor-pointer" data-add-rep>+ نمایندهٔ دیگر</button>
             </div>
           </Section>
         )}
