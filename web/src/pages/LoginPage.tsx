@@ -179,7 +179,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
             type="button"
             onClick={handleLogin}
             disabled={submitting}
-            className="relative w-full py-3.5 overflow-hidden rounded-2xl text-white font-black text-sm tracking-wide bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/60 shadow-[0_8px_24px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.7),inset_0_-8px_16px_rgba(255,255,255,0.08)] transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 [text-shadow:0_1px_6px_rgba(0,0,0,0.35)]"
+            className="relative w-full py-3.5 overflow-hidden rounded-2xl text-white font-black text-sm tracking-wide login-btn bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/60 shadow-[0_8px_24px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.7),inset_0_-8px_16px_rgba(255,255,255,0.08)] transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 [text-shadow:0_1px_6px_rgba(0,0,0,0.35)]"
           >
             <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent" aria-hidden />
             <span className="relative">{submitting ? 'در حال ورود…' : 'ورود'}</span>

@@ -679,6 +679,8 @@ export interface SystemSettings {
   /** Real height of the stamp on paper, in centimetres (set in the admin console; the default size of the stamp on every letter). */
   /** Pictures behind the sign-in pages (data URLs, up to 6; one is picked at random each visit). Empty = the built-in pictures. */
   loginImages?: string[];
+  /** how the sign-in pages look: «glass» (picture + frosted card, the default), «simple» (clean light page), «elegant» (soft cream page with a thin gold line), «dark» */
+  loginDesign?: 'glass' | 'simple' | 'elegant' | 'dark';
   companyStampSizeCm?: number;
   /** Real width of the stamp in centimetres (for the true-size preview; letters are sized by the height). */
   companyStampWidthCm?: number;

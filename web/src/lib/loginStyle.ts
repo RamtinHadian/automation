@@ -75,6 +75,29 @@ export const resolveLoginImage = (e: string) => (e.startsWith('builtin:') ? buil
 
 let cache: string[] | null = null;
 let picked = -1;
+export type LoginDesign = 'glass' | 'simple' | 'elegant' | 'dark';
+let designCache: LoginDesign | null = null;
+
+/** The design of the sign-in pages that the admin chose (read once, before anyone has signed in). */
+export const useLoginDesign = (): LoginDesign => {
+  const [design, setDesign] = useState<LoginDesign>(designCache || 'glass');
+  useEffect(() => {
+    if (designCache) return;
+    let alive = true;
+    fetch('/api/login/style', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        designCache = ['simple', 'elegant', 'dark'].includes(j?.design) ? j.design : 'glass';
+        if (alive) setDesign(designCache as LoginDesign);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return design;
+};
+
 
 /** The picture behind the sign-in page: one of the admin's pictures, else a built-in one; the same one for the whole visit. */
 export const useLoginImage = (): string => {
@@ -102,6 +125,7 @@ export const useLoginImage = (): string => {
 
 /** The admin changed the pictures: forget what was fetched. */
 export const forgetLoginImages = () => {
+  designCache = null;
   cache = null;
   picked = -1;
 };

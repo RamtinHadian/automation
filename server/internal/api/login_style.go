@@ -8,7 +8,7 @@ import (
 	"automation/server/internal/store"
 )
 
-// GET /api/login/style (public): the pictures the admin chose for the sign-in pages (empty = the built-in ones).
+// GET /api/login/style (public): the pictures and the design (glass / simple / elegant / dark) the admin chose for the sign-in pages (no pictures = the built-in ones).
 func loginStyle(w http.ResponseWriter, r *http.Request) {
 	var raw []byte
 	_ = store.Pool.QueryRow(r.Context(), `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
@@ -18,6 +18,10 @@ func loginStyle(w http.ResponseWriter, r *http.Request) {
 			imgs = append(imgs, s)
 		}
 	}
+	design := jsonx.Str(jsonx.Decode(raw), "loginDesign")
+	if design != "simple" && design != "dark" && design != "elegant" {
+		design = "glass"
+	}
 	w.Header().Set("Cache-Control", "no-cache")
-	httpx.JSON(w, http.StatusOK, map[string]any{"images": imgs})
+	httpx.JSON(w, http.StatusOK, map[string]any{"images": imgs, "design": design})
 }

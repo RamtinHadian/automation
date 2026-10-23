@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ProformaIssuersCard } from './ProformaIssuersCard';
 import { askConfirm } from '../../lib/confirmDialog';
+import { LoginDesignCard } from './LoginDesignCard';
 import { LoginImagesCard } from './LoginImagesCard';
 import { DEFAULT_SIGNATURE_HEIGHT, MIN_SIGNATURE_HEIGHT, MAX_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
 import {
@@ -1132,6 +1133,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'look' && (
       <>
+      <LoginDesignCard value={settings.loginDesign} onChange={(d) => { setSettings((prev) => ({ ...prev, loginDesign: d })); onSaveSettings({ ...initialSettings, ...settings, loginDesign: d }); }} />
       <LoginImagesCard images={settings.loginImages || []} toast={(m) => showToast(m)} onChange={(list) => { setSettings((prev) => ({ ...prev, loginImages: list })); onSaveSettings({ ...initialSettings, ...settings, loginImages: list }); }} />
       {/* ========================================================================= */}
       {/* SECTION 4: COMPACT FONT SELECTION & MODAL TRIGGER (فونت‌های سازمانی) */}
