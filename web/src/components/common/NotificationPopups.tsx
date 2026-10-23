@@ -198,10 +198,27 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
 /** Pop-up cards that slide up from the corner of the screen when a notification arrives. */
 export const NotificationPopups: React.FC = () => {
   const { popups: all, dismissPopup, openNotification } = useAppContext();
-  if (all.length === 0) return null;
   // one at a time (the top-most of the pile first, its countdown runs, then the next one comes) unless an admin switched it off
   const queue = getNotifyConfig()?.popupQueue !== false;
-  const popups = queue ? [all[all.length - 1]] : all.slice(0, 4);
+  // After one is opened the next waits (its countdown does not start) until the page that was opened is closed: the window that came up is gone
+  // (or, for a page without a window, a minute has passed, or the person presses «نمایش بعدی»).
+  const [hold, setHold] = useState(false);
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!hold) return;
+    const started = Date.now();
+    let saw = false;
+    const t = setInterval(() => {
+      const open = [...document.querySelectorAll('.fixed.inset-0')].filter((el) => !host.current?.contains(el) && el.getClientRects().length > 0).length;
+      if (open > 0) saw = true;
+      if (saw && open === 0) setTimeout(() => setHold(false), 500);
+      if (!saw && Date.now() - started > 60000) setHold(false);
+      if (Date.now() - started > 600000) setHold(false);
+    }, 400);
+    return () => clearInterval(t);
+  }, [hold]);
+  if (all.length === 0) return null;
+  const popups = hold ? [] : queue ? [all[all.length - 1]] : all.slice(0, 4);
 
   return createPortal(
     <>
@@ -209,10 +226,23 @@ export const NotificationPopups: React.FC = () => {
         @keyframes np-in { from { transform: translateY(130%) scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
         @keyframes np-bar { from { width: 100% } to { width: 0 } }
       `}</style>
-      <div className="fixed z-[2147483000] bottom-24 inset-x-3 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[380px] flex flex-col-reverse gap-2.5 pointer-events-none">
+      <div ref={host} className="fixed z-[2147483000] bottom-24 inset-x-3 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[380px] flex flex-col-reverse gap-2.5 pointer-events-none">
+        {hold && queue && (
+          <button type="button" onClick={() => setHold(false)} className="pointer-events-auto self-end px-3.5 py-2 rounded-full bg-[#3A241F] text-white text-[11px] font-black shadow-lg cursor-pointer" data-popup-hold>
+            {toPersianDigits(all.length)} اعلان در انتظار است — نمایش بعدی
+          </button>
+        )}
         {popups.map((n) => (
           <div key={n.id} className="pointer-events-auto">
-            <Card n={n} onOpen={() => openNotification(n)} onClose={() => dismissPopup(n.id)} waiting={queue ? all.length - 1 : undefined} />
+            <Card
+              n={n}
+              onOpen={() => {
+                if (queue) setHold(true);
+                openNotification(n);
+              }}
+              onClose={() => dismissPopup(n.id)}
+              waiting={queue ? all.length - 1 : undefined}
+            />
           </div>
         ))}
       </div>
