@@ -5,13 +5,19 @@ import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyRe
 // Writes are serialised so that e.g. a transfer is always stored before its audit log entry.
 const queue: { chain: Promise<unknown>; pending: number } = { chain: Promise.resolve(), pending: 0 };
 
+let writeEpoch = 0;
+/** Changes every time a local edit is queued: a state read from the server that began before it is older than the edit and must not replace it. */
+export const localWriteEpoch = () => writeEpoch;
+
 function enqueue(job: () => Promise<unknown>, onError: (e: unknown) => void) {
   queue.pending++;
+  writeEpoch++;
   queue.chain = queue.chain
     .then(job)
     .catch(onError)
     .finally(() => {
       queue.pending--;
+      writeEpoch++;
     });
 }
 

@@ -21,7 +21,7 @@ import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department,
 import { INITIAL_SETTINGS } from '../lib/mock-data';
 import { isChatOpenWith } from '../lib/chatState';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
-import { useServerSync, hasPendingWrites } from '../lib/useServerSync';
+import { useServerSync, hasPendingWrites, localWriteEpoch } from '../lib/useServerSync';
 import { putLocalFile, getLocalFile, deleteLocalFile, dataUrlToBlob } from '../lib/localFiles';
 import { startP2P, stopP2P, requestFile } from '../lib/p2p';
 import { uploadServerFile, getServerFile, hasServerFile } from '../lib/serverFiles';
@@ -397,7 +397,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   reloadRef.current = () => {
-    api.state().then((s) => applyServerState(s, true)).catch(() => {});
+    // an answer that began before a local edit (a customer just added…) is older than the edit: it is dropped and asked again once the edit is stored
+    const epoch = localWriteEpoch();
+    api.state().then((s) => {
+      if (hasPendingWrites() || epoch !== localWriteEpoch()) {
+        setTimeout(() => reloadRef.current(), 1200);
+        return;
+      }
+      applyServerState(s, true);
+    }).catch(() => {});
   };
 
   // Restore an existing session on page load.
@@ -457,7 +465,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const poll = () => {
       lastPoll = Date.now();
       if (hasPendingWrites()) return;
-      api.state().then((s) => applyServerState(s)).catch(() => {});
+      const epoch = localWriteEpoch();
+      api.state().then((s) => { if (!hasPendingWrites() && epoch === localWriteEpoch()) applyServerState(s); }).catch(() => {});
     };
     const timer = setInterval(() => {
       if (document.hidden) return;
