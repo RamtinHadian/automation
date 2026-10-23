@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import {
   CalendarCheck,
   CheckCircle2,
@@ -313,29 +314,14 @@ export const DailyReportsView: React.FC = () => {
                 <label className={`${label} !mb-0`}>ارسال گزارش برای (علاوه بر مدیران)</label>
                 {form.recipientIds.length > 0 && <span className="text-[10px] font-black text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2 py-0.5">{toPersianDigits(form.recipientIds.length)} نفر انتخاب شد</span>}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2" data-report-recipients>
-                {recipientChoices.map((u) => {
-                  const on = form.recipientIds.includes(u.id);
-                  return (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => setForm({ ...form, recipientIds: on ? form.recipientIds.filter((x) => x !== u.id) : [...form.recipientIds, u.id] })}
-                      className={`relative flex items-center gap-3 p-3 rounded-2xl border text-right transition-all cursor-pointer ${
-                        on ? 'bg-sky-50 border-sky-400 shadow-2xs' : 'bg-white border-[#EBDBCE] hover:bg-[#FAF5F1] hover:border-[#C98B6A]'
-                      }`}
-                    >
-                      <Avatar user={u} size={36} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
-                        {u.departmentName ? <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{u.departmentName}</span> : null}
-                      </span>
-                      <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${on ? 'bg-sky-600 border-sky-600 text-white' : 'border-[#EBDBCE] text-transparent'}`}>
-                        <Check className="w-3 h-3" />
-                      </span>
-                    </button>
-                  );
-                })}
+              <div data-report-recipients>
+                <PersonPickerMulti
+                  title="گیرندگان گزارش"
+                  placeholder="انتخاب گیرندگان از فهرست (با جست‌وجو)…"
+                  items={staffItems(recipientChoices)}
+                  values={form.recipientIds}
+                  onChange={(ids) => setForm({ ...form, recipientIds: ids })}
+                />
                 {recipientChoices.length === 0 && <span className="text-[11px] text-gray-400">کاربر دیگری وجود ندارد.</span>}
               </div>
             </div>
