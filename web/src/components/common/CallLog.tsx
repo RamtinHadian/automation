@@ -166,7 +166,7 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
   const shown = useMemo(() => {
     return (calls || []).filter((c) => {
       if (filter === 'missed' && !(c.direction === 'in' && c.status !== 'answered')) return false;
-      if (filter === 'in' && c.direction !== 'in') return false;
+      if (filter === 'in' && !(c.direction === 'in' && c.status === 'answered')) return false; // missed calls are their own tab
       if (filter === 'out' && c.direction !== 'out') return false;
       return matchesAll(c, q);
     });

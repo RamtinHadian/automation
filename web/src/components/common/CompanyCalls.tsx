@@ -85,7 +85,7 @@ export const CompanyCalls: React.FC = () => {
     () =>
       (calls || []).filter((c) => {
         if (who && c.ext !== who) return false;
-        if (filter === 'in' && c.direction !== 'in') return false;
+        if (filter === 'in' && !(c.direction === 'in' && c.status === 'answered')) return false; // missed calls are their own tab
         if (filter === 'out' && c.direction !== 'out') return false;
         if (filter === 'internal' && c.direction !== 'internal') return false;
         if (filter === 'missed' && !(c.direction === 'in' && c.status !== 'answered')) return false;
