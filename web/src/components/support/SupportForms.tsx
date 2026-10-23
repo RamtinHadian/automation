@@ -1,3 +1,4 @@
+import { MoneyInput } from '../common/MoneyInput';
 import React, { useMemo, useState } from 'react';
 import { Customer, PlanColor, SupportPlan, SupportSub, TicketChannel, TicketPriority, User } from '../../types';
 import { api } from '../../lib/api';
@@ -122,7 +123,7 @@ export const SubForm: React.FC<{
         </div>
         <div>
           <label className={label}>مبلغ ({unitName()})</label>
-          <input className={field} inputMode="numeric" value={price ? toPersianDigits(price) : ''} onChange={(e) => setPrice(toEn(e.target.value))} />
+          <MoneyInput unit={false} className={field} value={price} onChange={setPrice} />
         </div>
       </div>
       {end && <div className="rounded-xl bg-teal-50 border border-teal-200 px-3.5 py-2.5 text-[11px] font-black text-teal-900" data-sub-end>پایان اشتراک: {dayText(end)} ({subRemaining({ endDate: end, status: 'ACTIVE' } as SupportSub)})</div>}
@@ -274,7 +275,7 @@ export const PlanForm: React.FC<{ initial?: SupportPlan | null; onClose: () => v
     >
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="sm:col-span-2"><label className={label}>نام پلن *</label><input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً طلایی" /></div>
-        <div><label className={label}>قیمت ({unitName()})</label>{num(price, setPrice, 'قیمت')}</div>
+        <div><label className={label}>قیمت ({unitName()})</label><MoneyInput unit={false} className={field} value={price} onChange={setPrice} /></div>
         <div><label className={label}>مدت (ماه)</label>{num(months, setMonths, 'مدت')}</div>
         <div><label className={label}>پاسخ‌گویی ظرف (ساعت) *</label>{num(resp, setResp, 'پاسخ‌گویی')}</div>
         <div><label className={label}>حل مشکل ظرف (ساعت) *</label>{num(resolve, setResolve, 'حل مشکل')}</div>

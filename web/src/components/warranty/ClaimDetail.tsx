@@ -1,3 +1,4 @@
+import { MoneyInput } from '../common/MoneyInput';
 import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, MessageSquare, Phone, UserCog } from 'lucide-react';
 import { ClaimResolution, ClaimStatus, User, WarrantyClaim } from '../../types';
@@ -126,7 +127,7 @@ export const ClaimDetail: React.FC<{
                 </div>
                 <div>
                   <label className={label}>هزینه برای شرکت ({unitName()})</label>
-                  <input className={field} inputMode="numeric" value={cost} onChange={(e) => setCost(e.target.value)} />
+                  <MoneyInput unit={false} className={field} value={cost} onChange={setCost} />
                 </div>
               </div>
             )}
