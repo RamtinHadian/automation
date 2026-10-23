@@ -320,6 +320,12 @@ export const applyTheme = (themeId: string) => {
   root.style.setProperty('--word-hue', `${Math.round(h - 255)}deg`);
 
   root.setAttribute('data-theme', theme.id);
+  // the next page load paints this colour from the very first moment (index.html reads it before the app starts)
+  try {
+    localStorage.setItem('app_theme_boot', JSON.stringify({ bg: theme.darkBg }));
+  } catch {
+    /* private window */
+  }
   
   if (document.body) {
     document.body.setAttribute('data-theme', theme.id);

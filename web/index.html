@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#FAF5F1" />
     <script>try{if(localStorage.getItem("app_night_mode")==="1"){document.documentElement.classList.add("night");}}catch(e){}</script>
+    <script>try{var b=JSON.parse(localStorage.getItem("app_theme_boot")||"null");if(b&&b.bg){var r=document.documentElement;r.style.setProperty("--theme-dark-bg",b.bg);r.style.backgroundColor=b.bg;var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",b.bg);}}catch(e){}</script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/images/apple-touch-icon.png?v=6" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -439,3 +439,11 @@ html.night [data-error-popups] > div {
 [data-login-design='elegant'] .login-btn > span:first-child { display: none; }
 [data-login-design='simple'] button.fixed,
 [data-login-design='elegant'] button.fixed { color: #6E1B1B !important; background: rgba(110, 27, 27, 0.08) !important; border-color: rgba(110, 27, 27, 0.2) !important; }
+
+/* the sign-in button is white on the picture / dark designs */
+[data-login-design='glass'] .login-btn,
+[data-login-design='dark'] .login-btn { background: #fff !important; color: #6E1B1B !important; border-color: #fff !important; text-shadow: none; }
+[data-login-design='glass'] .login-btn:hover,
+[data-login-design='dark'] .login-btn:hover { background: #F6D9CD !important; }
+[data-login-design='glass'] .login-btn > span:first-child,
+[data-login-design='dark'] .login-btn > span:first-child { display: none; }
