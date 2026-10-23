@@ -165,7 +165,11 @@ export const NotificationSettingsCard: React.FC<{ settings: SystemSettings; onSa
             </div>
             <div>
               <label className="block font-bold text-[#3A241F] mb-1">مدت نمایش پاپ‌آپ: {toPersianDigits(cfg.popupSeconds ?? DEFAULT_NOTIFY.popupSeconds)} ثانیه</label>
-              <input type="range" min={3} max={30} step={1} value={cfg.popupSeconds ?? DEFAULT_NOTIFY.popupSeconds} onChange={(e) => patch({ popupSeconds: Number(e.target.value) })} className="w-full" />
+              <input type="range" min={3} max={60} step={1} value={cfg.popupSeconds ?? DEFAULT_NOTIFY.popupSeconds} onChange={(e) => patch({ popupSeconds: Number(e.target.value) })} className="w-full" />
+              <label className="flex items-center gap-2 mt-2 font-bold text-[#3A241F] cursor-pointer">
+                <input type="checkbox" checked={cfg.popupQueue !== false} onChange={(e) => patch({ popupQueue: e.target.checked })} data-popup-queue-toggle />
+                نمایش یکی‌یکی با شمارش معکوس (اولی که بسته شد یا باز شد، بعدی شروع می‌شود)
+              </label>
             </div>
           </div>
 

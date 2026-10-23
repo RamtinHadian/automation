@@ -21,7 +21,7 @@ const KIND = {
   alert: { icon: AlertTriangle, bar: 'bg-rose-500', badge: 'bg-rose-100 text-rose-700', ring: 'border-rose-300', fallback: 'هشدار' },
 } as const;
 
-const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => void }> = ({ n, onOpen, onClose }) => {
+const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => void; waiting?: number }> = ({ n, onOpen, onClose, waiting }) => {
   const k = KIND[n.kind] || KIND.file;
   const Icon = k.icon || FileText;
   const [paused, setPaused] = useState(false);
@@ -52,6 +52,13 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const total = useRef(isCall ? Math.max(showMs() * (cust ? 5 : 2), cust ? 45000 : 20000) : showMs()); // a call card (above all a known caller's) stays long enough to read
   const left = useRef(total.current);
   const startedAt = useRef(Date.now());
+
+  // the seconds that are left (shown when other cards wait behind this one)
+  const [secs, setSecs] = useState(Math.ceil(total.current / 1000));
+  useEffect(() => {
+    const t = setInterval(() => setSecs(Math.max(0, Math.ceil((left.current - (paused ? 0 : Date.now() - startedAt.current)) / 1000))), 250);
+    return () => clearInterval(t);
+  }, [paused]);
 
   // Auto-close, paused while the pointer is over the card.
   useEffect(() => {
@@ -173,6 +180,13 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         <X className="w-3.5 h-3.5" />
       </button>
 
+      {waiting !== undefined && (
+        <div className="flex items-center justify-between px-3.5 pb-2.5 pt-0.5 text-[10px] font-black text-[#8C6F66]" data-popup-queue>
+          <span>{waiting > 0 ? `${toPersianDigits(waiting)} مورد دیگر در صف` : 'آخرین مورد'}</span>
+          <span>بسته می‌شود تا {toPersianDigits(secs)} ثانیهٔ دیگر</span>
+        </div>
+      )}
+
       <span
         className={`absolute bottom-0 right-0 h-1 ${k.bar}`}
         style={{ animation: `np-bar ${total.current}ms linear both`, animationPlayState: paused ? 'paused' : 'running' }}
@@ -183,8 +197,11 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
 
 /** Pop-up cards that slide up from the corner of the screen when a notification arrives. */
 export const NotificationPopups: React.FC = () => {
-  const { popups, dismissPopup, openNotification } = useAppContext();
-  if (popups.length === 0) return null;
+  const { popups: all, dismissPopup, openNotification } = useAppContext();
+  if (all.length === 0) return null;
+  // one at a time (the top-most of the pile first, its countdown runs, then the next one comes) unless an admin switched it off
+  const queue = getNotifyConfig()?.popupQueue !== false;
+  const popups = queue ? [all[all.length - 1]] : all.slice(0, 4);
 
   return createPortal(
     <>
@@ -195,7 +212,7 @@ export const NotificationPopups: React.FC = () => {
       <div className="fixed z-[2147483000] bottom-24 inset-x-3 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[380px] flex flex-col-reverse gap-2.5 pointer-events-none">
         {popups.map((n) => (
           <div key={n.id} className="pointer-events-auto">
-            <Card n={n} onOpen={() => openNotification(n)} onClose={() => dismissPopup(n.id)} />
+            <Card n={n} onOpen={() => openNotification(n)} onClose={() => dismissPopup(n.id)} waiting={queue ? all.length - 1 : undefined} />
           </div>
         ))}
       </div>

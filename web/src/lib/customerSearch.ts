@@ -18,12 +18,15 @@ const KIND_TEXT: Record<string, string> = { PERSON: 'شخص حقیقی', COMPANY
 const STATUS_TEXT: Record<string, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
 const ACT_TEXT: Record<string, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد استعلام' };
 
+/** The person in charge is not a search word (searching a colleague's name must not list all of that colleague's customers). */
+const NOT_SEARCHED = new Set(['ownerId', 'ownerName', 'ownerIds', 'ownerNames']);
+
 /** Every text a customer is stored with (and what is attached to it) joined into one searchable line. */
 function flatten(v: unknown, out: string[]) {
   if (v == null) return;
   if (typeof v === 'string' || typeof v === 'number') out.push(String(v));
   else if (Array.isArray(v)) v.forEach((x) => flatten(x, out));
-  else if (typeof v === 'object') Object.values(v as Record<string, unknown>).forEach((x) => flatten(x, out));
+  else if (typeof v === 'object') Object.entries(v as Record<string, unknown>).forEach(([k, x]) => !NOT_SEARCHED.has(k) && flatten(x, out));
 }
 
 export function buildCustomerIndex(customers: Customer[], deals: Deal[], activities: CrmActivity[]): Map<string, string> {

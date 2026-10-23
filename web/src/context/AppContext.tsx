@@ -551,7 +551,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (fresh.length) {
             playForNotification(fresh[0]);
             const shown = fresh.filter((x) => ruleFor(x).enabled && ruleFor(x).popup);
-            if (shown.length) setPopups((prev) => [...shown.slice(0, 3), ...prev].slice(0, 4));
+            if (shown.length) setPopups((prev) => [...shown.slice(0, 11), ...prev].slice(0, 12));
           }
           if (list[0]) setSeen(list[0].createdAt);
         })
@@ -575,7 +575,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         const rule = ruleFor(n);
         playForNotification(n);
-        if (rule.enabled && rule.popup) setPopups((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 4)));
+        if (rule.enabled && rule.popup) setPopups((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 12)));
         if (rule.enabled) flashTitle(n.title);
         showOsNotification(n, () => notificationHandler.current?.(n));
         // Bring the new file / letter / task into the lists right away (and once more shortly after, in case

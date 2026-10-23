@@ -1181,7 +1181,7 @@ const DealForm: React.FC<{
         </div>
         <div>
           <label className={label}>توضیحات</label>
-          <ParagraphNotes value={d.notes || ''} onChange={(v) => patch({ notes: v })} />
+          <ParagraphNotes log={d.noteLog} text={d.notes} onChange={(noteLog, notes) => patch({ noteLog, notes })} />
         </div>
       </Modal>
     </form>

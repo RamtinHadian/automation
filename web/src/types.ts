@@ -185,6 +185,18 @@ export interface Customer {
   updatedAt: string;
 }
 
+/** One paragraph of a record's notes: when it was written (date, hour, minute) and by whom. */
+export interface NoteEntry {
+  text: string;
+  at: string;
+  byId: string;
+  byName: string;
+  editedAt?: string;
+  editedByName?: string;
+  /** only while it is being typed (not locked with Enter yet) */
+  draft?: boolean;
+}
+
 export interface Deal {
   id: string;
   title: string;
@@ -208,6 +220,8 @@ export interface Deal {
   /** Expected closing day, yyyy-mm-dd. */
   expectedClose?: string;
   notes?: string;
+  /** the notes paragraph by paragraph, each with its time and writer (`notes` keeps the same text joined by new lines) */
+  noteLog?: NoteEntry[];
   createdAt: string;
   updatedAt: string;
   closedAt?: string;
@@ -257,6 +271,8 @@ export interface NotifySettings {
   enabled?: boolean;
   volume?: number;
   popupSeconds?: number;
+  /** show the pop-ups one at a time, each with a countdown, the next one starts when the one before is closed or opened (default on) */
+  popupQueue?: boolean;
   quiet?: { enabled: boolean; from: string; to: string };
   kinds?: Partial<Record<'file' | 'letter' | 'task' | 'alert' | 'call' | 'chat', NotifyRule>>;
   events?: Record<string, NotifyRule>;

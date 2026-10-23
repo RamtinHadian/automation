@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from './lib/router';
 import App from './App';
 import 'vazirmatn/Vazirmatn-Variable-font-face.css'; // the font is bundled with the app (no dependency on Google Fonts)
+import './fa-digits.css'; // Latin digits shown with Persian shapes everywhere
 import './index.css';
 import { installPersianDigits } from './lib/persianDigits';
 import { installPublicIp } from './lib/publicIp';
