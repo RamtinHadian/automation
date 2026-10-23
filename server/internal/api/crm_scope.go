@@ -44,6 +44,17 @@ func crmOwnsCustomer(r *http.Request, me auth.User, customerID string) bool {
 // administrator picked for them next to «مشتریان همکاران» (inactive ones are left out).
 func crmPeople(ctx context.Context, me auth.User) []string {
 	out := managedStaff(ctx, me.ID())
+	if me.IsAgent() { // a representative also sees the customers of his own employees
+		if rows, err := store.Pool.Query(ctx, `SELECT id FROM users WHERE data->>'agentOwnerId' = $1 AND COALESCE(data->>'isActive', 'true') <> 'false'`, me.ID()); err == nil {
+			for rows.Next() {
+				var id string
+				if rows.Scan(&id) == nil {
+					out = append(out, id)
+				}
+			}
+			rows.Close()
+		}
+	}
 	picked := me.TeamCrmIDs()
 	if len(picked) == 0 {
 		return out

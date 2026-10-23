@@ -237,7 +237,7 @@ export const SupportView: React.FC = () => {
     </div>
   );
   const pills = <T extends string>(value: T, set: (v: T) => void, list: readonly (readonly [T, string])[]) => (
-    <div className="flex gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 overflow-x-auto">
+    <div className="flex flex-wrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
       {list.map(([id, text]) => <button key={id} type="button" onClick={() => set(id)} className={`px-3.5 py-1.5 min-h-[36px] rounded-xl text-[11px] font-black cursor-pointer whitespace-nowrap ${value === id ? 'bg-white text-teal-700 shadow-2xs' : 'text-[#8C6F66]'}`}>{text}</button>)}
     </div>
   );

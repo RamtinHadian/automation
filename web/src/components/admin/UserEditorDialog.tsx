@@ -15,6 +15,7 @@ export interface UserForm {
   /** sales representative: independent user (see types.ts) */
   isAgent?: boolean;
   agentContactIds?: string[];
+  agentOwnerId?: string;
   hiddenSub?: string[];
   canSeeTeamCrm?: boolean;
   canViewStats?: boolean;
@@ -48,7 +49,7 @@ interface Props {
   onToggleCeo: (on: boolean) => void;
   quotaMax: number;
   /** everybody (for choosing the people a representative works with) */
-  people?: { id: string; fullName: string; departmentName?: string; isActive?: boolean }[];
+  people?: { id: string; fullName: string; departmentName?: string; isActive?: boolean; isAgent?: boolean }[];
 }
 
 const field = 'w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-semibold text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none';
@@ -278,6 +279,18 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
                 border="#D9C8FA"
                 onChange={(v) => set(v ? { isAgent: true, canUseCrm: true, canSeeTeamCrm: false, canSendOfficialLetters: false, canSignOfficialLetters: false, canUseTasks: false, canUseWarehouse: false, canUseWarranty: false, canPostAnnouncements: false, canViewStats: false, canSendSms: false, hiddenSub: ['files.transfer', 'files.leave', 'files.board', 'files.reminders', 'files.minutes'] } : { isAgent: false, agentContactIds: [], hiddenSub: [] })}
               />
+              {!form.isAgent && people.some((x) => x.isAgent && x.isActive !== false) && (
+                <div data-agent-owner>
+                  <label className={label}>زیرمجموعهٔ نماینده (اگر این کاربر کارمند یک نماینده است)</label>
+                  <select className={field} value={form.agentOwnerId || ''} onChange={(e) => set({ agentOwnerId: e.target.value })}>
+                    <option value="">— ندارد —</option>
+                    {people.filter((x) => x.isAgent && x.isActive !== false).map((x) => (
+                      <option key={x.id} value={x.id}>{x.fullName}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">کارمند نماینده فقط خودش، نمایندهٔ خودش، همکاران هم‌گروه و مدیرعامل را می‌بیند؛ نماینده مشتریان او را هم می‌بیند.</p>
+                </div>
+              )}
               {form.isAgent && (
                 <div data-agent-contacts>
                   <label className={label}>افرادی که نماینده با آن‌ها در ارتباط است (علاوه بر مدیرعامل)</label>

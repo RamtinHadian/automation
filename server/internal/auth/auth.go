@@ -47,6 +47,12 @@ func (u User) SeesTeamCrm() bool {
 // (and the managing director), whom he can write an internal letter to.
 func (u User) IsAgent() bool { return jsonx.Bool(u.M, "isAgent") }
 
+// AgentOwnerID: the representative this person works under (an employee of an agent), "" for everybody else.
+func (u User) AgentOwnerID() string { return jsonx.Str(u.M, "agentOwnerId") }
+
+// Isolated: a representative or one of his employees: sees only himself, his group and the managing director.
+func (u User) Isolated() bool { return u.IsAgent() || u.AgentOwnerID() != "" }
+
 // AgentContactIDs: the people an agent may see and talk to.
 func (u User) AgentContactIDs() []string { return jsonx.Strings(u.M, "agentContactIds") }
 

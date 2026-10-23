@@ -93,6 +93,20 @@ func minutesPut(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	// the people a decision is given to (the managing director refers work to them in the minutes) can open the sheet and hear about it
+	owners := []string{}
+	for _, d := range jsonx.Arr(data, "decisions") {
+		if o, ok := d.(map[string]any); ok {
+			if uid, _ := o["ownerUserId"].(string); uid != "" && !jsonx.Contains(owners, uid) {
+				owners = append(owners, uid)
+			}
+			}
+	}
+	for _, o := range owners {
+		if !jsonx.Contains(attendees, o) {
+			attendees = append(attendees, o)
+		}
+	}
 	before := []string{}
 	wasFinal := false
 	if existed {
@@ -141,7 +155,20 @@ func minutesPut(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(added) > 0 && jsonx.Str(data, "status") == "FINAL" {
-		notify.Notify(ctx, added, notify.Note{Kind: "file", Label: "صورتجلسه", Title: "شما در صورتجلسه‌ای نام برده شده‌اید (" + me.Name() + ")", Body: jsonx.Str(data, "title"), Ref: ref("minutes", id)}, me.ID())
+		named, given := []string{}, []string{}
+		for _, a := range added {
+			if jsonx.Contains(owners, a) {
+				given = append(given, a)
+			} else {
+				named = append(named, a)
+			}
+		}
+		if len(named) > 0 {
+			notify.Notify(ctx, named, notify.Note{Kind: "file", Label: "صورتجلسه", Title: "شما در صورتجلسه‌ای نام برده شده‌اید (" + me.Name() + ")", Body: jsonx.Str(data, "title"), Ref: ref("minutes", id)}, me.ID())
+		}
+		if len(given) > 0 {
+			notify.Notify(ctx, given, notify.Note{Kind: "task", Label: "مصوبه ارجاع‌شده", Title: "در صورتجلسه کاری به شما ارجاع شد (" + me.Name() + ")", Body: jsonx.Str(data, "title"), Ref: ref("minutes", id)}, me.ID())
+		}
 	}
 	httpx.OK(w)
 }

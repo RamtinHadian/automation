@@ -359,7 +359,7 @@ const TasksBoard: React.FC = () => {
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 w-full sm:w-auto overflow-x-auto">
+          <div className="flex flex-wrap bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1 w-full sm:w-auto">
             {([
               ['ALL', isAdmin ? 'همه' : 'همهٔ من'],
               ['MINE', 'واگذار شده به من'],

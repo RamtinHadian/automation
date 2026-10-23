@@ -16,6 +16,12 @@ func agentAllowed(me auth.User, u jsonx.M) bool {
 	if id == me.ID() || jsonx.Bool(u, "canSignOfficialLetters") {
 		return true
 	}
+	if jsonx.Str(u, "agentOwnerId") == me.ID() { // the agent's own employees (his subordinates)
+		return true
+	}
+	if owner := me.AgentOwnerID(); owner != "" && (id == owner || jsonx.Str(u, "agentOwnerId") == owner) { // an employee sees his agent and the agent's other employees
+		return true
+	}
 	for _, c := range me.AgentContactIDs() {
 		if c == id {
 			return true

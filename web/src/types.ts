@@ -43,6 +43,8 @@ export interface User {
   /** a sales representative («نماینده فروش»): works on his own with his own customers and only with the people named in agentContactIds (and the managing director); his only correspondence is an internal letter to the managing director */
   isAgent?: boolean;
   agentContactIds?: string[];
+  /** an employee (subordinate) of a sales representative: the id of that representative; he sees only his agent, the agent's other employees and the managing director */
+  agentOwnerId?: string;
   /** sees a pop-up for every incoming call of the company, not only the calls of the own extension */
   canSeeAllCalls?: boolean;
   /** what the person may ask of the accounting program (Sepidar): view, customer, quotation, invoice, receipt */

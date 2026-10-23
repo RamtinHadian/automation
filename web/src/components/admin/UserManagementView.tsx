@@ -136,6 +136,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       canUseWarehouse: newForm.canUseWarehouse,
       extension: (newForm.extension || '').trim(),
       extensions: (newForm.extensions || []).map((x) => x.trim()).filter(Boolean),
+      ...(newForm.agentOwnerId ? { extra: { agentOwnerId: newForm.agentOwnerId } } : {}),
       ...(newForm.isAgent ? { extra: { isAgent: true, agentContactIds: newForm.agentContactIds || [], hiddenSub: newForm.hiddenSub || [], canSeeTeamCrm: false } } : {}),
     });
 

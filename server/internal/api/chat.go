@@ -92,7 +92,7 @@ func chatMessages(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	if cur.IsAgent() && !agentMayReach(r.Context(), cur, peer) {
+	if cur.Isolated() && !agentMayReach(r.Context(), cur, peer) {
 		httpx.JSON(w, http.StatusOK, map[string]any{"messages": []chatMsg{}})
 		return
 	}
@@ -133,7 +133,7 @@ func chatSend(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "پیام خیلی طولانی است (حداکثر ۲۰۰۰ نویسه).")
 		return
 	}
-	if me.IsAgent() && !agentMayReach(r.Context(), me, to) {
+	if me.Isolated() && !agentMayReach(r.Context(), me, to) {
 		httpx.Error(w, http.StatusForbidden, "نماینده فقط با مدیرعامل و افراد مشخص‌شده گفتگو دارد.")
 		return
 	}
