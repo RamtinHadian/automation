@@ -235,21 +235,32 @@ var digits = regexp.MustCompile(`^[0-9*#+]{1,20}$`)
 
 // Call rings the caller's own extension first and, when they pick up, dials the target.
 func (c *Client) Call(fromExt, target string) error {
+	return c.originate(fromExt, "Local/"+fromExt+"@from-internal", target)
+}
+
+// CallMobile rings a MOBILE number (through the outgoing route) first and, when the person answers, dials the target. When both legs go out through
+// the same trunk, the phone system joins the two Local halves ("masquerade") in the middle of the dial macro and the second leg loses its number
+// (the log shows «Dial IAX2/tci/» with nothing after it): «/n» keeps the Local channel as it is, so the second leg dials the number it was given.
+func (c *Client) CallMobile(mobile, target string) error {
+	return c.originate(mobile, "Local/"+mobile+"@from-internal/n", target)
+}
+
+func (c *Client) originate(fromID, channel, target string) error {
 	if !c.Connected() {
 		return errors.New("اتصال به تلفن سازمان برقرار نیست.")
 	}
-	if !digits.MatchString(fromExt) || !digits.MatchString(target) {
+	if !digits.MatchString(fromID) || !digits.MatchString(target) {
 		return errors.New("شماره معتبر نیست.")
 	}
 	id := c.nextID()
 	c.register(id)
 	err := c.send(map[string]string{
 		"Action": "Originate", "ActionID": id,
-		"Channel":  "Local/" + fromExt + "@from-internal",
+		"Channel":  channel,
 		"Context":  "from-internal",
 		"Exten":    target,
 		"Priority": "1",
-		"CallerID": "App <" + fromExt + ">",
+		"CallerID": "App <" + fromID + ">",
 		"Timeout":  "30000",
 		"Async":    "true",
 	})

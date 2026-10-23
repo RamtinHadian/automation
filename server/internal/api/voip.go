@@ -369,7 +369,7 @@ func voipCallCustomer(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusServiceUnavailable, "اتصال به تلفن سازمان تنظیم نشده است.")
 		return
 	}
-	if err := phone.Call(mobile, target); err != nil {
+	if err := phone.CallMobile(mobile, target); err != nil {
 		httpx.Error(w, http.StatusBadGateway, err.Error())
 		return
 	}
