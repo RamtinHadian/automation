@@ -49,7 +49,18 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   }, [cust, activities, deals]);
   const area = useVoipArea();
   const unknownNumber = isCall && n.ref?.type === 'phone' ? fullPhone(n.ref.id, area) : '';
-  const total = useRef(isCall ? Math.max(showMs() * (cust ? 5 : 2), cust ? 45000 : 20000) : showMs()); // a call card (above all a known caller's) stays long enough to read
+  // an incoming-call card stays until the call ends (or at most the number of seconds the admin set); the other cards use the admin's time, or stay until closed
+  const incoming = isCall && n.label !== 'تماس بی‌پاسخ';
+  const conf = getNotifyConfig();
+  const callSecs = conf?.callPopupSeconds ?? 120;
+  const noLimit = incoming ? callSecs === 0 : !!conf?.popupFixed;
+  const total = useRef(incoming && callSecs > 0 ? callSecs * 1000 : showMs());
+  useEffect(() => {
+    if (!incoming) return;
+    const end = () => onClose();
+    window.addEventListener('hoormand-call-ended', end);
+    return () => window.removeEventListener('hoormand-call-ended', end);
+  }, [incoming, onClose]);
   const left = useRef(total.current);
   const startedAt = useRef(Date.now());
 
@@ -62,7 +73,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
 
   // Auto-close, paused while the pointer is over the card.
   useEffect(() => {
-    if (paused) return;
+    if (paused || noLimit) return;
     startedAt.current = Date.now();
     const t = setTimeout(onClose, left.current);
     return () => {
@@ -180,17 +191,17 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         <X className="w-3.5 h-3.5" />
       </button>
 
-      {waiting !== undefined && (
+      {(waiting !== undefined || noLimit || incoming) && (
         <div className="flex items-center justify-between px-3.5 pb-2.5 pt-0.5 text-[10px] font-black text-[#8C6F66]" data-popup-queue>
-          <span>{waiting > 0 ? `${toPersianDigits(waiting)} مورد دیگر در صف` : 'آخرین مورد'}</span>
-          <span>بسته می‌شود تا {toPersianDigits(secs)} ثانیهٔ دیگر</span>
+          <span>{waiting === undefined ? '' : waiting > 0 ? `${toPersianDigits(waiting)} مورد دیگر در صف` : 'آخرین مورد'}</span>
+          <span>{incoming ? (noLimit ? 'تا پایان تماس می‌ماند' : `تا پایان تماس (حداکثر ${toPersianDigits(secs)} ثانیهٔ دیگر)`) : noLimit ? 'ثابت؛ تا بسته نکنید می‌ماند' : `بسته می‌شود تا ${toPersianDigits(secs)} ثانیهٔ دیگر`}</span>
         </div>
       )}
 
-      <span
+      {!noLimit && <span
         className={`absolute bottom-0 right-0 h-1 ${k.bar}`}
         style={{ animation: `np-bar ${total.current}ms linear both`, animationPlayState: paused ? 'paused' : 'running' }}
-      />
+      />}
     </div>
   );
 };

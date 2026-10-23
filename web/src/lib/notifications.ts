@@ -216,7 +216,8 @@ export function startNotifyStream(onNotification: (n: AppNotification) => void, 
               try {
                 const msg = JSON.parse(line.slice(6));
                 onBeat?.();
-                if (msg && msg.id) onNotification(msg);
+                if (msg && msg.type === 'call-end') window.dispatchEvent(new Event('hoormand-call-ended'));
+                else if (msg && msg.id) onNotification(msg);
               } catch {
                 /* ignore malformed message */
               }

@@ -186,6 +186,7 @@ func journalEvent(ev Event) {
 		}
 		jMu.Unlock()
 		if st != nil {
+			go announceCallEnd(st)
 			go finalize(st, time.Now())
 		}
 	}

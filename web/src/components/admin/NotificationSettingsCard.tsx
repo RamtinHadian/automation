@@ -170,6 +170,15 @@ export const NotificationSettingsCard: React.FC<{ settings: SystemSettings; onSa
                 <input type="checkbox" checked={cfg.popupQueue !== false} onChange={(e) => patch({ popupQueue: e.target.checked })} data-popup-queue-toggle />
                 نمایش یکی‌یکی با شمارش معکوس (اولی که بسته شد یا باز شد، بعدی شروع می‌شود)
               </label>
+              <label className="flex items-center gap-2 mt-2 font-bold text-[#3A241F] cursor-pointer">
+                <input type="checkbox" checked={!!cfg.popupFixed} onChange={(e) => patch({ popupFixed: e.target.checked })} data-popup-fixed-toggle />
+                پاپ‌آپ اعلان‌های غیر از تماس ثابت باشد (بدون زمان؛ تا کاربر نبندد می‌ماند)
+              </label>
+              <div className="mt-3">
+                <label className="block font-bold text-[#3A241F] mb-1">پاپ‌آپ تماس ورودی: تا پایان تماس، {(cfg.callPopupSeconds ?? 120) === 0 ? 'بدون محدودیت زمان' : `حداکثر ${toPersianDigits(cfg.callPopupSeconds ?? 120)} ثانیه`}</label>
+                <input type="range" min={0} max={600} step={10} value={cfg.callPopupSeconds ?? 120} onChange={(e) => patch({ callPopupSeconds: Number(e.target.value) })} className="w-full" data-call-popup-seconds />
+                <p className="text-[10px] text-[#8C6F66] mt-1">پاپ‌آپ تماس با پایان تماس بسته می‌شود؛ اگر عدد صفر باشد فقط با پایان تماس، و در غیر این صورت حداکثر تا این عدد می‌ماند.</p>
+              </div>
             </div>
           </div>
 

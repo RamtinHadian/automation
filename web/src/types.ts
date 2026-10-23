@@ -273,6 +273,10 @@ export interface NotifySettings {
   popupSeconds?: number;
   /** show the pop-ups one at a time, each with a countdown, the next one starts when the one before is closed or opened (default on) */
   popupQueue?: boolean;
+  /** the pop-ups of the other notifications stay until they are closed (no timer) */
+  popupFixed?: boolean;
+  /** an incoming-call pop-up stays until the call ends but at most this many seconds (0 = until the call ends, no limit; default 120) */
+  callPopupSeconds?: number;
   quiet?: { enabled: boolean; from: string; to: string };
   kinds?: Partial<Record<'file' | 'letter' | 'task' | 'alert' | 'call' | 'chat', NotifyRule>>;
   events?: Record<string, NotifyRule>;
