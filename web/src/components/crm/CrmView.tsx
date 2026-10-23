@@ -36,6 +36,7 @@ import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
+import { ParagraphNotes } from '../common/ParagraphNotes';
 import { formatTaskDate, isOverdue, todayIso } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
@@ -1180,7 +1181,7 @@ const DealForm: React.FC<{
         </div>
         <div>
           <label className={label}>توضیحات</label>
-          <textarea className={`${field} min-h-[80px] leading-6`} value={d.notes || ''} onChange={(e) => patch({ notes: e.target.value })} />
+          <ParagraphNotes value={d.notes || ''} onChange={(v) => patch({ notes: v })} />
         </div>
       </Modal>
     </form>
