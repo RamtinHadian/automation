@@ -356,9 +356,12 @@ func voipCallCustomer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	target := voip.FullNumber(numbers[0])
+	// the representative's own extension (a phone or a softphone registered on the phone system) is the best first leg: it needs no outgoing line,
+	// so the customer's call has the line to itself. Without an extension the company's phone calls his mobile through the outgoing route.
+	ext := strings.TrimSpace(jsonx.Str(me.M, "extension"))
 	mobile := strings.TrimSpace(jsonx.Str(me.M, "mobile"))
-	if mobile == "" {
-		httpx.Error(w, http.StatusBadRequest, "شمارهٔ موبایل شما در پنل مدیریت تعریف نشده است؛ از مدیر بخواهید ثبت کند.")
+	if ext == "" && mobile == "" {
+		httpx.Error(w, http.StatusBadRequest, "برای شما نه شمارهٔ داخلی و نه موبایل در پنل مدیریت ثبت نشده است؛ از مدیر بخواهید ثبت کند.")
 		return
 	}
 	if DemoMode {
@@ -369,7 +372,13 @@ func voipCallCustomer(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusServiceUnavailable, "اتصال به تلفن سازمان تنظیم نشده است.")
 		return
 	}
-	if err := phone.CallMobile(mobile, target); err != nil {
+	var callErr error
+	if ext != "" {
+		callErr = phone.Call(ext, target)
+	} else {
+		callErr = phone.CallMobile(mobile, target)
+	}
+	if err := callErr; err != nil {
 		httpx.Error(w, http.StatusBadGateway, err.Error())
 		return
 	}
