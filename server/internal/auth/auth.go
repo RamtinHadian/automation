@@ -37,8 +37,18 @@ func (u User) CanViewStats() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canVi
 func (u User) CanSendSms() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canSendSms") }
 // SeesTeamCrm: sees every customer, opportunity and follow-up (administrators always do; others only when an administrator ticked «مشتریان همکاران» for them).
 func (u User) SeesTeamCrm() bool {
-	return u.IsAdmin() || (jsonx.Bool(u.M, "canSeeTeamCrm") && len(jsonx.Strings(u.M, "crmTeamIds")) == 0)
+	if u.IsAdmin() || jsonx.Bool(u.M, "canSignOfficialLetters") { // the top administrator and the managing director see every customer and sale (also an agent's)
+		return true
+	}
+	return !u.IsAgent() && jsonx.Bool(u.M, "canSeeTeamCrm") && len(jsonx.Strings(u.M, "crmTeamIds")) == 0
 }
+
+// IsAgent: a sales representative («نماینده فروش»): an independent user who works with his own customers and only with the people the administrator named
+// (and the managing director), whom he can write an internal letter to.
+func (u User) IsAgent() bool { return jsonx.Bool(u.M, "isAgent") }
+
+// AgentContactIDs: the people an agent may see and talk to.
+func (u User) AgentContactIDs() []string { return jsonx.Strings(u.M, "agentContactIds") }
 
 // TeamCrmIDs: when «مشتریان همکاران» was ticked for a person together with a list of colleagues, only those colleagues' customers are added to their own.
 func (u User) TeamCrmIDs() []string {

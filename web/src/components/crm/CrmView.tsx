@@ -138,7 +138,7 @@ export const CrmView: React.FC = () => {
   // a unit manager looks after the customers of the people of the unit, so they get the team views for those people
   const unitIds = useMemo(() => managedStaffIds(departments, staffList, me), [departments, staffList, me]);
   const isUnitManager = departments.some((d) => d.managerId === me);
-  const seesAllTeam = isAdmin || !!currentUser.canSeeTeamCrm;
+  const seesAllTeam = isAdmin || !!currentUser.canSignOfficialLetters || (!!currentUser.canSeeTeamCrm && !currentUser.isAgent && !(currentUser.crmTeamIds || []).length);
   const seesTeamUI = seesAllTeam || isUnitManager;
   const [targets, setTargets] = useState<Targets | null>(null);
   const [rules, setRules] = useState<Rules | null>(null);

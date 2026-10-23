@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import { api } from '../../lib/api';
 import { Award, BarChart3, Megaphone, ClipboardList, FileCheck, HardDrive, KeyRound, Lock, Phone, MessageSquare, Warehouse, ShieldCheck, Smartphone, UserPlus, Users, X } from 'lucide-react';
 import { Department, UserRole } from '../../types';
@@ -11,6 +12,11 @@ export interface UserForm {
   departmentId: string;
   role: UserRole;
   canUseCrm?: boolean;
+  /** sales representative: independent user (see types.ts) */
+  isAgent?: boolean;
+  agentContactIds?: string[];
+  hiddenSub?: string[];
+  canSeeTeamCrm?: boolean;
   canViewStats?: boolean;
   canPostAnnouncements?: boolean;
   canUseWarranty?: boolean;
@@ -41,6 +47,8 @@ interface Props {
   /** Turning the CEO tick on goes through the parent (it asks when someone else already holds it). */
   onToggleCeo: (on: boolean) => void;
   quotaMax: number;
+  /** everybody (for choosing the people a representative works with) */
+  people?: { id: string; fullName: string; departmentName?: string; isActive?: boolean }[];
 }
 
 const field = 'w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-semibold text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none';
@@ -74,7 +82,7 @@ const Tile: React.FC<{ icon: React.ReactNode; title: string; hint: string; on: b
 );
 
 /** One large, two-column dialog for both «new employee» and «edit employee»: account on one side, access switches on the other. */
-export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments, onClose, onSubmit, onToggleCeo, quotaMax }) => {
+export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments, onClose, onSubmit, onToggleCeo, quotaMax, people = [] }) => {
   const initials = (form.fullName || '').trim().slice(0, 2) || '؟';
   // the product groups of the warehouse (as Sepidar has them), to pick the ones this person may see
   const [groups, setGroups] = useState<string[]>([]);
@@ -257,6 +265,31 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Tile wide icon={<Award className="w-[18px] h-[18px]" />} title="مدیرعامل / صاحب امضای مجاز" hint="فقط یک نفر؛ تنها او نامه رسمی را امضا می‌کند و نامش روی نامه‌ها می‌نشیند." on={!!form.canSignOfficialLetters} color="#B45309" tint="#FFF7E6" border="#F3D08A" onChange={onToggleCeo} />
+            </div>
+            <div className="pt-3 space-y-2" data-agent-block>
+              <Tile
+                wide
+                icon={<Users className="w-[18px] h-[18px]" />}
+                title="نماینده فروش (کاربر مستقل)"
+                hint="فقط CRM و مشتریان خودش را دارد، فقط با مدیرعامل و افرادی که مشخص می‌کنید ارتباط دارد و فقط می‌تواند نامهٔ داخلی به مدیرعامل بزند. مدیر ارشد و مدیرعامل مشتریان و فروش او را می‌بینند."
+                on={!!form.isAgent}
+                color="#7C3AED"
+                tint="#F5F0FF"
+                border="#D9C8FA"
+                onChange={(v) => set(v ? { isAgent: true, canUseCrm: true, canSeeTeamCrm: false, canSendOfficialLetters: false, canSignOfficialLetters: false, canUseTasks: false, canUseWarehouse: false, canUseWarranty: false, canPostAnnouncements: false, canViewStats: false, canSendSms: false, hiddenSub: ['files.transfer', 'files.leave', 'files.board', 'files.reminders', 'files.minutes'] } : { isAgent: false, agentContactIds: [], hiddenSub: [] })}
+              />
+              {form.isAgent && (
+                <div data-agent-contacts>
+                  <label className={label}>افرادی که نماینده با آن‌ها در ارتباط است (علاوه بر مدیرعامل)</label>
+                  <PersonPickerMulti
+                    title="ارتباط نماینده با چه کسانی باشد؟"
+                    placeholder="انتخاب همکاران (با جست‌وجو)…"
+                    items={staffItems(people.filter((x) => x.isActive !== false))}
+                    values={form.agentContactIds || []}
+                    onChange={(ids) => set({ agentContactIds: ids })}
+                  />
+                </div>
+              )}
             </div>
             <p className="text-[11px] text-[#8C6F66] leading-6 pt-1">همهٔ مجوزهای دیگر (منوها و زیرمنوها) از «جدول مجوزها» در بالای همین صفحه تعیین می‌شود. مدیران ارشد و مدیران واحد بدون نیاز به آن‌ها همه‌چیز را دارند؛ فقط «مدیرعامل» با سوئیچ بالا جدا انتخاب می‌شود.</p>
             {groups.length > 0 && (

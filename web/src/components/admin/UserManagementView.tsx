@@ -52,6 +52,8 @@ interface UserManagementViewProps {
     canUseWarehouse?: boolean;
     extension?: string;
     extensions?: string[];
+    /** the fields of a sales representative (isAgent, agentContactIds, hiddenSub, switched-off rights) */
+    extra?: Partial<User>;
   }) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
   /** kept for compatibility: users are never deleted, only switched off */
@@ -134,6 +136,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       canUseWarehouse: newForm.canUseWarehouse,
       extension: (newForm.extension || '').trim(),
       extensions: (newForm.extensions || []).map((x) => x.trim()).filter(Boolean),
+      ...(newForm.isAgent ? { extra: { isAgent: true, agentContactIds: newForm.agentContactIds || [], hiddenSub: newForm.hiddenSub || [], canSeeTeamCrm: false } } : {}),
     });
 
     if (newForm.canSignOfficialLetters) afterCeoChange();
@@ -394,6 +397,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           }
           departments={departments}
           quotaMax={2000}
+          people={users}
           onClose={() => setEditingUser(null)}
           onToggleCeo={(on) => {
             const apply = () => setEditingUser((cur) => (cur ? { ...cur, canSignOfficialLetters: on } : cur));
@@ -436,6 +440,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           form={newForm}
           set={(patch) => setNewForm((cur) => ({ ...cur, ...patch }))}
           departments={departments}
+          people={users}
           quotaMax={500}
           onClose={() => setIsAddModalOpen(false)}
           onToggleCeo={(on) => {

@@ -85,10 +85,15 @@ func chatConversations(w http.ResponseWriter, r *http.Request) {
 }
 
 func chatMessages(w http.ResponseWriter, r *http.Request) {
-	me := auth.Current(r).ID()
+	cur := auth.Current(r)
+	me := cur.ID()
 	peer := r.URL.Query().Get("with")
 	if peer == "" {
 		httpx.Error(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	if cur.IsAgent() && !agentMayReach(r.Context(), cur, peer) {
+		httpx.JSON(w, http.StatusOK, map[string]any{"messages": []chatMsg{}})
 		return
 	}
 	rows, err := store.Pool.Query(r.Context(), `
@@ -126,6 +131,10 @@ func chatSend(w http.ResponseWriter, r *http.Request) {
 	}
 	if len([]rune(text)) > 2000 {
 		httpx.Error(w, http.StatusBadRequest, "پیام خیلی طولانی است (حداکثر ۲۰۰۰ نویسه).")
+		return
+	}
+	if me.IsAgent() && !agentMayReach(r.Context(), me, to) {
+		httpx.Error(w, http.StatusForbidden, "نماینده فقط با مدیرعامل و افراد مشخص‌شده گفتگو دارد.")
 		return
 	}
 	var active bool

@@ -40,6 +40,9 @@ export interface User {
   canSeeTeamCrm?: boolean;
   /** with «مشتریان همکاران»: only the customers of these colleagues are added to the person's own (empty = every colleague) */
   crmTeamIds?: string[];
+  /** a sales representative («نماینده فروش»): works on his own with his own customers and only with the people named in agentContactIds (and the managing director); his only correspondence is an internal letter to the managing director */
+  isAgent?: boolean;
+  agentContactIds?: string[];
   /** sees a pop-up for every incoming call of the company, not only the calls of the own extension */
   canSeeAllCalls?: boolean;
   /** what the person may ask of the accounting program (Sepidar): view, customer, quotation, invoice, receipt */

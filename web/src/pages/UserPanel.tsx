@@ -6,6 +6,7 @@ import { adminMenuHidden, canSub } from '../lib/permissions';
 import { ManagementReports } from '../components/admin/ManagementReports';
 import { VersionBadge } from '../components/common/VersionBadge';
 import { ChatView } from '../components/chat/ChatView';
+import { AgentLetter } from '../components/letters/AgentLetter';
 import { LeaveView } from '../components/leave/LeaveView';
 import { BoardView } from '../components/board/BoardView';
 import { BannerStrip } from '../components/board/BannerStrip';
@@ -216,7 +217,8 @@ export default function UserPanel() {
   const canSignOfficial = Boolean(currentUser.canSignOfficialLetters === true);
   const canSendOfficial = Boolean(currentUser.canSendOfficialLetters === true || canSignOfficial || currentUser.role === 'SUPER_ADMIN');
   const hid = (menu: string) => adminMenuHidden(currentUser, menu); // a menu the permission table switched off for this administrator
-  const canAccessLettersMenu = (canSendOfficial || canSignOfficial) && !hid('letters');
+  const isAgent = !!currentUser.isAgent; // a sales representative: his only correspondence is an internal letter to the managing director
+  const canAccessLettersMenu = isAgent || ((canSendOfficial || canSignOfficial) && !hid('letters'));
   const canAccessTasksMenu = Boolean(
     (currentUser.canUseTasks === true || currentUser.role === 'SUPER_ADMIN') && !hid('tasks')
   );
@@ -1592,7 +1594,8 @@ export default function UserPanel() {
           </div>
         )}
 
-        {mainMenuTab === 'letters' && (
+        {mainMenuTab === 'letters' && isAgent && <AgentLetter />}
+        {mainMenuTab === 'letters' && !isAgent && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-[#EBDBCE]/60">
 
             {/* Submit / Type Official Letter Panel */}

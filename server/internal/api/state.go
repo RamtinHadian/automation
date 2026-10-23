@@ -41,6 +41,9 @@ func state(w http.ResponseWriter, r *http.Request) {
 		staff = append(staff, auth.FromRow(uid, email, data))
 	}
 	urows.Close()
+	if me.IsAgent() { // a representative sees himself, the people named for him and the managing director only
+		staff = agentVisibleStaff(me, staff)
+	}
 
 	departments, err := store.RawList(ctx, `SELECT data FROM departments`)
 	if fail(err) {

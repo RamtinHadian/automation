@@ -1396,6 +1396,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       canUseWarehouse?: boolean;
       extension?: string;
       extensions?: string[];
+      extra?: Partial<User>;
     }) => {
       const dept = departments.find((d) => d.id === data.departmentId) || departments[0];
       const newUser: User = {
@@ -1423,6 +1424,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         canSendSms: !!data.canSendSms,
         canUseWarehouse: !!data.canUseWarehouse,
         ...(data.extension ? { extension: data.extension } : {}),
+        ...(data.extra || {}),
         ...(data.extensions && data.extensions.length ? { extensions: data.extensions } : {}),
       };
 
