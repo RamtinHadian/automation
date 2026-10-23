@@ -181,7 +181,7 @@ export const MinutesView: React.FC = () => {
     }
   };
   const TypeMenu: React.FC<{ onPick: (t: MinutesType) => void }> = ({ onPick }) => (
-    <div className="absolute z-20 top-full mt-1 left-0 min-w-[220px] rounded-2xl border border-[#EBDBCE] bg-white shadow-xl overflow-hidden" data-minutes-type-menu>
+    <div className="fixed inset-x-4 z-30 mt-1 max-h-[60vh] overflow-y-auto sm:absolute sm:inset-x-auto sm:top-full sm:left-0 sm:min-w-[220px] sm:max-h-none rounded-2xl border border-[#EBDBCE] bg-white shadow-xl" data-minutes-type-menu>
       {activeTypes.map((t) => (
         <button key={t.id} type="button" onClick={() => { setMenu(null); onPick(t); }} className="w-full text-right px-3.5 py-2.5 text-xs font-black text-[#3A241F] hover:bg-[#FAF5F1] border-b border-[#EBDBCE]/50 last:border-b-0 cursor-pointer">
           {t.title}
@@ -228,7 +228,7 @@ export const MinutesView: React.FC = () => {
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="w-4 h-4 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در شماره، موضوع، حاضرین، کالاها و مصوبات…" className={`${field} pr-9`} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در صورتجلسه‌ها…" className={`${field} pr-9`} />
         </div>
         <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={`${field} w-auto`} data-minutes-type-filter>
           <option value="">همهٔ انواع</option>
