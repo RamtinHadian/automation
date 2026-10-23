@@ -20,7 +20,7 @@ type Tab = 'overview' | 'tickets' | 'subs' | 'plans';
 /** The support menu: plans the company sells, customers' subscriptions, support requests with their deadlines and the numbers. */
 export const SupportView: React.FC = () => {
   const { customers, staffList, currentUser, showToast } = useAppContext();
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isAdmin = currentUser.role === 'SUPER_ADMIN';
   const [tab, setTab] = useState<Tab>('overview');
   const [plans, setPlans] = useState<SupportPlan[]>([]);
   const [subs, setSubs] = useState<SupportSub[]>([]);
@@ -88,7 +88,7 @@ export const SupportView: React.FC = () => {
   }, []);
 
   const today = todayIso();
-  const staff = useMemo(() => staffList.filter((u) => u.isActive && (u.canUseWarranty || u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN')), [staffList]);
+  const staff = useMemo(() => staffList.filter((u) => u.isActive && (u.canUseWarranty || u.canUseCrm || u.role === 'SUPER_ADMIN')), [staffList]);
   const fail = (m: string) => showToast(m);
 
   const stats = useMemo(() => {

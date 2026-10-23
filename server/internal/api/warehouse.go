@@ -814,7 +814,7 @@ func whLowStock(lines []whLine, kind, wid, by string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	var users []string
-	rows, err := store.Pool.Query(ctx, `SELECT id FROM users WHERE data->>'canUseWarehouse' = 'true' OR data->>'role' IN ('SUPER_ADMIN', 'DEPT_ADMIN')`)
+	rows, err := store.Pool.Query(ctx, `SELECT id FROM users WHERE data->>'canUseWarehouse' = 'true' OR data->>'role' IN ('SUPER_ADMIN')`)
 	if err != nil {
 		return
 	}

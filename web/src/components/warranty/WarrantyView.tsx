@@ -37,7 +37,7 @@ const shrinkImage = (file: File): Promise<string> =>
 /** The warranty menu: sold warranties, customers' claims with their whole history, a printable certificate and the numbers. */
 export const WarrantyView: React.FC = () => {
   const { customers, staffList, currentUser, showToast, settings } = useAppContext();
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isAdmin = currentUser.role === 'SUPER_ADMIN';
   const [tab, setTab] = useState<Tab>('overview');
   const [warranties, setWarranties] = useState<Warranty[]>([]);
   const [claims, setClaims] = useState<WarrantyClaim[]>([]);
@@ -116,7 +116,7 @@ export const WarrantyView: React.FC = () => {
   }, [customers]);
 
   const today = todayIso();
-  const staff = useMemo(() => staffList.filter((u) => u.isActive && (u.canUseWarranty || u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN')), [staffList]);
+  const staff = useMemo(() => staffList.filter((u) => u.isActive && (u.canUseWarranty || u.canUseCrm || u.role === 'SUPER_ADMIN')), [staffList]);
   const company = settings?.proformaCompanyName || settings?.companyName || 'هورمند';
 
   const stats = useMemo(() => {

@@ -128,7 +128,7 @@ const emptyTask = (me: User): Task => ({
 
 const TasksBoard: React.FC = () => {
   const { tasks, setTasks, staffList, currentUser, showToast, departments } = useAppContext();
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isAdmin = currentUser.role === 'SUPER_ADMIN';
   // a unit manager manages the tasks of the unit's people like their creator
   const unitStaff = managedStaffIds(departments, staffList, currentUser.id);
   const isSuper = currentUser.role === 'SUPER_ADMIN'; // only the top admin deletes a task

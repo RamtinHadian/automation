@@ -49,7 +49,7 @@ const blank = (recipientIds: string[]): FormState => ({ summary: '', items: [], 
 export const DailyReportsView: React.FC = () => {
   const { reports, setReports, tasks, staffList, currentUser, showToast } = useAppContext();
   const me = currentUser.id;
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isAdmin = currentUser.role === 'SUPER_ADMIN';
   const isSuper = currentUser.role === 'SUPER_ADMIN';
 
   const [tab, setTab] = useState<'mine' | 'team'>('mine');
@@ -135,7 +135,7 @@ export const DailyReportsView: React.FC = () => {
     if (!isAdmin) return [] as User[];
     const submitted = new Set(reports.filter((r) => r.date === teamDate).map((r) => r.userId));
     return staffList.filter(
-      (u) => u.isActive && (u.canUseTasks || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN') && !submitted.has(u.id)
+      (u) => u.isActive && (u.canUseTasks || u.role === 'SUPER_ADMIN') && !submitted.has(u.id)
     );
   }, [isAdmin, reports, staffList, teamDate]);
   const teamHours = teamReports.reduce((sum, r) => sum + totalHours(r), 0);

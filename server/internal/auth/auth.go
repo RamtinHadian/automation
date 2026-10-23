@@ -28,7 +28,8 @@ func (u User) ID() string       { return jsonx.Str(u.M, "id") }
 func (u User) Email() string    { return jsonx.Str(u.M, "email") }
 func (u User) Name() string     { return jsonx.Str(u.M, "fullName") }
 func (u User) Role() string     { return jsonx.Str(u.M, "role") }
-func (u User) IsAdmin() bool    { return u.Role() == "SUPER_ADMIN" || u.Role() == "DEPT_ADMIN" }
+// IsAdmin: only the top administrator has every right. A unit manager («DEPT_ADMIN») has exactly the rights the top administrator ticked for them in the permission table, like any employee.
+func (u User) IsAdmin() bool    { return u.Role() == "SUPER_ADMIN" }
 func (u User) CanUseTasks() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canUseTasks") }
 // CanViewStats: the management statistics (all admins, or anyone given the permission).
 func (u User) CanViewStats() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canViewStats") }

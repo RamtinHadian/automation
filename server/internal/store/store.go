@@ -392,6 +392,12 @@ func Init(ctx context.Context, cfg config.Config) error {
 			return err
 		}
 	}
+	// A unit manager (DEPT_ADMIN) no longer has every right just for the role: the top administrator ticks what they may use. Once, the rights
+	// the role used to give are written on each existing unit manager as ticks, so nothing is lost the moment this version starts.
+	if _, err := Pool.Exec(ctx, `UPDATE users SET data = data || '{"canUseTasks":true,"canUseCrm":true,"canSeeTeamCrm":true,"canViewStats":true,"canSendSms":true,"canUseWarehouse":true,"canUseWarranty":true,"canPostAnnouncements":true,"deptRightsKept":true}'::jsonb
+		WHERE data->>'role' = 'DEPT_ADMIN' AND data->>'deptRightsKept' IS NULL`); err != nil {
+		return err
+	}
 	return seed(ctx, cfg)
 }
 

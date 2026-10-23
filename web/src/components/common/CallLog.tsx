@@ -142,7 +142,7 @@ type Filter = 'all' | 'missed' | 'in' | 'out';
 export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> = ({ onClose, isAdmin }) => {
   const { showToast, currentUser, notifications, markNotificationsRead } = useAppContext();
   const area = useVoipArea();
-  const canSaveCustomer = currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const canSaveCustomer = currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN';
   const [calls, setCalls] = useState<VoipCall[] | null>(null);
   // an administrator starts with the whole company: calls to a number nobody owns (a diverted number…) belong to nobody's own list
   const [scope, setScope] = useState<'mine' | 'all'>(isAdmin ? 'all' : 'mine');

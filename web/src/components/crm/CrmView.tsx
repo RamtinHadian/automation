@@ -115,7 +115,7 @@ const timeText = (iso: string) => `${formatTaskDate(iso.slice(0, 10))} · ${toPe
 export const CrmView: React.FC = () => {
   const { customers, setCustomers, deals, setDeals, activities, setActivities, staffList, currentUser, showToast, settings, departments } = useAppContext();
   const me = currentUser.id;
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isAdmin = currentUser.role === 'SUPER_ADMIN';
 
   const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar'>('today');
   const [search, setSearch] = useState('');
@@ -773,9 +773,9 @@ export const CrmView: React.FC = () => {
       {/* ---------- pipeline ---------- */}
       {tab === 'today' && <TodayView me={me} myName={currentUser.fullName} customers={customers} deals={deals} isAdmin={isAdmin} seesTeam={seesTeamUI} targets={targets} followups={openFollowups} renderFollow={followRow} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onOpenCustomer={(id) => setOpenCustomer(id)} />}
       {tab === 'calendar' && <CalendarView customers={customers} deals={deals} followups={openFollowups} me={me} seesTeam={seesTeamUI} onOpenCustomer={(id) => setOpenCustomer(id)} onOpenDeal={(d) => setEditingDeal({ deal: d, isNew: false })} onAddAppointment={(cid, text, dueDate) => { addActivity(cid, 'FOLLOWUP', text, { dueDate }); showToast('در تقویم ثبت شد.'); }} />}
-      {tab === 'board' && <TeamView staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN') && (seesAllTeam || u.id === me || unitIds.includes(u.id)))} deals={deals} activities={activities} targets={targets} rules={rules} isAdmin={isAdmin} onSaved={loadTeamSettings} />}
+      {tab === 'board' && <TeamView staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN') && (seesAllTeam || u.id === me || unitIds.includes(u.id)))} deals={deals} activities={activities} targets={targets} rules={rules} isAdmin={isAdmin} onSaved={loadTeamSettings} />}
       {tab === 'club' && <ClubView customers={customers} deals={deals} isAdmin={isAdmin} smsEnabled={smsEnabled} onOpenCustomer={(id) => setOpenCustomer(id)} />}
-      {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} index={searchIndex} isAdmin={isAdmin} onOpenCustomer={(id) => setOpenCustomer(id)} />}
+      {tab === 'reports' && <CrmReports customers={customers} deals={deals} activities={activities} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN'))} index={searchIndex} isAdmin={isAdmin} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 
       {tab === 'pipeline' && (
         <div className="space-y-3">
@@ -896,7 +896,7 @@ export const CrmView: React.FC = () => {
           initial={editingCustomer}
           isNew={!customers.some((c) => c.id === editingCustomer.id)}
           customers={customers}
-          staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))}
+          staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN'))}
           canDelete={isAdmin && customers.some((c) => c.id === editingCustomer.id)}
           onClose={() => {
             setEditingCustomer(null);
@@ -933,7 +933,7 @@ export const CrmView: React.FC = () => {
           initial={editingDeal.deal}
           isNew={editingDeal.isNew}
           customers={customers}
-          staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))}
+          staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN'))}
           canDelete={!editingDeal.isNew && canDelete(editingDeal.deal.ownerId)}
           onClose={() => setEditingDeal(null)}
           onCreateCustomer={startCustomerFor}
@@ -995,7 +995,7 @@ export const CrmView: React.FC = () => {
           customer={customerById.get(openCustomer)!}
           deals={deals.filter((d) => d.customerId === openCustomer)}
           activities={activities.filter((a) => a.customerId === openCustomer).sort((a, b) => b.createdAt.localeCompare(a.createdAt))}
-          staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))}
+          staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN'))}
           me={currentUser}
           referred={customers.filter((x) => x.referrer?.kind === 'CUSTOMER' && x.referrer.id === openCustomer)}
           allDeals={deals}
@@ -1016,7 +1016,7 @@ export const CrmView: React.FC = () => {
         />
       )}
       {mergeFor && <MergeModal customer={mergeFor} customers={customers} onClose={() => setMergeFor(null)} onDone={(id) => { setMergeFor(null); setOpenCustomer(id); }} />}
-      {transferOpen && <TransferModal staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'))} customers={customers} deals={deals} activities={activities} onClose={() => setTransferOpen(false)} />}
+      {transferOpen && <TransferModal staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN'))} customers={customers} deals={deals} activities={activities} onClose={() => setTransferOpen(false)} />}
     </div>
   );
 };
@@ -1219,7 +1219,7 @@ const CustomerDetail: React.FC<{
   const [missingQty, setMissingQty] = useState('');
   const [due, setDue] = useState<string | undefined>(undefined);
   const [owner, setOwner] = useState(me.id);
-  const isAdmin = me.role === 'SUPER_ADMIN' || me.role === 'DEPT_ADMIN';
+  const isAdmin = me.role === 'SUPER_ADMIN';
   const st = STATUS[c.status];
   const [calls, setCalls] = useState<VoipCall[]>([]);
   const [smsOn, setSmsOn] = useState(false);

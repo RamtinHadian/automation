@@ -122,7 +122,7 @@ export default function AdminPanel() {
       try {
         const savedAdminId = localStorage.getItem('admin_session_auth_v5') || sessionStorage.getItem('admin_session_auth_v5');
         if (savedAdminId) {
-          const found = staffList.find((u) => u.id === savedAdminId && (u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN'));
+          const found = staffList.find((u) => u.id === savedAdminId && (u.role === 'SUPER_ADMIN'));
           if (found && currentUser.id !== found.id) {
             setCurrentUser(found);
           }

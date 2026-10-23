@@ -498,7 +498,7 @@ func portalAudience(ctx context.Context, doc jsonx.M) []string {
 	if owner != "" {
 		out = append(out, owner)
 	}
-	rows, err := store.Pool.Query(ctx, `SELECT id FROM users WHERE data->>'role' IN ('SUPER_ADMIN','DEPT_ADMIN') AND COALESCE((data->>'isActive')::boolean, true)`)
+	rows, err := store.Pool.Query(ctx, `SELECT id FROM users WHERE data->>'role' IN ('SUPER_ADMIN') AND COALESCE((data->>'isActive')::boolean, true)`)
 	if err == nil {
 		for rows.Next() {
 			var id string

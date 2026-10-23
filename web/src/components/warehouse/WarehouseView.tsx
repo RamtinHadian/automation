@@ -33,7 +33,7 @@ type Tab = 'stock' | 'docs' | 'products' | 'warehouses';
 
 export const WarehouseView: React.FC = () => {
   const { currentUser, customers, showToast } = useAppContext();
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isAdmin = currentUser.role === 'SUPER_ADMIN';
   const [st, setSt] = useState<WhState | null>(null);
   const [tab, setTab] = useState<Tab>('stock');
   const [err, setErr] = useState('');

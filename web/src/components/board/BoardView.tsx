@@ -25,7 +25,7 @@ export const BoardView: React.FC = () => {
   const [banner, setBanner] = useState(false);
   const [bannerDays, setBannerDays] = useState(3);
   const [eventDate, setEventDate] = useState<string | undefined>(undefined);
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isAdmin = currentUser.role === 'SUPER_ADMIN';
 
   const load = useCallback(() => {
     api

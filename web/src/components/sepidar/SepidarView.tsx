@@ -74,7 +74,7 @@ export const SepidarView: React.FC = () => {
   const [pair, setPair] = useState<{ code: string; expiresAt: string } | null>(null);
   const [invSort, setInvSort] = useState<'dateDesc' | 'dateAsc' | 'numDesc' | 'numAsc' | 'amountDesc' | 'amountAsc'>('dateDesc');
   const { currentUser } = useAppContext();
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const isAdmin = currentUser.role === 'SUPER_ADMIN';
   // the connection tools (pairing code, version, tool files, tool log, refresh) belong to the top admin and the CEO only
   const isTop = currentUser.role === 'SUPER_ADMIN' || !!currentUser.canSignOfficialLetters;
 

@@ -244,7 +244,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 }) => {
   const { fonts, settings, setSettings, setStaffList, setCurrentUser, showToast, transfers } = useAppContext();
   // whoever may write letters defines the organisation's letter layout and ready-made texts, like an admin
-  const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN' || !!currentUser.canSendOfficialLetters || !!currentUser.canSignOfficialLetters;
+  const isAdmin = currentUser.role === 'SUPER_ADMIN' || !!currentUser.canSendOfficialLetters || !!currentUser.canSignOfficialLetters;
   const orgTpl = settings.letterTemplate;
   const defaultFont = fonts.find((f) => f.id === settings.defaultLetterFontId) || fonts[0] || { fontFamily: 'Vazirmatn', name: 'وزیرمتن' };
   // The user's saved letter settings (restored every time the editor opens).

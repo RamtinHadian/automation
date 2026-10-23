@@ -252,7 +252,7 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	}
 	if exists && stage == "WON" && jsonx.Str(before, "stage") != "WON" {
 		// Good news goes to the admins.
-		rows, err := store.Pool.Query(r.Context(), `SELECT id FROM users WHERE data->>'role' IN ('SUPER_ADMIN','DEPT_ADMIN')`)
+		rows, err := store.Pool.Query(r.Context(), `SELECT id FROM users WHERE data->>'role' IN ('SUPER_ADMIN')`)
 		if err == nil {
 			var admins []string
 			for rows.Next() {

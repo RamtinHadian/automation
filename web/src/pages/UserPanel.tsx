@@ -218,7 +218,7 @@ export default function UserPanel() {
   const hid = (menu: string) => adminMenuHidden(currentUser, menu); // a menu the permission table switched off for this administrator
   const canAccessLettersMenu = (canSendOfficial || canSignOfficial) && !hid('letters');
   const canAccessTasksMenu = Boolean(
-    (currentUser.canUseTasks === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && !hid('tasks')
+    (currentUser.canUseTasks === true || currentUser.role === 'SUPER_ADMIN') && !hid('tasks')
   );
 
   // Ensure user cannot stay on letters tab if permission is revoked
@@ -372,10 +372,10 @@ export default function UserPanel() {
       }, 350);
     } else setMainMenuTab('files');
   };
-  const canAccessCrmMenu = Boolean((currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && !hid('crm'));
+  const canAccessCrmMenu = Boolean((currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN') && !hid('crm'));
   // the warranty menu: admins, people with the warranty switch, and everybody who works with customers
   const sepidarOn = useSepidarConnected(); // «سپیدار دارم / ندارم» of the console: without Sepidar there are no Sepidar menus
-  const canAccessSepidarMenu = Boolean(sepidarOn && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN' || (currentUser.sepidarPerms || []).length > 0) && !hid('sepidar'));
+  const canAccessSepidarMenu = Boolean(sepidarOn && (currentUser.role === 'SUPER_ADMIN' || (currentUser.sepidarPerms || []).length > 0) && !hid('sepidar'));
   useEffect(() => {
     if (!canAccessSepidarMenu && mainMenuTab === 'sepidar') setMainMenuTab('files');
   }, [canAccessSepidarMenu, mainMenuTab]);
@@ -387,7 +387,7 @@ export default function UserPanel() {
       if (first) setFilesSection(first);
     }
   }, [currentUser, filesSection]);
-  const canAccessWarehouseMenu = Boolean((currentUser.canUseWarehouse === true || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && !hid('warehouse'));
+  const canAccessWarehouseMenu = Boolean((currentUser.canUseWarehouse === true || currentUser.role === 'SUPER_ADMIN') && !hid('warehouse'));
   useEffect(() => {
     if (!canAccessWarehouseMenu && mainMenuTab === 'warehouse') setMainMenuTab('files');
   }, [canAccessWarehouseMenu, mainMenuTab]);
@@ -861,7 +861,7 @@ export default function UserPanel() {
               <span className="hidden sm:inline">رنگبندی</span>
             </button>
 
-            {(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && (
+            {(currentUser.role === 'SUPER_ADMIN') && (
               <button
                 onClick={() => { window.location.href = '/admin'; }}
                 className="flex items-center gap-1.5 w-9 h-9 sm:w-auto sm:h-auto justify-center sm:px-3 sm:py-2 bg-[#6E1B1B] hover:bg-[#D34A32] text-white rounded-2xl text-xs font-bold shadow-xs transition-all cursor-pointer"
@@ -2378,7 +2378,7 @@ export default function UserPanel() {
             </div>
 
             {/* Admin Console Link (if authorized) */}
-            {(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN') && (
+            {(currentUser.role === 'SUPER_ADMIN') && (
               <button
                 type="button"
                 onClick={() => { setShowMobileMenu(false); window.location.href = '/admin'; }}

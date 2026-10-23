@@ -1105,7 +1105,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const handleAdminDeleteTransfer = useCallback(
     (id: string) => {
       const target = transfers.find((t) => t.id === id);
-      if (!target || !(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN')) return;
+      if (!target || !(currentUser.role === 'SUPER_ADMIN')) return;
       if (target.isOfficialLetter && target.signatureStatus === 'SIGNED') {
         showToast('نامهٔ رسمی امضاشده قابل حذف نیست.');
         return;

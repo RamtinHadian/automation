@@ -164,7 +164,7 @@ export const MENUS: MenuDef[] = [
   },
 ];
 
-export const isAdminUser = (u: Pick<User, 'role'>) => u.role === 'SUPER_ADMIN' || u.role === 'DEPT_ADMIN';
+export const isAdminUser = (u: Pick<User, 'role'>) => u.role === 'SUPER_ADMIN';
 
 export const hasPerm = (u: User, p: PermDef): boolean => {
   if (p.kind === 'flag') return u[p.key] === true;
