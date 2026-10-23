@@ -928,6 +928,8 @@ class Session {
         const rule = '-p tcp -s ' + appHost + ' --dport 5038 -j ACCEPT';
         const r = await this.run('iptables -C INPUT ' + rule + ' 2>/dev/null && echo exists || (iptables -I INPUT 1 ' + rule + ' && echo added); (service iptables save 2>/dev/null || iptables-save > /etc/sysconfig/iptables 2>/dev/null) >/dev/null; echo done', { root: true });
         this.log('اگر در بخش Firewall ایزابل قواعد را دستی می‌چینید، همین قاعده را آنجا هم اضافه کنید: TCP پورت 5038 از ' + appHost + '.', 'gray');
+        // listen for three minutes for the address that really reaches port 5038 (a router between two networks may change it): used if the program cannot connect
+        await this.run("command -v tcpdump >/dev/null && (nohup timeout 180 tcpdump -nn -l -i any 'tcp dst port 5038 and tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0' -c 8 > /tmp/hoormand-seen.txt 2>&1 &) ; echo listening", { root: true, quiet: true });
         return { ok: /exists|added/.test(r.out), note: /exists/.test(r.out) ? 'قاعده از قبل بود.' : 'پورت ۵۰۳۸ فقط برای ' + appHost + ' باز شد.' };
       },
       rec: async () => {
@@ -976,13 +978,51 @@ class Session {
         this.dir = dir;
         // find the address of the phone system that THIS server can really reach, before anything is written into .env
         const tryHosts = [...new Set([pbxHost, ...pbxCands])];
-        let okHost = '';
-        for (const h of tryHosts) {
-          const t = await this.run('timeout 6 bash -c "echo > /dev/tcp/' + h + '/5038" && echo reach-ok || echo reach-fail', { quiet: true });
-          this.log('آزمایش اتصال سرور برنامه به ' + h + ':5038 ← ' + (/reach-ok/.test(t.out) ? 'می‌رسد' : 'نمی‌رسد'), /reach-ok/.test(t.out) ? 'gray' : 'yellow');
-          if (/reach-ok/.test(t.out)) { okHost = h; break; }
+        const testHosts = async () => {
+          for (const h of tryHosts) {
+            const t = await this.run('timeout 6 bash -c "echo > /dev/tcp/' + h + '/5038" && echo reach-ok || echo reach-fail', { quiet: true });
+            this.log('آزمایش اتصال سرور برنامه به ' + h + ':5038 ← ' + (/reach-ok/.test(t.out) ? 'می‌رسد' : 'نمی‌رسد'), /reach-ok/.test(t.out) ? 'gray' : 'yellow');
+            if (/reach-ok/.test(t.out)) return h;
+          }
+          return '';
+        };
+        let okHost = await testHosts();
+        if (!okHost) {
+          // what does the network between the two machines do? (route, ping, the first hops)
+          const H = tryHosts[0];
+          this.log('\n— بررسی مسیر شبکه از سرور برنامه تا ایزابل —', 'yellow');
+          await this.run('echo "[مسیر]"; ip route get ' + H + ' 2>&1 | head -2; echo "[پینگ]"; ping -c2 -W2 ' + H + ' 2>&1 | tail -3; echo "[گام‌به‌گام]"; (command -v traceroute >/dev/null && traceroute -n -m 5 -w 1 ' + H + ' 2>&1 | head -7) || (command -v tracepath >/dev/null && tracepath -n -m 5 ' + H + ' 2>&1 | head -7) || echo "traceroute نصب نیست"; echo "[تلاش مستقیم به پورت]"; timeout 5 bash -c "echo > /dev/tcp/' + H + '/5038" 2>&1 | head -2', { quiet: false });
+          // back to the phone system: which address knocked on port 5038?
+          try { this.conn && this.conn.end(); } catch {}
+          this.conn = null;
+          try { await this.connect(pbxLogin); } catch (e) { return { ok: false, note: 'برگشتن به ایزابل برای بررسی نشد: ' + e.message }; }
+          const seen = (await this.run('cat /tmp/hoormand-seen.txt 2>/dev/null | head -8', { quiet: true })).out;
+          const seenIps = [...new Set([...seen.matchAll(/IP (\d+\.\d+\.\d+\.\d+)\.\d+ > /g)].map((m) => m[1]))];
+          this.log('بسته‌هایی که به پورت ۵۰۳۸ ایزابل رسید، از: ' + (seenIps.length ? seenIps.join('، ') : 'هیچ آدرسی (چیزی نرسید)'), seenIps.length ? 'gray' : 'yellow');
+          const extra = seenIps.filter((x) => x !== appHost);
+          if (extra.length) {
+            // the program arrives under another address (the router changes it): allow that address too
+            this.log('سرور برنامه با آدرس ' + extra.join('، ') + ' به ایزابل می‌رسد (نه ' + appHost + ')؛ همین آدرس هم اجازه داده می‌شود.', 'yellow');
+            for (const ip of extra) {
+              await this.run("f=/etc/asterisk/manager_custom.conf; grep -q 'permit = " + ip + "/' $f || sed -i '/^\\[" + user + "\\]/,/^\\[/ s|^permit = .*|&\\npermit = " + ip + "/255.255.255.255|' $f; asterisk -rx 'manager reload' >/dev/null; iptables -C INPUT -p tcp -s " + ip + " --dport 5038 -j ACCEPT 2>/dev/null || iptables -I INPUT 1 -p tcp -s " + ip + " --dport 5038 -j ACCEPT; (service iptables save 2>/dev/null || iptables-save > /etc/sysconfig/iptables 2>/dev/null) >/dev/null; echo ok", { root: true, quiet: true });
+            }
+            try { this.conn && this.conn.end(); } catch {}
+            this.conn = null;
+            try { await this.connect({ host: app.host, port: app.port || 22, username: app.user, password: app.password }); } catch (e) { return { ok: false, note: 'دوباره به سرور برنامه وصل نشدم: ' + e.message }; }
+            okHost = await testHosts();
+          } else if (!seenIps.length) {
+            const fwl = (await this.run('iptables -L INPUT -n --line-numbers 2>/dev/null | head -12', { root: true, quiet: true })).out;
+            if (fwl.trim()) this.log('قواعد فایروال ایزابل:\n' + fwl, 'gray');
+            try { this.conn && this.conn.end(); } catch {}
+            this.conn = null;
+            return { ok: false, note: 'هیچ بسته‌ای از سرور برنامه (' + appHost + ') به پورت ۵۰۳۸ ایزابل (' + tryHosts[0] + ') نرسید؛ یعنی مشکل در مسیر میان دو شبکه است، نه در ایزابل. سرور برنامه و ایزابل در دو شبکهٔ جدا هستند: در روتر یا فایروال شبکه (مثلاً میکروتیک) باید TCP پورت 5038 از ' + appHost + ' به ' + tryHosts[0] + ' مجاز باشد (قاعدهٔ forward، پیش از قواعد drop). بعد از آن دوباره اجرا کنید. خروجی بخش «بررسی مسیر شبکه» را هم بفرستید.' };
+          } else {
+            try { this.conn && this.conn.end(); } catch {}
+            this.conn = null;
+            return { ok: false, note: 'بسته‌ها از ' + appHost + ' به ایزابل می‌رسد ولی اتصال برقرار نمی‌شود؛ احتمالاً AMI روی ایزابل فقط روی 127.0.0.1 گوش می‌دهد (در manager.conf مقدار bindaddr باید 0.0.0.0 باشد) یا دسترسی کاربر AMI رد می‌شود. خطوط بالا را بفرستید.' };
+          }
         }
-        if (!okHost) return { ok: false, note: 'سرور برنامه به ایزابل (' + tryHosts.join('، ') + ') پورت ۵۰۳۸ نمی‌رسد؛ چیزی در .env نوشته نشد. علت‌های محتمل: AMI فقط روی خود ایزابل گوش می‌دهد (در manager.conf مقدار bindaddr باید 0.0.0.0 باشد)، فایروال ایزابل، یا مسیر شبکه. خطوط زرد بالا را بفرستید.' };
+        if (!okHost) return { ok: false, note: 'سرور برنامه به ایزابل (' + tryHosts.join('، ') + ') پورت ۵۰۳۸ نمی‌رسد؛ چیزی در .env نوشته نشد. خطوط زرد بالا را بفرستید.' };
         pbxHost = okHost;
         const lines = { AMI_HOST: pbxHost, AMI_PORT: '5038', AMI_USER: user, AMI_SECRET: secret, VOIP_RECORDING_KEY: recKey };
         const upd = Object.entries(lines).map(([k, v]) => 'grep -q "^' + k + '=" .env && sed -i "s|^' + k + '=.*|' + k + '=' + v + '|" .env || echo "' + k + '=' + v + '" >> .env').join('; ');
