@@ -107,7 +107,7 @@ func state(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// a salesperson gets only their own customers, the opportunities they work on and the history of those customers
 			// (a unit manager also gets those of the people of the unit)
-			managed := managedStaff(ctx, id)
+			managed := crmPeople(ctx, me)
 			if customers, err = store.RawList(ctx, `SELECT data FROM crm_customers WHERE id IN `+crmMyCustomerIDs+` ORDER BY (data->>'name')`, id, managed); fail(err) {
 				return
 			}

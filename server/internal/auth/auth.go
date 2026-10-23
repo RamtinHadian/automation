@@ -35,7 +35,17 @@ func (u User) CanViewStats() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canVi
 // CanSendSms: the admin gave this person the right to send SMS to customers (admins always have it).
 func (u User) CanSendSms() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canSendSms") }
 // SeesTeamCrm: sees every customer, opportunity and follow-up (administrators always do; others only when an administrator ticked «مشتریان همکاران» for them).
-func (u User) SeesTeamCrm() bool { return u.IsAdmin() || jsonx.Bool(u.M, "canSeeTeamCrm") }
+func (u User) SeesTeamCrm() bool {
+	return u.IsAdmin() || (jsonx.Bool(u.M, "canSeeTeamCrm") && len(jsonx.Strings(u.M, "crmTeamIds")) == 0)
+}
+
+// TeamCrmIDs: when «مشتریان همکاران» was ticked for a person together with a list of colleagues, only those colleagues' customers are added to their own.
+func (u User) TeamCrmIDs() []string {
+	if !jsonx.Bool(u.M, "canSeeTeamCrm") {
+		return nil
+	}
+	return jsonx.Strings(u.M, "crmTeamIds")
+}
 func (u User) CanUseCrm() bool   { return u.IsAdmin() || jsonx.Bool(u.M, "canUseCrm") }
 
 // FromRow builds the public user document from a users row.

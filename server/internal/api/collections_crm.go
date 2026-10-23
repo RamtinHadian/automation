@@ -132,7 +132,7 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		return
 	}
 	before := jsonx.Decode(raw)
-	if exists && !crmGate(r, me) && oldOwner != me.ID() && !jsonx.Contains(jsonx.Strings(before, "coOwnerIds"), me.ID()) && !isManagerOf(managedStaff(r.Context(), me.ID()), oldOwner) {
+	if exists && !crmGate(r, me) && oldOwner != me.ID() && !jsonx.Contains(jsonx.Strings(before, "coOwnerIds"), me.ID()) && !isManagerOf(crmPeople(r.Context(), me), oldOwner) {
 		httpx.Error(w, http.StatusForbidden, "این فرصت فروش به شما سپرده نشده است.")
 		return
 	}

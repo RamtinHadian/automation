@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import { Check, Lock, Search, ShieldCheck } from 'lucide-react';
 import { Department, User } from '../../types';
 import { COLUMNS, Column, MENUS, adminHideId, colOn, colPatch, colPatchMany, isAdminUser } from '../../lib/permissions';
@@ -13,6 +14,20 @@ const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'مدیر ارشد', D
  * One row per employee; the columns are every menu of the application, each followed by its sub-menus (lib/permissions.ts).
  * A tick gives the right and is saved at once. A sub-menu is open by default and a person sees it only when the menu itself is open for them.
  */
+/** Next to the «مشتریان همکاران» tick: which colleagues' customers this person works with (nobody picked = every colleague). */
+const TeamCrmPick: React.FC<{ u: User; users: User[]; onUpdateUser: (id: string, patch: Partial<User>) => void }> = ({ u, users, onUpdateUser }) => (
+  <div className="mt-1" data-team-crm-pick>
+    <PersonPickerMulti
+      title={`مشتریان کدام همکاران برای ${u.fullName}؟`}
+      placeholder="مشتریان: همهٔ همکاران (برای محدود کردن انتخاب کنید)"
+      items={staffItems(users.filter((x) => x.isActive !== false && x.id !== u.id))}
+      values={(u.crmTeamIds || []).filter((id) => users.some((x) => x.id === id))}
+      onChange={(ids) => onUpdateUser(u.id, { crmTeamIds: ids })}
+      className="!min-h-[30px] !py-1 !text-[10px]"
+    />
+  </div>
+);
+
 export const PermissionMatrix: React.FC<{ users: User[]; departments: Department[]; onUpdateUser: (id: string, updates: Partial<User>) => void }> = ({ users, departments, onUpdateUser }) => {
   const { showToast } = useAppContext();
   const [q, setQ] = useState('');
@@ -148,6 +163,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                   <td className="bg-white border-l border-[#EBDBCE] py-2 px-3">
                     <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
                     <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</span>
+                    {!admin && u.canSeeTeamCrm && <TeamCrmPick u={u} users={users} onUpdateUser={onUpdateUser} />}
                   </td>
                   {COLUMNS.map((c) => {
                     const tone = toneOf(c.menuId);
@@ -222,6 +238,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                   </span>
                 )}
               </div>
+              {!admin && u.canSeeTeamCrm && <TeamCrmPick u={u} users={users} onUpdateUser={onUpdateUser} />}
               {!admin &&
                 menuCols.map(({ m, cols }) => (
                   <div key={m.id} className="space-y-1.5">

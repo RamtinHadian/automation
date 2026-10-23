@@ -38,6 +38,8 @@ export interface User {
   canUseWarehouse?: boolean;
   /** Sees every customer, opportunity and follow-up of the team (otherwise only their own). Administrators always do. */
   canSeeTeamCrm?: boolean;
+  /** with «مشتریان همکاران»: only the customers of these colleagues are added to the person's own (empty = every colleague) */
+  crmTeamIds?: string[];
   /** sees a pop-up for every incoming call of the company, not only the calls of the own extension */
   canSeeAllCalls?: boolean;
   /** what the person may ask of the accounting program (Sepidar): view, customer, quotation, invoice, receipt */

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -35,6 +36,28 @@ func crmOwnsCustomer(r *http.Request, me auth.User, customerID string) bool {
 		return true
 	}
 	var ok bool
-	_ = store.Pool.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM `+crmMyCustomerIDs+` m WHERE m.id = $3)`, me.ID(), managedStaff(r.Context(), me.ID()), customerID).Scan(&ok)
+	_ = store.Pool.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM `+crmMyCustomerIDs+` m WHERE m.id = $3)`, me.ID(), crmPeople(r.Context(), me), customerID).Scan(&ok)
 	return ok
+}
+
+// crmPeople: the people whose customers this person works with besides their own: the people of the units they manage, and the colleagues an
+// administrator picked for them next to «مشتریان همکاران» (inactive ones are left out).
+func crmPeople(ctx context.Context, me auth.User) []string {
+	out := managedStaff(ctx, me.ID())
+	picked := me.TeamCrmIDs()
+	if len(picked) == 0 {
+		return out
+	}
+	rows, err := store.Pool.Query(ctx, `SELECT id FROM users WHERE id = ANY($1::text[]) AND COALESCE(data->>'isActive', 'true') <> 'false'`, picked)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil && id != me.ID() {
+			out = append(out, id)
+		}
+	}
+	return out
 }
