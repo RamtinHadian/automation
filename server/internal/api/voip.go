@@ -338,6 +338,10 @@ func voipCallCustomer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	me := auth.Current(r)
+	if jsonx.Contains(jsonx.Strings(me.M, "hiddenSub"), "crm.agentCall") { // the permission table switched this call right off for him
+		httpx.Error(w, http.StatusForbidden, "مجوز تماس با مشتری برای شما برداشته شده است.")
+		return
+	}
 	cid := jsonx.Str(body, "customerId")
 	var raw []byte
 	if err := store.Pool.QueryRow(r.Context(), `SELECT data FROM crm_customers WHERE id = $1`, cid).Scan(&raw); err != nil {

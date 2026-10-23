@@ -398,7 +398,7 @@ export const CrmView: React.FC = () => {
           <span className="truncate" dir="ltr">
             {c.hiddenContact ? 'شماره مخفی' : c.phones[0] ? toPersianDigits(c.phones[0]) : '—'}
           </span>
-          {c.hiddenContact && (
+          {c.hiddenContact && canSub(currentUser, 'crm.agentCall') && (
             <button
               type="button"
               onClick={(e) => {
