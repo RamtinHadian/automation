@@ -35,7 +35,7 @@ export const SupportView: React.FC = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [q, setQ] = useState('');
   const [ticketFilter, setTicketFilter] = useState<'OPEN' | 'LATE' | 'DONE' | 'ALL'>('OPEN');
-  const [subFilter, setSubFilter] = useState<'ALL' | 'ACTIVE' | 'SOON' | 'EXPIRED' | 'CANCELLED'>('ALL');
+  const [subFilter, setSubFilter] = useState<'ALL' | 'ACTIVE' | 'SOON' | 'EXPIRED' | 'CANCELLED' | 'ARCHIVE'>('ALL');
   const [, setTick] = useState(0);
   const load = useCallback(() => {
     api
@@ -126,7 +126,13 @@ export const SupportView: React.FC = () => {
   }, [tickets, q, ticketFilter]);
   const shownSubs = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return subs.filter((s) => (subFilter === 'ALL' || subState(s, today) === subFilter) && (!t || `${s.subNo} ${s.customerName} ${s.planName}`.toLowerCase().includes(t)));
+    // archive: cancelled or finished subscriptions of a customer who has no running subscription (did not renew); they leave the main list
+    const running = new Set(subs.filter((s) => ['ACTIVE', 'SOON'].includes(subState(s, today))).map((s) => s.customerId));
+    const archived = (s: SupportSub) => ['EXPIRED', 'CANCELLED'].includes(subState(s, today)) && !running.has(s.customerId);
+    return subs.filter((s) => {
+      const ok = subFilter === 'ARCHIVE' ? archived(s) : subFilter === 'ALL' ? !archived(s) || !!t : subState(s, today) === subFilter;
+      return ok && (!t || `${s.subNo} ${s.customerName} ${s.planName}`.toLowerCase().includes(t));
+    });
   }, [subs, q, subFilter, today]);
 
   const doCancel = async () => {
@@ -313,7 +319,7 @@ export const SupportView: React.FC = () => {
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2 items-center">
             {searchBox('جستجوی مشتری، پلن یا شمارهٔ اشتراک…')}
-            {pills(subFilter, setSubFilter, [['ALL', 'همه'], ['ACTIVE', 'فعال'], ['SOON', 'نزدیک به پایان'], ['EXPIRED', 'پایان‌یافته'], ['CANCELLED', 'لغوشده']] as const)}
+            {pills(subFilter, setSubFilter, [['ALL', 'همه'], ['ACTIVE', 'فعال'], ['SOON', 'نزدیک به پایان'], ['EXPIRED', 'پایان‌یافته'], ['CANCELLED', 'لغوشده'], ['ARCHIVE', 'بایگانی']] as const)}
           </div>
           {shownSubs.length === 0 ? empty(subs.length === 0 ? 'هنوز اشتراکی ثبت نشده است. با «اشتراک تازه» شروع کنید.' : 'اشتراکی با این جستجو پیدا نشد.') : <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{shownSubs.map(subCard)}</div>}
         </div>
