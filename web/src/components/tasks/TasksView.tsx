@@ -27,6 +27,7 @@ import { Task, TaskPriority, TaskStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { matchesAll } from '../../lib/searchAll';
 import { SubTabs } from '../common/SubTabs';
+import { CalendarButton } from '../common/JalaliCalendar';
 import {
   JALALI_MONTHS,
   formatTaskDate,
@@ -100,6 +101,7 @@ export const JalaliDateField: React.FC<{ value?: string; onChange: (iso: string 
           <option key={y} value={y}>{toPersianDigits(y)}</option>
         ))}
       </select>
+      <CalendarButton value={value} onPick={(iso) => onChange(iso)} disabled={disabled} />
       {parts && !disabled && (
         <button type="button" onClick={() => onChange(undefined)} className="basis-full sm:basis-auto text-right text-[11px] font-bold text-rose-600 hover:underline cursor-pointer">
           حذف تاریخ

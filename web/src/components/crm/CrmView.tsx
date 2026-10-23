@@ -407,6 +407,7 @@ export const CrmView: React.FC = () => {
           </span>
           <span>{open > 0 ? `${toman(open)} ${unitName()} در جریان` : last ? `آخرین تعامل: ${formatTaskDate(last.slice(0, 10))}` : ''}</span>
         </div>
+        {c.createdAt && <div className="text-[10px] font-medium text-[#8C6F66]/80" data-customer-since>مشتری از {formatTaskDate(c.createdAt.slice(0, 10))}</div>}
       </div>
     );
   };
