@@ -206,7 +206,8 @@ export function generateOfficialLetterHtml(
   const noteX = clampPx(footerNoteOffsetX, 0, designW - 2 * padXpx - 170);
   const noteY = clampPx(footerNoteOffsetY, -footH, 60);
   const addrX = clampPx(lh?.offsetX || 0, -padXpx, padXpx);
-  const addrY = clampPx(lh?.offsetY || 0, -footH, 60);
+  // in the editor the address line stands ~48px above the note line (the print puts them nearly together): the same starting point here, kept inside the page
+  const addrY = clampPx((lh?.offsetY || 0) - 48, -footH, 6);
 
   // the logo / company name of the letterhead: drawn in the head of EVERY page (the first page keeps it where it always was: the copy in the header is only a hidden placeholder)
   const orgBoxHtml = `
@@ -288,7 +289,7 @@ export function generateOfficialLetterHtml(
     .wm, .lh-img { top: 0; bottom: 0; }
     .wm { z-index: 5; background-repeat: repeat; }
     .lh-img { z-index: 0; background-size: 100% 100%; background-repeat: no-repeat; background-position: center; }
-    @media screen { .pg-orig { display: none !important; } .pg-page { box-shadow: 0 4px 20px rgba(0,0,0,0.12); } }
+    @media screen { .framed .print-bar { display: none !important; } .pg-orig { display: none !important; } .pg-page { box-shadow: 0 4px 20px rgba(0,0,0,0.12); } }
     @media print { .pg-screen { display: none !important; } }
     .letter-container {
       position: relative;
@@ -612,6 +613,7 @@ export function generateOfficialLetterHtml(
     }
     box.parentNode.insertBefore(holder, box); box.classList.add('pg-orig');
   }
+  if (window.top !== window) document.body.classList.add('framed');
   window.__fitPrint = fit;
   window.addEventListener('load', function () { setTimeout(function () { fit(); paginate(); }, 450); });
   window.addEventListener('load', function () { fit(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit); setTimeout(fit, 300); });

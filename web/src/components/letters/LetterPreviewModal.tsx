@@ -1715,7 +1715,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           <div
             ref={sheetRef}
             style={{ fontFamily: bodyFontFamily || chosenFont.fontFamily, ...(letter.letterhead && !letter.letterhead.image ? { paddingTop: letterheadPad(letter.letterhead.id, paperWidth(pageSize)), paddingBottom: letterheadPad(letter.letterhead.id, paperWidth(pageSize)) - 2 } : {}), ...letterheadBackground(letter.letterhead) }}
-            className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 w-full text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-auto ${
+            className={`bg-white rounded-2xl shadow-2xl border border-[#C98B6A]/30 w-full shrink-0 text-[#3A241F] flex flex-col justify-between relative transition-all overflow-x-clip ${
               pageSize === 'A5'
                 ? `${scaled ? '' : 'max-w-[580px]'} min-h-[820px] ${scaled ? 'p-7' : 'p-4 sm:p-7'} text-xs`
                 : pageSize === 'Letter'
@@ -2237,7 +2237,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   : (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false))
             ) && (
               <div dir="rtl" className={`${pageSize === 'A5' ? 'mt-auto pt-2 text-[9px]' : 'mt-auto pt-3 text-[10px]'} text-[#8C6F66] flex items-center justify-between shrink-0`}>
-                <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={!isEditable || layoutFrozen} scale={zoom} className="p-1 -m-1 mr-auto relative z-20 whitespace-nowrap" data-footer-note>
+                <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={!isEditable || layoutFrozen} scale={zoom} className="p-1 -m-1 mr-auto relative z-20 whitespace-nowrap shrink-0 w-max overflow-visible" data-footer-note>
                 {isEditable ? (
                   <input
                     type="text"
