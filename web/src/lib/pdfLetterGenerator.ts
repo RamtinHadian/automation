@@ -288,6 +288,8 @@ export function generateOfficialLetterHtml(
     .wm, .lh-img { top: 0; bottom: 0; }
     .wm { z-index: 5; background-repeat: repeat; }
     .lh-img { z-index: 0; background-size: 100% 100%; background-repeat: no-repeat; background-position: center; }
+    @media screen { .pg-orig { display: none !important; } .pg-page { box-shadow: 0 4px 20px rgba(0,0,0,0.12); } }
+    @media print { .pg-screen { display: none !important; } }
     .letter-container {
       position: relative;
       width: ${designW}px;
@@ -591,7 +593,27 @@ export function generateOfficialLetterHtml(
     // the head and foot are drawn again on every further page, so the table needs that much less height than whole pages
     t.style.height = (head + foot + pages * room - 4) + 'px';
   }
+  // On screen the sheet is shown page by page, exactly as it prints: every page has its own letterhead, logo, address line and note (the print path keeps the single table)
+  function paginate() {
+    var t = document.querySelector('.pg'); var box = document.querySelector('.letter-container');
+    if (!t || !box || document.querySelector('.pg-screen')) return;
+    var head = t.tHead.offsetHeight, foot = t.tFoot.offsetHeight, room = PAGE - head - foot;
+    var cell = t.querySelector('.pg-cell'); var body = cell.offsetHeight;
+    var pages = Math.max(1, Math.ceil((body - 3) / room));
+    var holder = document.createElement('div'); holder.className = 'pg-screen';
+    for (var i = 0; i < pages; i++) {
+      var c = box.cloneNode(true); c.classList.add('pg-page'); c.style.margin = '0 auto 18px'; c.style.height = PAGE + 'px'; c.style.overflow = 'hidden';
+      var ct = c.querySelector('.pg'); ct.style.height = PAGE + 'px';
+      var cc = ct.querySelector('.pg-cell'); cc.style.height = room + 'px'; cc.style.position = 'relative'; cc.style.clipPath = i === 0 ? 'inset(-300px 0 0 0)' : 'inset(0)'; /* page 1: the header that was pulled up under the logo row must stay visible */
+      var inner = document.createElement('div'); inner.style.cssText = 'position:absolute;left:0;right:0;top:' + (-i * room) + 'px;';
+      while (cc.firstChild) inner.appendChild(cc.firstChild); cc.appendChild(inner);
+      var copies = ct.querySelector('.pg-copies'); if (copies && i < pages - 1) copies.style.display = 'none';
+      holder.appendChild(c);
+    }
+    box.parentNode.insertBefore(holder, box); box.classList.add('pg-orig');
+  }
   window.__fitPrint = fit;
+  window.addEventListener('load', function () { setTimeout(function () { fit(); paginate(); }, 450); });
   window.addEventListener('load', function () { fit(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit); setTimeout(fit, 300); });
   window.addEventListener('beforeprint', fit);
   if (window.matchMedia) { var mq = window.matchMedia('print'); if (mq.addEventListener) mq.addEventListener('change', function (e) { if (e.matches) fit(); }); }
