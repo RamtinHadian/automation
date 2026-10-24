@@ -2224,7 +2224,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   : (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false))
             ) && (
               <div dir="rtl" className={`${pageSize === 'A5' ? 'mt-auto pt-2 text-[9px]' : 'mt-auto pt-3 text-[10px]'} text-[#8C6F66] flex items-center justify-between shrink-0`}>
-                <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={!isEditable || layoutFrozen} scale={zoom} className="p-1 -m-1" data-footer-note>
+                <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={!isEditable || layoutFrozen} scale={zoom} className="p-1 -m-1 mr-auto" data-footer-note>
                 {isEditable ? (
                   <input
                     type="text"

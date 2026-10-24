@@ -203,10 +203,10 @@ export function generateOfficialLetterHtml(
   // the page: out there they would widen the document (the browser then shrinks the whole page to fit) or fall onto the next page. Kept in the foot's own area.
   const clampPx = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Number.isFinite(v) ? v : 0));
   const padXpx = parseInt(containerPadding, 10) || 40;
-  const noteX = clampPx(footerNoteOffsetX, -(designW - 2 * padXpx - 40), 0);
-  const noteY = clampPx(footerNoteOffsetY, -footH, 14);
+  const noteX = clampPx(footerNoteOffsetX, 0, designW - 2 * padXpx - 170);
+  const noteY = clampPx(footerNoteOffsetY, -footH, 0);
   const addrX = clampPx(lh?.offsetX || 0, -padXpx, padXpx);
-  const addrY = clampPx(lh?.offsetY || 0, -footH, 14);
+  const addrY = clampPx(lh?.offsetY || 0, -footH, 0); // never below the note line under it
 
   // the logo / company name of the letterhead: drawn in the head of EVERY page (the first page keeps it where it always was: the copy in the header is only a hidden placeholder)
   const orgBoxHtml = `
@@ -529,7 +529,7 @@ export function generateOfficialLetterHtml(
 
     ${showFooter ? `
     <div class="footer"${(lh && lhFooter) || copies.length ? ' style="margin-top: 0;"' : ''}>
-      <div style="transform: translate(${noteX}px, ${noteY}px);">${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
+      <div style="margin-right: auto; transform: translate(${noteX}px, ${noteY}px);">${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
     </div>
     ` : ''}
     </div>${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'bottom'), designW)}"></div>` : `<div style="height: ${padBottomPx}px;"></div>`}</td></tr></tfoot>
