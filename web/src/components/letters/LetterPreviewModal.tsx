@@ -2224,7 +2224,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             )}
 
             {letter.letterhead && letterheadFooterText(letter.letterhead) && (
-              <div className={`${letter.copyTo && letter.copyTo.length > 0 ? '' : 'mt-auto'} pt-2 text-center text-[10.5px] font-bold leading-6 px-2`} style={{ color: letterheadColor(letter.letterhead.id), transform: `translate(${letter.letterhead.offsetX || 0}px, ${Math.min(6, Math.max(-60, letter.letterhead.offsetY || 0))}px)` }}>
+              <div className={`${letter.copyTo && letter.copyTo.length > 0 ? '' : 'mt-auto'} pt-2 text-center text-[10.5px] font-bold leading-6 px-2`} style={{ color: letterheadColor(letter.letterhead.id), transform: `translate(${letter.letterhead.offsetX || 0}px, 0px)` }}>
                 {toPersianDigits(letterheadFooterText(letter.letterhead))}
               </div>
             )}
@@ -2236,7 +2236,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   ? letter.showFooterNote
                   : (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false))
             ) && (
-              <div dir="rtl" className={`${pageSize === 'A5' ? 'mt-auto pt-2 text-[9px]' : 'mt-auto pt-3 text-[10px]'} text-[#8C6F66] flex items-center justify-between shrink-0`}>
+              <div dir="rtl" className={`${letter.letterhead && letterheadFooterText(letter.letterhead) ? '' : 'mt-auto'} ${pageSize === 'A5' ? 'pt-2 text-[9px]' : 'pt-3 text-[10px]'} text-[#8C6F66] flex items-center justify-between shrink-0`}>
                 <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={!isEditable || layoutFrozen} scale={zoom} className="p-1 -m-1 mr-auto relative z-20 whitespace-nowrap shrink-0 w-max overflow-visible" data-footer-note>
                 {isEditable ? (
                   <input
