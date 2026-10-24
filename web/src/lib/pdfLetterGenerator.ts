@@ -427,8 +427,6 @@ export function generateOfficialLetterHtml(
       flex-direction: column;
       align-items: center;
       position: relative;
-      page-break-inside: avoid;
-      break-inside: avoid;
     }
     .ceo-name {
       font-family: '${signerFont}', 'B Titr', 'Vazirmatn', Tahoma, sans-serif !important;
