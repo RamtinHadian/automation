@@ -204,9 +204,9 @@ export function generateOfficialLetterHtml(
   const clampPx = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Number.isFinite(v) ? v : 0));
   const padXpx = parseInt(containerPadding, 10) || 40;
   const noteX = clampPx(footerNoteOffsetX, 0, designW - 2 * padXpx - 170);
-  const noteY = clampPx(footerNoteOffsetY, -footH, 0);
+  const noteY = clampPx(footerNoteOffsetY, -footH, 60);
   const addrX = clampPx(lh?.offsetX || 0, -padXpx, padXpx);
-  const addrY = clampPx(lh?.offsetY || 0, -footH, 0); // never below the note line under it
+  const addrY = clampPx(lh?.offsetY || 0, -footH, 60);
 
   // the logo / company name of the letterhead: drawn in the head of EVERY page (the first page keeps it where it always was: the copy in the header is only a hidden placeholder)
   const orgBoxHtml = `
@@ -406,16 +406,14 @@ export function generateOfficialLetterHtml(
       margin-bottom: 0;
     }
     .signature-section {
-      margin-top: ${isA5 ? '16px' : '32px'};
-      margin-bottom: ${isA5 ? '16px' : '24px'};
+      margin-top: ${isA5 ? '10px' : '16px'};
+      margin-bottom: ${isA5 ? '8px' : '8px'};
       padding-top: ${isA5 ? '4px' : '8px'};
-      min-height: ${isA5 ? '90px' : '140px'};
+      min-height: 0; /* the stamp and signature pictures hang over the page: only the name and the title take room, so the block stays exactly where the editor shows it */
       display: flex;
       justify-content: flex-end;
       align-items: flex-end;
       position: relative;
-      page-break-inside: avoid;
-      break-inside: avoid;
     }
     .ceo-signature-block {
       text-align: center;
