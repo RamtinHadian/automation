@@ -1052,8 +1052,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   // a letter of several pages opens page by page (with the letterhead, logo and foot of every page) unless the person went back to the editing view
   useEffect(() => {
     if (!isOpen) { pagedAuto.current = false; return; }
-    if (pageBreaks && pageBreaks.length > 0 && !pagedAuto.current) { pagedAuto.current = true; setPagedView(true); }
-  }, [isOpen, pageBreaks]);
+    if (pageBreaks && pageBreaks.length > 0 && !pagedAuto.current && actionTab !== 'SIGN') { pagedAuto.current = true; setPagedView(true); }
+  }, [isOpen, pageBreaks, actionTab]);
   makeHtmlRef.current = () => generateOfficialLetterHtml(letter, settings, currentUser, printOverrides());
   const handleDownloadCustomPdf = () => openAndDownloadPdfLetter(letter, settings, currentUser, printOverrides());
 
@@ -1073,7 +1073,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <span className="bg-[#563D34] text-[#F6D9CD] border border-[#C98B6A]/50 text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                   📄 قطع: {pageSize === 'A5' ? 'A5' : pageSize === 'Letter' ? 'Letter' : 'A4'}
                 </span>
-                <button type="button" onClick={() => setPagedView((v) => !v)} className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 border cursor-pointer ${pagedView ? 'bg-emerald-500/30 text-emerald-100 border-emerald-400/60' : 'bg-[#563D34] text-[#F6D9CD] border-[#C98B6A]/50'}`} data-paged-toggle title="نمایش نامه صفحه‌به‌صفحه مثل چاپ، با سربرگ و پای هر صفحه">{pagedView ? 'بازگشت به نمای ویرایش' : 'نمای صفحه‌ها'}</button>
+                <button type="button" onClick={() => { if (actionTab === 'SIGN') { setActionTab('NONE'); setPagedView(true); } else setPagedView((v) => !v); }} className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 border cursor-pointer ${pagedView ? 'bg-emerald-500/30 text-emerald-100 border-emerald-400/60' : 'bg-[#563D34] text-[#F6D9CD] border-[#C98B6A]/50'}`} data-paged-toggle title="نمایش نامه صفحه‌به‌صفحه مثل چاپ، با سربرگ و پای هر صفحه">{pagedView ? 'بازگشت به نمای ویرایش' : 'نمای صفحه‌ها'}</button>
                 {pageBreaks && (
                   <button
                     type="button"
@@ -1708,7 +1708,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         <div className={`flex-1 min-w-0 overflow-auto ${scaled ? 'p-2 block' : 'p-4 sm:p-8 flex justify-center'} bg-[#E5DCD2]/60`}>
           
           {/* Virtual Official Paper Sheet */}
-          {pagedView ? (
+          {pagedView && actionTab !== 'SIGN' ? (
             <iframe title="نمای صفحه‌ها" data-paged-view srcDoc={makeHtmlRef.current()} className="w-full h-full min-h-[70vh] bg-[#EFE8E1] rounded-xl border-0" />
           ) : (
           <ScaledPaper enabled={scaled} width={(({ A4: 720, A5: 580, Letter: 700, Letterhead: 740 } as Record<string, number>)[pageSize] ?? 720)} zoom={zoom}>
