@@ -2231,7 +2231,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
             {/* Document Footer (Clean official note) */}
             {(isEditable
-              ? (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false)
+              ? (letter.showFooterNote !== false && settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false)
               : (letter.showFooterNote !== undefined
                   ? letter.showFooterNote
                   : (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false))
