@@ -1319,14 +1319,14 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
 
             {/* The address and the phone of the chosen letterhead: dragged like every other part of the header */}
             {lhPaper && lh && letterheadFooterText(lh) && (
-              <MoveBox offset={{ x: lh.offsetX || 0, y: lh.offsetY || 0 }} onChange={(o) => setLh({ ...lh, offsetX: o.x, offsetY: o.y })} locked={layoutLocked} scale={zoom} className={`${copies.length ? '' : 'mt-auto'} pt-2 text-center text-[10.5px] font-bold leading-6 px-2`}>
+              <MoveBox offset={{ x: lh.offsetX || 0, y: 0 }} onChange={(o) => setLh({ ...lh, offsetX: o.x, offsetY: 0 })} locked={layoutLocked} scale={zoom} className={`${copies.length ? '' : 'mt-auto'} pt-2 text-center text-[10.5px] font-bold leading-6 px-2`}>
                 <span style={{ color: letterheadColor(lh.id) }}>{toPersianDigits(letterheadFooterText(lh))}</span>
               </MoveBox>
             )}
 
             {/* Official Letter Footer */}
             {(settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false) && (
-              <div dir="rtl" className="mt-auto pt-4 text-[10px] text-[#8C6F66] flex items-center justify-between shrink-0">
+              <div dir="rtl" className={`${lhPaper && lh && letterheadFooterText(lh) ? '' : 'mt-auto'} pt-4 text-[10px] text-[#8C6F66] flex items-center justify-between shrink-0`}>
                 <div>
                   تنظیم‌کننده: <b>{currentUser.fullName}</b> ({currentUser.departmentName}) • شماره: <span dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block' }} className="font-mono text-[#3A241F]">{letterNumber}</span>
                 </div>
