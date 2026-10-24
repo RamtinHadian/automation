@@ -556,6 +556,11 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const scaled = true;
   // a name block that was dragged up by the writer would sit on top of the text: when signing starts it goes back under the text (the signer can still move it)
   useEffect(() => {
+    if (!isOpen) return;
+    document.documentElement.classList.add('heavy-modal');
+    return () => document.documentElement.classList.remove('heavy-modal');
+  }, [isOpen]);
+  useEffect(() => {
     if (actionTab === 'SIGN' && signatureOffset.y < -12) setSignatureOffset((o) => ({ ...o, y: 0 }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actionTab]);
@@ -2218,7 +2223,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   ? letter.showFooterNote
                   : (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false))
             ) && (
-              <div className={`${pageSize === 'A5' ? 'mt-auto pt-2 text-[9px]' : 'mt-auto pt-3 text-[10px]'} text-[#8C6F66] flex items-center justify-between shrink-0`}>
+              <div dir="rtl" className={`${pageSize === 'A5' ? 'mt-auto pt-2 text-[9px]' : 'mt-auto pt-3 text-[10px]'} text-[#8C6F66] flex items-center justify-between shrink-0`}>
                 <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={!isEditable || layoutFrozen} scale={zoom} className="p-1 -m-1" data-footer-note>
                 {isEditable ? (
                   <input

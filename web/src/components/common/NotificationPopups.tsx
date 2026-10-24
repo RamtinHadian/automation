@@ -199,7 +199,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
       )}
 
       {!noLimit && <span
-        className={`absolute bottom-0 right-0 h-1 ${k.bar}`}
+        className={`absolute bottom-0 right-0 h-1 w-full origin-right ${k.bar}`}
         style={{ animation: `np-bar ${total.current}ms linear both`, animationPlayState: paused ? 'paused' : 'running' }}
       />}
     </div>
@@ -235,9 +235,9 @@ export const NotificationPopups: React.FC = () => {
     <>
       <style>{`
         @keyframes np-in { from { transform: translateY(130%) scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
-        @keyframes np-bar { from { width: 100% } to { width: 0 } }
+        @keyframes np-bar { from { transform: scaleX(1) } to { transform: scaleX(0) } }
       `}</style>
-      <div ref={host} className="fixed z-[2147483000] bottom-24 inset-x-3 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[380px] flex flex-col-reverse gap-2.5 pointer-events-none">
+      <div ref={host} data-keep-anim className="fixed z-[2147483000] bottom-24 inset-x-3 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[380px] flex flex-col-reverse gap-2.5 pointer-events-none">
         {hold && queue && (
           <button type="button" onClick={() => setHold(false)} className="pointer-events-auto self-end px-3.5 py-2 rounded-full bg-[#3A241F] text-white text-[11px] font-black shadow-lg cursor-pointer" data-popup-hold>
             {toPersianDigits(all.length)} اعلان در انتظار است — نمایش بعدی

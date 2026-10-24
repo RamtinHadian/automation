@@ -208,6 +208,18 @@ export function generateOfficialLetterHtml(
   const addrX = clampPx(lh?.offsetX || 0, -padXpx, padXpx);
   const addrY = clampPx(lh?.offsetY || 0, -footH, 14);
 
+  // the logo / company name of the letterhead: drawn in the head of EVERY page (the first page keeps it where it always was: the copy in the header is only a hidden placeholder)
+  const orgBoxHtml = `
+      <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);${orgScale > 1.2 ? ' max-width: 60%;' : ''}">
+        ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" style="transform: translate(${logoOffsetX}px, ${logoOffsetY}px);${logoSize ? ` width: ${logoSize}px; height: ${logoSize}px; max-width: none; flex-shrink: 0; object-fit: contain;` : ''}" />` : ''}
+        ${showOrgName ? `<div style="transform: translate(${orgTextOffsetX}px, ${orgTextOffsetY}px); min-width: 90px;">
+          ${companyName ? `<h1 class="org-title"${orgScale !== 1 ? ` style="font-size: ${((isA5 ? 13 : 15) * orgScale).toFixed(1)}px;"` : ''}>${companyName}</h1>` : ''}
+          ${companySubtitle ? `<div class="org-sub"${orgScale !== 1 ? ` style="font-size: ${((isA5 ? 9.5 : 10.5) * orgScale).toFixed(1)}px;"` : ''}>${companySubtitle}</div>` : ''}
+        </div>` : ''}
+      </div>
+  `;
+  const orgRowH = Math.max(isA5 ? 44 : 54, (logoSize || (isA5 ? 38 : 48)) + 6);
+
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -296,6 +308,7 @@ export function generateOfficialLetterHtml(
     .pg-copies { vertical-align: bottom; padding: 0; }
     .fx-foot { position: static; padding: 0 0 0 0; z-index: 2; }
     .header {
+      margin-top: -${orgRowH}px;
       border-bottom: none;
       padding-bottom: ${isA5 ? '5px' : '8px'};
       margin-bottom: ${isA5 ? '8px' : '12px'};
@@ -509,7 +522,7 @@ export function generateOfficialLetterHtml(
     ${!isSigned ? `<div class="wm" style="background-image: ${UNSIGNED_WATERMARK.replace(/"/g, "'")};"></div>` : ''}
     ${lh && lh.image ? `<div class="lh-img" style="background-image: url(${lh.image});"></div>` : ''}
     <table class="pg" cellspacing="0" cellpadding="0">
-      <thead><tr><td style="height: ${padTopPx}px; padding: 0; vertical-align: top;">${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'top'), designW)}"></div>` : ''}</td></tr></thead>
+      <thead><tr><td style="height: ${padTopPx + orgRowH}px; padding: 0; vertical-align: top;"><div style="height: ${padTopPx}px;">${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'top'), designW)}"></div>` : ''}</div><div style="position: relative; height: ${orgRowH}px;"><div style="position: absolute; top: 0; right: 0; max-width: 100%; width: 100%; display: flex;">${orgBoxHtml}</div></div></td></tr></thead>
       <tfoot><tr><td style="height: ${padBottomPx + footH}px; padding: 0; vertical-align: bottom;"><div class="fx-foot">
 
     ${lh && lhFooter ? `<div style="padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${addrX}px, ${addrY}px);">${toPersianDigits(lhFooter)}</div>` : ''}
@@ -522,13 +535,7 @@ export function generateOfficialLetterHtml(
     </div>${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'bottom'), designW)}"></div>` : `<div style="height: ${padBottomPx}px;"></div>`}</td></tr></tfoot>
       <tbody><tr><td class="pg-cell">
     <div class="header">
-      <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);${orgScale > 1.2 ? ' max-width: 60%;' : ''}">
-        ${companyLogo ? `<img src="${attr(companyLogo)}" class="org-logo" alt="لوگو" style="transform: translate(${logoOffsetX}px, ${logoOffsetY}px);${logoSize ? ` width: ${logoSize}px; height: ${logoSize}px; max-width: none; flex-shrink: 0; object-fit: contain;` : ''}" />` : ''}
-        ${showOrgName ? `<div style="transform: translate(${orgTextOffsetX}px, ${orgTextOffsetY}px); min-width: 90px;">
-          ${companyName ? `<h1 class="org-title"${orgScale !== 1 ? ` style="font-size: ${((isA5 ? 13 : 15) * orgScale).toFixed(1)}px;"` : ''}>${companyName}</h1>` : ''}
-          ${companySubtitle ? `<div class="org-sub"${orgScale !== 1 ? ` style="font-size: ${((isA5 ? 9.5 : 10.5) * orgScale).toFixed(1)}px;"` : ''}>${companySubtitle}</div>` : ''}
-        </div>` : ''}
-      </div>
+      <div class="org-ghost" style="visibility: hidden; max-width: 50%;">${orgBoxHtml}</div>
       <div class="letter-title">
         ${headerTitle ? `<span>${headerTitle}</span>` : ''}
       </div>

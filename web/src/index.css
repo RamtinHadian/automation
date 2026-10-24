@@ -462,3 +462,6 @@ html.night [data-error-popups] > div {
 [data-login-design='simple'] .login-card .login-btn,
 [data-login-design='elegant'] .login-card .login-btn { border-color: #6E1B1B !important; }
 [data-login-design] .login-card .login-btn:hover { background: #F6D9CD !important; }
+
+/* a full-screen editor is open: the page under it stops its animations (they repaint every frame and make the sheet scroll jerkily); the notification cards keep theirs */
+html.heavy-modal *:not([data-keep-anim]):not([data-keep-anim] *) { animation-play-state: paused !important; }

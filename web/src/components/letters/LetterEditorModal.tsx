@@ -296,6 +296,10 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   // On phones the paper is narrow, so the centre title flows above the header instead of overlapping the company name.
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
   useEffect(() => {
+    document.documentElement.classList.add('heavy-modal');
+    return () => document.documentElement.classList.remove('heavy-modal');
+  }, []);
+  useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
     const on = () => setIsMobile(mq.matches);
     mq.addEventListener('change', on);
@@ -1322,13 +1326,13 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
 
             {/* Official Letter Footer */}
             {(settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false) && (
-              <div className="mt-auto pt-4 text-[10px] text-[#8C6F66] flex items-center justify-between shrink-0">
-                <div>
-                  تنظیم‌کننده: <b>{currentUser.fullName}</b> ({currentUser.departmentName}) • شماره: <span dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block' }} className="font-mono text-[#3A241F]">{letterNumber}</span>
-                </div>
+              <div dir="rtl" className="mt-auto pt-4 text-[10px] text-[#8C6F66] flex items-center justify-between shrink-0">
                 <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={layoutLocked} scale={zoom} className="text-[#8C6F66] p-1 -m-1" data-footer-note>
                   {settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}
                 </MoveBox>
+                <div>
+                  تنظیم‌کننده: <b>{currentUser.fullName}</b> ({currentUser.departmentName}) • شماره: <span dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block' }} className="font-mono text-[#3A241F]">{letterNumber}</span>
+                </div>
               </div>
             )}
           </div>
