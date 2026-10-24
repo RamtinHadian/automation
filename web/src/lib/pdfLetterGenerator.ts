@@ -207,7 +207,7 @@ export function generateOfficialLetterHtml(
   const noteY = clampPx(footerNoteOffsetY, -footH, 60);
   const addrX = clampPx(lh?.offsetX || 0, -padXpx, padXpx);
   // in the editor the address line stands ~48px above the note line (the print puts them nearly together): the same starting point here, kept inside the page
-  const addrY = clampPx((lh?.offsetY || 0) - 48, -footH, 6);
+  const addrY = clampPx(lh?.offsetY || 0, -footH, 6);
 
   // the logo / company name of the letterhead: drawn in the head of EVERY page (the first page keeps it where it always was: the copy in the header is only a hidden placeholder)
   const orgBoxHtml = `
