@@ -1319,7 +1319,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
 
             {/* The address and the phone of the chosen letterhead: dragged like every other part of the header */}
             {lhPaper && lh && letterheadFooterText(lh) && (
-              <MoveBox offset={{ x: lh.offsetX || 0, y: 0 }} onChange={(o) => setLh({ ...lh, offsetX: o.x, offsetY: 0 })} locked={layoutLocked} scale={zoom} className={`${copies.length ? '' : 'mt-auto'} pt-2 text-center text-[10.5px] font-bold leading-6 px-2`}>
+              <MoveBox offset={{ x: 0, y: 0 }} onChange={() => {}} locked={true} scale={zoom} className={`${copies.length ? '' : 'mt-auto'} pt-2 text-center text-[10.5px] font-bold leading-6 px-2`}>
                 <span style={{ color: letterheadColor(lh.id) }}>{toPersianDigits(letterheadFooterText(lh))}</span>
               </MoveBox>
             )}
@@ -1330,7 +1330,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                 <div>
                   تنظیم‌کننده: <b>{currentUser.fullName}</b> ({currentUser.departmentName}) • شماره: <span dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block' }} className="font-mono text-[#3A241F]">{letterNumber}</span>
                 </div>
-                <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={layoutLocked} scale={zoom} className="text-[#8C6F66] p-1 -m-1 relative z-20 whitespace-nowrap shrink-0 w-max overflow-visible" data-footer-note>
+                <MoveBox offset={{ x: Math.min(Math.max(footerNoteOffset.x, 0), 470), y: Math.min(Math.max(footerNoteOffset.y, -60), 0) }} onChange={(o) => setFooterNoteOffset({ x: Math.min(Math.max(o.x, 0), 470), y: Math.min(Math.max(o.y, -60), 0) })} locked={layoutLocked} scale={zoom} className="text-[#8C6F66] p-1 -m-1 relative z-20 whitespace-nowrap shrink-0 w-max overflow-visible" data-footer-note>
                   {settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}
                 </MoveBox>
               </div>

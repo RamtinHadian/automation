@@ -204,8 +204,8 @@ export function generateOfficialLetterHtml(
   const clampPx = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Number.isFinite(v) ? v : 0));
   const padXpx = parseInt(containerPadding, 10) || 40;
   const noteX = clampPx(footerNoteOffsetX, 0, designW - 2 * padXpx - 170);
-  const noteY = clampPx(footerNoteOffsetY, -footH, 60);
-  const addrX = clampPx(lh?.offsetX || 0, -padXpx, padXpx);
+  const noteY = clampPx(footerNoteOffsetY, -60, 0);
+  const addrX = 0; // the address line is centred between the page margins in the editor, preview and print
   // in the editor the address line stands ~48px above the note line (the print puts them nearly together): the same starting point here, kept inside the page
   const addrY = 0 /* the address line always stands at the foot of the page, just above the note */;
 
