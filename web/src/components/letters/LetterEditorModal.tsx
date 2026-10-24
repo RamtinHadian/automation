@@ -109,6 +109,7 @@ interface LetterEditorModalProps {
     showLogo?: boolean;
     showOrgName?: boolean;
     showSubject?: boolean;
+    showFooterNote?: boolean;
     customFooterNote?: string;
     /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
     copyTo?: string[];
@@ -233,6 +234,7 @@ function parseLetterForEdit(t: FileTransfer) {
   if (t.showLogo === false) layout.showLogo = false;
   if (t.showOrgName === false) layout.showOrgName = false;
   if (t.showSubject === false) layout.showSubject = false;
+  if (t.showFooterNote === false) layout.showFooterNote = false;
   const subject = (t.fileName || '').replace(/^نامه_/, '').replace(/_(A4|A5|Letter|Letterhead)\.html$/, '').replace(/_/g, ' ');
   return { bodyHtml, layout, subject, signerName: t.customSignerName, signerTitle: t.customSignerTitle };
 }
@@ -344,6 +346,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   // the ready-made letterheads (shown for now only in the demo): the page at the right with 100 templates, and the choice itself
   const [lh, setLh] = useState<LetterheadChoice | null>(() => editTransfer?.letterhead ?? ((prefs.letterhead as LetterheadChoice | undefined) || null));
   const [showOrgName, setShowOrgName] = useState<boolean>(() => prefs.showOrgName !== false); // the name beside the logo, saved with the layout like the logo
+  const [showFooterNote, setShowFooterNote] = useState<boolean>(() => prefs.showFooterNote !== false); // the note «سامانه مکاتبات…» at the foot
   const [showSubject, setShowSubject] = useState<boolean>(() => prefs.showSubject !== false); // the subject line, saved with the layout too
   const [stampHeightOverride, setStampHeightOverride] = useState<number | null>(() => (typeof prefs.stampHeightOverride === 'number' ? prefs.stampHeightOverride : null));
   const effectiveStampHeight =
@@ -369,7 +372,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset, footerNoteOffset,
     orgOffset, bodyOffsetY, layoutLocked, letterhead: lh, logoSize, orgTextScale, logoOffset, orgTextOffset,
-    showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo, showOrgName, showSubject,
+    showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo, showOrgName, showSubject, showFooterNote,
     // the ticks of the header (number, date, attachment, logo, name) are part of the layout: what was saved is what the next letter starts with
     showLetterNumber: showNo, showLetterDate: showDate, showLetterAttachment: showAtt,
   });
@@ -434,6 +437,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setShowLogo(base.showLogo !== false);
     setShowOrgName(base.showOrgName !== false);
     setShowSubject(base.showSubject !== false);
+    setShowFooterNote(base.showFooterNote !== false);
     // null (not undefined) so that the server forgets the saved settings too
     setStaffList((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, letterPrefs: null as unknown as undefined } : u)));
     setCurrentUser((u) => (u.id === currentUser.id ? { ...u, letterPrefs: null as unknown as undefined } : u));
@@ -714,6 +718,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
       showLogo: showLogo ? undefined : false,
       showOrgName: showOrgName ? undefined : false,
       showSubject: showSubject ? undefined : false,
+      showFooterNote: showFooterNote ? undefined : false,
       customFooterNote: settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote,
       copyTo: copies.length ? copies : undefined,
       letterhead: lhPaper && lh ? lh : undefined,
@@ -1325,7 +1330,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
             )}
 
             {/* Official Letter Footer */}
-            {(settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false) && (
+            {(settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false) && showFooterNote && (
               <div dir="rtl" className={`${lhPaper && lh && letterheadFooterText(lh) ? '' : 'mt-auto'} pt-4 text-[10px] text-[#8C6F66] flex items-center justify-between shrink-0`}>
                 <div>
                   تنظیم‌کننده: <b>{currentUser.fullName}</b> ({currentUser.departmentName}) • شماره: <span dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block' }} className="font-mono text-[#3A241F]">{letterNumber}</span>
@@ -1644,6 +1649,10 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
               <label className="flex items-center gap-1 cursor-pointer" title="خط «موضوع نامه»؛ مثل لوگو با «ذخیرهٔ تنظیمات» یا ثبت قالب ذخیره می‌شود">
                 <input type="checkbox" checked={showSubject} onChange={(e) => setShowSubject(e.target.checked)} className="accent-amber-700" />
                 موضوع
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer" title="نوشتهٔ «سامانه مکاتبات و اسناد رسمی اداری» پایین نامه" data-tick-footer-note>
+                <input type="checkbox" checked={showFooterNote} onChange={(e) => setShowFooterNote(e.target.checked)} className="accent-amber-700" />
+                سامانه مکاتبات (پایین نامه)
               </label>
             </div>
 

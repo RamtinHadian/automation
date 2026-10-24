@@ -141,6 +141,7 @@ interface AppContextType {
     showLogo?: boolean;
     showOrgName?: boolean;
     showSubject?: boolean;
+    showFooterNote?: boolean;
     customFooterNote?: string;
     /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
     copyTo?: string[];
@@ -182,6 +183,7 @@ interface AppContextType {
       showLogo?: boolean;
       showOrgName?: boolean;
       showSubject?: boolean;
+      showFooterNote?: boolean;
       pageSize?: string;
       customBody?: string;
       customHeaderNumber?: string;
@@ -760,6 +762,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showLogo,
       showOrgName,
       showSubject,
+      showFooterNote,
       customFooterNote,
       copyTo,
       letterhead,
@@ -820,6 +823,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showLogo?: boolean;
       showOrgName?: boolean;
       showSubject?: boolean;
+      showFooterNote?: boolean;
       customFooterNote?: string;
       /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
       copyTo?: string[];
@@ -926,6 +930,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             showLogo,
             showOrgName,
             showSubject,
+            showFooterNote,
             customFooterNote,
             copyTo,
             letterhead,
@@ -1192,6 +1197,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showLogo?: boolean;
         showOrgName?: boolean;
         showSubject?: boolean;
+        showFooterNote?: boolean;
         pageSize?: string;
         customBody?: string;
         customHeaderNumber?: string;
@@ -1249,6 +1255,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               showLogo: signatureOptions?.showLogo ?? t.showLogo,
               showOrgName: signatureOptions?.showOrgName ?? t.showOrgName,
               showSubject: signatureOptions?.showSubject ?? t.showSubject,
+              showFooterNote: signatureOptions?.showFooterNote ?? t.showFooterNote,
               pageSize: signatureOptions?.pageSize || t.pageSize,
               letterContentHtml: convertNumbersInHtmlToPersian(signatureOptions?.customBody || t.letterContentHtml || ''),
               customHeaderNumber: signatureOptions?.customHeaderNumber || t.customHeaderNumber,

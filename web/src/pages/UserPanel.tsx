@@ -634,6 +634,7 @@ export default function UserPanel() {
     showLogo?: boolean;
     showOrgName?: boolean;
     showSubject?: boolean;
+    showFooterNote?: boolean;
     customFooterNote?: string;
     /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
     copyTo?: string[];
@@ -741,6 +742,7 @@ export default function UserPanel() {
       showLogo: letterData.showLogo,
       showOrgName: letterData.showOrgName,
       showSubject: letterData.showSubject,
+      showFooterNote: letterData.showFooterNote,
       customFooterNote: letterData.customFooterNote,
       copyTo: letterData.copyTo,
       letterhead: letterData.letterhead,
