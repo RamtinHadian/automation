@@ -1324,7 +1324,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
             {(settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false) && (
               <div className="mt-auto pt-4 text-[10px] text-[#8C6F66] flex items-center justify-between shrink-0">
                 <div>
-                  تنظیم‌کننده: <b>{currentUser.fullName}</b> ({currentUser.departmentName}) • شماره: <span className="font-mono text-[#3A241F]">{letterNumber}</span>
+                  تنظیم‌کننده: <b>{currentUser.fullName}</b> ({currentUser.departmentName}) • شماره: <span dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block' }} className="font-mono text-[#3A241F]">{letterNumber}</span>
                 </div>
                 <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={layoutLocked} scale={zoom} className="text-[#8C6F66] p-1 -m-1" data-footer-note>
                   {settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}

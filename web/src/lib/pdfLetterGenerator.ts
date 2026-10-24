@@ -245,7 +245,7 @@ export function generateOfficialLetterHtml(
         box-shadow: none !important;
         border-radius: 0 !important;
       }
-      .fx-foot, .wm, .lh-img { position: fixed !important; }
+      .wm, .lh-img { position: fixed !important; }
       .wm, .lh-img { left: 0 !important; right: 0 !important; }
       .wm, .lh-img { top: 0 !important; bottom: 0 !important; }
     }
@@ -285,7 +285,7 @@ export function generateOfficialLetterHtml(
     .pg-cell { vertical-align: top; padding: 0; height: 1px; }
     /* the copy-to list ends the letter: at the foot of the last page (the row takes what is left of the page) */
     .pg-copies { vertical-align: bottom; padding: 0; }
-    .fx-foot { position: absolute; left: ${containerPadding}; right: ${containerPadding}; bottom: ${padBottomPx}px; z-index: 2; }
+    .fx-foot { position: static; padding: 0 0 0 0; z-index: 2; }
     .header {
       border-bottom: none;
       padding-bottom: ${isA5 ? '5px' : '8px'};
@@ -501,7 +501,16 @@ export function generateOfficialLetterHtml(
     ${lh && lh.image ? `<div class="lh-img" style="background-image: url(${lh.image});"></div>` : ''}
     <table class="pg" cellspacing="0" cellpadding="0">
       <thead><tr><td style="height: ${padTopPx}px; padding: 0; vertical-align: top;">${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'top'), designW)}"></div>` : ''}</td></tr></thead>
-      <tfoot><tr><td style="height: ${padBottomPx + footH}px; padding: 0; vertical-align: bottom;">${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'bottom'), designW)}"></div>` : ''}</td></tr></tfoot>
+      <tfoot><tr><td style="height: ${padBottomPx + footH}px; padding: 0; vertical-align: bottom;"><div class="fx-foot">
+
+    ${lh && lhFooter ? `<div style="padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
+
+    ${showFooter ? `
+    <div class="footer"${(lh && lhFooter) || copies.length ? ' style="margin-top: 0;"' : ''}>
+      <div style="transform: translate(${footerNoteOffsetX}px, ${footerNoteOffsetY}px);">${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
+    </div>
+    ` : ''}
+    </div>${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'bottom'), designW)}"></div>` : `<div style="height: ${padBottomPx}px;"></div>`}</td></tr></tfoot>
       <tbody><tr><td class="pg-cell">
     <div class="header">
       <div class="org-box" style="transform: translate(${orgOffsetX}px, ${orgOffsetY}px);${orgScale > 1.2 ? ' max-width: 60%;' : ''}">
@@ -550,16 +559,6 @@ export function generateOfficialLetterHtml(
       ${copies.length ? `<tr><td class="pg-copies"><div style="padding-top: 12px; font-size: 11.5px; font-weight: 700; line-height: 1.9; color: #3A241F;"><div style="color: #6E1B1B;">رونوشت:</div>${copies.map((c) => `<div>${c.replace(/</g, '&lt;')}</div>`).join('')}</div></td></tr>` : ''}
       </tbody>
     </table>
-    <div class="fx-foot">
-
-    ${lh && lhFooter ? `<div style="padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
-
-    ${showFooter ? `
-    <div class="footer"${(lh && lhFooter) || copies.length ? ' style="margin-top: 0;"' : ''}>
-      <div style="transform: translate(${footerNoteOffsetX}px, ${footerNoteOffsetY}px);">${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
-    </div>
-    ` : ''}
-    </div>
   </div>
 <script>
 // The sheet is paged by the browser (the .pg table repeats its head and foot on every page). Its height is made a whole number of
