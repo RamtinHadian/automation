@@ -199,6 +199,14 @@ export function generateOfficialLetterHtml(
   const pageHdesign = Math.round((designW * (isA5 ? 209 : isLetter ? 278.4 : 296)) / pageWmm);
   // what stands at the foot of every page: the people the letter is copied to, the address line and the note
   const footH = (lh && lhFooter ? 54 : 0) + (showFooter ? 26 : 0) + 6;
+  // The lines at the foot stand in the foot of every page, so a position given in the editor (dragged far, or on a longer sheet) must not carry them off
+  // the page: out there they would widen the document (the browser then shrinks the whole page to fit) or fall onto the next page. Kept in the foot's own area.
+  const clampPx = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Number.isFinite(v) ? v : 0));
+  const padXpx = parseInt(containerPadding, 10) || 40;
+  const noteX = clampPx(footerNoteOffsetX, -(designW - 2 * padXpx - 40), 0);
+  const noteY = clampPx(footerNoteOffsetY, -footH, 14);
+  const addrX = clampPx(lh?.offsetX || 0, -padXpx, padXpx);
+  const addrY = clampPx(lh?.offsetY || 0, -footH, 14);
 
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -244,6 +252,7 @@ export function generateOfficialLetterHtml(
         margin: 0 !important;
         box-shadow: none !important;
         border-radius: 0 !important;
+        overflow-x: clip;
       }
       .wm, .lh-img { position: fixed !important; }
       .wm, .lh-img { left: 0 !important; right: 0 !important; }
@@ -450,7 +459,7 @@ export function generateOfficialLetterHtml(
     .footer {
       padding-top: 8px;
       margin-top: auto;
-      font-size: 9.5px;
+      font-size: ${isA5 ? 9 : 10}px;
       color: #8C6F66;
       display: flex;
       justify-content: space-between;
@@ -503,11 +512,11 @@ export function generateOfficialLetterHtml(
       <thead><tr><td style="height: ${padTopPx}px; padding: 0; vertical-align: top;">${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'top'), designW)}"></div>` : ''}</td></tr></thead>
       <tfoot><tr><td style="height: ${padBottomPx + footH}px; padding: 0; vertical-align: bottom;"><div class="fx-foot">
 
-    ${lh && lhFooter ? `<div style="padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${lh.offsetX || 0}px, ${lh.offsetY || 0}px);">${toPersianDigits(lhFooter)}</div>` : ''}
+    ${lh && lhFooter ? `<div style="padding-top: 12px; text-align: center; font-size: 10.5px; font-weight: 700; line-height: 1.8; color: ${letterheadColor(lh.id)}; transform: translate(${addrX}px, ${addrY}px);">${toPersianDigits(lhFooter)}</div>` : ''}
 
     ${showFooter ? `
     <div class="footer"${(lh && lhFooter) || copies.length ? ' style="margin-top: 0;"' : ''}>
-      <div style="transform: translate(${footerNoteOffsetX}px, ${footerNoteOffsetY}px);">${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
+      <div style="transform: translate(${noteX}px, ${noteY}px);">${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
     </div>
     ` : ''}
     </div>${lh && !lh.image ? `<div class="lh-band" style="${lhBand(letterheadSvg(lh.id, 'bottom'), designW)}"></div>` : `<div style="height: ${padBottomPx}px;"></div>`}</td></tr></tfoot>
