@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { letterMetaGridStyle } from '../../lib/letterMeta';
 import { DraggableImage } from './DraggableImage';
 import { MoveBox } from './MoveBox';
 import { ResizeDot } from './ResizeDot';
@@ -76,7 +77,9 @@ interface LetterEditorModalProps {
     subjectOffsetX?: number;
     subjectOffsetY?: number;
     metaOffsetX?: number;
+    footerNoteOffsetX?: number;
     metaOffsetY?: number;
+    footerNoteOffsetY?: number;
     signerFontFamily?: string;
     signerFontSize?: number;
     customSignerName?: string;
@@ -205,6 +208,7 @@ function parseLetterForEdit(t: FileTransfer) {
   layout.headerCenterOffset = pt(t.headerCenterOffsetX, t.headerCenterOffsetY);
   layout.subjectOffset = pt(t.subjectOffsetX, t.subjectOffsetY);
   layout.metaOffset = pt(t.metaOffsetX, t.metaOffsetY);
+  layout.footerNoteOffset = pt(t.footerNoteOffsetX, t.footerNoteOffsetY);
   if (t.headerCenterFontFamily) layout.headerCenterFontFamily = t.headerCenterFontFamily;
   if (t.subjectFontFamily) layout.subjectFontFamily = t.subjectFontFamily;
   if (t.metaFontFamily) layout.metaFontFamily = t.metaFontFamily;
@@ -343,6 +347,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [headerCenterOffset, setHeaderCenterOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.headerCenterOffset));
   const [subjectOffset, setSubjectOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.subjectOffset));
   const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.metaOffset));
+  const [footerNoteOffset, setFooterNoteOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.footerNoteOffset));
   const [orgOffset, setOrgOffset] = useState<{ x: number; y: number }>(() => ptPref(prefs.orgOffset));
   const [bodyOffsetY, setBodyOffsetY] = useState<number>(() => numPref(prefs.bodyOffsetY, 0));
   // the logo and the organisation text are resized by their corner dot, like the signature
@@ -358,7 +363,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const collectLayout = () => ({
     selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
     selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
-    signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset,
+    signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset, footerNoteOffset,
     orgOffset, bodyOffsetY, layoutLocked, letterhead: lh, logoSize, orgTextScale, logoOffset, orgTextOffset,
     showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo, showOrgName, showSubject,
     // the ticks of the header (number, date, attachment, logo, name) are part of the layout: what was saved is what the next letter starts with
@@ -408,6 +413,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setHeaderCenterOffset(pt(base.headerCenterOffset));
     setSubjectOffset(pt(base.subjectOffset));
     setMetaOffset(pt(base.metaOffset));
+    setFooterNoteOffset(pt(base.footerNoteOffset));
     setOrgOffset(pt(base.orgOffset));
     setBodyOffsetY(numPref(base.bodyOffsetY, 0));
     setLayoutLocked(false);
@@ -671,7 +677,9 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
       subjectOffsetX: subjectOffset.x,
       subjectOffsetY: subjectOffset.y,
       metaOffsetX: metaOffset.x,
+      footerNoteOffsetX: footerNoteOffset.x,
       metaOffsetY: metaOffset.y,
+      footerNoteOffsetY: footerNoteOffset.y,
       signerFontFamily,
       signerFontSize,
       customSignerName: signerName,
@@ -1098,15 +1106,15 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                   </div>
 
                   {/* Perfectly Stacked Under Each Other with Fixed Column Alignment */}
-                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-right items-center">
+                  <div style={letterMetaGridStyle(pageSize === 'A5')}>
                     <span className="text-[#8C6F66] font-bold text-right shrink-0">{showNo ? 'شماره:' : ''}</span>
                     <input
                       type="text"
                       value={letterNumber}
                       onChange={(e) => setLetterNumber(toPersianDigits(e.target.value))}
                       placeholder="شماره نامه"
-                      style={{ fontFamily: metaFontFamily }}
-                      className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-28 text-right text-[11px] px-0.5"
+                      style={{ fontFamily: metaFontFamily, fontSize: 'inherit', lineHeight: 'inherit' }}
+                      className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full min-w-0 text-right px-0.5"
                     />
 
                     <span className="text-[#8C6F66] font-bold text-right shrink-0">{showDate ? 'تاریخ:' : ''}</span>
@@ -1115,8 +1123,8 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                       value={customDate}
                       onChange={(e) => setCustomDate(toPersianDigits(e.target.value))}
                       placeholder="تاریخ نامه"
-                      style={{ fontFamily: metaFontFamily }}
-                      className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-28 text-right text-[11px] px-0.5"
+                      style={{ fontFamily: metaFontFamily, fontSize: 'inherit', lineHeight: 'inherit' }}
+                      className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full min-w-0 text-right px-0.5"
                     />
 
                     <span className="text-[#8C6F66] font-bold text-right shrink-0">{showAtt ? 'پیوست:' : ''}</span>
@@ -1125,8 +1133,8 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                       value={attachment}
                       onChange={(e) => setAttachment(e.target.value)}
                       placeholder="پیوست"
-                      style={{ fontFamily: metaFontFamily }}
-                      className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-28 text-right text-[11px] px-0.5"
+                      style={{ fontFamily: metaFontFamily, fontSize: 'inherit', lineHeight: 'inherit' }}
+                      className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full min-w-0 text-right px-0.5"
                     />
 
                   </div>
@@ -1318,9 +1326,9 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                 <div>
                   تنظیم‌کننده: <b>{currentUser.fullName}</b> ({currentUser.departmentName}) • شماره: <span className="font-mono text-[#3A241F]">{letterNumber}</span>
                 </div>
-                <div className="text-[#8C6F66]">
+                <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={layoutLocked} scale={zoom} className="text-[#8C6F66] p-1 -m-1" data-footer-note>
                   {settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}
-                </div>
+                </MoveBox>
               </div>
             )}
           </div>

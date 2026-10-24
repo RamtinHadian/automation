@@ -551,7 +551,9 @@ export interface FileTransfer {
   subjectOffsetX?: number;
   subjectOffsetY?: number;
   metaOffsetX?: number;
+  footerNoteOffsetX?: number;
   metaOffsetY?: number;
+  footerNoteOffsetY?: number;
   headerCenterFontFamily?: string;
   subjectFontFamily?: string;
   metaFontFamily?: string;

@@ -109,7 +109,9 @@ interface AppContextType {
     subjectOffsetX?: number;
     subjectOffsetY?: number;
     metaOffsetX?: number;
+    footerNoteOffsetX?: number;
     metaOffsetY?: number;
+    footerNoteOffsetY?: number;
     headerCenterFontFamily?: string;
     subjectFontFamily?: string;
     metaFontFamily?: string;
@@ -194,7 +196,9 @@ interface AppContextType {
       copyTo?: string[];
       letterhead?: import('../lib/letterheads').LetterheadChoice;
       metaOffsetX?: number;
+      footerNoteOffsetX?: number;
       metaOffsetY?: number;
+      footerNoteOffsetY?: number;
       headerCenterFontFamily?: string;
       subjectFontFamily?: string;
       metaFontFamily?: string;
@@ -724,7 +728,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       subjectOffsetX,
       subjectOffsetY,
       metaOffsetX,
+      footerNoteOffsetX,
       metaOffsetY,
+      footerNoteOffsetY,
       headerCenterFontFamily,
       subjectFontFamily,
       metaFontFamily,
@@ -782,7 +788,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       subjectOffsetX?: number;
       subjectOffsetY?: number;
       metaOffsetX?: number;
+      footerNoteOffsetX?: number;
       metaOffsetY?: number;
+      footerNoteOffsetY?: number;
       headerCenterFontFamily?: string;
       subjectFontFamily?: string;
       metaFontFamily?: string;
@@ -886,7 +894,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             subjectOffsetX,
             subjectOffsetY,
             metaOffsetX,
+            footerNoteOffsetX,
             metaOffsetY,
+            footerNoteOffsetY,
             headerCenterFontFamily,
             subjectFontFamily,
             metaFontFamily,
@@ -1195,7 +1205,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
         copyTo?: string[];
         metaOffsetX?: number;
+        footerNoteOffsetX?: number;
         metaOffsetY?: number;
+        footerNoteOffsetY?: number;
         headerCenterFontFamily?: string;
         subjectFontFamily?: string;
         metaFontFamily?: string;
@@ -1248,7 +1260,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               customHeaderCenterTitle: signatureOptions?.customHeaderCenterTitle || t.customHeaderCenterTitle,
               customFooterNote: signatureOptions?.customFooterNote || t.customFooterNote,
               metaOffsetX: signatureOptions?.metaOffsetX !== undefined ? signatureOptions.metaOffsetX : t.metaOffsetX,
+              footerNoteOffsetX: signatureOptions?.footerNoteOffsetX !== undefined ? signatureOptions.footerNoteOffsetX : t.footerNoteOffsetX,
               metaOffsetY: signatureOptions?.metaOffsetY !== undefined ? signatureOptions.metaOffsetY : t.metaOffsetY,
+              footerNoteOffsetY: signatureOptions?.footerNoteOffsetY !== undefined ? signatureOptions.footerNoteOffsetY : t.footerNoteOffsetY,
               headerCenterFontFamily: signatureOptions?.headerCenterFontFamily || t.headerCenterFontFamily,
               subjectFontFamily: signatureOptions?.subjectFontFamily || t.subjectFontFamily,
               metaFontFamily: signatureOptions?.metaFontFamily || t.metaFontFamily,

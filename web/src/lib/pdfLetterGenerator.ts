@@ -1,4 +1,5 @@
 import { FileTransfer, SystemSettings, User } from '../types';
+import { letterMeta, letterMetaGridCss } from './letterMeta';
 import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, stampSizeLocked, stripBakedBodyLayout, UNSIGNED_WATERMARK, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
 import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
@@ -24,7 +25,9 @@ export interface LetterPrintOverrides {
   subjectOffsetX?: number;
   subjectOffsetY?: number;
   metaOffsetX?: number;
+  footerNoteOffsetX?: number;
   metaOffsetY?: number;
+  footerNoteOffsetY?: number;
   headerCenterFontFamily?: string;
   subjectFontFamily?: string;
   metaFontFamily?: string;
@@ -148,7 +151,9 @@ export function generateOfficialLetterHtml(
   const subjectOffsetY = overrides?.subjectOffsetY !== undefined ? overrides.subjectOffsetY : (transfer.subjectOffsetY || 0);
 
   const metaOffsetX = overrides?.metaOffsetX !== undefined ? overrides.metaOffsetX : (transfer.metaOffsetX || 0);
+  const footerNoteOffsetX = overrides?.footerNoteOffsetX !== undefined ? overrides.footerNoteOffsetX : (transfer.footerNoteOffsetX || 0);
   const metaOffsetY = overrides?.metaOffsetY !== undefined ? overrides.metaOffsetY : (transfer.metaOffsetY || 0);
+  const footerNoteOffsetY = overrides?.footerNoteOffsetY !== undefined ? overrides.footerNoteOffsetY : (transfer.footerNoteOffsetY || 0);
 
   const centerFont = overrides?.headerCenterFontFamily || transfer.headerCenterFontFamily || chosenFont.fontFamily;
   const subjectFont = overrides?.subjectFontFamily || transfer.subjectFontFamily || chosenFont.fontFamily;
@@ -327,17 +332,18 @@ export function generateOfficialLetterHtml(
       font-weight: bold;
     }
     .meta-box {
-      max-width: 38%;
+      flex: none;
     }
     .meta-box,
-    .meta-box table,
-    .meta-box td,
+    .meta-box div,
     .meta-box span,
     .meta-box b {
       font-family: '${metaFont}', 'B Nazanin', 'Vazirmatn', Tahoma, sans-serif !important;
-      font-size: ${isA5 ? '9.5px' : '10.5px'};
-      line-height: ${isA5 ? '1.5' : '1.6'};
+      font-size: ${letterMeta(isA5).fontSize}px;
+      line-height: ${letterMeta(isA5).lineHeight};
     }
+    .meta-box .mv { color: #3A241F; font-weight: bold; text-align: right; padding: 0 2px; overflow-wrap: anywhere; }
+    .meta-box .ml { color: #8C6F66; font-weight: bold; text-align: right; }
     .letter-title {
       position: absolute;
       left: 50%;
@@ -509,20 +515,11 @@ export function generateOfficialLetterHtml(
         ${headerTitle ? `<span>${headerTitle}</span>` : ''}
       </div>
       <div class="meta-box" style="transform: translate(${metaOffsetX}px, ${metaOffsetY}px); font-family: '${metaFont}', inherit; text-align: right; line-height: 1.45;">
-        <table style="border-collapse: collapse; border: none; font-size: inherit; font-family: inherit; margin: 0; padding: 0;">
-          <tr>
-            <td style="padding: 0 4px 0 0; color: #8C6F66; font-weight: bold; text-align: right;">${showNo ? 'شماره:' : ''}</td>
-            <td style="padding: 0; color: #3A241F; font-weight: bold; text-align: right;">${letterNo}</td>
-          </tr>
-          <tr>
-            <td style="padding: 0 4px 0 0; color: #8C6F66; font-weight: bold; text-align: right;">${showDate ? 'تاریخ:' : ''}</td>
-            <td style="padding: 0; color: #3A241F; font-weight: bold; text-align: right;">${letterDate}</td>
-          </tr>
-          <tr>
-            <td style="padding: 0 4px 0 0; color: #8C6F66; font-weight: bold; text-align: right;">${showAtt ? 'پیوست:' : ''}</td>
-            <td style="padding: 0; color: #3A241F; font-weight: bold; text-align: right;">${letterAttach}</td>
-          </tr>
-        </table>
+        <div style="${letterMetaGridCss(isA5)}">
+          <span class="ml">${showNo ? 'شماره:' : ''}</span><span class="mv">${letterNo}</span>
+          <span class="ml">${showDate ? 'تاریخ:' : ''}</span><span class="mv">${letterDate}</span>
+          <span class="ml">${showAtt ? 'پیوست:' : ''}</span><span class="mv">${letterAttach}</span>
+        </div>
       </div>
     </div>
 
@@ -559,7 +556,7 @@ export function generateOfficialLetterHtml(
 
     ${showFooter ? `
     <div class="footer"${(lh && lhFooter) || copies.length ? ' style="margin-top: 0;"' : ''}>
-      <div>${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
+      <div style="transform: translate(${footerNoteOffsetX}px, ${footerNoteOffsetY}px);">${overrides?.customFooterNote || transfer.customFooterNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
     </div>
     ` : ''}
     </div>

@@ -602,7 +602,9 @@ export default function UserPanel() {
     subjectOffsetX?: number;
     subjectOffsetY?: number;
     metaOffsetX?: number;
+    footerNoteOffsetX?: number;
     metaOffsetY?: number;
+    footerNoteOffsetY?: number;
     headerCenterFontFamily?: string;
     subjectFontFamily?: string;
     metaFontFamily?: string;
@@ -707,7 +709,9 @@ export default function UserPanel() {
       subjectOffsetX: letterData.subjectOffsetX,
       subjectOffsetY: letterData.subjectOffsetY,
       metaOffsetX: letterData.metaOffsetX,
+      footerNoteOffsetX: letterData.footerNoteOffsetX,
       metaOffsetY: letterData.metaOffsetY,
+      footerNoteOffsetY: letterData.footerNoteOffsetY,
       headerCenterFontFamily: letterData.headerCenterFontFamily,
       subjectFontFamily: letterData.subjectFontFamily,
       metaFontFamily: letterData.metaFontFamily,

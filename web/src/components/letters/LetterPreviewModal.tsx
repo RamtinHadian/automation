@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { letterMetaGridStyle } from '../../lib/letterMeta';
 import { createPortal } from 'react-dom';
 import { hwheel } from '../../lib/hscroll';
 import { useAppContext } from '../../context/AppContext';
@@ -70,6 +71,7 @@ import { FileTransfer, SystemSettings, User } from '../../types';
 import { toPersianDigits,
   convertNumbersInHtmlToPersian, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { DEFAULT_FONTS } from '../../lib/fonts';
+import { MoveBox } from './MoveBox';
 import { openAndDownloadPdfLetter, generateOfficialLetterHtml } from '../../lib/pdfLetterGenerator';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { PageGuides } from './PageGuides';
@@ -449,7 +451,9 @@ interface LetterPreviewModalProps {
       /** names the letter is copied to («رونوشت»); printed at the bottom above the address line */
       copyTo?: string[];
       metaOffsetX?: number;
+      footerNoteOffsetX?: number;
       metaOffsetY?: number;
+      footerNoteOffsetY?: number;
       headerCenterFontFamily?: string;
       subjectFontFamily?: string;
       metaFontFamily?: string;
@@ -574,6 +578,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [customSignerName, setCustomSignerName] = useState<string>('');
   const [customSignerTitle, setCustomSignerTitle] = useState<string>('');
   const [metaOffset, setMetaOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [footerNoteOffset, setFooterNoteOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [activeDragItem, setActiveDragItem] = useState<'NONE' | 'SIGNATURE' | 'CENTER_TITLE' | 'SUBJECT' | 'META'>('NONE');
   const [isDraggingSig, setIsDraggingSig] = useState(false);
   const dragStartRef = useRef<{ startX: number; startY: number; initX: number; initY: number }>({
@@ -620,6 +625,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setHeaderCenterOffset({ x: letter.headerCenterOffsetX || 0, y: letter.headerCenterOffsetY || 0 });
       setSubjectOffset({ x: letter.subjectOffsetX || 0, y: letter.subjectOffsetY || 0 });
       setMetaOffset({ x: letter.metaOffsetX || 0, y: letter.metaOffsetY || 0 });
+      setFooterNoteOffset({ x: letter.footerNoteOffsetX || 0, y: letter.footerNoteOffsetY || 0 });
       setHeaderCenterFontFamily(letter.headerCenterFontFamily || chosenFont.fontFamily);
       setSubjectFontFamily(letter.subjectFontFamily || chosenFont.fontFamily);
       setMetaFontFamily(letter.metaFontFamily || chosenFont.fontFamily);
@@ -940,7 +946,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       customHeaderCenterTitle: headerCenterTitle,
       customFooterNote: footerNote,
       metaOffsetX: metaOffset.x,
+      footerNoteOffsetX: footerNoteOffset.x,
       metaOffsetY: metaOffset.y,
+      footerNoteOffsetY: footerNoteOffset.y,
       bodyOffsetX,
       bodyOffsetY,
       orgOffsetX: orgOffset.x,
@@ -1006,7 +1014,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       subjectOffsetX: subjectOffset.x,
       subjectOffsetY: subjectOffset.y,
       metaOffsetX: metaOffset.x,
+      footerNoteOffsetX: footerNoteOffset.x,
       metaOffsetY: metaOffset.y,
+      footerNoteOffsetY: footerNoteOffset.y,
       bodyOffsetX: bodyOffsetX,
       bodyOffsetY: bodyOffsetY,
       orgOffsetX: orgOffset.x,
@@ -1805,9 +1815,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   style={{
                     transform: `translate(${metaOffset.x}px, ${metaOffset.y}px)`,
                   }}
-                  className={`font-medium text-[#3A241F] text-right shrink-0 relative group/meta select-none ${
-                    pageSize === 'A5' ? 'text-[9.5px] space-y-0 leading-[1.4]' : 'text-[11px] space-y-0 leading-[1.4]'
-                  }`}
+                  className="font-medium text-[#3A241F] text-right shrink-0 relative group/meta select-none"
                   dir="rtl"
                 >
                   {isEditable && !layoutFrozen && (
@@ -1820,8 +1828,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       <span>جابه‌جایی مشخصات</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1 justify-end">
-                    {showNo && <span className="text-[#8C6F66]">شماره:</span>}
+                  <div style={letterMetaGridStyle(pageSize === 'A5')}>
+                  <>
+                    <span className="text-[#8C6F66] font-bold">{showNo ? 'شماره:' : ''}</span>
                     {isEditable ? (
                       <input
                         type="text"
@@ -1830,15 +1839,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         placeholder="شماره نامه"
                         title="شماره نامه در سربرگ (قابل ویرایش قبل از امضا)"
                         className={`font-bold text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none text-right px-0.5 py-0 h-[1.45em] ${
-                          pageSize === 'A5' ? 'w-16 text-[9.5px]' : 'w-24 text-[11px]'
+                          'w-full min-w-0'
                         }`}
                       />
                     ) : (
                       <b className="font-bold text-[#3A241F]">{toPersianDigits(headerNumber)}</b>
                     )}
-                  </div>
-                  <div className="flex items-center gap-1 justify-end">
-                    {showDate && <span className="text-[#8C6F66]">تاریخ:</span>}
+                  </>
+                  <>
+                    <span className="text-[#8C6F66] font-bold">{showDate ? 'تاریخ:' : ''}</span>
                     {isEditable ? (
                       <input
                         type="text"
@@ -1847,15 +1856,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         placeholder="تاریخ نامه"
                         title="تاریخ ثبت در سربرگ (قابل ویرایش قبل از امضا)"
                         className={`font-mono font-bold text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none text-right px-0.5 py-0 h-[1.45em] ${
-                          pageSize === 'A5' ? 'w-16 text-[9.5px]' : 'w-24 text-[11px]'
+                          'w-full min-w-0'
                         }`}
                       />
                     ) : (
                       <b className="font-bold text-[#3A241F]">{toPersianDigits(headerDate)}</b>
                     )}
-                  </div>
-                  <div className="flex items-center gap-1 justify-end">
-                    {showAtt && <span className="text-[#8C6F66]">پیوست:</span>}
+                  </>
+                  <>
+                    <span className="text-[#8C6F66] font-bold">{showAtt ? 'پیوست:' : ''}</span>
                     {isEditable ? (
                       <input
                         type="text"
@@ -1864,12 +1873,13 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         placeholder="وضعیت پیوست"
                         title="وضعیت پیوست در سربرگ (قابل ویرایش قبل از امضا)"
                         className={`font-bold text-[#3A241F] bg-transparent border-b border-dashed border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none text-right px-0.5 py-0 h-[1.45em] ${
-                          pageSize === 'A5' ? 'w-16 text-[9.5px]' : 'w-24 text-[11px]'
+                          'w-full min-w-0'
                         }`}
                       />
                     ) : (
                       <b className="font-bold text-[#3A241F]">{headerAttachment}</b>
                     )}
+                  </>
                   </div>
                 </div>
               </div>
@@ -2209,6 +2219,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   : (settings.showFooterNote !== false && settings.letterNumbering?.showFooterNote !== false))
             ) && (
               <div className={`${pageSize === 'A5' ? 'mt-auto pt-2 text-[9px]' : 'mt-auto pt-3 text-[10px]'} text-[#8C6F66] flex items-center justify-between shrink-0`}>
+                <MoveBox offset={footerNoteOffset} onChange={setFooterNoteOffset} locked={!isEditable || layoutFrozen} scale={zoom} className="p-1 -m-1" data-footer-note>
                 {isEditable ? (
                   <input
                     type="text"
@@ -2221,6 +2232,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 ) : (
                   <div>{footerNote || settings.letterNumbering?.defaultFooterNote || settings.defaultFooterNote || 'سامانه مکاتبات و اسناد رسمی اداری'}</div>
                 )}
+                </MoveBox>
               </div>
             )}
           </div>
