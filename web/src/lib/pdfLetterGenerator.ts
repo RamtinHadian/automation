@@ -1,7 +1,7 @@
 import { FileTransfer, SystemSettings, User } from '../types';
 import { letterMeta, letterMetaGridCss } from './letterMeta';
 import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, stampSizeLocked, stripBakedBodyLayout, UNSIGNED_WATERMARK, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
-import { formatCurrentJalaliDateTime, toPersianDigits } from './jalali';
+import { formatCurrentJalaliDateTime, toPersianDigits, toJalaliDateText } from './jalali';
 import { DEFAULT_FONTS, getFontsCssForPrint } from './fonts';
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
 import { letterheadBackground, letterheadColor, letterheadFooterText, letterheadPad, letterheadSvg } from './letterheads';
@@ -123,7 +123,7 @@ export function generateOfficialLetterHtml(
   const letterNo = toPersianDigits(rawLetterNo);
 
   const rawLetterDate = overrides?.customDate || transfer.customHeaderDate || transfer.sentAt.split(' - ')[0] || formatCurrentJalaliDateTime().split(' - ')[0];
-  const letterDate = toPersianDigits(rawLetterDate);
+  const letterDate = toPersianDigits(toJalaliDateText(rawLetterDate));
 
   const letterAttach = overrides?.customAttachment || transfer.customHeaderAttachment || 'دارد (الکترونیک)';
   const letterSubject = overrides?.customSubject || transfer.customHeaderSubject || transfer.fileName.replace(/\.[^/.]+$/, '').replace(/^نامه_/, '').replace(/_/g, ' ');

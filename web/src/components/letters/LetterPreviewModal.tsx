@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { toJalaliDateText } from '../../lib/jalali';
 import { letterMetaGridStyle } from '../../lib/letterMeta';
 import { createPortal } from 'react-dom';
 import { hwheel } from '../../lib/hscroll';
@@ -598,7 +599,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
     if (letter) {
       setPageSize(letter.pageSize || 'A4');
       setHeaderNumber(toPersianDigits(letter.customHeaderNumber || letter.letterNumber || letter.fileName.replace(/\.[^/.]+$/, '').replace(/^نامه_/, '')));
-      setHeaderDate(toPersianDigits(letter.customHeaderDate || (letter.sentAt ? letter.sentAt.split(' - ')[0] : formatCurrentJalaliDateTime().split(' - ')[0])));
+      setHeaderDate(toPersianDigits(toJalaliDateText(letter.customHeaderDate || (letter.sentAt ? letter.sentAt.split(' - ')[0] : formatCurrentJalaliDateTime().split(' - ')[0]))));
       setHeaderAttachment(letter.customHeaderAttachment || 'دارد (الکترونیک)');
       setHeaderSubject(letter.customHeaderSubject || letter.fileName.replace(/\.[^/.]+$/, '').replace(/^نامه_/, '').replace(/_/g, ' '));
       setHeaderCompanyTitle(letter.customHeaderCompanyTitle !== undefined ? letter.customHeaderCompanyTitle : (settings.companyName || ''));

@@ -87,3 +87,13 @@ export function convertNumbersInHtmlToPersian(html: string): string {
     return match;
   });
 }
+
+/** Any date text a letter may carry as a Persian (Jalali) date: «2026-10-22T16:42…» (a stored ISO time) becomes «۲ آبان ۱۴۰۵»; text that is already Jalali is returned as it is. */
+export const toJalaliDateText = (s: string): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec((s || '').trim());
+  if (!m) return s;
+  const g = new Date(`${m[1]}-${m[2]}-${m[3]}T12:00:00`);
+  if (isNaN(g.getTime())) return s;
+  const [jy, jm, jd] = gregorianToJalali(g.getFullYear(), g.getMonth() + 1, g.getDate());
+  return `${jd} ${PERSIAN_MONTHS[jm - 1]} ${jy}`;
+};
