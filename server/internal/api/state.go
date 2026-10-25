@@ -196,6 +196,8 @@ func statsData(w http.ResponseWriter, r *http.Request) {
 		"supportSubs": `SELECT data FROM support_subs ORDER BY created_at DESC LIMIT 5000`,
 		"supportTickets": `SELECT data FROM support_tickets ORDER BY created_at DESC LIMIT 5000`,
 		"missing":   `SELECT data FROM crm_activities WHERE data->>'type' = 'MISSING' ORDER BY created_at DESC LIMIT 5000`,
+		// what each salesperson did (calls, meetings, notes, quotes, follow-ups) for the sales analysis; the texts are left out to keep it light
+		"activities": `SELECT data - 'text' FROM crm_activities WHERE data->>'type' <> 'MISSING' AND created_at > now() - interval '400 days' ORDER BY created_at DESC LIMIT 30000`,
 	} {
 		var rows []json.RawMessage
 		var err error

@@ -523,7 +523,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   apiKeyDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/apikeys/${encodeURIComponent(id)}`),
   smsTest: (to: string) => request<{ ok: true }>('POST', '/api/sms/test', { to }),
   smsSend: (b: { to: string; templateKey: string; customerId: string }) => request<{ ok: true }>('POST', '/api/sms/send', b),
-  statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[]; missing?: CrmActivity[]; warranties?: Warranty[]; warrantyClaims?: WarrantyClaim[]; supportSubs?: SupportSub[]; supportTickets?: SupportTicket[] }>('GET', '/api/stats-data'),
+  statsData: () => request<{ staff: User[]; transfers: FileTransfer[]; tasks: Task[]; reports: DailyReport[]; customers: Customer[]; deals: Deal[]; missing?: CrmActivity[]; activities?: CrmActivity[]; warranties?: Warranty[]; warrantyClaims?: WarrantyClaim[]; supportSubs?: SupportSub[]; supportTickets?: SupportTicket[] }>('GET', '/api/stats-data'),
   backups: () => request<BackupInfo>('GET', '/api/backups'),
   backupSettings: () => request<BackupSettings>('GET', '/api/backups/settings'),
   backupSaveSettings: (b: BackupSettings & { netPassword: string; cloudToken?: string }) => request<BackupSettings>('PUT', '/api/backups/settings', b),

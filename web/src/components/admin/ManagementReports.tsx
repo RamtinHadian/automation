@@ -10,6 +10,7 @@ import { hoursText, isOpenTicket, resolveSla, responseSla, subState, TICKET_STAT
 import { CLAIM_STATUS, daysBetween, isOpenClaim, warrantyState } from '../../lib/warranty';
 import { todayIso } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
+import { SalesAnalysis } from './SalesAnalysis';
 import { canSeeSalesTotals } from '../../lib/permissions';
 
 const compactM = (n: number) => compact(toDisplay(n));
@@ -233,6 +234,8 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
       </div>
 
       {/* products customers asked for that were not in stock: what to buy next */}
+      <SalesAnalysis staff={staffList} deals={deals} customers={customers} activities={data?.activities ?? []} days={range} rangeLabel={rangeLabel} seesTotals={seesTotals} />
+
       <section className="space-y-3" data-missing-report>
         <div>
           <h3 className="font-black text-[14px] text-[#3A241F] flex items-center gap-2"><PackageX className="w-4 h-4 text-[#6E1B1B]" />کالاهای درخواست‌شده و ناموجود</h3>
