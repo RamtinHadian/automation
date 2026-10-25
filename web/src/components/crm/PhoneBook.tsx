@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BookUser, Check, Copy, Download, PhoneCall, Printer, Search, Smartphone, Phone, Star } from 'lucide-react';
+import { BookUser, Check, Copy, Download, Pencil, PhoneCall, Printer, Search, Smartphone, Phone, Star } from 'lucide-react';
 import { Customer } from '../../types';
 import { fold } from '../../lib/customerSearch';
 import { downloadCsv } from '../../lib/csv';
@@ -10,6 +10,8 @@ import { Modal, field } from './crmUi';
 import { searchLine } from '../../lib/searchAll';
 import { CONTACT_TYPES, contactTypeOf } from '../../lib/contactTypes';
 import { useAppContext } from '../../context/AppContext';
+import { CustomerForm } from './CustomerForm';
+import { askConfirm } from '../../lib/confirmDialog';
 
 type Row = { key: string; customer: Customer; number: string; kind: 'mobile' | 'landline' | 'fax'; main: boolean; line: string };
 
@@ -22,7 +24,9 @@ const KIND: Record<Row['kind'], { label: string; icon: React.ElementType; cls: s
 /** The phone book: every number of every customer on one searchable list. */
 export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => void; customers: Customer[]; canCall: boolean; onCall: (number: string, name: string) => void; onOpenCustomer: (id: string) => void; onClose: () => void }> = ({ newPhone, onNewDone, customers, canCall, onCall, onOpenCustomer, onClose }) => {
   const [q, setQ] = useState('');
-  const { setCustomers } = useAppContext();
+  const { setCustomers, staffList, showToast } = useAppContext();
+  // a phone-book entry that is not a customer is changed here in the same full form it was made in; a customer opens its own page
+  const [editing, setEditing] = useState<Customer | null>(null);
   const [kind, setKind] = useState<'all' | Row['kind']>('all');
   const [typeF, setTypeF] = useState<string>('all');
   // adding to the phone book goes through the one window of choices (customer, supplier, colleague, other) with its full forms
@@ -71,6 +75,7 @@ export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => v
 
   let lastLetter = '';
   return (
+    <>
     <Modal
       wide
       onTop
@@ -119,7 +124,7 @@ export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => v
               <React.Fragment key={r.key}>
                 {head && <div className="px-4 py-1 bg-[#FAF5F1] text-[11px] font-black text-violet-700 sticky top-0">{head}</div>}
                 <div className="px-3 py-2.5 flex items-center gap-2.5">
-                  <button type="button" onClick={() => (r.customer.contactType ? undefined : onOpenCustomer(r.customer.id))} className="min-w-0 flex-1 text-right cursor-pointer">
+                  <button type="button" onClick={() => (r.customer.contactType ? setEditing(r.customer) : onOpenCustomer(r.customer.id))} className="min-w-0 flex-1 text-right cursor-pointer" data-phonebook-row>
                     <div className="text-xs font-black text-[#3A241F] truncate flex items-center gap-1">
                       {r.main && <Star className="w-3 h-3 fill-amber-400 text-amber-500 shrink-0" />}
                       {r.customer.name}
@@ -135,6 +140,9 @@ export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => v
                   )}
                   <span className={`shrink-0 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border ${K.cls}`}><K.icon className="w-3 h-3" />{K.label}</span>
                   <span className="shrink-0 text-xs font-black text-[#3A241F]" dir="ltr">{toPersianDigits(r.number)}</span>
+                  <button type="button" onClick={() => (r.customer.contactType ? setEditing(r.customer) : onOpenCustomer(r.customer.id))} title={r.customer.contactType ? 'ویرایش' : 'باز کردن پروندهٔ مشتری'} className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[#8C6F66] hover:bg-[#FAF5F1] cursor-pointer" data-phonebook-edit>
+                    <Pencil className="w-4 h-4" />
+                  </button>
                   <button type="button" onClick={() => copy(r.number)} title="کپی شماره" className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[#8C6F66] hover:bg-[#FAF5F1] cursor-pointer">
                     {copied === r.number ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                   </button>
@@ -151,5 +159,27 @@ export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => v
       )}
       {shown.length > 600 && <div className="text-[11px] font-bold text-[#8C6F66] text-center">۶۰۰ مورد اول نشان داده شد؛ جستجو را دقیق‌تر کنید یا خروجی اکسل بگیرید.</div>}
     </Modal>
+    {editing && (
+      <CustomerForm
+        initial={editing}
+        isNew={false}
+        staff={staffList}
+        customers={customers}
+        canDelete
+        contactKind={(editing.contactType || 'OTHER') as 'SUPPLIER' | 'COLLEAGUE' | 'AGENT' | 'OTHER'}
+        onClose={() => setEditing(null)}
+        onSave={(c) => {
+          setCustomers((prev) => prev.map((x) => (x.id === c.id ? { ...c, name: c.name.trim(), updatedAt: new Date().toISOString() } : x)));
+          showToast(`تغییرات «${c.name.trim()}» ذخیره شد.`);
+          setEditing(null);
+        }}
+        onDelete={async () => {
+          if (!(await askConfirm(`«${editing.name}» از دفتر تلفن حذف شود؟`, { tone: 'danger', confirmText: 'حذف از دفتر تلفن' }))) return;
+          setCustomers((prev) => prev.filter((x) => x.id !== editing.id));
+          setEditing(null);
+        }}
+      />
+    )}
+    </>
   );
 };

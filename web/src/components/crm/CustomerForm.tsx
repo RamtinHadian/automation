@@ -116,9 +116,9 @@ export const CustomerForm: React.FC<{
   onSave: (c: Customer) => void;
   onDelete: () => void;
   /** a phone-book entry that is not a customer (supplier, colleague, other): the same form without what only a customer has (Sepidar, marketing, need, sales status) */
-  contactKind?: 'SUPPLIER' | 'COLLEAGUE' | 'OTHER';
+  contactKind?: 'SUPPLIER' | 'COLLEAGUE' | 'AGENT' | 'OTHER';
 }> = ({ initial, isNew, staff, customers, canDelete, onClose, onSave, onDelete, contactKind }) => {
-  const contactLabel = contactKind === 'SUPPLIER' ? 'تأمین‌کننده' : contactKind === 'COLLEAGUE' ? 'همکار' : 'مخاطب';
+  const contactLabel = contactKind === 'SUPPLIER' ? 'تأمین‌کننده' : contactKind === 'COLLEAGUE' ? 'همکار' : contactKind === 'AGENT' ? 'نماینده' : 'مخاطب';
   const [c, setC] = useState<Customer>(() => {
     const kind = initial.kind || 'PERSON';
     const parts = (initial.name || '').trim().split(/\s+/);
@@ -289,7 +289,7 @@ export const CustomerForm: React.FC<{
               {canDelete && (
                 <button type="button" onClick={onDelete} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-50 cursor-pointer">
                   <Trash2 className="w-4 h-4" />
-                  حذف مشتری
+                  {contactKind ? 'حذف از دفتر تلفن' : 'حذف مشتری'}
                 </button>
               )}
             </div>
@@ -298,7 +298,7 @@ export const CustomerForm: React.FC<{
                 انصراف
               </button>
               <button type="submit" disabled={!displayName} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">
-                {contactKind ? 'ذخیره در دفتر تلفن' : isNew ? 'ثبت مشتری' : 'ذخیره'}
+                {contactKind ? (isNew ? 'ذخیره در دفتر تلفن' : 'ذخیره تغییرات') : isNew ? 'ثبت مشتری' : 'ذخیره'}
               </button>
             </div>
           </>
