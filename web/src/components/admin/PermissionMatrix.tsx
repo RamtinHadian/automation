@@ -26,14 +26,14 @@ const TeamCrmChip: React.FC<{ u: User; users: User[]; onOpen: () => void }> = ({
 };
 
 /** The window that opens in the middle of the page when «مشتریان همکاران» is ticked: «همهٔ همکاران», or the names whose customers are visible. */
-const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[], customerIds: string[]) => void; onClose: () => void }> = ({ u, users, onSave, onClose }) => {
+const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[], customerIds: string[], seesTeam: boolean) => void; onClose: () => void }> = ({ u, users, onSave, onClose }) => {
   const { customers } = useAppContext();
   const [tab, setTab] = useState<'people' | 'customers'>(u.canSeeTeamCrm ? 'people' : 'customers');
   const [cq, setCq] = useState('');
   const [cust, setCust] = useState<string[]>(u.crmCustomerIds || []);
   const custShown = (cq.trim() ? customers.filter((c) => matchesAll(c, cq)) : customers).slice(0, 200);
   const people = users.filter((x) => x.isActive !== false && x.id !== u.id);
-  const [all, setAll] = useState((u.crmTeamIds || []).length === 0);
+  const [all, setAll] = useState(!!u.canSeeTeamCrm && (u.crmTeamIds || []).length === 0);
   const [picked, setPicked] = useState<string[]>((u.crmTeamIds || []).filter((id) => people.some((x) => x.id === id)));
   const [q, setQ] = useState('');
   const shown = q.trim() ? people.filter((x) => matchesAll(x, q)) : people;
@@ -49,7 +49,7 @@ const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[], 
           <h3 className="font-black text-sm text-[#3A241F]">مشتریان کدام همکاران برای «{u.fullName}» دیده شود؟</h3>
           <p className="text-[11px] text-[#8C6F66] mt-1">نام همکاران را انتخاب کنید یا «همهٔ همکاران» را بزنید.</p>
           <p className="text-[11px] font-black text-violet-700 mt-1.5" data-team-summary>
-            «{u.fullName}» مشتریان {all ? 'همهٔ همکاران' : picked.length === 0 ? '— (کسی انتخاب نشده)' : people.filter((x) => picked.includes(x.id)).map((x) => x.fullName).slice(0, 5).join('، ') + (picked.length > 5 ? ` و ${toPersianDigits(picked.length - 5)} نفر دیگر` : '')} را می‌بیند (به‌علاوهٔ مشتریان خودش).
+            «{u.fullName}» مشتریان {all ? 'همهٔ همکاران' : picked.length === 0 ? 'هیچ همکاری (فقط مشتری‌های خودش)' : people.filter((x) => picked.includes(x.id)).map((x) => x.fullName).slice(0, 5).join('، ') + (picked.length > 5 ? ` و ${toPersianDigits(picked.length - 5)} نفر دیگر` : '')} را می‌بیند (به‌علاوهٔ مشتریان خودش).
           </p>
         </div>
         <div className="px-4 pt-3 flex gap-1.5" data-team-tabs>
@@ -60,7 +60,7 @@ const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[], 
         {tab === 'people' ? (
           <>
         <div className="px-4 pt-3 space-y-2">
-          <button type="button" onClick={() => { setAll(true); setPicked([]); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${all ? 'bg-[#F6D9CD] border-[#C98B6A]' : 'bg-white border-[#EBDBCE] hover:bg-[#FAF5F1]'}`} data-team-all>
+          <button type="button" onClick={() => { setAll(!all); setPicked([]); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${all ? 'bg-[#F6D9CD] border-[#C98B6A]' : 'bg-white border-[#EBDBCE] hover:bg-[#FAF5F1]'}`} data-team-all>
             <span className={`w-5 h-5 rounded-md flex items-center justify-center ${all ? 'bg-[#6E1B1B] text-white' : 'border border-[#EBDBCE]'}`}>{all && <Check className="w-3.5 h-3.5" />}</span>
             همهٔ همکاران
           </button>
@@ -106,10 +106,10 @@ const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[], 
           </>
         )}
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-[#EBDBCE]">
-          <span className="text-[11px] font-bold text-[#8C6F66]">{tab === 'customers' ? `${toPersianDigits(cust.length)} مشتری انتخاب شده` : all ? 'همهٔ همکاران' : `${toPersianDigits(picked.length)} همکار انتخاب شده`}</span>
+          <span className="text-[11px] font-bold text-[#8C6F66]">{tab === 'customers' ? `${toPersianDigits(cust.length)} مشتری انتخاب شده` : all ? 'همهٔ همکاران' : picked.length === 0 ? 'هیچ همکاری (فقط مشتری‌های خودش)' : `${toPersianDigits(picked.length)} همکار انتخاب شده`}</span>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black border border-[#EBDBCE] cursor-pointer">انصراف</button>
-            <button type="button" disabled={tab === 'people' && !all && picked.length === 0} onClick={() => { onSave(all ? [] : picked, cust); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] disabled:opacity-50 cursor-pointer" data-team-save>تأیید</button>
+            <button type="button" onClick={() => { onSave(all ? [] : picked, cust, all || picked.length > 0); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] disabled:opacity-50 cursor-pointer" data-team-save>تأیید</button>
           </div>
         </div>
       </div>
@@ -364,7 +364,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
       <p className="text-[11px] leading-6 text-[#8C6F66]">
         برای مدیران هم می‌توانید منو و زیرمنو را تیک بزنید یا بردارید (فقط نمایش آن برایشان). «مدیرعامل / صاحب امضای مجاز» فقط یک نفر است و از «ویرایش کاربر» تعیین می‌شود. هر تیک همان لحظه ذخیره می‌شود و کارمند از تغییر مجوزهایش با یک اعلان باخبر می‌شود. هر منو یا زیرمنوی تازه‌ای که به سامانه اضافه شود، یک ستون در همین جدول می‌گیرد.
       </p>
-      {teamDlg && <TeamCrmDialog u={teamDlg} users={users} onSave={(ids, customerIds) => onUpdateUser(teamDlg.id, { crmTeamIds: ids, crmCustomerIds: customerIds })} onClose={() => setTeamDlg(null)} />}
+      {teamDlg && <TeamCrmDialog u={teamDlg} users={users} onSave={(ids, customerIds, seesTeam) => onUpdateUser(teamDlg.id, { crmTeamIds: ids, crmCustomerIds: customerIds, canSeeTeamCrm: seesTeam })} onClose={() => setTeamDlg(null)} />}
     </div>
   );
 };
