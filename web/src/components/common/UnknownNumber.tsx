@@ -49,6 +49,9 @@ const AddToExisting: React.FC<{ number: string; onClose: () => void }> = ({ numb
  * It is the same in the call pop-up, the notification list and the call history.
  */
 /** The person (customer or phone-book entry) who already has this number, if anyone: the last ten digits are compared, so «+98…», «0…» and «۰۹…» all match. */
+/** A short number is a colleague's extension inside the company, never a number to save. */
+export const isExtensionNumber = (number: string) => digitsOf(number).length < 7;
+
 export const useSavedContact = (number: string) => {
   const { customers } = useAppContext();
   const key = digitsOf(number).slice(-10);

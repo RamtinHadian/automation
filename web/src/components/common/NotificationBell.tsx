@@ -1,4 +1,4 @@
-import { SavedContactLine, UnknownNumberActions, UnknownNumberHost, useSavedContact } from './UnknownNumber';
+import { isExtensionNumber, SavedContactLine, UnknownNumberActions, UnknownNumberHost, useSavedContact } from './UnknownNumber';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -39,6 +39,7 @@ const timeAgo = (iso: string) => {
 /** Under a call from a number: the three save buttons while nobody has it, the saved name once somebody does. */
 const BellNumberRow: React.FC<{ number: string }> = ({ number }) => {
   const saved = useSavedContact(number);
+  if (isExtensionNumber(number)) return null;
   return saved ? (
     <div className="px-4 pb-3 -mt-1 bg-emerald-50/70" data-bell-saved><SavedContactLine number={number} compact /></div>
   ) : (

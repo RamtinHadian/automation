@@ -7,7 +7,7 @@ import { normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { useAppContext } from '../../context/AppContext';
 import { canSeeSalesTotals } from '../../lib/permissions';
-import { SavedContactLine, UnknownNumberActions, useSavedContact } from './UnknownNumber';
+import { isExtensionNumber, SavedContactLine, UnknownNumberActions, useSavedContact } from './UnknownNumber';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
 
@@ -51,7 +51,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const area = useVoipArea();
   const callNumber = isCall && n.ref?.type === 'phone' ? fullPhone(n.ref.id, area) : '';
   const savedContact = useSavedContact(callNumber);
-  const unknownNumber = savedContact ? '' : callNumber;
+  const unknownNumber = savedContact || (n.ref?.type === 'phone' && isExtensionNumber(n.ref.id)) ? '' : callNumber;
   // an incoming-call card stays until the call ends (or at most the number of seconds the admin set); the other cards use the admin's time, or stay until closed
   const incoming = isCall && n.label !== 'تماس بی‌پاسخ';
   const conf = getNotifyConfig();
