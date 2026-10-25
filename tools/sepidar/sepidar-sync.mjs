@@ -140,13 +140,27 @@ function restartSelf() {
   setTimeout(() => process.exit(0), 300);
 }
 
-/** Registers a customer in Sepidar; when the Sepidar user has no right to do that, says exactly what to change instead of a bare 403. */
+/**
+ * Registers a customer in Sepidar. The sign-in answer's «CanRegisterCustomer» is only a hint (a user who can register customers in the Sepidar
+ * program itself may still show «false» there), so the registration is always really tried; when Sepidar refuses it (403) the message says
+ * what to change, and carries `status` 403 so the caller stops after the first refusal instead of trying every customer again.
+ */
 export async function createCustomer(sp, body) {
   const info = await sp.info();
-  if (info.CanRegisterCustomer === false) {
-    throw new Error(`کاربر «${sp.cfg.userName}» در سپیدار اجازهٔ ثبت مشتری ندارد. در سپیدار برای همین کاربر دسترسی «ثبت مشتری» (مشتریان ← ایجاد) را فعال کنید، بعد دوباره امتحان کنید.`);
+  try {
+    return await sp.post('/api/Customers', body);
+  } catch (e) {
+    if (!(e && e.status === 403)) throw e;
+    const flag = info.CanRegisterCustomer === false ? 'در پاسخ ورود هم نوشته که این کاربر اجازهٔ ثبت مشتری ندارد' : 'در پاسخ ورود چنین چیزی نیامده بود';
+    const err = new Error(
+      `کاربر «${sp.cfg.userName}» در سپیدار اجازهٔ ثبت مشتری ندارد: سرویس سپیدار ثبت را با ۴۰۳ رد کرد (${flag}). ` +
+        'در سپیدار برای همین کاربر دسترسی «ثبت مشتری» (مشتریان ← ایجاد) را فعال کنید، بعد دوباره امتحان کنید. ' +
+        'اگر در خود برنامهٔ سپیدار با همین کاربر می‌توانید طرف حساب بسازید، دسترسی او به سرویس‌ها (یکپارچه‌سازی) را هم بررسی کنید؛ ممکن است از دسترسی برنامه جدا باشد. ' +
+        'در «تاریخچهٔ فراخوانی سرویس» سپیدار هم می‌شود دید این درخواست چه ثبت شده است.'
+    );
+    err.status = 403;
+    throw err;
   }
-  return sp.post('/api/Customers', body);
 }
 
 /** The customer Sepidar already has for this body: the same mobile (last nine digits) or the same national code. takenIds = Sepidar customers already tied to another Hoormand customer. */

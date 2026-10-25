@@ -265,27 +265,29 @@ ok(r.code === 0 && /ورود موفق بود/.test(r.out), 'diag works from the 
   toolMode = 'normal';
 }
 
-// a Sepidar user without the right to register customers: the program says what to change (and never makes the customer)
+// the sign-in answer says «no right» but Sepidar itself accepts the registration (a user who can register in the program): the customer is made
 {
   const mk = () => new Sepidar({ url: `http://127.0.0.1:${sPort}`, serial: SERIAL, userName: 'admin', password: 'secret' }, { publicKeyXml: xml });
   const before = sp.customers.length;
   canRegister = false;
-  let msg = '';
+  let made = null;
   try {
-    await createCustomer(mk(), { GUID: guidFrom('x'), Name: 'آزمایش', LastName: '', CustomerType: 1 });
+    made = await createCustomer(mk(), { GUID: guidFrom('x'), Name: 'آزمایش', LastName: '', CustomerType: 1 });
   } catch (e) {
-    msg = e.message;
+    made = { error: e.message };
   }
-  ok(/اجازهٔ ثبت مشتری ندارد/.test(msg) && /«admin»/.test(msg) && sp.customers.length === before, 'a Sepidar user without the right to register customers: a clear message, no customer made' + String.fromCharCode(10) + msg);
-  canRegister = true;
+  ok(made && !made.error && sp.customers.length === before + 1, 'the hint «no right» in the sign-in answer does not stop a registration Sepidar accepts');
+  sp.customers.length = before; // the pretend Sepidar goes back to what it had, for the tests that follow
+  // Sepidar really refuses (403): one clear message that says which user needs which right, with status 403 so the loop stops
   customers403 = true;
-  msg = '';
+  let err = null;
   try {
     await createCustomer(mk(), { GUID: guidFrom('y'), Name: 'آزمایش', LastName: '', CustomerType: 1 });
   } catch (e) {
-    msg = e.message;
+    err = e;
   }
-  ok(/\(403\)/.test(msg) && /مجوز ندارد/.test(msg) && /«admin»/.test(msg), 'a 403 from Sepidar is explained (which user needs which right)' + String.fromCharCode(10) + msg);
+  ok(err && err.status === 403 && /اجازهٔ ثبت مشتری ندارد/.test(err.message) && /«admin»/.test(err.message) && /ورود هم نوشته/.test(err.message), 'a 403 from Sepidar: a clear message with status 403 (the loop stops after the first)' + String.fromCharCode(10) + (err && err.message));
+  canRegister = true;
   customers403 = false;
 }
 
