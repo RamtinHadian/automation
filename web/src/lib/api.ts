@@ -76,6 +76,7 @@ export interface VoipCall {
   duration: number;
   /** The phone system recorded this call and the file is available. */
   hasRecording?: boolean;
+  hasTranscript?: boolean;
 }
 
 export interface Announcement {
@@ -449,6 +450,8 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   supportSaveSettings: (b: Record<string, unknown>) => request<SupportSettings>('PUT', '/api/support/settings', b),
   supportAiTest: () => request<{ reply: string }>('POST', '/api/support/ai-test', {}),
   ticketAssign: (id: string, handlerId: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/assign`, { handlerId }),
+  voipTranscribe: (id: string) => request<{ status: string }>('POST', `/api/voip/transcribe/${encodeURIComponent(id)}`, {}),
+  voipTranscript: (id: string) => request<{ status: 'none' | 'running' | 'done' | 'error'; text?: string; error?: string }>('GET', `/api/voip/transcript/${encodeURIComponent(id)}`),
   voipRecordingSetup: () => request<{ key: string; mountedDir: string; mountedFiles: number }>('GET', '/api/voip/recording-setup'),
   /** The recording of a call as a playable blob (the request carries the login, so a plain <audio src> cannot be used). */
   voipRecording: async (id: string): Promise<Blob> => {

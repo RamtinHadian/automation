@@ -1,7 +1,7 @@
 import { findSavedContact, UnknownNumberActions } from './UnknownNumber';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BarChart3, Pause, Play, PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users, UserPlus } from 'lucide-react';
+import { BarChart3, FileText, Pause, Play, PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users, UserPlus } from 'lucide-react';
 import { api, VoipCall } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, formatDateTime } from '../../lib/taskDates';
@@ -27,8 +27,38 @@ const savedVolume = (): number => {
 };
 
 /** Plays the recording of one call (fetched with the login, then played from memory). */
-export const RecordingButton: React.FC<{ id: string }> = ({ id }) => {
+export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean }> = ({ id, hasTranscript }) => {
   const [url, setUrl] = useState<string | null>(null);
+  const [tx, setTx] = useState<{ status: string; text?: string; error?: string } | null>(null);
+  const [txOpen, setTxOpen] = useState(false);
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+  const poll = async () => {
+    for (let i = 0; i < 100 && alive.current; i++) {
+      try {
+        const r = await api.voipTranscript(id);
+        setTx(r);
+        if (r.status !== 'running') return;
+      } catch { /* try again */ }
+      await new Promise((ok) => setTimeout(ok, 3000));
+    }
+  };
+  const openText = async () => {
+    if (txOpen) { setTxOpen(false); return; }
+    setTxOpen(true);
+    try {
+      let r = await api.voipTranscript(id);
+      if (r.status === 'none' || r.status === 'error') r = await api.voipTranscribe(id).then(() => ({ status: 'running' } as { status: 'running' }));
+      setTx(r);
+      if (r.status === 'running') poll();
+    } catch (e) {
+      setTx({ status: 'error', error: e instanceof Error ? e.message : 'تبدیل به متن انجام نشد.' });
+    }
+  };
+  const again = async () => {
+    setTx({ status: 'running' });
+    try { await api.voipTranscribe(id); poll(); } catch (e) { setTx({ status: 'error', error: e instanceof Error ? e.message : 'تبدیل به متن انجام نشد.' }); }
+  };
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const open = async () => {
@@ -52,6 +82,24 @@ export const RecordingButton: React.FC<{ id: string }> = ({ id }) => {
       <button type="button" onClick={open} title={url ? 'بستن پخش' : 'شنیدن مکالمهٔ ضبط‌شده'} className="p-2 rounded-xl text-rose-700 hover:bg-rose-50 cursor-pointer shrink-0">
         {url ? <Pause className="w-4 h-4" /> : <Play className={`w-4 h-4 ${loading ? 'animate-pulse' : ''}`} />}
       </button>
+      <button type="button" data-call-transcript onClick={openText} title={txOpen ? 'بستن متن مکالمه' : hasTranscript ? 'متن مکالمه' : 'تبدیل مکالمه به متن'} className={`p-2 rounded-xl hover:bg-violet-50 cursor-pointer shrink-0 ${hasTranscript || txOpen ? 'text-violet-700' : 'text-gray-400'}`}>
+        <FileText className={`w-4 h-4 ${tx?.status === 'running' ? 'animate-pulse' : ''}`} />
+      </button>
+      {txOpen && tx && (
+        <div className="basis-full order-last bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 text-[11px] font-bold leading-6 text-[#3A241F]">
+          {tx.status === 'running' && <span className="text-violet-700">در حال تبدیل مکالمه به متن… چند دقیقه طول می‌کشد.</span>}
+          {tx.status === 'error' && <span className="text-rose-700">{tx.error || 'تبدیل به متن انجام نشد.'} <button type="button" onClick={again} className="underline font-black cursor-pointer">دوباره</button></span>}
+          {tx.status === 'done' && (
+            <>
+              <div className="whitespace-pre-wrap" data-transcript-text>{toPersianDigits(tx.text || '')}</div>
+              <div className="mt-1 flex gap-3 text-[10px] text-violet-700">
+                <button type="button" onClick={() => { try { navigator.clipboard.writeText(tx.text || ''); } catch { /* no clipboard */ } }} className="underline cursor-pointer">کپی متن</button>
+                <button type="button" onClick={again} className="underline cursor-pointer">تبدیل دوباره</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
       {(url || err) && (
         <div className="basis-full order-last" dir="ltr">
           {url ? <audio src={url} controls autoPlay ref={(a) => { if (a && !a.dataset.vol) { a.dataset.vol = '1'; a.volume = savedVolume(); } }} onVolumeChange={(e) => { try { localStorage.setItem(VOLUME_KEY, String(e.currentTarget.volume)); } catch { /* private window */ } }} onPlay={(e) => document.querySelectorAll('audio').forEach((a) => { if (a !== e.currentTarget) a.pause(); })} className="w-full h-9" /> : <div className="text-[11px] font-bold text-rose-600 text-right" dir="rtl">{err}</div>}
@@ -100,7 +148,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
               <span className="block">{formatDateTime(c.startedAt)}</span>
               <span className="block">{clock(c.startedAt)}</span>
             </span>
-            {c.hasRecording && <RecordingButton id={c.id} />}
+            {c.hasRecording && <RecordingButton id={c.id} hasTranscript={c.hasTranscript} />}
             {c.customerId && (
               <button
                 type="button"

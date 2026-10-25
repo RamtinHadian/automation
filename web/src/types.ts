@@ -965,6 +965,7 @@ export interface SupportSettings {
   portalEnabled: boolean;
   aiEnabled: boolean;
   aiModel: string;
+  aiSttModel: string;
   aiPrompt: string;
   /** the key itself never comes back from the server */
   aiKeySet: boolean;

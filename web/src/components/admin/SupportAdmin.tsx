@@ -14,6 +14,7 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
   const [editing, setEditing] = useState<{ p: SupportPlan | null } | null>(null);
   const [aiKey, setAiKey] = useState('');
   const [aiModel, setAiModel] = useState('');
+  const [aiStt, setAiStt] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiOn, setAiOn] = useState(false);
   const [portalOn, setPortalOn] = useState(true);
@@ -34,6 +35,7 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
     api.supportGetSettings().then((r) => {
       setSset(r);
       setAiModel(r.aiModel);
+      setAiStt(r.aiSttModel);
       setAiPrompt(r.aiPrompt);
       setAiOn(r.aiEnabled);
       setPortalOn(r.portalEnabled);
@@ -49,7 +51,7 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
   };
   const save = async (extra: Record<string, unknown> = {}) => {
     try {
-      setSset(await api.supportSaveSettings({ portalEnabled: portalOn, aiEnabled: aiOn, aiModel: aiModel.trim(), aiPrompt, aiKey: aiKey.trim(), ...extra }));
+      setSset(await api.supportSaveSettings({ portalEnabled: portalOn, aiEnabled: aiOn, aiModel: aiModel.trim(), aiSttModel: aiStt.trim(), aiPrompt, aiKey: aiKey.trim(), ...extra }));
       setAiKey('');
       toast('تنظیمات ذخیره شد.');
     } catch (e) {
@@ -112,6 +114,10 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
             <label className={label}>نام مدل</label>
             <input className={field} dir="ltr" value={aiModel} onChange={(e) => setAiModel(e.target.value)} placeholder="نام مدل را از togpt بگیرید" />
           </div>
+        </div>
+        <div>
+          <label className={label}>نام مدل تبدیل صدا به متن (برای نوشتن متن مکالمه‌های ضبط‌شده)</label>
+          <input className={field} dir="ltr" value={aiStt} onChange={(e) => setAiStt(e.target.value)} placeholder="google/gemini-3.7-flash" />
         </div>
         <div>
           <label className={label}>اطلاعات شرکت و محصولات برای دستیار (اختیاری)</label>

@@ -182,7 +182,7 @@ export const CompanyCalls: React.FC = () => {
                       <span className="flex flex-wrap items-center gap-1 flex-1">
                         <Headphones className="w-3.5 h-3.5 text-violet-700" />
                         <span className="text-[11px] font-black text-violet-800">مکالمهٔ ضبط‌شده</span>
-                        <RecordingButton id={c.id} />
+                        <RecordingButton id={c.id} hasTranscript={c.hasTranscript} />
                       </span>
                     ) : (
                       <span className="flex-1 text-[10px] font-bold text-[#B8A39C] flex items-center gap-1">

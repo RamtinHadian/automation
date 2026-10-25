@@ -136,7 +136,7 @@ func supportGetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	s := supportSettings(r.Context())
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"portalEnabled": s["portalEnabled"], "aiEnabled": jsonx.Bool(s, "aiEnabled"), "aiModel": jsonx.Str(s, "aiModel"),
+		"portalEnabled": s["portalEnabled"], "aiEnabled": jsonx.Bool(s, "aiEnabled"), "aiModel": jsonx.Str(s, "aiModel"), "aiSttModel": sttModel(s),
 		"aiPrompt": jsonx.Str(s, "aiPrompt"), "aiKeySet": jsonx.Str(s, "aiKey") != "", "aiBaseUrl": aiBaseURL,
 	})
 }
@@ -160,6 +160,9 @@ func supportSaveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	s["aiModel"] = clean(jsonx.Str(body, "aiModel"), 80)
 	s["aiPrompt"] = clean(jsonx.Str(body, "aiPrompt"), 3000)
+	if m := clean(jsonx.Str(body, "aiSttModel"), 80); m != "" {
+		s["aiSttModel"] = m
+	}
 	if k := strings.TrimSpace(jsonx.Str(body, "aiKey")); k != "" {
 		if len(k) > 300 || strings.ContainsAny(k, " \r\n\t") {
 			httpx.Error(w, http.StatusBadRequest, "کلید API نامعتبر است.")

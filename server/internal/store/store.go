@@ -358,6 +358,14 @@ var schema = []string{
 	  customer_name TEXT NOT NULL DEFAULT '',
 	  duration_sec INT NOT NULL DEFAULT 0
 	)`,
+	`CREATE TABLE IF NOT EXISTS voip_transcripts (
+	  call_id TEXT PRIMARY KEY,
+	  status TEXT NOT NULL,
+	  text TEXT NOT NULL DEFAULT '',
+	  error TEXT NOT NULL DEFAULT '',
+	  model TEXT NOT NULL DEFAULT '',
+	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
 	`CREATE INDEX IF NOT EXISTS voip_calls_started_idx ON voip_calls (started_at DESC)`,
 	`CREATE INDEX IF NOT EXISTS voip_calls_exts_idx ON voip_calls USING GIN (exts)`,
 	// the user approved removing the fake outgoing calls that follow-me helper channels (FMGL / FMPR) left in the history,

@@ -268,6 +268,14 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 		out = append(out, jsonx.M{"id": id, "startedAt": started.UTC().Format("2006-01-02T15:04:05.000Z"), "direction": direction, "status": status,
 			"ext": ext, "userId": uid, "userName": uname, "number": num, "name": name, "customerId": cid, "customerName": cname, "duration": dur, "hasRecording": recordingFile(id) != ""})
 	}
+	ids := make([]string, 0, len(out))
+	for _, c := range out {
+		ids = append(ids, c["id"].(string))
+	}
+	done := transcribedSet(r.Context(), ids)
+	for _, c := range out {
+		c["hasTranscript"] = done[c["id"].(string)]
+	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"calls": out})
 }
 
