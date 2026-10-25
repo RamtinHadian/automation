@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Activity, AlertTriangle, Copy, Gauge, Hourglass, Lightbulb, Loader2, Printer, Sparkles, Target, ThumbsUp, Timer, TrendingUp, Trophy, Wallet } from 'lucide-react';
+import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { toDisplay, unitName } from '../../lib/money';
@@ -103,8 +104,9 @@ const printHtml = (rep: Report, a: TeamAnalysis, rangeLabel: string, seesTotals:
     ['فعالیت ثبت‌شده', `${toPersianDigits(t.activities)}`], ...(seesTotals ? [[`مبلغ فروش (${unitName()})`, compactM(t.wonValue)]] : []),
   ];
   const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گزارش هوشمند تحلیل فروش</title><style>
-@page{size:A4;margin:12mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:Vazirmatn,Tahoma,sans-serif;color:#2b1d19;line-height:1.9;font-size:12px}
-.hd{background:linear-gradient(135deg,#6E1B1B,#C0392B);color:#fff;border-radius:14px;padding:18px 22px}.hd small{opacity:.85}.hd h1{margin:4px 0 0;font-size:20px}
+@font-face{font-family:'Vazirmatn';src:url('${location.origin}${fontUrl}') format('woff2');font-weight:100 900}
+@page{size:A4;margin:12mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:'Vazirmatn',Tahoma,sans-serif;color:#2b1d19;line-height:1.9;font-size:12px}
+.hd h1,h2,h3,b,button{font-family:'Vazirmatn',Tahoma,sans-serif}.hd{background:linear-gradient(135deg,#6E1B1B,#C0392B);color:#fff;border-radius:14px;padding:18px 22px}.hd small{opacity:.85}.hd h1{margin:4px 0 0;font-size:20px}
 h2{font-size:14px;margin:18px 0 6px;color:#6E1B1B;border-right:4px solid #D34A32;padding-right:8px}
 .k{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.k div{flex:1 1 18%;border:1px solid #EBDBCE;border-radius:10px;padding:8px 10px;text-align:center}.k b{display:block;font-size:16px}.k small{color:#8C6F66}
 .ch{border:1px solid #EBDBCE;border-radius:12px;padding:10px 14px;margin:10px 0;page-break-inside:avoid}.ch h3{margin:0 0 6px;font-size:12.5px}
