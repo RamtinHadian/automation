@@ -260,7 +260,7 @@ export default function UserPanel() {
   useEffect(() => {
     const ids = notifications.filter((n) => !n.read && n.kind !== 'chat' && n.ref?.type !== 'chat' && menuOfNotification(n) === mainMenuTab).map((n) => n.id);
     if (!ids.length) return;
-    const t = window.setTimeout(() => markNotificationsRead(ids), 4000);
+    const t = window.setTimeout(() => markNotificationsRead(ids, true), 4000);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications, mainMenuTab]);
@@ -270,7 +270,8 @@ export default function UserPanel() {
     setMainMenuTab(m);
     setSearchQuery('');
     const ids = notifications.filter((n) => !n.read && n.kind !== 'chat' && menuOfNotification(n) === m).map((n) => n.id);
-    if (ids.length) markNotificationsRead(ids);
+    // the menu counts them as seen (its badge goes), but their pop-up cards stay until their time is over or the person closes or opens them
+    if (ids.length) markNotificationsRead(ids, true);
   };
 
   const openNotification = (n: AppNotification) => {

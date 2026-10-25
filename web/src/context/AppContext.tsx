@@ -251,7 +251,7 @@ interface AppContextType {
   handleDeleteDepartment: (deptId: string) => void;
   notifications: AppNotification[];
   unreadCount: number;
-  markNotificationsRead: (ids?: string[]) => void;
+  markNotificationsRead: (ids?: string[], keepPopups?: boolean) => void;
   /** Fetch everything from the server again (e.g. after the server changed other people's records). */
   reloadState: () => void;
   clearNotifications: () => void;
@@ -602,10 +602,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return stop;
   }, [syncReady, showToast]);
 
-  const markNotificationsRead = useCallback((ids?: string[]) => {
+  const markNotificationsRead = useCallback((ids?: string[], keepPopups?: boolean) => {
     setNotifications((prev) => prev.map((n) => (!ids || ids.includes(n.id) ? { ...n, read: true } : n)));
-    // a pop-up of a notification that has been read goes away with it
-    setPopups((prev) => (ids ? prev.filter((p) => !ids.includes(p.id)) : []));
+    // a pop-up of a notification that has been read goes away with it (unless it is only the menu that counted it as seen: then the card stays until its time is over)
+    if (!keepPopups) setPopups((prev) => (ids ? prev.filter((p) => !ids.includes(p.id)) : []));
     void api.markNotificationsRead(ids).catch(() => {});
   }, []);
 
