@@ -1,3 +1,4 @@
+import { UnknownNumberActions } from './UnknownNumber';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BarChart3, Pause, Play, PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users, UserPlus } from 'lucide-react';
@@ -108,16 +109,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
                 <BarChart3 className="w-4 h-4" />
               </button>
             )}
-            {onSaveCustomer && !c.customerName && !(c.name || '').endsWith('(همکار شرکت)') && c.direction !== 'internal' && /^[0-9+]{7,}$/.test(c.number) && (
-              <button
-                type="button"
-                onClick={() => onSaveCustomer(c.number, c.name)}
-                title="ذخیره به‌عنوان مشتری جدید"
-                className="p-2 rounded-xl text-violet-700 hover:bg-violet-50 cursor-pointer shrink-0"
-              >
-                <UserPlus className="w-4 h-4" />
-              </button>
-            )}
+            {onSaveCustomer && !c.customerName && !(c.name || '').endsWith('(همکار شرکت)') && c.direction !== 'internal' && /^[0-9+]{7,}$/.test(c.number) && <UnknownNumberActions number={c.number} compact />}
             {callable && (
               <button
                 type="button"

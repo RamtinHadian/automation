@@ -1,3 +1,4 @@
+import { UnknownNumberActions } from './UnknownNumber';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -236,8 +237,8 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
               notifications.map((n) => {
                 const Icon = KIND_ICON[n.kind] || FileText;
                 return (
+                  <div key={n.id}>
                   <button
-                    key={n.id}
                     type="button"
                     onClick={() => openItem(n)}
                     className={`w-full flex items-start gap-3 px-4 py-3 text-right hover:bg-[#FAF5F1] transition-colors cursor-pointer ${n.read ? '' : 'bg-sky-50/50'}`}
@@ -254,6 +255,13 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
                       <span className="block text-[10px] text-[#8C6F66]/80 mt-0.5">{timeAgo(n.createdAt)}</span>
                     </span>
                   </button>
+                  {n.kind === 'call' && n.ref?.type === 'phone' && (
+                    <div className="px-4 pb-3 -mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-amber-900 bg-amber-50/60" data-bell-unknown>
+                      <span>شمارهٔ ناشناس:</span>
+                      <UnknownNumberActions number={n.ref.id} compact />
+                    </div>
+                  )}
+                  </div>
                 );
               })
             )}
