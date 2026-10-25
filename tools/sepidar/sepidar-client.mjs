@@ -4,6 +4,13 @@ import crypto from 'node:crypto';
 
 const b64u = (b64) => b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+/** A serial as a person types it, made plain: Persian / Arabic digits to Latin, no spaces, dashes or invisible direction marks. */
+export const cleanSerial = (s) =>
+  String(s ?? '')
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[\s​-‏‪-‮⁦-⁩﻿\-_]/g, '');
+
 /** The key of the device is its 8-letter serial written twice (16 bytes: AES-128, CBC, PKCS7). */
 const deviceKey = (serial) => {
   const key = Buffer.from(serial + serial, 'utf8');
@@ -74,6 +81,8 @@ export class Sepidar {
   /** cfg: { url, serial, userName, password, generationVersion?, authScheme? }; state: { publicKeyXml?, token? } (kept by the caller) */
   constructor(cfg, state = {}) {
     this.cfg = { generationVersion: '112', authScheme: 'Bearer', ...cfg };
+    // the serial as typed by a person: Persian / Arabic digits become Latin, spaces and invisible marks go (the serial is the key, every character counts)
+    this.cfg.serial = cleanSerial(this.cfg.serial);
     if (state && state.generationVersion && !cfg.generationVersion) this.cfg.generationVersion = state.generationVersion;
     this.state = state;
     this.base = this.cfg.url.replace(/\/+$/, '');
@@ -120,7 +129,11 @@ export class Sepidar {
     return this.cfg.generationVersion;
   }
 
-  /** Done once: introduces this program to Sepidar and keeps the public key it answers with. */
+  /**
+   * Done once: introduces this program to Sepidar and keeps the public key it answers with.
+   * The serial is the key of the exchange and is case-sensitive: when Sepidar says the device code is wrong, the same serial in capitals and in small
+   * letters is tried too (a serial copied or typed with the other case is the usual reason), and the one that works is used.
+   */
   async register() {
     const id = this.integrationId;
     if (!Number.isInteger(id) || id <= 0) throw new SepidarError(0, `سریال دستگاه درست نیست: چهار نویسهٔ اولش باید عدد باشد (سریال «${this.cfg.serial}»). سریال را از صفحهٔ «دستگاه جدید» سپیدار کپی کنید.`);
@@ -130,25 +143,29 @@ export class Sepidar {
     const shapes = [];
     for (const v of versions) for (const asText of [false, true]) shapes.push({ v, asText });
     const errors = [];
-    for (const { v, asText } of shapes) {
+    const serials = [...new Set([this.cfg.serial, this.cfg.serial.toUpperCase(), this.cfg.serial.toLowerCase()])];
+    const attempts = serials.flatMap((sr, k) => (k === 0 ? shapes : shapes.filter((s) => s.v === version)).map((s) => ({ ...s, sr })));
+    for (const { v, asText, sr } of attempts) {
       try {
-        const { Cypher, IV } = aesEncrypt(this.cfg.serial, String(id));
+        const { Cypher, IV } = aesEncrypt(sr, String(id));
         const r = await this.raw('POST', '/api/Devices/Register', {
           headers: { GenerationVersion: v },
           body: { Cypher, IntegrationID: asText ? String(id) : id, IV },
         });
-        this.state.publicKeyXml = aesDecrypt(this.cfg.serial, r.Cypher, r.IV);
+        this.state.publicKeyXml = aesDecrypt(sr, r.Cypher, r.IV);
         publicKeyFromXml(this.state.publicKeyXml); // fails early if it is not a key
         this.cfg.generationVersion = v;
         this.state.generationVersion = v;
+        this.cfg.serial = sr;
         return r.DeviceTitle;
       } catch (e) {
         if (!(e instanceof SepidarError) || ![400, 401, 415].includes(e.status)) throw e;
-        const line = `نسخهٔ ${v}${asText ? '، شناسه به‌صورت متن' : ''}: ${e.message}`;
+        const line = `نسخهٔ ${v}${asText ? '، شناسه به‌صورت متن' : ''}${sr !== serials[0] ? '، سریال با حروف ' + (sr === sr.toUpperCase() ? 'بزرگ' : 'کوچک') : ''}: ${e.message}`;
         if (!errors.includes(line)) errors.push(line);
       }
     }
-    throw new SepidarError(401, 'سپیدار هر شکل درخواست را رد کرد: ' + errors.join(' | '));
+    const wrongCode = errors.some((x) => /کد دستگاه|دستگاه/.test(x));
+    throw new SepidarError(401, 'سپیدار هر شکل درخواست را رد کرد: ' + errors.join(' | ') + (wrongCode ? ` — سریالی که ابزار خوانده: «${this.cfg.serial}» (${this.cfg.serial.length} نویسه، شناسهٔ دستگاه ${id}). سریال را دقیقاً از صفحهٔ دستگاه در سپیدار کپی کنید (حروف بزرگ و کوچک، O با صفر و I با یک فرق دارند)؛ مطمئن شوید دستگاه در سپیدار «فعال» و ذخیره شده است.` : ''));
   }
 
   /** The headers every call needs: a new GUID each time, and the same GUID encrypted with the public key. */

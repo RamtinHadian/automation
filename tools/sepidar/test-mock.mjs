@@ -66,7 +66,14 @@ const sepidarServer = http.createServer(async (req, res) => {
   const body = await readBody(req);
   const url = req.url.replace(/\/$/, '');
   if (req.method === 'POST' && url === '/api/Devices/Register') {
-    if (aesDecrypt(SERIAL, body.Cypher, body.IV) !== String(body.IntegrationID) || body.IntegrationID !== 1001) return send(res, 400, { Message: 'عدم تطابق دستگاه' });
+    let same = false;
+    try {
+      same = aesDecrypt(SERIAL, body.Cypher, body.IV) === String(body.IntegrationID);
+    } catch {
+      /* a wrong serial cannot decrypt: Sepidar says the device code is wrong */
+    }
+    if (!same) return send(res, 401, { Message: 'کد دستگاه به درستی وارد نشده است.' });
+    if (body.IntegrationID !== 1001) return send(res, 400, { Message: 'عدم تطابق دستگاه' });
     sp.registered = true;
     return send(res, 200, { ...aesEncrypt(SERIAL, xml), DeviceTitle: 'دستگاه آزمایشی' });
   }
@@ -289,6 +296,28 @@ ok(r.code === 0 && /ورود موفق بود/.test(r.out), 'diag works from the 
   ok(err && err.status === 403 && /اجازهٔ ثبت مشتری ندارد/.test(err.message) && /«admin»/.test(err.message) && /ورود هم نوشته/.test(err.message), 'a 403 from Sepidar: a clear message with status 403 (the loop stops after the first)' + String.fromCharCode(10) + (err && err.message));
   canRegister = true;
   customers403 = false;
+}
+
+// a serial typed with another case, Persian digits or spaces still registers the device (the serial is cleaned and the other case is tried)
+{
+  for (const typed of ['10017ABC', ' ۱۰۰۱۷abc ', '1001 7-ABC']) {
+    const c = new Sepidar({ url: `http://127.0.0.1:${sPort}`, serial: typed, userName: 'admin', password: 'secret' }, {});
+    let title = '';
+    try {
+      title = await c.register();
+    } catch (e) {
+      title = 'ERR ' + e.message;
+    }
+    ok(title === 'دستگاه آزمایشی' && c.cfg.serial === SERIAL, `serial typed as «${typed}» still registers the device` + String.fromCharCode(10) + title);
+  }
+  const bad = new Sepidar({ url: `http://127.0.0.1:${sPort}`, serial: '10017xyz', userName: 'admin', password: 'secret' }, {});
+  let msg = '';
+  try {
+    await bad.register();
+  } catch (e) {
+    msg = e.message;
+  }
+  ok(/سریالی که ابزار خوانده: «10017xyz»/.test(msg) && /کپی کنید/.test(msg), 'a really wrong serial: the message shows the serial that was read and what to check' + String.fromCharCode(10) + msg);
 }
 
 // a Sepidar that accepts only another shape of the encrypted code: the client tries the shapes and finds it
