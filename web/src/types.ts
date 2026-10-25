@@ -439,6 +439,8 @@ export interface Task {
   completedAt?: string;
   /** finished work put away: seen only by the top admin and the people who had a part in it */
   archived?: boolean;
+  /** files kept on the task (PDF, pictures…); the bytes are on the server */
+  attachments?: CustomerFile[];
 }
 
 export interface LetterReferral {

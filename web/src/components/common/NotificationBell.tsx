@@ -1,4 +1,4 @@
-import { UnknownNumberActions } from './UnknownNumber';
+import { SavedContactLine, UnknownNumberActions, UnknownNumberHost, useSavedContact } from './UnknownNumber';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -34,6 +34,19 @@ const timeAgo = (iso: string) => {
   const h = Math.floor(m / 60);
   if (h < 24) return `${toPersianDigits(h)} ساعت پیش`;
   return `${toPersianDigits(Math.floor(h / 24))} روز پیش`;
+};
+
+/** Under a call from a number: the three save buttons while nobody has it, the saved name once somebody does. */
+const BellNumberRow: React.FC<{ number: string }> = ({ number }) => {
+  const saved = useSavedContact(number);
+  return saved ? (
+    <div className="px-4 pb-3 -mt-1 bg-emerald-50/70" data-bell-saved><SavedContactLine number={number} compact /></div>
+  ) : (
+    <div className="px-4 pb-3 -mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-amber-900 bg-amber-50/60" data-bell-unknown>
+      <span>شمارهٔ ناشناس:</span>
+      <UnknownNumberActions number={number} compact />
+    </div>
+  );
 };
 
 export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotification) => void }> = ({ onOpenNotification }) => {
@@ -101,8 +114,13 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
       const t = e.target as Node;
       if (box.current && !box.current.contains(t) && !panel.current?.contains(t)) setOpen(false);
     };
+    const shut = () => setOpen(false);
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    window.addEventListener('close-popovers', shut);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('close-popovers', shut);
+    };
   }, [open]);
 
   const openItem = (n: AppNotification) => {
@@ -113,6 +131,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
 
   return (
     <div className="relative" ref={box}>
+      <UnknownNumberHost />
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -255,12 +274,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
                       <span className="block text-[10px] text-[#8C6F66]/80 mt-0.5">{timeAgo(n.createdAt)}</span>
                     </span>
                   </button>
-                  {n.kind === 'call' && n.ref?.type === 'phone' && (
-                    <div className="px-4 pb-3 -mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-amber-900 bg-amber-50/60" data-bell-unknown>
-                      <span>شمارهٔ ناشناس:</span>
-                      <UnknownNumberActions number={n.ref.id} compact />
-                    </div>
-                  )}
+                  {n.kind === 'call' && n.ref?.type === 'phone' && <BellNumberRow number={n.ref.id} />}
                   </div>
                 );
               })

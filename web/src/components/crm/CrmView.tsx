@@ -1,7 +1,7 @@
 import { matchesAll } from '../../lib/searchAll';
 import { isCustomerRecord } from '../../lib/contactTypes';
 import { placeCall } from '../../lib/callFrom';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Briefcase,
@@ -134,6 +134,23 @@ export const CrmView: React.FC = () => {
   // a customer made from inside another window (new opportunity / proforma) is handed back to it when saved
   const [customerCb, setCustomerCb] = useState<((c: Customer) => void) | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  // the stage bar at the bottom of the screen: shown once the column heads have scrolled out of sight, so a card can be dropped on a stage from anywhere
+  const pipeGrid = useRef<HTMLDivElement>(null);
+  const [stageBar, setStageBar] = useState(false);
+  const [overStage, setOverStage] = useState<string | null>(null);
+  useEffect(() => {
+    const check = () => {
+      const g = pipeGrid.current;
+      setStageBar(!!g && g.getBoundingClientRect().top < -20 && g.getBoundingClientRect().bottom > 120);
+    };
+    check();
+    window.addEventListener('scroll', check, true);
+    window.addEventListener('resize', check);
+    return () => {
+      window.removeEventListener('scroll', check, true);
+      window.removeEventListener('resize', check);
+    };
+  }, [tab]);
   const [mobileStage, setMobileStage] = useState<DealStage>('NEW');
   const [followScope, setFollowScope] = useState<'mine' | 'all'>('mine');
   const [smsEnabled, setSmsEnabled] = useState(false);
@@ -830,12 +847,13 @@ export const CrmView: React.FC = () => {
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3 items-start">
+          <div ref={pipeGrid} className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3 items-start">
             {STAGES.map((s) => {
               const list = pipeDeals.filter((d) => d.stage === s.id).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); // oldest first: the newest opportunity is at the bottom
               return (
                 <div
                   key={s.id}
+                  data-stage-col={s.id}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => {
                     if (dragId) moveDeal(dragId, s.id);
@@ -854,6 +872,37 @@ export const CrmView: React.FC = () => {
                   {list.map(dealCard)}
                   {list.length === 0 && <div className="text-center text-[10px] text-gray-400 font-bold py-4 border border-dashed border-[#EBDBCE] rounded-2xl">خالی</div>}
                 </div>
+              );
+            })}
+          </div>
+          <div
+            className={`hidden md:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-40 items-center gap-1.5 p-1.5 rounded-[22px] border border-white/60 bg-white/70 backdrop-blur-xl backdrop-saturate-150 shadow-[0_10px_40px_rgba(58,36,31,0.22)] transition-all duration-300 ${stageBar || dragId ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6 pointer-events-none'}`}
+            data-stage-bar
+            dir="rtl"
+          >
+            {STAGES.map((s) => {
+              const n = pipeDeals.filter((d) => d.stage === s.id).length;
+              const hot = overStage === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  data-stage-chip={s.id}
+                  onClick={() => document.querySelector(`[data-stage-col="${s.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  onDragOver={(e) => { e.preventDefault(); setOverStage(s.id); }}
+                  onDragLeave={() => setOverStage((c) => (c === s.id ? null : c))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragId) moveDeal(dragId, s.id);
+                    setDragId(null);
+                    setOverStage(null);
+                  }}
+                  className={`flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-2xl text-[12px] font-black cursor-pointer transition-all duration-200 ${hot ? 'bg-[#6E1B1B] text-white scale-110 shadow-lg' : dragId ? 'bg-white/90 text-[#3A241F] ring-1 ring-[#EBDBCE]' : 'text-[#3A241F] hover:bg-white/80'}`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${s.dot}`} />
+                  {s.label}
+                  <span className={`rounded-full px-1.5 text-[10px] ${hot ? 'bg-white/25' : 'bg-[#EBDBCE]/70'}`}>{toPersianDigits(n)}</span>
+                </button>
               );
             })}
           </div>

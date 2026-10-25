@@ -7,7 +7,7 @@ import { normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { useAppContext } from '../../context/AppContext';
 import { canSeeSalesTotals } from '../../lib/permissions';
-import { UnknownNumberActions } from './UnknownNumber';
+import { SavedContactLine, UnknownNumberActions, useSavedContact } from './UnknownNumber';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
 
@@ -49,7 +49,9 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
     };
   }, [cust, activities, deals]);
   const area = useVoipArea();
-  const unknownNumber = isCall && n.ref?.type === 'phone' ? fullPhone(n.ref.id, area) : '';
+  const callNumber = isCall && n.ref?.type === 'phone' ? fullPhone(n.ref.id, area) : '';
+  const savedContact = useSavedContact(callNumber);
+  const unknownNumber = savedContact ? '' : callNumber;
   // an incoming-call card stays until the call ends (or at most the number of seconds the admin set); the other cards use the admin's time, or stay until closed
   const incoming = isCall && n.label !== 'تماس بی‌پاسخ';
   const conf = getNotifyConfig();
@@ -146,6 +148,9 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
           ))}
           
         </button>
+      )}
+      {savedContact && (
+        <div className="px-3.5 py-2 bg-emerald-50 border-t border-emerald-100"><SavedContactLine number={callNumber} compact /></div>
       )}
       {unknownNumber && (
         <div className="px-3.5 py-2 bg-amber-50 border-t border-amber-100 flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-amber-900">

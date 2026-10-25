@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -145,7 +147,7 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	case jsonx.Contains(assignees, me.ID()):
 		// Assignees may move the task along, tick the checklist and comment; nothing else.
 		doc = jsonx.Copy(before)
-		for _, k := range []string{"status", "checklist", "comments", "archived", "reviewerIds"} {
+		for _, k := range []string{"status", "checklist", "comments", "archived", "reviewerIds", "attachments"} {
 			if v, ok := data[k]; ok && v != nil {
 				doc[k] = v
 			}
@@ -269,6 +271,7 @@ func removeTask(w http.ResponseWriter, r *http.Request, me auth.User, id string)
 		internalError(w)
 		return
 	}
+	_ = os.RemoveAll(filepath.Join(filesDir(), "tasks", id))
 	notify.Notify(r.Context(), append([]string{creator}, assignees...), notify.Note{
 		Kind: "alert", Label: "وظیفه حذف شد", Title: "وظیفه حذف شد: " + jsonx.Str(jsonx.Decode(traw), "title"), Repeat: true,
 	}, me.ID())
