@@ -53,10 +53,24 @@ const AddToExisting: React.FC<{ number: string; onClose: () => void }> = ({ numb
 /** A short number is a colleague's extension inside the company, never a number to save. */
 export const isExtensionNumber = (number: string) => digitsOf(number).length < 7;
 
+// the phone book as a lookup (last ten digits -> person), built once per list of customers, so a long list of calls does not search it again for every row
+const indexCache = new WeakMap<Customer[], Map<string, Customer>>();
+const phoneIndex = (customers: Customer[]) => {
+  let m = indexCache.get(customers);
+  if (!m) {
+    m = new Map();
+    for (const c of customers) for (const p of c.phones || []) {
+      const k = digitsOf(p).slice(-10);
+      if (k.length >= 7 && !m.has(k)) m.set(k, c);
+    }
+    indexCache.set(customers, m);
+  }
+  return m;
+};
+
 export const findSavedContact = (customers: Customer[], number: string) => {
   const key = digitsOf(number).slice(-10);
-  if (key.length < 7) return undefined;
-  return customers.find((c) => (c.phones || []).some((p) => digitsOf(p).slice(-10) === key));
+  return key.length < 7 ? undefined : phoneIndex(customers).get(key);
 };
 
 export const useSavedContact = (number: string) => findSavedContact(useAppContext().customers, number);

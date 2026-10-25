@@ -253,7 +253,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
             </div>
           )}
 
-          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#EBDBCE]/60">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain divide-y divide-[#EBDBCE]/60 [-webkit-overflow-scrolling:touch]">
             {notifications.length === 0 ? (
               <div className="py-10 text-center text-xs font-bold text-gray-400">اعلانی وجود ندارد.</div>
             ) : (
@@ -261,7 +261,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
                 const Icon = KIND_ICON[n.kind] || FileText;
                 const kc = known(n);
                 return (
-                  <div key={n.id}>
+                  <div key={n.id} className="[content-visibility:auto] [contain-intrinsic-size:auto_72px]">
                   <button
                     type="button"
                     onClick={() => openItem(n)}

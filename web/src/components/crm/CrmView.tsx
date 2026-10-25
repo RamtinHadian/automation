@@ -138,6 +138,18 @@ export const CrmView: React.FC = () => {
   const pipeGrid = useRef<HTMLDivElement>(null);
   const [stageBar, setStageBar] = useState(false);
   const [overStage, setOverStage] = useState<string | null>(null);
+  // holding a card over a stage in the bar for a moment takes the page to that column, so the card can be put exactly where it belongs
+  const hoverTimer = useRef<{ id: string; t: ReturnType<typeof setTimeout> } | null>(null);
+  const stopHover = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current.t);
+    hoverTimer.current = null;
+  };
+  const hoverStage = (id: string) => {
+    setOverStage(id);
+    if (hoverTimer.current?.id === id) return;
+    stopHover();
+    hoverTimer.current = { id, t: setTimeout(() => document.querySelector(`[data-stage-col="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 450) };
+  };
   useEffect(() => {
     const check = () => {
       const g = pipeGrid.current;
@@ -889,10 +901,11 @@ export const CrmView: React.FC = () => {
                   type="button"
                   data-stage-chip={s.id}
                   onClick={() => document.querySelector(`[data-stage-col="${s.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  onDragOver={(e) => { e.preventDefault(); setOverStage(s.id); }}
-                  onDragLeave={() => setOverStage((c) => (c === s.id ? null : c))}
+                  onDragOver={(e) => { e.preventDefault(); hoverStage(s.id); }}
+                  onDragLeave={() => { stopHover(); setOverStage((c) => (c === s.id ? null : c)); }}
                   onDrop={(e) => {
                     e.preventDefault();
+                    stopHover();
                     if (dragId) moveDeal(dragId, s.id);
                     setDragId(null);
                     setOverStage(null);
