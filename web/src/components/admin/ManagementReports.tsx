@@ -176,12 +176,20 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
           <HBars rows={s.taskLoad.map((t) => ({ label: t.name, segments: [{ value: t.open - t.overdue, color: C.blue, name: 'در جریان' }, { value: t.overdue, color: C.red, name: 'معوق' }] }))} empty="وظیفهٔ بازی نیست." />
         </ChartCard>
 
-        {seesTotals && (<ChartCard title="قیف فروش" subtitle="تعداد فرصت در هر مرحله؛ مبلغ کنار هر ردیف">
+        <ChartCard title="قیف فروش" subtitle={seesTotals ? 'تعداد فرصت در هر مرحله؛ مبلغ کنار هر ردیف' : 'تعداد فرصت در هر مرحله؛ سهم از همهٔ فرصت‌ها کنار هر ردیف'}>
           <HBars
             format={(v) => toPersianDigits(v)}
-            rows={s.funnel.map((f, i) => ({ label: f.label, segments: [{ value: f.count, color: RAMP[i] }], note: `${compactM(f.value)} ${unitName()}` }))}
+            rows={s.funnel.map((f, i) => ({ label: f.label, segments: [{ value: f.count, color: RAMP[i] }], note: seesTotals ? `${compactM(f.value)} ${unitName()}` : `${toPersianDigits(deals.length ? Math.round((f.count / deals.length) * 100) : 0)}٪` }))}
           />
-        </ChartCard>)}
+          <div className="mt-3 text-[11px] font-bold text-[#8C6F66] flex flex-wrap gap-x-4 gap-y-1" data-funnel-summary>
+            <span>از دست رفته: {toPersianDigits(deals.filter((d) => d.stage === 'LOST').length)}</span>
+            <span>
+              نرخ موفقیت (فروش موفق از موفق و از دست رفته):{' '}
+              {toPersianDigits(((w, l) => (w + l ? Math.round((w / (w + l)) * 1000) / 10 : 0))(s.funnel[s.funnel.length - 1].count, deals.filter((d) => d.stage === 'LOST').length))}٪
+            </span>
+            <span>کل فرصت‌ها: {toPersianDigits(deals.length)}</span>
+          </div>
+        </ChartCard>
 
         {seesTotals && (<ChartCard title="فروش موفق هر ماه" subtitle={`مجموع مبلغ فروش (${unitName()})`}>
           <Columns labels={s.wonByMonth.map((m) => m.label)} series={[{ name: 'فروش', color: C.green, values: s.wonByMonth.map((m) => m.value) }]} format={(v) => compactM(v)} />

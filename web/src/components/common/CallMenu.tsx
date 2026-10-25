@@ -23,6 +23,11 @@ export const CallMenu: React.FC = () => {
   const [number, setNumber] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  useEffect(() => {
+    const shut = () => setOpen(false);
+    window.addEventListener('close-popovers', shut);
+    return () => window.removeEventListener('close-popovers', shut);
+  }, []);
   const box = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);

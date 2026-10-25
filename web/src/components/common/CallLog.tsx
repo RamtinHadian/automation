@@ -137,6 +137,11 @@ export const CallLogModal: React.FC<{ onClose: () => void; isAdmin: boolean }> =
   const { showToast, currentUser, notifications, markNotificationsRead } = useAppContext();
   const area = useVoipArea();
   const canSaveCustomer = currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN';
+  // a new window (the phone-book choice, the customer form…) replaces this one
+  useEffect(() => {
+    window.addEventListener('close-popovers', onClose);
+    return () => window.removeEventListener('close-popovers', onClose);
+  }, [onClose]);
   const [calls, setCalls] = useState<VoipCall[] | null>(null);
   // an administrator starts with the whole company: calls to a number nobody owns (a diverted number…) belong to nobody's own list
   const [scope, setScope] = useState<'mine' | 'all'>(isAdmin ? 'all' : 'mine');

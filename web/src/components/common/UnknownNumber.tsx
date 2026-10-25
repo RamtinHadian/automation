@@ -5,7 +5,8 @@ import { useAppContext } from '../../context/AppContext';
 import { normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { digitsOf } from './MoneyInput';
-import { ContactDialog, ContactKind, KIND_INFO } from './ContactDialog';
+import { ContactKind, KIND_INFO } from './ContactDialog';
+import { CustomerForm } from '../crm/CustomerForm';
 import { toPersianDigits } from '../../lib/jalali';
 import { PersonPicker } from './PersonPicker';
 import { CONTACT_TYPES, contactTypeOf } from '../../lib/contactTypes';
@@ -144,6 +145,34 @@ const ChooseType: React.FC<{ number: string; onPick: (t: 'CUSTOMER' | ContactKin
   );
 };
 
+/** Supplier / colleague / other: the same full form as «مشتری جدید», without what only a customer has; the entry goes to the phone book. */
+const ContactFormHost: React.FC<{ kind: ContactKind; number: string; onClose: () => void }> = ({ kind, number, onClose }) => {
+  const { customers, setCustomers, staffList, currentUser, showToast } = useAppContext();
+  const now = new Date().toISOString();
+  const norm = normPhone(number) || number;
+  const initial: Customer = {
+    id: 'cu-' + Math.random().toString(36).substring(2, 10), contactType: kind, name: '', company: '', phones: norm ? [norm] : [], email: '', address: '', status: 'LEAD', source: '', tags: [],
+    ownerId: currentUser.id, ownerName: currentUser.fullName, notes: '', createdAt: now, updatedAt: now,
+  };
+  return (
+    <CustomerForm
+      initial={initial}
+      isNew
+      staff={staffList}
+      customers={customers}
+      canDelete={false}
+      contactKind={kind}
+      onClose={onClose}
+      onDelete={() => {}}
+      onSave={(c) => {
+        setCustomers((prev) => [{ ...c, contactType: kind, name: c.name.trim(), updatedAt: new Date().toISOString() }, ...prev]);
+        showToast(`«${c.name.trim()}» به‌عنوان ${KIND_INFO[kind].label} در دفتر تلفن ذخیره شد.`);
+        onClose();
+      }}
+    />
+  );
+};
+
 /** The windows live here, once, outside any list, so closing the notification list never takes them away; a new one always replaces the one before. */
 export const UnknownNumberHost: React.FC = () => {
   const [dlg, setDlg] = useState<Dlg | null>(null);
@@ -155,7 +184,7 @@ export const UnknownNumberHost: React.FC = () => {
   if (!dlg) return null;
   const close = () => setDlg(null);
   if (dlg.kind === 'existing') return <AddToExisting number={dlg.number} onClose={close} />;
-  if (dlg.kind === 'contact') return <ContactDialog kind={dlg.type} number={dlg.number} onClose={close} />;
+  if (dlg.kind === 'contact') return <ContactFormHost kind={dlg.type} number={dlg.number} onClose={close} />;
   return (
     <ChooseType
       number={dlg.number}

@@ -115,7 +115,10 @@ export const CustomerForm: React.FC<{
   onClose: () => void;
   onSave: (c: Customer) => void;
   onDelete: () => void;
-}> = ({ initial, isNew, staff, customers, canDelete, onClose, onSave, onDelete }) => {
+  /** a phone-book entry that is not a customer (supplier, colleague, other): the same form without what only a customer has (Sepidar, marketing, need, sales status) */
+  contactKind?: 'SUPPLIER' | 'COLLEAGUE' | 'OTHER';
+}> = ({ initial, isNew, staff, customers, canDelete, onClose, onSave, onDelete, contactKind }) => {
+  const contactLabel = contactKind === 'SUPPLIER' ? 'تأمین‌کننده' : contactKind === 'COLLEAGUE' ? 'همکار' : 'مخاطب';
   const [c, setC] = useState<Customer>(() => {
     const kind = initial.kind || 'PERSON';
     const parts = (initial.name || '').trim().split(/\s+/);
@@ -183,6 +186,7 @@ export const CustomerForm: React.FC<{
       faxNumber: c.faxNumber && l.includes(c.faxNumber) ? c.faxNumber : undefined,
       interest: (c.interest || '').trim() || undefined,
       ownerName: owner?.fullName || c.ownerName,
+      ...(contactKind ? { contactType: contactKind } : {}),
     };
     if (out.referrer && !out.referrer.name.trim()) delete out.referrer;
     onSave(out);
@@ -276,8 +280,8 @@ export const CustomerForm: React.FC<{
     <form onSubmit={submit}>
       <Modal
         wide
-        onTop
-        title={isNew ? 'مشتری جدید' : 'ویرایش مشتری'}
+        onTop={contactKind ? 'max' : true}
+        title={contactKind ? (isNew ? `${contactLabel} جدید` : `ویرایش ${contactLabel}`) : isNew ? 'مشتری جدید' : 'ویرایش مشتری'}
         onClose={onClose}
         footer={
           <>
@@ -294,7 +298,7 @@ export const CustomerForm: React.FC<{
                 انصراف
               </button>
               <button type="submit" disabled={!displayName} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">
-                {isNew ? 'ثبت مشتری' : 'ذخیره'}
+                {contactKind ? 'ذخیره در دفتر تلفن' : isNew ? 'ثبت مشتری' : 'ذخیره'}
               </button>
             </div>
           </>
@@ -302,14 +306,14 @@ export const CustomerForm: React.FC<{
       >
         {dups.length > 0 && (
           <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-[11px] font-bold text-amber-900 space-y-1" data-duplicate-warning>
-            <div className="font-black">این مشتری شاید قبلاً ثبت شده باشد:</div>
+            <div className="font-black">{contactKind ? 'این شماره شاید قبلاً در دفتر تلفن ثبت شده باشد:' : 'این مشتری شاید قبلاً ثبت شده باشد:'}</div>
             {dups.map((d) => (
               <div key={d.id}>«{d.name}»{d.ownerName ? ` · مسئول: ${d.ownerName}` : ''}{d.mine ? '' : ' (در پروندهٔ همکار شما)'}</div>
             ))}
             <div className="font-medium text-amber-800">اگر همان مشتری است، به‌جای ثبت دوباره، با مسئولش هماهنگ کنید.</div>
           </div>
         )}
-        {sepLinked && !isNew && (
+        {!contactKind && sepLinked && !isNew && (
           <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-[11px] font-bold text-emerald-900 flex flex-wrap items-center gap-2" data-sepidar-linked>
             <Landmark className="w-4 h-4 shrink-0" />
             <span className="flex-1 min-w-0">در سپیدار با نام «{sepLinked.name}» ثبت است و پیش‌فاکتورها به همان نام می‌روند.</span>
@@ -318,7 +322,7 @@ export const CustomerForm: React.FC<{
             </button>
           </div>
         )}
-        {!sepLinked && sepMatches.length > 0 && (
+        {!contactKind && !sepLinked && sepMatches.length > 0 && (
           <div className="rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3 text-[11px] font-bold text-sky-900 space-y-2" data-sepidar-match>
             <div className="font-black flex items-center gap-2">
               <Landmark className="w-4 h-4 shrink-0" />
@@ -422,7 +426,7 @@ export const CustomerForm: React.FC<{
                 <input className={field} value={c.fatherName || ''} onChange={(e) => patch({ fatherName: e.target.value })} />
               </div>
               <div>
-                <label className={label}>کد ملی <span className="font-medium text-[#8C6F66]">(چهار رقم آخر، رمز ورود به صفحهٔ پشتیبانی مشتری است)</span></label>
+                <label className={label}>کد ملی {!contactKind && <span className="font-medium text-[#8C6F66]">(چهار رقم آخر، رمز ورود به صفحهٔ پشتیبانی مشتری است)</span>}</label>
                 <input className={field} dir="ltr" inputMode="numeric" maxLength={10} value={c.nationalCode || ''} onChange={(e) => patch({ nationalCode: e.target.value })} />
                 {hint(nationalCodeBad, 'کد ملی معتبر نیست.')}
               </div>
@@ -592,7 +596,7 @@ export const CustomerForm: React.FC<{
           </div>
         </Section>
 
-        <Section title="بازاریابی">
+        {!contactKind && <Section title="بازاریابی">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className={label}>منبع آشنایی</label>
@@ -671,9 +675,9 @@ export const CustomerForm: React.FC<{
               </div>
             )}
           </div>
-        </Section>
+        </Section>}
 
-        {sepidarOn && (
+        {sepidarOn && !contactKind && (
           <Section title="اطلاعات سپیدار">
             <p className="text-[11px] font-bold text-[#8C6F66]">این گروه فقط روی هورمندی که به سپیدار وصل است دیده می‌شود. مقدارها همان‌هایی است که سپیدار برای این مشتری نگه می‌دارد.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-sepidar-section>
@@ -695,7 +699,7 @@ export const CustomerForm: React.FC<{
           </Section>
         )}
 
-        <Section title="نیاز مشتری">
+        {!contactKind && <Section title="نیاز مشتری">
           <div>
             <label className={label}>مشتری دنبال چه کالایی می‌گردد؟</label>
             <input className={field} list="crm-interests" value={c.interest || ''} onChange={(e) => patch({ interest: e.target.value })} placeholder="مثلاً کولر گازی ۲۴ هزار، بودجه ۴۰ میلیون" />
@@ -705,18 +709,18 @@ export const CustomerForm: React.FC<{
               ))}
             </datalist>
           </div>
-        </Section>
+        </Section>}
 
         <Section title="پیگیری">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+            {!contactKind && <div>
               <label className={label}>وضعیت</label>
               <select className={field} value={c.status} onChange={(e) => patch({ status: e.target.value as CustomerStatus })}>
                 {(Object.keys(STATUS_LABEL) as CustomerStatus[]).map((k) => (
                   <option key={k} value={k}>{STATUS_LABEL[k]}</option>
                 ))}
               </select>
-            </div>
+            </div>}
             <div>
               <label className={label}>مسئول پیگیری</label>
               <PersonPicker title="مسئول پیگیری" items={staffItems(staff)} value={c.ownerId} onChange={(id) => patch({ ownerId: id })} />
