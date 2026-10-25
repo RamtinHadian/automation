@@ -153,6 +153,10 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		}
 	}
 	doc["createdAt"], doc["updatedAt"] = created, now()
+	// the server's own mark that the closing-time reminder was sent (a changed forecast has another key and is reminded again)
+	if v, ok := before["closeRemindedFor"]; ok {
+		doc["closeRemindedFor"] = v
+	}
 	// who created the opportunity: written once by the server when it is created, never changed by a later save
 	if !exists {
 		doc["createdById"], doc["createdByName"] = me.ID(), me.Name()

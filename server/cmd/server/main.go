@@ -61,6 +61,7 @@ func main() {
 	}
 	go crm.RunReminders(ctx)
 	go crm.RunStalledDeals(ctx)
+	go crm.RunCloseReminders(ctx)
 	if !cfg.Demo {
 		go sms.RunOccasions(ctx)         // birthday messages the day before
 		go sms.RunProformaReminders(ctx) // the day before a proforma runs out

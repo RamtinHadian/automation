@@ -71,6 +71,8 @@ import { managedStaffIds } from '../../lib/unit';
 import { CustomerFiles } from './CustomerFiles';
 import { CalendarView } from './CalendarView';
 import { LOST_REASONS } from '../../lib/lostReasons';
+import { dealCloseTime } from '../../lib/dealTime';
+import { dragStartCard, droppedCard, moveAllowed } from '../../lib/dragGuard';
 import { QuoteForm } from './QuoteForm';
 import { CustomerSummaryStrip } from './CustomerSummary';
 import { buildCustomerIndex, matchesQuery } from '../../lib/customerSearch';
@@ -91,6 +93,15 @@ const STAGES: { id: DealStage; label: string; dot: string; head: string }[] = [
   { id: 'WON', label: 'فروش موفق', dot: 'bg-emerald-500', head: 'text-emerald-700' },
   { id: 'LOST', label: 'از دست رفت', dot: 'bg-rose-500', head: 'text-rose-700' },
 ];
+/** What each column means, written in the column while it is empty. */
+const STAGE_HINT: Record<DealStage, string> = {
+  NEW: 'فرصت‌های تازه که هنوز با مشتری تماس نگرفته‌اید.',
+  CONTACTED: 'با مشتری صحبت کرده‌اید و نیازش را شناخته‌اید.',
+  PROPOSAL: 'قیمت یا پیش‌فاکتور برای مشتری فرستاده شده و منتظر پاسخش هستید.',
+  NEGOTIATION: 'مشتری علاقه دارد و روی قیمت، شرایط یا زمان مذاکره می‌کنید.',
+  WON: 'فروش بسته شد؛ مشتری خرید کرد.',
+  LOST: 'مشتری خرید نکرد؛ دلیلش در فرصت ثبت شده است.',
+};
 const stageOf = (s: DealStage) => STAGES.find((x) => x.id === s) || STAGES[0];
 const OPEN_STAGES: DealStage[] = ['NEW', 'CONTACTED', 'PROPOSAL', 'NEGOTIATION'];
 
@@ -484,7 +495,10 @@ export const CrmView: React.FC = () => {
       <div
         key={d.id}
         draggable
-        onDragStart={() => setDragId(d.id)}
+        onDragStart={(e) => {
+          dragStartCard(e, d.id);
+          setDragId(d.id);
+        }}
         onDragEnd={() => setDragId(null)}
         onClick={() => setEditingDeal({ deal: d, isNew: false })}
         className={`bg-white rounded-2xl border p-3.5 space-y-2 text-right shadow-2xs hover:shadow-md transition-all cursor-pointer ${dragId === d.id ? 'opacity-40' : ''} ${overdue ? 'border-rose-300' : 'border-[#EBDBCE]'}`}
@@ -537,7 +551,7 @@ export const CrmView: React.FC = () => {
         {d.expectedClose && (
           <div className={`text-[10px] font-bold flex items-center gap-1 ${overdue ? 'text-rose-600' : 'text-[#8C6F66]'}`}>
             <CalendarDays className="w-3 h-3" />
-            پیش‌بینی بستن: {formatTaskDate(d.expectedClose)}
+            پیش‌بینی بستن: {formatTaskDate(d.expectedClose)} – {toPersianDigits(dealCloseTime(d))}
             {overdue && ' (گذشته)'}
           </div>
         )}
@@ -859,7 +873,7 @@ export const CrmView: React.FC = () => {
               </button>
             ))}
           </div>
-          <div ref={pipeGrid} className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3 items-start">
+          <div ref={pipeGrid} className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
             {STAGES.map((s) => {
               const list = pipeDeals.filter((d) => d.stage === s.id).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); // oldest first: the newest opportunity is at the bottom
               return (
@@ -867,8 +881,9 @@ export const CrmView: React.FC = () => {
                   key={s.id}
                   data-stage-col={s.id}
                   onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => {
-                    if (dragId) moveDeal(dragId, s.id);
+                  onDrop={(e) => {
+                    const id = droppedCard(e, dragId);
+                    if (id && moveAllowed(id)) moveDeal(id, s.id);
                     setDragId(null);
                   }}
                   className={`${s.id === mobileStage ? '' : 'hidden'} md:block rounded-3xl p-2.5 space-y-2.5 border bg-[#FAF5F1]/70 border-[#EBDBCE]/70 min-h-[110px]`}
@@ -882,7 +897,12 @@ export const CrmView: React.FC = () => {
                   </div>
                   {canSeeSalesTotals(currentUser) && <div className="text-[10px] font-bold text-[#8C6F66] px-1">{toman(list.reduce((x, d) => x + d.amount, 0))} {unitName()}</div>}
                   {list.map(dealCard)}
-                  {list.length === 0 && <div className="text-center text-[10px] text-gray-400 font-bold py-4 border border-dashed border-[#EBDBCE] rounded-2xl">خالی</div>}
+                  {list.length === 0 && (
+                    <div className="text-center py-5 px-3 border border-dashed border-[#EBDBCE] rounded-2xl space-y-1" data-empty-column={s.id}>
+                      <div className="text-[11px] text-gray-500 font-black">{s.label}: فرصتی نیست</div>
+                      <div className="text-[10px] text-gray-400 font-bold leading-5">{STAGE_HINT[s.id]}</div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -906,7 +926,8 @@ export const CrmView: React.FC = () => {
                   onDrop={(e) => {
                     e.preventDefault();
                     stopHover();
-                    if (dragId) moveDeal(dragId, s.id);
+                    const id = droppedCard(e, dragId);
+                    if (id && moveAllowed(id)) moveDeal(id, s.id);
                     setDragId(null);
                     setOverStage(null);
                   }}
@@ -1284,7 +1305,16 @@ const DealForm: React.FC<{
         />
         <div>
           <label className={label}>تاریخ پیش‌بینی‌شدهٔ بستن</label>
-          <JalaliDateField value={d.expectedClose} onChange={(v) => patch({ expectedClose: v })} />
+          <div className="flex gap-2 items-center">
+            <div className="flex-1 min-w-0"><JalaliDateField value={d.expectedClose} onChange={(v) => patch(v ? { expectedClose: v, expectedCloseTime: dealCloseTime(d) } : { expectedClose: v, expectedCloseTime: undefined })} /></div>
+            {d.expectedClose && (
+              <label className="flex items-center gap-1.5 shrink-0 text-[11px] font-black text-[#8C6F66]">
+                ساعت
+                <input type="time" value={dealCloseTime(d)} onChange={(e) => patch({ expectedCloseTime: e.target.value || undefined })} className={`${field} w-[110px] text-center`} dir="ltr" data-deal-close-time />
+              </label>
+            )}
+          </div>
+          {d.expectedClose && <div className="text-[10px] font-bold text-[#8C6F66] mt-1">ساعت را پیش‌فرض همان ساعت ساخت فرصت گذاشته‌ایم؛ در همین روز و ساعت برایتان اعلان یادآوری می‌آید.</div>}
         </div>
         <div>
           <label className={label}>توضیحات</label>

@@ -238,6 +238,8 @@ export interface Deal {
   createdByGuess?: boolean;
   /** Expected closing day, yyyy-mm-dd. */
   expectedClose?: string;
+  /** The hour and minute of the expected closing, «HH:MM» (empty = the time the opportunity was created at); a reminder comes at that moment. */
+  expectedCloseTime?: string;
   notes?: string;
   /** the notes paragraph by paragraph, each with its time and writer (`notes` keeps the same text joined by new lines) */
   noteLog?: NoteEntry[];

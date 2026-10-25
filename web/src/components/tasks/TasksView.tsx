@@ -26,6 +26,7 @@ import { DailyReportsView } from './DailyReportsView';
 import { CustomerFiles } from '../crm/CustomerFiles';
 import { Task, TaskPriority, TaskStatus, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
+import { dragStartCard, droppedCard, moveAllowed } from '../../lib/dragGuard';
 import { matchesAll } from '../../lib/searchAll';
 import { SubTabs } from '../common/SubTabs';
 import { CalendarButton } from '../common/JalaliCalendar';
@@ -44,6 +45,14 @@ const STATUSES: { id: TaskStatus; label: string; dot: string; head: string }[] =
   { id: 'REVIEW', label: 'در انتظار بررسی', dot: 'bg-amber-500', head: 'text-amber-700' },
   { id: 'DONE', label: 'انجام شده', dot: 'bg-emerald-500', head: 'text-emerald-700' },
 ];
+
+/** What each column means, written in the column while it is empty. */
+const STATUS_HINT: Record<TaskStatus, string> = {
+  TODO: 'کارهایی که هنوز شروع نشده‌اند؛ تازه تعریف یا واگذار شده‌اند و منتظر شروع‌اند.',
+  IN_PROGRESS: 'کارهایی که مسئول انجامشان همین حالا رویشان کار می‌کند.',
+  REVIEW: 'کار انجام شده و منتظر بررسی و تأیید سازندهٔ وظیفه (یا افراد انتخاب‌شده) است.',
+  DONE: 'کارهای تمام‌شده؛ بعد از تأیید می‌توانید بایگانی‌شان کنید.',
+};
 
 const PRIORITIES: { id: TaskPriority; label: string; cls: string }[] = [
   { id: 'LOW', label: 'کم', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -257,7 +266,10 @@ const TasksBoard: React.FC = () => {
     return (
       <div
         draggable={canMove(t)}
-        onDragStart={() => setDragId(t.id)}
+        onDragStart={(e) => {
+          dragStartCard(e, t.id);
+          setDragId(t.id);
+        }}
         onDragEnd={() => {
           setDragId(null);
           setDragOver(null);
@@ -442,8 +454,9 @@ const TasksBoard: React.FC = () => {
                   setDragOver(col.id);
                 }}
                 onDragLeave={() => setDragOver((c) => (c === col.id ? null : c))}
-                onDrop={() => {
-                  if (dragId) moveTask(dragId, col.id);
+                onDrop={(e) => {
+                  const id = droppedCard(e, dragId);
+                  if (id && moveAllowed(id)) moveTask(id, col.id);
                   setDragId(null);
                   setDragOver(null);
                 }}
@@ -464,8 +477,9 @@ const TasksBoard: React.FC = () => {
                   <React.Fragment key={t.id}>{renderCard(t)}</React.Fragment>
                 ))}
                 {items.length === 0 && (
-                  <div className="text-center text-[11px] text-gray-400 font-bold py-6 border border-dashed border-[#EBDBCE] rounded-2xl">
-                    وظیفه‌ای وجود ندارد
+                  <div className="text-center py-6 px-3 border border-dashed border-[#EBDBCE] rounded-2xl space-y-1" data-empty-column={col.id}>
+                    <div className="text-[11px] text-gray-500 font-black">{col.label}: وظیفه‌ای وجود ندارد</div>
+                    <div className="text-[10px] text-gray-400 font-bold leading-5">{STATUS_HINT[col.id]}</div>
                   </div>
                 )}
               </div>
