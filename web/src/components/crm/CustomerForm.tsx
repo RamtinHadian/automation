@@ -754,7 +754,7 @@ export const CustomerForm: React.FC<{
           </div>
           <div>
             <label className={label}>توضیحات</label>
-            <PhraseChips sources={customers.map((x) => x.notes || '')} onPick={(t) => patch({ notes: (c.notes ? c.notes.replace(/\s+$/, '') + '\n' : '') + t })} />
+            {!contactKind && <PhraseChips sources={customers.map((x) => x.notes || '')} onPick={(t) => patch({ notes: (c.notes ? c.notes.replace(/\s+$/, '') + '\n' : '') + t })} />}
             <textarea className={`${field} min-h-[80px] leading-6`} value={c.notes || ''} onChange={(e) => patch({ notes: e.target.value })} />
           </div>
         </Section>

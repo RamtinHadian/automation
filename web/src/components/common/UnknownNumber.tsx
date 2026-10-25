@@ -122,7 +122,7 @@ const ChooseType: React.FC<{ number: string; onPick: (t: 'CUSTOMER' | ContactKin
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
           <div>
             <h3 className="font-black text-base text-[#3A241F]">ذخیره در دفتر تلفن</h3>
-            <p className="text-[12px] text-[#8C6F66] mt-1">این شماره مال کیست؟ <b dir="ltr" className="text-[#3A241F] inline-block">{toPersianDigits(digitsOf(number))}</b></p>
+            <p className="text-[12px] text-[#8C6F66] mt-1">{digitsOf(number) ? <>این شماره مال کیست؟ <b dir="ltr" className="text-[#3A241F] inline-block">{toPersianDigits(digitsOf(number))}</b></> : 'چه کسی را به دفتر تلفن اضافه می‌کنید؟'}</p>
           </div>
           <button type="button" onClick={onClose} className="p-1.5 text-[#8C6F66] rounded-xl cursor-pointer" aria-label="بستن"><X className="w-4 h-4" /></button>
         </div>
@@ -135,10 +135,10 @@ const ChooseType: React.FC<{ number: string; onPick: (t: 'CUSTOMER' | ContactKin
             </button>
           ))}
         </div>
-        <button type="button" onClick={onExisting} className="w-full flex items-center justify-center gap-1.5 px-5 py-3 border-t border-[#EBDBCE] text-[11px] font-black text-amber-800 hover:bg-amber-50 cursor-pointer" data-choose-existing>
+        {digitsOf(number) && <button type="button" onClick={onExisting} className="w-full flex items-center justify-center gap-1.5 px-5 py-3 border-t border-[#EBDBCE] text-[11px] font-black text-amber-800 hover:bg-amber-50 cursor-pointer" data-choose-existing>
           <Plus className="w-3.5 h-3.5" />
           این شماره مال کسی است که در دفتر تلفن هست؛ اضافه به شماره‌های او
-        </button>
+        </button>}
       </div>
     </div>,
     document.body

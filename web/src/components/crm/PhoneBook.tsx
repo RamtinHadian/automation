@@ -5,10 +5,10 @@ import { fold } from '../../lib/customerSearch';
 import { downloadCsv } from '../../lib/csv';
 import { toPersianDigits } from '../../lib/jalali';
 import { isMobileNumber } from '../../lib/customerImport';
+import { matchesAll } from '../../lib/searchAll';
 import { Modal, field } from './crmUi';
 import { searchLine } from '../../lib/searchAll';
 import { CONTACT_TYPES, contactTypeOf } from '../../lib/contactTypes';
-import { QuickCustomerDialog } from '../common/CustomerSelect';
 import { useAppContext } from '../../context/AppContext';
 
 type Row = { key: string; customer: Customer; number: string; kind: 'mobile' | 'landline' | 'fax'; main: boolean; line: string };
@@ -25,7 +25,18 @@ export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => v
   const { setCustomers } = useAppContext();
   const [kind, setKind] = useState<'all' | Row['kind']>('all');
   const [typeF, setTypeF] = useState<string>('all');
-  const [adding, setAdding] = useState<string | null>(newPhone ?? null);
+  // adding to the phone book goes through the one window of choices (customer, supplier, colleague, other) with its full forms
+  const addEntry = (number: string) => {
+    onClose();
+    window.dispatchEvent(new CustomEvent('open-unknown-dialog', { detail: { kind: 'choose', number } }));
+  };
+  React.useEffect(() => {
+    if (newPhone !== null && newPhone !== undefined) {
+      onNewDone?.();
+      addEntry(newPhone);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [copied, setCopied] = useState('');
 
   const rows = useMemo<Row[]>(() => {
@@ -41,10 +52,15 @@ export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => v
     return out.sort((a, b) => a.customer.name.localeCompare(b.customer.name, 'fa') || Number(b.main) - Number(a.main));
   }, [customers]);
 
-  const shown = useMemo(() => {
-    const toks = fold(q).trim().split(/\s+/).filter(Boolean);
-    return rows.filter((r) => (kind === 'all' || r.kind === kind) && (typeF === 'all' || contactTypeOf(r.customer) === typeF) && toks.every((t) => r.line.includes(t)));
-  }, [rows, q, kind, typeF]);
+  // the search is the one used everywhere else (every field of the entry, words in any order, partial numbers, dates): it decides per person, then the number rows of those people are listed
+  const found = useMemo(() => {
+    if (!fold(q).trim()) return null;
+    const ids = new Set<string>();
+    for (const c of customers) if (matchesAll(c, q, CONTACT_TYPES.find((t) => t.id === contactTypeOf(c))?.label || '')) ids.add(c.id);
+    return ids;
+  }, [customers, q]);
+  const searched = useMemo(() => (found ? rows.filter((r) => found.has(r.customer.id)) : rows), [rows, found]);
+  const shown = useMemo(() => searched.filter((r) => (kind === 'all' || r.kind === kind) && (typeF === 'all' || contactTypeOf(r.customer) === typeF)), [searched, kind, typeF]);
 
   const counts = { all: rows.length, mobile: rows.filter((r) => r.kind === 'mobile').length, landline: rows.filter((r) => r.kind === 'landline').length, fax: rows.filter((r) => r.kind === 'fax').length };
   const copy = (n: string) => {
@@ -75,7 +91,7 @@ export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => v
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} className={`${field} pr-10`} placeholder="جستجو با نام، شرکت، بخشی از شماره، شهر، برچسب، نشانی…" />
       </div>
       <div className="flex flex-wrap items-center gap-1.5" data-contact-filter>
-        <button type="button" onClick={() => setAdding('')} className="px-3 py-1.5 rounded-xl text-[11px] font-black border border-[#6E1B1B] bg-[#6E1B1B] text-white cursor-pointer" data-phonebook-add>+ افزودن به دفتر تلفن</button>
+        <button type="button" onClick={() => addEntry('')} className="px-3 py-1.5 rounded-xl text-[11px] font-black border border-[#6E1B1B] bg-[#6E1B1B] text-white cursor-pointer" data-phonebook-add>+ افزودن به دفتر تلفن</button>
         {[{ id: 'all', label: 'همه', cls: '' }, ...CONTACT_TYPES].map((t) => (
           <button key={t.id} type="button" onClick={() => setTypeF(t.id)} className={`px-3 py-1.5 rounded-xl text-[11px] font-black border cursor-pointer ${typeF === t.id ? 'bg-[#3A241F] text-white border-[#3A241F]' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`}>{t.label} ({toPersianDigits(t.id === 'all' ? rows.length : rows.filter((r) => contactTypeOf(r.customer) === t.id).length)})</button>
         ))}
@@ -91,6 +107,7 @@ export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => v
         <div className="h-[52vh] flex flex-col items-center justify-center text-center text-xs font-bold text-gray-400 border border-dashed border-[#EBDBCE] rounded-2xl">
           <BookUser className="w-8 h-8 mx-auto mb-2 opacity-40" />
           شماره‌ای پیدا نشد.
+          {searched.length > 0 && <span className="mt-1 text-[11px] font-bold text-violet-700">با فیلترهای بالا نشد؛ در «همه» {toPersianDigits(searched.length)} مورد پیدا می‌شود.</span>}
         </div>
       ) : (
         <div className="border border-[#EBDBCE] rounded-2xl overflow-hidden divide-y divide-[#F3E8DF] h-[52vh] overflow-y-auto bg-white">
@@ -133,7 +150,6 @@ export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => v
         </div>
       )}
       {shown.length > 600 && <div className="text-[11px] font-bold text-[#8C6F66] text-center">۶۰۰ مورد اول نشان داده شد؛ جستجو را دقیق‌تر کنید یا خروجی اکسل بگیرید.</div>}
-      {adding !== null && <QuickCustomerDialog withType initialPhone={adding} onClose={() => { setAdding(null); onNewDone?.(); }} onCreated={() => { setAdding(null); onNewDone?.(); }} />}
     </Modal>
   );
 };
