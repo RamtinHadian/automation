@@ -17,20 +17,25 @@ const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'مدیر ارشد', D
 /** Under the name: whose customers this person works with (a tap re-opens the choosing window). */
 const TeamCrmChip: React.FC<{ u: User; users: User[]; onOpen: () => void }> = ({ u, users, onOpen }) => {
   const n = (u.crmTeamIds || []).filter((id) => users.some((x) => x.id === id)).length;
+  const m = (u.crmCustomerIds || []).length;
   return (
     <button type="button" onClick={onOpen} className="mt-1 text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-2 py-0.5 cursor-pointer" data-team-crm-chip>
-      مشتریان: {n === 0 ? 'همهٔ همکاران' : `${toPersianDigits(n)} همکار`}
+      {u.canSeeTeamCrm ? `مشتریان: ${n === 0 ? 'همهٔ همکاران' : `${toPersianDigits(n)} همکار`}` : 'مشتریان مشخص'}{m > 0 ? ` · ${toPersianDigits(m)} مشتری` : ''}
     </button>
   );
 };
 
 /** The window that opens in the middle of the page when «مشتریان همکاران» is ticked: «همهٔ همکاران», or the names whose customers are visible. */
-const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[]) => void; onClose: () => void }> = ({ u, users, onSave, onClose }) => {
+const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[], customerIds: string[]) => void; onClose: () => void }> = ({ u, users, onSave, onClose }) => {
+  const { customers } = useAppContext();
+  const [tab, setTab] = useState<'people' | 'customers'>(u.canSeeTeamCrm ? 'people' : 'customers');
+  const [cq, setCq] = useState('');
+  const [cust, setCust] = useState<string[]>(u.crmCustomerIds || []);
+  const custShown = (cq.trim() ? customers.filter((c) => matchesAll(c, cq)) : customers).slice(0, 200);
   const people = users.filter((x) => x.isActive !== false && x.id !== u.id);
   const [all, setAll] = useState((u.crmTeamIds || []).length === 0);
   const [picked, setPicked] = useState<string[]>((u.crmTeamIds || []).filter((id) => people.some((x) => x.id === id)));
   const [q, setQ] = useState('');
-  const [teamDlg, setTeamDlg] = useState<User | null>(null);
   const shown = q.trim() ? people.filter((x) => matchesAll(x, q)) : people;
   const toggle = (id: string) => {
     setAll(false);
@@ -47,6 +52,13 @@ const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[]) 
             «{u.fullName}» مشتریان {all ? 'همهٔ همکاران' : picked.length === 0 ? '— (کسی انتخاب نشده)' : people.filter((x) => picked.includes(x.id)).map((x) => x.fullName).slice(0, 5).join('، ') + (picked.length > 5 ? ` و ${toPersianDigits(picked.length - 5)} نفر دیگر` : '')} را می‌بیند (به‌علاوهٔ مشتریان خودش).
           </p>
         </div>
+        <div className="px-4 pt-3 flex gap-1.5" data-team-tabs>
+          {([['people', 'مشتریان همکاران'], ['customers', `مشتری‌های مشخص${cust.length ? ' (' + toPersianDigits(cust.length) + ')' : ''}`]] as const).map(([id, l]) => (
+            <button key={id} type="button" onClick={() => setTab(id)} className={`flex-1 px-3 py-2 rounded-xl text-[11px] font-black border cursor-pointer ${tab === id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`}>{l}</button>
+          ))}
+        </div>
+        {tab === 'people' ? (
+          <>
         <div className="px-4 pt-3 space-y-2">
           <button type="button" onClick={() => { setAll(true); setPicked([]); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${all ? 'bg-[#F6D9CD] border-[#C98B6A]' : 'bg-white border-[#EBDBCE] hover:bg-[#FAF5F1]'}`} data-team-all>
             <span className={`w-5 h-5 rounded-md flex items-center justify-center ${all ? 'bg-[#6E1B1B] text-white' : 'border border-[#EBDBCE]'}`}>{all && <Check className="w-3.5 h-3.5" />}</span>
@@ -69,11 +81,35 @@ const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[]) 
           })}
           {shown.length === 0 && <div className="py-6 text-center text-xs font-bold text-gray-400">موردی پیدا نشد.</div>}
         </div>
+          </>
+        ) : (
+          <>
+        <div className="px-4 pt-3 space-y-2">
+          <p className="text-[11px] text-[#8C6F66] leading-5">علاوه بر مشتری‌هایی که خودش ساخته، به این مشتری‌ها هم دسترسی داشته باشد (مشتری، فرصت و پیگیری‌هایشان). به مشتریان همکاران نیازی نیست.</p>
+          <input value={cq} onChange={(e) => setCq(e.target.value)} placeholder="جستجوی مشتری…" className="w-full px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden focus:border-[#6E1B1B]" />
+        </div>
+        <div className="p-3 overflow-y-auto flex-1 space-y-1" data-team-customers>
+          {custShown.map((c) => {
+            const on = cust.includes(c.id);
+            return (
+              <button key={c.id} type="button" onClick={() => setCust((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id]))} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right cursor-pointer ${on ? 'bg-[#F6D9CD]' : 'hover:bg-[#FAF5F1]'}`}>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-xs font-black text-[#3A241F] truncate">{c.name}</span>
+                  {(c.company || c.ownerName) && <span className="block text-[10px] text-[#8C6F66] truncate">{[c.company && c.company !== c.name ? c.company : '', c.ownerName ? 'مسئول: ' + c.ownerName : ''].filter(Boolean).join(' · ')}</span>}
+                </span>
+                <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${on ? 'bg-[#6E1B1B] text-white' : 'border border-[#EBDBCE]'}`}>{on && <Check className="w-3.5 h-3.5" />}</span>
+              </button>
+            );
+          })}
+          {custShown.length === 0 && <div className="py-6 text-center text-xs font-bold text-gray-400">مشتری‌ای پیدا نشد.</div>}
+        </div>
+          </>
+        )}
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-[#EBDBCE]">
-          <span className="text-[11px] font-bold text-[#8C6F66]">{all ? 'همهٔ همکاران' : `${toPersianDigits(picked.length)} همکار انتخاب شده`}</span>
+          <span className="text-[11px] font-bold text-[#8C6F66]">{tab === 'customers' ? `${toPersianDigits(cust.length)} مشتری انتخاب شده` : all ? 'همهٔ همکاران' : `${toPersianDigits(picked.length)} همکار انتخاب شده`}</span>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black border border-[#EBDBCE] cursor-pointer">انصراف</button>
-            <button type="button" disabled={!all && picked.length === 0} onClick={() => { onSave(all ? [] : picked); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] disabled:opacity-50 cursor-pointer" data-team-save>تأیید</button>
+            <button type="button" disabled={tab === 'people' && !all && picked.length === 0} onClick={() => { onSave(all ? [] : picked, cust); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] disabled:opacity-50 cursor-pointer" data-team-save>تأیید</button>
           </div>
         </div>
       </div>
@@ -219,7 +255,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                   <td className="bg-white border-l border-[#EBDBCE] py-2 px-3">
                     <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
                     <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</span>
-                    {!admin && u.canSeeTeamCrm && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
+                    {!admin && (u.canSeeTeamCrm || u.canUseCrm || (u.crmCustomerIds || []).length > 0) && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
                   </td>
                   {COLUMNS.map((c) => {
                     const tone = toneOf(c.menuId);
@@ -294,7 +330,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                   </span>
                 )}
               </div>
-              {!admin && u.canSeeTeamCrm && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
+              {!admin && (u.canSeeTeamCrm || u.canUseCrm || (u.crmCustomerIds || []).length > 0) && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
               {!admin &&
                 menuCols.map(({ m, cols }) => (
                   <div key={m.id} className="space-y-1.5">
@@ -328,7 +364,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
       <p className="text-[11px] leading-6 text-[#8C6F66]">
         برای مدیران هم می‌توانید منو و زیرمنو را تیک بزنید یا بردارید (فقط نمایش آن برایشان). «مدیرعامل / صاحب امضای مجاز» فقط یک نفر است و از «ویرایش کاربر» تعیین می‌شود. هر تیک همان لحظه ذخیره می‌شود و کارمند از تغییر مجوزهایش با یک اعلان باخبر می‌شود. هر منو یا زیرمنوی تازه‌ای که به سامانه اضافه شود، یک ستون در همین جدول می‌گیرد.
       </p>
-      {teamDlg && <TeamCrmDialog u={teamDlg} users={users} onSave={(ids) => onUpdateUser(teamDlg.id, { crmTeamIds: ids })} onClose={() => setTeamDlg(null)} />}
+      {teamDlg && <TeamCrmDialog u={teamDlg} users={users} onSave={(ids, customerIds) => onUpdateUser(teamDlg.id, { crmTeamIds: ids, crmCustomerIds: customerIds })} onClose={() => setTeamDlg(null)} />}
     </div>
   );
 };

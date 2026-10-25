@@ -15,10 +15,11 @@ import (
 // data of other people's customers is never sent to the page, not just hidden on it.
 
 // crmMyDeals: opportunities this person owns or shares, and those of the people of the units they manage ($1 is their id, $2 the managed people).
-const crmMyDeals = `(owner_id = $1 OR owner_id = ANY($2::text[]) OR data->'coOwnerIds' @> to_jsonb($1::text))`
+const crmMyDeals = `(owner_id = $1 OR owner_id = ANY($2::text[]) OR data->'coOwnerIds' @> to_jsonb($1::text) OR customer_id IN (SELECT jsonb_array_elements_text(COALESCE(u.data->'crmCustomerIds', '[]'::jsonb)) FROM users u WHERE u.id = $1))`
 
 // crmMyCustomerIDs: customers this person owns, customers of opportunities they work on, and customers they were given a follow-up for ($1 is their id).
 const crmMyCustomerIDs = `(SELECT id FROM crm_customers WHERE owner_id = $1 OR owner_id = ANY($2::text[])
+	UNION SELECT jsonb_array_elements_text(COALESCE(u.data->'crmCustomerIds', '[]'::jsonb)) FROM users u WHERE u.id = $1
 	UNION SELECT customer_id FROM crm_deals WHERE ` + crmMyDeals + `
 	UNION SELECT customer_id FROM crm_activities WHERE owner_id = $1 OR owner_id = ANY($2::text[]))`
 
