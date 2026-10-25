@@ -5,6 +5,9 @@ import { itemTotal } from '../../lib/proformaPdf';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, unitName } from '../../lib/money';
 import { Modal } from './crmUi';
+import { CustomerFullSummary } from './CustomerFullSummary';
+import { useAppContext } from '../../context/AppContext';
+import { canSeeSalesTotals } from '../../lib/permissions';
 
 type Status = 'bought' | 'quoted' | 'lost';
 const STATUSES: { id: Status; label: string; short: string; color: string; Icon: typeof CheckCircle2 }[] = [
@@ -25,6 +28,8 @@ const zero = (): Record<Status, number> => ({ bought: 0, quoted: 0, lost: 0 });
 /** «گزارش مشتری»: which goods this customer bought, only asked a price for, or did not buy; built from the proformas issued for them. */
 export const CustomerReportModal: React.FC<{ customer: Customer; deals: Deal[]; onClose: () => void }> = ({ customer, deals, onClose }) => {
   const [metric, setMetric] = useState<'qty' | 'amount'>('qty');
+  const { activities, currentUser } = useAppContext();
+  const mine = useMemo(() => activities.filter((a) => a.customerId === customer.id), [activities, customer.id]);
 
   const withProforma = useMemo(() => deals.filter((d) => d.proformaNumber && d.items && d.items.length > 0), [deals]);
   const { rows, totals, counts } = useMemo(() => {
@@ -58,7 +63,7 @@ export const CustomerReportModal: React.FC<{ customer: Customer; deals: Deal[]; 
     <Modal
       wide
       onTop="max"
-      title={`گزارش مشتری: ${customer.name}`}
+      title={`گزارش مشتری: ${customer.name} (خلاصهٔ کامل)`}
       onClose={onClose}
       footer={
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">
@@ -66,8 +71,9 @@ export const CustomerReportModal: React.FC<{ customer: Customer; deals: Deal[]; 
         </button>
       }
     >
+      <CustomerFullSummary customer={customer} deals={deals} activities={mine} seesTotals={canSeeSalesTotals(currentUser)} />
       {withProforma.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-8 text-center text-xs font-bold text-[#8C6F66] leading-7">
+        <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-4 text-center text-[11px] font-bold text-[#8C6F66] leading-6" data-no-proforma>
           برای این مشتری هنوز پیش‌فاکتوری صادر نشده است؛ بعد از صدور پیش‌فاکتور، کالاهای خریداری‌شده و قیمت‌گرفته اینجا نمودار می‌شود.
         </div>
       ) : (
