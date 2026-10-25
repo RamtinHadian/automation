@@ -7,7 +7,7 @@ import { normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { useAppContext } from '../../context/AppContext';
 import { canSeeSalesTotals } from '../../lib/permissions';
-import { isExtensionNumber, SavedContactLine, UnknownNumberActions, useSavedContact } from './UnknownNumber';
+import { isExtensionNumber, savedCallTitle, SavedContactLine, UnknownNumberActions, useSavedContact } from './UnknownNumber';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
 
@@ -100,7 +100,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         </span>
         <span className="flex-1 min-w-0">
           <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full mb-1 ${k.badge}`}>{n.label || k.fallback}</span>
-          <span className="block text-[13px] font-black text-[#3A241F] leading-5">{n.title}</span>
+          <span className="block text-[13px] font-black text-[#3A241F] leading-5">{savedContact ? savedCallTitle(savedContact) : n.title}</span>
           {n.body && <span className="block text-[11px] text-[#8C6F66] leading-5 mt-0.5 line-clamp-2">{n.body}</span>}
         </span>
       </button>

@@ -1,4 +1,4 @@
-import { isExtensionNumber, SavedContactLine, UnknownNumberActions, UnknownNumberHost, useSavedContact } from './UnknownNumber';
+import { findSavedContact, isExtensionNumber, savedCallTitle, SavedContactLine, UnknownNumberActions, UnknownNumberHost, useSavedContact } from './UnknownNumber';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -51,7 +51,7 @@ const BellNumberRow: React.FC<{ number: string }> = ({ number }) => {
 };
 
 export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotification) => void }> = ({ onOpenNotification }) => {
-  const { notifications, unreadCount, markNotificationsRead, clearNotifications, soundEnabled, setSoundEnabled, setNotificationHandler } = useAppContext();
+  const { customers, notifications, unreadCount, markNotificationsRead, clearNotifications, soundEnabled, setSoundEnabled, setNotificationHandler } = useAppContext();
   const [open, setOpen] = useState(false);
   const [perm, setPerm] = useState(osPermission());
   const [audioReady, setAudioReady] = useState(isAudioReady());
@@ -124,10 +124,13 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
     };
   }, [open]);
 
+  // a call from a number that has been saved since reads as a call from that person, everywhere in the list
+  const known = (n: AppNotification) => (n.kind === 'call' && n.ref?.type === 'phone' && !isExtensionNumber(n.ref.id) ? findSavedContact(customers, n.ref.id) : undefined);
   const openItem = (n: AppNotification) => {
     markNotificationsRead([n.id]);
     setOpen(false);
-    onOpenNotification(n);
+    const c = known(n);
+    onOpenNotification(c && !c.contactType ? { ...n, ref: { type: 'customer', id: c.id } } : n);
   };
 
   return (
@@ -256,6 +259,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
             ) : (
               notifications.map((n) => {
                 const Icon = KIND_ICON[n.kind] || FileText;
+                const kc = known(n);
                 return (
                   <div key={n.id}>
                   <button
@@ -268,7 +272,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="flex items-start justify-between gap-2">
-                        <span className={`text-xs leading-5 ${n.read ? 'font-bold text-[#3A241F]' : 'font-black text-[#3A241F]'}`}>{n.title}</span>
+                        <span className={`text-xs leading-5 ${n.read ? 'font-bold text-[#3A241F]' : 'font-black text-[#3A241F]'}`}>{kc ? savedCallTitle(kc) : n.title}</span>
                         {!n.read && <span className="w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0" />}
                       </span>
                       {n.body && <span className="block text-[11px] text-[#8C6F66] leading-5 truncate">{n.body}</span>}

@@ -1,4 +1,4 @@
-import { UnknownNumberActions } from './UnknownNumber';
+import { findSavedContact, UnknownNumberActions } from './UnknownNumber';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BarChart3, Pause, Play, PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users, UserPlus } from 'lucide-react';
@@ -71,6 +71,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
   empty = 'تماسی ثبت نشده است.',
 }) => {
   const area = useVoipArea();
+  const { customers } = useAppContext();
   if (calls.length === 0) return <div className="py-10 text-center text-xs font-bold text-gray-400">{empty}</div>;
   return (
     <div className="divide-y divide-[#EBDBCE]/60">
@@ -78,7 +79,8 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
         const missed = c.direction === 'in' && c.status !== 'answered';
         const Icon = missed ? PhoneMissed : c.direction === 'out' ? PhoneOutgoing : c.direction === 'internal' ? Users : PhoneIncoming;
         const shownNumber = c.direction === 'internal' ? c.number : fullPhone(c.number, area);
-        const who = c.customerName || c.name || shownNumber;
+        const saved = c.direction === 'internal' ? undefined : findSavedContact(customers, c.number);
+        const who = c.customerName || saved?.name || c.name || shownNumber;
         const callable = onCall && c.number && /^[0-9*#+]+$/.test(c.number);
         return (
           <div key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
@@ -109,7 +111,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
                 <BarChart3 className="w-4 h-4" />
               </button>
             )}
-            {onSaveCustomer && !c.customerName && !(c.name || '').endsWith('(همکار شرکت)') && c.direction !== 'internal' && /^[0-9+]{7,}$/.test(c.number) && <UnknownNumberActions number={c.number} compact />}
+            {onSaveCustomer && !c.customerName && !saved && !(c.name || '').endsWith('(همکار شرکت)') && c.direction !== 'internal' && /^[0-9+]{7,}$/.test(c.number) && <UnknownNumberActions number={c.number} compact />}
             {callable && (
               <button
                 type="button"

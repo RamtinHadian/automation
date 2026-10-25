@@ -8,6 +8,7 @@ import { digitsOf } from './MoneyInput';
 import { QuickCustomerDialog } from './CustomerSelect';
 import { PersonPicker } from './PersonPicker';
 import { CONTACT_TYPES, contactTypeOf } from '../../lib/contactTypes';
+import { Customer } from '../../types';
 
 /** «افزودن به شماره‌های قبلی»: choose a person who is already in the phone book (customer or not) and add this number to the numbers he has. */
 const AddToExisting: React.FC<{ number: string; onClose: () => void }> = ({ number, onClose }) => {
@@ -52,11 +53,19 @@ const AddToExisting: React.FC<{ number: string; onClose: () => void }> = ({ numb
 /** A short number is a colleague's extension inside the company, never a number to save. */
 export const isExtensionNumber = (number: string) => digitsOf(number).length < 7;
 
-export const useSavedContact = (number: string) => {
-  const { customers } = useAppContext();
+export const findSavedContact = (customers: Customer[], number: string) => {
   const key = digitsOf(number).slice(-10);
   if (key.length < 7) return undefined;
   return customers.find((c) => (c.phones || []).some((p) => digitsOf(p).slice(-10) === key));
+};
+
+export const useSavedContact = (number: string) => findSavedContact(useAppContext().customers, number);
+
+/** The title an old «call from a number» notification gets once the number is saved: the same wording the server uses for known callers. */
+export const savedCallTitle = (c: Customer) => {
+  const type = contactTypeOf(c);
+  const kind = type === 'CUSTOMER' ? 'مشتری' : CONTACT_TYPES.find((t) => t.id === type)?.label || 'دفتر تلفن';
+  return `تماس ورودی از ${kind}: ${c.name}`;
 };
 
 /** What a saved number shows instead of the three buttons: who it is, and the type when it is not a customer. */
