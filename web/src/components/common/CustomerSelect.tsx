@@ -62,7 +62,7 @@ export const QuickCustomerDialog: React.FC<{ initialName?: string; initialPhone?
     onCreated(c);
   };
   return createPortal(
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { e.stopPropagation(); onClose(); }} onClick={(e) => e.stopPropagation()} data-quick-customer>
+    <div className="fixed inset-0 z-[2147483200] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { e.stopPropagation(); onClose(); }} onClick={(e) => e.stopPropagation()} data-quick-customer>
       <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-[#EBDBCE] text-right">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#EBDBCE]">
           <h3 className="font-black text-sm text-[#3A241F]">{withType ? 'ذخیره در دفتر تلفن' : 'مشتری تازه'}</h3>

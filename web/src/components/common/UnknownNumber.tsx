@@ -5,7 +5,8 @@ import { useAppContext } from '../../context/AppContext';
 import { normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { digitsOf } from './MoneyInput';
-import { QuickCustomerDialog } from './CustomerSelect';
+import { ContactDialog, ContactKind, KIND_INFO } from './ContactDialog';
+import { toPersianDigits } from '../../lib/jalali';
 import { PersonPicker } from './PersonPicker';
 import { CONTACT_TYPES, contactTypeOf } from '../../lib/contactTypes';
 import { Customer } from '../../types';
@@ -24,7 +25,7 @@ const AddToExisting: React.FC<{ number: string; onClose: () => void }> = ({ numb
     onClose();
   };
   return createPortal(
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { e.stopPropagation(); onClose(); }} onClick={(e) => e.stopPropagation()} data-add-to-existing>
+    <div className="fixed inset-0 z-[2147483200] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { e.stopPropagation(); onClose(); }} onClick={(e) => e.stopPropagation()} data-add-to-existing>
       <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-[#EBDBCE] text-right">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#EBDBCE]">
           <h3 className="font-black text-sm text-[#3A241F]">افزودن به شماره‌های یک نفر</h3>
@@ -94,9 +95,58 @@ export const SavedContactLine: React.FC<{ number: string; compact?: boolean }> =
   );
 };
 
-/** The two small dialogs live here, once, outside any list, so closing the notification list never takes them away. */
+type Dlg = { kind: 'choose' | 'existing'; number: string } | { kind: 'contact'; type: ContactKind; number: string };
+
+/** Opens the customer form of «مشتریان» with this number already in it. */
+const openNewCustomer = (number: string) => {
+  try {
+    sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: normPhone(number) || number, name: '' }));
+  } catch {
+    /* storage unavailable */
+  }
+  window.dispatchEvent(new Event('goto-crm'));
+  window.dispatchEvent(new Event('open-crm-item'));
+};
+
+/** «ذخیره در دفتر تلفن»: the window that asks what this number is, in four big choices. */
+const ChooseType: React.FC<{ number: string; onPick: (t: 'CUSTOMER' | ContactKind) => void; onExisting: () => void; onClose: () => void }> = ({ number, onPick, onExisting, onClose }) => {
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  const tiles: { id: 'CUSTOMER' | ContactKind; label: string; hint: string; Icon: React.ElementType; tone: string }[] = [
+    { id: 'CUSTOMER', label: 'مشتری', hint: 'ثبت مشتری جدید در «مشتریان» و پیگیری فروش', Icon: UserPlus, tone: 'bg-violet-50 text-violet-700 border-violet-200' },
+    ...(['SUPPLIER', 'COLLEAGUE', 'OTHER'] as ContactKind[]).map((k) => ({ id: k, label: KIND_INFO[k].label, hint: KIND_INFO[k].hint, Icon: KIND_INFO[k].Icon, tone: KIND_INFO[k].tone })),
+  ];
+  return createPortal(
+    <div className="fixed inset-0 z-[2147483200] flex items-center justify-center bg-black/55 backdrop-blur-xs p-3" onMouseDown={(e) => { stop(e); onClose(); }} onClick={stop} data-choose-type>
+      <div dir="rtl" onMouseDown={stop} className="bg-white rounded-[28px] shadow-2xl w-full max-w-md border border-[#EBDBCE] text-right overflow-hidden">
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
+          <div>
+            <h3 className="font-black text-base text-[#3A241F]">ذخیره در دفتر تلفن</h3>
+            <p className="text-[12px] text-[#8C6F66] mt-1">این شماره مال کیست؟ <b dir="ltr" className="text-[#3A241F] inline-block">{toPersianDigits(digitsOf(number))}</b></p>
+          </div>
+          <button type="button" onClick={onClose} className="p-1.5 text-[#8C6F66] rounded-xl cursor-pointer" aria-label="بستن"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="px-5 pb-4 grid grid-cols-2 gap-3">
+          {tiles.map((t) => (
+            <button key={t.id} type="button" onClick={() => onPick(t.id)} data-choose={t.id} className="group text-right rounded-2xl border border-[#EBDBCE] bg-[#FAF5F1]/60 hover:bg-white hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all p-3.5 cursor-pointer">
+              <span className={`w-11 h-11 rounded-2xl border flex items-center justify-center mb-2.5 ${t.tone}`}><t.Icon className="w-5 h-5" /></span>
+              <span className="block text-[13px] font-black text-[#3A241F]">{t.label}</span>
+              <span className="block text-[10px] leading-4 text-[#8C6F66] mt-0.5">{t.hint}</span>
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={onExisting} className="w-full flex items-center justify-center gap-1.5 px-5 py-3 border-t border-[#EBDBCE] text-[11px] font-black text-amber-800 hover:bg-amber-50 cursor-pointer" data-choose-existing>
+          <Plus className="w-3.5 h-3.5" />
+          این شماره مال کسی است که در دفتر تلفن هست؛ اضافه به شماره‌های او
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+/** The windows live here, once, outside any list, so closing the notification list never takes them away; a new one always replaces the one before. */
 export const UnknownNumberHost: React.FC = () => {
-  const [dlg, setDlg] = useState<{ kind: 'other' | 'existing'; number: string } | null>(null);
+  const [dlg, setDlg] = useState<Dlg | null>(null);
   React.useEffect(() => {
     const on = (e: Event) => setDlg((e as CustomEvent).detail);
     window.addEventListener('open-unknown-dialog', on);
@@ -104,43 +154,40 @@ export const UnknownNumberHost: React.FC = () => {
   }, []);
   if (!dlg) return null;
   const close = () => setDlg(null);
-  return dlg.kind === 'other' ? <QuickCustomerDialog withType initialPhone={dlg.number} onClose={close} onCreated={close} /> : <AddToExisting number={dlg.number} onClose={close} />;
+  if (dlg.kind === 'existing') return <AddToExisting number={dlg.number} onClose={close} />;
+  if (dlg.kind === 'contact') return <ContactDialog kind={dlg.type} number={dlg.number} onClose={close} />;
+  return (
+    <ChooseType
+      number={dlg.number}
+      onClose={close}
+      onExisting={() => setDlg({ kind: 'existing', number: dlg.number })}
+      onPick={(t) => {
+        if (t === 'CUSTOMER') {
+          close();
+          openNewCustomer(dlg.number);
+        } else setDlg({ kind: 'contact', type: t, number: dlg.number });
+      }}
+    />
+  );
 };
 
+/** Next to a number nobody has saved: one «+ دفتر تلفن» button (call pop-up, notification list, call history). */
 export const UnknownNumberActions: React.FC<{ number: string; compact?: boolean }> = ({ number, compact }) => {
   const area = useVoipArea();
   const full = fullPhone(number, area);
-  // a new window always replaces the one before it: the notification list closes
-  const openDlg = (kind: 'other' | 'existing') => {
-    window.dispatchEvent(new Event('close-popovers'));
-    window.dispatchEvent(new CustomEvent('open-unknown-dialog', { detail: { kind, number: kind === 'existing' ? normPhone(full) || full : full } }));
-  };
-  const cls = `shrink-0 flex items-center gap-1 rounded-lg font-black cursor-pointer ${compact ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`;
-  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return (
-    <span className="flex flex-wrap items-center gap-1.5" onClick={stop} data-unknown-number-actions>
+    <span className="flex items-center" onClick={(e) => e.stopPropagation()} data-unknown-number-actions>
       <button
         type="button"
         onClick={() => {
           window.dispatchEvent(new Event('close-popovers'));
-          try {
-            sessionStorage.setItem('crm_open', JSON.stringify({ type: 'newCustomer', phone: normPhone(full) || full, name: '' }));
-          } catch {
-            /* storage unavailable */
-          }
-          window.dispatchEvent(new Event('goto-crm'));
-          window.dispatchEvent(new Event('open-crm-item'));
+          window.dispatchEvent(new CustomEvent('open-unknown-dialog', { detail: { kind: 'choose', number: normPhone(full) || full } }));
         }}
-        className={`${cls} bg-amber-600 text-white`}
-        data-unknown-customer
+        className={`shrink-0 flex items-center gap-1 rounded-lg font-black cursor-pointer bg-amber-600 text-white hover:bg-amber-700 ${compact ? 'px-2.5 py-1 text-[10px]' : 'px-3 py-1.5 text-[11px]'}`}
+        data-unknown-phonebook
       >
-        <UserPlus className="w-3.5 h-3.5" />
-        مشتری
-      </button>
-      <button type="button" onClick={() => openDlg('other')} className={`${cls} bg-white text-amber-900 border border-amber-300`} data-unknown-other>سایر</button>
-      <button type="button" onClick={() => openDlg('existing')} className={`${cls} bg-white text-amber-900 border border-amber-300`} data-unknown-existing>
         <Plus className="w-3.5 h-3.5" />
-        به شمارهٔ قبلی
+        دفتر تلفن
       </button>
     </span>
   );

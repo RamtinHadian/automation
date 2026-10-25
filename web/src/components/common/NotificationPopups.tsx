@@ -154,7 +154,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
       )}
       {unknownNumber && (
         <div className="px-3.5 py-2 bg-amber-50 border-t border-amber-100 flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-amber-900">
-          <span>شمارهٔ ناشناس؛ مشتری است؟</span>
+          <span>شمارهٔ ناشناس؛ در دفتر تلفن ذخیره کنید</span>
           <UnknownNumberActions number={unknownNumber} compact />
         </div>
       )}
