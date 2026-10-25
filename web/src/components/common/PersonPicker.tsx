@@ -159,5 +159,5 @@ export const staffItems = (list: { id: string; fullName: string; departmentName?
   list.map((u) => ({ id: u.id, name: u.fullName, sub: u.departmentName }));
 
 /** Customers as picker items. */
-export const customerItems = (list: { id: string; name: string; company?: string; phones?: string[] }[]): PickerItem[] =>
-  list.map((c) => ({ id: c.id, name: c.name, sub: [c.company && c.company !== c.name ? c.company : '', (c.phones || [])[0] || ''].filter(Boolean).join(' · ') }));
+export const customerItems = (list: { id: string; name: string; company?: string; phones?: string[]; contactType?: string }[]): PickerItem[] =>
+  list.filter((c) => !c.contactType).map((c) => ({ id: c.id, name: c.name, sub: [c.company && c.company !== c.name ? c.company : '', (c.phones || [])[0] || ''].filter(Boolean).join(' · ') }));

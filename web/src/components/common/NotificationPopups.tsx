@@ -148,7 +148,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
       )}
       {unknownNumber && (
         <div className="px-3.5 py-2 bg-amber-50 border-t border-amber-100 flex items-center justify-between gap-2 text-[11px] font-bold text-amber-900">
-          <span>این شماره ذخیره نشده است.</span>
+          <span>این شماره ذخیره نشده است؛ مشتری است؟</span>
           <button
             type="button"
             onClick={() => {
@@ -163,7 +163,23 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
             className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-black cursor-pointer"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            ذخیره مشتری
+            مشتری
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                sessionStorage.setItem('crm_open', JSON.stringify({ type: 'phonebookNew', phone: normPhone(unknownNumber) || unknownNumber, name: '' }));
+              } catch {
+                /* storage unavailable */
+              }
+              window.dispatchEvent(new Event('goto-crm'));
+              window.dispatchEvent(new Event('open-crm-item'));
+            }}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-amber-900 border border-amber-300 text-[11px] font-black cursor-pointer"
+            data-save-phonebook
+          >
+            تأمین‌کننده، همکار، سایر…
           </button>
         </div>
       )}

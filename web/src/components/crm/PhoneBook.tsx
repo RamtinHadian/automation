@@ -7,6 +7,9 @@ import { toPersianDigits } from '../../lib/jalali';
 import { isMobileNumber } from '../../lib/customerImport';
 import { Modal, field } from './crmUi';
 import { searchLine } from '../../lib/searchAll';
+import { CONTACT_TYPES, contactTypeOf } from '../../lib/contactTypes';
+import { QuickCustomerDialog } from '../common/CustomerSelect';
+import { useAppContext } from '../../context/AppContext';
 
 type Row = { key: string; customer: Customer; number: string; kind: 'mobile' | 'landline' | 'fax'; main: boolean; line: string };
 
@@ -17,9 +20,12 @@ const KIND: Record<Row['kind'], { label: string; icon: React.ElementType; cls: s
 };
 
 /** The phone book: every number of every customer on one searchable list. */
-export const PhoneBook: React.FC<{ customers: Customer[]; canCall: boolean; onCall: (number: string, name: string) => void; onOpenCustomer: (id: string) => void; onClose: () => void }> = ({ customers, canCall, onCall, onOpenCustomer, onClose }) => {
+export const PhoneBook: React.FC<{ newPhone?: string | null; onNewDone?: () => void; customers: Customer[]; canCall: boolean; onCall: (number: string, name: string) => void; onOpenCustomer: (id: string) => void; onClose: () => void }> = ({ newPhone, onNewDone, customers, canCall, onCall, onOpenCustomer, onClose }) => {
   const [q, setQ] = useState('');
+  const { setCustomers } = useAppContext();
   const [kind, setKind] = useState<'all' | Row['kind']>('all');
+  const [typeF, setTypeF] = useState<string>('all');
+  const [adding, setAdding] = useState<string | null>(newPhone ?? null);
   const [copied, setCopied] = useState('');
 
   const rows = useMemo<Row[]>(() => {
@@ -28,7 +34,7 @@ export const PhoneBook: React.FC<{ customers: Customer[]; canCall: boolean; onCa
       (c.phones || []).forEach((p, i) => {
         const k: Row['kind'] = c.faxNumber === p ? 'fax' : isMobileNumber(p) ? 'mobile' : 'landline';
         const digits = p.replace(/\D/g, '');
-        const line = searchLine(c) + ' ' + fold(`${c.name} ${c.company || ''} ${c.firstName || ''} ${c.lastName || ''} ${p} ${digits.replace(/^0+/, '')} ${c.city || ''} ${c.province || ''} ${c.email || ''} ${(c.tags || []).join(' ')} ${c.address || ''} ${c.repName || ''} ${c.notes || ''}`);
+        const line = fold(CONTACT_TYPES.find((t) => t.id === contactTypeOf(c))?.label || '') + ' ' + searchLine(c) + ' ' + fold(`${c.name} ${c.company || ''} ${c.firstName || ''} ${c.lastName || ''} ${p} ${digits.replace(/^0+/, '')} ${c.city || ''} ${c.province || ''} ${c.email || ''} ${(c.tags || []).join(' ')} ${c.address || ''} ${c.repName || ''} ${c.notes || ''}`);
         out.push({ key: c.id + '|' + p, customer: c, number: p, kind: k, main: i === 0, line });
       });
     }
@@ -37,8 +43,8 @@ export const PhoneBook: React.FC<{ customers: Customer[]; canCall: boolean; onCa
 
   const shown = useMemo(() => {
     const toks = fold(q).trim().split(/\s+/).filter(Boolean);
-    return rows.filter((r) => (kind === 'all' || r.kind === kind) && toks.every((t) => r.line.includes(t)));
-  }, [rows, q, kind]);
+    return rows.filter((r) => (kind === 'all' || r.kind === kind) && (typeF === 'all' || contactTypeOf(r.customer) === typeF) && toks.every((t) => r.line.includes(t)));
+  }, [rows, q, kind, typeF]);
 
   const counts = { all: rows.length, mobile: rows.filter((r) => r.kind === 'mobile').length, landline: rows.filter((r) => r.kind === 'landline').length, fax: rows.filter((r) => r.kind === 'fax').length };
   const copy = (n: string) => {
@@ -68,6 +74,12 @@ export const PhoneBook: React.FC<{ customers: Customer[]; canCall: boolean; onCa
         <Search className="w-4 h-4 text-[#8C6F66] absolute right-3.5 top-1/2 -translate-y-1/2" />
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} className={`${field} pr-10`} placeholder="جستجو با نام، شرکت، بخشی از شماره، شهر، برچسب، نشانی…" />
       </div>
+      <div className="flex flex-wrap items-center gap-1.5" data-contact-filter>
+        <button type="button" onClick={() => setAdding('')} className="px-3 py-1.5 rounded-xl text-[11px] font-black border border-[#6E1B1B] bg-[#6E1B1B] text-white cursor-pointer" data-phonebook-add>+ افزودن به دفتر تلفن</button>
+        {[{ id: 'all', label: 'همه', cls: '' }, ...CONTACT_TYPES].map((t) => (
+          <button key={t.id} type="button" onClick={() => setTypeF(t.id)} className={`px-3 py-1.5 rounded-xl text-[11px] font-black border cursor-pointer ${typeF === t.id ? 'bg-[#3A241F] text-white border-[#3A241F]' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`}>{t.label} ({toPersianDigits(t.id === 'all' ? rows.length : rows.filter((r) => contactTypeOf(r.customer) === t.id).length)})</button>
+        ))}
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {(['all', 'mobile', 'landline', 'fax'] as const).map((k) => (
           <button key={k} type="button" onClick={() => setKind(k)} className={`px-3 py-1.5 rounded-xl text-[11px] font-black border cursor-pointer ${kind === k ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}>
@@ -90,13 +102,20 @@ export const PhoneBook: React.FC<{ customers: Customer[]; canCall: boolean; onCa
               <React.Fragment key={r.key}>
                 {head && <div className="px-4 py-1 bg-[#FAF5F1] text-[11px] font-black text-violet-700 sticky top-0">{head}</div>}
                 <div className="px-3 py-2.5 flex items-center gap-2.5">
-                  <button type="button" onClick={() => onOpenCustomer(r.customer.id)} className="min-w-0 flex-1 text-right cursor-pointer">
+                  <button type="button" onClick={() => (r.customer.contactType ? undefined : onOpenCustomer(r.customer.id))} className="min-w-0 flex-1 text-right cursor-pointer">
                     <div className="text-xs font-black text-[#3A241F] truncate flex items-center gap-1">
                       {r.main && <Star className="w-3 h-3 fill-amber-400 text-amber-500 shrink-0" />}
                       {r.customer.name}
                     </div>
                     <div className="text-[10px] font-bold text-[#8C6F66] truncate">{[r.customer.company && r.customer.company !== r.customer.name ? r.customer.company : '', r.customer.city].filter(Boolean).join(' · ')}</div>
                   </button>
+                  {r.customer.contactType ? (
+                    <select value={contactTypeOf(r.customer)} onChange={(e) => setCustomers((prev) => prev.map((x) => (x.id === r.customer.id ? { ...x, contactType: e.target.value === 'CUSTOMER' ? undefined : (e.target.value as Customer['contactType']), updatedAt: new Date().toISOString() } : x)))} className={`shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-full border ${CONTACT_TYPES.find((t) => t.id === contactTypeOf(r.customer))?.cls || ''}`} data-contact-type-select>
+                      {CONTACT_TYPES.map((t) => (<option key={t.id} value={t.id}>{t.label}</option>))}
+                    </select>
+                  ) : (
+                    <span className="shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border text-violet-700 bg-violet-50 border-violet-200">مشتری</span>
+                  )}
                   <span className={`shrink-0 flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border ${K.cls}`}><K.icon className="w-3 h-3" />{K.label}</span>
                   <span className="shrink-0 text-xs font-black text-[#3A241F]" dir="ltr">{toPersianDigits(r.number)}</span>
                   <button type="button" onClick={() => copy(r.number)} title="کپی شماره" className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[#8C6F66] hover:bg-[#FAF5F1] cursor-pointer">
@@ -114,6 +133,7 @@ export const PhoneBook: React.FC<{ customers: Customer[]; canCall: boolean; onCa
         </div>
       )}
       {shown.length > 600 && <div className="text-[11px] font-bold text-[#8C6F66] text-center">۶۰۰ مورد اول نشان داده شد؛ جستجو را دقیق‌تر کنید یا خروجی اکسل بگیرید.</div>}
+      {adding !== null && <QuickCustomerDialog withType initialPhone={adding} onClose={() => { setAdding(null); onNewDone?.(); }} onCreated={() => { setAdding(null); onNewDone?.(); }} />}
     </Modal>
   );
 };

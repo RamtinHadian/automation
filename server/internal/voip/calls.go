@@ -276,9 +276,17 @@ func popup(ev Event, ext string) {
 	}
 	note := notify.Note{Kind: "call", Label: "تماس ورودی", Title: "تماس ورودی از " + who, Body: "داخلی " + ext, Repeat: true}
 	if cid, cname, found := customerByPhone(ctx, number); found {
-		note.Title = "تماس ورودی از مشتری: " + cname
+		kind := "مشتری"
+		var ctype string
+		_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'contactType', '') FROM crm_customers WHERE id = $1`, cid).Scan(&ctype)
+		if l, ok := map[string]string{"SUPPLIER": "تأمین‌کننده", "COLLEAGUE": "همکار", "AGENT": "نماینده", "OTHER": "دفتر تلفن"}[ctype]; ok {
+			kind = l
+		}
+		note.Title = "تماس ورودی از " + kind + ": " + cname
 		note.Body = number + " · داخلی " + ext
-		note.Ref = map[string]any{"type": "customer", "id": cid}
+		if ctype == "" {
+			note.Ref = map[string]any{"type": "customer", "id": cid}
+		}
 	} else if sn, isStaff := StaffByPhone(ctx, number); isStaff {
 		// a colleague ringing from their mobile: no «save as customer»
 		note.Title = "تماس از همکار: " + sn

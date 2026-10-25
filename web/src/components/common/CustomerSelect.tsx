@@ -6,15 +6,17 @@ import { Customer } from '../../types';
 import { PersonPicker, customerItems } from './PersonPicker';
 import { toPersianDigits } from '../../lib/jalali';
 import { digitsOf } from './MoneyInput';
+import { CONTACT_TYPES } from '../../lib/contactTypes';
 
 const inp = 'w-full px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] outline-hidden focus:border-[#6E1B1B]';
 
 /** The quick form that adds a new customer from any place where a customer is searched (name, company, mobile); the full record is completed later in «مشتریان». */
-export const QuickCustomerDialog: React.FC<{ initialName?: string; onClose: () => void; onCreated: (c: Customer) => void }> = ({ initialName = '', onClose, onCreated }) => {
+export const QuickCustomerDialog: React.FC<{ initialName?: string; initialPhone?: string; withType?: boolean; onClose: () => void; onCreated: (c: Customer) => void }> = ({ initialName = '', initialPhone = '', withType, onClose, onCreated }) => {
   const { customers, setCustomers, currentUser, showToast } = useAppContext();
   const [name, setName] = useState(initialName);
   const [company, setCompany] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(digitsOf(initialPhone));
+  const [type, setType] = useState<string>('CUSTOMER');
   const save = () => {
     const n = name.trim();
     const ph = digitsOf(phone);
@@ -29,21 +31,32 @@ export const QuickCustomerDialog: React.FC<{ initialName?: string; onClose: () =
     const now = new Date().toISOString();
     const c: Customer = {
       id: 'cu-' + Math.random().toString(36).substring(2, 10),
+      ...(type !== 'CUSTOMER' ? { contactType: type as Customer['contactType'] } : {}),
       name: n, company: company.trim(), phones: ph ? [ph] : [], email: '', address: '', status: 'LEAD', source: '', tags: [],
       ownerId: currentUser.id, ownerName: currentUser.fullName, notes: '', createdAt: now, updatedAt: now,
     };
     setCustomers((prev) => [c, ...prev]);
-    showToast('مشتری تازه ثبت شد.');
+    showToast(type === 'CUSTOMER' ? 'مشتری تازه ثبت شد.' : 'در دفتر تلفن ذخیره شد.');
     onCreated(c);
   };
   return createPortal(
     <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { e.stopPropagation(); onClose(); }} onClick={(e) => e.stopPropagation()} data-quick-customer>
       <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-[#EBDBCE] text-right">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#EBDBCE]">
-          <h3 className="font-black text-sm text-[#3A241F]">مشتری تازه</h3>
+          <h3 className="font-black text-sm text-[#3A241F]">{withType ? 'ذخیره در دفتر تلفن' : 'مشتری تازه'}</h3>
           <button type="button" onClick={onClose} className="p-1.5 text-[#8C6F66] rounded-xl cursor-pointer" aria-label="بستن"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-4 space-y-3">
+          {withType && (
+            <div data-contact-types>
+              <span className="block text-[11px] font-black text-[#8C6F66] mb-1">این شماره مال کیست؟</span>
+              <div className="flex flex-wrap gap-1.5">
+                {CONTACT_TYPES.map((t) => (
+                  <button key={t.id} type="button" onClick={() => setType(t.id)} className={`px-3 py-1.5 rounded-full text-[11px] font-black border cursor-pointer ${type === t.id ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : t.cls}`}>{t.label}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div><span className="block text-[11px] font-black text-[#8C6F66] mb-1">نام و نام خانوادگی *</span><input autoFocus className={inp} value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div><span className="block text-[11px] font-black text-[#8C6F66] mb-1">شرکت (اختیاری)</span><input className={inp} value={company} onChange={(e) => setCompany(e.target.value)} /></div>
           <div><span className="block text-[11px] font-black text-[#8C6F66] mb-1">شمارهٔ موبایل (اختیاری)</span><input className={inp} dir="ltr" inputMode="numeric" value={phone ? toPersianDigits(digitsOf(phone)) : ''} onChange={(e) => setPhone(digitsOf(e.target.value))} /></div>

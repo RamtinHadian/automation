@@ -127,8 +127,8 @@ const WhChip: React.FC<{ u: User; onOpen: (tab: 'wh' | 'prod') => void }> = ({ u
   const cls = 'mt-1 ml-1 text-[10px] font-black text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 cursor-pointer';
   return (
     <>
-      <button type="button" onClick={() => onOpen('wh')} className={cls} data-wh-chip>انبار: {w === 0 ? 'همه' : toPersianDigits(w)}</button>
-      <button type="button" onClick={() => onOpen('prod')} className={cls} data-prod-chip>کالا: {pr === 0 ? 'همه' : toPersianDigits(pr)}</button>
+      {w > 0 && <button type="button" onClick={() => onOpen('wh')} className={cls} data-wh-chip>فقط {toPersianDigits(w)} انبار</button>}
+      {pr > 0 && <button type="button" onClick={() => onOpen('prod')} className={cls} data-prod-chip>فقط {toPersianDigits(pr)} کالا</button>}
     </>
   );
 };

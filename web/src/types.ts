@@ -137,6 +137,8 @@ export interface CustomerFile {
 export interface Customer {
   id: string;
   name: string;
+  /** phone-book entries that are NOT customers (supplier, colleague, agent, other); empty = a customer of the CRM */
+  contactType?: 'SUPPLIER' | 'COLLEAGUE' | 'AGENT' | 'OTHER';
   /** sales representatives (user ids) the administrator showed this customer to: they see the name only, no number or address, and can press «call» */
   agentViewerIds?: string[];
   /** the page got this customer without numbers and address (shown to a representative): only the call button works */

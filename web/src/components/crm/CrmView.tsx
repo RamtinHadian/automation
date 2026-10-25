@@ -1,4 +1,5 @@
 import { matchesAll } from '../../lib/searchAll';
+import { isCustomerRecord } from '../../lib/contactTypes';
 import { placeCall } from '../../lib/callFrom';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -114,7 +115,8 @@ const timeText = (iso: string) => `${formatTaskDate(iso.slice(0, 10))} · ${toPe
 
 
 export const CrmView: React.FC = () => {
-  const { customers, setCustomers, deals, setDeals, activities, setActivities, staffList, currentUser, showToast, settings, departments } = useAppContext();
+  const { customers: allContacts, setCustomers, deals, setDeals, activities, setActivities, staffList, currentUser, showToast, settings, departments } = useAppContext();
+  const customers = useMemo(() => allContacts.filter(isCustomerRecord), [allContacts]); // phone-book entries that are not customers stay out of the CRM lists
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN';
 
@@ -151,6 +153,7 @@ export const CrmView: React.FC = () => {
   const [mergeFor, setMergeFor] = useState<Customer | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [phoneBookNew, setPhoneBookNew] = useState<string | null>(null);
   const [showAdv, setShowAdv] = useState(false);
   const [adv, setAdv] = useState({ province: '', city: '', source: '', tag: '', owner: '', kind: '', bought: '', quiet: '' });
   useEffect(() => {
@@ -174,6 +177,11 @@ export const CrmView: React.FC = () => {
         if (!raw) return;
         sessionStorage.removeItem('crm_open');
         const { type, id, phone, name } = JSON.parse(raw) as { type: string; id: string; phone?: string; name?: string };
+        if (type === 'phonebookNew') {
+          setPhoneBookNew(phone || '');
+          setPhoneBook(true);
+          return;
+        }
         if (type === 'newCustomer') {
           setTab('customers');
           setEditingCustomer({ ...newCustomer(), phones: phone ? [normPhone(phone) || phone] : [], name: callerNameOnly(name, phone), source: 'تماس تلفنی' });
@@ -1022,7 +1030,7 @@ export const CrmView: React.FC = () => {
         />
       )}
 
-      {phoneBook && <PhoneBook customers={customers} canCall={canCall} onCall={call} onOpenCustomer={(id) => { setPhoneBook(false); setOpenCustomer(id); }} onClose={() => setPhoneBook(false)} />}
+      {phoneBook && <PhoneBook customers={allContacts} newPhone={phoneBookNew} onNewDone={() => setPhoneBookNew(null)} canCall={canCall} onCall={call} onOpenCustomer={(id) => { setPhoneBook(false); setOpenCustomer(id); }} onClose={() => setPhoneBook(false)} />}
 
       {openCustomer && customerById.get(openCustomer) && (
         <CustomerDetail

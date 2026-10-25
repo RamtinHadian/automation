@@ -972,7 +972,7 @@ export default function UserPanel() {
               >
                 <Users className="w-4 h-4" />
                 <span>مشتریان</span>
-                <span className={`text-[10px] font-bold ${mainMenuTab === 'crm' ? 'text-white/75' : 'text-[#8C6F66]'}`} data-customer-count>{toPersianDigits(customers.length)}</span>
+                <span className={`text-[10px] font-bold ${mainMenuTab === 'crm' ? 'text-white/75' : 'text-[#8C6F66]'}`} data-customer-count>{toPersianDigits(customers.filter((c) => !c.contactType).length)}</span>
                 {menuBadge('crm') > 0 && (
                   <span className="bg-rose-600 text-white text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full font-black shadow-sm">
                     {toPersianDigits(menuBadge('crm') > 99 ? '99+' : menuBadge('crm'))}
@@ -2283,7 +2283,7 @@ export default function UserPanel() {
               >
                 <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={on ? 2.4 : 1.9} />
                 {on && <span className="text-[11px] font-black whitespace-nowrap">{label}</span>}
-                {on && id === 'crm' && <span className="text-[10px] font-bold text-[#8C6F66]" data-customer-count>{toPersianDigits(customers.length)}</span>}
+                {on && id === 'crm' && <span className="text-[10px] font-bold text-[#8C6F66]" data-customer-count>{toPersianDigits(customers.filter((c) => !c.contactType).length)}</span>}
                 {badge > 0 && (
                   <span className="absolute -top-0.5 -left-0.5 bg-rose-500 text-white text-[9px] font-black min-w-[16px] h-4 leading-4 text-center px-1 rounded-full border-2 border-[var(--theme-dark-bg,#3A241F)]">
                     {toPersianDigits(badge > 99 ? '99+' : badge)}
