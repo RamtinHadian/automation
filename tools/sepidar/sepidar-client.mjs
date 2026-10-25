@@ -237,6 +237,10 @@ export class Sepidar {
             errors.push(`نسخهٔ ${v} (${shapeName(shape)}): با کلید سپیدار ساخته نشد (${e.message})`);
             continue;
           }
+          if (e instanceof SepidarError && e.status === 401 && /کد دستگاه/.test(e.message)) {
+            // «the device code is wrong» at sign-in: the device code is the first four characters of the serial in config.json
+            throw new SepidarError(401, `${e.message} — سریالی که ابزار از config.json خوانده: «${this.cfg.serial}» (شناسهٔ دستگاه ${this.integrationId}، یعنی چهار نویسهٔ اول). آن را با صفحهٔ «دستگاه» در سپیدار مقایسه کنید؛ باید دقیقاً همان سریال باشد (کد دستگاه در سپیدار همان چهار نویسهٔ اول است، مثلاً سریال 10006b1a ← کد 1000). اگر درست بود، خط publicKeyXml را از state.json همین پوشه پاک کنید و دوباره راه‌اندازی را بزنید تا کلید دستگاه دوباره گرفته شود.`);
+          }
           if (!keyProblem(e)) throw e;
           const line = `نسخهٔ ${v} (${shapeName(shape)}): ${e.message}`;
           if (!errors.includes(line)) errors.push(line);
