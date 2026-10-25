@@ -63,6 +63,11 @@ func putCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 			return
 		}
 	}
+	// a new customer or person is registered only with a mobile number (calls, SMS and the accounting link all work with it); old records are not blocked
+	if !exists && !hasMobile(jsonx.Strings(data, "phones")) {
+		httpx.Error(w, http.StatusBadRequest, "برای ثبت مشتری یا هر شخص، شمارهٔ موبایل لازم است (۱۱ رقم، مثل ۰۹۱۲۳۴۵۶۷۸۹).")
+		return
+	}
 	doc := jsonx.Copy(data)
 	doc["id"] = id
 	if jsonx.Str(doc, "ownerId") == "" {
@@ -417,4 +422,34 @@ func removeActivity(w http.ResponseWriter, r *http.Request, me auth.User, id str
 func proformaReadyForCustomer(ctx context.Context, doc jsonx.M) bool {
 	required, _ := proformaApprovalConfig(ctx, jsonx.Str(doc, "proformaIssuerId"))
 	return !required || jsonx.Str(jsonx.Sub(doc, "proformaApproval"), "status") == "approved"
+}
+
+// hasMobile: at least one of the numbers is a complete Iranian mobile («09…» with 11 digits, also written +98…, 0098… or 98…, with Persian digits).
+func hasMobile(phones []string) bool {
+	for _, p := range phones {
+		var d []rune
+		for _, r := range p {
+			switch {
+			case r >= '0' && r <= '9':
+				d = append(d, r)
+			case r >= '۰' && r <= '۹':
+				d = append(d, '0'+(r-'۰'))
+			case r >= '٠' && r <= '٩':
+				d = append(d, '0'+(r-'٠'))
+			}
+		}
+		n := string(d)
+		switch {
+		case strings.HasPrefix(n, "0098"):
+			n = "0" + n[4:]
+		case strings.HasPrefix(n, "98") && len(n) == 12:
+			n = "0" + n[2:]
+		case len(n) == 10 && n[0] == '9':
+			n = "0" + n
+		}
+		if len(n) == 11 && strings.HasPrefix(n, "09") {
+			return true
+		}
+	}
+	return false
 }

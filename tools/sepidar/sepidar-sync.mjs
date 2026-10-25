@@ -465,11 +465,19 @@ async function cmdSync(cfg) {
   const byGuid = new Map(sepidarCustomers.map((c) => [String(c.GUID || '').toLowerCase(), c.CustomerID]));
   const links = await hoormandLinks(cfg);
   const taken = new Set([...Object.values(state.customers), ...links.values()]);
+  // the live list of Sepidar tells which of the remembered customers still exist (a customer deleted in Sepidar is registered again); an empty list is not trusted
+  const alive = new Set(sepidarCustomers.map((c) => c.CustomerID));
+  let resetCount = 0;
   const refOf = new Map(); // hoormand customer id -> Sepidar CustomerID
 
   for (const c of hoormandCustomers) {
     const body = customerBody(c);
-    const existing = byGuid.get(body.GUID.toLowerCase()) ?? state.customers[c.id] ?? links.get(c.id);
+    let existing = byGuid.get(body.GUID.toLowerCase()) ?? state.customers[c.id] ?? links.get(c.id);
+    if (existing && sepidarCustomers.length > 0 && !alive.has(existing)) {
+      resetCount++;
+      if (apply) delete state.customers[c.id];
+      existing = undefined;
+    }
     if (existing) {
       refOf.set(c.id, existing);
       if (!state.customers[c.id] && links.has(c.id)) state.customers[c.id] = existing;
@@ -568,6 +576,7 @@ async function cmdSync(cfg) {
     }
   }
   saveState(state);
+  if (resetCount > 0) log(`  ${resetCount} مشتری در سپیدار پاک شده بودند؛ ${apply ? 'دوباره ثبت شدند یا دوباره به مشابهشان وصل شدند' : 'در ثبت واقعی دوباره ثبت می‌شوند'}.`);
   if (report.customersNoPhone > 0) log(`  ${report.customersNoPhone} مشتری شمارهٔ تلفن ندارند و در سپیدار ثبت نشدند (سپیدار شمارهٔ تلفن را الزامی می‌داند؛ در هورمند برایشان شماره بنویسید).`);
   log(`خلاصه: مشتری تازه ${report.customersNew}، پیش‌فاکتور تازه ${report.quotationsNew}، ردشده ${report.quotationsSkip}، خطا ${report.customersFail + report.quotationsFail}`);
   return report;
@@ -580,16 +589,20 @@ async function hoormandGetOne(cfg, p) {
 
 async function sepidarCustomerRef(cfg, sp, state, c) {
   state.customers ||= {};
-  if (state.customers[c.id]) return state.customers[c.id];
-  const body = customerBody(c);
   const list = await sp.get('/api/Customers');
+  const alive = (id) => list.some((x) => x.CustomerID === id);
+  if (state.customers[c.id]) {
+    if (alive(state.customers[c.id])) return state.customers[c.id];
+    delete state.customers[c.id]; // the customer was deleted in Sepidar since: it is looked for again and, if it is really gone, made again
+  }
+  const body = customerBody(c);
   const found = list.find((x) => String(x.GUID || '').toLowerCase() === body.GUID.toLowerCase());
   if (found) {
     state.customers[c.id] = found.CustomerID;
     return found.CustomerID;
   }
   const tied = (await hoormandLinks(cfg)).get(c.id);
-  if (tied) {
+  if (tied && alive(tied)) {
     state.customers[c.id] = tied;
     return tied;
   }
@@ -621,8 +634,8 @@ export const jobHandlers = {
     }
     state.customers[c.id] = found.CustomerID;
     const cur = await sp.get('/api/Customers/' + found.CustomerID);
-    // Sepidar wants the whole customer back (with its list of addresses), not only the fields that change
-    const upd = { ...cur, PhoneNumber: body.PhoneNumber, Version: cur.Version, Addresses: Array.isArray(cur.Addresses) ? cur.Addresses : [] };
+    // Sepidar's documentation for the edit: PhoneNumber, BirthDate, NationalID, EconomicCode, Version and the list of addresses (an empty list = the addresses stay as they are)
+    const upd = { PhoneNumber: body.PhoneNumber || cur.PhoneNumber || '', Version: cur.Version, Addresses: [] };
     if (body.NationalID) upd.NationalID = body.NationalID;
     if (body.EconomicCode) upd.EconomicCode = body.EconomicCode;
     if (body.BirthDate) upd.BirthDate = body.BirthDate;

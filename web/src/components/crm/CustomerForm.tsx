@@ -133,6 +133,7 @@ export const CustomerForm: React.FC<{
   const [mobileDraft, setMobileDraft] = useState('');
   const [landlineDraft, setLandlineDraft] = useState('');
   const [tagDraft, setTagDraft] = useState('');
+  const [mobileErr, setMobileErr] = useState(false);
   const patch = (u: Partial<Customer>) => setC((p) => ({ ...p, ...u }));
   const sepidarOn = useSepidarConnected();
   const isCompany = c.kind === 'COMPANY';
@@ -167,6 +168,12 @@ export const CustomerForm: React.FC<{
     const ld = cleanNumber(landlineDraft);
     if (md) m = [...new Set([...m, md])];
     if (ld) l = [...new Set([...l, ld])];
+    // a new customer or person is registered only with a mobile number (the whole company works with it: calls, SMS, Sepidar)
+    if (isNew && !m.some((x) => isCompleteMobile(x))) {
+      setMobileErr(true);
+      document.querySelector('[data-mobile-required]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     const owner = staff.find((u) => u.id === c.ownerId);
     const out: Customer = {
       ...c,
@@ -524,9 +531,9 @@ export const CustomerForm: React.FC<{
         )}
 
         <Section title="شماره‌های تماس (هر تعداد)">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-mobile-required>
             <NumberList
-              title="موبایل‌ها"
+              title={isNew ? 'موبایل‌ها *' : 'موبایل‌ها'}
               icon={<Smartphone className="w-4 h-4 text-emerald-600" />}
               items={mobiles}
               placeholder="مثلاً 09121234567"
@@ -550,6 +557,11 @@ export const CustomerForm: React.FC<{
               onFax={(p) => patch({ faxNumber: p || undefined })}
             />
           </div>
+          {mobileErr && isNew && !mobiles.some((p) => isCompleteMobile(p)) && !isCompleteMobile(cleanNumber(mobileDraft)) && (
+            <p className="text-[11px] font-black text-rose-600 mt-2" data-mobile-error>
+              برای ثبت مشتری یا هر شخص، حداقل یک شمارهٔ موبایل ۱۱ رقمی لازم است (مثل ۰۹۱۲۳۴۵۶۷۸۹). شماره را بنویسید و «افزودن» را بزنید.
+            </p>
+          )}
           {mobiles.some((p) => !isCompleteMobile(p)) && (
             <p className="text-[11px] font-bold text-amber-700 mt-2" data-short-mobile>
               یکی از موبایل‌ها ۱۱ رقم نیست ({mobiles.filter((p) => !isCompleteMobile(p)).map((p) => normPhone(p) || p).join('، ')}). اگر کامل نیست آن را اصلاح کنید.

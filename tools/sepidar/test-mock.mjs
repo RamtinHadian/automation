@@ -369,6 +369,19 @@ const st2 = JSON.parse(fs.readFileSync(state, 'utf8')); delete st2.quotations['d
 hoormandJobs.push({ id: 'sj-3', kind: 'quotation.send', data: { dealId: 'd-1' } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-3']?.ok === true && hoormandResults['sj-3'].sepidarId === 900 && sp.quotations.length === 1, 'job quotation.send registers the quotation and reports its id and number');
+// a customer deleted in Sepidar since: the id kept in the program's memory is no longer alive, so the customer is made again for its quotation
+{
+  const stT = JSON.parse(fs.readFileSync(state, 'utf8'));
+  stT.customers['c-1'] = 777;
+  delete stT.quotations['d-1'];
+  fs.writeFileSync(state, JSON.stringify(stT));
+  sp.customers.length = 0;
+  sp.quotations.length = 0;
+  hoormandJobs.push({ id: 'sj-3b', kind: 'quotation.send', data: { dealId: 'd-1' } });
+  r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+  const stU = JSON.parse(fs.readFileSync(state, 'utf8'));
+  ok(hoormandResults['sj-3b']?.ok === true && sp.customers.length === 1 && stU.customers['c-1'] === 500, 'a customer deleted in Sepidar (a stale id in the program memory) is made again when its quotation is sent' + String.fromCharCode(10) + JSON.stringify(hoormandResults['sj-3b']));
+}
 hoormandJobs.push({ id: 'sj-4', kind: 'quotation.close', data: { dealId: 'd-1', sepidarId: 900 } }, { id: 'sj-5', kind: 'invoice.fromProforma', data: { dealId: 'd-1', sepidarId: 900 } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice from 900') && hoormandResults['sj-5'].number === 31 && hoormandResults['sj-5'].sepidarId === 700, 'close and invoice-from-quotation (the body is the plain quotation number)');
@@ -385,6 +398,18 @@ ok(hoormandCaches.saleDocs?.length === 1 && hoormandCaches.saleDocs[0].number ==
 hoormandJobs.push({ id: 'sj-9', kind: 'nonsense', data: {} });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-9']?.ok === false, 'an unknown job kind is reported, not ignored');
+
+// customers deleted in Sepidar: the automatic synchronisation notices (the remembered id is not in the live list) and registers them again
+{
+  const stR = JSON.parse(fs.readFileSync(state, 'utf8'));
+  stR.customers['c-1'] = 777;
+  fs.writeFileSync(state, JSON.stringify(stR));
+  sp.customers.length = 0;
+  sp.customers.push({ CustomerID: 901, GUID: 'zz-someone-else', Name: 'مشتری دیگر', LastName: '', PhoneNumber: '09100000001', CustomerType: 1 }); // Sepidar is not empty: it has other customers
+  r = await runAsync('sync', '--apply'); if (process.env.DBG) console.log(r.out);
+  const stS = JSON.parse(fs.readFileSync(state, 'utf8'));
+  ok(sp.customers.length >= 1 && stS.customers['c-1'] !== 777 && sp.customers.some((c) => c.CustomerID === stS.customers['c-1']) && /پاک شده بودند/.test(r.out), 'the automatic synchronisation registers again the customers that were deleted in Sepidar' + String.fromCharCode(10) + r.out.slice(-400));
+}
 
 // the automatic setup: a pairing code instead of a key, everything it can find out is not asked
 const cfg2 = path.join(tmp, 'auto-config.json');

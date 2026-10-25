@@ -1,9 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { FileSpreadsheet, Upload, X, Download } from 'lucide-react';
 import { Customer, CustomerStatus } from '../../types';
+import { downloadCsv } from '../../lib/csv';
 import { toPersianDigits } from '../../lib/jalali';
 import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
-import { importFields, ImportField, guessMapping, importDate, importGender, importKind, normPhone, normText, readTable, sampleCsv, standardize, downloadStandardSheet } from '../../lib/customerImport';
+import { importFields, ImportField, guessMapping, importDate, importGender, importKind, isCompleteMobile, normPhone, normText, readTable, sampleCsv, standardize, downloadStandardSheet } from '../../lib/customerImport';
 
 const uid = () => 'cu-' + Math.random().toString(36).substring(2, 10);
 const sel = 'w-full px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden';
@@ -79,6 +80,9 @@ export const CustomerImportModal: React.FC<{
     const ok: Customer[] = [];
     let noName = 0;
     let dup = 0;
+    let noMobile = 0;
+    // every row that is left out, with the number of the row in the file and the reason, so nothing disappears without a word
+    const issues: { row: number; what: string; reason: string }[] = [];
     const get = (r: string[], f: ImportField) => (map[f] >= 0 ? normText(r[map[f]]) : '');
     const opt = (v: string) => (v ? v : undefined);
     const sepidarInfo = (r: string[]) => {
@@ -91,7 +95,9 @@ export const CustomerImportModal: React.FC<{
       }
       return Object.keys(out).length ? out : undefined;
     };
-    for (const r of data) {
+    for (const [ri, r] of data.entries()) {
+      const rowNo = ri + (hasHeader ? 2 : 1);
+      const rowText = r.map((x) => normText(x)).filter(Boolean).slice(0, 3).join(' | ');
       // the name: a full name, or the first name and the family name from two columns
       const first = get(r, 'firstName');
       const family = get(r, 'lastName');
@@ -100,12 +106,19 @@ export const CustomerImportModal: React.FC<{
       const name = [main, main.includes(family) ? '' : family].filter(Boolean).join(' ') || [first, family].filter(Boolean).join(' ') || get(r, 'company');
       if (!name) {
         noName++;
+        issues.push({ row: rowNo, what: rowText, reason: 'نام ندارد' });
         continue;
       }
       const phones = [...new Set(['mobile', 'mobile2', 'phone', 'phone2'].map((f) => normPhone(map[f as ImportField] >= 0 ? r[map[f as ImportField]] : '')).filter(Boolean))];
+      if (!phones.some((p) => isCompleteMobile(p))) {
+        noMobile++;
+        issues.push({ row: rowNo, what: name, reason: phones.length ? `موبایل کامل ندارد (شماره‌های فایل: ${phones.join('، ')})؛ موبایل باید ۱۱ رقم و مثل ۰۹۱۲۳۴۵۶۷۸۹ باشد` : 'شمارهٔ موبایل ندارد' });
+        continue;
+      }
       const ids = [get(r, 'nationalCode'), get(r, 'nationalId')].filter(Boolean);
       if (skipDup && ((phones.length && phones.some((p) => known.has(p) || seen.has(p))) || ids.some((x) => knownIds.has(x) || seen.has(x)))) {
         dup++;
+        issues.push({ row: rowNo, what: name, reason: 'تکراری: این شماره یا کد ملی از قبل در سامانه یا در همین فایل هست' });
         continue;
       }
       phones.forEach((p) => seen.add(p));
@@ -155,7 +168,7 @@ export const CustomerImportModal: React.FC<{
         updatedAt: now,
       });
     }
-    return { ok, noName, dup };
+    return { ok, noName, dup, noMobile, issues };
   }, [data, map, existing, status, skipDup, ownerId, ownerName, fields]);
 
   const download = () => {
@@ -337,7 +350,27 @@ export const CustomerImportModal: React.FC<{
                 {toPersianDigits(result.ok.length)} مشتری آمادهٔ افزودن است
                 {result.dup > 0 && <span className="text-amber-700"> · {toPersianDigits(result.dup)} تکراری ردشد</span>}
                 {result.noName > 0 && <span className="text-rose-600"> · {toPersianDigits(result.noName)} ردیف بدون نام ردشد</span>}
+                {result.noMobile > 0 && <span className="text-rose-600"> · {toPersianDigits(result.noMobile)} ردیف بدون موبایل کامل ردشد (موبایل برای ثبت هر مشتری لازم است)</span>}
               </div>
+              {result.issues.length > 0 && (
+                <details className="rounded-2xl border border-rose-200 bg-rose-50/50 px-3 py-2" data-import-issues open>
+                  <summary className="cursor-pointer text-[11px] font-black text-rose-800">ردیف‌های ردشده و دلیل هر کدام ({toPersianDigits(result.issues.length)})</summary>
+                  <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-rose-100 text-[11px]">
+                    {result.issues.slice(0, 300).map((i, k) => (
+                      <div key={k} className="py-1.5 flex gap-2">
+                        <span className="shrink-0 font-black text-rose-700">ردیف {toPersianDigits(i.row)}</span>
+                        <span className="shrink-0 font-bold text-[#3A241F] max-w-[40%] truncate">{i.what}</span>
+                        <span className="text-[#6b5048]">{i.reason}</span>
+                      </div>
+                    ))}
+                    {result.issues.length > 300 && <div className="py-1.5 font-bold text-[#8C6F66]">و {toPersianDigits(result.issues.length - 300)} ردیف دیگر؛ فهرست کامل را دانلود کنید.</div>}
+                  </div>
+                  <button type="button" onClick={() => downloadCsv('ردیف‌های-ردشده.csv', [['ردیف', 'مشخصات', 'دلیل'], ...result.issues.map((i) => [i.row, i.what, i.reason])])} className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black border border-rose-300 bg-white text-rose-800 cursor-pointer">
+                    <Download className="w-3.5 h-3.5" />
+                    دانلود فهرست خطاها
+                  </button>
+                </details>
+              )}
             </>
           )}
         </div>

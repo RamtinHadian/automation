@@ -8,6 +8,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { digitsOf } from './MoneyInput';
 import { askConfirm } from '../../lib/confirmDialog';
 import { CONTACT_TYPES } from '../../lib/contactTypes';
+import { isCompleteMobile } from '../../lib/customerImport';
 
 const inp = 'w-full px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] outline-hidden focus:border-[#6E1B1B]';
 
@@ -22,7 +23,7 @@ export const QuickCustomerDialog: React.FC<{ initialName?: string; initialPhone?
     const n = name.trim();
     const ph = digitsOf(phone);
     if (!n) return showToast('نام مشتری را بنویسید.');
-    if (ph && !/^\d{7,15}$/.test(ph)) return showToast('شمارهٔ تماس درست نیست.');
+    if (!isCompleteMobile(ph)) return showToast('شمارهٔ موبایل لازم است و باید ۱۱ رقم باشد (مثل ۰۹۱۲۳۴۵۶۷۸۹).');
     const norm = (x: string) => x.replace(/[‌\s]+/g, ' ').trim();
     const samePhone = customers.find((c) => ph && (c.phones || []).some((p) => digitsOf(p) === ph));
     if (samePhone) {
@@ -81,7 +82,7 @@ export const QuickCustomerDialog: React.FC<{ initialName?: string; initialPhone?
           )}
           <div><span className="block text-[11px] font-black text-[#8C6F66] mb-1">نام و نام خانوادگی *</span><input autoFocus className={inp} value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div><span className="block text-[11px] font-black text-[#8C6F66] mb-1">شرکت (اختیاری)</span><input className={inp} value={company} onChange={(e) => setCompany(e.target.value)} /></div>
-          <div><span className="block text-[11px] font-black text-[#8C6F66] mb-1">شمارهٔ موبایل (اختیاری)</span><input className={inp} dir="ltr" inputMode="numeric" value={phone ? toPersianDigits(digitsOf(phone)) : ''} onChange={(e) => setPhone(digitsOf(e.target.value))} /></div>
+          <div><span className="block text-[11px] font-black text-[#8C6F66] mb-1">شمارهٔ موبایل *</span><input className={inp} dir="ltr" inputMode="numeric" value={phone ? toPersianDigits(digitsOf(phone)) : ''} onChange={(e) => setPhone(digitsOf(e.target.value))} /></div>
           <p className="text-[10px] font-bold text-[#8C6F66]">بقیهٔ مشخصات را بعداً در «مشتریان» کامل کنید.</p>
         </div>
         <div className="flex justify-end gap-2 px-4 py-3 border-t border-[#EBDBCE]">
