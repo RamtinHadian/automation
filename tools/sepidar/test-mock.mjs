@@ -91,7 +91,12 @@ const sepidarServer = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url === '/api/Invoices/BasedOnQuotation') { sp.calls.push('invoice from ' + JSON.stringify(body)); return send(res, 200, { InvoiceID: 700, Number: 31 }); }
   if (req.method === 'POST' && url === '/api/Receipts/BasedOnInvoice') { sp.receipt = body; return send(res, 200, { ReceiptID: 55 }); }
   if (req.method === 'GET' && url.startsWith('/api/Customers/') && url.length > 15) return send(res, 200, { ...(sp.customers.find((c) => '/api/Customers/' + c.CustomerID === url) || {}), Version: 'v1' });
-  if (req.method === 'PUT' && url.startsWith('/api/Customers/')) { sp.put = body; return send(res, 200, {}); }
+  if (req.method === 'PUT' && url.startsWith('/api/Customers/')) {
+    // like Sepidar: the whole customer is required, with its list of addresses
+    if (!Array.isArray(body.Addresses)) return send(res, 400, { Message: "Required property 'Addresses' not found in JSON. Path '', line 1, position 68." });
+    sp.put = body;
+    return send(res, 200, {});
+  }
   if (req.method === 'GET' && url === '/api/Invoices/700') return send(res, 200, { InvoiceID: 700, Number: 31, Date: '2026-10-15T00:00:00', CustomerRef: 500, InvoiceItems: [{ ItemRef: 7, Quantity: 3 }, { ItemRef: 8, Quantity: 2 }] });
   if (req.method === 'GET' && url === '/api/Invoices') return send(res, 200, [{ InvoiceID: 700, Number: 31, CustomerRef: 500, NetPrice: 1000 }]);
   if (req.method === 'GET' && url === '/api/banks') return send(res, 200, [{ BankID: 1, Title: 'ملت' }]);
@@ -364,7 +369,7 @@ r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-6']?.ok === true && sp.receipt.InvoiceID === 700 && sp.receipt.Drafts[0].BankAccountID === 9 && sp.receipt.Drafts[0].Amount === 2500 && sp.receipt.Guid === guidFrom('receipt:sj-6'), 'receipt.add posts the draft against the invoice with a stable GUID (amount times the unit multiplier)');
 hoormandJobs.push({ id: 'sj-7', kind: 'customer.send', data: { customerId: 'c-1' } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
-ok(hoormandResults['sj-7']?.ok === true && sp.put?.Version === 'v1' && sp.put.NationalID === '0012345678', 'customer.send updates a customer that is already in Sepidar (with its Version)');
+ok(hoormandResults['sj-7']?.ok === true && sp.put?.Version === 'v1' && sp.put.NationalID === '0012345678' && Array.isArray(sp.put.Addresses), 'customer.send updates a customer that is already in Sepidar (the whole customer with its Version and Addresses)' + String.fromCharCode(10) + JSON.stringify(hoormandResults['sj-7']) );
 hoormandJobs.push({ id: 'sj-8', kind: 'refresh', data: {} });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-8']?.ok === true && hoormandCaches.invoices?.length === 1 && hoormandCaches.bankAccounts?.[0].BankAccountID === 9 && hoormandCaches.balances?.[0].Remainder === 1234 && hoormandCaches.priceNotes?.[0].code === '1001' && hoormandLinks.some((l) => l.kind === 'customer'), 'refresh sends invoices, bank accounts, balances, price lists and the links');

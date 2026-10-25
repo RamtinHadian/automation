@@ -614,7 +614,8 @@ export const jobHandlers = {
     }
     state.customers[c.id] = found.CustomerID;
     const cur = await sp.get('/api/Customers/' + found.CustomerID);
-    const upd = { PhoneNumber: body.PhoneNumber, Version: cur.Version };
+    // Sepidar wants the whole customer back (with its list of addresses), not only the fields that change
+    const upd = { ...cur, PhoneNumber: body.PhoneNumber, Version: cur.Version, Addresses: Array.isArray(cur.Addresses) ? cur.Addresses : [] };
     if (body.NationalID) upd.NationalID = body.NationalID;
     if (body.EconomicCode) upd.EconomicCode = body.EconomicCode;
     if (body.BirthDate) upd.BirthDate = body.BirthDate;
