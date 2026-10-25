@@ -192,19 +192,24 @@ type aiMsg struct {
 }
 
 func aiChat(ctx context.Context, key, model string, msgs []aiMsg) (string, error) {
-	payload, _ := json.Marshal(map[string]any{"model": model, "messages": msgs, "temperature": 0.3, "max_tokens": 700})
+	return aiChatOpts(ctx, key, model, msgs, 700, 45*time.Second)
+}
+
+// aiChatOpts: the same call with its own answer length and waiting time (the long reports need both larger)
+func aiChatOpts(ctx context.Context, key, model string, msgs []aiMsg, maxTokens int, wait time.Duration) (string, error) {
+	payload, _ := json.Marshal(map[string]any{"model": model, "messages": msgs, "temperature": 0.3, "max_tokens": maxTokens})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, aiBaseURL+"/chat/completions", bytes.NewReader(payload))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+key)
-	resp, err := (&http.Client{Timeout: 45 * time.Second}).Do(req)
+	resp, err := (&http.Client{Timeout: wait}).Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("پاسخ %d از سرویس هوش مصنوعی", resp.StatusCode)
 	}

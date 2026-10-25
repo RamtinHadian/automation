@@ -98,6 +98,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("DELETE /api/leaves/{id}", auth.Require(leaveCancel))
 	mux.HandleFunc("GET /api/voip/calls", auth.Require(voipCalls))
 	mux.HandleFunc("GET /api/voip/recording/{id}", auth.Require(voipRecording))
+	mux.HandleFunc("POST /api/reports/ai-sales", auth.Require(reportAiSales))
 	mux.HandleFunc("POST /api/voip/transcribe/{id}", auth.Require(voipTranscribe))
 	mux.HandleFunc("GET /api/voip/transcript/{id}", auth.Require(voipTranscript))
 	mux.HandleFunc("GET /api/voip/recording-setup", auth.Require(voipRecordingSetup))

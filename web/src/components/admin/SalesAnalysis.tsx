@@ -4,6 +4,7 @@ import { CrmActivity, Customer, Deal, User } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { toDisplay, unitName } from '../../lib/money';
 import { analyzeTeam, PROFILE_INFO, RepRow, STAGE_PROB, STALE_DAYS } from '../../lib/salesAnalysis';
+import { AiSalesReport } from './AiSalesReport';
 import { C, ChartCard, compact, fa, HBars, Kpi } from './charts';
 
 const compactM = (n: number) => compact(toDisplay(n));
@@ -60,6 +61,8 @@ export const SalesAnalysis: React.FC<{ staff: User[]; deals: Deal[]; customers: 
       </div>
 
       {showBooks && <Methodology seesTotals={seesTotals} />}
+
+      <AiSalesReport analysis={a} days={days} rangeLabel={rangeLabel} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-sales-kpis>
         <Kpi accent={C.green} icon={<Target className="w-5 h-5" />} label="نرخ موفقیت تیم" value={pc(t.winRate)} sub={`${fa(t.won)} موفق · ${fa(t.lost)} از دست رفته`} tone={t.winRate !== null && t.winRate >= 0.5 ? 'good' : 'plain'} />

@@ -1,6 +1,6 @@
 import { CustomerSelect } from '../common/CustomerSelect';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, FileImage, FilePlus2, Pencil, Plus, Printer, Search, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { ChevronDown, FileImage, Sparkles, Loader2, FilePlus2, Pencil, Plus, Printer, Search, Trash2, UserPlus, Users, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -323,8 +323,56 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
   const [saving, setSaving] = useState(false);
   const [numberTouched, setNumberTouched] = useState(false);
   const patch = (u: Partial<Minutes>) => setM((p) => ({ ...p, ...u }));
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiText, setAiText] = useState('');
+  const [aiBusy, setAiBusy] = useState<'' | 'draft' | 'summary'>('');
+  const [aiErr, setAiErr] = useState('');
   const people = useMemo(() => staffList.filter((u) => u.isActive !== false), [staffList]);
   const exists = all.some((x) => x.id === m.id);
+  const aiDraft = async () => {
+    const hasWork = m.agenda.some((x) => x.trim()) || (m.discussion || '').trim() || m.decisions.some((d) => d.text.trim());
+    if (hasWork && !(await askConfirm('آنچه تا الان در دستور جلسه، شرح مذاکرات و مصوبات نوشته‌اید با نوشتهٔ هوش مصنوعی جایگزین شود؟ بعد از آن می‌توانید همه‌چیز را ویرایش کنید.', { tone: 'danger', confirmText: 'جایگزین شود', title: 'نوشتن با هوش مصنوعی' }))) return;
+    setAiBusy('draft');
+    setAiErr('');
+    try {
+      const r = await api.minutesAi({ mode: 'draft', text: aiText, people: people.map((u) => u.fullName) });
+      const d = r.draft || {};
+      const today = new Date();
+      const decisions: MinutesDecision[] = (d.decisions || []).filter((x) => x && x.text).map((x) => {
+        const u = x.owner ? people.find((p) => p.fullName === x.owner) : undefined;
+        let due: string | undefined;
+        if (typeof x.dueInDays === 'number' && x.dueInDays > 0 && x.dueInDays < 400) {
+          const dt = new Date(today.getTime() + Math.round(x.dueInDays) * 86400000);
+          due = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        }
+        return { text: x.text, owner: x.owner || '', ownerUserId: u?.id, due };
+      });
+      setM((p) => ({
+        ...p,
+        title: p.title.trim() ? p.title : d.title || p.title,
+        agenda: d.agenda && d.agenda.length ? d.agenda : p.agenda,
+        discussion: d.discussion || p.discussion,
+        decisions: decisions.length ? decisions : p.decisions,
+      }));
+      setAiOpen(false);
+      showToast('صورتجلسه نوشته شد. آن را بخوانید و هر جا لازم است ویرایش کنید.');
+    } catch (e) {
+      setAiErr(e instanceof Error ? e.message : 'نوشتن انجام نشد.');
+    } finally {
+      setAiBusy('');
+    }
+  };
+  const aiSummarize = async () => {
+    setAiBusy('summary');
+    try {
+      const r = await api.minutesAi({ mode: 'summary', text: m.discussion || '' });
+      if (r.discussion) patch({ discussion: r.discussion });
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'خلاصه‌نویسی انجام نشد.');
+    } finally {
+      setAiBusy('');
+    }
+  };
   const t = typeOf(cfg, m.typeId);
   const S = t.sections;
   const types = cfg.types.filter((x) => x.active !== false || x.id === m.typeId);
@@ -617,6 +665,27 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
         </div>
       )}
 
+      {(S.discussion || S.decisions) && (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-3 space-y-2" data-minutes-ai>
+          <button type="button" onClick={() => setAiOpen(!aiOpen)} className="flex items-center gap-2 text-xs font-black text-violet-800 cursor-pointer" data-minutes-ai-toggle>
+            <Sparkles className="w-4 h-4" />
+            نوشتن صورتجلسه با هوش مصنوعی
+            <ChevronDown className={`w-4 h-4 transition-transform ${aiOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {aiOpen && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold text-violet-900/80 leading-6">هر چه از جلسه دارید اینجا بنویسید یا بچسبانید (یادداشت‌های پراکنده، متن پیاده‌شدهٔ گفتگو، حتی پیام‌های گروه). هوش مصنوعی دستور جلسه، شرح مذاکرات و مصوبات (با مسئول و مهلت، اگر در متن باشد) را می‌نویسد و در همین فرم می‌گذارد. چیزی ذخیره نمی‌شود تا شما بخوانید و ویرایش کنید. متن شما برای نوشتن به سرویس هوش مصنوعی فرستاده می‌شود.</p>
+              <textarea className={`${field} min-h-[130px] leading-7`} value={aiText} onChange={(e) => setAiText(e.target.value)} placeholder="مثلاً: امروز آقای رضایی گزارش فروش را داد، قرار شد تا هفتهٔ بعد قیمت‌ها را به‌روز کند…" data-minutes-ai-text />
+              {aiErr && <div className="text-[11px] font-bold text-rose-700">{aiErr}</div>}
+              <button type="button" disabled={!!aiBusy || aiText.trim().length < 30} onClick={aiDraft} className="px-5 py-2.5 rounded-xl bg-violet-700 hover:bg-violet-800 text-white text-xs font-black cursor-pointer flex items-center gap-2 disabled:opacity-50" data-minutes-ai-run>
+                {aiBusy === 'draft' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {aiBusy === 'draft' ? 'در حال نوشتن… (تا دو دقیقه)' : 'بنویس'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {S.agenda && (
         <div className="space-y-2">
           <span className={label}>دستور جلسه</span>
@@ -638,7 +707,15 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
 
       {S.discussion && (
         <div>
-          <span className={label}>{t.id === 'handover' || t.id === 'inspection' ? 'شرح و گزارش' : 'شرح مذاکرات (خلاصهٔ آنچه گفته شد)'}</span>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className={label}>{t.id === 'handover' || t.id === 'inspection' ? 'شرح و گزارش' : 'شرح مذاکرات (خلاصهٔ آنچه گفته شد)'}</span>
+            {(m.discussion || '').trim().length >= 200 && (
+              <button type="button" disabled={!!aiBusy} onClick={aiSummarize} className="flex items-center gap-1 text-[10px] font-black text-violet-700 cursor-pointer disabled:opacity-50" data-minutes-ai-summary>
+                {aiBusy === 'summary' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                خلاصه‌کردن با هوش مصنوعی
+              </button>
+            )}
+          </div>
           <textarea className={`${field} min-h-[90px] leading-7`} value={m.discussion || ''} onChange={(e) => patch({ discussion: e.target.value })} />
         </div>
       )}

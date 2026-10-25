@@ -9,7 +9,7 @@ const ACTION_LABEL: Record<string, string> = {
   LOGIN: 'ورود', LOGIN_FAILED: 'ورود ناموفق', LOGOUT: 'خروج', FILE_UPLOAD: 'بارگذاری فایل', FILE_DOWNLOAD: 'دریافت فایل', FILE_TRANSFER: 'ارسال فایل یا نامه', FILE_DELETE: 'حذف فایل',
   USER_CREATE: 'ساخت کاربر', USER_UPDATE: 'ویرایش کاربر', USER_DELETE: 'حذف کاربر', DEPARTMENT_CHANGE: 'واحد سازمانی', QUOTA_UPDATE: 'سهمیه', QUOTA_CHANGE: 'سهمیه',
   PERMISSION_CHANGE: 'تغییر دسترسی', ADMIN_SETTING_CHANGE: 'امضا و تنظیمات نامه', SETTINGS_UPDATE: 'تنظیمات', SECURITY_EVENT: 'رویداد امنیتی', CEO_CHANGE: 'تغییر مدیرعامل',
-  CALL_LISTEN: 'شنیدن مکالمه', CALL_TRANSCRIBE: 'تبدیل مکالمه به متن', CALL_TRANSCRIPT_READ: 'خواندن متن مکالمه', CUSTOMER: 'مشتری', DEAL: 'فرصت فروش', CRM_NOTE: 'سابقه و پیگیری', TASK: 'وظیفه', REPORT: 'گزارش روزانه', CHAT: 'گفتگو', SMS: 'پیامک', LEAVE: 'مرخصی', CALL: 'تماس تلفنی',
+  CALL_LISTEN: 'شنیدن مکالمه', REPORT_AI: 'گزارش هوشمند فروش', CALL_TRANSCRIBE: 'تبدیل مکالمه به متن', CALL_TRANSCRIPT_READ: 'خواندن متن مکالمه', CUSTOMER: 'مشتری', DEAL: 'فرصت فروش', CRM_NOTE: 'سابقه و پیگیری', TASK: 'وظیفه', REPORT: 'گزارش روزانه', CHAT: 'گفتگو', SMS: 'پیامک', LEAVE: 'مرخصی', CALL: 'تماس تلفنی',
   WAREHOUSE: 'انبار', WARRANTY: 'گارانتی', SUPPORT: 'پشتیبانی', SEPIDAR: 'سپیدار', REMINDER: 'یادآور', ANNOUNCEMENT: 'تابلو اعلانات', ACTIVITY: 'سایر تغییرات',
 };
 
