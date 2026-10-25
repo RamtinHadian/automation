@@ -1,3 +1,4 @@
+import { matchesAll } from '../../lib/searchAll';
 import { placeCall } from '../../lib/callFrom';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -158,6 +159,8 @@ export const CrmView: React.FC = () => {
 
   const userById = useMemo(() => new Map(staffList.map((u) => [u.id, u])), [staffList]);
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
+  const [dealQ, setDealQ] = useState('');
+  const pipeDeals = useMemo(() => (dealQ.trim() ? deals.filter((d) => matchesAll(d, dealQ, customerById.get(d.customerId))) : deals), [deals, dealQ, customerById]);
 
   useEffect(() => {
     api.voipStatus().then(setVoip).catch(() => {});
@@ -805,18 +808,23 @@ export const CrmView: React.FC = () => {
 
       {tab === 'pipeline' && (
         <div className="space-y-3">
+          <div className="relative">
+            <Search className="w-4 h-4 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" />
+            <input value={dealQ} onChange={(e) => setDealQ(e.target.value)} placeholder="جستجو در همهٔ مشخصات فرصت‌ها: عنوان، مشتری، توضیحات، کالا، مبلغ، تاریخ، مسئول…" className="w-full pr-9 pl-3 py-2.5 min-h-[42px] bg-white border border-[#EBDBCE] rounded-xl text-xs outline-hidden focus:border-[#6E1B1B]" data-deal-search />
+            {dealQ.trim() && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#8C6F66]">{toPersianDigits(pipeDeals.length)} فرصت</span>}
+          </div>
           <div className="md:hidden flex gap-1.5 overflow-x-auto pb-1">
             {STAGES.map((s) => (
               <button key={s.id} type="button" onClick={() => setMobileStage(s.id)} className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[11px] font-black border cursor-pointer ${mobileStage === s.id ? 'bg-white border-violet-300 text-violet-700' : 'bg-[#FAF5F1] border-[#EBDBCE] text-[#8C6F66]'}`}>
                 <span className={`w-2 h-2 rounded-full ${s.dot}`} />
                 {s.label}
-                <span className="bg-[#EBDBCE]/70 rounded-full px-1.5 text-[10px]">{toPersianDigits(deals.filter((d) => d.stage === s.id).length)}</span>
+                <span className="bg-[#EBDBCE]/70 rounded-full px-1.5 text-[10px]">{toPersianDigits(pipeDeals.filter((d) => d.stage === s.id).length)}</span>
               </button>
             ))}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3 items-start">
             {STAGES.map((s) => {
-              const list = deals.filter((d) => d.stage === s.id).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); // oldest first: the newest opportunity is at the bottom
+              const list = pipeDeals.filter((d) => d.stage === s.id).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); // oldest first: the newest opportunity is at the bottom
               return (
                 <div
                   key={s.id}
