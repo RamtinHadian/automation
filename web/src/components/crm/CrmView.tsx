@@ -39,7 +39,7 @@ import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { ParagraphNotes } from '../common/ParagraphNotes';
-import { formatTaskDate, isOverdue, todayIso } from '../../lib/taskDates';
+import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
@@ -444,7 +444,7 @@ export const CrmView: React.FC = () => {
           </span>
           <span>{open > 0 ? `${toman(open)} ${unitName()} در جریان` : last ? `آخرین تعامل: ${formatTaskDate(last.slice(0, 10))}` : ''}</span>
         </div>
-        {c.createdAt && <div className="text-[10px] font-medium text-[#8C6F66]/80" data-customer-since>مشتری از {formatTaskDate(c.createdAt.slice(0, 10))}</div>}
+        {c.createdAt && <div className="text-[10px] font-medium text-[#8C6F66]/80" data-customer-since>مشتری از {formatDateTime(c.createdAt)}</div>}
       </div>
     );
   };
@@ -887,7 +887,7 @@ export const CrmView: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-[#8C6F66] truncate">
                         {d.customerName} · {toman(d.amount)} {unitName()} · ارسال‌کننده: {d.proformaApproval?.requestedByName || d.ownerName}
-                        {d.proformaApproval?.decidedAt ? ` · ${status === 'APPROVED' ? 'امضا' : 'رد'}: ${formatTaskDate(d.proformaApproval.decidedAt.slice(0, 10))}` : ''}
+                        {d.proformaApproval?.decidedAt ? ` · ${status === 'APPROVED' ? 'امضا' : 'رد'}: ${formatDateTime(d.proformaApproval.decidedAt)}` : ''}
                       </div>
                     </div>
                     <button type="button" onClick={() => setProformaFor(d)} className="shrink-0 px-3.5 py-1.5 rounded-xl text-[11px] font-black text-white bg-violet-600 hover:bg-violet-700 cursor-pointer">
@@ -1125,7 +1125,7 @@ const DealForm: React.FC<{
           <div className="rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] px-3 py-2 text-[11px] font-bold text-[#503730]" data-deal-creator>
             <span className="text-[#8C6F66] font-medium">ایجاد شده توسط: </span>
             {staff.find((u) => u.id === d.createdById)?.fullName || d.createdByName || d.ownerName || 'نامشخص'}
-            {d.createdAt && <span className="text-[#8C6F66] font-medium"> · {formatTaskDate(d.createdAt.slice(0, 10))}</span>}
+            {d.createdAt && <span className="text-[#8C6F66] font-medium"> · {formatDateTime(d.createdAt)}</span>}
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

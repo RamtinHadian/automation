@@ -42,6 +42,15 @@ export const formatTaskDate = (iso?: string) => {
   return p ? `${toPersianDigits(p[2])} ${JALALI_MONTHS[p[1] - 1]} ${toPersianDigits(p[0])}` : '';
 };
 
+/** A recorded moment (an ISO time): the Jalali date and the exact hour and minute, «۳ آبان ۱۴۰۵ – ۱۲:۳۴». */
+export const formatDateTime = (iso?: string) => {
+  if (!iso) return '';
+  const d = formatTaskDate(iso);
+  const t = new Date(iso);
+  if (!d || isNaN(t.getTime()) || iso.length <= 10) return d;
+  return `${d} – ${toPersianDigits(t.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}`;
+};
+
 export const todayIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

@@ -305,7 +305,7 @@ const TasksBoard: React.FC = () => {
           </div>
           <span className="text-[10px] text-[#8C6F66]">از: {t.creatorName}</span>
         </div>
-        <div className="text-[10px] font-bold text-[#8C6F66] border-t border-[#EBDBCE]/60 pt-1.5" data-task-stamp>ثبت: {createdStamp(t.createdAt)}</div>
+        <div className="text-[10px] font-bold text-[#8C6F66] border-t border-[#EBDBCE]/60 pt-1.5" data-task-stamp>ثبت: {createdStamp(t.createdAt)}{t.completedAt ? ` · تکمیل: ${createdStamp(t.completedAt)}` : ''}</div>
       </div>
     );
   };
@@ -730,8 +730,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
           {!isNew && (
             <div className="text-[10px] font-bold text-[#8C6F66] flex flex-wrap gap-x-4 gap-y-1">
               <span>سازنده: {t.creatorName}</span>
-              <span>ایجاد: {formatTaskDate(t.createdAt.slice(0, 10))}</span>
-              {t.completedAt && <span>تکمیل: {formatTaskDate(t.completedAt.slice(0, 10))}</span>}
+              <span>ایجاد: {formatTaskDate(t.createdAt.slice(0, 10))} – {toPersianDigits(new Date(t.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}</span>
+              {t.completedAt && <span>تکمیل: {formatTaskDate(t.completedAt.slice(0, 10))} – {toPersianDigits(new Date(t.completedAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}</span>}
             </div>
           )}
         </div>

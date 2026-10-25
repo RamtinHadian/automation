@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { BarChart3, Pause, Play, PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Phone, Search, X, Users, UserPlus } from 'lucide-react';
 import { api, VoipCall } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
-import { formatTaskDate } from '../../lib/taskDates';
+import { formatTaskDate, formatDateTime } from '../../lib/taskDates';
 import { callerNameOnly, normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { placeCall } from '../../lib/callFrom';
@@ -95,7 +95,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
               </span>
             </span>
             <span className="text-[10px] text-[#8C6F66] text-left shrink-0">
-              <span className="block">{formatTaskDate(c.startedAt.slice(0, 10))}</span>
+              <span className="block">{formatDateTime(c.startedAt)}</span>
               <span className="block">{clock(c.startedAt)}</span>
             </span>
             {c.hasRecording && <RecordingButton id={c.id} />}

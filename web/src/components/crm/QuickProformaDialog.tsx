@@ -5,7 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import { issuersOf, MAIN_ISSUER_ID } from '../../lib/proformaIssuer';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, unitName } from '../../lib/money';
-import { formatTaskDate } from '../../lib/taskDates';
+import { formatTaskDate, formatDateTime } from '../../lib/taskDates';
 import { Modal, field, label } from './crmUi';
 import { fold, matchesQuery } from '../../lib/customerSearch';
 
@@ -152,8 +152,8 @@ export const QuickProformaDialog: React.FC<{
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-bold text-[#6B514A]">
                     {d.amount ? <div>مبلغ: <b className="text-[#3A241F]">{formatMoney(d.amount)} {unitName()}</b></div> : null}
                     {d.ownerName ? <div>مسئول: <b className="text-[#3A241F]">{d.ownerName}</b></div> : null}
-                    {d.createdAt ? <div>ساخته شده: <b className="text-[#3A241F]">{formatTaskDate(d.createdAt.slice(0, 10))}</b></div> : null}
-                    {d.updatedAt ? <div>آخرین تغییر: <b className="text-[#3A241F]">{formatTaskDate(d.updatedAt.slice(0, 10))}</b></div> : null}
+                    {d.createdAt ? <div>ساخته شده: <b className="text-[#3A241F]">{formatDateTime(d.createdAt)}</b></div> : null}
+                    {d.updatedAt ? <div>آخرین تغییر: <b className="text-[#3A241F]">{formatDateTime(d.updatedAt)}</b></div> : null}
                     {d.expectedClose ? <div>پیش‌بینی بسته‌شدن: <b className="text-[#3A241F]">{formatTaskDate(d.expectedClose)}</b></div> : null}
                     {d.items?.length ? <div>اقلام: <b className="text-[#3A241F]">{toPersianDigits(d.items.length)} ردیف</b></div> : null}
                   </div>

@@ -3,7 +3,7 @@ import { Banknote, CalendarCheck2, Download, Search, Share2 } from 'lucide-react
 import { api, LeaveRequest } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, unitName } from '../../lib/money';
-import { formatTaskDate } from '../../lib/taskDates';
+import { formatTaskDate, formatDateTime } from '../../lib/taskDates';
 import { matchesAll } from '../../lib/searchAll';
 import { downloadCsv } from '../../lib/csv';
 import { BoxCard, BoxGrid, BoxStats } from '../common/BoxCard';
@@ -113,7 +113,7 @@ export const LeaveAdminView: React.FC = () => {
               badge={STATUS[l.status]}
               facts={[
                 isAdv(l) ? ['مبلغ', `${formatMoney(l.amount || 0)} ${unitName()}`] : ['مدت', l.type === 'HOURLY' ? `${toPersianDigits(l.fromTime || '')} تا ${toPersianDigits(l.toTime || '')}` : `${toPersianDigits(dayCount(l.fromDate, l.toDate))} روز`],
-                isAdv(l) ? ['قسط', l.installments && l.installments > 1 ? `${toPersianDigits(l.installments)} ماه` : 'یک‌جا'] : ['ثبت', formatTaskDate(l.createdAt.slice(0, 10))],
+                isAdv(l) ? ['قسط', l.installments && l.installments > 1 ? `${toPersianDigits(l.installments)} ماه` : 'یک‌جا'] : ['ثبت', formatDateTime(l.createdAt)],
                 ...(l.decidedByName ? [[l.status === 'APPROVED' ? 'تایید توسط' : 'رد توسط', l.decidedByName] as [string, React.ReactNode]] : []),
                 ...(l.forwardNames && l.forwardNames.length ? [['ارجاع شد به', <span key="f" className="flex items-start gap-1"><Share2 className="w-3 h-3 mt-0.5 shrink-0 text-sky-700" />{l.forwardNames.join('، ')}</span>] as [string, React.ReactNode]] : []),
               ]}

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, Headphones, Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Search, Users } from 'lucide-react';
 import { api, VoipCall } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
-import { formatTaskDate } from '../../lib/taskDates';
+import { formatTaskDate, formatDateTime } from '../../lib/taskDates';
 import { matchesAll } from '../../lib/searchAll';
 import { RecordingButton } from './CallLog';
 import { SubTabs } from './SubTabs';
@@ -173,7 +173,7 @@ export const CompanyCalls: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-[10px] font-bold text-[#8C6F66] text-left shrink-0">
-                      <div>{formatTaskDate(c.startedAt.slice(0, 10))}</div>
+                      <div>{formatDateTime(c.startedAt)}</div>
                       <div>{clock(c.startedAt)}</div>
                     </div>
                   </div>

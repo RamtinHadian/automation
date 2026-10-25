@@ -6,7 +6,7 @@ import { useAppContext } from '../../context/AppContext';
 import { askConfirm } from '../../lib/confirmDialog';
 import { toPersianDigits } from '../../lib/jalali';
 import { fold, matchesQuery } from '../../lib/customerSearch';
-import { formatTaskDate, todayIso } from '../../lib/taskDates';
+import { formatTaskDate, todayIso, formatDateTime } from '../../lib/taskDates';
 import { buildMinutesHtml, openMinutesPrint } from '../../lib/minutesHtml';
 import { getMinutesConfig, nextMinutesNumber, typeOf } from '../../lib/minutesConfig';
 import { downloadBlob, renderHtmlJpeg } from '../../lib/proformaFile';
@@ -271,7 +271,7 @@ export const MinutesView: React.FC = () => {
                 </div>
                 <div className="text-[11px] font-bold text-[#6B514A] flex flex-wrap gap-x-4 gap-y-0.5" data-minutes-author>
                   <span>تهیه‌کننده: <b className="text-[#3A241F]">{m.authorName || '—'}</b></span>
-                  {m.status === 'FINAL' && m.finalizedAt && <span>نهایی و بایگانی‌شده: {formatTaskDate(m.finalizedAt.slice(0, 10))}</span>}
+                  {m.status === 'FINAL' && m.finalizedAt && <span>نهایی و بایگانی‌شده: {formatDateTime(m.finalizedAt)}</span>}
                   {m.correctsNumber && <span>اصلاحیهٔ {toPersianDigits(m.correctsNumber)}</span>}
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
