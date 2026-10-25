@@ -56,6 +56,23 @@ export const ApiKeysCard: React.FC = () => {
     }
   };
 
+  // keys that were made and never used (every setup that stopped half way leaves one behind); the ones younger than an hour may still be in the middle of a setup
+  const unused = keys.filter((k) => k.lastUsedAt === null && k.uses === 0 && Date.now() - new Date(k.createdAt).getTime() > 3600000);
+  const removeUnused = async () => {
+    if (!(await askConfirm(`${toPersianDigits(unused.length)} کلید که ساخته شده‌اند و هیچ‌وقت استفاده نشده‌اند حذف شوند؟ کلیدی که برنامه‌ای با آن کار می‌کند (درخواست دارد) و کلیدهای کمتر از یک ساعت حذف نمی‌شوند.`, { tone: 'danger', confirmText: 'حذف کلیدهای استفاده‌نشده', title: 'پاک‌سازی کلیدها' }))) return;
+    let done = 0;
+    for (const k of unused) {
+      try {
+        await api.apiKeyDelete(k.id);
+        done++;
+      } catch {
+        /* the next one is still tried */
+      }
+    }
+    showToast(`${toPersianDigits(done)} کلید حذف شد.`);
+    load();
+  };
+
   const copy = async () => {
     if (!fresh) return;
     try {
@@ -121,7 +138,15 @@ export const ApiKeysCard: React.FC = () => {
       </div>
 
       <div className="space-y-2">
-        <div className="font-black text-[#3A241F]">کلیدهای ساخته‌شده ({toPersianDigits(keys.length)})</div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="font-black text-[#3A241F]">کلیدهای ساخته‌شده ({toPersianDigits(keys.length)})</div>
+          {unused.length > 0 && (
+            <button type="button" onClick={removeUnused} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black text-rose-700 bg-rose-50 border border-rose-200 cursor-pointer" data-remove-unused-keys>
+              <Trash2 className="w-3.5 h-3.5" />
+              حذف کلیدهای استفاده‌نشده ({toPersianDigits(unused.length)})
+            </button>
+          )}
+        </div>
         {keys.length === 0 && <div className="py-6 text-center text-[#8C6F66] font-bold bg-[#FAF5F1] rounded-2xl border border-dashed border-[#EBDBCE]">هنوز کلیدی نساخته‌اید.</div>}
         {keys.map((k) => (
           <div key={k.id} className="rounded-2xl border border-[#EBDBCE] p-3.5 flex flex-col sm:flex-row sm:items-center gap-3" data-api-key-row>
