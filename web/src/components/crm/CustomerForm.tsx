@@ -457,12 +457,7 @@ export const CustomerForm: React.FC<{
               </div>
               <div>
                 <label className={label}>نوع شرکت</label>
-                <select className={field} value={c.companyType || ''} onChange={(e) => patch({ companyType: e.target.value })}>
-                  <option value="">—</option>
-                  {COMPANY_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                <PersonPicker title="نوع شرکت" items={COMPANY_TYPES.map((t) => ({ id: t, name: t }))} value={c.companyType || ''} onChange={(v) => patch({ companyType: v })} emptyLabel="—" />
               </div>
               <div>
                 <label className={label}>شناسهٔ ملی (۱۱ رقم)</label>
@@ -562,22 +557,20 @@ export const CustomerForm: React.FC<{
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className={label}>استان</label>
-              <select className={field} value={c.province || ''} onChange={(e) => patch({ province: e.target.value, city: IRAN_CITIES[e.target.value]?.includes(c.city || '') ? c.city : '' })}>
-                <option value="">انتخاب استان</option>
-                {PROVINCE_LIST.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-                {c.province && !PROVINCE_LIST.includes(c.province) && <option value={c.province}>{c.province}</option>}
-              </select>
+              <PersonPicker title="انتخاب استان" items={[...PROVINCE_LIST, ...(c.province && !PROVINCE_LIST.includes(c.province) ? [c.province] : [])].map((p) => ({ id: p, name: p }))} value={c.province || ''} onChange={(v) => patch({ province: v, city: IRAN_CITIES[v]?.includes(c.city || '') ? c.city : '' })} emptyLabel="انتخاب استان" />
             </div>
             <div>
               <label className={label}>شهر</label>
-              <input className={field} list="crm-cities" value={c.city || ''} onChange={(e) => patch({ city: e.target.value })} placeholder={c.province ? 'شهرستان را انتخاب یا بنویسید' : 'اول استان را انتخاب کنید'} />
-              <datalist id="crm-cities">
-                {(IRAN_CITIES[c.province || ''] || []).map((x) => (
-                  <option key={x} value={x} />
-                ))}
-              </datalist>
+              <PersonPicker
+                title={c.province ? `شهرهای ${c.province}` : 'شهر'}
+                items={[...(IRAN_CITIES[c.province || ''] || []), ...(c.city && !(IRAN_CITIES[c.province || ''] || []).includes(c.city) ? [c.city] : [])].map((x) => ({ id: x, name: x }))}
+                value={c.city || ''}
+                onChange={(v) => patch({ city: v })}
+                emptyLabel={c.province ? 'انتخاب شهر' : 'اول استان را انتخاب کنید'}
+                disabled={!c.province}
+                onAdd={(typed) => typed && patch({ city: typed })}
+                addLabel="نوشتن شهر"
+              />
             </div>
             <div>
               <label className={label}>کد پستی (۱۰ رقم)</label>

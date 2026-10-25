@@ -6,6 +6,7 @@ import { Customer } from '../../types';
 import { PersonPicker, customerItems } from './PersonPicker';
 import { toPersianDigits } from '../../lib/jalali';
 import { digitsOf } from './MoneyInput';
+import { askConfirm } from '../../lib/confirmDialog';
 import { CONTACT_TYPES } from '../../lib/contactTypes';
 
 const inp = 'w-full px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] outline-hidden focus:border-[#6E1B1B]';
@@ -22,10 +23,31 @@ export const QuickCustomerDialog: React.FC<{ initialName?: string; initialPhone?
     const ph = digitsOf(phone);
     if (!n) return showToast('نام مشتری را بنویسید.');
     if (ph && !/^\d{7,15}$/.test(ph)) return showToast('شمارهٔ تماس درست نیست.');
-    const same = customers.find((c) => (ph && (c.phones || []).some((p) => digitsOf(p) === ph)) || c.name.trim() === n);
-    if (same) {
-      showToast(`«${same.name}» از قبل در مشتریان هست؛ همان انتخاب شد.`);
-      onCreated(same);
+    const norm = (x: string) => x.replace(/[‌\s]+/g, ' ').trim();
+    const samePhone = customers.find((c) => ph && (c.phones || []).some((p) => digitsOf(p) === ph));
+    if (samePhone) {
+      showToast(`این شماره از قبل برای «${samePhone.name}» ثبت است.`);
+      onCreated(samePhone);
+      return;
+    }
+    const sameName = customers.find((c) => norm(c.name) === norm(n));
+    if (sameName) {
+      // the same person is already in the phone book: offer to add the number to his numbers (the form sorts it into mobiles or landlines by itself)
+      void askConfirm(`«${sameName.name}» از قبل در دفتر تلفن هست. این شماره به شماره‌هایش اضافه شود؟`, { title: 'این نفر قبلاً ثبت شده', confirmText: 'بله، اضافه شود' }).then((ok) => {
+        if (!ok) return;
+        if (ph) setCustomers((prev) => prev.map((x) => (x.id === sameName.id ? { ...x, phones: [...(x.phones || []), ph], updatedAt: new Date().toISOString() } : x)));
+        showToast(`شماره به «${sameName.name}» اضافه شد.`);
+        if (!sameName.contactType) {
+          try {
+            sessionStorage.setItem('crm_open', JSON.stringify({ type: 'customer', id: sameName.id }));
+          } catch {
+            /* storage unavailable */
+          }
+          window.dispatchEvent(new Event('goto-crm'));
+          window.dispatchEvent(new Event('open-crm-item'));
+        }
+        onCreated(sameName);
+      });
       return;
     }
     const now = new Date().toISOString();
@@ -64,7 +86,7 @@ export const QuickCustomerDialog: React.FC<{ initialName?: string; initialPhone?
         </div>
         <div className="flex justify-end gap-2 px-4 py-3 border-t border-[#EBDBCE]">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black border border-[#EBDBCE] cursor-pointer">انصراف</button>
-          <button type="button" onClick={save} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] cursor-pointer" data-quick-customer-save>ثبت مشتری</button>
+          <button type="button" onClick={save} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] cursor-pointer" data-quick-customer-save>{type === 'CUSTOMER' ? 'ثبت مشتری' : 'ثبت'}</button>
         </div>
       </div>
     </div>,
