@@ -121,22 +121,25 @@ const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[], 
 };
 
 /** Under the name of a person who may enter «انبار»: which warehouses, and which single products with their own ticks for the stock and the price. */
-const WhChip: React.FC<{ u: User; onOpen: () => void }> = ({ u, onOpen }) => {
+const WhChip: React.FC<{ u: User; onOpen: (tab: 'wh' | 'prod') => void }> = ({ u, onOpen }) => {
   const w = (u.whWarehouseIds || []).length;
   const pr = (u.whProducts || []).length;
+  const cls = 'mt-1 ml-1 text-[10px] font-black text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 cursor-pointer';
   return (
-    <button type="button" onClick={onOpen} className="mt-1 ml-1 text-[10px] font-black text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 cursor-pointer" data-wh-chip>
-      انبار: {w === 0 ? 'همهٔ انبارها' : `${toPersianDigits(w)} انبار`}{pr > 0 ? ` · ${toPersianDigits(pr)} کالا` : ''}
-    </button>
+    <>
+      <button type="button" onClick={() => onOpen('wh')} className={cls} data-wh-chip>انبار: {w === 0 ? 'همه' : toPersianDigits(w)}</button>
+      <button type="button" onClick={() => onOpen('prod')} className={cls} data-prod-chip>کالا: {pr === 0 ? 'همه' : toPersianDigits(pr)}</button>
+    </>
   );
 };
 
 type WhRule = { id: string; qty: boolean; price: boolean };
 
-const WhDialog: React.FC<{ u: User; onSave: (warehouses: string[], products: WhRule[]) => void; onClose: () => void }> = ({ u, onSave, onClose }) => {
+const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod'; onSave: (warehouses: string[], products: WhRule[]) => void; onClose: () => void }> = ({ u, tab0 = 'wh', onSave, onClose }) => {
   const [data, setData] = useState<WhState | null>(null);
+  const [wq, setWq] = useState('');
   const [err, setErr] = useState('');
-  const [tab, setTab] = useState<'wh' | 'prod'>('wh');
+  const tab = tab0;
   const [whs, setWhs] = useState<string[]>(u.whWarehouseIds || []);
   const [prods, setProds] = useState<WhRule[]>(u.whProducts || []);
   const [q, setQ] = useState('');
@@ -155,22 +158,22 @@ const WhDialog: React.FC<{ u: User; onSave: (warehouses: string[], products: WhR
     <div className="fixed inset-0 z-[360] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { stop(e); onClose(); }} onClick={stop} data-wh-dialog>
       <div dir="rtl" onMouseDown={stop} className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-[#EBDBCE] text-right max-h-[88vh]">
         <div className="px-5 py-3.5 border-b border-[#EBDBCE]">
-          <h3 className="font-black text-sm text-[#3A241F]">انبار و کالاهای «{u.fullName}»</h3>
-          <p className="text-[11px] text-[#8C6F66] mt-1 leading-5">هیچ انباری انتخاب نشود یعنی همهٔ انبارها. اگر کالایی انتخاب شود، فقط همان کالاها (و گروه‌هایی که در ویرایش کاربر تیک خورده) دیده می‌شود و برای هر کالا می‌توانید موجودی و قیمت را جدا باز کنید.</p>
-        </div>
-        <div className="px-4 pt-3 flex gap-1.5">
-          {([['wh', `انبارها${whs.length ? ' (' + toPersianDigits(whs.length) + ')' : ''}`], ['prod', `کالاها${prods.length ? ' (' + toPersianDigits(prods.length) + ')' : ''}`]] as const).map(([id, l]) => (
-            <button key={id} type="button" onClick={() => setTab(id)} className={`flex-1 px-3 py-2 rounded-xl text-[11px] font-black border cursor-pointer ${tab === id ? 'bg-[#D97706] text-white border-[#D97706]' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`}>{l}</button>
-          ))}
+          <h3 className="font-black text-sm text-[#3A241F]">{tab0 === 'wh' ? 'انبارهای' : 'کالاهای'} «{u.fullName}»</h3>
+          <p className="text-[11px] text-[#8C6F66] mt-1 leading-5">{tab0 === 'wh' ? 'هیچ انباری انتخاب نشود یعنی همهٔ انبارها.' : 'هیچ کالایی انتخاب نشود یعنی همهٔ کالاها (به‌علاوهٔ گروه‌هایی که در ویرایش کاربر تیک خورده). برای هر کالا می‌توانید موجودی و قیمت را جدا باز کنید.'}</p>
         </div>
         {err && <div className="px-5 pt-3 text-xs font-bold text-rose-600">{err}</div>}
         {tab === 'wh' ? (
           <div className="p-3 overflow-y-auto flex-1 space-y-1">
+            <input value={wq} onChange={(e) => setWq(e.target.value)} placeholder="جستجوی انبار…" className="w-full mb-1 px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden focus:border-[#D97706]" />
+            <div className="flex gap-2 pb-1">
+              <button type="button" onClick={() => setWhs((data?.warehouses || []).filter((w) => !wq.trim() || matchesAll(w, wq)).map((w) => w.id))} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-amber-300 text-amber-800 cursor-pointer" data-wh-select-all>انتخاب همه</button>
+              <button type="button" onClick={() => setWhs([])} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-[#EBDBCE] text-[#8C6F66] cursor-pointer">برداشتن همه</button>
+            </div>
             <button type="button" onClick={() => setWhs([])} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${whs.length === 0 ? 'bg-amber-50 border-amber-300' : 'bg-white border-[#EBDBCE]'}`}>
               <span className={box(whs.length === 0)}>{whs.length === 0 && <Check className="w-3.5 h-3.5" />}</span>
               همهٔ انبارها
             </button>
-            {(data?.warehouses || []).map((w) => {
+            {(data?.warehouses || []).filter((w) => !wq.trim() || matchesAll(w, wq)).map((w) => {
               const on = whs.includes(w.id);
               return (
                 <button key={w.id} type="button" onClick={() => setWhs((p) => (p.includes(w.id) ? p.filter((x) => x !== w.id) : [...p, w.id]))} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right cursor-pointer ${on ? 'bg-amber-50' : 'hover:bg-[#FAF5F1]'}`}>
@@ -188,6 +191,10 @@ const WhDialog: React.FC<{ u: User; onSave: (warehouses: string[], products: WhR
           <>
             <div className="px-4 pt-3 space-y-2">
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی کالا (نام یا کد)…" className="w-full px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden focus:border-[#D97706]" />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setProds((c) => [...c, ...list.filter((p) => !c.some((x) => x.id === p.id)).map((p) => ({ id: p.id, qty: true, price: false }))])} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-amber-300 text-amber-800 cursor-pointer" data-wh-prod-all>انتخاب همه{q.trim() ? ' (نتیجهٔ جست‌وجو)' : ''}</button>
+                <button type="button" onClick={() => setProds((c) => (q.trim() ? c.filter((x) => !list.some((p) => p.id === x.id)) : []))} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-[#EBDBCE] text-[#8C6F66] cursor-pointer">برداشتن همه</button>
+              </div>
               {prods.length > 0 && (
                 <div className="flex flex-wrap items-center gap-3 text-[11px] font-black text-[#3A241F]" data-wh-all>
                   <span className="text-[#8C6F66]">برای همهٔ کالاهای انتخاب‌شده:</span>
@@ -223,12 +230,11 @@ const WhDialog: React.FC<{ u: User; onSave: (warehouses: string[], products: WhR
         )}
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-[#EBDBCE]">
           <span className="text-[11px] font-bold text-[#8C6F66]">
-            {whs.length === 0 ? 'همهٔ انبارها' : `${toPersianDigits(whs.length)} انبار`}
-            {prods.length ? ` · ${toPersianDigits(prods.length)} کالای مشخص` : ' · همهٔ کالاها'}
+            {tab === 'wh' ? (whs.length === 0 ? 'همهٔ انبارها' : `${toPersianDigits(whs.length)} انبار`) : prods.length ? `${toPersianDigits(prods.length)} کالای مشخص` : 'همهٔ کالاها'}
           </span>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black border border-[#EBDBCE] cursor-pointer">انصراف</button>
-            <button type="button" onClick={() => { onSave(whs, prods); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#D97706] cursor-pointer" data-wh-save>تأیید</button>
+            <button type="button" onClick={() => { onSave(tab === 'wh' ? whs : (u.whWarehouseIds || []), tab === 'prod' ? prods : (u.whProducts || [])); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#D97706] cursor-pointer" data-wh-save>تأیید</button>
           </div>
         </div>
       </div>
@@ -239,7 +245,7 @@ const WhDialog: React.FC<{ u: User; onSave: (warehouses: string[], products: WhR
 
 export const PermissionMatrix: React.FC<{ users: User[]; departments: Department[]; onUpdateUser: (id: string, updates: Partial<User>) => void }> = ({ users, departments, onUpdateUser }) => {
   const { showToast } = useAppContext();
-  const [whDlg, setWhDlg] = useState<User | null>(null);
+  const [whDlg, setWhDlg] = useState<{ u: User; tab: 'wh' | 'prod' } | null>(null);
   const [teamDlg, setTeamDlg] = useState<User | null>(null);
   const [q, setQ] = useState('');
   const [dept, setDept] = useState('');
@@ -277,7 +283,8 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
     }
     const on = !colOn(u, c);
     onUpdateUser(u.id, colPatch(u, c, on));
-    if (on && c.id === 'warehouse') setWhDlg({ ...u, canUseWarehouse: true });
+    if (on && c.id === 'warehouse.warehouses') setWhDlg({ u, tab: 'wh' });
+    if (on && c.id === 'warehouse.products') setWhDlg({ u, tab: 'prod' });
     if (on && c.id === 'crm.team') setTeamDlg({ ...u, canSeeTeamCrm: true }); // choose whose customers (or «all») right away
     showToast(`«${c.label}» برای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
   };
@@ -388,7 +395,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                     <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
                     <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</span>
                     {!admin && (u.canSeeTeamCrm || u.canUseCrm || (u.crmCustomerIds || []).length > 0) && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
-                    {!admin && u.canUseWarehouse && <WhChip u={u} onOpen={() => setWhDlg(u)} />}
+                    {!admin && u.canUseWarehouse && <WhChip u={u} onOpen={(t) => setWhDlg({ u, tab: t })} />}
                   </td>
                   {COLUMNS.map((c) => {
                     const tone = toneOf(c.menuId);
@@ -466,7 +473,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                 )}
               </div>
               {!admin && (u.canSeeTeamCrm || u.canUseCrm || (u.crmCustomerIds || []).length > 0) && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
-                    {!admin && u.canUseWarehouse && <WhChip u={u} onOpen={() => setWhDlg(u)} />}
+                    {!admin && u.canUseWarehouse && <WhChip u={u} onOpen={(t) => setWhDlg({ u, tab: t })} />}
               {!admin &&
                 menuCols.map(({ m, cols }) => (
                   <div key={m.id} className="space-y-1.5">
@@ -500,7 +507,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
       <p className="text-[11px] leading-6 text-[#8C6F66]">
         برای مدیران هم می‌توانید منو و زیرمنو را تیک بزنید یا بردارید (فقط نمایش آن برایشان). «مدیرعامل / صاحب امضای مجاز» فقط یک نفر است و از «ویرایش کاربر» تعیین می‌شود. هر تیک همان لحظه ذخیره می‌شود و کارمند از تغییر مجوزهایش با یک اعلان باخبر می‌شود. هر منو یا زیرمنوی تازه‌ای که به سامانه اضافه شود، یک ستون در همین جدول می‌گیرد.
       </p>
-      {whDlg && <WhDialog u={whDlg} onSave={(w, pr) => onUpdateUser(whDlg.id, { whWarehouseIds: w, whProducts: pr })} onClose={() => setWhDlg(null)} />}
+      {whDlg && <WhDialog u={whDlg.u} tab0={whDlg.tab} onSave={(w, pr) => onUpdateUser(whDlg.u.id, { whWarehouseIds: w, whProducts: pr })} onClose={() => setWhDlg(null)} />}
       {teamDlg && <TeamCrmDialog u={teamDlg} users={users} onSave={(ids, customerIds, seesTeam) => onUpdateUser(teamDlg.id, { crmTeamIds: ids, crmCustomerIds: customerIds, canSeeTeamCrm: seesTeam })} onClose={() => setTeamDlg(null)} />}
     </div>
   );
