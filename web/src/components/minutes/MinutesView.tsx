@@ -337,6 +337,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
     try {
       const r = await api.minutesAi({ mode: 'draft', text: aiText, people: people.map((u) => u.fullName) });
       const d = r.draft || {};
+      const fa = (s?: string) => toPersianDigits(s || '');
       const today = new Date();
       const decisions: MinutesDecision[] = (d.decisions || []).filter((x) => x && x.text).map((x) => {
         const u = x.owner ? people.find((p) => p.fullName === x.owner) : undefined;
@@ -345,13 +346,13 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
           const dt = new Date(today.getTime() + Math.round(x.dueInDays) * 86400000);
           due = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
         }
-        return { text: x.text, owner: x.owner || '', ownerUserId: u?.id, due };
+        return { text: fa(x.text), owner: x.owner || '', ownerUserId: u?.id, due };
       });
       setM((p) => ({
         ...p,
-        title: p.title.trim() ? p.title : d.title || p.title,
-        agenda: d.agenda && d.agenda.length ? d.agenda : p.agenda,
-        discussion: d.discussion || p.discussion,
+        title: p.title.trim() ? p.title : fa(d.title) || p.title,
+        agenda: d.agenda && d.agenda.length ? d.agenda.map((x) => fa(x)) : p.agenda,
+        discussion: d.discussion ? fa(d.discussion) : p.discussion,
         decisions: decisions.length ? decisions : p.decisions,
       }));
       setAiOpen(false);
@@ -366,7 +367,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
     setAiBusy('summary');
     try {
       const r = await api.minutesAi({ mode: 'summary', text: m.discussion || '' });
-      if (r.discussion) patch({ discussion: r.discussion });
+      if (r.discussion) patch({ discussion: toPersianDigits(r.discussion) });
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'خلاصه‌نویسی انجام نشد.');
     } finally {

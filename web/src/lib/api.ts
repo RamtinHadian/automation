@@ -452,6 +452,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   ticketAssign: (id: string, handlerId: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/assign`, { handlerId }),
   reportAiSales: (rangeLabel: string, data: unknown) => request<{ report?: Record<string, unknown>; text?: string }>('POST', '/api/reports/ai-sales', { rangeLabel, data }),
   minutesAi: (b: { mode: 'draft' | 'summary'; text: string; people?: string[] }) => request<{ draft?: { title?: string; agenda?: string[]; discussion?: string; decisions?: { text: string; owner?: string; dueInDays?: number | null }[] }; discussion?: string }>('POST', '/api/minutes/ai', b),
+  letterAi: (b: { subject: string; instruction: string; currentText: string; recipient: string; sender: string; tone: string }) => request<{ draft: { subject?: string; paragraphs: string[] } }>('POST', '/api/letters/ai', b),
   voipTranscribe: (id: string) => request<{ status: string }>('POST', `/api/voip/transcribe/${encodeURIComponent(id)}`, {}),
   voipTranscript: (id: string) => request<{ status: 'none' | 'running' | 'done' | 'error'; text?: string; error?: string }>('GET', `/api/voip/transcript/${encodeURIComponent(id)}`),
   voipRecordingSetup: () => request<{ key: string; mountedDir: string; mountedFiles: number }>('GET', '/api/voip/recording-setup'),

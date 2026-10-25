@@ -12,6 +12,7 @@ import { PageGuides, RATIO } from './PageGuides';
 import { usePrintBreaks } from './usePrintBreaks';
 import { generateOfficialLetterHtml } from '../../lib/pdfLetterGenerator';
 import { LetterTextTemplatesModal, bodyToText } from './LetterTextTemplatesModal';
+import { LetterAiDialog, letterHtml } from './LetterAiDialog';
 import { useFitZoom } from '../../lib/useFitZoom';
 import { SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT, signatureAreaHeight } from '../../lib/letterDefaults';
 import { DEFAULT_SIGNATURE_HEIGHT, defaultStampHeight, stampSizeLocked } from '../../lib/letterDefaults';
@@ -518,6 +519,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
   };
 
   const [tplMgrOpen, setTplMgrOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const customTemplates = settings.letterTextTemplates || [];
   const handleApplyCustom = (id: string) => {
     const t = customTemplates.find((x) => x.id === id);
@@ -529,6 +531,24 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
         .replace(/\[نام متقاضی\]/g, currentUser.fullName)
         .replace(/\[نام واحد\]/g, currentUser.departmentName);
     }
+  };
+
+  // the AI's letter goes in as one edit of the editor, so «برگرداندن» (Ctrl+Z) brings the old text back
+  const applyAiLetter = (r: { subject?: string; paragraphs: string[] }) => {
+    const el = editorRef.current;
+    if (el) {
+      el.focus();
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      const html = convertNumbersInHtmlToPersian(letterHtml(r.paragraphs));
+      if (!document.execCommand('insertHTML', false, html)) el.innerHTML = html;
+    }
+    if (r.subject && (!subject.trim() || subject === 'درخواست بررسی و تایید رسمی')) setSubject(toPersianDigits(r.subject));
+    setAiOpen(false);
+    showToast('نامه نوشته شد. آن را بخوانید و هر جا لازم است ویرایش کنید.');
   };
 
   const handleApplyTemplate = (template: LetterTemplate) => {
@@ -948,6 +968,10 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                 + مدیریت قالب‌ها
               </button>
             )}
+            <button type="button" onClick={() => setAiOpen(true)} className="px-2.5 py-1.5 rounded-xl border border-violet-300 bg-violet-50 hover:bg-violet-100 text-[11px] font-black text-violet-800 cursor-pointer shrink-0 flex items-center gap-1" title="با هوش مصنوعی نامه را بنویس یا متن نیمه‌تمام را کامل کن" data-letter-ai-open>
+              <Sparkles className="w-3.5 h-3.5" />
+              با هوش مصنوعی
+            </button>
           </div>
 
           {/* Organisation letter template: set once by an admin, used by everyone afterwards */}
@@ -1674,6 +1698,17 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
         </div>
 
         </div>
+
+        {aiOpen && (
+          <LetterAiDialog
+            currentText={bodyToText(editorRef.current?.innerHTML || '')}
+            subject={subject}
+            recipient={(() => { const u = signers.find((x) => x.id === recipientId); return u ? `${u.fullName}${u.departmentName ? ' - ' + u.departmentName : ''}` : ''; })()}
+            sender={`${signerName}${signerTitle ? ' - ' + signerTitle : ''}`}
+            onApply={applyAiLetter}
+            onClose={() => setAiOpen(false)}
+          />
+        )}
 
         {tplMgrOpen && (
           <LetterTextTemplatesModal

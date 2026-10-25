@@ -192,7 +192,7 @@ type aiMsg struct {
 }
 
 func aiChat(ctx context.Context, key, model string, msgs []aiMsg) (string, error) {
-	return aiChatOpts(ctx, key, model, msgs, 700, 45*time.Second)
+	return aiChatOpts(ctx, key, model, msgs, 700, 65*time.Second)
 }
 
 // aiChatOpts: the same call with its own answer length and waiting time (the long reports need both larger)
@@ -211,6 +211,14 @@ func aiChatOpts(ctx context.Context, key, model string, msgs []aiMsg, maxTokens 
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if resp.StatusCode != http.StatusOK {
+		switch {
+		case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+			return "", fmt.Errorf("کلید API پذیرفته نشد (پاسخ %d). کلید را از حساب togpt دوباره کپی کنید؛ اگر همین کلید جای دیگری هم هست، برای این سیستم کلید جدا بسازید.", resp.StatusCode)
+		case resp.StatusCode == http.StatusTooManyRequests:
+			return "", fmt.Errorf("سرویس togpt می‌گوید درخواست‌ها زیاد یا اعتبار کلید تمام شده است (پاسخ ۴۲۹). چند دقیقه بعد دوباره امتحان کنید یا اعتبار حساب را ببینید.")
+		case resp.StatusCode >= 500:
+			return "", fmt.Errorf("سرویس togpt الان خطا می‌دهد (پاسخ %d)؛ کمی بعد دوباره امتحان کنید.", resp.StatusCode)
+		}
 		return "", fmt.Errorf("پاسخ %d از سرویس هوش مصنوعی", resp.StatusCode)
 	}
 	var out struct {
@@ -237,9 +245,10 @@ func supportAiTest(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "اول کلید API و نام مدل را ذخیره کنید.")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 50*time.Second)
+	// the service is sometimes slow to start answering (a large model, a busy hour): wait longer than a normal answer does
+	ctx, cancel := context.WithTimeout(r.Context(), 110*time.Second)
 	defer cancel()
-	text, err := aiChat(ctx, jsonx.Str(s, "aiKey"), jsonx.Str(s, "aiModel"), []aiMsg{{Role: "user", Content: "یک جملهٔ کوتاه فارسی بنویس که نشان بدهد کار می‌کنی."}})
+	text, err := aiChatOpts(ctx, jsonx.Str(s, "aiKey"), jsonx.Str(s, "aiModel"), []aiMsg{{Role: "user", Content: "یک جملهٔ کوتاه فارسی بنویس که نشان بدهد کار می‌کنی."}}, 200, 100*time.Second)
 	if err != nil {
 		httpx.Error(w, http.StatusBadGateway, "اتصال به هوش مصنوعی انجام نشد: "+err.Error())
 		return

@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -75,15 +74,8 @@ func minutesAi(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadGateway, "نوشتن صورتجلسه انجام نشد: "+err.Error())
 		return
 	}
-	js := strings.TrimSpace(out)
-	js = strings.TrimPrefix(js, "```json")
-	js = strings.TrimPrefix(js, "```")
-	js = strings.TrimSuffix(js, "```")
-	if i, j := strings.Index(js, "{"), strings.LastIndex(js, "}"); i >= 0 && j > i {
-		js = js[i : j+1]
-	}
-	var draft map[string]any
-	if json.Unmarshal([]byte(js), &draft) != nil {
+	draft := parseLooseJSON(out)
+	if draft == nil {
 		httpx.Error(w, http.StatusBadGateway, "پاسخ هوش مصنوعی قابل خواندن نبود؛ دوباره امتحان کنید.")
 		return
 	}

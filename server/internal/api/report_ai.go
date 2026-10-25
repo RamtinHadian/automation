@@ -24,12 +24,12 @@ const reportAiPrompt = `تو مشاور ارشد مدیریت فروش هستی 
  "headline": "یک جملهٔ جذاب و صادقانه دربارهٔ وضع تیم",
  "mood": "good" | "ok" | "bad",
  "summary": "سه تا پنج جمله خلاصهٔ مدیریتی",
- "kpis": [{"label": "نام شاخص", "value": "مقدار با واحد", "note": "یک توضیح کوتاه"}],
+ "comments": {"winRate": "...", "sales": "...", "activity": "...", "pipeline": "...", "cycle": "...", "losses": "...", "score": "..."},
  "team": {"strengths": ["..."], "risks": ["..."], "opportunities": ["..."]},
  "people": [{"name": "نام دقیق از داده", "rank": 1, "grade": "عالی" | "خوب" | "متوسط" | "نیازمند توجه" | "دادهٔ کم", "verdict": "یک تا دو جمله", "strengths": ["..."], "weaknesses": ["..."], "coaching": ["گام عملی با ضرب‌الاجل"]}],
  "actions": [{"title": "کار مشخص", "who": "نام یا «مدیر فروش»", "why": "دلیل با عدد", "when": "مثلاً «همین هفته»"}]
 }
-kpis حداکثر شش مورد؛ people به ترتیب رتبه و برای همهٔ افراد داده؛ actions بین سه تا هفت مورد و به ترتیب اهمیت.`
+هر مورد comments یک تا دو جمله است که زیر نمودار همان موضوع چاپ می‌شود و باید نمودار را برای مدیر تفسیر کند (چه می‌بینیم، چرا مهم است، چه کنیم) و حتماً از عددهای واقعی داده بنویسد؛ اگر برای موضوعی داده نیست مقدارش را خالی بگذار. همهٔ عددها را با ارقام لاتین (0-9) بنویس. جمله‌ها کوتاه باشند تا JSON کامل بماند. people به ترتیب رتبه و برای همهٔ افراد داده؛ actions بین سه تا هفت مورد و به ترتیب اهمیت.`
 
 // POST /api/reports/ai-sales  {rangeLabel, data}
 func reportAiSales(w http.ResponseWriter, r *http.Request) {
@@ -58,22 +58,92 @@ func reportAiSales(w http.ResponseWriter, r *http.Request) {
 	text, err := aiChatOpts(ctx, key, model, []aiMsg{
 		{Role: "system", Content: reportAiPrompt},
 		{Role: "user", Content: "بازهٔ گزارش: " + period + "\nداده‌های تیم فروش (JSON):\n" + string(data)},
-	}, 4500, 160*time.Second)
+	}, 6500, 160*time.Second)
 	if err != nil {
 		httpx.Error(w, http.StatusBadGateway, "تحلیل انجام نشد: "+err.Error())
 		return
 	}
-	js := strings.TrimSpace(text)
-	js = strings.TrimPrefix(js, "```json")
-	js = strings.TrimPrefix(js, "```")
-	js = strings.TrimSuffix(js, "```")
-	if i, j := strings.Index(js, "{"), strings.LastIndex(js, "}"); i >= 0 && j > i {
-		js = js[i : j+1]
-	}
-	var rep map[string]any
-	if json.Unmarshal([]byte(js), &rep) != nil {
-		httpx.JSON(w, http.StatusOK, map[string]any{"text": strings.TrimSpace(text)})
+	rep := parseLooseJSON(text)
+	if rep == nil {
+		httpx.Error(w, http.StatusBadGateway, "پاسخ هوش مصنوعی قابل خواندن نبود؛ یک بار دیگر «تحلیل دوباره» را بزنید.")
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"report": rep})
+}
+
+// parseLooseJSON reads the JSON object an AI service wrote: code fences and words around it are dropped, Persian digits are turned
+// into ordinary ones (a model sometimes writes «"rank": ۳»), and an answer that was cut short is closed so what was written is kept.
+func parseLooseJSON(text string) map[string]any {
+	js := strings.TrimSpace(text)
+	js = strings.NewReplacer("۰", "0", "۱", "1", "۲", "2", "۳", "3", "۴", "4", "۵", "5", "۶", "6", "۷", "7", "۸", "8", "۹", "9",
+		"٠", "0", "١", "1", "٢", "2", "٣", "3", "٤", "4", "٥", "5", "٦", "6", "٧", "7", "٨", "8", "٩", "9").Replace(js)
+	i := strings.Index(js, "{")
+	if i < 0 {
+		return nil
+	}
+	js = js[i:]
+	if j := strings.LastIndex(js, "}"); j > 0 {
+		js = js[:j+1]
+	}
+	var out map[string]any
+	if json.Unmarshal([]byte(js), &out) == nil {
+		return out
+	}
+	// closed again: walk the text, remember the open brackets, cut a half-written tail
+	var stack []byte
+	inStr, esc := false, false
+	last := 0 // end of the last complete value
+	for k := 0; k < len(js); k++ {
+		c := js[k]
+		if inStr {
+			if esc {
+				esc = false
+			} else if c == '\\' {
+				esc = true
+			} else if c == '"' {
+				inStr = false
+				last = k + 1
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inStr = true
+		case '{', '[':
+			stack = append(stack, c)
+			last = k + 1
+		case '}', ']':
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+			last = k + 1
+		case ',', ':', ' ', '\n', '\t', '\r':
+		default:
+			last = k + 1
+		}
+	}
+	cut := strings.TrimRight(js[:last], " \n\t\r,:")
+	if strings.HasSuffix(cut, "\"") {
+		// a key left without its value: drop it
+		if k := strings.LastIndex(cut[:len(cut)-1], "\""); k >= 0 {
+			tail := strings.TrimRight(cut[:k], " \n\t\r")
+			if strings.HasSuffix(tail, ":") {
+				cut = strings.TrimRight(tail[:len(tail)-1], " \n\t\r")
+				if k2 := strings.LastIndex(cut, "\""); k2 >= 0 {
+					cut = strings.TrimRight(cut[:k2], " \n\t\r,")
+				}
+			}
+		}
+	}
+	for k := len(stack) - 1; k >= 0; k-- {
+		if stack[k] == '{' {
+			cut += "}"
+		} else {
+			cut += "]"
+		}
+	}
+	if json.Unmarshal([]byte(cut), &out) == nil {
+		return out
+	}
+	return nil
 }

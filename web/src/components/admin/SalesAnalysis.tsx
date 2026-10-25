@@ -62,7 +62,7 @@ export const SalesAnalysis: React.FC<{ staff: User[]; deals: Deal[]; customers: 
 
       {showBooks && <Methodology seesTotals={seesTotals} />}
 
-      <AiSalesReport analysis={a} days={days} rangeLabel={rangeLabel} />
+      <AiSalesReport analysis={a} days={days} rangeLabel={rangeLabel} seesTotals={seesTotals} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-sales-kpis>
         <Kpi accent={C.green} icon={<Target className="w-5 h-5" />} label="نرخ موفقیت تیم" value={pc(t.winRate)} sub={`${fa(t.won)} موفق · ${fa(t.lost)} از دست رفته`} tone={t.winRate !== null && t.winRate >= 0.5 ? 'good' : 'plain'} />
