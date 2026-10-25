@@ -284,17 +284,25 @@ ok(r.code === 0 && /ورود موفق بود/.test(r.out), 'diag works from the 
   canRegister = false;
   let made = null;
   try {
-    made = await createCustomer(mk(), { GUID: guidFrom('x'), Name: 'آزمایش', LastName: '', CustomerType: 1 });
+    made = await createCustomer(mk(), { GUID: guidFrom('x'), Name: 'آزمایش', LastName: '', PhoneNumber: '09120000000', CustomerType: 1 });
   } catch (e) {
     made = { error: e.message };
   }
   ok(made && !made.error && sp.customers.length === before + 1, 'the hint «no right» in the sign-in answer does not stop a registration Sepidar accepts');
   sp.customers.length = before; // the pretend Sepidar goes back to what it had, for the tests that follow
+  // a customer without a phone number is not sent (Sepidar would answer 400): a clear message instead
+  let noPhone = '';
+  try {
+    await createCustomer(mk(), { GUID: guidFrom('np'), Name: 'بدون تلفن', LastName: '', PhoneNumber: '', CustomerType: 1 });
+  } catch (e) {
+    noPhone = e.message;
+  }
+  ok(/شمارهٔ تلفن ندارد/.test(noPhone), 'a customer without a phone number is not sent to Sepidar, the message says why' + String.fromCharCode(10) + noPhone);
   // Sepidar really refuses (403): one clear message that says which user needs which right, with status 403 so the loop stops
   customers403 = true;
   let err = null;
   try {
-    await createCustomer(mk(), { GUID: guidFrom('y'), Name: 'آزمایش', LastName: '', CustomerType: 1 });
+    await createCustomer(mk(), { GUID: guidFrom('y'), Name: 'آزمایش', LastName: '', PhoneNumber: '09120000000', CustomerType: 1 });
   } catch (e) {
     err = e;
   }

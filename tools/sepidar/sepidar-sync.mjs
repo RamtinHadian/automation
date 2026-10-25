@@ -146,6 +146,7 @@ function restartSelf() {
  * what to change, and carries `status` 403 so the caller stops after the first refusal instead of trying every customer again.
  */
 export async function createCustomer(sp, body) {
+  if (!body.PhoneNumber) throw new Error('این مشتری شمارهٔ تلفن ندارد؛ سپیدار شمارهٔ تلفن را الزامی می‌داند. در هورمند برایش شماره‌ای بنویسید و دوباره بفرستید.');
   const info = await sp.info();
   try {
     return await sp.post('/api/Customers', body);
@@ -456,7 +457,7 @@ async function cmdSync(cfg) {
   state.quotations ||= {};
   const sp = client(cfg, state);
   const sync = cfg.sync;
-  const report = { customersNew: 0, customersFail: 0, quotationsNew: 0, quotationsSkip: 0, quotationsFail: 0 };
+  const report = { customersNew: 0, customersFail: 0, customersNoPhone: 0, quotationsNew: 0, quotationsSkip: 0, quotationsFail: 0 };
   log(apply ? '--- ثبت واقعی در سپیدار ---' : '--- فقط نمایش (چیزی ثبت نمی‌شود؛ برای ثبت --apply را اضافه کنید) ---');
 
   const hoormandCustomers = await hoormandAll(cfg, '/customers', 'customers');
@@ -490,6 +491,11 @@ async function cmdSync(cfg) {
     if (!sync.customers) continue;
     if (!body.Name) {
       log(`  رد شد: مشتری بدون نام (${c.id})`);
+      continue;
+    }
+    if (!body.PhoneNumber) {
+      // Sepidar refuses a customer without a phone number (400): one note at the end instead of one error for each of them
+      report.customersNoPhone++;
       continue;
     }
     if (!apply) {
@@ -562,6 +568,7 @@ async function cmdSync(cfg) {
     }
   }
   saveState(state);
+  if (report.customersNoPhone > 0) log(`  ${report.customersNoPhone} مشتری شمارهٔ تلفن ندارند و در سپیدار ثبت نشدند (سپیدار شمارهٔ تلفن را الزامی می‌داند؛ در هورمند برایشان شماره بنویسید).`);
   log(`خلاصه: مشتری تازه ${report.customersNew}، پیش‌فاکتور تازه ${report.quotationsNew}، ردشده ${report.quotationsSkip}، خطا ${report.customersFail + report.quotationsFail}`);
   return report;
 }
@@ -806,18 +813,17 @@ export async function pushCaches(cfg, sp, state) {
 function ensureWatchdog() {
   if (process.platform !== 'win32') return;
   try {
+    let taskThere = false;
     try {
       execFileSync('schtasks', ['/Query', '/TN', 'HoormandSepidarWatch'], { stdio: 'pipe' });
-      return; // already there
+      taskThere = true;
     } catch {
       /* not there yet */
     }
     const q = (x) => '""' + x + '""';
     const vbs = path.join(dir, 'نگهبان.vbs');
     const start = `cmd /c cd /d ${q(dir)} && ${q(process.execPath)} ${q(path.join(dir, 'sepidar-sync.mjs'))} watch --apply >> ${q(path.join(dir, 'sepidar.log'))} 2>&1`;
-    fs.writeFileSync(
-      vbs,
-      [
+    const content = [
         'Set svc = GetObject("winmgmts:' + '\\\\.' + '\\root\\cimv2")',
         `Set procs = svc.ExecQuery("Select CommandLine From Win32_Process Where Name = 'node.exe'")`,
         'running = False',
@@ -827,8 +833,16 @@ function ensureWatchdog() {
         '  End If',
         'Next',
         `If Not running Then CreateObject("Wscript.Shell").Run "${start}", 0, False`,
-      ].join(String.fromCharCode(13, 10)) + String.fromCharCode(13, 10),
-    );
+      ].join(String.fromCharCode(13, 10)) + String.fromCharCode(13, 10);
+    // the task of an earlier installation may still be there while its file is gone (or points to another folder): the file and the task are made again
+    let same = false;
+    try {
+      same = fs.readFileSync(vbs, 'utf8') === content;
+    } catch {
+      /* the file is not there */
+    }
+    if (taskThere && same) return;
+    fs.writeFileSync(vbs, content);
     execFileSync('schtasks', ['/Create', '/TN', 'HoormandSepidarWatch', '/SC', 'MINUTE', '/MO', '5', '/RL', 'LIMITED', '/F', '/TR', `wscript.exe "${vbs}"`], { stdio: 'pipe' });
     log('نگهبان ساخته شد: هر ۵ دقیقه بررسی می‌شود برنامه روشن باشد و اگر خاموش بود خودش دوباره روشن می‌شود.');
   } catch (e) {
