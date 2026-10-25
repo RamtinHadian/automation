@@ -6,6 +6,8 @@ import { COLUMNS, Column, MENUS, adminHideId, colOn, colPatch, colPatchMany, isA
 import { toPersianDigits } from '../../lib/jalali';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
+import { PersonPicker, staffItems } from '../common/PersonPicker';
+import { api, WhState } from '../../lib/api';
 import { matchesAll } from '../../lib/searchAll';
 
 const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'مدیر ارشد', DEPT_ADMIN: 'مدیر واحد', STAFF: 'کارمند' };
@@ -118,8 +120,126 @@ const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[], 
   );
 };
 
+/** Under the name of a person who may enter «انبار»: which warehouses, and which single products with their own ticks for the stock and the price. */
+const WhChip: React.FC<{ u: User; onOpen: () => void }> = ({ u, onOpen }) => {
+  const w = (u.whWarehouseIds || []).length;
+  const pr = (u.whProducts || []).length;
+  return (
+    <button type="button" onClick={onOpen} className="mt-1 ml-1 text-[10px] font-black text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 cursor-pointer" data-wh-chip>
+      انبار: {w === 0 ? 'همهٔ انبارها' : `${toPersianDigits(w)} انبار`}{pr > 0 ? ` · ${toPersianDigits(pr)} کالا` : ''}
+    </button>
+  );
+};
+
+type WhRule = { id: string; qty: boolean; price: boolean };
+
+const WhDialog: React.FC<{ u: User; onSave: (warehouses: string[], products: WhRule[]) => void; onClose: () => void }> = ({ u, onSave, onClose }) => {
+  const [data, setData] = useState<WhState | null>(null);
+  const [err, setErr] = useState('');
+  const [tab, setTab] = useState<'wh' | 'prod'>('wh');
+  const [whs, setWhs] = useState<string[]>(u.whWarehouseIds || []);
+  const [prods, setProds] = useState<WhRule[]>(u.whProducts || []);
+  const [q, setQ] = useState('');
+  React.useEffect(() => {
+    api.warehouse().then(setData).catch((e) => setErr(e instanceof Error ? e.message : 'بارگیری نشد'));
+  }, []);
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  const list = (data?.products || []).filter((p) => !q.trim() || matchesAll(p, q)).slice(0, 300);
+  const rule = (id: string) => prods.find((x) => x.id === id);
+  const setRule = (id: string, patch: Partial<WhRule> | null) =>
+    setProds((cur) => (patch === null ? cur.filter((x) => x.id !== id) : cur.some((x) => x.id === id) ? cur.map((x) => (x.id === id ? { ...x, ...patch } : x)) : [...cur, { id, qty: true, price: false, ...patch }]));
+  const allQty = prods.length > 0 && prods.every((x) => x.qty);
+  const allPrice = prods.length > 0 && prods.every((x) => x.price);
+  const box = (on: boolean) => `w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${on ? 'bg-[#D97706] text-white' : 'border border-[#EBDBCE]'}`;
+  return createPortal(
+    <div className="fixed inset-0 z-[360] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { stop(e); onClose(); }} onClick={stop} data-wh-dialog>
+      <div dir="rtl" onMouseDown={stop} className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-[#EBDBCE] text-right max-h-[88vh]">
+        <div className="px-5 py-3.5 border-b border-[#EBDBCE]">
+          <h3 className="font-black text-sm text-[#3A241F]">انبار و کالاهای «{u.fullName}»</h3>
+          <p className="text-[11px] text-[#8C6F66] mt-1 leading-5">هیچ انباری انتخاب نشود یعنی همهٔ انبارها. اگر کالایی انتخاب شود، فقط همان کالاها (و گروه‌هایی که در ویرایش کاربر تیک خورده) دیده می‌شود و برای هر کالا می‌توانید موجودی و قیمت را جدا باز کنید.</p>
+        </div>
+        <div className="px-4 pt-3 flex gap-1.5">
+          {([['wh', `انبارها${whs.length ? ' (' + toPersianDigits(whs.length) + ')' : ''}`], ['prod', `کالاها${prods.length ? ' (' + toPersianDigits(prods.length) + ')' : ''}`]] as const).map(([id, l]) => (
+            <button key={id} type="button" onClick={() => setTab(id)} className={`flex-1 px-3 py-2 rounded-xl text-[11px] font-black border cursor-pointer ${tab === id ? 'bg-[#D97706] text-white border-[#D97706]' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`}>{l}</button>
+          ))}
+        </div>
+        {err && <div className="px-5 pt-3 text-xs font-bold text-rose-600">{err}</div>}
+        {tab === 'wh' ? (
+          <div className="p-3 overflow-y-auto flex-1 space-y-1">
+            <button type="button" onClick={() => setWhs([])} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${whs.length === 0 ? 'bg-amber-50 border-amber-300' : 'bg-white border-[#EBDBCE]'}`}>
+              <span className={box(whs.length === 0)}>{whs.length === 0 && <Check className="w-3.5 h-3.5" />}</span>
+              همهٔ انبارها
+            </button>
+            {(data?.warehouses || []).map((w) => {
+              const on = whs.includes(w.id);
+              return (
+                <button key={w.id} type="button" onClick={() => setWhs((p) => (p.includes(w.id) ? p.filter((x) => x !== w.id) : [...p, w.id]))} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right cursor-pointer ${on ? 'bg-amber-50' : 'hover:bg-[#FAF5F1]'}`}>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-xs font-black text-[#3A241F] truncate">{w.title}</span>
+                    {w.location && <span className="block text-[10px] text-[#8C6F66] truncate">{w.location}</span>}
+                  </span>
+                  <span className={box(on)}>{on && <Check className="w-3.5 h-3.5" />}</span>
+                </button>
+              );
+            })}
+            {data && data.warehouses.length === 0 && <div className="py-6 text-center text-xs font-bold text-gray-400">انباری تعریف نشده است.</div>}
+          </div>
+        ) : (
+          <>
+            <div className="px-4 pt-3 space-y-2">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی کالا (نام یا کد)…" className="w-full px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden focus:border-[#D97706]" />
+              {prods.length > 0 && (
+                <div className="flex flex-wrap items-center gap-3 text-[11px] font-black text-[#3A241F]" data-wh-all>
+                  <span className="text-[#8C6F66]">برای همهٔ کالاهای انتخاب‌شده:</span>
+                  <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={allQty} onChange={(e) => setProds((c) => c.map((x) => ({ ...x, qty: e.target.checked })))} />موجودی</label>
+                  <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={allPrice} onChange={(e) => setProds((c) => c.map((x) => ({ ...x, price: e.target.checked })))} />قیمت (همراه موجودی)</label>
+                </div>
+              )}
+            </div>
+            <div className="p-3 overflow-y-auto flex-1 space-y-1" data-wh-products>
+              {list.map((p) => {
+                const r = rule(p.id);
+                return (
+                  <div key={p.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${r ? 'bg-amber-50' : 'hover:bg-[#FAF5F1]'}`}>
+                    <button type="button" onClick={() => setRule(p.id, r ? null : {})} className="flex items-center gap-3 flex-1 min-w-0 text-right cursor-pointer">
+                      <span className={box(!!r)}>{r && <Check className="w-3.5 h-3.5" />}</span>
+                      <span className="min-w-0">
+                        <span className="block text-xs font-black text-[#3A241F] truncate">{p.title}</span>
+                        <span className="block text-[10px] text-[#8C6F66] truncate">{[p.code, p.group].filter(Boolean).join(' · ')}</span>
+                      </span>
+                    </button>
+                    {r && (
+                      <span className="flex items-center gap-2 text-[10px] font-black shrink-0">
+                        <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={r.qty} onChange={(e) => setRule(p.id, { qty: e.target.checked })} />موجودی</label>
+                        <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={r.price} onChange={(e) => setRule(p.id, { price: e.target.checked })} />قیمت</label>
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+              {data && list.length === 0 && <div className="py-6 text-center text-xs font-bold text-gray-400">کالایی پیدا نشد.</div>}
+            </div>
+          </>
+        )}
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-[#EBDBCE]">
+          <span className="text-[11px] font-bold text-[#8C6F66]">
+            {whs.length === 0 ? 'همهٔ انبارها' : `${toPersianDigits(whs.length)} انبار`}
+            {prods.length ? ` · ${toPersianDigits(prods.length)} کالای مشخص` : ' · همهٔ کالاها'}
+          </span>
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black border border-[#EBDBCE] cursor-pointer">انصراف</button>
+            <button type="button" onClick={() => { onSave(whs, prods); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#D97706] cursor-pointer" data-wh-save>تأیید</button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 export const PermissionMatrix: React.FC<{ users: User[]; departments: Department[]; onUpdateUser: (id: string, updates: Partial<User>) => void }> = ({ users, departments, onUpdateUser }) => {
   const { showToast } = useAppContext();
+  const [whDlg, setWhDlg] = useState<User | null>(null);
   const [teamDlg, setTeamDlg] = useState<User | null>(null);
   const [q, setQ] = useState('');
   const [dept, setDept] = useState('');
@@ -157,12 +277,24 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
     }
     const on = !colOn(u, c);
     onUpdateUser(u.id, colPatch(u, c, on));
+    if (on && c.id === 'warehouse') setWhDlg({ ...u, canUseWarehouse: true });
     if (on && c.id === 'crm.team') setTeamDlg({ ...u, canSeeTeamCrm: true }); // choose whose customers (or «all») right away
     showToast(`«${c.label}» برای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
   };
   const rowAll = (u: User, on: boolean) => {
     onUpdateUser(u.id, colPatchMany(u, COLUMNS, on));
     showToast(`همهٔ مجوزهای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
+  };
+  // «مشابه فلانی»: every right of the chosen employee is copied to this one (not his role, not the signature right, not the agent settings)
+  const COPY_KEYS = ['canSendOfficialLetters', 'canUseTasks', 'canUseCrm', 'canUseWarranty', 'canSendSms', 'canUseWarehouse', 'canSeeTeamCrm', 'canSeeAllCalls', 'canViewStats', 'canPostAnnouncements', 'sepidarPerms', 'hiddenSub', 'whGroups', 'whWarehouseIds', 'whProducts', 'crmTeamIds', 'crmCustomerIds'] as const;
+  const copyFrom = async (u: User, refId: string) => {
+    const ref = users.find((x) => x.id === refId);
+    if (!ref || ref.id === u.id) return;
+    if (!(await askConfirm(`همهٔ مجوزهای «${u.fullName}» مثل «${ref.fullName}» بشود؟ مجوزهای فعلی او با مجوزهای ${ref.fullName} جایگزین می‌شود.`, { tone: 'warning', title: 'کپی مجوزها از یک کارمند', confirmText: 'بله، مثل او بشود' }))) return;
+    const patch: Record<string, unknown> = {};
+    for (const k of COPY_KEYS) patch[k] = (ref as unknown as Record<string, unknown>)[k] ?? (k.startsWith('can') ? false : []);
+    onUpdateUser(u.id, patch as Partial<User>);
+    showToast(`مجوزهای ${u.fullName} مثل ${ref.fullName} شد.`);
   };
   const colAll = async (c: Column) => {
     if (people.length === 0) return;
@@ -256,6 +388,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                     <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
                     <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</span>
                     {!admin && (u.canSeeTeamCrm || u.canUseCrm || (u.crmCustomerIds || []).length > 0) && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
+                    {!admin && u.canUseWarehouse && <WhChip u={u} onOpen={() => setWhDlg(u)} />}
                   </td>
                   {COLUMNS.map((c) => {
                     const tone = toneOf(c.menuId);
@@ -295,6 +428,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                         <span className="inline-flex gap-1">
                           <button type="button" onClick={() => rowAll(u, true)} className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
                           <button type="button" onClick={() => rowAll(u, false)} className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-white text-[#8C6F66] border border-[#EBDBCE] cursor-pointer">هیچ</button>
+                          <span className="w-[74px]"><PersonPicker title={`مجوزهای ${u.fullName} مثل چه کسی باشد؟`} items={staffItems(users.filter((x) => x.isActive !== false && x.id !== u.id && !isAdminUser(x)))} value="" onChange={(id) => id && copyFrom(u, id)} emptyLabel="مشابه…" className="!min-h-[22px] !py-0.5 !px-1.5 !text-[10px] !rounded-md" /></span>
                         </span>
                         <span className="text-[9px] font-bold text-[#B8A39C]">{toPersianDigits(given)}/{toPersianDigits(COLUMNS.length)}</span>
                       </span>
@@ -327,10 +461,12 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                   <span className="flex gap-1.5">
                     <button type="button" onClick={() => rowAll(u, true)} className="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
                     <button type="button" onClick={() => rowAll(u, false)} className="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-white text-[#8C6F66] border border-[#EBDBCE] cursor-pointer">هیچ</button>
+                    <span className="w-[96px]"><PersonPicker title={`مجوزهای ${u.fullName} مثل چه کسی باشد؟`} items={staffItems(users.filter((x) => x.isActive !== false && x.id !== u.id && !isAdminUser(x)))} value="" onChange={(id) => id && copyFrom(u, id)} emptyLabel="مشابه…" className="!text-[11px]" /></span>
                   </span>
                 )}
               </div>
               {!admin && (u.canSeeTeamCrm || u.canUseCrm || (u.crmCustomerIds || []).length > 0) && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
+                    {!admin && u.canUseWarehouse && <WhChip u={u} onOpen={() => setWhDlg(u)} />}
               {!admin &&
                 menuCols.map(({ m, cols }) => (
                   <div key={m.id} className="space-y-1.5">
@@ -364,6 +500,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
       <p className="text-[11px] leading-6 text-[#8C6F66]">
         برای مدیران هم می‌توانید منو و زیرمنو را تیک بزنید یا بردارید (فقط نمایش آن برایشان). «مدیرعامل / صاحب امضای مجاز» فقط یک نفر است و از «ویرایش کاربر» تعیین می‌شود. هر تیک همان لحظه ذخیره می‌شود و کارمند از تغییر مجوزهایش با یک اعلان باخبر می‌شود. هر منو یا زیرمنوی تازه‌ای که به سامانه اضافه شود، یک ستون در همین جدول می‌گیرد.
       </p>
+      {whDlg && <WhDialog u={whDlg} onSave={(w, pr) => onUpdateUser(whDlg.id, { whWarehouseIds: w, whProducts: pr })} onClose={() => setWhDlg(null)} />}
       {teamDlg && <TeamCrmDialog u={teamDlg} users={users} onSave={(ids, customerIds, seesTeam) => onUpdateUser(teamDlg.id, { crmTeamIds: ids, crmCustomerIds: customerIds, canSeeTeamCrm: seesTeam })} onClose={() => setTeamDlg(null)} />}
     </div>
   );

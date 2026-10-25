@@ -199,16 +199,73 @@ func whGroupOK(me auth.User, group string) bool {
 	return false
 }
 
+// whWarehouseOK: a person works with the warehouses the administrator picked for them (user.whWarehouseIds); none picked = every warehouse.
+func whWarehouseOK(me auth.User, id string) bool {
+	if me.IsAdmin() {
+		return true
+	}
+	list := jsonx.Strings(me.M, "whWarehouseIds")
+	if len(list) == 0 {
+		return true
+	}
+	return jsonx.Contains(list, id)
+}
+
+// whProductOK: the product groups AND single products picked for the person (user.whGroups, user.whProductIds): a product is open when its group is
+// picked or the product itself is picked; nothing picked at all = every product.
+// whRules: the single products picked for a person with what they may see of each (user.whProducts: [{id, qty, price}]).
+func whRules(me auth.User) map[string][2]bool {
+	out := map[string][2]bool{}
+	for _, it := range jsonx.Arr(me.M, "whProducts") {
+		if m, ok := it.(map[string]any); ok {
+			if id, _ := m["id"].(string); id != "" {
+				q, _ := m["qty"].(bool)
+				pr, _ := m["price"].(bool)
+				out[id] = [2]bool{q, pr}
+			}
+		}
+	}
+	return out
+}
+
+func whProductOK(me auth.User, id, group string) bool {
+	if me.IsAdmin() {
+		return true
+	}
+	rules := whRules(me)
+	prods := make([]string, 0, len(rules))
+	for k := range rules {
+		prods = append(prods, k)
+	}
+	if len(prods) == 0 {
+		return whGroupOK(me, group)
+	}
+	if jsonx.Contains(prods, id) {
+		return true
+	}
+	return len(jsonx.Strings(me.M, "whGroups")) > 0 && whGroupOK(me, group)
+}
+
 // whGroupDocs keeps, in each document, only the lines of the products the person may see (a document with none left is left out).
 func whGroupDocs(ctx context.Context, me auth.User, docs []jsonx.M) []jsonx.M {
-	if me.IsAdmin() || len(jsonx.Strings(me.M, "whGroups")) == 0 {
+	if !me.IsAdmin() && len(jsonx.Strings(me.M, "whWarehouseIds")) > 0 { // only the documents of the warehouses the person may use
+		kept := []jsonx.M{}
+		for _, d := range docs {
+			from, to := jsonx.Str(d, "warehouseId"), jsonx.Str(d, "toWarehouseId")
+			if whWarehouseOK(me, from) || (to != "" && whWarehouseOK(me, to)) {
+				kept = append(kept, d)
+			}
+		}
+		docs = kept
+	}
+	if me.IsAdmin() || (len(jsonx.Strings(me.M, "whGroups")) == 0 && len(jsonx.Arr(me.M, "whProducts")) == 0) {
 		return docs
 	}
 	ok := map[string]bool{}
 	if rows, err := store.Pool.Query(ctx, `SELECT id, COALESCE(data->>'group', '') FROM wh_products`); err == nil {
 		for rows.Next() {
 			var id, g string
-			if rows.Scan(&id, &g) == nil && whGroupOK(me, g) {
+			if rows.Scan(&id, &g) == nil && whProductOK(me, id, g) {
 				ok[id] = true
 			}
 		}
@@ -258,6 +315,9 @@ func whState(w http.ResponseWriter, r *http.Request) {
 		if rows.Scan(&id, &raw) == nil {
 			d := jsonx.Decode(raw)
 			d["id"] = id
+			if !whWarehouseOK(me, id) {
+				continue
+			}
 			whs = append(whs, d)
 		}
 	}
@@ -274,21 +334,28 @@ func whState(w http.ResponseWriter, r *http.Request) {
 		if rows.Scan(&id, &raw) == nil {
 			d := jsonx.Decode(raw)
 			d["id"] = id
-			if !whGroupOK(me, jsonx.Str(d, "group")) {
+			if !whProductOK(me, id, jsonx.Str(d, "group")) {
 				continue
 			}
 			total := 0.0
 			by := map[string]float64{}
 			for wh, n := range bal[id] {
+				if !whWarehouseOK(me, wh) {
+					continue
+				}
 				by[wh] = n
 				total += n
 			}
 				d["total"], d["byWarehouse"] = math.Round(total*1000)/1000, by
-				if !whQtyAllowed(me) {
+				showQty, showMoney := whQtyAllowed(me), whMoneyAllowed(me)
+				if rule, picked := whRules(me)[id]; picked && !me.IsAdmin() { // a product picked for this person carries its own tick for the numbers and the prices
+					showQty, showMoney = rule[0], rule[1]
+				}
+				if !showQty {
 					d["total"], d["byWarehouse"] = 0, map[string]float64{}
 				}
 				delete(d, "cost") // purchase prices are not shown anywhere: only the selling prices
-				if !whMoneyAllowed(me) {
+				if !showMoney {
 					delete(d, "prices")
 				}
 				prods = append(prods, d)
@@ -380,7 +447,7 @@ func whCard(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "کالا پیدا نشد.")
 		return
 	}
-if g := jsonx.Str(jsonx.Decode(praw), "group"); !whGroupOK(me, g) {
+if g := jsonx.Str(jsonx.Decode(praw), "group"); !whProductOK(me, pid, g) {
 		httpx.Error(w, http.StatusForbidden, "گروه این کالا برای شما باز نشده است.")
 		return
 	}
@@ -693,6 +760,10 @@ if _, ok := whKinds[kind]; !ok {
 		return
 	}
 	from := jsonx.Str(body, "warehouseId")
+	if !whWarehouseOK(auth.Current(r), from) || (jsonx.Str(body, "toWarehouseId") != "" && !whWarehouseOK(auth.Current(r), jsonx.Str(body, "toWarehouseId"))) {
+		httpx.Error(w, http.StatusForbidden, "این انبار برای شما مجاز نیست.")
+		return
+	}
 	fromName, msg := whWarehouseOf(ctx, tx, from)
 	if msg != "" {
 		bad(msg)

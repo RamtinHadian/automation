@@ -42,6 +42,10 @@ export interface User {
   crmTeamIds?: string[];
   /** customers (ids) this person may work with in addition to his own, picked by an administrator */
   crmCustomerIds?: string[];
+  /** warehouses (ids) this person works with (none = every warehouse) */
+  whWarehouseIds?: string[];
+  /** single products picked for this person, each with what may be seen of it: the stock (qty) and the price */
+  whProducts?: { id: string; qty: boolean; price: boolean }[];
   /** a sales representative («نماینده فروش»): works on his own with his own customers and only with the people named in agentContactIds (and the managing director); his only correspondence is an internal letter to the managing director */
   isAgent?: boolean;
   agentContactIds?: string[];
