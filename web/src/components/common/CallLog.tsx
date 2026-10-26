@@ -9,6 +9,7 @@ import { callerNameOnly, normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { placeCall } from '../../lib/callFrom';
 import { useAppContext } from '../../context/AppContext';
+import { askConfirm } from '../../lib/confirmDialog';
 import { canSub } from '../../lib/permissions';
 import { matchesAll } from '../../lib/searchAll';
 
@@ -46,13 +47,20 @@ export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean; au
   };
   const openText = async () => {
     if (txOpen) { setTxOpen(false); return; }
-    setTxOpen(true);
     try {
       let r = await api.voipTranscript(id);
-      if (r.status === 'none' || r.status === 'error') r = await api.voipTranscribe(id).then(() => ({ status: 'running' } as { status: 'running' }));
+      if (r.status === 'none' || r.status === 'error') {
+        // converting costs money and sends the call to the AI service: ask first
+        if (!(await askConfirm('تبدیل صدا به متن از اعتبار togpt.ir شما هزینه دارد و صدای این مکالمه برای تبدیل به سرویس هوش مصنوعی فرستاده می‌شود. مکالمه به متن تبدیل شود؟', { tone: 'warning', confirmText: 'بله، تبدیل کن', title: 'تبدیل مکالمه به متن' }))) return;
+        setTxOpen(true);
+        r = await api.voipTranscribe(id).then(() => ({ status: 'running' } as { status: 'running' }));
+      } else {
+        setTxOpen(true);
+      }
       setTx(r);
       if (r.status === 'running') poll();
     } catch (e) {
+      setTxOpen(true);
       setTx({ status: 'error', error: e instanceof Error ? e.message : 'تبدیل به متن انجام نشد.' });
     }
   };
@@ -62,6 +70,7 @@ export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean; au
     api.voipTranscript(id).then(setTx).catch(() => undefined);
   }, [autoShow, hasTranscript, id]);
   const again = async () => {
+    if (!(await askConfirm('تبدیل صدا به متن از اعتبار togpt.ir شما هزینه دارد و صدای این مکالمه برای تبدیل به سرویس هوش مصنوعی فرستاده می‌شود. مکالمه به متن تبدیل شود؟', { tone: 'warning', confirmText: 'بله، تبدیل کن', title: 'تبدیل مکالمه به متن' }))) return;
     setTx({ status: 'running' });
     try { await api.voipTranscribe(id); poll(); } catch (e) { setTx({ status: 'error', error: e instanceof Error ? e.message : 'تبدیل به متن انجام نشد.' }); }
   };
@@ -88,7 +97,7 @@ export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean; au
       <button type="button" onClick={open} title={url ? 'بستن پخش' : 'شنیدن مکالمهٔ ضبط‌شده'} className="p-2 rounded-xl text-rose-700 hover:bg-rose-50 cursor-pointer shrink-0">
         {url ? <Pause className="w-4 h-4" /> : <Play className={`w-4 h-4 ${loading ? 'animate-pulse' : ''}`} />}
       </button>
-      <button type="button" data-call-transcript onClick={openText} title={txOpen ? 'بستن متن مکالمه' : hasTranscript ? 'متن مکالمه' : 'تبدیل مکالمه به متن'} className={`p-2 rounded-xl hover:bg-violet-50 cursor-pointer shrink-0 ${hasTranscript || txOpen ? 'text-violet-700' : 'text-gray-400'}`}>
+      <button type="button" data-call-transcript onClick={openText} title={txOpen ? 'بستن متن مکالمه' : hasTranscript ? 'متن مکالمه' : 'تبدیل مکالمه به متن'} className={`p-2 rounded-xl cursor-pointer shrink-0 ${hasTranscript || tx?.status === 'done' ? 'bg-violet-600 text-white hover:bg-violet-700' : txOpen ? 'text-violet-700 hover:bg-violet-50' : 'text-gray-400 hover:bg-violet-50'}`}>
         <FileText className={`w-4 h-4 ${tx?.status === 'running' ? 'animate-pulse' : ''}`} />
       </button>
       {txOpen && tx && (

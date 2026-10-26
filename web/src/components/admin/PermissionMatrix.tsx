@@ -348,7 +348,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
             {COLUMNS.map((c) => (
               <col key={c.id} />
             ))}
-            <col style={{ width: 92 }} />
+            <col style={{ width: 104 }} />
           </colgroup>
           {/* the page area has padding (12 / 24 / 32px): the header sticks at minus that, flush with the top edge, so no row shows above it */}
           <thead className="sticky top-[-12px] sm:top-[-24px] lg:top-[-32px] z-20">
@@ -435,8 +435,8 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                         <span className="inline-flex gap-1">
                           <button type="button" onClick={() => rowAll(u, true)} className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
                           <button type="button" onClick={() => rowAll(u, false)} className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-white text-[#8C6F66] border border-[#EBDBCE] cursor-pointer">هیچ</button>
-                          <span className="w-[74px]"><PersonPicker title={`مجوزهای ${u.fullName} مثل چه کسی باشد؟`} items={staffItems(users.filter((x) => x.isActive !== false && x.id !== u.id && !isAdminUser(x)))} value="" onChange={(id) => id && copyFrom(u, id)} emptyLabel="مشابه…" className="!min-h-[22px] !py-0.5 !px-1.5 !text-[10px] !rounded-md" /></span>
                         </span>
+                        <span className="w-[88px]"><PersonPicker title={`مجوزهای ${u.fullName} مثل چه کسی باشد؟`} items={staffItems(users.filter((x) => x.isActive !== false && x.id !== u.id && !isAdminUser(x)))} value="" onChange={(id) => id && copyFrom(u, id)} emptyLabel="مشابه…" className="!min-h-[22px] !py-0.5 !px-1.5 !text-[10px] !rounded-md" /></span>
                         <span className="text-[9px] font-bold text-[#B8A39C]">{toPersianDigits(given)}/{toPersianDigits(COLUMNS.length)}</span>
                       </span>
                     )}

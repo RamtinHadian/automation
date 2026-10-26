@@ -90,8 +90,8 @@ const ACT_LABEL: Record<string, string> = { NOTE: 'یادداشت', CALL: 'ثب�
 
 /** The player, the «متن مکالمه» button and (when it is already written) the text of one recorded call; a click here does not close the page. */
 const CallExtras: React.FC<{ c: VoipCall }> = ({ c }) => (
-  <div onClick={(e) => e.stopPropagation()} className="cursor-default flex flex-wrap items-center gap-1 rounded-xl bg-white text-[#3A241F] px-2 py-1 w-fit max-w-full" data-call-extras>
-    <span className="text-[10px] font-black text-rose-700">مکالمهٔ ضبط‌شده</span>
+  <div onClick={(e) => e.stopPropagation()} className={`cursor-default flex flex-wrap items-center gap-1 rounded-xl text-[#3A241F] px-2 py-1 w-fit max-w-full ${c.hasTranscript ? 'bg-violet-100 ring-2 ring-violet-300' : 'bg-white'}`} data-call-extras data-has-transcript={c.hasTranscript ? '1' : '0'}>
+    <span className={`text-[10px] font-black ${c.hasTranscript ? 'text-violet-800' : 'text-rose-700'}`}>{c.hasTranscript ? 'مکالمه با متن (تبدیل‌شده)' : 'مکالمهٔ ضبط‌شده'}</span>
     <RecordingButton id={c.id} hasTranscript={c.hasTranscript} autoShow />
   </div>
 );

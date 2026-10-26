@@ -181,7 +181,7 @@ export const CompanyCalls: React.FC = () => {
                     {c.hasRecording ? (
                       <span className="flex flex-wrap items-center gap-1 flex-1">
                         <Headphones className="w-3.5 h-3.5 text-violet-700" />
-                        <span className="text-[11px] font-black text-violet-800">مکالمهٔ ضبط‌شده</span>
+                        {c.hasTranscript ? <span className="text-[10px] font-black text-white bg-violet-600 rounded-full px-2 py-0.5" data-has-transcript>مکالمه با متن (تبدیل‌شده)</span> : <span className="text-[11px] font-black text-violet-800">مکالمهٔ ضبط‌شده</span>}
                         <RecordingButton id={c.id} hasTranscript={c.hasTranscript} />
                       </span>
                     ) : (
