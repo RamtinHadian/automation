@@ -11,6 +11,7 @@ import { CLAIM_STATUS, daysBetween, isOpenClaim, warrantyState } from '../../lib
 import { todayIso } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
 import { SalesAnalysis } from './SalesAnalysis';
+import { AiDailyReport } from './AiDailyReport';
 import { canSeeSalesTotals } from '../../lib/permissions';
 
 const compactM = (n: number) => compact(toDisplay(n));
@@ -234,6 +235,8 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
       </div>
 
       {/* products customers asked for that were not in stock: what to buy next */}
+      <AiDailyReport staff={staffList} />
+
       <SalesAnalysis staff={staffList} deals={deals} customers={customers} activities={data?.activities ?? []} days={range} rangeLabel={rangeLabel} seesTotals={seesTotals} />
 
       <section className="space-y-3" data-missing-report>

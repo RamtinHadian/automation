@@ -100,6 +100,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/voip/recording/{id}", auth.Require(voipRecording))
 	mux.HandleFunc("POST /api/letters/ai", auth.Require(letterAi))
 	mux.HandleFunc("POST /api/reports/ai-sales", auth.Require(reportAiSales))
+	mux.HandleFunc("POST /api/reports/ai-daily", auth.Require(reportAiDaily))
 	mux.HandleFunc("GET /api/reports/ai-history", auth.Require(reportAiHistory))
 	mux.HandleFunc("GET /api/reports/ai-history/{id}", auth.Require(reportAiOne))
 	mux.HandleFunc("GET /api/reports/ai-schedule", auth.Require(reportAiScheduleGet))

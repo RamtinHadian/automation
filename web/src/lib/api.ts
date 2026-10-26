@@ -452,6 +452,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   supportAiTest: () => request<{ reply: string }>('POST', '/api/support/ai-test', {}),
   ticketAssign: (id: string, handlerId: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/assign`, { handlerId }),
   reportAiSales: (rangeLabel: string, data: unknown) => request<StoredReport>('POST', '/api/reports/ai-sales', { rangeLabel, data }),
+  reportAiDaily: (b: { from: string; to: string; userId?: string }) => request<unknown>('POST', '/api/reports/ai-daily', b),
   reportAiHistory: () => request<{ reports: { id: string; createdAt: string; trigger: string; periodDays: number; headline?: string; mood?: string }[] }>('GET', '/api/reports/ai-history'),
   reportAiOne: (id: string) => request<StoredReport>('GET', `/api/reports/ai-history/${encodeURIComponent(id)}`),
   reportAiScheduleGet: () => request<{ enabled: boolean; everyDays: number; periodDays: number; lastRunAt?: string; lastError?: string }>('GET', '/api/reports/ai-schedule'),
