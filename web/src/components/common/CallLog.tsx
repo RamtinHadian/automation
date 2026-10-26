@@ -9,6 +9,7 @@ import { callerNameOnly, normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { placeCall } from '../../lib/callFrom';
 import { useAppContext } from '../../context/AppContext';
+import { canSub } from '../../lib/permissions';
 import { matchesAll } from '../../lib/searchAll';
 
 const dur = (s: number) => (s > 0 ? toPersianDigits(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`) : '');
@@ -27,7 +28,7 @@ const savedVolume = (): number => {
 };
 
 /** Plays the recording of one call (fetched with the login, then played from memory). */
-export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean }> = ({ id, hasTranscript }) => {
+export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean; autoShow?: boolean }> = ({ id, hasTranscript, autoShow }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [tx, setTx] = useState<{ status: string; text?: string; error?: string } | null>(null);
   const [txOpen, setTxOpen] = useState(false);
@@ -55,6 +56,11 @@ export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean }> 
       setTx({ status: 'error', error: e instanceof Error ? e.message : 'تبدیل به متن انجام نشد.' });
     }
   };
+  useEffect(() => {
+    if (!autoShow || !hasTranscript) return;
+    setTxOpen(true);
+    api.voipTranscript(id).then(setTx).catch(() => undefined);
+  }, [autoShow, hasTranscript, id]);
   const again = async () => {
     setTx({ status: 'running' });
     try { await api.voipTranscribe(id); poll(); } catch (e) { setTx({ status: 'error', error: e instanceof Error ? e.message : 'تبدیل به متن انجام نشد.' }); }
@@ -119,7 +125,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
   empty = 'تماسی ثبت نشده است.',
 }) => {
   const area = useVoipArea();
-  const { customers } = useAppContext();
+  const { customers, currentUser } = useAppContext();
   if (calls.length === 0) return <div className="py-10 text-center text-xs font-bold text-gray-400">{empty}</div>;
   return (
     <div className="divide-y divide-[#EBDBCE]/60">
@@ -149,7 +155,7 @@ export const CallList: React.FC<{ calls: VoipCall[]; showUser?: boolean; onCall?
               <span className="block">{clock(c.startedAt)}</span>
             </span>
             {c.hasRecording && <RecordingButton id={c.id} hasTranscript={c.hasTranscript} />}
-            {c.customerId && (
+            {c.customerId && canSub(currentUser, 'crm.callReport') && (
               <button
                 type="button"
                 onClick={() => window.dispatchEvent(new CustomEvent('open-customer-report', { detail: { id: c.customerId } }))}

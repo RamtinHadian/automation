@@ -1,7 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FileSpreadsheet, Upload, X, Download } from 'lucide-react';
 import { Customer, CustomerStatus } from '../../types';
 import { downloadCsv } from '../../lib/csv';
+import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
 import { importFields, ImportField, guessMapping, importDate, importGender, importKind, isCompleteMobile, normPhone, normText, readTable, sampleCsv, standardize, downloadStandardSheet } from '../../lib/customerImport';
@@ -72,11 +73,38 @@ export const CustomerImportModal: React.FC<{
   const headers = rows ? Array.from({ length: cols }, (_, i) => (hasHeader ? rows[0][i] || '' : '') || `ستون ${toPersianDigits(i + 1)}`) : [];
   const data = rows ? (hasHeader ? rows.slice(1) : rows) : [];
 
+  // which numbers and codes of the file already belong to a customer in Hoormand (the server looks at all customers, also the colleagues' ones)
+  const [serverDup, setServerDup] = useState<{ phones: Record<string, { name: string; visible: boolean }>; codes: Record<string, { name: string; visible: boolean }> }>({ phones: {}, codes: {} });
+  useEffect(() => {
+    if (!rows) return;
+    const ph = new Set<string>();
+    const cd = new Set<string>();
+    for (const r of data) {
+      for (const f of ['mobile', 'mobile2', 'phone', 'phone2'] as ImportField[]) {
+        const p = normPhone(map[f] >= 0 ? r[map[f]] : '');
+        if (p) ph.add(p);
+      }
+      for (const f of ['nationalCode', 'nationalId'] as ImportField[]) {
+        const v = map[f] >= 0 ? normText(r[map[f]]) : '';
+        if (v) cd.add(v);
+      }
+    }
+    if (ph.size + cd.size === 0) return;
+    let live = true;
+    const t = setTimeout(() => {
+      api.customerDupCheck([...ph].slice(0, 20000), [...cd].slice(0, 20000)).then((r) => live && setServerDup(r)).catch(() => undefined);
+    }, 400);
+    return () => { live = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, map, hasHeader]);
+
   // Turn rows into customers; count what is skipped and why.
   const result = useMemo(() => {
     const known = new Set(existing.flatMap((c) => c.phones.map(normPhone)).filter(Boolean));
     const knownIds = new Set(existing.flatMap((c) => [c.nationalCode, c.nationalId]).map((x) => normText(x)).filter(Boolean));
     const seen = new Set<string>();
+    const seenAt = new Map<string, number>(); // number or code → the row of the file that had it first
+    const dupList: { row: number; name: string; phones: string[]; matched: string }[] = [];
     const ok: Customer[] = [];
     let noName = 0;
     let dup = 0;
@@ -116,13 +144,19 @@ export const CustomerImportModal: React.FC<{
         continue;
       }
       const ids = [get(r, 'nationalCode'), get(r, 'nationalId')].filter(Boolean);
-      if (skipDup && ((phones.length && phones.some((p) => known.has(p) || seen.has(p))) || ids.some((x) => knownIds.has(x) || seen.has(x)))) {
+      const srvHit = phones.map((p) => serverDup.phones[p]).find(Boolean) || ids.map((x) => serverDup.codes[x]).find(Boolean);
+      if (skipDup && ((phones.length && phones.some((p) => known.has(p) || seen.has(p))) || ids.some((x) => knownIds.has(x) || seen.has(x)) || srvHit)) {
         dup++;
-        issues.push({ row: rowNo, what: name, reason: 'تکراری: این شماره یا کد ملی از قبل در سامانه یا در همین فایل هست' });
+        // who it matches: a customer already in the system (named when this person may see them), or an earlier row of the same file
+        const mine = existing.find((c) => c.phones.some((p) => phones.includes(normPhone(p))) || [c.nationalCode, c.nationalId].some((x) => x && ids.includes(normText(x))));
+        const earlier = [...phones, ...ids].map((k) => seenAt.get(k)).find((x) => x !== undefined);
+        const matched = mine ? `${mine.name} (در هورمند)` : srvHit ? (srvHit.visible && srvHit.name ? `${srvHit.name} (در هورمند)` : 'مشتری همکار (در هورمند)') : earlier !== undefined ? `ردیف ${toPersianDigits(earlier)} همین فایل` : '';
+        dupList.push({ row: rowNo, name, phones, matched });
+        issues.push({ row: rowNo, what: `${name} · ${phones.map((p) => toPersianDigits(p)).join('، ')}`, reason: `تکراری و ارسال نشد؛ مشتری موجود دست‌نخورده ماند${matched ? ` (${matched})` : ''}` });
         continue;
       }
-      phones.forEach((p) => seen.add(p));
-      ids.forEach((x) => seen.add(x));
+      phones.forEach((p) => { seen.add(p); seenAt.set(p, rowNo); });
+      ids.forEach((x) => { seen.add(x); seenAt.set(x, rowNo); });
       const now = new Date().toISOString();
       const kind = importKind(get(r, 'kind')) || (get(r, 'nationalId') || get(r, 'economicCode') ? 'COMPANY' : undefined);
       const repMobile = normPhone(map.repMobile >= 0 ? r[map.repMobile] : '');
@@ -168,8 +202,8 @@ export const CustomerImportModal: React.FC<{
         updatedAt: now,
       });
     }
-    return { ok, noName, dup, noMobile, issues };
-  }, [data, map, existing, status, skipDup, ownerId, ownerName, fields]);
+    return { ok, noName, dup, noMobile, issues, dupList };
+  }, [data, map, existing, status, skipDup, ownerId, ownerName, fields, serverDup]);
 
   const download = () => {
     const a = document.createElement('a');
@@ -352,6 +386,26 @@ export const CustomerImportModal: React.FC<{
                 {result.noName > 0 && <span className="text-rose-600"> · {toPersianDigits(result.noName)} ردیف بدون نام ردشد</span>}
                 {result.noMobile > 0 && <span className="text-rose-600"> · {toPersianDigits(result.noMobile)} ردیف بدون موبایل کامل ردشد (موبایل برای ثبت هر مشتری لازم است)</span>}
               </div>
+              {result.dupList.length > 0 && (
+                <details className="rounded-2xl border border-amber-300 bg-amber-50/60 px-3 py-2" data-import-dups open>
+                  <summary className="cursor-pointer text-[11px] font-black text-amber-900">مشتریان تکراری؛ به هورمند فرستاده نمی‌شوند ({toPersianDigits(result.dupList.length)})</summary>
+                  <p className="mt-1 text-[10.5px] font-bold text-amber-900/80 leading-5">این افراد از قبل در هورمند (یا در همین فایل) هستند. هیچ‌چیز از آن‌ها وارد، عوض یا پاک نمی‌شود؛ تماس‌ها، یادداشت‌ها و فرصت‌های مشتریِ موجود همان‌طور که هست می‌ماند. فهرستشان فقط برای گزارش اینجاست.</p>
+                  <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-amber-100 text-[11px]">
+                    {result.dupList.slice(0, 300).map((d, k) => (
+                      <div key={k} className="py-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span className="shrink-0 font-black text-amber-800">ردیف {toPersianDigits(d.row)}</span>
+                        <span className="font-black text-[#3A241F]">{d.name}</span>
+                        <span dir="ltr" className="font-bold text-[#503730]">{d.phones.map((p) => toPersianDigits(p)).join(' ، ')}</span>
+                        {d.matched && <span className="text-[#6b5048]">← {d.matched}</span>}
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => downloadCsv('مشتریان-تکراری.csv', [['ردیف', 'نام', 'شماره‌ها', 'همان مشتری در هورمند'], ...result.dupList.map((d) => [d.row, d.name, d.phones.join(' - '), d.matched])])} className="mt-2 flex items-center gap-1 text-[11px] font-black text-amber-900 cursor-pointer" data-import-dups-download>
+                    <Download className="w-3.5 h-3.5" />
+                    دانلود فهرست تکراری‌ها (نام و شماره)
+                  </button>
+                </details>
+              )}
               {result.issues.length > 0 && (
                 <details className="rounded-2xl border border-rose-200 bg-rose-50/50 px-3 py-2" data-import-issues open>
                   <summary className="cursor-pointer text-[11px] font-black text-rose-800">ردیف‌های ردشده و دلیل هر کدام ({toPersianDigits(result.issues.length)})</summary>

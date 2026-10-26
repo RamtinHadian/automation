@@ -3,10 +3,11 @@ import { createPortal } from 'react-dom';
 import { BarChart3, MessageCircle, Phone, AlertTriangle, ClipboardList, FileText, Send, Stamp, UserPlus, VolumeX, X } from 'lucide-react';
 import { formatMoney, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
+import { formatDateTime } from '../../lib/taskDates';
 import { normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { useAppContext } from '../../context/AppContext';
-import { canSeeSalesTotals } from '../../lib/permissions';
+import { canSeeSalesTotals, canSub } from '../../lib/permissions';
 import { isExtensionNumber, savedCallTitle, SavedContactLine, UnknownNumberActions, useSavedContact } from './UnknownNumber';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
@@ -122,9 +123,25 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
             {canSeeSalesTotals(currentUser) ? (summary.wonCount > 0 ? `تا حالا ${formatMoney(summary.bought)} ${unitName()} خرید (${toPersianDigits(summary.wonCount)} فروش)` : 'هنوز خریدی ثبت نشده') : 'مشتری شناخته‌شده'}
             {summary.quotes > 0 ? ` · ${toPersianDigits(summary.quotes)} پیش‌فاکتور` : ''}
           </span>
+          {canSub(currentUser, 'crm.callReport') && (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-customer-report', { detail: { id: cust.id } }))}
+              className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-black cursor-pointer"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              گزارش
+            </button>
+          )}
+        </div>
+      )}
+      {/* a known customer who is not in this person's own list (a colleague's customer): the report button is still there */}
+      {isCall && !cust && n.ref?.type === 'customer' && canSub(currentUser, 'crm.callReport') && (
+        <div className="px-3.5 py-2 bg-emerald-50 border-t border-emerald-100 flex items-center justify-between gap-2 text-[11px] font-bold text-emerald-900" data-call-report-remote>
+          <span className="min-w-0">مشتری شناخته‌شده</span>
           <button
             type="button"
-            onClick={() => window.dispatchEvent(new CustomEvent('open-customer-report', { detail: { id: cust.id } }))}
+            onClick={() => window.dispatchEvent(new CustomEvent('open-customer-report', { detail: { id: n.ref!.id } }))}
             className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-black cursor-pointer"
           >
             <BarChart3 className="w-3.5 h-3.5" />
@@ -139,12 +156,12 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
           {history.interest && <div className="text-[11px] font-bold text-[#3A241F]">دنبال: {history.interest}</div>}
           {history.quotes.map((a) => (
             <div key={a.id} className="flex items-center justify-between gap-2 text-[11px] font-bold text-[#3A241F]">
-              <span className="truncate">قیمت «{a.itemName}»{a.spec ? ` (${a.spec})` : ''}</span>
+              <span className="truncate"><span className="text-[10px] font-black text-violet-700">{formatDateTime(a.createdAt)}</span> · قیمت «{a.itemName}»{a.spec ? ` (${a.spec})` : ''}</span>
               <span className="shrink-0 text-amber-800 font-black">{formatMoney(a.price || 0)} {unitName()}</span>
             </div>
           ))}
           {history.talks.map((a) => (
-            <div key={a.id} className="text-[11px] text-[#5A4640] leading-5 line-clamp-2">• {a.text}</div>
+            <div key={a.id} className="text-[11px] text-[#5A4640] leading-5 line-clamp-3">• <span className="text-[10px] font-black text-violet-700">{formatDateTime(a.createdAt)}</span> — {a.text}</div>
           ))}
           
         </button>

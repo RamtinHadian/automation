@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BadgeDollarSign, Briefcase, MessageSquare, PhoneCall, Tag, X } from 'lucide-react';
+import { BadgeDollarSign, Briefcase, Clock3, Handshake, MessageSquare, NotebookPen, PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Tag, Users, X } from 'lucide-react';
 import { CrmActivity, Customer, Deal } from '../../types';
 import { VoipCall } from '../../lib/api';
 import { formatMoney, unitName } from '../../lib/money';
 import { useAppContext } from '../../context/AppContext';
 import { canSeeSalesTotals } from '../../lib/permissions';
 import { toPersianDigits } from '../../lib/jalali';
+import { RecordingButton } from '../common/CallLog';
+import { CustomerAiAnalysis } from './CustomerAiAnalysis';
 import { formatTaskDate } from '../../lib/taskDates';
 
 const when = (iso?: string) => {
@@ -35,6 +37,8 @@ export function summarize(customer: Customer, deals: Deal[], activities: CrmActi
     quotes,
     others,
     callCount: calls.length + activities.filter((a) => a.type === 'CALL').length,
+    all: activities.filter((a) => a.type !== 'MISSING'),
+    deals: mine,
     last: times[times.length - 1],
   };
 }
@@ -81,6 +85,33 @@ export const CustomerSummaryStrip: React.FC<{ customer: Customer; deals: Deal[];
 
 type Summary = ReturnType<typeof summarize>;
 
+interface Ev { id: string; at: string; title: string; by?: string; text?: string; Icon: React.ComponentType<{ className?: string }>; call?: VoipCall }
+const ACT_LABEL: Record<string, string> = { NOTE: 'یادداشت', CALL: 'ثبت تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', QUOTE: 'قیمت داده شد' };
+
+/** The player, the «متن مکالمه» button and (when it is already written) the text of one recorded call; a click here does not close the page. */
+const CallExtras: React.FC<{ c: VoipCall }> = ({ c }) => (
+  <div onClick={(e) => e.stopPropagation()} className="cursor-default flex flex-wrap items-center gap-1 rounded-xl bg-white text-[#3A241F] px-2 py-1 w-fit max-w-full" data-call-extras>
+    <span className="text-[10px] font-black text-rose-700">مکالمهٔ ضبط‌شده</span>
+    <RecordingButton id={c.id} hasTranscript={c.hasTranscript} autoShow />
+  </div>
+);
+
+const CallRow: React.FC<{ c: VoipCall }> = ({ c }) => {
+  const missed = c.direction === 'in' && c.status !== 'answered';
+  return (
+    <div className="px-4 py-2.5 text-xs space-y-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-1.5 font-bold min-w-0">
+          <PhoneCall className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{c.direction === 'out' ? 'خروجی' : c.direction === 'internal' ? 'داخلی' : 'ورودی'}{missed ? ' (بی‌پاسخ)' : ''} · {toPersianDigits(c.number || '')}{c.userName ? ` · ${c.userName}` : ''}{c.duration > 0 ? ` · ${toPersianDigits(Math.floor(c.duration / 60))}:${toPersianDigits(String(c.duration % 60).padStart(2, '0'))}` : ''}</span>
+        </span>
+        <span className="text-[10px] opacity-75 shrink-0">{when(c.startedAt)}</span>
+      </div>
+      {c.hasRecording ? <CallExtras c={c} /> : <div className="text-[10px] opacity-60">ضبط‌شده نیست</div>}
+    </div>
+  );
+};
+
 const Block: React.FC<{ title: string; count: number; children: React.ReactNode }> = ({ title, count, children }) => (
   <section className="rounded-2xl bg-white/10 border border-white/20 overflow-hidden">
     <div className="px-4 py-2.5 bg-white/10 text-xs font-black flex items-center justify-between">
@@ -94,6 +125,25 @@ const Block: React.FC<{ title: string; count: number; children: React.ReactNode 
 /** Everything about the customer over the whole screen; a click anywhere closes it. */
 const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: VoipCall[]; onClose: () => void }> = ({ customer, s, calls, onClose }) => {
   const { currentUser } = useAppContext();
+  const seesMoney = canSeeSalesTotals(currentUser);
+  // everything that happened with this customer in one list, newest first
+  const timeline = useMemo(() => {
+    const ev: Ev[] = [];
+    for (const a of s.all) {
+      const text = a.type === 'QUOTE' ? `قیمت «${a.itemName || ''}»${a.spec ? ` (${a.spec})` : ''}: ${formatMoney(a.price || 0)} ${unitName()}${a.qty ? ` · تعداد ${toPersianDigits(a.qty)}` : ''}${a.text ? ` — ${a.text}` : ''}` : a.text;
+      ev.push({ id: 'a' + a.id, at: a.createdAt, title: ACT_LABEL[a.type] || 'تعامل', by: a.authorName, text, Icon: a.type === 'CALL' ? PhoneCall : a.type === 'MEETING' ? Users : a.type === 'QUOTE' ? Tag : a.type === 'FOLLOWUP' ? Clock3 : NotebookPen });
+    }
+    for (const c of calls) {
+      const missed = c.direction === 'in' && c.status !== 'answered';
+      ev.push({ id: 'c' + c.id, at: c.startedAt, title: `تماس ${c.direction === 'out' ? 'خروجی' : c.direction === 'internal' ? 'داخلی' : 'ورودی'}${missed ? ' (بی‌پاسخ)' : ''}`, by: c.userName, text: `${toPersianDigits(c.number || '')}${c.duration > 0 ? ` · مدت ${toPersianDigits(Math.floor(c.duration / 60))}:${toPersianDigits(String(c.duration % 60).padStart(2, '0'))}` : ''}`, Icon: missed ? PhoneMissed : c.direction === 'out' ? PhoneOutgoing : PhoneIncoming, call: c.hasRecording ? c : undefined });
+    }
+    for (const d of s.deals) {
+      const amount = seesMoney && d.amount ? ` · ${formatMoney(d.amount)} ${unitName()}` : '';
+      ev.push({ id: 'd' + d.id, at: d.createdAt, title: 'فرصت فروش ساخته شد', by: d.ownerName, text: `«${d.title}»${amount}`, Icon: Handshake });
+      if (d.stage === 'WON' || d.stage === 'LOST') ev.push({ id: 'dc' + d.id, at: d.closedAt || d.updatedAt, title: d.stage === 'WON' ? 'فروش موفق' : 'فرصت از دست رفت', by: d.ownerName, text: `«${d.title}»${amount}${d.stage === 'LOST' && d.lostReason ? ` · دلیل: ${d.lostReason}` : ''}`, Icon: Handshake });
+    }
+    return ev.filter((e) => e.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 120);
+  }, [s, calls, seesMoney]);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', esc);
@@ -128,6 +178,7 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
             </div>
           ))}
         </div>
+        <CustomerAiAnalysis customerId={customer.id} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Block title="فروش‌ها و خریدها" count={s.won.length}>
             {s.won.map((d) => (
@@ -159,14 +210,23 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
               </div>
             ))}
           </Block>
-          <Block title="تماس‌های تلفنی" count={calls.length}>
-            {calls.slice(0, 40).map((c) => (
-              <div key={c.id} className="px-4 py-2.5 text-xs flex items-center justify-between gap-3">
-                <span className="flex items-center gap-1.5 font-bold"><PhoneCall className="w-3.5 h-3.5" />{c.direction === 'out' ? 'خروجی' : 'ورودی'} · {toPersianDigits(c.number || '')}</span>
-                <span className="text-[10px] opacity-75">{when(c.startedAt)}</span>
-              </div>
-            ))}
+          <Block title="تماس‌های تلفنی (با ضبط و متن مکالمه)" count={calls.length}>
+            {calls.slice(0, 40).map((c) => <CallRow key={c.id} c={c} />)}
           </Block>
+          <div className="lg:col-span-2">
+            <Block title="همهٔ تعامل‌ها به ترتیب زمان (تماس، یادداشت، پیگیری، جلسه، قیمت، فرصت)" count={timeline.length}>
+              {timeline.map((e) => (
+                <div key={e.id} className="px-4 py-2.5 text-xs space-y-1" data-timeline-row>
+                  <div className="flex items-center justify-between gap-3 text-[10px]">
+                    <span className="flex items-center gap-1.5 font-black text-[11px]"><e.Icon className="w-3.5 h-3.5 shrink-0" />{e.title}{e.by ? <span className="font-bold opacity-80"> · {e.by}</span> : null}</span>
+                    <span className="opacity-75 shrink-0">{when(e.at)}</span>
+                  </div>
+                  {e.text && <div className="leading-6 whitespace-pre-wrap opacity-95">{e.text}</div>}
+                  {e.call && <CallExtras c={e.call} />}
+                </div>
+              ))}
+            </Block>
+          </div>
         </div>
         <div className="text-center text-[11px] font-bold opacity-70 pb-4">با یک کلیک روی هر جای این صفحه بسته می‌شود</div>
       </div>

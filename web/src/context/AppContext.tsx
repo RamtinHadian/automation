@@ -1731,6 +1731,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 };
 
+/** Shows its children with a few more customers, opportunities and activities than the person's own lists hold (the report opened from a call). */
+export const AppDataOverride: React.FC<{ extra: { customers: AppContextType['customers']; deals: AppContextType['deals']; activities: AppContextType['activities'] }; children: React.ReactNode }> = ({ extra, children }) => {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('AppDataOverride must be used inside AppProvider');
+  const value = { ...ctx, customers: [...ctx.customers, ...extra.customers], deals: [...ctx.deals, ...extra.deals], activities: [...ctx.activities, ...extra.activities] };
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
+
 export const useAppContext = (): AppContextType => {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useAppContext must be used inside AppProvider');

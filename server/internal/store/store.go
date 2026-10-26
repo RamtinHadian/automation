@@ -368,6 +368,12 @@ var schema = []string{
 	  report JSONB NOT NULL
 	)`,
 	`CREATE INDEX IF NOT EXISTS ai_sales_reports_at_idx ON ai_sales_reports (created_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS ai_customer_analyses (
+	  customer_id TEXT PRIMARY KEY,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  created_by TEXT NOT NULL DEFAULT '',
+	  result JSONB NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS voip_transcripts (
 	  call_id TEXT PRIMARY KEY,
 	  status TEXT NOT NULL,

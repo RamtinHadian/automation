@@ -86,10 +86,10 @@ import {
   Phone,
   ChevronUp,
 } from 'lucide-react';
-import { FileCategory, FileTransfer, LetterReferral } from '../types';
+import { CrmActivity, Customer, Deal, FileCategory, FileTransfer, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../lib/jalali';
-import { useAppContext } from '../context/AppContext';
+import { AppDataOverride, useAppContext } from '../context/AppContext';
 import { api } from '../lib/api';
 import { ThemeSelector } from '../components/common/ThemeSelector';
 import { CustomerReportModal } from '../components/crm/CustomerReportModal';
@@ -152,6 +152,16 @@ export default function UserPanel() {
   // «گزارش مشتری» can be opened from the call history and from the incoming-call pop-up
   const { customers, deals } = useAppContext();
   const [reportCustomerId, setReportCustomerId] = useState<string | null>(null);
+  // a customer that is not in the person's own list: the report is fetched from the server (the right «crm.callReport»)
+  const [reportRemote, setReportRemote] = useState<{ customer: Customer; deals: Deal[]; activities: CrmActivity[] } | null>(null);
+  useEffect(() => {
+    setReportRemote(null);
+    if (!reportCustomerId || customers.some((c) => c.id === reportCustomerId)) return;
+    let live = true;
+    api.customerCallReport(reportCustomerId).then((r) => { if (live) setReportRemote(r); }).catch((e) => { if (live) { showToast(e instanceof Error ? e.message : 'گزارش مشتری باز نشد.'); setReportCustomerId(null); } });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportCustomerId]);
   useEffect(() => {
     const on = (e: Event) => setReportCustomerId((e as CustomEvent<{ id: string }>).detail?.id || null);
     window.addEventListener('open-customer-report', on);
@@ -2041,6 +2051,11 @@ export default function UserPanel() {
 
       {reportCustomerId && customers.find((c) => c.id === reportCustomerId) && (
         <CustomerReportModal customer={customers.find((c) => c.id === reportCustomerId)!} deals={deals.filter((d) => d.customerId === reportCustomerId)} onClose={() => setReportCustomerId(null)} />
+      )}
+      {reportCustomerId && reportRemote && !customers.some((c) => c.id === reportCustomerId) && (
+        <AppDataOverride extra={{ customers: [reportRemote.customer], deals: reportRemote.deals, activities: reportRemote.activities }}>
+          <CustomerReportModal customer={reportRemote.customer} deals={reportRemote.deals} onClose={() => setReportCustomerId(null)} />
+        </AppDataOverride>
       )}
 
       {/* Rich Word-Like Letter Editor Modal */}

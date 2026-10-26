@@ -74,6 +74,7 @@ var journalRules = []rule{
 	jr("POST", `/api/minutes/ai`, "MINUTES", "INFO", "نوشتن یا خلاصه‌کردن صورتجلسه با هوش مصنوعی"),
 	jr("POST", `/api/letters/ai`, "LETTER", "INFO", "نوشتن یا تکمیل نامه با هوش مصنوعی"),
 	jr("POST", `/api/reports/ai-daily`, "REPORT_AI", "INFO", "تحلیل گزارش‌های روزانه با هوش مصنوعی"),
+	jr("POST", `/api/customers/[^/]+/ai-analysis`, "CUSTOMER", "INFO", "تحلیل مشتری با هوش مصنوعی"),
 	jr("POST", `/api/reports/ai-schedule`, "REPORT_AI", "INFO", "زمان‌بندی گزارش هوشمند فروش"),
 	jr("PUT", `/api/reports/ai-schedule`, "REPORT_AI", "INFO", "تغییر زمان‌بندی گزارش هوشمند فروش"),
 	jr("POST", `/api/reports/ai-sales`, "REPORT_AI", "INFO", "گزارش هوشمند تحلیل فروش همکاران"),

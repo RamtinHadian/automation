@@ -8,6 +8,7 @@ import { formatDateTime, formatTaskDate } from '../../lib/taskDates';
 import { CONTACT_TYPES, contactTypeOf } from '../../lib/contactTypes';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
 import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
+import { CustomerAiAnalysis } from './CustomerAiAnalysis';
 
 const ACT: Record<ActivityType, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد' };
 const STAGE: Record<string, string> = { NEW: 'جدید', CONTACTED: 'تماس گرفته شد', PROPOSAL: 'پیشنهاد ارسال شد', NEGOTIATION: 'مذاکره', WON: 'فروش موفق', LOST: 'از دست رفت' };
@@ -96,6 +97,8 @@ export const CustomerFullSummary: React.FC<{ customer: Customer; deals: Deal[]; 
         )}
         {c.notes && <p className="text-[11px] text-[#503730] leading-6 whitespace-pre-wrap bg-white/70 rounded-xl border border-[#EBDBCE] px-3 py-2">{c.notes}</p>}
       </section>
+
+      <CustomerAiAnalysis customerId={c.id} />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5" data-summary-tiles>
         <Tile icon={<BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />} label="خرید (فروش موفق)" value={toPersianDigits(s.won.length)} sub={seesTotals && s.won.length ? `${formatMoney(s.wonSum)} ${unitName()}` : s.lastWon[0] ? `آخرین: ${ago(s.lastWon[0].closedAt || s.lastWon[0].updatedAt)}` : 'هنوز خریدی ثبت نشده'} tone="text-emerald-700" />
