@@ -97,7 +97,84 @@ const splitName = (full) => {
   return parts.length > 1 ? { Name: parts.slice(0, -1).join(' '), LastName: parts[parts.length - 1] } : { Name: parts[0] || '', LastName: '' };
 };
 
-export function customerBody(c) {
+
+// ---------- the address: the same in Hoormand and in Sepidar ----------
+// Sepidar keeps an address as {Title, IsMain, CityRef, Address, ZipCode, ...}; CityRef is Sepidar's own number of the city
+// (GET /api/AdministrativeDivisions: provinces with no parent, cities under them). The city of the Hoormand customer is looked up there by name.
+
+const faNorm = (s) =>
+  toLatin(String(s ?? ''))
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[\u200c\s]+/g, ' ')
+    .replace(/^(استان|شهرستان|شهر)\s+/, '')
+    .trim();
+
+/** Sepidar's list of provinces and cities (read once and kept for the run); an empty list when this Sepidar does not answer. */
+export async function loadDivisions(sp) {
+  if (sp._divisions) return sp._divisions;
+  let list = [];
+  for (const p of ['/api/AdministrativeDivisions', '/api/AdministrativeDivisions/Paginated/?limit=5000&offset=0']) {
+    try {
+      const r = await sp.get(p);
+      const rows = Array.isArray(r) ? r : Array.isArray(r?.Result) ? r.Result : [];
+      if (rows.length) {
+        list = rows;
+        break;
+      }
+    } catch {
+      /* the next address */
+    }
+  }
+  sp._divisions = list;
+  return list;
+}
+
+/** Sepidar's number of the city: a city of that name under the customer's province (cities, not provinces, are preferred); null when it is not found. */
+export function cityRefFor(divs, province, city) {
+  const name = faNorm(city);
+  if (!name || !Array.isArray(divs) || divs.length === 0) return null;
+  const byId = new Map(divs.map((d) => [d.DivisionID, d]));
+  const up = (d) => {
+    const chain = [];
+    for (let x = d, n = 0; x && n < 6; x = byId.get(x.ParentDivisionRef), n++) chain.push(faNorm(x.Title));
+    return chain;
+  };
+  const hits = divs.filter((d) => faNorm(d.Title) === name);
+  if (!hits.length) return null;
+  const prov = faNorm(province);
+  const cities = hits.filter((d) => d.ParentDivisionRef != null);
+  const pool = cities.length ? cities : hits;
+  const inProvince = prov ? pool.find((d) => up(d).slice(1).includes(prov)) : null;
+  return (inProvince || pool[0]).DivisionID;
+}
+
+/** The street part of the address: Sepidar has the province and the city in CityRef, so they are not written again at the start of the text. */
+export function addressText(c) {
+  const full = String(c.address || '').trim();
+  let a = full;
+  for (const part of [c.province, c.city]) {
+    if (!part) continue;
+    const esc = String(part).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    a = a.replace(new RegExp('^\\s*(?:استان\\s+|شهر\\s+)?' + esc + '\\s*[،,\\-–]*\\s*'), '');
+  }
+  return a.trim() || full;
+}
+
+/** The main address for Sepidar, or { note } saying why it cannot be sent. */
+export function addressFor(c, divs) {
+  const text = addressText(c);
+  const zip = toLatin(c.postalCode || '').replace(/\D/g, '');
+  if (!text && !zip) return null;
+  const cityRef = cityRefFor(divs, c.province, c.city);
+  if (cityRef == null) {
+    const why = !c.city ? 'شهر مشتری در هورمند نوشته نشده' : !divs || divs.length === 0 ? 'فهرست شهرهای سپیدار خوانده نشد' : `شهر «${c.city}» در فهرست مناطق سپیدار پیدا نشد`;
+    return { note: `نشانی فرستاده نشد (${why}).` };
+  }
+  return { address: { Title: 'نشانی اصلی', IsMain: true, CityRef: cityRef, Address: text, ZipCode: zip, Latitude: 0, Longitude: 0, GUID: guidFrom('address:' + c.id) } };
+}
+
+export function customerBody(c, divs = []) {
   const company = c.kind === 'COMPANY';
   const person = company ? { Name: c.company || c.name, LastName: '' } : c.firstName || c.lastName ? { Name: c.firstName || '', LastName: c.lastName || '' } : splitName(c.name);
   const phone = (c.phones || []).map(toLatin).find((p) => /^(\+98|0098|98|0)?9\d{9}$/.test(p.replace(/[\s-]/g, ''))) || toLatin((c.phones || [])[0] || '');
@@ -106,8 +183,10 @@ export function customerBody(c) {
     PhoneNumber: phone.replace(/[\s-]/g, ''),
     CustomerType: company ? 2 : 1,
     ...person,
-    Addresses: [], // an address needs Sepidar's own city numbers; the customer is registered without one
+    Addresses: [], // the main address (below) when its city is found in Sepidar's own list
   };
+  const a = addressFor(c, divs);
+  if (a?.address) body.Addresses.push(a.address);
   const nid = toLatin(company ? c.nationalId : c.nationalCode);
   if (nid) body.NationalID = nid;
   if (company && c.economicCode) body.EconomicCode = toLatin(c.economicCode);
@@ -470,8 +549,11 @@ async function cmdSync(cfg) {
   let resetCount = 0;
   const refOf = new Map(); // hoormand customer id -> Sepidar CustomerID
 
+  const divs = await loadDivisions(sp);
+  let addrNotes = 0;
   for (const c of hoormandCustomers) {
-    const body = customerBody(c);
+    const body = customerBody(c, divs);
+    if (addressFor(c, divs)?.note && !state.customers[c.id] && ++addrNotes <= 5) log(`  ${c.name || c.company}: ${addressFor(c, divs).note}`);
     let existing = byGuid.get(body.GUID.toLowerCase()) ?? state.customers[c.id] ?? links.get(c.id);
     if (existing && sepidarCustomers.length > 0 && !alive.has(existing)) {
       resetCount++;
@@ -595,7 +677,7 @@ async function sepidarCustomerRef(cfg, sp, state, c) {
     if (alive(state.customers[c.id])) return state.customers[c.id];
     delete state.customers[c.id]; // the customer was deleted in Sepidar since: it is looked for again and, if it is really gone, made again
   }
-  const body = customerBody(c);
+  const body = customerBody(c, await loadDivisions(sp));
   const found = list.find((x) => String(x.GUID || '').toLowerCase() === body.GUID.toLowerCase());
   if (found) {
     state.customers[c.id] = found.CustomerID;
@@ -622,7 +704,9 @@ async function sepidarCustomerRef(cfg, sp, state, c) {
 export const jobHandlers = {
   async 'customer.send'(cfg, sp, state, job) {
     const c = await hoormandGetOne(cfg, '/customers/' + encodeURIComponent(job.data.customerId));
-    const body = customerBody(c);
+    const divs = await loadDivisions(sp);
+    const body = customerBody(c, divs);
+    const addr = addressFor(c, divs);
     const list = await sp.get('/api/Customers');
     const found = list.find((x) => String(x.GUID || '').toLowerCase() === body.GUID.toLowerCase()) || (state.customers?.[c.id] ? list.find((x) => x.CustomerID === state.customers[c.id]) : null);
     state.customers ||= {};
@@ -630,7 +714,7 @@ export const jobHandlers = {
       if (!body.Name) throw new Error('مشتری نام ندارد.');
       const r = await createCustomer(sp, body);
       state.customers[c.id] = r.CustomerID;
-      return { sepidarId: r.CustomerID, message: 'مشتری در سپیدار ثبت شد.' };
+      return { sepidarId: r.CustomerID, message: 'مشتری در سپیدار ثبت شد.' + (addr?.note ? ' ' + addr.note : addr?.address ? ' نشانی هم ثبت شد.' : '') };
     }
     state.customers[c.id] = found.CustomerID;
     const cur = await sp.get('/api/Customers/' + found.CustomerID);
@@ -639,8 +723,26 @@ export const jobHandlers = {
     if (body.NationalID) upd.NationalID = body.NationalID;
     if (body.EconomicCode) upd.EconomicCode = body.EconomicCode;
     if (body.BirthDate) upd.BirthDate = body.BirthDate;
+    // the address: the main one of Sepidar is made the same as Hoormand's (the others stay as they are); without a main one the address is added
+    let addrMsg = addr?.note ? ' ' + addr.note : '';
+    if (addr?.address) {
+      const have = Array.isArray(cur.Addresses) ? cur.Addresses : [];
+      const clean = (a) => ({ CustomerAddressID: a.CustomerAddressID, Title: a.Title, IsMain: !!a.IsMain, CityRef: a.CityRef, Address: a.Address, ZipCode: a.ZipCode, Latitude: a.Latitude ?? 0, Longitude: a.Longitude ?? 0, GUID: a.GUID });
+      const main = have.find((a) => a.IsMain) || null;
+      upd.Addresses = main
+        ? have.map((a) => (a === main ? { ...clean(a), CityRef: addr.address.CityRef, Address: addr.address.Address, ZipCode: addr.address.ZipCode || a.ZipCode || '' } : clean(a)))
+        : [...have.map(clean), addr.address];
+      try {
+        await sp.call('PUT', '/api/Customers/' + found.CustomerID, upd);
+        return { sepidarId: found.CustomerID, message: 'اطلاعات و نشانی مشتری در سپیدار بروزرسانی شد.' };
+      } catch (e) {
+        // Sepidar refused the address (for example 400): the rest is still updated and the reason is told
+        upd.Addresses = [];
+        addrMsg = ` نشانی در سپیدار بروز نشد: ${e.message}`;
+      }
+    }
     await sp.call('PUT', '/api/Customers/' + found.CustomerID, upd);
-    return { sepidarId: found.CustomerID, message: 'اطلاعات مشتری در سپیدار بروزرسانی شد.' };
+    return { sepidarId: found.CustomerID, message: 'اطلاعات مشتری در سپیدار بروزرسانی شد.' + addrMsg };
   },
 
   async 'quotation.send'(cfg, sp, state, job) {

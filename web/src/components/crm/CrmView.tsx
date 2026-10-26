@@ -1528,12 +1528,21 @@ const CustomerDetail: React.FC<{
             <span className="truncate" dir="ltr">{c.email}</span>
           </div>
         )}
-        {c.address && (
-          <div className="flex items-center gap-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2 text-xs font-bold text-[#3A241F] min-w-0">
-            <MapPin className="w-3.5 h-3.5 shrink-0 text-[#8C6F66]" />
-            <span className="truncate">{c.address}</span>
-          </div>
-        )}
+        {(c.address || c.province || c.city || c.postalCode) && (() => {
+          // the whole address: province, city, then the street address (a part that the address text already holds is not written twice), all of it on screen
+          const addr = (c.address || '').trim();
+          const parts = [c.province, c.city].filter((x) => x && !addr.includes(x as string)) as string[];
+          const full = [...parts, addr].filter(Boolean).join('، ');
+          return (
+            <div className="sm:col-span-2 flex items-start gap-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2 text-xs font-bold text-[#3A241F] min-w-0" data-customer-address>
+              <MapPin className="w-3.5 h-3.5 shrink-0 text-[#8C6F66] mt-1" />
+              <span className="min-w-0 leading-6 whitespace-pre-wrap break-words">
+                {toPersianDigits(full)}
+                {c.postalCode ? <span className="block text-[11px] text-[#8C6F66]">کد پستی: {toPersianDigits(c.postalCode)}</span> : null}
+              </span>
+            </div>
+          );
+        })()}
       </div>
       {(() => {
         const rows: [string, string | undefined][] =

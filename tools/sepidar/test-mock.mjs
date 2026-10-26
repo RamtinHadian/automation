@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aesDecrypt, aesEncrypt, md5, guidFrom, Sepidar } from './sepidar-client.mjs';
-import { customerBody, quotationBody, stockPayload, matchSepidarCustomer, createCustomer } from './sepidar-sync.mjs';
+import { customerBody, quotationBody, stockPayload, matchSepidarCustomer, createCustomer, cityRefFor, addressFor } from './sepidar-sync.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 let failed = 0;
@@ -101,6 +101,7 @@ const sepidarServer = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url === '/api/Invoices') return send(res, 200, [{ InvoiceID: 700, Number: 31, CustomerRef: 500, NetPrice: 1000 }]);
   if (req.method === 'GET' && url === '/api/banks') return send(res, 200, [{ BankID: 1, Title: 'ملت' }]);
   if (req.method === 'GET' && url === '/api/BankAccounts') return send(res, 200, [{ BankAccountID: 9, DlCode: '1', DlTitle: 'حساب ملت', CurrencyRef: 1 }]);
+  if (req.method === 'GET' && url === '/api/AdministrativeDivisions') return send(res, 200, [{ DivisionID: 1, Title: 'اصفهان', Type: 1, ParentDivisionRef: null }, { DivisionID: 2, Title: 'شیراز', Type: 2, ParentDivisionRef: 9 }, { DivisionID: 9, Title: 'فارس', Type: 1, ParentDivisionRef: null }, { DivisionID: 5, Title: 'اصفهان', Type: 2, ParentDivisionRef: 1 }, { DivisionID: 6, Title: 'شیراز', Type: 2, ParentDivisionRef: 1 }]);
   if (req.method === 'GET' && url === '/api/Customers') return send(res, 200, sp.customers.map((c) => ({ ...c, Remainder: 1234, Title: c.Name })));
   if (req.method === 'GET' && url === '/api/PriceNoteItems') return send(res, 200, [{ SaleTypeRef: 1, ItemRef: 7, Fee: 500 }]);
   if (req.method === 'GET' && url === '/api/Currencies') return send(res, 200, [{ CurrencyID: 2, Title: 'دلار', IsMain: false }, { CurrencyID: 1, Title: 'ریال', IsMain: true }]);
@@ -126,7 +127,7 @@ const sepidarServer = http.createServer(async (req, res) => {
 
 // ---------- pretend Hoormand ----------
 const customers = [
-  { id: 'c-1', name: 'علی رضایی', firstName: 'علی', lastName: 'رضایی', phones: ['۰۹۱۲۱۲۳۴۵۶۷'], nationalCode: '0012345678', status: 'ACTIVE' },
+  { id: 'c-1', name: 'علی رضایی', firstName: 'علی', lastName: 'رضایی', phones: ['۰۹۱۲۱۲۳۴۵۶۷'], nationalCode: '0012345678', status: 'ACTIVE', province: 'اصفهان', city: 'اصفهان', address: 'اصفهان، اصفهان، خیابان چهارباغ، پلاک ۱۲', postalCode: '۸۱۸۱۸۱۸۱۸۱' },
   { id: 'c-2', name: 'شرکت نمونه', kind: 'COMPANY', company: 'شرکت نمونه', phones: ['03133920000'], nationalId: '10100000000', economicCode: '411111111111' },
 ];
 const deals = [
@@ -175,6 +176,15 @@ const cb = customerBody(customers[0]);
 ok(cb.Name === 'علی' && cb.LastName === 'رضایی' && cb.PhoneNumber === '09121234567' && cb.CustomerType === 1 && cb.GUID === guidFrom('customer:c-1'), 'customer body: person, Latin digits, stable GUID (amount times the unit multiplier)');
 const cc = customerBody(customers[1]);
 ok(cc.CustomerType === 2 && cc.Name === 'شرکت نمونه' && cc.LastName === '' && cc.NationalID === '10100000000' && cc.EconomicCode === '411111111111', 'customer body: company');
+// the address: Sepidar's own city number is found by name under the province, the street part has no province/city in front, the zip is Latin
+{
+  const divs = [{ DivisionID: 1, Title: 'اصفهان', ParentDivisionRef: null }, { DivisionID: 9, Title: 'فارس', ParentDivisionRef: null }, { DivisionID: 5, Title: 'اصفهان', ParentDivisionRef: 1 }, { DivisionID: 6, Title: 'شیراز', ParentDivisionRef: 1 }, { DivisionID: 2, Title: 'شیراز', ParentDivisionRef: 9 }];
+  const a1 = customerBody(customers[0], divs).Addresses[0];
+  ok(a1 && a1.CityRef === 5 && a1.IsMain === true && a1.ZipCode === '8181818181' && a1.Address === 'خیابان چهارباغ، پلاک ۱۲', 'address: city of the province (not the province itself), province/city cut from the front, Latin zip code');
+  ok(cityRefFor(divs, 'فارس', 'شیراز') === 2 && cityRefFor(divs, 'اصفهان', 'شیراز') === 6, 'address: the same city name under two provinces is told apart by the province');
+  ok(cityRefFor(divs, '', 'ي كاشان') === null && cityRefFor(divs, 'فارس', 'اصفهان') === 5, 'address: unknown city gives nothing; a city of another province is still found when it is the only one of that name');
+  ok(customerBody(customers[0], []).Addresses.length === 0 && addressFor(customers[0], []).note.includes('خوانده نشد'), 'address: no list of cities from Sepidar = no address and the reason is told');
+}
 const map = new Map(items.map((i) => [i.Code, i]));
 const q = quotationBody(deals[0], 500, map, { currencyRef: 1, saleTypeRef: 2, stockRef: null, priceMultiplier: 10, expireDays: 30 });
 // rows: 2 x 10000 = 20000 (discount 10% = 2000, tax 10% of 18000 = 1800); 5000 with fixed 500 + 10% of 4500 = 450 -> 950 (tax 10% of 4050 = 405)
@@ -391,6 +401,7 @@ ok(hoormandResults['sj-6']?.ok === true && sp.receipt.InvoiceID === 700 && sp.re
 hoormandJobs.push({ id: 'sj-7', kind: 'customer.send', data: { customerId: 'c-1' } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-7']?.ok === true && sp.put?.Version === 'v1' && sp.put.NationalID === '0012345678' && Array.isArray(sp.put.Addresses), 'customer.send updates a customer that is already in Sepidar (the whole customer with its Version and Addresses)' + String.fromCharCode(10) + JSON.stringify(hoormandResults['sj-7']) );
+ok(sp.put?.Addresses?.[0]?.CityRef === 5 && sp.put.Addresses[0].IsMain === true && /نشانی/.test(hoormandResults['sj-7']?.message || ''), 'customer.send also puts the address (city number, main) into the Sepidar customer');
 hoormandJobs.push({ id: 'sj-8', kind: 'refresh', data: {} });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-8']?.ok === true && hoormandCaches.invoices?.length === 1 && hoormandCaches.bankAccounts?.[0].BankAccountID === 9 && hoormandCaches.balances?.[0].Remainder === 1234 && hoormandCaches.priceNotes?.[0].code === '1001' && hoormandLinks.some((l) => l.kind === 'customer'), 'refresh sends invoices, bank accounts, balances, price lists and the links');
