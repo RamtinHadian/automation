@@ -20,7 +20,7 @@ import (
 
 const dailyAiPrompt = `تو مشاور ارشد مدیریت عملکرد هستی و برای مدیر یک شرکت ایرانی «گزارش‌های روزانهٔ کار همکاران» یک بازه را تحلیل می‌کنی. فقط بر پایهٔ داده‌ای که در پیام کاربر آمده بنویس؛ هیچ نام، عدد یا واقعیتی از خودت نساز. اگر گزارش یک نفر کم است، همین را صریح بگو و قضاوت قاطع نکن. نقد را دربارهٔ رفتار کاری بگو نه شخصیت. «ساعت‌های ثبت‌شده» ساعتی است که خود همکار نوشته؛ آن را معیار قطعی بهره‌وری نگیر.
 بررسی کن: حجم و توزیع کار (ساعت و تعداد کار)، نظم گزارش‌دادن (روزهای بدون گزارش)، نسبت کارهای انجام‌شده به در جریان و گیرکرده، موانع تکراری، موضوع‌های اصلی کار تیم، بار نابرابر بین افراد، و کارهایی که هر روز «ادامهٔ کارهای در جریان» می‌ماند بدون پیشرفت.
-لحن: محترمانه، روشن و عملی، فارسی روان. هر نکته کوتاه (حداکثر دو جمله) و همراه با عدد واقعی از داده باشد. همهٔ عددها را با ارقام لاتین (0-9) بنویس. جمله‌ها کوتاه باشند تا JSON کامل بماند.
+لحن: محترمانه، روشن و عملی، فارسی روان. هر نکته کوتاه (حداکثر دو جمله) و همراه با عدد واقعی از داده باشد. همهٔ عددها را با ارقام لاتین (0-9) بنویس. همهٔ تاریخ‌ها را فقط شمسی بنویس (مثل «4 آبان 1405»)؛ کنار هر تاریخ در داده کلید jdate (شمسی) هست و هرگز تاریخ میلادی یا قالب 2026-10-09 ننویس. جمله‌ها کوتاه باشند تا JSON کامل بماند.
 خروجی فقط یک JSON معتبر باشد، بدون هیچ متن اضافه، با این ساختار:
 {
  "headline": "یک جملهٔ صادقانه دربارهٔ وضع کار تیم در این بازه",
@@ -169,10 +169,10 @@ func reportAiDaily(w http.ResponseWriter, r *http.Request) {
 		if b := strings.TrimSpace(jsonx.Str(rp, "blockers")); b != "" {
 			p.blk++
 			if len(blockers) < 30 {
-				blockers = append(blockers, jsonx.M{"name": p.name, "date": date, "text": cutRunes(b, 200)})
+				blockers = append(blockers, jsonx.M{"name": p.name, "date": date, "jdate": jalaliText(date), "text": cutRunes(b, 200)})
 			}
 		}
-		feed = append(feed, jsonx.M{"date": date, "name": p.name, "summary": cutRunes(jsonx.Str(rp, "summary"), 260), "items": items,
+		feed = append(feed, jsonx.M{"date": date, "jdate": jalaliText(date), "name": p.name, "summary": cutRunes(jsonx.Str(rp, "summary"), 260), "items": items,
 			"blockers": cutRunes(jsonx.Str(rp, "blockers"), 160), "tomorrow": cutRunes(jsonx.Str(rp, "tomorrow"), 140)})
 	}
 
@@ -213,7 +213,7 @@ func reportAiDaily(w http.ResponseWriter, r *http.Request) {
 	sort.Strings(days)
 	trend := []jsonx.M{}
 	for _, d := range days {
-		trend = append(trend, jsonx.M{"date": d, "reports": perDay[d].Reports, "hours": perDay[d].Hours})
+		trend = append(trend, jsonx.M{"date": d, "jdate": jalaliText(d), "reports": perDay[d].Reports, "hours": perDay[d].Hours})
 	}
 	stats := jsonx.M{
 		"from": from, "to": to, "workdays": len(workdays), "reports": len(reports), "people": rows, "status": status, "trend": trend,
@@ -235,7 +235,7 @@ func reportAiDaily(w http.ResponseWriter, r *http.Request) {
 	}
 	text, err := aiChatOpts(ctx, key, model, []aiMsg{
 		{Role: "system", Content: dailyAiPrompt},
-		{Role: "user", Content: "بازهٔ گزارش: از " + from + " تا " + to + " (تاریخ میلادی)\nداده‌ها (JSON):\n" + string(aiPayload)},
+		{Role: "user", Content: "بازهٔ گزارش: از " + jalaliText(from) + " تا " + jalaliText(to) + "\nداده‌ها (JSON):\n" + string(aiPayload)},
 	}, 6500, 160*time.Second)
 	if err != nil {
 		httpx.Error(w, http.StatusBadGateway, err.Error())

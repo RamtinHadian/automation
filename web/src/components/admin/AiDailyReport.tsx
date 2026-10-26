@@ -3,7 +3,7 @@ import { CalendarSearch, Loader2, Sparkles } from 'lucide-react';
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
-import { formatTaskDate, todayIso } from '../../lib/taskDates';
+import { formatTaskDate, jalaliizeText, todayIso } from '../../lib/taskDates';
 import { User } from '../../types';
 import { JalaliDateField } from '../tasks/TasksView';
 import { noteHtml, showInTab, whenText } from './AiSalesReport';
@@ -32,7 +32,7 @@ interface DailyAi {
 }
 interface DailyResult { createdAt: string; stats: DailyStats; report: DailyAi }
 
-const tx = (s?: string) => toPersianDigits(s || '');
+const tx = (s?: string) => toPersianDigits(jalaliizeText(s || ''));
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const arr = (x: unknown): string[] => (Array.isArray(x) ? x.filter((v) => typeof v === 'string') : []);
 const addDays = (iso: string, n: number) => {

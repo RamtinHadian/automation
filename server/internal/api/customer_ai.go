@@ -25,7 +25,7 @@ const customerAiPrompt = `تو مشاور ارشد فروش یک شرکت ایر
 4 «آمادهٔ خرید»: پیش‌فاکتور یا مذاکرهٔ نهایی دارد، دربارهٔ زمان، پرداخت یا تحویل حرف می‌زند.
 5 «مشتری وفادار»: خرید موفق (به‌ویژه تکراری) دارد و رابطه برقرار است.
 اگر مشتری بی‌علاقه شده یا مدت زیادی بی‌تعامل مانده، سطحش را بر پایهٔ آخرین وضع بگذار ولی atRisk را true کن و دلیلش را در risks بنویس.
-لحن: محترمانه، روشن، عملی، فارسی روان؛ هر نکته کوتاه (حداکثر دو جمله). شواهد را از خود سابقه نقل کن (کوتاه، با تاریخ اگر معلوم است). همهٔ عددها را با ارقام لاتین (0-9) بنویس.
+لحن: محترمانه، روشن، عملی، فارسی روان؛ هر نکته کوتاه (حداکثر دو جمله). شواهد را از خود سابقه نقل کن (کوتاه، با تاریخ اگر معلوم است). همهٔ عددها را با ارقام لاتین (0-9) بنویس. همهٔ تاریخ‌ها را فقط شمسی بنویس (مثل «4 آبان 1405»)؛ در داده تاریخ‌ها از پیش شمسی شده‌اند و هرگز تاریخ میلادی یا قالب 2026-10-09 ننویس.
 خروجی فقط یک JSON معتبر باشد، بدون هیچ متن اضافه:
 {"level": 1 تا 5, "levelTitle": "نام سطح", "temperature": "سرد" | "ولرم" | "گرم" | "داغ", "readiness": 0 تا 100, "confidence": "کم" | "متوسط" | "زیاد", "atRisk": true | false,
  "headline": "یک جملهٔ صریح دربارهٔ این مشتری", "summary": "سه تا پنج جمله بر پایهٔ صحبت‌ها تا امروز",
@@ -84,12 +84,12 @@ func customerAiRun(w http.ResponseWriter, r *http.Request) {
 	money := seesSalesMoney(me)
 
 	var b strings.Builder
-	b.WriteString("امروز: " + time.Now().Format("2006-01-02") + " (میلادی)\n")
+	b.WriteString("امروز: " + jalaliText(time.Now().Format("2006-01-02")) + "\n")
 	b.WriteString("مشتری: " + cutRunes(jsonx.Str(c, "name"), 80))
 	if v := jsonx.Str(c, "company"); v != "" {
 		b.WriteString(" · شرکت: " + cutRunes(v, 80))
 	}
-	b.WriteString("\nوضعیت: " + jsonx.Str(c, "status") + " · آشنایی: " + jsonx.Str(c, "source") + " · از تاریخ: " + cutRunes(jsonx.Str(c, "createdAt"), 10) + "\n")
+	b.WriteString("\nوضعیت: " + jsonx.Str(c, "status") + " · آشنایی: " + jsonx.Str(c, "source") + " · از تاریخ: " + jalaliText(jsonx.Str(c, "createdAt")) + "\n")
 	if v := jsonx.Str(c, "interest"); v != "" {
 		b.WriteString("دنبال: " + cutRunes(v, 200) + "\n")
 	}
@@ -99,7 +99,7 @@ func customerAiRun(w http.ResponseWriter, r *http.Request) {
 	deals := rawMaps(ctx, `SELECT data FROM crm_deals WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 25`, id)
 	b.WriteString("\nفرصت‌های فروش (" + strconv.Itoa(len(deals)) + "):\n")
 	for _, d := range deals {
-		line := "- «" + cutRunes(jsonx.Str(d, "title"), 80) + "» مرحله " + jsonx.Str(d, "stage") + " · ساخته‌شده " + cutRunes(jsonx.Str(d, "createdAt"), 10)
+		line := "- «" + cutRunes(jsonx.Str(d, "title"), 80) + "» مرحله " + jsonx.Str(d, "stage") + " · ساخته‌شده " + jalaliText(jsonx.Str(d, "createdAt"))
 		if money && jsonx.Num(d["amount"]) > 0 {
 			line += " · مبلغ " + strconv.Itoa(int(jsonx.Num(d["amount"])))
 		}
@@ -107,14 +107,14 @@ func customerAiRun(w http.ResponseWriter, r *http.Request) {
 			line += " · دلیل باخت: " + cutRunes(jsonx.Str(d, "lostReason"), 100)
 		}
 		if ec := jsonx.Str(d, "expectedClose"); ec != "" {
-			line += " · پیش‌بینی بستن " + ec
+			line += " · پیش‌بینی بستن " + jalaliText(ec)
 		}
 		b.WriteString(line + "\n")
 	}
 	acts := rawMaps(ctx, `SELECT data FROM crm_activities WHERE customer_id = $1 AND data->>'type' <> 'MISSING' ORDER BY created_at DESC LIMIT 60`, id)
 	b.WriteString("\nتعامل‌ها (تازه‌ترین اول، " + strconv.Itoa(len(acts)) + " مورد):\n")
 	for _, a := range acts {
-		line := "- " + cutRunes(jsonx.Str(a, "createdAt"), 10) + " " + jsonx.Str(a, "type") + " (" + cutRunes(jsonx.Str(a, "authorName"), 40) + ")"
+		line := "- " + jalaliText(jsonx.Str(a, "createdAt")) + " " + jsonx.Str(a, "type") + " (" + cutRunes(jsonx.Str(a, "authorName"), 40) + ")"
 		if jsonx.Str(a, "type") == "QUOTE" {
 			line += ": قیمت «" + cutRunes(jsonx.Str(a, "itemName"), 60) + "»"
 			if money && jsonx.Num(a["price"]) > 0 {
@@ -131,7 +131,7 @@ func customerAiRun(w http.ResponseWriter, r *http.Request) {
 	b.WriteString("\nتماس‌های تلفنی (" + strconv.Itoa(len(calls)) + " مورد اخیر):\n")
 	withText := 0
 	for _, k := range calls {
-		line := "- " + jsonx.Str(k, "at") + " " + jsonx.Str(k, "dir") + " " + jsonx.Str(k, "status") + " مدت " + strconv.Itoa(jsonx.Int(k, "dur")) + " ثانیه"
+		line := "- " + jalaliText(jsonx.Str(k, "at")) + " " + jsonx.Str(k, "dir") + " " + jsonx.Str(k, "status") + " مدت " + strconv.Itoa(jsonx.Int(k, "dur")) + " ثانیه"
 		if t := jsonx.Str(k, "text"); t != "" && withText < 6 {
 			withText++
 			line += "\n  متن مکالمه: " + cutRunes(t, 1400)

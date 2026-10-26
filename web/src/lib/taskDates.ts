@@ -43,6 +43,10 @@ export const formatTaskDate = (iso?: string) => {
 };
 
 /** A recorded moment (an ISO time): the Jalali date and the exact hour and minute, «۳ آبان ۱۴۰۵ – ۱۲:۳۴». */
+/** Any Gregorian date written in a text (2026-10-09, 2026/10/09) becomes the Persian one («۱۷ مهر ۱۴۰۵»); the AI is told to write Persian dates, this is the safety net. */
+export const jalaliizeText = (s: string): string =>
+  (s || '').replace(/(?<!\d)((?:19|20)\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])(?!\d)/g, (m, y, mo, d) => formatTaskDate(`${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`) || m);
+
 export const formatDateTime = (iso?: string) => {
   if (!iso) return '';
   const d = formatTaskDate(iso);

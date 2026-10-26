@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Clock, Copy, Flame, Loader2, MessageSquareQuote, Sparkles, Target, ThumbsUp } from 'lucide-react';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
+import { jalaliizeText } from '../../lib/taskDates';
 import { whenText } from '../admin/AiSalesReport';
 
 interface Analysis {
@@ -31,7 +32,7 @@ const LEVELS = [
 ];
 const LEVEL_COLOR = ['#94a3b8', '#0ea5e9', '#f59e0b', '#ea580c', '#059669'];
 const TEMP_TONE: Record<string, string> = { سرد: 'bg-slate-100 text-slate-700', ولرم: 'bg-amber-100 text-amber-800', گرم: 'bg-orange-100 text-orange-800', داغ: 'bg-rose-100 text-rose-800' };
-const tx = (s?: string) => toPersianDigits(s || '');
+const tx = (s?: string) => toPersianDigits(jalaliizeText(s || ''));
 const arr = (x: unknown): string[] => (Array.isArray(x) ? x.filter((v) => typeof v === 'string') : []);
 
 /** «تحلیل مشتری با هوش مصنوعی»: from everything said and done with this customer, the level (of five), the readiness to buy and what to do next. */

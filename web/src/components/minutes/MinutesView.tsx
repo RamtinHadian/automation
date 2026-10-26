@@ -6,7 +6,7 @@ import { useAppContext } from '../../context/AppContext';
 import { askConfirm } from '../../lib/confirmDialog';
 import { toPersianDigits } from '../../lib/jalali';
 import { fold, matchesQuery } from '../../lib/customerSearch';
-import { formatTaskDate, todayIso, formatDateTime } from '../../lib/taskDates';
+import { formatTaskDate, todayIso, formatDateTime, jalaliizeText } from '../../lib/taskDates';
 import { buildMinutesHtml, openMinutesPrint } from '../../lib/minutesHtml';
 import { getMinutesConfig, nextMinutesNumber, typeOf } from '../../lib/minutesConfig';
 import { downloadBlob, renderHtmlJpeg } from '../../lib/proformaFile';
@@ -337,7 +337,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
     try {
       const r = await api.minutesAi({ mode: 'draft', text: aiText, people: people.map((u) => u.fullName) });
       const d = r.draft || {};
-      const fa = (s?: string) => toPersianDigits(s || '');
+      const fa = (s?: string) => toPersianDigits(jalaliizeText(s || ''));
       const today = new Date();
       const decisions: MinutesDecision[] = (d.decisions || []).filter((x) => x && x.text).map((x) => {
         const u = x.owner ? people.find((p) => p.fullName === x.owner) : undefined;
@@ -367,7 +367,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
     setAiBusy('summary');
     try {
       const r = await api.minutesAi({ mode: 'summary', text: m.discussion || '' });
-      if (r.discussion) patch({ discussion: toPersianDigits(r.discussion) });
+      if (r.discussion) patch({ discussion: toPersianDigits(jalaliizeText(r.discussion)) });
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'خلاصه‌نویسی انجام نشد.');
     } finally {

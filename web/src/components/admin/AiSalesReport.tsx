@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, CalendarClock, Clock, Copy, Gauge, Hourglass, 
 import fontUrl from 'vazirmatn/fonts/webfonts/Vazirmatn[wght].woff2?url';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
+import { jalaliizeText } from '../../lib/taskDates';
 import { toDisplay, unitName } from '../../lib/money';
 import { PROFILE_INFO, TeamAnalysis } from '../../lib/salesAnalysis';
 import { useAppContext } from '../../context/AppContext';
@@ -68,7 +69,7 @@ const MOOD = {
 };
 const GRADE_TONE = (g?: string) => (g === 'عالی' ? 'bg-emerald-100 text-emerald-800' : g === 'خوب' ? 'bg-sky-100 text-sky-800' : g === 'متوسط' ? 'bg-amber-100 text-amber-800' : g === 'نیازمند توجه' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600');
 const arr = (x: unknown): string[] => (Array.isArray(x) ? x.filter((v) => typeof v === 'string') : []);
-const tx = (s?: string) => toPersianDigits(s || '');
+const tx = (s?: string) => toPersianDigits(jalaliizeText(s || ''));
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const pcn = (x: number | null | undefined) => (x === null || x === undefined ? '—' : `${toPersianDigits(Math.round(x))}٪`);
 const STAGE_LABEL: Record<string, string> = { NEW: 'جدید', CONTACTED: 'تماس گرفته شد', PROPOSAL: 'پیشنهاد ارسال شد', NEGOTIATION: 'مذاکره' };

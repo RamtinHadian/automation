@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
 import { api } from '../../lib/api';
+import { jalaliizeText } from '../../lib/taskDates';
 import { Modal, field, label } from '../crm/crmUi';
 
 const TONES = ['رسمی و محترمانه', 'کوتاه و مختصر', 'قاطع و پیگیرانه', 'تشکر و قدردانی', 'درخواست مؤدبانه'];
@@ -9,7 +10,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 /** The letter as HTML paragraphs: the first one (the addressee) in bold, as the ready-made letters have it. */
 export const letterHtml = (paragraphs: string[]) =>
   paragraphs
-    .map((p) => p.trim())
+    .map((p) => jalaliizeText(p.trim()))
     .filter(Boolean)
     .map((p, i) => (i === 0 ? `<p><b>${esc(p)}</b></p>` : `<p>${esc(p).replace(/\n/g, '<br>')}</p>`))
     .join('');
