@@ -358,6 +358,16 @@ var schema = []string{
 	  customer_name TEXT NOT NULL DEFAULT '',
 	  duration_sec INT NOT NULL DEFAULT 0
 	)`,
+	`CREATE TABLE IF NOT EXISTS ai_sales_reports (
+	  id TEXT PRIMARY KEY,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  period_days INT NOT NULL DEFAULT 30,
+	  trigger TEXT NOT NULL DEFAULT 'manual',
+	  created_by TEXT NOT NULL DEFAULT '',
+	  payload JSONB NOT NULL,
+	  report JSONB NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS ai_sales_reports_at_idx ON ai_sales_reports (created_at DESC)`,
 	`CREATE TABLE IF NOT EXISTS voip_transcripts (
 	  call_id TEXT PRIMARY KEY,
 	  status TEXT NOT NULL,

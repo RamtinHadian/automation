@@ -137,7 +137,7 @@ func supportGetSettings(w http.ResponseWriter, r *http.Request) {
 	s := supportSettings(r.Context())
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"portalEnabled": s["portalEnabled"], "aiEnabled": jsonx.Bool(s, "aiEnabled"), "aiModel": jsonx.Str(s, "aiModel"), "aiSttModel": sttModel(s),
-		"aiPrompt": jsonx.Str(s, "aiPrompt"), "aiKeySet": jsonx.Str(s, "aiKey") != "", "aiBaseUrl": aiBaseURL,
+		"aiLastError": s["aiLastError"], "aiPrompt": jsonx.Str(s, "aiPrompt"), "aiKeySet": jsonx.Str(s, "aiKey") != "", "aiBaseUrl": aiBaseURL,
 	})
 }
 
@@ -177,6 +177,9 @@ func supportSaveSettings(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "برای روشن‌کردن پاسخ هوشمند، هم کلید API و هم نام مدل را وارد کنید.")
 		return
 	}
+	if jsonx.Str(body, "aiKey") != "" {
+		delete(s, "aiLastError")
+	}
 	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO settings (key, data) VALUES ('support', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`, jsonx.Encode(s)); err != nil {
 		internalError(w)
 		return
@@ -197,6 +200,12 @@ func aiChat(ctx context.Context, key, model string, msgs []aiMsg) (string, error
 
 // aiChatOpts: the same call with its own answer length and waiting time (the long reports need both larger)
 func aiChatOpts(ctx context.Context, key, model string, msgs []aiMsg, maxTokens int, wait time.Duration) (string, error) {
+	out, err := aiChatCall(ctx, key, model, msgs, maxTokens, wait)
+	recordAiHealth(err)
+	return out, err
+}
+
+func aiChatCall(ctx context.Context, key, model string, msgs []aiMsg, maxTokens int, wait time.Duration) (string, error) {
 	payload, _ := json.Marshal(map[string]any{"model": model, "messages": msgs, "temperature": 0.3, "max_tokens": maxTokens})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, aiBaseURL+"/chat/completions", bytes.NewReader(payload))
 	if err != nil {
@@ -206,18 +215,13 @@ func aiChatOpts(ctx context.Context, key, model string, msgs []aiMsg, maxTokens 
 	req.Header.Set("Authorization", "Bearer "+key)
 	resp, err := (&http.Client{Timeout: wait}).Do(req)
 	if err != nil {
-		return "", err
+		return "", connectionErr(err)
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if resp.StatusCode != http.StatusOK {
-		switch {
-		case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
-			return "", fmt.Errorf("کلید API پذیرفته نشد (پاسخ %d). کلید را از حساب togpt دوباره کپی کنید؛ اگر همین کلید جای دیگری هم هست، برای این سیستم کلید جدا بسازید.", resp.StatusCode)
-		case resp.StatusCode == http.StatusTooManyRequests:
-			return "", fmt.Errorf("سرویس togpt می‌گوید درخواست‌ها زیاد یا اعتبار کلید تمام شده است (پاسخ ۴۲۹). چند دقیقه بعد دوباره امتحان کنید یا اعتبار حساب را ببینید.")
-		case resp.StatusCode >= 500:
-			return "", fmt.Errorf("سرویس togpt الان خطا می‌دهد (پاسخ %d)؛ کمی بعد دوباره امتحان کنید.", resp.StatusCode)
+		if e := classifyAI(resp.StatusCode, string(raw)); e != nil {
+			return "", e
 		}
 		return "", fmt.Errorf("پاسخ %d از سرویس هوش مصنوعی", resp.StatusCode)
 	}
@@ -250,6 +254,10 @@ func supportAiTest(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	text, err := aiChatOpts(ctx, jsonx.Str(s, "aiKey"), jsonx.Str(s, "aiModel"), []aiMsg{{Role: "user", Content: "یک جملهٔ کوتاه فارسی بنویس که نشان بدهد کار می‌کنی."}}, 200, 100*time.Second)
 	if err != nil {
+		if e, ok := err.(*aiErr); ok {
+			httpx.Error(w, http.StatusBadGateway, e.Msg)
+			return
+		}
 		httpx.Error(w, http.StatusBadGateway, "اتصال به هوش مصنوعی انجام نشد: "+err.Error())
 		return
 	}

@@ -115,12 +115,15 @@ func transcribeChat(ctx context.Context, key, model, ext string, data []byte, be
 	req2.Header.Set("Authorization", "Bearer "+key)
 	resp2, err := (&http.Client{Timeout: 4 * time.Minute}).Do(req2)
 	if err != nil {
-		return "", fmt.Errorf("اتصال به سرویس هوش مصنوعی انجام نشد.")
+		e := connectionErr(err)
+		recordAiHealth(e)
+		return "", e
 	}
 	defer resp2.Body.Close()
 	raw2, _ := io.ReadAll(io.LimitReader(resp2.Body, 4<<20))
-	if resp2.StatusCode == http.StatusUnauthorized || resp2.StatusCode == http.StatusForbidden {
-		return "", fmt.Errorf("کلید API پذیرفته نشد (پاسخ %d).", resp2.StatusCode)
+	if e := classifyAI(resp2.StatusCode, string(raw2)); e != nil && e.Kind != aiKindRate {
+		recordAiHealth(e)
+		return "", e
 	}
 	if resp2.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("مدل «%s» صدا را نپذیرفت (پاسخ %d). نام مدلی را که ورودی صدا دارد در «نام مدل تبدیل صدا» بنویسید.", model, resp2.StatusCode)

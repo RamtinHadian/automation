@@ -1,3 +1,4 @@
+import type { StoredReport } from '../components/admin/AiSalesReport';
 import type { AppNotification } from './notifications';
 import { User, FileTransfer, AuditLog, SystemSettings, Department, Task, DailyReport, Customer, Deal, CrmActivity, Warranty, WarrantyClaim, SupportPlan, SupportSettings, SupportSub, SupportTicket, TicketStatus, WarrantySettings, ClaimStatus, ClaimResolution } from '../types';
 
@@ -450,7 +451,12 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   supportSaveSettings: (b: Record<string, unknown>) => request<SupportSettings>('PUT', '/api/support/settings', b),
   supportAiTest: () => request<{ reply: string }>('POST', '/api/support/ai-test', {}),
   ticketAssign: (id: string, handlerId: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/assign`, { handlerId }),
-  reportAiSales: (rangeLabel: string, data: unknown) => request<{ report?: Record<string, unknown>; text?: string }>('POST', '/api/reports/ai-sales', { rangeLabel, data }),
+  reportAiSales: (rangeLabel: string, data: unknown) => request<StoredReport>('POST', '/api/reports/ai-sales', { rangeLabel, data }),
+  reportAiHistory: () => request<{ reports: { id: string; createdAt: string; trigger: string; periodDays: number; headline?: string; mood?: string }[] }>('GET', '/api/reports/ai-history'),
+  reportAiOne: (id: string) => request<StoredReport>('GET', `/api/reports/ai-history/${encodeURIComponent(id)}`),
+  reportAiScheduleGet: () => request<{ enabled: boolean; everyDays: number; periodDays: number; lastRunAt?: string; lastError?: string }>('GET', '/api/reports/ai-schedule'),
+  reportAiSchedulePut: (b: { enabled: boolean; everyDays: number; periodDays: number }) => request<{ enabled: boolean; everyDays: number; periodDays: number; lastRunAt?: string; lastError?: string }>('PUT', '/api/reports/ai-schedule', b),
+  reportAiScheduleRun: () => request<StoredReport>('POST', '/api/reports/ai-schedule/run', {}),
   minutesAi: (b: { mode: 'draft' | 'summary'; text: string; people?: string[] }) => request<{ draft?: { title?: string; agenda?: string[]; discussion?: string; decisions?: { text: string; owner?: string; dueInDays?: number | null }[] }; discussion?: string }>('POST', '/api/minutes/ai', b),
   letterAi: (b: { subject: string; instruction: string; currentText: string; recipient: string; sender: string; tone: string }) => request<{ draft: { subject?: string; paragraphs: string[] } }>('POST', '/api/letters/ai', b),
   voipTranscribe: (id: string) => request<{ status: string }>('POST', `/api/voip/transcribe/${encodeURIComponent(id)}`, {}),

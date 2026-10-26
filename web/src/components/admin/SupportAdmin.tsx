@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Bot, Copy, Headset, MessageCircle, Plus } from 'lucide-react';
+import { AlertTriangle, Bot, Copy, Headset, MessageCircle, Plus } from 'lucide-react';
 import { api } from '../../lib/api';
 import { SupportPlan, SupportSettings } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
+import { formatDateTime } from '../../lib/taskDates';
 import { PlanCard, PlanForm } from '../support/SupportForms';
 import { field, label } from '../crm/crmUi';
 
@@ -101,6 +102,16 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
       <section className="bg-white border border-[#EBDBCE] rounded-3xl p-5 space-y-3">
         <h4 className="font-black text-sm flex items-center gap-2"><Bot className="w-4 h-4 text-violet-600" />پاسخ هوشمند (togpt)</h4>
         <p className="text-[11px] font-bold text-[#8C6F66] leading-6">اگر روشن باشد، دستیار هوش مصنوعی به پیام‌های مشتری در صفحهٔ مشتریان یک جواب اولیه می‌دهد. جواب او «پاسخ هوشمند» نام دارد، وضعیت و مهلت درخواست را عوض نمی‌کند و همکار شما همچنان درخواست را می‌بیند. کلید API را از حساب togpt خودتان بگیرید.</p>
+        {sset?.aiLastError && (
+          <div className="rounded-2xl border border-rose-300 bg-rose-50 px-4 py-3 space-y-1" data-ai-health>
+            <div className="font-black text-xs text-rose-800 flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" />
+              {sset.aiLastError.kind === 'credit' ? 'شارژ پنل togpt.ir شما تمام شده است' : sset.aiLastError.kind === 'key' ? 'togpt.ir کلید API شما را نپذیرفت' : sset.aiLastError.kind === 'connection' ? 'ارتباط با togpt.ir برقرار نیست' : 'سرویس togpt.ir خطا می‌دهد'}
+            </div>
+            <p className="text-[11px] font-bold text-rose-900 leading-6">{sset.aiLastError.message}</p>
+            <p className="text-[10px] font-bold text-rose-700">{formatDateTime(sset.aiLastError.at)} · تا اولین استفادهٔ موفق این پیام می‌ماند.</p>
+          </div>
+        )}
         <div>
           <label className={label}>نشانی سرویس (ثابت است و تغییر نمی‌کند)</label>
           <input className={`${field} opacity-70`} dir="ltr" readOnly value={sset?.aiBaseUrl || 'https://togpt.ir/api/v1'} />

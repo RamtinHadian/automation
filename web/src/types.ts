@@ -966,6 +966,8 @@ export interface SupportSettings {
   aiEnabled: boolean;
   aiModel: string;
   aiSttModel: string;
+  /** why the AI service failed the last time (nothing when it works) */
+  aiLastError?: { kind: string; message: string; at: string } | null;
   aiPrompt: string;
   /** the key itself never comes back from the server */
   aiKeySet: boolean;

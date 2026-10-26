@@ -73,6 +73,8 @@ var journalRules = []rule{
 	jr("GET", `/api/voip/recording/[^/]+`, "CALL_LISTEN", "WARNING", "شنیدن مکالمهٔ ضبط‌شده"),
 	jr("POST", `/api/minutes/ai`, "MINUTES", "INFO", "نوشتن یا خلاصه‌کردن صورتجلسه با هوش مصنوعی"),
 	jr("POST", `/api/letters/ai`, "LETTER", "INFO", "نوشتن یا تکمیل نامه با هوش مصنوعی"),
+	jr("POST", `/api/reports/ai-schedule`, "REPORT_AI", "INFO", "زمان‌بندی گزارش هوشمند فروش"),
+	jr("PUT", `/api/reports/ai-schedule`, "REPORT_AI", "INFO", "تغییر زمان‌بندی گزارش هوشمند فروش"),
 	jr("POST", `/api/reports/ai-sales`, "REPORT_AI", "INFO", "گزارش هوشمند تحلیل فروش همکاران"),
 	jr("POST", `/api/voip/transcribe/[^/]+`, "CALL_TRANSCRIBE", "WARNING", "تبدیل مکالمهٔ ضبط‌شده به متن"),
 	jr("GET", `/api/voip/transcript/[^/]+`, "CALL_TRANSCRIPT_READ", "WARNING", "خواندن متن مکالمهٔ ضبط‌شده"),
