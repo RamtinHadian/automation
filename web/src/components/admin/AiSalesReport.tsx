@@ -89,7 +89,8 @@ const Ring: React.FC<{ value: number; color: string; size?: number }> = ({ value
 const scoreColor = (s: number) => (s >= 70 ? '#0f766e' : s >= 45 ? '#d97706' : '#dc2626');
 
 /** One print page: the same charts drawn with plain HTML bars so that it prints well everywhere. */
-const printHtml = (rep: Report, a: TeamAnalysis, rangeLabel: string, seesTotals: boolean) => {
+/** The whole report as one web page (its own browser tab): charts drawn with plain HTML bars, the AI's words under them, a print button. */
+const reportHtml = (rep: Report, a: TeamAnalysis, rangeLabel: string, seesTotals: boolean): string => {
   const li = (xs: string[]) => (xs.length ? `<ul>${xs.map((x) => `<li>${esc(tx(x))}</li>`).join('')}</ul>` : '');
   const bars = (title: string, rows: { label: string; v: number; text: string }[], color: string, comment?: string) => {
     if (!rows.length) return '';
@@ -105,7 +106,7 @@ const printHtml = (rep: Report, a: TeamAnalysis, rangeLabel: string, seesTotals:
   ];
   const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گزارش هوشمند تحلیل فروش</title><style>
 @font-face{font-family:'Vazirmatn';src:url('${location.origin}${fontUrl}') format('woff2');font-weight:100 900}
-@page{size:A4;margin:12mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:'Vazirmatn',Tahoma,sans-serif;color:#2b1d19;line-height:1.9;font-size:12px}
+@page{size:A4;margin:12mm}@media screen{body{max-width:980px;margin:0 auto;padding:18px;background:#fdfaf7}.toolbar{text-align:left;margin-bottom:10px}.toolbar button{font-family:inherit;background:#6E1B1B;color:#fff;border:0;border-radius:10px;padding:8px 18px;font-weight:800;cursor:pointer}}@media print{.toolbar{display:none}}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:'Vazirmatn',Tahoma,sans-serif;color:#2b1d19;line-height:1.9;font-size:12px}
 .hd h1,h2,h3,b,button{font-family:'Vazirmatn',Tahoma,sans-serif}.hd{background:linear-gradient(135deg,#6E1B1B,#C0392B);color:#fff;border-radius:14px;padding:18px 22px}.hd small{opacity:.85}.hd h1{margin:4px 0 0;font-size:20px}
 h2{font-size:14px;margin:18px 0 6px;color:#6E1B1B;border-right:4px solid #D34A32;padding-right:8px}
 .k{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.k div{flex:1 1 18%;border:1px solid #EBDBCE;border-radius:10px;padding:8px 10px;text-align:center}.k b{display:block;font-size:16px}.k small{color:#8C6F66}
@@ -116,6 +117,7 @@ h2{font-size:14px;margin:18px 0 6px;color:#6E1B1B;border-right:4px solid #D34A32
 .c{display:flex;gap:10px}.c>div{flex:1;border-radius:10px;padding:8px 12px}.s{background:#ecfdf5}.r{background:#fef2f2}.o{background:#eff6ff}
 .a{border-bottom:1px dashed #EBDBCE;padding:5px 0}.ft{margin-top:18px;font-size:10px;color:#8C6F66;text-align:center}
 </style></head><body>
+<div class="toolbar"><button onclick="print()">چاپ / ذخیره PDF</button></div>
 <div class="hd"><small>گزارش هوشمند تحلیل فروش همکاران · ${esc(tx(rangeLabel))}</small><h1>${esc(tx(rep.headline || 'تحلیل عملکرد تیم فروش'))}</h1></div>
 <p>${esc(tx(rep.summary || ''))}</p>
 <div class="k">${kp.map(([l, v]) => `<div><small>${esc(l)}</small><b>${esc(v)}</b></div>`).join('')}</div>
@@ -132,9 +134,15 @@ ${bars('دلایل از دست رفتن فروش', a.lossReasons.slice(0, 6).map
 ${(rep.people || []).map((p) => `<div class="p"><h3>${esc(tx(String(p.rank ?? '')))}. ${esc(tx(p.name))}<span class="g">${esc(p.grade || '')}</span></h3><div>${esc(tx(p.verdict || ''))}</div>${p.strengths?.length ? `<b>قوت‌ها</b>${li(arr(p.strengths))}` : ''}${p.weaknesses?.length ? `<b>ضعف‌ها</b>${li(arr(p.weaknesses))}` : ''}${p.coaching?.length ? `<b>توصیهٔ مربی‌گری</b>${li(arr(p.coaching))}` : ''}</div>`).join('')}
 <h2>اقدام‌های پیشنهادی</h2>${(rep.actions || []).map((x, i) => `<div class="a"><b>${esc(tx(String(i + 1)))}. ${esc(tx(x.title))}</b> — ${esc(tx(x.who || ''))} · ${esc(tx(x.when || ''))}<br>${esc(tx(x.why || ''))}</div>`).join('')}
 <div class="ft">نمودارها از داده‌های ثبت‌شده در هورمند و شرح‌ها را هوش مصنوعی نوشته است؛ پیش از تصمیم‌گیری با واقعیت تطبیق دهید.</div>
-<script>document.fonts&&document.fonts.ready?document.fonts.ready.then(function(){setTimeout(function(){print()},300)}):setTimeout(function(){print()},500)</script></body></html>`;
-  const w = window.open('', '_blank');
-  if (w) { w.document.write(html); w.document.close(); }
+</body></html>`;
+  return html;
+};
+
+const noteHtml = (msg: string, tone: 'wait' | 'error') => `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گزارش هوشمند تحلیل فروش</title><style>@font-face{font-family:'Vazirmatn';src:url('${location.origin}${fontUrl}') format('woff2');font-weight:100 900}body{font-family:'Vazirmatn',Tahoma,sans-serif;background:#fdfaf7;color:#3A241F;display:flex;align-items:center;justify-content:center;min-height:90vh;text-align:center;line-height:2}.c{max-width:520px;padding:28px;border:1px solid ${tone === 'error' ? '#fecaca' : '#ddd6fe'};background:${tone === 'error' ? '#fef2f2' : '#f5f3ff'};border-radius:20px}.s{width:34px;height:34px;border:4px solid #ddd6fe;border-top-color:#6d28d9;border-radius:50%;margin:0 auto 12px;animation:r 1s linear infinite}@keyframes r{to{transform:rotate(360deg)}}</style></head><body><div class="c">${tone === 'wait' ? '<div class="s"></div>' : ''}<b>${esc(msg)}</b></div></body></html>`;
+const showInTab = (w: Window, html: string) => {
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 };
 
 /** «گزارش هوشمند»: charts of the team's real numbers, the AI's reading under each chart, a card per person and the actions. */
@@ -142,18 +150,29 @@ export const AiSalesReport: React.FC<{ analysis: TeamAnalysis; days: number; ran
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [rep, setRep] = useState<Report | null>(null);
+  // the tab is opened by the click itself (so the browser allows it) and shows the report as soon as it is written
   const run = async () => {
+    const w = window.open('', '_blank');
+    if (w) showInTab(w, noteHtml('در حال تحلیل اعداد فروش با هوش مصنوعی… این صفحه تا دو دقیقه منتظر می‌ماند و خودش گزارش را نشان می‌دهد.', 'wait'));
     setBusy(true);
     setErr('');
     try {
       const r = await api.reportAiSales(rangeLabel, buildPayload(a, days, seesTotals));
-      if (r.report) setRep(r.report as Report);
-      else setErr('پاسخ هوش مصنوعی قابل خواندن نبود؛ «تحلیل دوباره» را بزنید.');
+      if (!r.report) throw new Error('پاسخ هوش مصنوعی قابل خواندن نبود؛ دوباره امتحان کنید.');
+      setRep(r.report as Report);
+      if (w && !w.closed) showInTab(w, reportHtml(r.report as Report, a, rangeLabel, seesTotals));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'تحلیل انجام نشد.');
+      const msg = e instanceof Error ? e.message : 'تحلیل انجام نشد.';
+      setErr(msg);
+      if (w && !w.closed) showInTab(w, noteHtml(msg, 'error'));
     } finally {
       setBusy(false);
     }
+  };
+  const openTab = () => {
+    if (!rep) return;
+    const w = window.open('', '_blank');
+    if (w) showInTab(w, reportHtml(rep, a, rangeLabel, seesTotals));
   };
   const mood = MOOD[rep?.mood || 'ok'] || MOOD.ok;
   const cm = rep?.comments || {};
@@ -168,7 +187,7 @@ export const AiSalesReport: React.FC<{ analysis: TeamAnalysis; days: number; ran
       <div className="rounded-3xl border border-violet-200 bg-gradient-to-l from-violet-50 to-white p-4 flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[220px]">
           <div className="font-black text-sm text-violet-900 flex items-center gap-2"><Sparkles className="w-4 h-4" />گزارش هوشمند با هوش مصنوعی</div>
-          <p className="text-[11px] font-bold text-violet-800/80 leading-6 mt-0.5">گزارش نموداری آماده: نمودار هر معیار از اعداد واقعی ساخته می‌شود و هوش مصنوعی زیر هر نمودار توضیح می‌دهد چه می‌بینیم و چه کنیم؛ بعدش خلاصهٔ مدیریتی، کارنامهٔ هر نفر و اقدام‌های پیشنهادی. فقط عددهای جدول (بدون شمارهٔ تلفن و مشخصات مشتری) به سرویس فرستاده می‌شود.</p>
+          <p className="text-[11px] font-bold text-violet-800/80 leading-6 mt-0.5">گزارش در یک صفحهٔ تازه باز می‌شود. نمودار هر معیار از اعداد واقعی ساخته می‌شود و هوش مصنوعی زیر هر نمودار توضیح می‌دهد چه می‌بینیم و چه کنیم؛ بعدش خلاصهٔ مدیریتی، کارنامهٔ هر نفر و اقدام‌های پیشنهادی. فقط عددهای جدول (بدون شمارهٔ تلفن و مشخصات مشتری) به سرویس فرستاده می‌شود.</p>
         </div>
         <button type="button" disabled={busy} onClick={run} data-ai-sales-run className="px-5 py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-violet-700 hover:bg-violet-800 text-white text-xs font-black cursor-pointer flex items-center gap-2 disabled:opacity-60">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -303,7 +322,7 @@ export const AiSalesReport: React.FC<{ analysis: TeamAnalysis; days: number; ran
             )}
 
             <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#EBDBCE]">
-              <button type="button" onClick={() => printHtml(rep, a, rangeLabel, seesTotals)} className="flex items-center gap-1.5 text-[11px] font-black text-[#3A241F] border border-[#EBDBCE] bg-white rounded-xl px-3 py-2 cursor-pointer" data-ai-sales-print><Printer className="w-3.5 h-3.5" />چاپ / ذخیره PDF</button>
+              <button type="button" onClick={openTab} className="flex items-center gap-1.5 text-[11px] font-black text-[#3A241F] border border-[#EBDBCE] bg-white rounded-xl px-3 py-2 cursor-pointer" data-ai-sales-print><Printer className="w-3.5 h-3.5" />باز کردن در صفحهٔ جدید / چاپ</button>
               <button type="button" onClick={() => { try { navigator.clipboard.writeText(JSON.stringify(rep, null, 2)); } catch { /* no clipboard */ } }} className="flex items-center gap-1.5 text-[11px] font-black text-[#3A241F] border border-[#EBDBCE] bg-white rounded-xl px-3 py-2 cursor-pointer"><Copy className="w-3.5 h-3.5" />کپی</button>
               <span className="text-[10px] font-bold text-[#8C6F66] flex-1 min-w-[200px]">نمودارها از دادهٔ ثبت‌شده ساخته شده و شرح‌ها را هوش مصنوعی نوشته؛ پیش از تصمیم‌گیری با واقعیت تطبیق دهید.</span>
             </div>
