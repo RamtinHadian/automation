@@ -138,8 +138,6 @@ export const MENUS: MenuDef[] = [
       { id: 'warehouse.doc.issue', label: 'حواله خروج', hint: 'حواله خروج را می‌بیند و ثبت می‌کند.' },
       { id: 'warehouse.doc.transfer', label: 'انتقال بین انبارها', hint: 'انتقال بین انبارها را می‌بیند و ثبت می‌کند.' },
       { id: 'warehouse.doc.adjust', label: 'تعدیل انبارگردانی', hint: 'تعدیل انبارگردانی را می‌بیند و ثبت می‌کند.' },
-      { id: 'warehouse.products', label: 'کالاها', hint: 'فهرست و تعریف کالا.' },
-      { id: 'warehouse.warehouses', label: 'انبارها', hint: 'تعریف انبارها.' },
       { id: 'warehouse.write', label: 'ثبت سند', hint: 'دکمه‌های ثبت رسید، حواله، انتقال و تعدیل (فقط برای نوع‌هایی که می‌بیند).' },
     ],
   },
