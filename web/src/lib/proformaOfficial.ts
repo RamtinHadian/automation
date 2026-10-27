@@ -132,6 +132,10 @@ export function buildOfficialHtml(input: ProformaRenderInput, mode: 'print' | 'p
   .items tr.e td { height: 19px; }
   .c { text-align: center; } .n { text-align: left; white-space: nowrap; direction: ltr; } .b { font-weight: 800; }
   .items tfoot td { background: #f3f3f3; font-weight: 800; }
+  .sumbox { border: 1px solid #000; border-top: 0; }
+  .sumbox div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 8px; }
+  .sumbox div + div { border-top: 1px solid #000; }
+  .sumbox .pay { background: #f3f3f3; font-weight: 800; }
   .words { border: 1px solid #000; padding: 4px 8px; font-weight: 700; }
   .cond { display: grid; grid-template-columns: 1fr 2fr; gap: 0; }
   .cond > div { border: 1px solid #000; padding: 4px 8px; min-height: 22mm; }
@@ -169,6 +173,13 @@ ${mode === 'print' ? '<div class="toolbar"><button onclick="window.print()">چا
       <tbody>${body}</tbody>
       <tfoot><tr><td colspan="6" class="c">جمع کل</td><td class="n">${rial(sum('gross'))}</td><td class="n">${rial(sum('discount'))}</td><td class="n">${rial(sum('after'))}</td><td class="n">${rial(sum('tax'))}</td><td class="n">${rial(totalPayable)}</td></tr></tfoot>
     </table>
+  </div>
+  <div class="sumbox" data-official-summary>
+    <div><span>جمع مبلغ کل (بدون تخفیف)</span><b>${rial(sum('gross'))} ریال</b></div>
+    <div><span>مبلغ تخفیف داده‌شده</span><b>${rial(sum('discount'))} ریال</b></div>
+    <div><span>مبلغ پس از تخفیف</span><b>${rial(sum('after'))} ریال</b></div>
+    ${sum('tax') ? `<div><span>مالیات بر ارزش افزوده</span><b>${rial(sum('tax'))} ریال</b></div>` : ''}
+    <div class="pay"><span>مبلغ قابل پرداخت پس از تخفیف${sum('tax') ? ' و مالیات' : ''}</span><b>${rial(totalPayable)} ریال</b></div>
   </div>
   <div class="words">مبلغ قابل پرداخت به حروف: ${numberToPersianWords(Math.round(totalPayable * 10))} ریال</div>
   <div class="cond">

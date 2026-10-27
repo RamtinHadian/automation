@@ -107,7 +107,9 @@ export const ProformaSection: React.FC<{
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {row('صادرکننده', issuer.label)}
-        {row('مبلغ قابل پرداخت', `${formatMoney(totals.payable)} ${unitName()}`)}
+        {row('جمع مبلغ کل (بدون تخفیف)', `${formatMoney(totals.gross)} ${unitName()}`)}
+        {row('مبلغ تخفیف داده‌شده', `${formatMoney(totals.totalDiscount)} ${unitName()}`)}
+        {row('مبلغ قابل پرداخت پس از تخفیف', `${formatMoney(totals.payable)} ${unitName()}`)}
         {row('تاریخ صدور', deal.proformaAt ? formatTaskDate(deal.proformaAt) : '—')}
         {row('اعتبار تا', deal.validUntil ? formatTaskDate(deal.validUntil) : '—')}
       </div>

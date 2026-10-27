@@ -11,6 +11,10 @@ import { buildOfficialHtml, usesOfficialForm } from './proformaOfficial';
 import { formatMoney, toDisplay, unitName } from './money';
 
 export interface ProformaTotals {
+  /** the sum of quantity x unit price of every row: the total with no discount at all */
+  gross: number;
+  /** everything given as discount: the discounts of the rows and the percentage on the total */
+  totalDiscount: number;
   subtotal: number;
   discount: number;
   afterDiscount: number;
@@ -22,11 +26,12 @@ export const itemTotal = (i: ProformaItem) => Math.max(0, i.qty * i.unitPrice - 
 
 /** Items → totals. The discount percentage applies to the sum of the items, tax to what is left. */
 export function proformaTotals(items: ProformaItem[], discountPercent: number, taxPercent: number): ProformaTotals {
+  const gross = items.reduce((s, i) => s + Math.max(0, i.qty * i.unitPrice), 0);
   const subtotal = items.reduce((s, i) => s + itemTotal(i), 0);
   const discount = Math.round((subtotal * (discountPercent || 0)) / 100);
   const afterDiscount = subtotal - discount;
   const tax = Math.round((afterDiscount * (taxPercent || 0)) / 100);
-  return { subtotal, discount, afterDiscount, tax, payable: afterDiscount + tax };
+  return { gross, totalDiscount: Math.max(0, gross - afterDiscount), subtotal, discount, afterDiscount, tax, payable: afterDiscount + tax };
 }
 
 const fmt = (n: number) => formatMoney(n);
@@ -212,10 +217,11 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
     </table>`,
     totals: `<div class="totals-wrap" style="justify-content:${tpl.totalsAlign === 'start' ? 'flex-start' : 'flex-end'}"><div class="tw">
       <div class="totals">
-        <div class="r"><span>جمع کل</span><b>${fmt(t.subtotal)}</b></div>
-        ${t.discount ? `<div class="r"><span>تخفیف (${toPersianDigits(deal.discountPercent || 0)}٪)</span><b>${fmt(t.discount)}</b></div>` : ''}
+        <div class="r"><span>جمع مبلغ کل (بدون تخفیف)</span><b>${fmt(t.gross)}</b></div>
+        <div class="r"><span>مبلغ تخفیف داده‌شده${deal.discountPercent ? ` (${toPersianDigits(deal.discountPercent)}٪ روی جمع و تخفیف ردیف‌ها)` : ''}</span><b>${fmt(t.totalDiscount)}</b></div>
+        <div class="r"><span>مبلغ پس از تخفیف</span><b>${fmt(t.afterDiscount)}</b></div>
         ${t.tax ? `<div class="r"><span>مالیات بر ارزش افزوده (${toPersianDigits(deal.taxPercent || 0)}٪)</span><b>${fmt(t.tax)}</b></div>` : ''}
-        <div class="r pay"><span>مبلغ قابل پرداخت (${unitName()})</span><span>${fmt(t.payable)}</span></div>
+        <div class="r pay"><span>مبلغ قابل پرداخت پس از تخفیف${t.tax ? ' و مالیات' : ''} (${unitName()})</span><span>${fmt(t.payable)}</span></div>
       </div>
       <div class="words">مبلغ به حروف: <b>${numberToPersianWords(toDisplay(t.payable))} ${unitName()}</b></div>
     </div></div>`,

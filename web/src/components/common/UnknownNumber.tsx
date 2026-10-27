@@ -77,11 +77,31 @@ export const findSavedContact = (customers: Customer[], number: string) => {
 
 export const useSavedContact = (number: string) => findSavedContact(useAppContext().customers, number);
 
+/** The colleague whose own mobile (the numbers on the user card) this is: such a number is never «unknown», nothing is offered to save. */
+export const findStaffByPhone = (staff: { fullName: string; mobile?: string; mobiles?: string[]; isActive?: boolean }[], number: string) => {
+  const key = digitsOf(number).slice(-10);
+  if (key.length < 7) return undefined;
+  return staff.find((u) => u.isActive !== false && [u.mobile, ...(u.mobiles || [])].some((p) => digitsOf(p || '').slice(-10) === key));
+};
+export const useStaffByPhone = (number: string) => findStaffByPhone(useAppContext().staffList, number);
+
 /** The title an old «call from a number» notification gets once the number is saved: the same wording the server uses for known callers. */
 export const savedCallTitle = (c: Customer) => {
   const type = contactTypeOf(c);
   const kind = type === 'CUSTOMER' ? 'مشتری' : CONTACT_TYPES.find((t) => t.id === type)?.label || 'دفتر تلفن';
   return `تماس ورودی از ${kind}: ${c.name}`;
+};
+
+/** The title of a call notice once the number is known: a saved person (customer, supplier …) or a colleague's own mobile; a missed call keeps «بی‌پاسخ». */
+export const callTitle = (n: { title: string; label?: string }, saved?: Customer, staff?: { fullName: string }) => {
+  const missed = n.label === 'تماس بی‌پاسخ';
+  if (saved) {
+    const type = contactTypeOf(saved);
+    const kind = type === 'CUSTOMER' ? 'مشتری' : CONTACT_TYPES.find((t) => t.id === type)?.label || 'دفتر تلفن';
+    return `${missed ? 'تماس بی‌پاسخ از' : 'تماس ورودی از'} ${kind}: ${saved.name}`;
+  }
+  if (staff) return `${missed ? 'تماس بی‌پاسخ از همکار' : 'تماس از همکار'}: ${staff.fullName}`;
+  return n.title;
 };
 
 /** What a saved number shows instead of the three buttons: who it is, and the type when it is not a customer. */

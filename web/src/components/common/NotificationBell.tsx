@@ -1,4 +1,4 @@
-import { findSavedContact, isExtensionNumber, savedCallTitle, SavedContactLine, UnknownNumberActions, UnknownNumberHost, useSavedContact } from './UnknownNumber';
+import { findSavedContact, isExtensionNumber, callTitle, findStaffByPhone, SavedContactLine, UnknownNumberActions, UnknownNumberHost, useSavedContact, useStaffByPhone } from './UnknownNumber';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -39,7 +39,9 @@ const timeAgo = (iso: string) => {
 /** Under a call from a number: the three save buttons while nobody has it, the saved name once somebody does. */
 const BellNumberRow: React.FC<{ number: string }> = ({ number }) => {
   const saved = useSavedContact(number);
+  const staff = useStaffByPhone(number);
   if (isExtensionNumber(number)) return null;
+  if (!saved && staff) return <div className="px-4 pb-3 -mt-1 bg-emerald-50/70 text-[11px] font-black text-emerald-800" data-bell-staff>همکار شرکت: {staff.fullName}</div>;
   return saved ? (
     <div className="px-4 pb-3 -mt-1 bg-emerald-50/70" data-bell-saved><SavedContactLine number={number} compact /></div>
   ) : (
@@ -51,7 +53,7 @@ const BellNumberRow: React.FC<{ number: string }> = ({ number }) => {
 };
 
 export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotification) => void }> = ({ onOpenNotification }) => {
-  const { customers, notifications, unreadCount, markNotificationsRead, clearNotifications, soundEnabled, setSoundEnabled, setNotificationHandler } = useAppContext();
+  const { customers, staffList, notifications, unreadCount, markNotificationsRead, clearNotifications, soundEnabled, setSoundEnabled, setNotificationHandler } = useAppContext();
   const [open, setOpen] = useState(false);
   const [perm, setPerm] = useState(osPermission());
   const [audioReady, setAudioReady] = useState(isAudioReady());
@@ -125,6 +127,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
   }, [open]);
 
   // a call from a number that has been saved since reads as a call from that person, everywhere in the list
+  const staffOf = (n: AppNotification) => (n.kind === 'call' && n.ref?.type === 'phone' && !isExtensionNumber(n.ref.id) && !known(n) ? findStaffByPhone(staffList, n.ref.id) : undefined);
   const known = (n: AppNotification) => (n.kind === 'call' && n.ref?.type === 'phone' && !isExtensionNumber(n.ref.id) ? findSavedContact(customers, n.ref.id) : undefined);
   const openItem = (n: AppNotification) => {
     markNotificationsRead([n.id]);
@@ -272,7 +275,7 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="flex items-start justify-between gap-2">
-                        <span className={`text-xs leading-5 ${n.read ? 'font-bold text-[#3A241F]' : 'font-black text-[#3A241F]'}`}>{kc ? savedCallTitle(kc) : n.title}</span>
+                        <span className={`text-xs leading-5 ${n.read ? 'font-bold text-[#3A241F]' : 'font-black text-[#3A241F]'}`}>{callTitle(n, kc, staffOf(n))}</span>
                         {!n.read && <span className="w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0" />}
                       </span>
                       {n.body && <span className="block text-[11px] text-[#8C6F66] leading-5 truncate">{n.body}</span>}

@@ -110,10 +110,17 @@ func recordCdr(ev Event) {
 		} else if otherName != "" {
 			who = otherName + " (" + other + ")"
 		}
+		// a missed call from the mobile of a colleague is shown by name (and the number is not offered for saving: it is already saved on his card)
+		isStaff := false
+		if custName == "" {
+			if sn, ok := StaffByPhone(ctx, other); ok {
+				who, isStaff = "همکار: "+sn+" ("+other+")", true
+			}
+		}
 		note := notify.Note{Kind: "call", Label: "تماس بی‌پاسخ", Title: "تماس بی‌پاسخ از " + who, Body: "داخلی " + ext, Repeat: true}
 		if custID != "" {
 			note.Ref = map[string]any{"type": "customer", "id": custID}
-		} else if otherName == "" && other != "" {
+		} else if otherName == "" && other != "" && !isStaff {
 			// a number that is not in the phone bank: opening the notification offers «save the number»
 			note.Ref = map[string]any{"type": "phone", "id": other}
 		}
@@ -184,10 +191,17 @@ func recordCompanyCall(ctx context.Context, ev Event, src, dst string) {
 		if custName != "" {
 			who = custName + " (" + other + ")"
 		}
+		// a missed call from the mobile of a colleague is shown by name (and the number is not offered for saving: it is already saved on his card)
+		isStaff := false
+		if custName == "" {
+			if sn, ok := StaffByPhone(ctx, other); ok {
+				who, isStaff = "همکار: "+sn+" ("+other+")", true
+			}
+		}
 		note := notify.Note{Kind: "call", Label: "تماس بی‌پاسخ", Title: "تماس بی‌پاسخ از " + who, Body: "به شمارهٔ " + dst, Repeat: true}
 		if custID != "" {
 			note.Ref = map[string]any{"type": "customer", "id": custID}
-		} else {
+		} else if !isStaff {
 			note.Ref = map[string]any{"type": "phone", "id": other}
 		}
 		if watchers := callWatchers(ctx, ""); len(watchers) > 0 {

@@ -8,7 +8,7 @@ import { normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { useAppContext } from '../../context/AppContext';
 import { canSeeSalesTotals, canSub } from '../../lib/permissions';
-import { isExtensionNumber, savedCallTitle, SavedContactLine, UnknownNumberActions, useSavedContact } from './UnknownNumber';
+import { callTitle, isExtensionNumber, SavedContactLine, UnknownNumberActions, useSavedContact, useStaffByPhone } from './UnknownNumber';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
 
@@ -52,7 +52,8 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const area = useVoipArea();
   const callNumber = isCall && n.ref?.type === 'phone' ? fullPhone(n.ref.id, area) : '';
   const savedContact = useSavedContact(callNumber);
-  const unknownNumber = savedContact || (n.ref?.type === 'phone' && isExtensionNumber(n.ref.id)) ? '' : callNumber;
+  const staffMatch = useStaffByPhone(callNumber);
+  const unknownNumber = savedContact || staffMatch || (n.ref?.type === 'phone' && isExtensionNumber(n.ref.id)) ? '' : callNumber;
   // an incoming-call card stays until the call ends (or at most the number of seconds the admin set); the other cards use the admin's time, or stay until closed
   const incoming = isCall && n.label !== 'تماس بی‌پاسخ';
   const conf = getNotifyConfig();
@@ -101,7 +102,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         </span>
         <span className="flex-1 min-w-0">
           <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full mb-1 ${k.badge}`}>{n.label || k.fallback}</span>
-          <span className="block text-[13px] font-black text-[#3A241F] leading-5">{savedContact ? savedCallTitle(savedContact) : n.title}</span>
+          <span className="block text-[13px] font-black text-[#3A241F] leading-5">{callTitle(n, savedContact, staffMatch)}</span>
           {n.body && <span className="block text-[11px] text-[#8C6F66] leading-5 mt-0.5 line-clamp-2">{n.body}</span>}
         </span>
       </button>
@@ -168,6 +169,9 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
       )}
       {savedContact && (
         <div className="px-3.5 py-2 bg-emerald-50 border-t border-emerald-100"><SavedContactLine number={callNumber} compact /></div>
+      )}
+      {!savedContact && staffMatch && callNumber && (
+        <div className="px-3.5 py-2 bg-emerald-50 border-t border-emerald-100 text-[11px] font-black text-emerald-800" data-staff-number>همکار شرکت: {staffMatch.fullName}</div>
       )}
       {unknownNumber && (
         <div className="px-3.5 py-2 bg-amber-50 border-t border-amber-100 flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-amber-900">

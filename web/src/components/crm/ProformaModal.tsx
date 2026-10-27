@@ -581,10 +581,11 @@ export const ProformaModal: React.FC<{
           )}
 
           <div className="rounded-2xl bg-[#FAF5F1] border border-[#EBDBCE] p-3 text-xs space-y-1">
-            <div className="flex justify-between"><span>جمع</span><b>{toman(totals.subtotal)}</b></div>
-            {totals.discount > 0 && <div className="flex justify-between"><span>تخفیف</span><b>−{toman(totals.discount)}</b></div>}
+            <div className="flex justify-between"><span>جمع مبلغ کل (بدون تخفیف)</span><b>{toman(totals.gross)}</b></div>
+            <div className="flex justify-between"><span>مبلغ تخفیف داده‌شده</span><b>{totals.totalDiscount > 0 ? '−' : ''}{toman(totals.totalDiscount)}</b></div>
+            <div className="flex justify-between"><span>مبلغ پس از تخفیف</span><b>{toman(totals.afterDiscount)}</b></div>
             {totals.tax > 0 && <div className="flex justify-between"><span>مالیات</span><b>{toman(totals.tax)}</b></div>}
-            <div className="flex justify-between text-sm font-black text-violet-700 pt-1 border-t border-[#EBDBCE]"><span>قابل پرداخت ({unitName()})</span><span>{toman(totals.payable)}</span></div>
+            <div className="flex justify-between text-sm font-black text-violet-700 pt-1 border-t border-[#EBDBCE]"><span>قابل پرداخت پس از تخفیف{totals.tax > 0 ? ' و مالیات' : ''} ({unitName()})</span><span>{toman(totals.payable)}</span></div>
           </div>
         </div>
 
