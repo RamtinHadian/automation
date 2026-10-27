@@ -7,6 +7,12 @@ import { toPersianDigits } from '../../lib/jalali';
 import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
 import { importFields, ImportField, guessMapping, importDate, importGender, importKind, isCompleteMobile, normPhone, normText, readTable, sampleCsv, standardize, downloadStandardSheet } from '../../lib/customerImport';
 
+/** Sepidar writes an address as «شهر, نشانی»: the city is the first part (the whole text is kept as it is). */
+const cityOfAddress = (a: string) => {
+  const parts = String(a || '').split(/[,،]/);
+  return parts.length > 1 ? parts[0].trim() : '';
+};
+
 const uid = () => 'cu-' + Math.random().toString(36).substring(2, 10);
 const sel = 'w-full px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden';
 
@@ -16,7 +22,8 @@ export const CustomerImportModal: React.FC<{
   ownerId: string;
   ownerName: string;
   onClose: () => void;
-  onImport: (customers: Customer[]) => void;
+  /** the new customers, and the new address (as in the file / Sepidar) of customers that were already in the system */
+  onImport: (customers: Customer[], addressUpdates?: { id: string; address: string; city?: string }[]) => void;
 }> = ({ existing, ownerId, ownerName, onClose, onImport }) => {
   const [rows, setRows] = useState<string[][] | null>(null);
   const [fileName, setFileName] = useState('');
@@ -29,6 +36,7 @@ export const CustomerImportModal: React.FC<{
   const [sources, setSources] = useState<{ name: string; count: number; unknown: string[] }[]>([]);
   const [status, setStatus] = useState<CustomerStatus>('ACTIVE');
   const [skipDup, setSkipDup] = useState(true);
+  const [syncAddr, setSyncAddr] = useState(true);
   const input = useRef<HTMLInputElement>(null);
 
   // One or several files: every one is brought to Hoormand's standard columns and the rows are put together in one list
@@ -106,6 +114,8 @@ export const CustomerImportModal: React.FC<{
     const seenAt = new Map<string, number>(); // number or code → the row of the file that had it first
     const dupList: { row: number; name: string; phones: string[]; matched: string }[] = [];
     const ok: Customer[] = [];
+    // customers already in the system whose address in the file is different (Sepidar is the source of the address): only the address is changed
+    const addrUpdates = new Map<string, { id: string; name: string; old: string; next: string; city?: string }>();
     let noName = 0;
     let dup = 0;
     let noMobile = 0;
@@ -152,6 +162,8 @@ export const CustomerImportModal: React.FC<{
         const earlier = [...phones, ...ids].map((k) => seenAt.get(k)).find((x) => x !== undefined);
         const matched = mine ? `${mine.name} (در هورمند)` : srvHit ? (srvHit.visible && srvHit.name ? `${srvHit.name} (در هورمند)` : 'مشتری همکار (در هورمند)') : earlier !== undefined ? `ردیف ${toPersianDigits(earlier)} همین فایل` : '';
         dupList.push({ row: rowNo, name, phones, matched });
+        const srcAddr = get(r, 'address');
+        if (syncAddr && mine && srcAddr && normText(mine.address || '') !== srcAddr && !addrUpdates.has(mine.id)) addrUpdates.set(mine.id, { id: mine.id, name: mine.name, old: mine.address || '', next: srcAddr, city: mine.city ? undefined : cityOfAddress(srcAddr) });
         issues.push({ row: rowNo, what: `${name} · ${phones.map((p) => toPersianDigits(p)).join('، ')}`, reason: `تکراری و ارسال نشد؛ مشتری موجود دست‌نخورده ماند${matched ? ` (${matched})` : ''}` });
         continue;
       }
@@ -183,7 +195,7 @@ export const CustomerImportModal: React.FC<{
         shopType: opt(get(r, 'shopType')),
         licenseNumber: opt(get(r, 'licenseNumber')),
         province: opt(get(r, 'province')),
-        city: opt(get(r, 'city')),
+        city: opt(get(r, 'city') || cityOfAddress(get(r, 'address'))),
         postalCode: opt(get(r, 'postalCode')),
         website: opt(get(r, 'website')),
         faxNumber: opt(normPhone(map.faxNumber >= 0 ? r[map.faxNumber] : '')),
@@ -202,8 +214,8 @@ export const CustomerImportModal: React.FC<{
         updatedAt: now,
       });
     }
-    return { ok, noName, dup, noMobile, issues, dupList };
-  }, [data, map, existing, status, skipDup, ownerId, ownerName, fields, serverDup]);
+    return { ok, noName, dup, noMobile, issues, dupList, addrUpdates: [...addrUpdates.values()] };
+  }, [data, map, existing, status, skipDup, syncAddr, ownerId, ownerName, fields, serverDup]);
 
   const download = () => {
     const a = document.createElement('a');
@@ -346,6 +358,10 @@ export const CustomerImportModal: React.FC<{
                 <input type="checkbox" checked={skipDup} onChange={(e) => setSkipDup(e.target.checked)} />
                 مشتریانی که شمارهٔ تلفن یا کد ملی‌شان قبلاً در سامانه هست، اضافه نشوند
               </label>
+              <label className="flex items-center gap-2 text-xs font-bold text-[#3A241F] cursor-pointer" data-import-sync-address>
+                <input type="checkbox" checked={syncAddr} onChange={(e) => setSyncAddr(e.target.checked)} />
+                نشانی مشتریانی که از قبل در سامانه هستند هم عیناً طبق فایل (سپیدار) به‌روز شود؛ فقط نشانی عوض می‌شود، بقیهٔ اطلاعات و سابقه دست‌نخورده می‌ماند
+              </label>
               <div className="rounded-2xl border border-[#EBDBCE] overflow-x-auto">
                 <table className="w-full text-[11px]">
                   <thead className="bg-[#FAF5F1] text-[#8C6F66]">
@@ -386,6 +402,21 @@ export const CustomerImportModal: React.FC<{
                 {result.noName > 0 && <span className="text-rose-600"> · {toPersianDigits(result.noName)} ردیف بدون نام ردشد</span>}
                 {result.noMobile > 0 && <span className="text-rose-600"> · {toPersianDigits(result.noMobile)} ردیف بدون موبایل کامل ردشد (موبایل برای ثبت هر مشتری لازم است)</span>}
               </div>
+              {result.addrUpdates.length > 0 && (
+                <details className="rounded-2xl border border-violet-300 bg-violet-50/60 px-3 py-2" data-import-addr-updates open>
+                  <summary className="cursor-pointer text-[11px] font-black text-violet-900">نشانی این مشتریان موجود طبق فایل عوض می‌شود ({toPersianDigits(result.addrUpdates.length)})</summary>
+                  <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-violet-100 text-[11px]">
+                    {result.addrUpdates.slice(0, 200).map((u) => (
+                      <div key={u.id} className="py-1.5">
+                        <span className="font-black text-[#3A241F]">{u.name}</span>
+                        <span className="block text-[#8C6F66]">قبلی: {u.old ? toPersianDigits(u.old) : 'نشانی نداشت'}</span>
+                        <span className="block text-violet-900 font-bold">طبق فایل: {toPersianDigits(u.next)}</span>
+                      </div>
+                    ))}
+                    {result.addrUpdates.length > 200 && <div className="py-1.5 font-bold text-[#8C6F66]">و {toPersianDigits(result.addrUpdates.length - 200)} مشتری دیگر.</div>}
+                  </div>
+                </details>
+              )}
               {result.dupList.length > 0 && (
                 <details className="rounded-2xl border border-amber-300 bg-amber-50/60 px-3 py-2" data-import-dups open>
                   <summary className="cursor-pointer text-[11px] font-black text-amber-900">مشتریان تکراری؛ به هورمند فرستاده نمی‌شوند ({toPersianDigits(result.dupList.length)})</summary>
@@ -435,14 +466,14 @@ export const CustomerImportModal: React.FC<{
           </button>
           <button
             type="button"
-            disabled={!rows || result.ok.length === 0}
+            disabled={!rows || (result.ok.length === 0 && result.addrUpdates.length === 0)}
             onClick={() => {
-              onImport(result.ok);
+              onImport(result.ok, result.addrUpdates.map((u) => ({ id: u.id, address: u.next, city: u.city })));
               onClose();
             }}
             className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
           >
-            {rows ? `افزودن ${toPersianDigits(result.ok.length)} مشتری` : 'افزودن'}
+            {rows ? `افزودن ${toPersianDigits(result.ok.length)} مشتری${result.addrUpdates.length ? ` و به‌روزکردن نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری` : ''}` : 'افزودن'}
           </button>
         </div>
       </div>

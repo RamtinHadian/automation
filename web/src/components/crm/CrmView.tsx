@@ -1047,9 +1047,10 @@ export const CrmView: React.FC = () => {
           ownerId={me}
           ownerName={currentUser.fullName}
           onClose={() => setImporting(false)}
-          onImport={(list) => {
-            setCustomers((prev) => [...list, ...prev]);
-            showToast(`${toPersianDigits(list.length)} مشتری اضافه شد.`);
+          onImport={(list, addrUpdates = []) => {
+            const upd = new Map(addrUpdates.map((u) => [u.id, u]));
+            setCustomers((prev) => [...list, ...prev.map((c) => (upd.has(c.id) ? { ...c, address: upd.get(c.id)!.address, city: c.city || upd.get(c.id)!.city, updatedAt: new Date().toISOString() } : c))]);
+            showToast(`${toPersianDigits(list.length)} مشتری اضافه شد${addrUpdates.length ? ` و نشانی ${toPersianDigits(addrUpdates.length)} مشتری طبق فایل به‌روز شد` : ''}.`);
           }}
         />
       )}
