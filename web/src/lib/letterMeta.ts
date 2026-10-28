@@ -16,13 +16,13 @@ export const letterMeta = (isA5: boolean) => ({
 });
 
 /** The style of the grid that holds the labels and the values. */
-export const letterMetaGridStyle = (isA5: boolean): CSSProperties => {
+export const letterMetaGridStyle = (isA5: boolean, rowGap?: number): CSSProperties => {
   const m = letterMeta(isA5);
   return {
     display: 'grid',
     gridTemplateColumns: `auto ${m.valueWidth}px`,
     columnGap: m.columnGap,
-    rowGap: m.rowGap,
+    rowGap: rowGap ?? m.rowGap,
     alignItems: 'center',
     textAlign: 'right',
     fontSize: m.fontSize,
@@ -31,7 +31,7 @@ export const letterMetaGridStyle = (isA5: boolean): CSSProperties => {
 };
 
 /** The same grid as a CSS text (for the printed page, which is plain HTML). */
-export const letterMetaGridCss = (isA5: boolean): string => {
+export const letterMetaGridCss = (isA5: boolean, rowGap?: number): string => {
   const m = letterMeta(isA5);
-  return `display: grid; grid-template-columns: auto ${m.valueWidth}px; column-gap: ${m.columnGap}px; row-gap: ${m.rowGap}px; align-items: center; text-align: right; font-size: ${m.fontSize}px; line-height: ${m.lineHeight};`;
+  return `display: grid; grid-template-columns: auto ${m.valueWidth}px; column-gap: ${m.columnGap}px; row-gap: ${rowGap ?? m.rowGap}px; align-items: center; text-align: right; font-size: ${m.fontSize}px; line-height: ${m.lineHeight};`;
 };

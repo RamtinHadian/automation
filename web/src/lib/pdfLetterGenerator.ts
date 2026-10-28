@@ -1,4 +1,4 @@
-import { FileTransfer, SystemSettings, User } from '../types';
+import { FileTransfer, LetterFx, SystemSettings, User } from '../types';
 import { letterMeta, letterMetaGridCss } from './letterMeta';
 import { resolveSignatureHeight, signatureAreaHeight, defaultStampHeight, stampSizeLocked, stripBakedBodyLayout, UNSIGNED_WATERMARK, SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT } from './letterDefaults';
 import { formatCurrentJalaliDateTime, toPersianDigits, toJalaliDateText } from './jalali';
@@ -41,6 +41,7 @@ export interface LetterPrintOverrides {
   orgOffsetX?: number;
   orgOffsetY?: number;
   bodyPaddingX?: number;
+  fx?: LetterFx;
   signatureHeight?: number;
   signatureOffsetX?: number;
   signatureOffsetY?: number;
@@ -168,6 +169,7 @@ export function generateOfficialLetterHtml(
   const orgOffsetX = overrides?.orgOffsetX !== undefined ? overrides.orgOffsetX : (transfer.orgOffsetX || 0);
   const orgOffsetY = overrides?.orgOffsetY !== undefined ? overrides.orgOffsetY : (transfer.orgOffsetY || 0);
   const bodyPaddingX = overrides?.bodyPaddingX !== undefined ? overrides.bodyPaddingX : (transfer.bodyPaddingX || 0);
+  const fx: LetterFx = (overrides?.fx !== undefined ? overrides.fx : transfer.fx) || {};
 
   const finalSigHeight = isA5 ? Math.min(signatureHeight, 300) : signatureHeight;
   const stampDefault = defaultStampHeight(isA5, settings.companyStampSizeCm, pageSize);
@@ -539,7 +541,7 @@ export function generateOfficialLetterHtml(
         ${headerTitle ? `<span>${headerTitle}</span>` : ''}
       </div>
       <div class="meta-box" style="transform: translate(${metaOffsetX}px, ${metaOffsetY}px); font-family: '${metaFont}', inherit; text-align: right; line-height: 1.45;">
-        <div style="${letterMetaGridCss(isA5)}">
+        <div style="${letterMetaGridCss(isA5, fx.metaRowGap)}">
           <span class="ml">${showNo ? 'شماره:' : ''}</span><span class="mv">${letterNo}</span>
           <span class="ml">${showDate ? 'تاریخ:' : ''}</span><span class="mv">${letterDate}</span>
           <span class="ml">${showAtt ? 'پیوست:' : ''}</span><span class="mv">${letterAttach}</span>
@@ -557,7 +559,7 @@ export function generateOfficialLetterHtml(
 
     <!-- Signature Section: BORDERLESS & CLEAN -->
     <div class="signature-section">
-      <div class="ceo-signature-block">
+      <div class="ceo-signature-block"${fx.signerBelow ? ' style="flex-direction: column-reverse;"' : ''}>
         <div style="transform: translate(${signatureOffsetX}px, ${signatureOffsetY}px); text-align: center;">
           <div class="ceo-name">${finalCeoName}</div>
           <div class="ceo-title">${finalCeoTitle}</div>

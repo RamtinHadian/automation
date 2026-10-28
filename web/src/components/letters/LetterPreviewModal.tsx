@@ -1846,7 +1846,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                       <span>جابه‌جایی مشخصات</span>
                     </div>
                   )}
-                  <div style={letterMetaGridStyle(pageSize === 'A5')}>
+                  <div style={letterMetaGridStyle(pageSize === 'A5', letter.fx?.metaRowGap)}>
                   <>
                     <span className="text-[#8C6F66] font-bold">{showNo ? 'شماره:' : ''}</span>
                     {isEditable ? (
@@ -2078,7 +2078,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
             {/* Signature & Official Seal Section (Draggable before signing) */}
             <div className={`${pageSize === 'A5' ? 'mt-4 pt-1 min-h-[90px]' : 'mt-8 pt-2 min-h-[140px]'} flex justify-end items-end relative`}>
-              <div className={`text-center ${pageSize === 'A5' ? 'min-w-[170px]' : 'min-w-[220px]'} flex flex-col items-center relative select-none`}>
+              <div className={`text-center ${pageSize === 'A5' ? 'min-w-[170px]' : 'min-w-[220px]'} flex ${letter.fx?.signerBelow ? 'flex-col-reverse' : 'flex-col'} items-center relative select-none`}>
               {/* CEO name & title — draggable on its own; the signature image and stamp below are independent objects */}
               <div
                 onPointerDown={handleMouseDownOnSignature} data-drag-handle

@@ -17,7 +17,7 @@ import {
   showOsNotification,
   startNotifyStream,
 } from '../lib/notifications';
-import { User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task, DailyReport, Customer, Deal, CrmActivity } from '../types';
+import { LetterFx, User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task, DailyReport, Customer, Deal, CrmActivity } from '../types';
 import { INITIAL_SETTINGS } from '../lib/mock-data';
 import { isChatOpenWith } from '../lib/chatState';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
@@ -151,6 +151,7 @@ interface AppContextType {
     orgOffsetX?: number;
     orgOffsetY?: number;
     bodyPaddingX?: number;
+    fx?: LetterFx;
     attachmentFileName?: string;
     attachmentFileSize?: string;
     attachmentFileDataUrl?: string;
@@ -213,6 +214,7 @@ interface AppContextType {
       orgOffsetX?: number;
       orgOffsetY?: number;
       bodyPaddingX?: number;
+      fx?: LetterFx;
     }
   ) => void;
   handleRejectLetter: (transferId: string, reason?: string) => void;
@@ -771,6 +773,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       orgOffsetX,
       orgOffsetY,
       bodyPaddingX,
+      fx,
       attachmentFileName,
       attachmentFileSize,
       attachmentFileDataUrl,
@@ -833,6 +836,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       orgOffsetX?: number;
       orgOffsetY?: number;
       bodyPaddingX?: number;
+      fx?: LetterFx;
       attachmentFileName?: string;
       attachmentFileSize?: string;
       attachmentFileDataUrl?: string;
@@ -939,6 +943,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             orgOffsetX,
             orgOffsetY,
             bodyPaddingX,
+            fx,
             attachmentFileName,
             attachmentFileSize,
           };
@@ -1226,6 +1231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         orgOffsetX?: number;
         orgOffsetY?: number;
         bodyPaddingX?: number;
+        fx?: LetterFx;
       }
     ) => {
       setTransfers((prev) =>
@@ -1282,6 +1288,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               orgOffsetX: signatureOptions?.orgOffsetX !== undefined ? signatureOptions.orgOffsetX : t.orgOffsetX,
               orgOffsetY: signatureOptions?.orgOffsetY !== undefined ? signatureOptions.orgOffsetY : t.orgOffsetY,
               bodyPaddingX: signatureOptions?.bodyPaddingX !== undefined ? signatureOptions.bodyPaddingX : t.bodyPaddingX,
+              fx: signatureOptions?.fx !== undefined ? signatureOptions.fx : t.fx,
             };
           }
           return t;

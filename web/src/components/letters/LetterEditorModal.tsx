@@ -120,6 +120,8 @@ interface LetterEditorModalProps {
     orgOffsetX?: number;
     orgOffsetY?: number;
     bodyPaddingX?: number;
+    metaRowGap?: number;
+    signerBelow?: boolean;
     attachmentFileName?: string;
     attachmentFileSize?: string;
     attachmentFileDataUrl?: string;
@@ -210,6 +212,10 @@ function parseLetterForEdit(t: FileTransfer) {
   layout.headerCenterOffset = pt(t.headerCenterOffsetX, t.headerCenterOffsetY);
   layout.subjectOffset = pt(t.subjectOffsetX, t.subjectOffsetY);
   layout.metaOffset = pt(t.metaOffsetX, t.metaOffsetY);
+  if (t.fx) {
+    layout.metaRowGap = t.fx.metaRowGap;
+    layout.signerBelow = !!t.fx.signerBelow; // an older letter keeps its old order (name above the stamp)
+  }
   layout.footerNoteOffset = pt(t.footerNoteOffsetX, t.footerNoteOffsetY);
   if (t.headerCenterFontFamily) layout.headerCenterFontFamily = t.headerCenterFontFamily;
   if (t.subjectFontFamily) layout.subjectFontFamily = t.subjectFontFamily;
@@ -278,6 +284,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [selectedFontSize, setSelectedFontSize] = useState<string>(() => (typeof prefs.selectedFontSize === 'string' ? prefs.selectedFontSize : '13px'));
   const [headerCenterTitle, setHeaderCenterTitle] = useState<string>(() => (typeof prefs.headerCenterTitle === 'string' ? prefs.headerCenterTitle : '« به نام خدا »'));
   const [bodyPaddingX, setBodyPaddingX] = useState<number>(() => numPref(prefs.bodyPaddingX, 32));
+  const [metaRowGap, setMetaRowGap] = useState<number>(() => numPref(prefs.metaRowGap, 4)); // px between the lines of number / date / attachment
+  const [signerBelow, setSignerBelow] = useState<boolean>(() => (editInit?.layout ? !!editInit.layout.signerBelow : prefs.signerBelow !== false)); // the name under the stamp and signature
   // «درج جدول»: the person chooses the number of rows and columns first
   const [tableOpen, setTableOpen] = useState(false);
   const [tableRows, setTableRows] = useState('3');
@@ -370,7 +378,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
   const collectLayout = () => ({
     selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
-    selectedFontSize, headerCenterTitle, bodyPaddingX, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
+    selectedFontSize, headerCenterTitle, bodyPaddingX, metaRowGap, signerBelow, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset, footerNoteOffset,
     orgOffset, bodyOffsetY, layoutLocked, letterhead: lh, logoSize, orgTextScale, logoOffset, orgTextOffset,
     showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo, showOrgName, showSubject, showFooterNote,
@@ -411,6 +419,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setSelectedFontSize(typeof base.selectedFontSize === 'string' ? base.selectedFontSize : '13px');
     setHeaderCenterTitle(typeof base.headerCenterTitle === 'string' ? base.headerCenterTitle : '« به نام خدا »');
     setBodyPaddingX(numPref(base.bodyPaddingX, 32));
+    setMetaRowGap(numPref(base.metaRowGap, 4));
+    setSignerBelow(base.signerBelow !== false);
     setBodyOffsetX(numPref(base.bodyOffsetX, 0));
     setSignatureHeight(numPref(base.signatureHeight, settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT));
     setSignatureAlign('left');
@@ -747,6 +757,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
       orgOffsetX: orgOffset.x,
       orgOffsetY: orgOffset.y,
       bodyPaddingX,
+      fx: { metaRowGap, signerBelow },
       attachmentFileName: attachedFile?.name,
       attachmentFileSize: attachedFile?.size,
       attachmentFileDataUrl: attachedFile?.dataUrl,
@@ -1139,7 +1150,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                   </div>
 
                   {/* Perfectly Stacked Under Each Other with Fixed Column Alignment */}
-                  <div style={letterMetaGridStyle(pageSize === 'A5')}>
+                  <div style={letterMetaGridStyle(pageSize === 'A5', metaRowGap)}>
                     <span className="text-[#8C6F66] font-bold text-right shrink-0">{showNo ? 'شماره:' : ''}</span>
                     <input
                       type="text"
@@ -1263,7 +1274,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
             {/* CEO NAME / TITLE (font + size beside the text). Signature image and stamp are independent objects. */}
             <div className={`${pageSize === 'A5' ? 'mt-4 pt-1 min-h-[90px]' : 'mt-8 pt-2 min-h-[140px]'} flex justify-end items-end relative`}>
               <div
-                className={`text-center ${pageSize === 'A5' ? 'w-[170px] min-w-[170px]' : 'w-[220px] min-w-[220px]'} flex flex-col items-center relative select-none`}
+                className={`text-center ${pageSize === 'A5' ? 'w-[170px] min-w-[170px]' : 'w-[220px] min-w-[220px]'} flex ${signerBelow ? 'flex-col-reverse' : 'flex-col'} items-center relative select-none`}
               >
                 {/* Name & title with only font and size controls */}
                 <MoveBox offset={signatureOffset} onChange={setSignatureOffset} locked={layoutLocked} scale={zoom} className="relative w-fit max-w-full p-2">
@@ -1523,6 +1534,25 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
               />
               <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-7 text-center">{toPersianDigits(bodyPaddingX)}px</span>
             </div>
+
+            <div className={`flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] shadow-2xs ${side ? 'col-span-2 flex-wrap' : ''}`} data-meta-gap>
+              <span className="text-[11px] font-bold text-[#8C6F66]">فاصلهٔ خطوط تاریخ و شماره و پیوست:</span>
+              <input
+                type="range"
+                min="0"
+                max="30"
+                value={metaRowGap}
+                onChange={(e) => setMetaRowGap(Number(e.target.value))}
+                className={`${side ? 'flex-1 min-w-0' : 'w-16'} accent-[#6E1B1B] cursor-pointer`}
+                title="کم و زیاد کردن فاصلهٔ بین خطوط تاریخ، شماره و پیوست"
+              />
+              <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-7 text-center">{toPersianDigits(metaRowGap)}px</span>
+            </div>
+
+            <label className={`flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] shadow-2xs text-[11px] font-bold text-[#3A241F] cursor-pointer ${side ? 'col-span-2' : ''}`} data-signer-below>
+              <input type="checkbox" checked={signerBelow} onChange={(e) => setSignerBelow(e.target.checked)} />
+              نام و سمت مدیرعامل زیر مهر و امضا باشد
+            </label>
 
             <div className={`${side ? 'col-span-2' : ''} flex flex-col gap-1.5 bg-white p-1.5 rounded-xl border border-[#EBDBCE]`} data-copy-field>
               <div className="flex items-center gap-1.5">

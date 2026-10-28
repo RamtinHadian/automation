@@ -86,7 +86,7 @@ import {
   Phone,
   ChevronUp,
 } from 'lucide-react';
-import { CrmActivity, Customer, Deal, FileCategory, FileTransfer, LetterReferral } from '../types';
+import { CrmActivity, Customer, Deal, FileCategory, FileTransfer, LetterFx, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../lib/jalali';
 import { AppDataOverride, useAppContext } from '../context/AppContext';
@@ -655,6 +655,7 @@ export default function UserPanel() {
     orgOffsetX?: number;
     orgOffsetY?: number;
     bodyPaddingX?: number;
+    fx?: LetterFx;
     attachmentFileName?: string;
     attachmentFileSize?: string;
     attachmentFileDataUrl?: string;
@@ -762,6 +763,7 @@ export default function UserPanel() {
       orgOffsetX: letterData.orgOffsetX,
       orgOffsetY: letterData.orgOffsetY,
       bodyPaddingX: letterData.bodyPaddingX,
+      fx: letterData.fx,
       attachmentFileName: letterData.attachmentFileName,
       attachmentFileSize: letterData.attachmentFileSize,
       attachmentFileDataUrl: letterData.attachmentFileDataUrl,

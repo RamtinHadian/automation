@@ -580,6 +580,8 @@ export interface FileTransfer {
   orgOffsetX?: number;
   orgOffsetY?: number;
   bodyPaddingX?: number;
+  /** small layout settings of the letter: the gap between the lines of «شماره / تاریخ / پیوست» and the name under the stamp and signature */
+  fx?: LetterFx;
   customHeaderNumber?: string;
   customHeaderDate?: string;
   customHeaderAttachment?: string;
@@ -1136,4 +1138,12 @@ export interface MinutesConfig {
   numbering: MinutesNumbering;
   design: MinutesDesign;
   types: MinutesType[];
+}
+
+/** Extra layout settings kept with a letter (absent on older letters: they keep their old look). */
+export interface LetterFx {
+  /** px between the lines of the number / date / attachment block */
+  metaRowGap?: number;
+  /** the name and title of the signer under the signature and the stamp (instead of above them) */
+  signerBelow?: boolean;
 }
