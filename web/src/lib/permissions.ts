@@ -130,6 +130,7 @@ export const MENUS: MenuDef[] = [
     subs: [
       { id: 'warehouse.warehouses', label: 'انبارها', hint: 'با تیک زدن، پنجرهٔ انتخاب انبارهای مجاز این کارمند باز می‌شود (هیچ‌کدام = همهٔ انبارها).' },
       { id: 'warehouse.products', label: 'کالاها', hint: 'با تیک زدن، پنجرهٔ انتخاب کالاهای مجاز (با تیک جدای موجودی و قیمت برای هر کالا) باز می‌شود.' },
+      { id: 'warehouse.groups', label: 'گروه‌های کالا', hint: 'با تیک زدن، پنجرهٔ انتخاب گروه‌های کالایی که این کارمند می‌بیند باز می‌شود (هیچ‌کدام = همهٔ گروه‌ها).' },
       { id: 'warehouse.stock', label: 'موجودی', hint: 'موجودی هر کالا در هر انبار.' },
       { id: 'warehouse.qty', label: 'مرور تعدادی', hint: 'تعداد موجودی کالاها را می‌بیند. بدون این تیک تعداد، کارت کالا و اسناد را نمی‌بیند.' },
       { id: 'warehouse.money', label: 'مرور مبلغی', hint: 'قیمت‌ها و بهای تمام‌شدهٔ کالا را می‌بیند. بدون این تیک هیچ مبلغی نمی‌بیند و قیمت‌ها را عوض نمی‌کند.' },
@@ -199,9 +200,11 @@ export const COLUMNS: Column[] = MENUS.flatMap((m) => [
   ...m.subs.map((s) => ({ id: s.id, menuId: m.id, label: s.label, hint: s.hint, isMain: false, def: s.flag } as Column)),
 ]);
 
-export const colOn = (u: User, c: Column): boolean => (c.def ? hasPerm(u, c.def) : !(u.hiddenSub || []).includes(c.id));
+// «گروه‌های کالا» is not a switch but a list: its box is ticked when the person is limited to some groups (the list is chosen in a window)
+export const colOn = (u: User, c: Column): boolean => (c.id === 'warehouse.groups' ? (u.whGroups || []).length > 0 : c.def ? hasPerm(u, c.def) : !(u.hiddenSub || []).includes(c.id));
 
 export const colPatch = (u: User, c: Column, on: boolean): Partial<User> => {
+  if (c.id === 'warehouse.groups') return {};
   if (c.def) return permPatch(u, c.def, on);
   const cur = (u.hiddenSub || []).filter((x) => x !== c.id);
   return { hiddenSub: on ? cur : [...cur, c.id] };

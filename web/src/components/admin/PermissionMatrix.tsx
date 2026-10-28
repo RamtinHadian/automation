@@ -121,13 +121,15 @@ const TeamCrmDialog: React.FC<{ u: User; users: User[]; onSave: (ids: string[], 
 };
 
 /** Under the name of a person who may enter «انبار»: which warehouses, and which single products with their own ticks for the stock and the price. */
-const WhChip: React.FC<{ u: User; onOpen: (tab: 'wh' | 'prod') => void }> = ({ u, onOpen }) => {
+const WhChip: React.FC<{ u: User; onOpen: (tab: 'wh' | 'prod' | 'groups') => void }> = ({ u, onOpen }) => {
+  const g = (u.whGroups || []).length;
   const w = (u.whWarehouseIds || []).length;
   const pr = (u.whProducts || []).length;
   const cls = 'mt-1 ml-1 text-[10px] font-black text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 cursor-pointer';
   return (
     <>
       {w > 0 && <button type="button" onClick={() => onOpen('wh')} className={cls} data-wh-chip>فقط {toPersianDigits(w)} انبار</button>}
+      {g > 0 && <button type="button" onClick={() => onOpen('groups')} className={cls} data-group-chip>فقط {toPersianDigits(g)} گروه کالا</button>}
       {pr > 0 && <button type="button" onClick={() => onOpen('prod')} className={cls} data-prod-chip>فقط {toPersianDigits(pr)} کالا</button>}
     </>
   );
@@ -135,7 +137,9 @@ const WhChip: React.FC<{ u: User; onOpen: (tab: 'wh' | 'prod') => void }> = ({ u
 
 type WhRule = { id: string; qty: boolean; price: boolean };
 
-const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod'; onSave: (warehouses: string[], products: WhRule[]) => void; onClose: () => void }> = ({ u, tab0 = 'wh', onSave, onClose }) => {
+const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod' | 'groups'; onSave: (warehouses: string[], products: WhRule[], groups: string[]) => void; onClose: () => void }> = ({ u, tab0 = 'wh', onSave, onClose }) => {
+  const [grps, setGrps] = useState<string[]>(u.whGroups || []);
+  const [gq, setGq] = useState('');
   const [data, setData] = useState<WhState | null>(null);
   const [wq, setWq] = useState('');
   const [err, setErr] = useState('');
@@ -146,6 +150,19 @@ const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod'; onSave: (warehouses: s
   React.useEffect(() => {
     api.warehouse().then(setData).catch((e) => setErr(e instanceof Error ? e.message : 'بارگیری نشد'));
   }, []);
+  // the product groups of the warehouse (as Sepidar has them): how many products each holds and a few names, because a group is often only a number
+  const groupList = useMemo(() => {
+    const m = new Map<string, { name: string; count: number; samples: string[] }>();
+    for (const p of data?.products || []) {
+      const name = p.group || 'بدون گروه';
+      const g = m.get(name) || { name, count: 0, samples: [] };
+      g.count++;
+      if (g.samples.length < 2) g.samples.push(p.title);
+      m.set(name, g);
+    }
+    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa', { numeric: true }));
+  }, [data]);
+  const shownGroups = groupList.filter((g) => !gq.trim() || matchesAll({ name: g.name, samples: g.samples.join(' ') }, gq));
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   const list = (data?.products || []).filter((p) => !q.trim() || matchesAll(p, q)).slice(0, 300);
   const rule = (id: string) => prods.find((x) => x.id === id);
@@ -158,11 +175,38 @@ const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod'; onSave: (warehouses: s
     <div className="fixed inset-0 z-[360] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { stop(e); onClose(); }} onClick={stop} data-wh-dialog>
       <div dir="rtl" onMouseDown={stop} className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border border-[#EBDBCE] text-right max-h-[88vh]">
         <div className="px-5 py-3.5 border-b border-[#EBDBCE]">
-          <h3 className="font-black text-sm text-[#3A241F]">{tab0 === 'wh' ? 'انبارهای' : 'کالاهای'} «{u.fullName}»</h3>
-          <p className="text-[11px] text-[#8C6F66] mt-1 leading-5">{tab0 === 'wh' ? 'هیچ انباری انتخاب نشود یعنی همهٔ انبارها.' : 'هیچ کالایی انتخاب نشود یعنی همهٔ کالاها (به‌علاوهٔ گروه‌هایی که در ویرایش کاربر تیک خورده). برای هر کالا می‌توانید موجودی و قیمت را جدا باز کنید.'}</p>
+          <h3 className="font-black text-sm text-[#3A241F]">{tab0 === 'groups' ? 'گروه‌های کالای' : tab0 === 'wh' ? 'انبارهای' : 'کالاهای'} «{u.fullName}»</h3>
+          <p className="text-[11px] text-[#8C6F66] mt-1 leading-5">{tab0 === 'groups' ? 'هیچ گروهی انتخاب نشود یعنی همهٔ گروه‌ها را می‌بیند. با انتخاب گروه، فقط کالاهای همان گروه‌ها (موجودی، اسناد و کارت کالا) برایش باز است.' : tab0 === 'wh' ? 'هیچ انباری انتخاب نشود یعنی همهٔ انبارها.' : 'هیچ کالایی انتخاب نشود یعنی همهٔ کالاها (به‌علاوهٔ گروه‌هایی که در ویرایش کاربر تیک خورده). برای هر کالا می‌توانید موجودی و قیمت را جدا باز کنید.'}</p>
         </div>
         {err && <div className="px-5 pt-3 text-xs font-bold text-rose-600">{err}</div>}
-        {tab === 'wh' ? (
+        {tab === 'groups' ? (
+          <div className="p-3 overflow-y-auto flex-1 space-y-2" data-wh-groups-dialog>
+            <input value={gq} onChange={(e) => setGq(e.target.value)} placeholder="جستجوی گروه (نام گروه یا نام یکی از کالاها)…" className="w-full px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-[#D97706] focus:outline-none" />
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setGrps((c) => [...new Set([...c, ...shownGroups.map((g) => g.name)])])} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-amber-300 text-amber-800 cursor-pointer" data-wh-groups-all>انتخاب همه{gq.trim() ? ' (نتیجهٔ جست‌وجو)' : ''}</button>
+              <button type="button" onClick={() => setGrps((c) => (gq.trim() ? c.filter((x) => !shownGroups.some((g) => g.name === x)) : []))} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-[#EBDBCE] text-[#8C6F66] cursor-pointer">برداشتن همه</button>
+            </div>
+            <button type="button" onClick={() => setGrps([])} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${grps.length === 0 ? 'bg-amber-50 border-amber-300 text-amber-900' : 'border-[#EBDBCE] text-[#3A241F]'}`}>
+              <span className={box(grps.length === 0)}>{grps.length === 0 && <Check className="w-3.5 h-3.5" />}</span>
+              همهٔ گروه‌ها (بدون محدودیت)
+            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {shownGroups.map((g) => {
+                const on = grps.includes(g.name);
+                return (
+                  <button key={g.name} type="button" role="checkbox" aria-checked={on} onClick={() => setGrps((c) => (c.includes(g.name) ? c.filter((x) => x !== g.name) : [...c, g.name]))} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right cursor-pointer ${on ? 'bg-amber-50 border-amber-300' : 'border-[#EBDBCE] hover:bg-[#FAF5F1]'}`} data-wh-group={g.name}>
+                    <span className={box(on)}>{on && <Check className="w-3.5 h-3.5" />}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-black text-[#3A241F] truncate">{g.name}</span>
+                      <span className="block text-[10px] text-[#8C6F66] truncate">{toPersianDigits(g.count)} کالا · {g.samples.join('، ')}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {data && shownGroups.length === 0 && <div className="py-6 text-center text-xs font-bold text-gray-400">گروهی پیدا نشد.</div>}
+          </div>
+        ) : tab === 'wh' ? (
           <div className="p-3 overflow-y-auto flex-1 space-y-1">
             <input value={wq} onChange={(e) => setWq(e.target.value)} placeholder="جستجوی انبار…" className="w-full mb-1 px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden focus:border-[#D97706]" />
             <div className="flex gap-2 pb-1">
@@ -230,11 +274,11 @@ const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod'; onSave: (warehouses: s
         )}
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-[#EBDBCE]">
           <span className="text-[11px] font-bold text-[#8C6F66]">
-            {tab === 'wh' ? (whs.length === 0 ? 'همهٔ انبارها' : `${toPersianDigits(whs.length)} انبار`) : prods.length ? `${toPersianDigits(prods.length)} کالای مشخص` : 'همهٔ کالاها'}
+            {tab === 'groups' ? (grps.length === 0 ? 'همهٔ گروه‌ها' : `${toPersianDigits(grps.length)} گروه`) : tab === 'wh' ? (whs.length === 0 ? 'همهٔ انبارها' : `${toPersianDigits(whs.length)} انبار`) : prods.length ? `${toPersianDigits(prods.length)} کالای مشخص` : 'همهٔ کالاها'}
           </span>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black border border-[#EBDBCE] cursor-pointer">انصراف</button>
-            <button type="button" onClick={() => { onSave(tab === 'wh' ? whs : (u.whWarehouseIds || []), tab === 'prod' ? prods : (u.whProducts || [])); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#D97706] cursor-pointer" data-wh-save>تأیید</button>
+            <button type="button" onClick={() => { onSave(tab === 'wh' ? whs : (u.whWarehouseIds || []), tab === 'prod' ? prods : (u.whProducts || []), tab === 'groups' ? grps : (u.whGroups || [])); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#D97706] cursor-pointer" data-wh-save>تأیید</button>
           </div>
         </div>
       </div>
@@ -245,7 +289,7 @@ const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod'; onSave: (warehouses: s
 
 export const PermissionMatrix: React.FC<{ users: User[]; departments: Department[]; onUpdateUser: (id: string, updates: Partial<User>) => void }> = ({ users, departments, onUpdateUser }) => {
   const { showToast } = useAppContext();
-  const [whDlg, setWhDlg] = useState<{ u: User; tab: 'wh' | 'prod' } | null>(null);
+  const [whDlg, setWhDlg] = useState<{ u: User; tab: 'wh' | 'prod' | 'groups' } | null>(null);
   const [teamDlg, setTeamDlg] = useState<User | null>(null);
   const [q, setQ] = useState('');
   const [dept, setDept] = useState('');
@@ -273,6 +317,10 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
   const adminEditable = (c: Column) => c.isMain || !c.def;
   const adminOn = (u: User, c: Column) => !(u.hiddenSub || []).includes(adminHideId(c));
   const toggle = (u: User, c: Column) => {
+    if (c.id === 'warehouse.groups' && !isAdminUser(u)) {
+      setWhDlg({ u, tab: 'groups' }); // a click always opens the window where the groups are chosen
+      return;
+    }
     if (isAdminUser(u)) {
       const id = adminHideId(c);
       const on = !adminOn(u, c);
@@ -285,6 +333,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
     onUpdateUser(u.id, colPatch(u, c, on));
     if (on && c.id === 'warehouse.warehouses') setWhDlg({ u, tab: 'wh' });
     if (on && c.id === 'warehouse.products') setWhDlg({ u, tab: 'prod' });
+    if (on && c.id === 'warehouse.groups') setWhDlg({ u, tab: 'groups' });
     if (on && c.id === 'crm.team') setTeamDlg({ ...u, canSeeTeamCrm: true }); // choose whose customers (or «all») right away
     showToast(`«${c.label}» برای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
   };
@@ -507,7 +556,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
       <p className="text-[11px] leading-6 text-[#8C6F66]">
         برای مدیران هم می‌توانید منو و زیرمنو را تیک بزنید یا بردارید (فقط نمایش آن برایشان). «مدیرعامل / صاحب امضای مجاز» فقط یک نفر است و از «ویرایش کاربر» تعیین می‌شود. هر تیک همان لحظه ذخیره می‌شود و کارمند از تغییر مجوزهایش با یک اعلان باخبر می‌شود. هر منو یا زیرمنوی تازه‌ای که به سامانه اضافه شود، یک ستون در همین جدول می‌گیرد.
       </p>
-      {whDlg && <WhDialog u={whDlg.u} tab0={whDlg.tab} onSave={(w, pr) => onUpdateUser(whDlg.u.id, { whWarehouseIds: w, whProducts: pr })} onClose={() => setWhDlg(null)} />}
+      {whDlg && <WhDialog u={whDlg.u} tab0={whDlg.tab} onSave={(w, pr, gr) => onUpdateUser(whDlg.u.id, { whWarehouseIds: w, whProducts: pr, whGroups: gr })} onClose={() => setWhDlg(null)} />}
       {teamDlg && <TeamCrmDialog u={teamDlg} users={users} onSave={(ids, customerIds, seesTeam) => onUpdateUser(teamDlg.id, { crmTeamIds: ids, crmCustomerIds: customerIds, canSeeTeamCrm: seesTeam })} onClose={() => setTeamDlg(null)} />}
     </div>
   );
