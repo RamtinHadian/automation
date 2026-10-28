@@ -23,6 +23,9 @@ const clamp = (v: number, lim: number) => Math.max(-lim, Math.min(lim, v));
  */
 export const MoveBox: React.FC<MoveBoxProps> = ({ offset, onChange, locked, scale = 1, className = '', style, dir, range = 600, children }) => {
   const drag = useRef<{ sx: number; sy: number; ix: number; iy: number } | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const live = useRef<{ x: number; y: number } | null>(null);
+  const frame = useRef(0);
   const [active, setActive] = useState(false);
 
   const down = (e: React.PointerEvent) => {
@@ -38,11 +41,25 @@ export const MoveBox: React.FC<MoveBoxProps> = ({ offset, onChange, locked, scal
   const move = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
-    onChange({ x: clamp(d.ix + (e.clientX - d.sx) / scale, range), y: clamp(d.iy + (e.clientY - d.sy) / scale, range) });
+    // the whole editor is not drawn again for every movement of the mouse: only this box moves (smoothly, once per frame)
+    const next = { x: clamp(d.ix + (e.clientX - d.sx) / scale, range), y: clamp(d.iy + (e.clientY - d.sy) / scale, range) };
+    live.current = next;
+    if (!frame.current) {
+      frame.current = requestAnimationFrame(() => {
+        frame.current = 0;
+        const l = live.current;
+        if (box.current && l) box.current.style.transform = `translate(${l.x}px, ${l.y}px)`;
+      });
+    }
   };
   const up = () => {
+    if (frame.current) cancelAnimationFrame(frame.current);
+    frame.current = 0;
+    const l = live.current;
+    live.current = null;
     drag.current = null;
     setActive(false);
+    if (l) onChange(l);
   };
 
   const interactive = locked
@@ -51,13 +68,14 @@ export const MoveBox: React.FC<MoveBoxProps> = ({ offset, onChange, locked, scal
 
   return (
     <div
+      ref={box}
       dir={dir}
       onPointerDown={down}
       onPointerMove={move}
       onPointerUp={up}
       onPointerCancel={up}
       className={`${className} ${interactive}`}
-      style={{ ...style, transform: `translate(${offset.x}px, ${offset.y}px)`, touchAction: locked ? undefined : 'none' }}
+      style={{ ...style, transform: `translate(${offset.x}px, ${offset.y}px)`, touchAction: locked ? undefined : 'none', willChange: active ? 'transform' : undefined }}
     >
       {children}
     </div>

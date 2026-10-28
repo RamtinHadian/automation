@@ -811,8 +811,12 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
   // Unified Drag listeners for signature, center title, and subject
   useEffect(() => {
-    const handleMouseMove = (e: PointerEvent) => {
-      if (activeDragItem === 'NONE' || !isEditable) return;
+    let raf = 0;
+    let lastEv: PointerEvent | null = null;
+    const apply = () => {
+      raf = 0;
+      const e = lastEv;
+      if (!e || activeDragItem === 'NONE' || !isEditable) return;
       const dx = (e.clientX - dragStartRef.current.startX) / zoomRef.current;
       const dy = (e.clientY - dragStartRef.current.startY) / zoomRef.current;
 
@@ -833,8 +837,17 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         setMetaOffset({ x: newX, y: newY });
       }
     };
+    // many movement events arrive between two frames: the page is updated once per frame
+    const handleMouseMove = (e: PointerEvent) => {
+      lastEv = e;
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
 
     const handleMouseUp = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      if (lastEv) apply();
+      lastEv = null;
       if (activeDragItem !== 'NONE') {
         setActiveDragItem('NONE');
       }
@@ -1943,7 +1956,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 fontFamily: bodyFontFamily || chosenFont.fontFamily,
                 fontSize: selectedFontSize,
               }}
-              className="py-4 text-xs leading-relaxed min-h-[160px] transition-transform relative group/body"
+              className="py-4 text-xs leading-relaxed min-h-[160px] relative group/body"
             >
               {isEditable ? (
                 <>
@@ -2086,7 +2099,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   transform: `translate(${signatureOffset.x}px, ${signatureOffset.y}px)`,
                   cursor: isEditable && !layoutFrozen ? (isDraggingSig ? 'grabbing' : 'grab') : 'default',
                 }}
-                className={`text-center w-fit max-w-full space-y-0.5 flex flex-col items-center relative select-none transition-all ${
+                className={`text-center w-fit max-w-full space-y-0.5 flex flex-col items-center relative select-none transition-shadow ${
                   isEditable && !layoutFrozen
                     ? isDraggingSig
                       ? 'opacity-90 scale-102 z-30 ring-2 ring-amber-500 rounded-lg px-1 bg-amber-50/60 shadow-lg'
