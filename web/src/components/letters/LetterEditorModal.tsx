@@ -1342,8 +1342,11 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                   style={{ height: `${signatureAreaHeight(pageSize === 'A5', pageSize === 'A5' ? Math.min(signatureHeight, 300) : signatureHeight, effectiveStampHeight)}px` }}
                 >
                   {(
-                    <div className="text-[8px] text-amber-700/60 font-bold border-t border-dashed border-amber-200/60 pt-0.5 w-full text-center">
-                      محل امضا و مهر؛ مدیرعامل هنگام امضا انتخاب می‌کند و روی نامه می‌گذارد
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none" data-sign-hint>
+                      <div className="text-[9px] text-amber-800/70 font-bold border border-dashed border-amber-300/70 rounded-lg px-3 py-1.5 text-center leading-5 bg-amber-50/40">
+                        محل مهر و امضای مدیرعامل
+                        <span className="block text-[8px] font-medium text-amber-700/60">مدیرعامل هنگام امضا انتخاب می‌کند و روی نامه می‌گذارد</span>
+                      </div>
                     </div>
                   )}
                 </div>
