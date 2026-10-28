@@ -163,6 +163,15 @@ const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod' | 'groups'; onSave: (wa
     return [...m.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa', { numeric: true }));
   }, [data]);
   const shownGroups = groupList.filter((g) => !gq.trim() || matchesAll({ name: g.name, samples: g.samples.join(' ') }, gq));
+  const allGroupsOn = groupList.length > 0 && groupList.every((g) => grps.includes(g.name));
+  const allWhsOn = (data?.warehouses || []).length > 0 && (data?.warehouses || []).every((w) => whs.includes(w.id));
+  // a person with no limit is shown with everything ticked (that is what «no limit» means); unticking some makes the limit
+  React.useEffect(() => {
+    if (!data) return;
+    if ((u.whGroups || []).length === 0) setGrps(groupList.map((g) => g.name));
+    if ((u.whWarehouseIds || []).length === 0) setWhs(data.warehouses.map((w) => w.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   const list = (data?.products || []).filter((p) => !q.trim() || matchesAll(p, q)).slice(0, 300);
   const rule = (id: string) => prods.find((x) => x.id === id);
@@ -186,10 +195,11 @@ const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod' | 'groups'; onSave: (wa
               <button type="button" onClick={() => setGrps((c) => [...new Set([...c, ...shownGroups.map((g) => g.name)])])} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-amber-300 text-amber-800 cursor-pointer" data-wh-groups-all>انتخاب همه{gq.trim() ? ' (نتیجهٔ جست‌وجو)' : ''}</button>
               <button type="button" onClick={() => setGrps((c) => (gq.trim() ? c.filter((x) => !shownGroups.some((g) => g.name === x)) : []))} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-[#EBDBCE] text-[#8C6F66] cursor-pointer">برداشتن همه</button>
             </div>
-            <button type="button" onClick={() => setGrps([])} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${grps.length === 0 ? 'bg-amber-50 border-amber-300 text-amber-900' : 'border-[#EBDBCE] text-[#3A241F]'}`}>
-              <span className={box(grps.length === 0)}>{grps.length === 0 && <Check className="w-3.5 h-3.5" />}</span>
-              همهٔ گروه‌ها (بدون محدودیت)
+            <button type="button" role="checkbox" aria-checked={allGroupsOn} onClick={() => setGrps(allGroupsOn ? [] : groupList.map((g) => g.name))} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${allGroupsOn ? 'bg-amber-50 border-amber-300 text-amber-900' : 'border-[#EBDBCE] text-[#3A241F]'}`} data-wh-groups-master>
+              <span className={box(allGroupsOn)}>{allGroupsOn && <Check className="w-3.5 h-3.5" />}</span>
+              همهٔ گروه‌ها (تیک بخورد همه انتخاب می‌شود، برداشته شود همه برداشته می‌شود)
             </button>
+            {grps.length === 0 && groupList.length > 0 && <p className="text-[10.5px] font-bold text-amber-800 leading-5">هیچ گروهی تیک نخورده؛ اگر همین‌طور تأیید کنید، محدودیتی نیست و همهٔ گروه‌ها دیده می‌شود.</p>}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {shownGroups.map((g) => {
                 const on = grps.includes(g.name);
@@ -213,10 +223,11 @@ const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod' | 'groups'; onSave: (wa
               <button type="button" onClick={() => setWhs((data?.warehouses || []).filter((w) => !wq.trim() || matchesAll(w, wq)).map((w) => w.id))} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-amber-300 text-amber-800 cursor-pointer" data-wh-select-all>انتخاب همه</button>
               <button type="button" onClick={() => setWhs([])} className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-[#EBDBCE] text-[#8C6F66] cursor-pointer">برداشتن همه</button>
             </div>
-            <button type="button" onClick={() => setWhs([])} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${whs.length === 0 ? 'bg-amber-50 border-amber-300' : 'bg-white border-[#EBDBCE]'}`}>
-              <span className={box(whs.length === 0)}>{whs.length === 0 && <Check className="w-3.5 h-3.5" />}</span>
-              همهٔ انبارها
+            <button type="button" role="checkbox" aria-checked={allWhsOn} onClick={() => setWhs(allWhsOn ? [] : (data?.warehouses || []).map((w) => w.id))} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-black cursor-pointer ${allWhsOn ? 'bg-amber-50 border-amber-300' : 'bg-white border-[#EBDBCE]'}`} data-wh-master>
+              <span className={box(allWhsOn)}>{allWhsOn && <Check className="w-3.5 h-3.5" />}</span>
+              همهٔ انبارها (تیک بخورد همه انتخاب می‌شود، برداشته شود همه برداشته می‌شود)
             </button>
+            {whs.length === 0 && (data?.warehouses || []).length > 0 && <p className="text-[10.5px] font-bold text-amber-800 leading-5">هیچ انباری تیک نخورده؛ اگر همین‌طور تأیید کنید، محدودیتی نیست و همهٔ انبارها دیده می‌شود.</p>}
             {(data?.warehouses || []).filter((w) => !wq.trim() || matchesAll(w, wq)).map((w) => {
               const on = whs.includes(w.id);
               return (
@@ -274,11 +285,11 @@ const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod' | 'groups'; onSave: (wa
         )}
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-[#EBDBCE]">
           <span className="text-[11px] font-bold text-[#8C6F66]">
-            {tab === 'groups' ? (grps.length === 0 ? 'همهٔ گروه‌ها' : `${toPersianDigits(grps.length)} گروه`) : tab === 'wh' ? (whs.length === 0 ? 'همهٔ انبارها' : `${toPersianDigits(whs.length)} انبار`) : prods.length ? `${toPersianDigits(prods.length)} کالای مشخص` : 'همهٔ کالاها'}
+            {tab === 'groups' ? (grps.length === 0 || allGroupsOn ? 'همهٔ گروه‌ها' : `${toPersianDigits(grps.length)} گروه`) : tab === 'wh' ? (whs.length === 0 || allWhsOn ? 'همهٔ انبارها' : `${toPersianDigits(whs.length)} انبار`) : prods.length ? `${toPersianDigits(prods.length)} کالای مشخص` : 'همهٔ کالاها'}
           </span>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black border border-[#EBDBCE] cursor-pointer">انصراف</button>
-            <button type="button" onClick={() => { onSave(tab === 'wh' ? whs : (u.whWarehouseIds || []), tab === 'prod' ? prods : (u.whProducts || []), tab === 'groups' ? grps : (u.whGroups || [])); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#D97706] cursor-pointer" data-wh-save>تأیید</button>
+            <button type="button" onClick={() => { onSave(tab === 'wh' ? (allWhsOn ? [] : whs) : (u.whWarehouseIds || []), tab === 'prod' ? prods : (u.whProducts || []), tab === 'groups' ? (allGroupsOn ? [] : grps) : (u.whGroups || [])); onClose(); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#D97706] cursor-pointer" data-wh-save>تأیید</button>
           </div>
         </div>
       </div>

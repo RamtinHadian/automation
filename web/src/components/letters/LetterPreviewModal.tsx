@@ -2216,6 +2216,9 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               </div>
             </div>
 
+            {/* the free height of the paper goes under the signature: with no footer note (and no letterhead text) nothing else takes it and the paper's «justify-between» pushed the signature down onto the footer */}
+            <div className="grow basis-0 shrink-0" aria-hidden data-footer-spacer />
+
             {letter.copyTo && letter.copyTo.length > 0 && (
               <div className="mt-auto pt-4 text-[11px] leading-6 font-bold text-[#3A241F] shrink-0" data-copy-to>
                 <div className="text-[#6E1B1B]">رونوشت:</div>
