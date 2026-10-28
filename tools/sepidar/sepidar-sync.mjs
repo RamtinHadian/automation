@@ -725,24 +725,39 @@ export const jobHandlers = {
     if (body.BirthDate) upd.BirthDate = body.BirthDate;
     // the address: the main one of Sepidar is made the same as Hoormand's (the others stay as they are); without a main one the address is added
     let addrMsg = addr?.note ? ' ' + addr.note : '';
-    if (addr?.address) {
+    const haveAddr = !!addr?.address;
+    if (haveAddr) {
       const have = Array.isArray(cur.Addresses) ? cur.Addresses : [];
       const clean = (a) => ({ CustomerAddressID: a.CustomerAddressID, Title: a.Title, IsMain: !!a.IsMain, CityRef: a.CityRef, Address: a.Address, ZipCode: a.ZipCode, Latitude: a.Latitude ?? 0, Longitude: a.Longitude ?? 0, GUID: a.GUID });
       const main = have.find((a) => a.IsMain) || null;
       upd.Addresses = main
         ? have.map((a) => (a === main ? { ...clean(a), CityRef: addr.address.CityRef, Address: addr.address.Address, ZipCode: addr.address.ZipCode || a.ZipCode || '' } : clean(a)))
         : [...have.map(clean), addr.address];
+    }
+    // the edit of Hoormand goes to Sepidar whole: the name (it is in Sepidar's example of the edit) and the address are tried first; if Sepidar refuses one of them
+    // the rest is still sent and the message says which one was not taken
+    const path = '/api/Customers/' + found.CustomerID;
+    const tries = [];
+    for (const names of body.Name ? [true, false] : [false]) for (const adr of haveAddr ? [true, false] : [false]) tries.push({ names, adr });
+    let firstErr = null;
+    for (const t of tries) {
+      const u = { ...upd, Addresses: t.adr ? upd.Addresses : [] };
+      if (t.names) {
+        u.Name = body.Name;
+        u.LastName = body.LastName || '';
+      }
       try {
-        await sp.call('PUT', '/api/Customers/' + found.CustomerID, upd);
-        return { sepidarId: found.CustomerID, message: 'اطلاعات و نشانی مشتری در سپیدار بروزرسانی شد.' };
+        await sp.call('PUT', path, u);
+        const notes = [];
+        if (body.Name && !t.names) notes.push('نام در سپیدار بروز نشد (سپیدار ویرایش نام را نپذیرفت)');
+        if (haveAddr && !t.adr) notes.push(`نشانی در سپیدار بروز نشد: ${firstErr?.message || ''}`);
+        return { sepidarId: found.CustomerID, message: 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') };
       } catch (e) {
-        // Sepidar refused the address (for example 400): the rest is still updated and the reason is told
-        upd.Addresses = [];
-        addrMsg = ` نشانی در سپیدار بروز نشد: ${e.message}`;
+        if (e && (e.status === 403 || e.status === 401)) throw e; // no right: nothing else would work either
+        firstErr ||= e;
       }
     }
-    await sp.call('PUT', '/api/Customers/' + found.CustomerID, upd);
-    return { sepidarId: found.CustomerID, message: 'اطلاعات مشتری در سپیدار بروزرسانی شد.' + addrMsg };
+    throw firstErr || new Error('سپیدار بروزرسانی را نپذیرفت.');
   },
 
   async 'quotation.send'(cfg, sp, state, job) {

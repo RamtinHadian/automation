@@ -133,6 +133,17 @@ export const CustomerImportModal: React.FC<{
       }
       return Object.keys(out).length ? out : undefined;
     };
+    // the same person can stand in the file more than once (Sepidar keeps several records for one number): the fullest address of that number is the one used
+    const bestAddr = new Map<string, string>();
+    for (const row of data) {
+      const a = get(row, 'address');
+      if (!a) continue;
+      for (const f of ['mobile', 'mobile2', 'phone', 'phone2'] as ImportField[]) {
+        const p = normPhone(map[f] >= 0 ? row[map[f]] : '');
+        if (p && a.length > (bestAddr.get(p)?.length || 0)) bestAddr.set(p, a);
+      }
+    }
+    const addrOf = (row: string[], nums: string[]) => nums.reduce((best, p) => ((bestAddr.get(p)?.length || 0) > best.length ? (bestAddr.get(p) as string) : best), get(row, 'address'));
     for (const [ri, r] of data.entries()) {
       const rowNo = ri + (hasHeader ? 2 : 1);
       const rowText = r.map((x) => normText(x)).filter(Boolean).slice(0, 3).join(' | ');
@@ -162,7 +173,7 @@ export const CustomerImportModal: React.FC<{
         const earlier = [...phones, ...ids].map((k) => seenAt.get(k)).find((x) => x !== undefined);
         const matched = mine ? `${mine.name} (در هورمند)` : srvHit ? (srvHit.visible && srvHit.name ? `${srvHit.name} (در هورمند)` : 'مشتری همکار (در هورمند)') : earlier !== undefined ? `ردیف ${toPersianDigits(earlier)} همین فایل` : '';
         dupList.push({ row: rowNo, name, phones, matched });
-        const srcAddr = get(r, 'address');
+        const srcAddr = addrOf(r, phones);
         if (syncAddr && mine && srcAddr && normText(mine.address || '') !== srcAddr && !addrUpdates.has(mine.id)) addrUpdates.set(mine.id, { id: mine.id, name: mine.name, old: mine.address || '', next: srcAddr, city: mine.city ? undefined : cityOfAddress(srcAddr) });
         issues.push({ row: rowNo, what: `${name} · ${phones.map((p) => toPersianDigits(p)).join('، ')}`, reason: `تکراری و ارسال نشد؛ مشتری موجود دست‌نخورده ماند${matched ? ` (${matched})` : ''}` });
         continue;
@@ -195,7 +206,7 @@ export const CustomerImportModal: React.FC<{
         shopType: opt(get(r, 'shopType')),
         licenseNumber: opt(get(r, 'licenseNumber')),
         province: opt(get(r, 'province')),
-        city: opt(get(r, 'city') || cityOfAddress(get(r, 'address'))),
+        city: opt(get(r, 'city') || cityOfAddress(addrOf(r, phones))),
         postalCode: opt(get(r, 'postalCode')),
         website: opt(get(r, 'website')),
         faxNumber: opt(normPhone(map.faxNumber >= 0 ? r[map.faxNumber] : '')),
@@ -203,7 +214,7 @@ export const CustomerImportModal: React.FC<{
         sepidarInfo: sepidarInfo(r),
         phones,
         email: get(r, 'email'),
-        address: get(r, 'address'),
+        address: addrOf(r, phones),
         status,
         source: get(r, 'source') || 'ورود از اکسل',
         tags: get(r, 'tags') ? [...new Set(get(r, 'tags').split(/[,،;؛]/).map((t) => t.trim()).filter(Boolean))] : [],

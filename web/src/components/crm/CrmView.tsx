@@ -203,6 +203,14 @@ export const CrmView: React.FC = () => {
   const userById = useMemo(() => new Map(staffList.map((u) => [u.id, u])), [staffList]);
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
   const [dealQ, setDealQ] = useState('');
+  // the order of the opportunities in every column: the oldest first (the newest at the bottom), or from today back to the older days
+  const [dealSort, setDealSortState] = useState<'oldest' | 'newest'>(() => {
+    try { return localStorage.getItem('crm_deal_sort') === 'newest' ? 'newest' : 'oldest'; } catch { return 'oldest'; }
+  });
+  const setDealSort = (v: 'oldest' | 'newest') => {
+    setDealSortState(v);
+    try { localStorage.setItem('crm_deal_sort', v); } catch { /* private window */ }
+  };
   const pipeDeals = useMemo(() => (dealQ.trim() ? deals.filter((d) => matchesAll(d, dealQ, customerById.get(d.customerId))) : deals), [deals, dealQ, customerById]);
 
   useEffect(() => {
@@ -864,6 +872,11 @@ export const CrmView: React.FC = () => {
             <input value={dealQ} onChange={(e) => setDealQ(e.target.value)} placeholder="جستجو در همهٔ مشخصات فرصت‌ها: عنوان، مشتری، توضیحات، کالا، مبلغ، تاریخ، مسئول…" className="w-full pr-9 pl-3 py-2.5 min-h-[42px] bg-white border border-[#EBDBCE] rounded-xl text-xs outline-hidden focus:border-[#6E1B1B]" data-deal-search />
             {dealQ.trim() && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#8C6F66]">{toPersianDigits(pipeDeals.length)} فرصت</span>}
           </div>
+          <div className="flex items-center gap-2 text-[11px] font-black" data-deal-sort>
+            <span className="text-[#8C6F66]">ترتیب فرصت‌ها:</span>
+            <button type="button" onClick={() => setDealSort('newest')} className={`px-3 py-1.5 rounded-xl border cursor-pointer ${dealSort === 'newest' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`} data-deal-sort-newest>از امروز به روزهای قبل</button>
+            <button type="button" onClick={() => setDealSort('oldest')} className={`px-3 py-1.5 rounded-xl border cursor-pointer ${dealSort === 'oldest' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-[#3A241F] border-[#EBDBCE]'}`}>قدیمی‌ترین اول</button>
+          </div>
           <div className="md:hidden flex gap-1.5 overflow-x-auto pb-1">
             {STAGES.map((s) => (
               <button key={s.id} type="button" onClick={() => setMobileStage(s.id)} className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[11px] font-black border cursor-pointer ${mobileStage === s.id ? 'bg-white border-violet-300 text-violet-700' : 'bg-[#FAF5F1] border-[#EBDBCE] text-[#8C6F66]'}`}>
@@ -875,7 +888,7 @@ export const CrmView: React.FC = () => {
           </div>
           <div ref={pipeGrid} className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
             {STAGES.map((s) => {
-              const list = pipeDeals.filter((d) => d.stage === s.id).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); // oldest first: the newest opportunity is at the bottom
+              const list = pipeDeals.filter((d) => d.stage === s.id).sort((a, b) => (dealSort === 'newest' ? (b.createdAt || '').localeCompare(a.createdAt || '') : (a.createdAt || '').localeCompare(b.createdAt || '')));
               return (
                 <div
                   key={s.id}

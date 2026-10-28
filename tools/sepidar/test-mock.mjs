@@ -401,6 +401,7 @@ ok(hoormandResults['sj-6']?.ok === true && sp.receipt.InvoiceID === 700 && sp.re
 hoormandJobs.push({ id: 'sj-7', kind: 'customer.send', data: { customerId: 'c-1' } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-7']?.ok === true && sp.put?.Version === 'v1' && sp.put.NationalID === '0012345678' && Array.isArray(sp.put.Addresses), 'customer.send updates a customer that is already in Sepidar (the whole customer with its Version and Addresses)' + String.fromCharCode(10) + JSON.stringify(hoormandResults['sj-7']) );
+ok(sp.put?.Name === 'علی' && sp.put?.LastName === 'رضایی', 'customer.send also sends the name (the whole edit of Hoormand goes to Sepidar)');
 ok(sp.put?.Addresses?.[0]?.CityRef === 5 && sp.put.Addresses[0].IsMain === true && /نشانی/.test(hoormandResults['sj-7']?.message || ''), 'customer.send also puts the address (city number, main) into the Sepidar customer');
 hoormandJobs.push({ id: 'sj-8', kind: 'refresh', data: {} });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
