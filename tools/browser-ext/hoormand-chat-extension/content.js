@@ -197,14 +197,21 @@
     return searchAndOpen(who);
   };
 
-  // the send button of the page (WhatsApp, Telegram...) or, failing that, Enter
-  const sendMessage = (box) => {
-    const btn = deepAll(document, 'button, [role="button"], [data-icon="send"]').filter(visible).find((el) => {
-      const t = (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('title') || '') + ' ' + (el.getAttribute('data-icon') || '') + ' ' + (el.className && el.className.baseVal === undefined ? el.className : '');
-      return /(^|\s)(send|ارسال)|btn-send/i.test(t) && el.getBoundingClientRect().top > innerHeight * 0.5;
-    });
-    if (btn) { click(btn.closest('button, [role="button"]') || btn); return; }
+  // Sending: Enter first. In Eitaa / Telegram the send button IS the microphone button until the page has taken the text in,
+  // so a button is only pressed when the text is still there after Enter, and never one that looks like voice recording.
+  const attrsOf = (el) => (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('title') || '') + ' ' + (el.getAttribute('data-icon') || '') + ' ' + (typeof el.className === 'string' ? el.className : '');
+  const isVoice = (el) => /record|voice|mic|audio|ptt|ویس|میکروفون|صدا/i.test(attrsOf(el));
+  const textOf = (el) => ((el.value !== undefined ? el.value : el.innerText) || '').trim();
+  const sendMessage = async (box) => {
     sendEnter(box);
+    await sleep(1200);
+    if (!textOf(box)) return true; // the box was emptied: the message went
+    const btn = deepAll(document, 'button, [role="button"], [data-icon="send"]').filter(visible).find((el) => {
+      const t = attrsOf(el);
+      return /(^|\s)(send|ارسال)|btn-send/i.test(t) && !isVoice(el) && el.getBoundingClientRect().top > innerHeight * 0.5;
+    });
+    if (btn) { click(btn.closest('button, [role="button"]') || btn); await sleep(800); }
+    return !textOf(box);
   };
 
   const sendEnter = (el) => {
@@ -236,7 +243,7 @@
         await waitFor(() => ((pbox.value !== undefined ? pbox.value : pbox.innerText) || '').trim(), 8000, 300);
         if (!((pbox.value !== undefined ? pbox.value : pbox.innerText) || '').trim()) setText(pbox, job.text);
         await sleep(600);
-        if (job.send) { sendMessage(pbox); say('پیام فرستاده شد.', 'ok'); } else say('پیام نوشته شد؛ ارسال را بزنید.', 'ok');
+        if (job.send) { say((await sendMessage(pbox)) ? 'پیام فرستاده شد.' : 'پیام نوشته شد ولی ارسال تأیید نشد؛ اگر نرفته، ارسال را بزنید.', 'ok'); } else say('پیام نوشته شد؛ ارسال را بزنید.', 'ok');
         return;
       }
 
@@ -272,8 +279,7 @@
         return;
       }
       if (job.send) {
-        sendMessage(box);
-        say('پیام فرستاده شد.', 'ok');
+        say((await sendMessage(box)) ? 'پیام فرستاده شد.' : 'پیام نوشته شد ولی ارسال تأیید نشد؛ اگر نرفته، ارسال را بزنید.', 'ok');
       } else {
         say('پیام نوشته شد؛ ارسال را بزنید.', 'ok');
       }
