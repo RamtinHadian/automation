@@ -329,6 +329,11 @@ export const socialAppLink = (id: string, account: string): string => {
   const intl = isNumber ? normPhone(a).replace(/^0/, '98') : '';
   if (id === 'telegram') return isNumber ? `tg://resolve?phone=${intl}` : `tg://resolve?domain=${a}`;
   if ((id === 'whatsapp' || id === 'whatsappBusiness') && isNumber) return `whatsapp://send?phone=${intl}`;
+  // Eitaa and Bale desktop apps are built like Telegram's: the same «resolve» address under their own name (if the app is not there nothing happens and the web opens)
+  if (id === 'eitaa') return isNumber ? `eitaa://resolve?phone=${intl}` : `eitaa://resolve?domain=${a}`;
+  if (id === 'bale') return isNumber ? `bale://resolve?phone=${intl}` : `bale://resolve?domain=${a}`;
+  if (id === 'rubika') return isNumber ? '' : `rubika://resolve?domain=${a}`;
+  if (id === 'instagram' && !isNumber) return `instagram://user?username=${a}`;
   return '';
 };
 
@@ -359,8 +364,12 @@ export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
     const app = socialAppLink(id, account);
     const isNumber = /^[0-9+\s-]+$/.test(normText(account));
     if (app && url) {
+      // the web versions of Eitaa and Bale cannot be pointed at a person: what to search is copied for that case
+      const needCopy = id === 'bale' || (id === 'eitaa' && isNumber);
+      const v = isNumber ? normPhone(account) : '@' + normText(account).replace(/^@/, '');
+      if (needCopy) { try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ } }
       openAppOrWeb(app, url);
-      setNote(`${name}: اگر برنامه روی این سیستم نصب باشد داخل آن باز می‌شود، وگرنه نسخهٔ وب.`);
+      setNote(`${name}: اگر برنامه روی این سیستم نصب باشد مستقیم داخل آن باز می‌شود${needCopy ? ` و گفتگوی «${v}» را جست‌وجو کنید (کپی شد)` : ''}؛ وگرنه نسخهٔ وب باز می‌شود${needCopy ? ` و «${v}» را در جست‌وجویش بچسبانید` : ''}.`);
       return;
     }
     if (url) {
@@ -383,7 +392,8 @@ export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
         <span className="opacity-80 text-[10px] font-bold">برای پیام دادن روی هر کدام بزنید</span>
       </div>
       <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-        {NETWORKS.map((n) => {
+        {/* the ones that are entered come first, the empty (dim) ones go to the end of the list */}
+        {[...NETWORKS].sort((x, y) => Number(entryOf(customer, x.id).accounts.length === 0) - Number(entryOf(customer, y.id).accounts.length === 0)).map((n) => {
           const e = entryOf(customer, n.id);
           const set = e.accounts.length > 0;
           return (
