@@ -9,13 +9,13 @@ export interface NetworkDef { id: string; name: string; hint: string; iran?: boo
 
 /** the networks a customer can be reached on: three from Iran first, then the others */
 export const NETWORKS: NetworkDef[] = [
-  { id: 'bale', name: 'بله', hint: 'شمارهٔ موبایل یا شناسه', iran: true },
-  { id: 'eitaa', name: 'ایتا', hint: 'شمارهٔ موبایل یا شناسه', iran: true },
-  { id: 'rubika', name: 'روبیکا', hint: 'شمارهٔ موبایل یا شناسه', iran: true },
-  { id: 'instagram', name: 'اینستاگرام', hint: 'نام کاربری، بدون @' },
+  { id: 'bale', name: 'بله', hint: 'نام کاربری (@username) یا شمارهٔ موبایل', iran: true },
+  { id: 'eitaa', name: 'ایتا', hint: 'نام کاربری (@username) یا شمارهٔ موبایل', iran: true },
+  { id: 'rubika', name: 'روبیکا', hint: 'نام کاربری (@username) یا شمارهٔ موبایل', iran: true },
+  { id: 'instagram', name: 'اینستاگرام', hint: 'نام کاربری (@username)' },
   { id: 'whatsapp', name: 'واتس‌اپ', hint: 'شمارهٔ موبایل' },
   { id: 'whatsappBusiness', name: 'واتس‌اپ بیزینس', hint: 'شمارهٔ موبایل' },
-  { id: 'telegram', name: 'تلگرام', hint: 'نام کاربری یا شمارهٔ موبایل' },
+  { id: 'telegram', name: 'تلگرام', hint: 'نام کاربری (@username) یا شمارهٔ موبایل' },
 ];
 
 /** a small stylised mark of each network (drawn here, not the official artwork) */
@@ -89,6 +89,20 @@ export const SocialLogo: React.FC<{ id: string; size?: number }> = ({ id, size =
   }
 };
 
+/** what the person typed or pasted (@name, a name, a full link, a number) → the bare user name or number */
+export const cleanAccount = (raw: string): string =>
+  normText(raw)
+    .replace(/^https?:\/\/(www\.)?/i, '')
+    .replace(/^(t\.me|telegram\.me|eitaa\.com|rubika\.ir|ble\.ir|instagram\.com|wa\.me)\//i, '')
+    .replace(/[?#].*$/, '')
+    .replace(/\/+$/, '')
+    .replace(/^@/, '')
+    .trim();
+const isNumberLike = (v: string) => /^[0-9+\s-]+$/.test(v);
+const validAccount = (v: string) => isNumberLike(v) ? normPhone(v).length >= 10 : /^[A-Za-z0-9_.]{3,}$/.test(v);
+/** how an account is shown: a user name with @, a number in Persian digits */
+const showAccount = (a: string) => (/^[0-9۰-۹+]+$/.test(a) ? toPersianDigits(a) : '@' + a);
+
 const entryOf = (c: Customer, id: string): SocialEntry => ({ on: false, accounts: [], count: 0, ...(c.social?.[id] || {}) });
 
 /** how many networks are switched on, and the total of the counts (for the button) */
@@ -119,6 +133,7 @@ const numbersOf = (c: Customer) => {
 const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; phones: string[]; onChange: (e: SocialEntry) => void; readOnly?: boolean }> = ({ def, entry, phones, onChange, readOnly }) => {
   const [draft, setDraft] = useState('');
   const [pick, setPick] = useState(false);
+  const [err, setErr] = useState('');
   const [chosen, setChosen] = useState('');
   const memberWith = phones.filter((p) => entry.accounts.includes(p));
   const isMember = memberWith.length > 0;
@@ -129,8 +144,11 @@ const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; phones: strin
     setPick(true);
   };
   const add = () => {
-    const v = draft.trim().replace(/^@/, '');
-    if (!v || entry.accounts.includes(v)) return setDraft('');
+    const v = cleanAccount(draft);
+    if (!v) { setErr(''); return setDraft(''); }
+    if (!validAccount(v)) return setErr('نام کاربری فقط حروف انگلیسی، عدد، _ و نقطه دارد (حداقل ۳ حرف)؛ یا یک شمارهٔ موبایل بنویسید.');
+    setErr('');
+    if (entry.accounts.includes(v)) return setDraft('');
     onChange({ ...entry, on: true, accounts: [...entry.accounts, v] });
     setDraft('');
   };
@@ -190,21 +208,24 @@ const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; phones: strin
           <div className="space-y-1.5">
             {entry.accounts.map((a) => (
               <div key={a} className="flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-2.5 py-1.5">
-                <span className="text-xs font-black text-[#3A241F] truncate" dir="ltr">{/^[0-9۰-۹+]+$/.test(a) ? toPersianDigits(a) : a}</span>
+                <span className="text-xs font-black text-[#3A241F] truncate" dir="ltr">{showAccount(a)}</span>
                 {!readOnly && <button type="button" onClick={() => onChange({ ...entry, accounts: entry.accounts.filter((x) => x !== a) })} className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer" aria-label="حذف"><X className="w-3.5 h-3.5" /></button>}
               </div>
             ))}
             {!readOnly && (
               <input
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={(e) => { setDraft(e.target.value); setErr(''); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
                 onBlur={add}
                 placeholder={`${def.hint}؛ بنویسید و Enter بزنید`}
                 className="w-full px-3 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] outline-hidden focus:ring-2 focus:ring-violet-300"
                 data-social-input
+                dir="ltr"
               />
             )}
+            {err && <div className="text-[11px] font-black text-rose-700 leading-5" data-social-err>{err}</div>}
+            {!readOnly && !err && <div className="text-[10px] font-bold text-[#8C6F66] leading-5">نام کاربری را با یا بدون @ بنویسید؛ لینک کامل (مثل t.me/نام) را هم می‌شود چسباند.</div>}
           </div>
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-black text-[#503730]">تعداد تعامل</span>
@@ -314,7 +335,7 @@ export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {e.accounts.map((a) => (
                     <button key={a} type="button" onClick={(ev) => { ev.stopPropagation(); open(n.id, n.name, a); }} title={`پیام دادن در ${n.name}`} className="text-[11px] font-black bg-white text-[#3A241F] rounded-lg px-2 py-0.5 hover:bg-violet-100 cursor-pointer max-w-full truncate" dir="ltr" data-social-strip-link>
-                      {/^[0-9۰-۹+]+$/.test(a) ? toPersianDigits(a) : a}
+                      {showAccount(a)}
                     </button>
                   ))}
                 </div>
