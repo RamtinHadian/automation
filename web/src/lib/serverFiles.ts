@@ -49,3 +49,12 @@ export async function deleteMsgFile(id: string): Promise<void> {
 
 /** The address that is put into the message: opens without signing in, so the customer can download the file. */
 export const msgFileUrl = (id: string, name: string) => `${window.location.origin}/api/pub/f/${encodeURIComponent(id)}/${encodeURIComponent(name || 'file')}`;
+
+/** The PDF of a proforma that is being sent to a customer: kept on the server and opened by a public download address (CRM users). */
+export async function uploadProformaFile(id: string, blob: Blob): Promise<void> {
+  const res = await fetch(`/api/proforma-share/${encodeURIComponent(id)}`, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/octet-stream' }, body: blob });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(j.error || `ذخیرهٔ پیش‌فاکتور روی سرور ناموفق بود (${res.status}).`);
+  }
+}

@@ -157,6 +157,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("POST /api/admin/files/{id}/keep", auth.Require(adminFileKeep))
 	mux.HandleFunc("PUT /api/msgtpl/files/{id}", auth.Require(msgTplUpload))
 	mux.HandleFunc("DELETE /api/msgtpl/files/{id}", auth.Require(msgTplDelete))
+	mux.HandleFunc("PUT /api/proforma-share/{id}", auth.Require(proformaShareUpload))
 	mux.HandleFunc("GET /api/pub/f/{id}/{name}", msgTplPublic)
 	mux.HandleFunc("PUT /api/files/{id}", auth.Require(uploadFile))
 	mux.HandleFunc("GET /api/files/{id}", auth.Require(downloadFile))

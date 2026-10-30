@@ -15,6 +15,7 @@ import { JalaliDateField } from '../tasks/TasksView';
 import { formatMoney, fromDisplay, unitName } from '../../lib/money';
 import { WarehousePicker, WarehouseProduct } from './WarehousePicker';
 import { DeliveryMinutesDialog } from '../minutes/DeliveryMinutesDialog';
+import { ProformaShareDialog } from './ProformaShare';
 import { fold, matchesQuery } from '../../lib/customerSearch';
 
 const toman = formatMoney;
@@ -254,12 +255,19 @@ export const ProformaModal: React.FC<{
     showToast(
       status === 'PENDING' ? 'پیش‌فاکتور برای تایید مدیرعامل فرستاده شد.' : status === 'APPROVED' ? 'پیش‌فاکتور تایید شد؛ مهر و امضای مدیرعامل درج شد.' : 'پیش‌فاکتور رد شد.'
     );
+    // approved: the next step is sending it to the customer on his networks (the window closes after that)
+    if (status === 'APPROVED' && customer) {
+      setShareDeal(next);
+      return;
+    }
     onClose();
   };
 
   // «ذخیره و دریافت JPG»: saves the proforma and downloads the invoice as one picture
   const [jpgBusy, setJpgBusy] = useState(false);
   const [deliveryDeal, setDeliveryDeal] = useState<Deal | null>(null);
+  // after approval (and on demand) the proforma is offered for sending on every network of the customer
+  const [shareDeal, setShareDeal] = useState<Deal | null>(null);
   const saveJpg = async () => {
     if (!okItems.length || jpgBusy) return;
     if (problems.length) {
@@ -612,6 +620,7 @@ export const ProformaModal: React.FC<{
               <>
               <button type="button" disabled={!okItems.length} onClick={() => save(true)} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">ذخیره و ساخت PDF</button>
               <button type="button" disabled={!okItems.length} onClick={() => { const next = build(); onSave(next); setDeliveryDeal(next); }} className="px-4 py-2 rounded-xl text-xs font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 disabled:opacity-50 cursor-pointer" data-delivery-minutes>صورتجلسه تحویل</button>
+              {customer && <button type="button" disabled={!okItems.length} onClick={() => { if (problems.length) { showToast('اطلاعات پیش‌فاکتور رسمی کامل نیست: ' + problems.join('، ')); return; } const next = build(); onSave(next); setShareDeal(next); }} className="px-4 py-2 rounded-xl text-xs font-black text-violet-800 bg-violet-50 hover:bg-violet-100 border border-violet-200 disabled:opacity-50 cursor-pointer" data-share-open>ارسال در شبکه‌های مشتری</button>}
               <button type="button" disabled={!okItems.length || jpgBusy} onClick={saveJpg} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50 cursor-pointer" data-save-jpg>{jpgBusy ? 'در حال ساخت JPG...' : 'ذخیره و دریافت JPG'}</button>
               </>
             )}
@@ -619,6 +628,7 @@ export const ProformaModal: React.FC<{
         </div>
       </div>
     </div>
+      {shareDeal && customer && <ProformaShareDialog deal={shareDeal} customer={customer} settings={settings} issuerName={issuerName} onClose={() => { setShareDeal(null); onClose(); }} />}
       {deliveryDeal && <DeliveryMinutesDialog deal={deliveryDeal} customer={customer} issuerName={issuerName} onClose={() => setDeliveryDeal(null)} />}
       {pickFor !== null && <WarehousePicker products={catalog} priceFor={priceFor} onPick={pickProduct} onClose={() => setPickFor(null)} />}
     </>
