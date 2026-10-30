@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Minus, Plus, Share2, X } from 'lucide-react';
+import { Check, Minus, Plus, Share2, X } from 'lucide-react';
 import { Customer, SocialEntry } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { Modal } from './crmUi';
+import { isMobileNumber } from '../../lib/customerImport';
 
 export interface NetworkDef { id: string; name: string; hint: string; iran?: boolean }
 
@@ -50,28 +51,39 @@ export const SocialLogo: React.FC<{ id: string; size?: number }> = ({ id, size =
         </svg>
       );
     case 'bale':
+      // the logo of Bale: a green bubble with a corner at the top left and a white tick
       return (
-        <svg {...s}>
-          <circle cx="12" cy="12" r="12" fill="#2EB67D" />
-          <path d="M6.6 8.4c0-1 .8-1.8 1.8-1.8h7.2c1 0 1.8.8 1.8 1.8v5.2c0 1-.8 1.8-1.8 1.8h-4l-3 2.3v-2.3c-1 0-2-.8-2-1.8z" fill="#fff" />
-          <circle cx="9.7" cy="11" r=".9" fill="#2EB67D" /><circle cx="12" cy="11" r=".9" fill="#2EB67D" /><circle cx="14.3" cy="11" r=".9" fill="#2EB67D" />
+        <svg width={size} height={size} viewBox="0 0 1280 1280" aria-hidden>
+          <circle cx="640" cy="640" r="637" fill="#0BCC9C" />
+          <path d="M3 640V75Q3 3 75 6Q120 12 267 123L640 640Z" fill="#0BCC9C" />
+          <path d="M355 643L554 840L925 471" fill="none" stroke="#fff" strokeWidth="250" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     case 'eitaa':
+      // Eitaa: an orange rounded square with the white swirl «e»
       return (
-        <svg {...s}>
-          <circle cx="12" cy="12" r="12" fill="#F26B21" />
-          <path d="M16.8 7.3c-.9-.7-2.2-.7-3.1.1l-1.2 1.1c-.8.7-1.6 1-2.6 1.1 1 1.1 1.4 2 1.4 3.2 0 1.7-1.3 3-3 3 1.3 1.4 3.3 1.9 5.2 1.2 2.2-.8 3.6-2.9 3.5-5.2 0-1.5-.3-3.4-.2-4.5z" fill="#fff" />
+        <svg {...s} viewBox="0 0 100 100">
+          <rect width="100" height="100" rx="22" fill="#F28A12" />
+          <path d="M80 34C70 14 34 20 26 54c-6 26 22 38 48 24 12-6 20-14 26-22" fill="none" stroke="#fff" strokeWidth="11" strokeLinecap="round" />
+          <path d="M44 56c4-10 20-14 26-6 2 4-2 10-8 12l-8 2 2 14-12-8c-2-4-2-10 0-14z" fill="#fff" />
         </svg>
       );
-    case 'rubika':
+    case 'rubika': {
+      // Rubika: a white tile with the colourful hexagon and the white cube in its middle
+      const q = (pts: string, c: string) => <polygon points={pts} fill={c} />;
       return (
-        <svg {...s}>
-          <defs><linearGradient id="rb-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#E040A0" /><stop offset="1" stopColor="#7B2FD6" /></linearGradient></defs>
-          <circle cx="12" cy="12" r="12" fill="url(#rb-g)" />
-          <path d="M8.2 17.4V6.8h4.2c2 0 3.3 1 3.3 2.8 0 1.4-.8 2.4-2.1 2.7l2.5 5.1h-2.3l-2.2-4.7h-1.5v4.7zm2-6.4h2c.9 0 1.4-.5 1.4-1.3s-.5-1.2-1.4-1.2h-2z" fill="#fff" />
+        <svg {...s} viewBox="0 0 100 100">
+          <rect x="1.5" y="1.5" width="97" height="97" rx="20" fill="#fff" stroke="#DDD" strokeWidth="2" />
+          {q('14,29 50,8 50,28 31,39', '#8CBF2F')}{q('14,29 31,39 31,61 14,71', '#E8503A')}
+          {q('50,8 86,29 69,39 50,28', '#2DB7A3')}{q('86,29 86,71 69,61 69,39', '#7B3F97')}
+          {q('14,29 31,39 50,28 36,22', '#F28C1E')}{q('86,29 69,39 50,28 64,20', '#4EC9B6')}
+          {q('86,71 50,92 50,72 69,61', '#F5A623')}{q('14,71 50,92 50,72 31,61', '#2BA6D1')}
+          {q('86,29 86,50 69,50 69,39', '#E8505B')}{q('14,50 14,71 31,61 31,50', '#5B2D8A')}
+          {q('86,71 68,82 50,72 69,61', '#F08A24')}{q('14,71 32,82 50,72 31,61', '#1B73AE')}
+          {q('50,28 69,39 50,50 31,39', '#F6F6F6')}{q('31,39 50,50 50,72 31,61', '#E2E2E2')}{q('50,50 69,39 69,61 50,72', '#EBEBEB')}
         </svg>
       );
+    }
     default:
       return <Share2 style={{ width: size, height: size }} />;
   }
@@ -97,8 +109,25 @@ export const SocialButton: React.FC<{ customer: Customer; onClick: () => void }>
   );
 };
 
-const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; onChange: (e: SocialEntry) => void; readOnly?: boolean }> = ({ def, entry, onChange, readOnly }) => {
+/** the customer's own numbers (mobiles first): the ones a network can be joined with */
+const numbersOf = (c: Customer) => {
+  const all = (c.phones || []).filter(Boolean);
+  const mobiles = all.filter((p) => isMobileNumber(p));
+  return mobiles.length ? mobiles : all;
+};
+
+const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; phones: string[]; onChange: (e: SocialEntry) => void; readOnly?: boolean }> = ({ def, entry, phones, onChange, readOnly }) => {
   const [draft, setDraft] = useState('');
+  const [pick, setPick] = useState(false);
+  const [chosen, setChosen] = useState('');
+  const memberWith = phones.filter((p) => entry.accounts.includes(p));
+  const isMember = memberWith.length > 0;
+  const tick = () => {
+    if (isMember) return onChange({ ...entry, accounts: entry.accounts.filter((a) => !phones.includes(a)) });
+    if (phones.length === 1) return onChange({ ...entry, on: true, accounts: [...entry.accounts, phones[0]] });
+    setChosen(phones[0] || '');
+    setPick(true);
+  };
   const add = () => {
     const v = draft.trim().replace(/^@/, '');
     if (!v || entry.accounts.includes(v)) return setDraft('');
@@ -125,6 +154,37 @@ const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; onChange: (e:
           <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all ${entry.on ? 'left-0.5' : 'left-[1.375rem]'}`} />
         </button>
       </div>
+      {def.id !== 'instagram' && (
+        <label className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[11px] font-black cursor-pointer ${isMember ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-[#FAF5F1] text-[#503730] border border-[#EBDBCE]'} ${phones.length === 0 || readOnly ? 'opacity-50 cursor-not-allowed' : ''}`} data-social-same>
+          <input type="checkbox" className="w-4 h-4 accent-emerald-600" checked={isMember} disabled={phones.length === 0 || readOnly} onChange={tick} />
+          <span className="min-w-0">
+            {phones.length === 0 ? 'مشتری شماره‌ای ثبت‌شده ندارد' : isMember ? <>این شماره در {def.name} عضو است: <span dir="ltr" className="font-black">{memberWith.map((m) => toPersianDigits(m)).join('، ')}</span></> : <>همین شماره در {def.name} عضو است</>}
+          </span>
+        </label>
+      )}
+      {pick && (
+        <Modal
+          onTop="max"
+          title={`شمارهٔ عضو ${def.name}`}
+          onClose={() => setPick(false)}
+          footer={
+            <>
+              <button type="button" onClick={() => setPick(false)} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">انصراف</button>
+              <button type="button" disabled={!chosen} onClick={() => { onChange({ ...entry, on: true, accounts: entry.accounts.includes(chosen) ? entry.accounts : [...entry.accounts, chosen] }); setPick(false); }} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 cursor-pointer" data-social-pick-ok>ثبت</button>
+            </>
+          }
+        >
+          <div className="space-y-2" data-social-pick>
+            <div className="flex items-center gap-2.5"><SocialLogo id={def.id} size={28} /><p className="text-xs font-bold text-[#503730] leading-6">این مشتری چند شماره دارد؛ کدام یک در {def.name} عضو است؟</p></div>
+            {phones.map((p) => (
+              <button key={p} type="button" onClick={() => setChosen(p)} className={`w-full flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 cursor-pointer text-right transition-colors ${chosen === p ? 'border-violet-400 bg-violet-50' : 'border-[#EBDBCE] bg-white hover:bg-[#FAF5F1]'}`} data-social-pick-row>
+                <span dir="ltr" className="text-sm font-black text-[#3A241F]">{toPersianDigits(p)}</span>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center ${chosen === p ? 'bg-violet-600 text-white' : 'border border-[#D9CCC4]'}`}>{chosen === p && <Check className="w-3.5 h-3.5" />}</span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
       {entry.on && (
         <>
           <div className="space-y-1.5">
@@ -171,7 +231,7 @@ export const SocialDialog: React.FC<{ customer: Customer; onClose: () => void; o
     <section className="space-y-2">
       <h4 className="text-[11px] font-black text-violet-700 flex items-center gap-2"><span className="h-px flex-1 bg-violet-100" />{title}<span className="h-px w-4 bg-violet-100" /></h4>
       <div className="grid sm:grid-cols-2 gap-2.5">
-        {NETWORKS.filter((n) => !!n.iran === iran).map((n) => <NetworkCard key={n.id} def={n} entry={social[n.id]} onChange={(e) => set(n.id, e)} />)}
+        {NETWORKS.filter((n) => !!n.iran === iran).map((n) => <NetworkCard key={n.id} def={n} entry={social[n.id]} phones={numbersOf(customer)} onChange={(e) => set(n.id, e)} />)}
       </div>
     </section>
   );
