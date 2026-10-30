@@ -1187,15 +1187,14 @@ export default function UserPanel() {
         {/* VIEW 1: FILE TRANSFER MODE (ارسال فایل) */}
         {/* ========================================================================= */}
         {mainMenuTab === 'files' && (
-          <div className="flex-1 flex flex-col">
-            <div className="px-4 sm:px-6 pt-4 pb-2">
-              <SubTabs
-                tone="maroon"
-                value={filesSection}
-                onChange={(k) => setFilesSection(k as typeof filesSection)}
-                tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'مرخصی و مساعده', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing], ['minutes', 'صورتجلسه', ScrollText]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : 0 }))}
-              />
-            </div>
+          <div className="flex-1 flex flex-col pt-4">
+            <SubTabs
+              tone="maroon"
+              className="mx-4 sm:mx-6 mb-2" /* no wrapper around it: a sticky bar cannot leave its parent, so it could not stay at the top while the page scrolls */
+              value={filesSection}
+              onChange={(k) => setFilesSection(k as typeof filesSection)}
+              tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'مرخصی و مساعده', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing], ['minutes', 'صورتجلسه', ScrollText]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : 0 }))}
+            />
             {filesSection === 'minutes' ? (
               <MinutesView />
             ) : filesSection === 'reminders' ? (
