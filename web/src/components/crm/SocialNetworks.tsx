@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Check, Minus, Plus, Share2, X } from 'lucide-react';
+import { ArrowUpRight, Check, MessageSquareText, Minus, Plus, Share2, X } from 'lucide-react';
 import { Customer, SocialEntry } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { Modal } from './crmUi';
+import { SendMessageDialog } from './MessageTemplates';
 import { isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 
 export interface NetworkDef { id: string; name: string; hint: string; iran?: boolean; web?: boolean }
@@ -115,9 +116,14 @@ export const cleanAccount = (raw: string, id = ''): string =>
 const isNumberLike = (v: string) => /^[0-9+\s-]+$/.test(v);
 const validAccount = (v: string, id = '') => id === 'website' ? /^([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(v) : isNumberLike(v) ? normPhone(v).length >= 10 : /^[A-Za-z0-9_.]{3,}$/.test(v);
 /** how an account is shown: a user name with @, a number in Persian digits */
-const showAccount = (a: string, id = '') => (id === 'website' ? a : /^[0-9۰-۹+]+$/.test(a) ? toPersianDigits(a) : '@' + a);
+/** a mobile number in groups (۰۹۱۲ ۳۴۵ ۶۷۸۹); any other number just in Persian digits */
+const prettyNumber = (a: string) => {
+  const d = normPhone(a);
+  return toPersianDigits(/^09\d{9}$/.test(d) ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : d || a);
+};
+const showAccount = (a: string, id = '') => (id === 'website' ? a : /^[0-9۰-۹+]+$/.test(a) ? prettyNumber(a) : '@' + a);
 
-const entryOf = (c: Customer, id: string): SocialEntry => {
+export const entryOf = (c: Customer, id: string): SocialEntry => {
   const saved = c.social?.[id];
   // the web address already written on the customer's form shows here too, until one is entered on this page
   if (id === 'website' && !saved?.accounts?.length && c.website?.trim()) return { on: true, accounts: [cleanAccount(c.website, 'website')], count: saved?.count || 0 };
@@ -305,14 +311,14 @@ export const SocialDialog: React.FC<{ customer: Customer; onClose: () => void; o
 };
 
 /** the address that opens a conversation with this account (a user name or a mobile number) on the network; '' when only the number can be copied */
-export const socialLink = (id: string, account: string): string => {
+export const socialLink = (id: string, account: string, text = ''): string => {
   const a = normText(account).replace(/^@/, '');
   const isNumber = /^[0-9+\s-]+$/.test(a);
   const intl = isNumber ? normPhone(a).replace(/^0/, '98') : '';
   switch (id) {
     case 'telegram': return isNumber ? `https://t.me/+${intl}` : `https://web.telegram.org/k/#@${a}`;
     case 'whatsapp':
-    case 'whatsappBusiness': return isNumber ? `https://web.whatsapp.com/send?phone=${intl}` : '';
+    case 'whatsappBusiness': return isNumber ? `https://web.whatsapp.com/send?phone=${intl}${text ? '&text=' + encodeURIComponent(text) : ''}` : '';
     case 'instagram': return isNumber ? '' : `https://instagram.com/${a}`;
     case 'bale': return 'https://web.bale.ai/chat'; // Bale web opens on its chat page; the user name or number is copied to search there
     case 'eitaa': return isNumber ? 'https://web.eitaa.com/' : `https://web.eitaa.com/#@${a}`; // the web version of Eitaa; a number cannot be linked, so it is copied
@@ -323,12 +329,12 @@ export const socialLink = (id: string, account: string): string => {
 };
 
 /** the address that opens the installed desktop / phone app (Telegram, WhatsApp); '' for the others */
-export const socialAppLink = (id: string, account: string): string => {
+export const socialAppLink = (id: string, account: string, text = ''): string => {
   const a = normText(account).replace(/^@/, '');
   const isNumber = /^[0-9+\s-]+$/.test(a);
   const intl = isNumber ? normPhone(a).replace(/^0/, '98') : '';
   if (id === 'telegram') return isNumber ? `tg://resolve?phone=${intl}` : `tg://resolve?domain=${a}`;
-  if ((id === 'whatsapp' || id === 'whatsappBusiness') && isNumber) return `whatsapp://send?phone=${intl}`;
+  if ((id === 'whatsapp' || id === 'whatsappBusiness') && isNumber) return `whatsapp://send?phone=${intl}${text ? '&text=' + encodeURIComponent(text) : ''}`;
   // Eitaa and Bale desktop apps are built like Telegram's: the same «resolve» address under their own name (if the app is not there nothing happens and the web opens)
   if (id === 'eitaa') return isNumber ? `eitaa://resolve?phone=${intl}` : `eitaa://resolve?domain=${a}`;
   if (id === 'bale') return isNumber ? `bale://resolve?phone=${intl}` : `bale://resolve?domain=${a}`;
@@ -362,42 +368,51 @@ const openAppOrWeb = (id: string, app: string, web: string) => {
   }, 1600);
 };
 
+/**
+ * Opens the chat with a customer's account on a network (the installed app first, then the web in its own tab) and returns the note to show.
+ * With a `text` WhatsApp gets it already written in the message box; the other networks cannot be given a text from outside, so it is copied to be pasted (Ctrl+V).
+ */
+export const openChat = (id: string, name: string, account: string, text = ''): string => {
+  const plain = normText(account).replace(/^@/, '');
+  const isNumber = /^[0-9+\s-]+$/.test(plain);
+  const url = socialLink(id, account, text);
+  const app = socialAppLink(id, account, text);
+  const textInLink = !!text && (id === 'whatsapp' || id === 'whatsappBusiness') && isNumber;
+  const who = isNumber ? normPhone(account) : '@' + plain;
+  const copy = (v: string) => { try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ } };
+  // what the person has to paste: the message when there is one, else the name / number to search for
+  const needSearch = id === 'bale' || (id === 'eitaa' && isNumber) || !url;
+  if (text && !textInLink) copy(text);
+  else if (!text && needSearch) copy(who);
+  const pasteNote = text && !textInLink ? ` متن پیام کپی شد؛ در گفتگو بچسبانید (Ctrl+V)${needSearch ? ` و برای پیدا کردن مشتری «${who}» را جست‌وجو کنید` : ''}.` : '';
+  if (app && url) {
+    openAppOrWeb(id, app, url);
+    return `${name}: اگر برنامه روی این سیستم نصب باشد مستقیم داخل آن باز می‌شود، وگرنه نسخهٔ وب.${pasteNote}${!text && needSearch ? ` «${who}» کپی شد؛ در جست‌وجو بچسبانید.` : ''}`;
+  }
+  if (url) {
+    if (id === 'website' || id === 'instagram') window.open(url, '_blank', 'noopener,noreferrer');
+    else openWebTab(id, url);
+    return `${name} باز شد.${pasteNote}${!text && needSearch ? ` «${who}» کپی شد؛ در جست‌وجوی ${name} بچسبانید.` : ''}`;
+  }
+  return `${name} لینک مستقیم ندارد؛ «${text ? 'متن پیام' : who}» کپی شد، در خود برنامه جست‌وجو و بچسبانید.`;
+};
+
 /** All networks of a customer in one row (the full summary): the ones not entered are dim; a click opens the chat with him there. */
 export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
   const [note, setNote] = useState('');
-  const open = (id: string, name: string, account: string) => {
-    const url = socialLink(id, account);
-    const app = socialAppLink(id, account);
-    const isNumber = /^[0-9+\s-]+$/.test(normText(account));
-    if (app && url) {
-      // the web versions of Eitaa and Bale cannot be pointed at a person: what to search is copied for that case
-      const needCopy = id === 'bale' || (id === 'eitaa' && isNumber);
-      const v = isNumber ? normPhone(account) : '@' + normText(account).replace(/^@/, '');
-      if (needCopy) { try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ } }
-      openAppOrWeb(id, app, url);
-      setNote(`${name}: اگر برنامه روی این سیستم نصب باشد مستقیم داخل آن باز می‌شود${needCopy ? ` و گفتگوی «${v}» را جست‌وجو کنید (کپی شد)` : ''}؛ وگرنه نسخهٔ وب باز می‌شود${needCopy ? ` و «${v}» را در جست‌وجویش بچسبانید` : ''}.`);
-      return;
-    }
-    if (url) {
-      // the website of the customer opens in a new tab as usual; the chat webs share one tab each
-      if (id === 'website' || id === 'instagram') window.open(url, '_blank', 'noopener,noreferrer');
-      else openWebTab(id, url);
-      // these webs cannot be told whom to open: the name or number is copied to be pasted into their search
-      if (id === 'bale' || (id === 'eitaa' && isNumber)) {
-        const v = isNumber ? normPhone(account) : '@' + normText(account).replace(/^@/, '');
-        try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ }
-        setNote(`${name} وب باز شد؛ «${v}» کپی شد، در جست‌وجوی ${name} بچسبانید.`);
-      } else setNote('');
-      return;
-    }
-    try { void navigator.clipboard?.writeText(normPhone(account) || account); } catch { /* no clipboard */ }
-    setNote(`${name} لینک مستقیم با شماره ندارد؛ «${normPhone(account) || account}» کپی شد، در خود برنامه جست‌وجو کنید.`);
-  };
+  const [sendOpen, setSendOpen] = useState(false);
+  const open = (id: string, name: string, account: string) => setNote(openChat(id, name, account));
   return (
     <section className="rounded-2xl bg-white/10 border border-white/20 overflow-hidden" data-social-strip>
       <div className="px-4 py-2.5 bg-white/10 text-xs font-black flex items-center justify-between">
         <span>شبکه‌های اجتماعی مشتری</span>
-        <span className="opacity-80 text-[10px] font-bold">برای پیام دادن روی هر کدام بزنید</span>
+        <span className="flex items-center gap-3">
+          <span className="opacity-80 text-[10px] font-bold hidden sm:inline">برای پیام دادن روی هر کدام بزنید</span>
+          <button type="button" onClick={(ev) => { ev.stopPropagation(); setSendOpen(true); }} className="flex items-center gap-1.5 bg-white text-violet-800 rounded-lg px-2.5 py-1 text-[11px] font-black hover:bg-violet-100 cursor-pointer" data-msg-open>
+            <MessageSquareText className="w-3.5 h-3.5" />
+            ارسال پیام آماده
+          </button>
+        </span>
       </div>
       <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         {/* the ones that are entered come first, the empty (dim) ones go to the end of the list */}
@@ -412,10 +427,11 @@ export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
                 {e.count > 0 && <span className="ms-auto text-[10px] font-black bg-white/20 rounded-full px-1.5">{toPersianDigits(e.count)} تعامل</span>}
               </div>
               {set ? (
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <div className="mt-2 flex flex-col gap-1.5">
                   {e.accounts.map((a) => (
-                    <button key={a} type="button" onClick={(ev) => { ev.stopPropagation(); open(n.id, n.name, a); }} title={`پیام دادن در ${n.name}`} className="text-[11px] font-black bg-white text-[#3A241F] rounded-lg px-2 py-0.5 hover:bg-violet-100 cursor-pointer max-w-full truncate" dir="ltr" data-social-strip-link>
-                      {showAccount(a, n.id)}
+                    <button key={a} type="button" onClick={(ev) => { ev.stopPropagation(); open(n.id, n.name, a); }} title={`پیام دادن در ${n.name}`} className="group w-full flex items-center justify-between gap-2 text-[12px] font-black bg-white/95 text-[#2B1A55] rounded-lg px-2.5 py-1.5 shadow-sm hover:bg-white hover:shadow-md hover:-translate-y-px transition cursor-pointer" dir="ltr" data-social-strip-link>
+                      <span className="truncate tracking-wide text-left">{showAccount(a, n.id)}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 shrink-0 text-violet-500 group-hover:text-violet-700" />
                     </button>
                   ))}
                 </div>
@@ -427,6 +443,7 @@ export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
         })}
       </div>
       {note && <div className="px-4 pb-3 text-[11px] font-bold text-amber-200" data-social-strip-note>{note}</div>}
+      {sendOpen && <SendMessageDialog customer={customer} onClose={() => setSendOpen(false)} />}
     </section>
   );
 };

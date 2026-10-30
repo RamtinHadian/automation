@@ -31,3 +31,21 @@ export async function hasServerFile(id: string, kind: 'main' | 'att'): Promise<b
     return true; // unknown: do not try to upload
   }
 }
+
+/** The file of a ready-made customer message (administrators only): kept on the server and given out by a public download address. */
+export async function uploadMsgFile(id: string, blob: Blob): Promise<void> {
+  const res = await fetch(`/api/msgtpl/files/${encodeURIComponent(id)}`, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/octet-stream' }, body: blob });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(j.error || `ذخیرهٔ فایل روی سرور ناموفق بود (${res.status}).`);
+  }
+}
+
+export async function deleteMsgFile(id: string): Promise<void> {
+  try {
+    await fetch(`/api/msgtpl/files/${encodeURIComponent(id)}`, { method: 'DELETE', headers: auth() });
+  } catch { /* the file stays on the server until the next cleanup */ }
+}
+
+/** The address that is put into the message: opens without signing in, so the customer can download the file. */
+export const msgFileUrl = (id: string, name: string) => `${window.location.origin}/api/pub/f/${encodeURIComponent(id)}/${encodeURIComponent(name || 'file')}`;

@@ -208,6 +208,16 @@ export interface Customer {
   updatedAt: string;
 }
 
+/** A ready-made message for customers: a text ({name} = the customer's name), a link and a file kept on the server (sent as a public download link). */
+export interface CustomerMsgTemplate {
+  id: string;
+  title: string;
+  text: string;
+  link?: string;
+  fileId?: string;
+  fileName?: string;
+}
+
 /** What a customer has on one social network: switched on, his accounts there, and how many times we were in touch. */
 export interface SocialEntry {
   on: boolean;
@@ -711,6 +721,8 @@ export interface SystemSettings {
   letterTemplate?: OrgLetterTemplate;
   /** Ready-made letter texts written by an admin; users pick one in the letter editor. */
   letterTextTemplates?: LetterTextTemplate[];
+  /** Ready-made messages (text, link, file) the staff send to customers on the social networks. */
+  customerMsgTemplates?: CustomerMsgTemplate[];
   companyLogoUrl?: string; // لوگو و آرم رسمی سازمان
   /** The floating logo bubble takes the colour of the theme (for the Hoormand logo). */
   companyLogoThemed?: boolean;
