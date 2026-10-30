@@ -42,7 +42,9 @@
       document.documentElement.appendChild(banner);
     }
     banner.style.background = kind === 'error' ? '#be123c' : kind === 'ok' ? '#047857' : '#6d28d9';
-    banner.textContent = 'هورمند: ' + text;
+    let ver = '';
+    try { ver = ' ' + chrome.runtime.getManifest().version; } catch (e) { /* the page cannot tell */ }
+    banner.textContent = 'هورمند' + ver + ': ' + text;
     banner.style.display = 'block';
     clearTimeout(banner._t);
     if (kind !== 'error') banner._t = setTimeout(() => { banner.style.display = 'none'; }, kind === 'ok' ? 5000 : 30000);
