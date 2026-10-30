@@ -114,19 +114,65 @@
     return inner[0] || null;
   };
 
+  // every element of the page, also inside open shadow roots
+  const deepAll = (root, sel, out = []) => {
+    root.querySelectorAll(sel).forEach((e) => out.push(e));
+    root.querySelectorAll('*').forEach((e) => { if (e.shadowRoot) deepAll(e.shadowRoot, sel, out); });
+    return out;
+  };
+  const EDITABLE = '[contenteditable]:not([contenteditable="false"]), textarea, input[type="text"], input:not([type]), [role="textbox"]';
+  const isEditable = (el) => !!el && (el.isContentEditable || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.getAttribute('role') === 'textbox');
+
   // the box the message is written in: at the bottom of the screen
   const findComposer = () => {
-    const c = [...document.querySelectorAll('[contenteditable="true"], textarea')].filter(visible).filter((el) => el.getBoundingClientRect().top > innerHeight * 0.55);
-    return c[c.length - 1] || null;
+    const low = (el) => el.getBoundingClientRect().top > innerHeight * 0.55;
+    const c = deepAll(document, EDITABLE).filter(visible).filter(low).filter((el) => !/جست|search/i.test(el.getAttribute('placeholder') || ''));
+    if (c.length) return c[c.length - 1];
+    // the editable part may be hidden or empty (0 height): find the «Message / پیام بنویسید» hint at the bottom and use what is around it
+    const hint = deepAll(document, '*').filter(visible).find((el) => el.children.length === 0 && low(el) && /^(message|پیام( خود را)?( بنویسید)?\.{0,3}|write a message\.{0,3})$/i.test((el.textContent || '').trim()));
+    if (hint) {
+      let p = hint;
+      for (let i = 0; i < 4 && p; i++) {
+        const inner = deepAll(p, EDITABLE).find((e) => e !== hint);
+        if (inner) return inner;
+        p = p.parentElement;
+      }
+      return hint.parentElement || hint;
+    }
+    return null;
   };
 
+  // what the page can show about itself when the box is not found (so the person can tell us)
+  const diag = () => `editable:${deepAll(document, '[contenteditable]').length} textarea:${deepAll(document, 'textarea').length} input:${deepAll(document, 'input').length} textbox:${deepAll(document, '[role="textbox"]').length}`;
+
+  // some messengers (Bale) show only a magnifier icon at the top: pressing it opens the search box
+  const openSearchBox = async () => {
+    let box = findSearch();
+    if (box) return box;
+    const icons = deepAll(document, 'button, [role="button"], a, div').filter(visible).filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top < 130 && r.width >= 26 && r.width <= 70 && Math.abs(r.width - r.height) < 10 && el.querySelector('svg, img') && (el.textContent || '').trim().length < 3;
+    });
+    const named = icons.filter((el) => /جست|search/i.test((el.getAttribute('aria-label') || '') + (el.getAttribute('title') || '')));
+    const rest = icons.filter((el) => !named.includes(el)).sort((a, b) => b.getBoundingClientRect().left - a.getBoundingClientRect().left);
+    for (const el of [...named, ...rest].slice(0, 4)) {
+      click(el);
+      box = await waitFor(findSearch, 1500);
+      if (box) return box;
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await sleep(300);
+    }
+    return null;
+  };
+
+  let why = '';
   const searchAndOpen = async (who) => {
-    const box = await waitFor(() => findSearch(), 10000);
-    if (!box) return false;
+    const box = await waitFor(() => findSearch(), 3000) || (await openSearchBox());
+    if (!box) { why = 'کادر جست‌وجو پیدا نشد'; return false; }
     setText(box, who);
     await sleep(1800);
     const row = await waitFor(() => firstResult(box), 5000);
-    if (!row) return false;
+    if (!row) { why = 'برای «' + who + '» نتیجه‌ای پیدا نشد (شمارهٔ ثبت‌نشده در مخاطبین پیدا نمی‌شود)'; return false; }
     click(row);
     return true;
   };
@@ -178,11 +224,17 @@
         }
       }
       if (!opened) {
-        say('مشتری پیدا نشد یا گفتگو باز نشد' + (job.text ? '؛ متن پیام کپی شده است، با Ctrl+V بچسبانید' : '') + '.', 'error');
+        say((target ? 'گفتگو باز شد ولی کادر نوشتن پیدا نشد (' + diag() + ')' : (why || 'مشتری پیدا نشد یا گفتگو باز نشد')) + (job.text ? '؛ متن پیام کپی شده است، با Ctrl+V بچسبانید' : '') + '.', 'error');
         return;
       }
       if (!job.text) { say('گفتگو باز شد.', 'ok'); return; }
-      const box = findComposer();
+      let box = findComposer();
+      if (!isEditable(box)) {
+        click(box);
+        box.focus && box.focus();
+        await sleep(300);
+        if (isEditable(document.activeElement)) box = document.activeElement;
+      }
       setText(box, job.text);
       await sleep(400);
       const now = (box.value !== undefined ? box.value : box.innerText) || '';
