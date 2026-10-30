@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "هورمند: ارسال پیام در پیام‌رسان‌ها",
+  "version": "1.0.0",
+  "description": "وقتی از هورمند روی مشتری در روبیکا، بله یا ایتا کلیک می‌کنید، مشتری را پیدا می‌کند، گفتگو را باز می‌کند و پیام آماده را می‌نویسد.",
+  "content_scripts": [
+    {
+      "matches": ["https://web.rubika.ir/*", "https://web.bale.ai/*", "https://web.eitaa.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { askConfirm } from '../../lib/confirmDialog';
 import { deleteMsgFile, msgFileUrl, uploadMsgFile } from '../../lib/serverFiles';
 import { Modal, field, label } from './crmUi';
-import { NETWORKS, SocialLogo, entryOf, openChat } from './SocialNetworks';
+import { NETWORKS, SocialLogo, chatExtOn, chatExtSend, entryOf, openChat, setChatExt, setChatExtSend } from './SocialNetworks';
 
 const newId = () => 'tm_' + Math.random().toString(36).slice(2, 10);
 const newFileId = () => 'tplf_' + Array.from(crypto.getRandomValues(new Uint8Array(12))).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -134,6 +134,8 @@ export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => vo
   const [tplId, setTplId] = useState(templates[0]?.id || '');
   const [mgr, setMgr] = useState(false);
   const [note, setNote] = useState('');
+  const [ext, setExt] = useState(chatExtOn());
+  const [extSend, setExtSend] = useState(chatExtSend());
   const accounts = useMemo(
     () => NETWORKS.filter((n) => !n.web).flatMap((n) => entryOf(customer, n.id).accounts.map((a) => ({ id: n.id, name: n.name, account: a }))),
     [customer],
@@ -212,6 +214,21 @@ export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => vo
               <p className="text-[10px] font-bold text-[#8C6F66] leading-5">واتس‌اپ پیام را آماده در کادر می‌گذارد و فقط «ارسال» را می‌زنید. تلگرام، ایتا، بله و روبیکا اجازه نمی‌دهند از بیرون متنی در گفتگو گذاشته شود؛ برای آن‌ها متن کپی می‌شود و با Ctrl+V می‌چسبانید. ارسال نهایی همیشه با خود شماست.</p>
             </>
           )}
+          <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-3 space-y-2" data-ext-panel>
+            <div className="text-[11px] font-black text-violet-900">افزونهٔ هورمند برای روبیکا، بله و ایتا (اختیاری)</div>
+            <p className="text-[10px] font-bold text-[#6b5048] leading-5">با افزونه، هورمند در وب روبیکا، بله یا ایتا خودش مشتری را جست‌وجو می‌کند، گفتگو را باز می‌کند و پیام را می‌نویسد.</p>
+            <label className="flex items-center gap-2 text-[11px] font-black text-[#3A241F] cursor-pointer"><input type="checkbox" className="w-4 h-4 accent-violet-600" checked={ext} onChange={(e) => { setExt(e.target.checked); setChatExt(e.target.checked); }} data-ext-on />افزونه روی این مرورگر نصب است</label>
+            <label className={`flex items-center gap-2 text-[11px] font-black cursor-pointer ${ext ? 'text-[#3A241F]' : 'text-[#8C6F66] opacity-60'}`}><input type="checkbox" className="w-4 h-4 accent-violet-600" disabled={!ext} checked={extSend} onChange={(e) => { setExtSend(e.target.checked); setChatExtSend(e.target.checked); }} data-ext-send />پیام را خودش بفرستد (اگر خاموش باشد فقط می‌نویسد و ارسال با شماست)</label>
+            <details className="text-[10px] font-bold text-[#503730] leading-6">
+              <summary className="cursor-pointer text-violet-700 font-black">نصب افزونه (یک‌بار، حدود یک دقیقه)</summary>
+              <ol className="list-decimal pr-5 space-y-0.5 mt-1">
+                <li><a href="/hoormand-extension.zip" download className="text-violet-700 underline font-black" data-ext-download>فایل افزونه را دانلود کنید</a> و از حالت فشرده خارج کنید.</li>
+                <li>در کروم آدرس <span dir="ltr" className="font-black">chrome://extensions</span> را باز کنید و «Developer mode» را روشن کنید.</li>
+                <li>«Load unpacked» را بزنید و همان پوشه را انتخاب کنید.</li>
+                <li>برگردید و تیک «افزونه نصب است» را بزنید. روبیکا، بله و ایتا وب را یک بار در همین مرورگر وارد شده نگه دارید.</li>
+              </ol>
+            </details>
+          </div>
         </div>
       </Modal>
       {mgr && <TemplatesManager templates={templates} onChange={(list) => { setSettings({ ...settings, customerMsgTemplates: list }); showToast('پیام‌های آماده ذخیره شد.'); }} onClose={() => setMgr(false)} />}

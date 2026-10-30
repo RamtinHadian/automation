@@ -384,6 +384,25 @@ const openAppOrWeb = (id: string, app: string, web: string) => {
   }, 1600);
 };
 
+/** The Hoormand browser extension (for Rubika, Bale and Eitaa web) is switched on in this browser; the person says so once. */
+const EXT_KEY = 'hoormand_chat_ext';
+const EXT_SEND_KEY = 'hoormand_chat_ext_send';
+const readFlag = (k: string) => { try { return localStorage.getItem(k) === '1'; } catch { return false; } };
+const writeFlag = (k: string, on: boolean) => { try { localStorage.setItem(k, on ? '1' : '0'); } catch { /* not kept */ } };
+export const chatExtOn = () => readFlag(EXT_KEY);
+export const setChatExt = (on: boolean) => writeFlag(EXT_KEY, on);
+export const chatExtSend = () => readFlag(EXT_SEND_KEY);
+export const setChatExtSend = (on: boolean) => writeFlag(EXT_SEND_KEY, on);
+export const EXT_NETWORKS = ['rubika', 'bale', 'eitaa'];
+const EXT_BASE: Record<string, string> = { rubika: 'https://web.rubika.ir/', bale: 'https://web.bale.ai/chat', eitaa: 'https://web.eitaa.com/' };
+/** the job for the extension, as it goes into the address after #hoormand= (URL-safe base64 of UTF-8 JSON) */
+const encodeJob = (job: Record<string, unknown>) => {
+  const bytes = new TextEncoder().encode(JSON.stringify(job));
+  let bin = '';
+  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
 /**
  * Opens the chat with a customer's account on a network (the installed app first, then the web in its own tab) and returns the note to show.
  * With a `text` WhatsApp gets it already written in the message box; the other networks cannot be given a text from outside, so it is copied to be pasted (Ctrl+V).
@@ -397,6 +416,13 @@ export const openChat = (id: string, name: string, account: string, text = ''): 
   const textInLink = !!text && ((isWa && isNumber) || id === 'telegram'); // the networks whose own links carry the text
   const who = isNumber ? normPhone(account) : '@' + plain;
   const copy = (v: string) => { try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ } };
+  // with the extension the chat is found, opened and written by the extension: the job travels in the address
+  if (EXT_NETWORKS.includes(id) && chatExtOn()) {
+    const job = { who: isNumber ? normPhone(account) : plain, text, send: chatExtSend(), guid: id === 'rubika' && isRubikaGuid(plain) ? plain : undefined };
+    openWebTab(id, `${EXT_BASE[id]}#hoormand=${encodeJob(job)}`);
+    if (text) copy(text);
+    return `${name} وب باز شد و افزونهٔ هورمند گفتگوی «${who}» را پیدا می‌کند${text ? ' و پیام را می‌نویسد' : ''}${text && chatExtSend() ? ' و می‌فرستد' : ''}. اگر چیزی نشد، متن کپی شده است.`;
+  }
   // what the person has to paste: the message when there is one, else the name / number to search for
   const needSearch = id === 'bale' || (id === 'rubika' && !isRubikaGuid(plain)) || (id === 'eitaa' && isNumber) || !url;
   if (text && !(isWa && isNumber)) copy(text); // a copy is kept for every network but WhatsApp, in case the text does not land in the box
