@@ -157,16 +157,17 @@
     if (busy) return;
     busy = true;
     try {
-      // forget the job in the address (so a reload does not repeat it); a chat code stays
-      const keep = job.guid ? '#c=' + job.guid : '';
-      history.replaceState(null, '', location.pathname + location.search + keep);
+      // an address that opens the chat by itself: Rubika #c=code, Eitaa #@user or #numeric-id
+      const target = job.guid ? '#c=' + job.guid : job.peer ? '#' + job.peer : '';
+      // the job is removed from the address first; the target is then set as a real change so the page moves to it
+      history.replaceState(null, '', location.pathname + location.search);
       say('در حال آماده کردن گفتگو…');
       // a copy of the text as a safety net; never waited for (the browser may ask for permission and wait)
       if (job.text) { try { navigator.clipboard.writeText(job.text).catch(() => {}); } catch (e) { /* no clipboard */ } }
 
       let opened = false;
-      if (job.guid) {
-        location.hash = '#c=' + job.guid;
+      if (target) {
+        location.hash = target;
         opened = !!(await waitFor(findComposer, 10000));
       } else if (job.who) {
         say('در حال پیدا کردن «' + job.who + '»…');
