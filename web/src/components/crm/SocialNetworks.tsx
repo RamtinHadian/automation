@@ -323,7 +323,7 @@ export const socialLink = (id: string, account: string, text = ''): string => {
     case 'instagram': return isNumber ? '' : `https://instagram.com/${a}`;
     case 'bale': return 'https://web.bale.ai/chat'; // Bale web opens on its chat page; the user name or number is copied to search there
     case 'eitaa': return isNumber ? 'https://web.eitaa.com/' : `https://web.eitaa.com/#@${a}`; // the web version of Eitaa; a number cannot be linked, so it is copied
-    case 'rubika': return isNumber ? '' : `https://rubika.ir/${a}`;
+    case 'rubika': return 'https://web.rubika.ir/'; // Rubika publishes no link that opens a person's chat: its web opens and the name or number is copied to search there
     case 'website': return `https://${a}`;
     default: return '';
   }
@@ -396,7 +396,7 @@ export const openChat = (id: string, name: string, account: string, text = ''): 
   const who = isNumber ? normPhone(account) : '@' + plain;
   const copy = (v: string) => { try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ } };
   // what the person has to paste: the message when there is one, else the name / number to search for
-  const needSearch = id === 'bale' || (id === 'eitaa' && isNumber) || !url;
+  const needSearch = id === 'bale' || id === 'rubika' || (id === 'eitaa' && isNumber) || !url;
   if (text && !(isWa && isNumber)) copy(text); // a copy is kept for every network but WhatsApp, in case the text does not land in the box
   else if (!text && needSearch) copy(who);
   const pasteNote = text && textInLink && id === 'telegram' ? ' متن پیام به تلگرام داده شد (و کپی هم شد)؛ اگر در کادر پیام ننشست، Ctrl+V بزنید.' : text && !textInLink ? ` ${name} راه رسمی برای گذاشتن متن در گفتگو ندارد؛ متن پیام کپی شد، در گفتگو Ctrl+V بزنید${needSearch ? ` و برای پیدا کردن مشتری «${who}» را جست‌وجو کنید` : ''}.` : '';
