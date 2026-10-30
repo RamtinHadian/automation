@@ -317,12 +317,26 @@
     return /(^|\s)(send|ارسال)/i.test(t) && !isVoice(el) && el.getBoundingClientRect().top > innerHeight * 0.5;
   });
   const bottomButtons = () => deepAll(document, 'button, [role="button"]').filter(visible).filter((el) => el.getBoundingClientRect().top > innerHeight * 0.5);
+  // The send button of many messengers is an icon with scrambled class names and no label. What gives it away: it appears (or changes)
+  // beside the box right after text is written. The buttons around the box are noted before writing and compared after.
+  const sig = (el) => attrsOf(el) + '|' + el.innerHTML.length;
+  const nearBox = (box) => (el) => {
+    const b = box.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return Math.abs((r.top + r.height / 2) - (b.top + b.height / 2)) < 80;
+  };
+  let sendCandidate = null;
+  const noteButtons = (box) => new Map(bottomButtons().filter(nearBox(box)).map((el) => [el, sig(el)]));
+  const findAppeared = (box, before) => bottomButtons().filter(nearBox(box)).filter((el) => !before.has(el) || before.get(el) !== sig(el)).filter((el) => !isVoice(el))[0] || null;
   // did the page take the text in? (its mic button then turns into a send button)
-  const textTakenByPage = () => !!explicitSend() || !bottomButtons().some(isVoice);
+  const textTakenByPage = () => !!sendCandidate || !!explicitSend() || !bottomButtons().some(isVoice);
   // writes into the box; when the page did not notice (the mic is still a mic), the text is «pasted» the way a person does it
   const writeText = async (box, text) => {
+    const before = noteButtons(box);
+    sendCandidate = null;
     setText(box, text);
     await sleep(600);
+    sendCandidate = findAppeared(box, before);
     if (textTakenByPage()) return true;
     try {
       box.focus();
@@ -332,19 +346,20 @@
       box.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
     } catch (e) { /* no synthetic paste here */ }
     await sleep(700);
+    sendCandidate = findAppeared(box, before);
     return textTakenByPage();
   };
   const sendMessage = async (box) => {
     // nothing is pressed unless the page has taken the text in (its mic button has turned into «send»): in Telegram-like pages
     // Enter on a box the page thinks is empty is the same as pressing the microphone, and starts a voice recording
     if (!textOf(box) || !textTakenByPage()) {
-      lastSendDiag = bottomButtons().slice(0, 5).map((el) => (attrsOf(el).replace(/\s+/g, ' ').trim().slice(0, 40) || el.tagName) + (isVoice(el) ? '[voice]' : '')).join(' | ');
+      lastSendDiag = bottomButtons().slice(0, 6).map((el) => ((el.id || el.getAttribute('data-testid') || el.getAttribute('aria-label') || attrsOf(el)).replace(/\s+/g, ' ').trim().slice(0, 30) || el.tagName) + (isVoice(el) ? '[voice]' : '') + (sendCandidate === el ? '[send?]' : '')).join(' | ');
       return false;
     }
     sendEnter(box);
     await sleep(1200);
     if (!textOf(box)) return true; // the box was emptied: the message went
-    const btn = explicitSend();
+    const btn = explicitSend() || sendCandidate;
     if (btn) { click(btn.closest('button, [role="button"]') || btn); await sleep(800); }
     if (textOf(box)) {
       lastSendDiag = bottomButtons().slice(0, 5).map((el) => (attrsOf(el).replace(/\s+/g, ' ').trim().slice(0, 40) || el.tagName) + (isVoice(el) ? '[voice]' : '')).join(' | ');
