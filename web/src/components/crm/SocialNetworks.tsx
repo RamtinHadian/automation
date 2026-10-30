@@ -316,7 +316,8 @@ export const socialLink = (id: string, account: string, text = ''): string => {
   const isNumber = /^[0-9+\s-]+$/.test(a);
   const intl = isNumber ? normPhone(a).replace(/^0/, '98') : '';
   switch (id) {
-    case 'telegram': return isNumber ? `https://t.me/+${intl}` : `https://web.telegram.org/k/#@${a}`;
+    // with a message the official t.me link is used (it carries ?text= to the app or the web); without one the web opens straight on the chat
+    case 'telegram': return text ? `https://t.me/${isNumber ? '+' + intl : a}?text=${encodeURIComponent(text)}` : isNumber ? `https://t.me/+${intl}` : `https://web.telegram.org/k/#@${a}`;
     case 'whatsapp':
     case 'whatsappBusiness': return isNumber ? `https://web.whatsapp.com/send?phone=${intl}${text ? '&text=' + encodeURIComponent(text) : ''}` : '';
     case 'instagram': return isNumber ? '' : `https://instagram.com/${a}`;
@@ -334,8 +335,7 @@ export const socialAppLink = (id: string, account: string, text = ''): string =>
   const isNumber = /^[0-9+\s-]+$/.test(a);
   const intl = isNumber ? normPhone(a).replace(/^0/, '98') : '';
   const t = text ? `&text=${encodeURIComponent(text)}` : '';
-  // Telegram: the message is handed over too; versions that do not know the «text» part open the chat and the copied text is pasted
-  if (id === 'telegram') return isNumber ? (text ? `tg://msg?text=${encodeURIComponent(text)}&to=%2B${intl}` : `tg://resolve?phone=${intl}`) : `tg://resolve?domain=${a}${t}`;
+  if (id === 'telegram') return isNumber ? `tg://resolve?phone=${intl}${t}` : `tg://resolve?domain=${a}${t}`; // the links of Telegram's own documentation
   if ((id === 'whatsapp' || id === 'whatsappBusiness') && isNumber) return `whatsapp://send?phone=${intl}${text ? '&text=' + encodeURIComponent(text) : ''}`;
   // Eitaa and Bale desktop apps are built like Telegram's: the same «resolve» address under their own name (if the app is not there nothing happens and the web opens)
   if (id === 'eitaa') return isNumber ? `eitaa://resolve?phone=${intl}${t}` : `eitaa://resolve?domain=${a}${t}`;
@@ -391,14 +391,15 @@ export const openChat = (id: string, name: string, account: string, text = ''): 
   const isNumber = /^[0-9+\s-]+$/.test(plain);
   const url = socialLink(id, account, text);
   const app = socialAppLink(id, account, text);
-  const textInLink = !!text && (id === 'whatsapp' || id === 'whatsappBusiness') && isNumber;
+  const isWa = id === 'whatsapp' || id === 'whatsappBusiness';
+  const textInLink = !!text && ((isWa && isNumber) || id === 'telegram'); // the networks whose own links carry the text
   const who = isNumber ? normPhone(account) : '@' + plain;
   const copy = (v: string) => { try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ } };
   // what the person has to paste: the message when there is one, else the name / number to search for
   const needSearch = id === 'bale' || (id === 'eitaa' && isNumber) || !url;
-  if (text && !textInLink) copy(text);
+  if (text && !(isWa && isNumber)) copy(text); // a copy is kept for every network but WhatsApp, in case the text does not land in the box
   else if (!text && needSearch) copy(who);
-  const pasteNote = text && !textInLink ? ` متن پیام را به برنامه دادم و کپی هم شد؛ اگر در کادر پیام ننشست، در گفتگو Ctrl+V بزنید${needSearch ? ` و برای پیدا کردن مشتری «${who}» را جست‌وجو کنید` : ''}.` : '';
+  const pasteNote = text && textInLink && id === 'telegram' ? ' متن پیام به تلگرام داده شد (و کپی هم شد)؛ اگر در کادر پیام ننشست، Ctrl+V بزنید.' : text && !textInLink ? ` ${name} راه رسمی برای گذاشتن متن در گفتگو ندارد؛ متن پیام کپی شد، در گفتگو Ctrl+V بزنید${needSearch ? ` و برای پیدا کردن مشتری «${who}» را جست‌وجو کنید` : ''}.` : '';
   if (app && url) {
     openAppOrWeb(id, app, url);
     return `${name}: اگر برنامه روی این سیستم نصب باشد مستقیم داخل آن باز می‌شود، وگرنه نسخهٔ وب.${pasteNote}${!text && needSearch ? ` «${who}» کپی شد؛ در جست‌وجو بچسبانید.` : ''}`;
