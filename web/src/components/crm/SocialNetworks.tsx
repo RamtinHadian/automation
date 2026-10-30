@@ -345,8 +345,20 @@ export const socialAppLink = (id: string, account: string, text = ''): string =>
 
 /** Try the installed app first; when nothing took over (the window kept its focus) open the web version instead. */
 /** One separate tab per network that is used again for every click (it is named), so the web of Telegram, WhatsApp, Eitaa, Bale and Rubika never piles up new tabs. */
+const webTabs: Record<string, Window | null> = {};
 const openWebTab = (id: string, url: string) => {
+  if (id === 'whatsappBusiness') id = 'whatsapp'; // the same web page serves both, and WhatsApp allows one open web page at a time
+  // the tab opened before is remembered: it is sent to the new address (a browser may forget a tab's name when it moves to another site)
+  const prev = webTabs[id];
+  if (prev && !prev.closed) {
+    try {
+      prev.location.href = url;
+      prev.focus();
+      return;
+    } catch { /* the tab can not be reached any more: open it again below */ }
+  }
   const w = window.open(url, 'hoormand_' + id);
+  webTabs[id] = w;
   try { w?.focus(); } catch { /* the browser keeps the focus rule */ }
 };
 
