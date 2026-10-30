@@ -70,6 +70,10 @@ func putCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 	}
 	doc := jsonx.Copy(data)
 	doc["id"] = id
+	if exists && !me.IsAdmin() && !noteLogKept(jsonx.Decode(raw), doc, me.ID()) {
+		httpx.Error(w, http.StatusForbidden, "توضیحاتی را که دیگری نوشته فقط خودش یا مدیر کل می‌تواند ویرایش یا حذف کند.")
+		return
+	}
 	if jsonx.Str(doc, "ownerId") == "" {
 		doc["ownerId"], doc["ownerName"] = me.ID(), me.Name()
 	}
@@ -95,6 +99,30 @@ func putCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		smsAutoCustomer("customer_new", doc, nil) // the welcome message (only when the admin switched it on)
 	}
 	httpx.OK(w)
+}
+
+// noteLogKept: every paragraph of a customer's notes written by somebody else is still there, unchanged (only its writer or a system administrator edits or removes it).
+func noteLogKept(before, after jsonx.M, me string) bool {
+	now := map[string]bool{}
+	for _, e := range jsonx.Arr(after, "noteLog") {
+		if m, ok := e.(map[string]any); ok {
+			now[jsonx.Str(m, "byId")+"|"+jsonx.Str(m, "at")+"|"+jsonx.Str(m, "text")] = true
+		}
+	}
+	for _, e := range jsonx.Arr(before, "noteLog") {
+		m, ok := e.(map[string]any)
+		if !ok {
+			continue
+		}
+		by := jsonx.Str(m, "byId")
+		if by == "" || by == me {
+			continue
+		}
+		if !now[by+"|"+jsonx.Str(m, "at")+"|"+jsonx.Str(m, "text")] {
+			return false
+		}
+	}
+	return true
 }
 
 func removeCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id string) {

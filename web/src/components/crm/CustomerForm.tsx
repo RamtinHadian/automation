@@ -10,6 +10,8 @@ import { Modal, field, label, SOURCES } from './crmUi';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { IRAN_CITIES, PROVINCE_LIST } from '../../lib/iranCities';
 import { PhraseChips } from '../common/PhraseChips';
+import { ParagraphNotes, noteEntries, canEditNote } from '../common/ParagraphNotes';
+import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { askConfirm } from '../../lib/confirmDialog';
 
@@ -118,6 +120,7 @@ export const CustomerForm: React.FC<{
   /** a phone-book entry that is not a customer (supplier, colleague, other): the same form without what only a customer has (Sepidar, marketing, need, sales status) */
   contactKind?: 'SUPPLIER' | 'COLLEAGUE' | 'AGENT' | 'OTHER';
 }> = ({ initial, isNew, staff, customers, canDelete, onClose, onSave, onDelete, contactKind }) => {
+  const { currentUser } = useAppContext();
   const contactLabel = contactKind === 'SUPPLIER' ? 'تأمین‌کننده' : contactKind === 'COLLEAGUE' ? 'همکار' : contactKind === 'AGENT' ? 'نماینده' : 'مخاطب';
   const [c, setC] = useState<Customer>(() => {
     const kind = initial.kind || 'PERSON';
@@ -766,8 +769,22 @@ export const CustomerForm: React.FC<{
           </div>
           <div>
             <label className={label}>توضیحات</label>
-            {!contactKind && <PhraseChips sources={customers.map((x) => x.notes || '')} onPick={(t) => patch({ notes: (c.notes ? c.notes.replace(/\s+$/, '') + '\n' : '') + t })} />}
-            <textarea className={`${field} min-h-[80px] leading-6`} value={c.notes || ''} onChange={(e) => patch({ notes: e.target.value })} />
+            {!contactKind && (
+              <PhraseChips
+                sources={customers.map((x) => x.notes || '')}
+                onPick={(t) => {
+                  const log = [...noteEntries(c.noteLog, c.notes).filter((e) => !e.draft), { text: t, at: new Date().toISOString(), byId: currentUser.id, byName: currentUser.fullName }];
+                  patch({ noteLog: log, notes: log.map((e) => e.text).join('\n') });
+                }}
+              />
+            )}
+            <ParagraphNotes
+              log={c.noteLog}
+              text={c.notes}
+              onChange={(noteLog, notes) => patch({ noteLog, notes })}
+              canEdit={(e) => canEditNote(currentUser, e, c.ownerId)}
+              placeholder="توضیحات را بنویسید و اینتر بزنید…"
+            />
           </div>
         </Section>
       </Modal>

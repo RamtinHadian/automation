@@ -9,6 +9,7 @@ import { canSeeSalesTotals } from '../../lib/permissions';
 import { toPersianDigits } from '../../lib/jalali';
 import { RecordingButton } from '../common/CallLog';
 import { CustomerAiAnalysis } from './CustomerAiAnalysis';
+import { noteEntries } from '../common/ParagraphNotes';
 import { formatTaskDate } from '../../lib/taskDates';
 
 const when = (iso?: string) => {
@@ -67,7 +68,7 @@ export const CustomerSummaryStrip: React.FC<{ customer: Customer; deals: Deal[];
       <div className="sticky top-0 z-10 -mx-1 rounded-2xl bg-gradient-to-l from-[#7C3AED] via-[#9333EA] to-[#BE123C] text-white shadow-lg shadow-violet-700/25 overflow-hidden" data-customer-summary>
         <button type="button" onClick={() => setFull(true)} className="w-full text-right px-3.5 py-3 cursor-pointer">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3 pl-8">
-            <Stat icon={<MessageSquare className="w-4 h-4" />} title="تعامل‌ها" value={`${toPersianDigits(s.others.length)} مورد، ${toPersianDigits(s.callCount)} تماس`} sub={`آخرین: ${ago(s.last)}`} />
+            <Stat icon={<MessageSquare className="w-4 h-4" />} title="تعامل‌ها" value={`${toPersianDigits(s.others.length + noteEntries(customer.noteLog, customer.notes).length)} مورد، ${toPersianDigits(s.callCount)} تماس`} sub={`آخرین: ${ago(s.last)}`} />
             {canSeeSalesTotals(currentUser) && <Stat icon={<BadgeDollarSign className="w-4 h-4" />} title="فروش" value={s.won.length ? `${formatMoney(s.wonTotal)} ${unitName()}` : 'خریدی ثبت نشده'} sub={s.won.length ? `${toPersianDigits(s.won.length)} خرید، آخرین ${formatTaskDate((s.won[0].closedAt || s.won[0].updatedAt).slice(0, 10))}` : 'هنوز فروشی نداشته'} />}
             <Stat icon={<Tag className="w-4 h-4" />} title="قیمت‌های داده‌شده" value={`${toPersianDigits(s.quotes.length)} مورد`} sub={q ? `${q.itemName || ''}: ${formatMoney(q.price || 0)}` : 'قیمتی ثبت نشده'} />
             {canSeeSalesTotals(currentUser) && <Stat icon={<Briefcase className="w-4 h-4" />} title="فرصت‌های باز" value={`${toPersianDigits(s.open.length)} فرصت`} sub={s.open.length ? `${formatMoney(s.openTotal)} ${unitName()}` : '—'} />}
@@ -133,6 +134,9 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
       const text = a.type === 'QUOTE' ? `قیمت «${a.itemName || ''}»${a.spec ? ` (${a.spec})` : ''}: ${formatMoney(a.price || 0)} ${unitName()}${a.qty ? ` · تعداد ${toPersianDigits(a.qty)}` : ''}${a.text ? ` — ${a.text}` : ''}` : a.text;
       ev.push({ id: 'a' + a.id, at: a.createdAt, title: ACT_LABEL[a.type] || 'تعامل', by: a.authorName, text, Icon: a.type === 'CALL' ? PhoneCall : a.type === 'MEETING' ? Users : a.type === 'QUOTE' ? Tag : a.type === 'FOLLOWUP' ? Clock3 : NotebookPen });
     }
+    for (const [i, n] of noteEntries(customer.noteLog, customer.notes).entries()) {
+      ev.push({ id: 'n' + i, at: n.at, title: 'توضیحات مشتری', by: n.byName, text: n.text, Icon: NotebookPen });
+    }
     for (const c of calls) {
       const missed = c.direction === 'in' && c.status !== 'answered';
       ev.push({ id: 'c' + c.id, at: c.startedAt, title: `تماس ${c.direction === 'out' ? 'خروجی' : c.direction === 'internal' ? 'داخلی' : 'ورودی'}${missed ? ' (بی‌پاسخ)' : ''}`, by: c.userName, text: `${toPersianDigits(c.number || '')}${c.duration > 0 ? ` · مدت ${toPersianDigits(Math.floor(c.duration / 60))}:${toPersianDigits(String(c.duration % 60).padStart(2, '0'))}` : ''}`, Icon: missed ? PhoneMissed : c.direction === 'out' ? PhoneOutgoing : PhoneIncoming, call: c.hasRecording ? c : undefined });
@@ -143,7 +147,8 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
       if (d.stage === 'WON' || d.stage === 'LOST') ev.push({ id: 'dc' + d.id, at: d.closedAt || d.updatedAt, title: d.stage === 'WON' ? 'فروش موفق' : 'فرصت از دست رفت', by: d.ownerName, text: `«${d.title}»${amount}${d.stage === 'LOST' && d.lostReason ? ` · دلیل: ${d.lostReason}` : ''}`, Icon: Handshake });
     }
     return ev.filter((e) => e.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 120);
-  }, [s, calls, seesMoney]);
+  }, [s, calls, seesMoney, customer]);
+  const custNotes = noteEntries(customer.noteLog, customer.notes);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', esc);
@@ -202,7 +207,13 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
               </div>
             ))}
           </Block>
-          <Block title="یادداشت‌ها، پیگیری‌ها و جلسه‌ها" count={s.others.length}>
+          <Block title="یادداشت‌ها، پیگیری‌ها و جلسه‌ها" count={s.others.length + custNotes.length}>
+            {custNotes.map((n, i) => (
+              <div key={'cn' + i} className="px-4 py-2.5 text-xs" data-summary-customer-note>
+                <div className="leading-6 whitespace-pre-wrap">{n.text}</div>
+                <div className="text-[10px] opacity-75">توضیحات مشتری{n.at ? ` · ${when(n.at)}` : ''}{n.byName ? ` · ${n.byName}` : ''}</div>
+              </div>
+            ))}
             {s.others.slice(0, 40).map((a) => (
               <div key={a.id} className="px-4 py-2.5 text-xs">
                 <div className="leading-6 whitespace-pre-wrap">{a.text}</div>

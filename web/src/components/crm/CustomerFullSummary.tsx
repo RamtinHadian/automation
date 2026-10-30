@@ -9,6 +9,7 @@ import { CONTACT_TYPES, contactTypeOf } from '../../lib/contactTypes';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
 import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
 import { CustomerAiAnalysis } from './CustomerAiAnalysis';
+import { NoteLines } from '../common/ParagraphNotes';
 
 const ACT: Record<ActivityType, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد' };
 const STAGE: Record<string, string> = { NEW: 'جدید', CONTACTED: 'تماس گرفته شد', PROPOSAL: 'پیشنهاد ارسال شد', NEGOTIATION: 'مذاکره', WON: 'فروش موفق', LOST: 'از دست رفت' };
@@ -95,7 +96,7 @@ export const CustomerFullSummary: React.FC<{ customer: Customer; deals: Deal[]; 
             {c.tags.map((t) => <span key={t} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-50 text-violet-800 border border-violet-200 flex items-center gap-1"><Tag className="w-3 h-3" />{t}</span>)}
           </div>
         )}
-        {c.notes && <p className="text-[11px] text-[#503730] leading-6 whitespace-pre-wrap bg-white/70 rounded-xl border border-[#EBDBCE] px-3 py-2">{c.notes}</p>}
+        {c.notes && <div className="bg-white/70 rounded-xl border border-[#EBDBCE] px-3 py-2"><NoteLines log={c.noteLog} text={c.notes} /></div>}
       </section>
 
       <CustomerAiAnalysis customerId={c.id} />

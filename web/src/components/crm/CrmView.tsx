@@ -38,7 +38,7 @@ import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
-import { ParagraphNotes } from '../common/ParagraphNotes';
+import { ParagraphNotes, NoteLines } from '../common/ParagraphNotes';
 import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
@@ -1629,7 +1629,7 @@ const CustomerDetail: React.FC<{
           ))}
         </div>
       )}
-      {c.notes && <p className="text-xs leading-6 text-[#3A241F] bg-amber-50/50 border border-amber-100 rounded-xl px-3 py-2 whitespace-pre-wrap">{c.notes}</p>}
+      {c.notes && <div className="bg-amber-50/50 border border-amber-100 rounded-xl px-3 py-2"><NoteLines log={c.noteLog} text={c.notes} /></div>}
 
       {/* deals */}
       <section className="space-y-2">

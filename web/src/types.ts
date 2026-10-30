@@ -200,6 +200,8 @@ export interface Customer {
   ownerId: string;
   ownerName: string;
   notes?: string;
+  /** the notes paragraph by paragraph, each with its time and writer (`notes` keeps the same text joined by new lines) */
+  noteLog?: NoteEntry[];
   createdAt: string;
   updatedAt: string;
 }
