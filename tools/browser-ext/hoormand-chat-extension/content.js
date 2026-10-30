@@ -65,10 +65,25 @@
     }
     return null;
   };
+  // a click at the real place of the element: lists of messengers often find the row from the position of the click,
+  // and an event with no position lands on the first row
   const click = (el) => {
+    const r = el.getBoundingClientRect();
+    const x = Math.round(r.left + r.width / 2);
+    const y = Math.round(r.top + r.height / 2);
+    const hit = document.elementFromPoint(x, y);
+    const target = hit && (el.contains(hit) || hit.contains(el)) ? hit : el;
     for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
-      el.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window }));
+      const Ev = t.startsWith('pointer') ? PointerEvent : MouseEvent;
+      target.dispatchEvent(new Ev(t, { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y, button: 0, buttons: t.endsWith('down') ? 1 : 0, pointerType: 'mouse', isPrimary: true }));
     }
+  };
+  const selectContents = (el) => {
+    const sel = getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    sel.removeAllRanges();
+    sel.addRange(range);
   };
   const setText = (el, text) => {
     el.focus();
@@ -78,7 +93,10 @@
       el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
       return;
     }
-    document.execCommand('selectAll', false);
+    // the cursor must really be in the box, or «select all» would select the page
+    if (document.activeElement !== el && !el.contains(document.activeElement)) click(el);
+    el.focus();
+    selectContents(el);
     document.execCommand('insertText', false, text);
   };
 
@@ -208,12 +226,27 @@
     const parts = name.split(' ').filter((x) => x.length > 1);
     return parts.length >= 2 && parts.every((x) => t.includes(x));
   };
+  // does the title at the top of the open chat belong to the row that was clicked? (a long row name may be cut with «…»; either side may hold more)
+  const sameChat = (header, title) => {
+    const h = norm(header);
+    const t = norm(title).replace(/…|\.\.\./g, '').trim();
+    if (!h || !t) return true;
+    if (h.includes(t) || t.includes(h)) return true;
+    return t.split(' ').filter((w) => w.length >= 3).some((w) => h.includes(w));
+  };
   let lastVerified = true;
+  let lastRowTitle = '';
+  let lastColumn = null; // the column of the search results (its own header is not the title of the chat)
+  // the name in the top bar of the chat that is open now (not our own banner)
+  const openChatTitle = () => deepAll(document, '*').filter(visible).filter((el) => el.children.length === 0 && !(banner && banner.contains(el)))
+    .filter((el) => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.bottom <= 110 && !(lastColumn && lastColumn.contains(el)) && (el.textContent || '').trim().length > 0 && (el.textContent || '').trim().length < 80; })
+    .map((el) => el.textContent.trim()).join(' ');
   let why = '';
   const searchAndOpen = async (job) => {
     const who = job.who;
     const box = await waitFor(() => findSearch(), 3000) || (await openSearchBox());
     if (!box) { why = 'کادر جست‌وجو پیدا نشد'; return false; }
+    lastColumn = columnOf(box);
     setText(box, who);
     // wait until the list of results stops changing (it first shows the old list, then the answer)
     let last = '';
@@ -246,8 +279,10 @@
     if (people.length) rows = people;
     if (!rows.length) { why = 'برای «' + who + '» نتیجه‌ای پیدا نشد (شمارهٔ ثبت‌نشده در مخاطبین پیدا نمی‌شود)'; return false; }
     const hit = rows.filter((r) => rowMatches(r, job))[0];
-    if (hit) { lastVerified = true; click(hit); return true; }
-    if (rows.length === 1) { lastVerified = false; click(rows[0]); return true; }
+    // the name of the row: its first line of more than one character (a letter avatar adds a line with a single letter)
+    const title = (r) => (r.innerText || '').split('\n').map((x) => x.trim()).find((x) => x.length > 1) || '';
+    if (hit) { lastVerified = true; lastRowTitle = title(hit); click(hit); return true; }
+    if (rows.length === 1) { lastVerified = false; lastRowTitle = title(rows[0]); click(rows[0]); return true; }
     // several rows and none is the customer: opening any of them could be the wrong person
     why = 'نتیجهٔ مطابق «' + who + '» نبود؛ نتیجه‌ها: ' + rows.slice(0, 3).map((r) => (r.innerText || '').trim().split('\n')[0]).join('، ') + ' — برای اینکه پیام به شخص اشتباه نرود، باز نکردم';
     return false;
@@ -291,7 +326,7 @@
     if (textTakenByPage()) return true;
     try {
       box.focus();
-      document.execCommand('selectAll', false);
+      selectContents(box);
       const dt = new DataTransfer();
       dt.setData('text/plain', text);
       box.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
@@ -366,6 +401,15 @@
       if (!opened) {
         say((target ? 'گفتگو باز شد ولی کادر نوشتن پیدا نشد (' + diag() + ')' : (why || 'مشتری پیدا نشد یا گفتگو باز نشد')) + (job.text ? '؛ متن پیام کپی شده است، با Ctrl+V بچسبانید' : '') + '.', 'error');
         return;
+      }
+      // is it the chat that was clicked? (the title in the top bar must carry the name of the row)
+      if (lastRowTitle) {
+        await sleep(600);
+        const top = openChatTitle();
+        if (top && !sameChat(top, lastRowTitle)) {
+          say('گفتگویی که باز شد «' + top.slice(0, 40) + '» است، نه «' + lastRowTitle + '»؛ چیزی ننوشتم.' + (job.text ? ' متن پیام کپی شده است.' : ''), 'error');
+          return;
+        }
       }
       if (!job.text) { say('گفتگو باز شد.', 'ok'); return; }
       let box = findComposer();
