@@ -213,6 +213,16 @@
       const sig = rows.map((r) => (r.innerText || '').trim()).join('|');
       if (rows.length && sig === last) { if (++stable >= 3) break; } else { stable = 0; last = sig; }
     }
+    // the answer is in sections («گفتگوها» = people and chats, «پیام‌ها» = messages that contain the word): messages are not people
+    const headers = deepAll(document, '*').filter(visible).filter((el) => el.children.length === 0).map((el) => ({ el, t: norm(el.textContent) }))
+      .filter((h) => /^(گفتگوها|مخاطبین|کاربران|افراد|chats|contacts|people|users|messages|پیام ها)$/.test(h.t));
+    const isMsgSection = (row) => {
+      const top = row.getBoundingClientRect().top;
+      const above = headers.filter((h) => h.el.getBoundingClientRect().top <= top).sort((a, b) => b.el.getBoundingClientRect().top - a.el.getBoundingClientRect().top)[0];
+      return !!above && /^(messages|پیام ها)$/.test(above.t);
+    };
+    const people = rows.filter((r) => !isMsgSection(r));
+    if (people.length) rows = people;
     if (!rows.length) { why = 'برای «' + who + '» نتیجه‌ای پیدا نشد (شمارهٔ ثبت‌نشده در مخاطبین پیدا نمی‌شود)'; return false; }
     const hit = rows.filter((r) => rowMatches(r, job))[0];
     if (hit) { lastVerified = true; click(hit); return true; }
