@@ -13,6 +13,20 @@ type Schedule = { enabled: boolean; everyDays: number; periodDays: number; lastR
 const EVERY = [1, 2, 3, 7, 14, 30];
 const PERIODS = [7, 14, 30, 60, 90, 180, 365];
 
+/**
+ * Every place the AI works. WHEN THE AI IS ADDED TO A NEW PLACE, ADD IT HERE (one line) so that this list in the settings stays true;
+ * `right` is the sub-right of the permission table that opens it for a person (the «ai» group of lib/permissions.ts).
+ */
+const AI_PLACES: { where: string; what: string; right?: string }[] = [
+  { where: 'نامه‌نگاری', what: 'دکمهٔ «با هوش مصنوعی» در ویرایشگر نامه متن را از روی خواسته می‌نویسد یا متن نیمه‌تمام را کامل می‌کند.', right: 'ai.letters' },
+  { where: 'صورتجلسه', what: 'نوشتن صورتجلسه از یادداشت یا از صدای جلسه (ضبط با میکروفون یا فایل صوتی؛ تبدیل به متن و نوشتن دستور جلسه، شرح مذاکرات و مصوبات) و خلاصهٔ شرح مذاکرات.', right: 'ai.minutes' },
+  { where: 'تماس‌ها', what: 'تبدیل مکالمهٔ ضبط‌شده به متن، با تأیید کاربر؛ متن در گزارش تماس و پروندهٔ مشتری هم می‌آید.', right: 'ai.calls' },
+  { where: 'مشتریان', what: 'تحلیل سطح مشتری (در ۵ سطح) در پروندهٔ او.', right: 'ai.customer' },
+  { where: 'گزارشات آماری مدیریتی', what: 'گزارش هوشمند فروش همکاران (دستی یا خودکار، با نمودار و تاریخ و ساعت) و تحلیل گزارش‌های روزانه.' },
+  { where: 'پشتیبانی', what: 'پاسخ هوشمند اولیه به پیام مشتری در صفحهٔ مشتریان.' },
+  { where: 'اعلان', what: 'اگر شارژ togpt تمام شود یا کلید و ارتباط مشکل داشته باشد، مدیران اعلان می‌گیرند و کادر قرمز بالای همین تب می‌ماند.' },
+];
+
 /** Everything about the AI service in one place: the connection (togpt), the support assistant, the scheduled sales analysis and where the AI is used. */
 export const AiSettingsCard: React.FC = () => {
   const { showToast, staffList, handleUpdateUser } = useAppContext();
@@ -204,12 +218,7 @@ export const AiSettingsCard: React.FC = () => {
       <section className={card} data-ai-where>
         <h4 className="font-black text-sm">هوش مصنوعی کجاها کار می‌کند</h4>
         <ul className="text-[11px] font-bold text-[#8C6F66] leading-7 list-disc pr-5">
-          <li>نامه‌نگاری: دکمهٔ «هوش مصنوعی» در ویرایشگر نامه، متن کامل می‌نویسد.</li>
-          <li>صورتجلسه: نوشتن صورتجلسه از یادداشت یا ویس، و خلاصهٔ شرح مذاکرات.</li>
-          <li>تماس‌ها: تبدیل مکالمهٔ ضبط‌شده به متن، با تأیید کاربر.</li>
-          <li>گزارشات آماری مدیریتی: گزارش هوشمند فروش و تحلیل گزارش‌های روزانه.</li>
-          <li>مشتریان: تحلیل سطح مشتری (در ۵ سطح).</li>
-          <li>پشتیبانی: پاسخ هوشمند به پیام مشتری (بالا).</li>
+          {AI_PLACES.map((x) => <li key={x.where}><b className="text-[#3A241F]">{x.where}:</b> {x.what}{x.right ? ' (با تیک «' + (aiSubs.find((c) => c.id === x.right)?.label || '') + '»)' : ''}</li>)}
         </ul>
         <p className="text-[10.5px] font-bold text-[#8C6F66] leading-6">اینکه چه کسی هر بخش را می‌بیند در «جدول مجوزها» تنظیم می‌شود.</p>
       </section>
