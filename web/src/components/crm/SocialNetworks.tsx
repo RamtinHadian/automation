@@ -333,11 +333,13 @@ export const socialAppLink = (id: string, account: string, text = ''): string =>
   const a = normText(account).replace(/^@/, '');
   const isNumber = /^[0-9+\s-]+$/.test(a);
   const intl = isNumber ? normPhone(a).replace(/^0/, '98') : '';
-  if (id === 'telegram') return isNumber ? `tg://resolve?phone=${intl}` : `tg://resolve?domain=${a}`;
+  const t = text ? `&text=${encodeURIComponent(text)}` : '';
+  // Telegram: the message is handed over too; versions that do not know the «text» part open the chat and the copied text is pasted
+  if (id === 'telegram') return isNumber ? (text ? `tg://msg?text=${encodeURIComponent(text)}&to=%2B${intl}` : `tg://resolve?phone=${intl}`) : `tg://resolve?domain=${a}${t}`;
   if ((id === 'whatsapp' || id === 'whatsappBusiness') && isNumber) return `whatsapp://send?phone=${intl}${text ? '&text=' + encodeURIComponent(text) : ''}`;
   // Eitaa and Bale desktop apps are built like Telegram's: the same «resolve» address under their own name (if the app is not there nothing happens and the web opens)
-  if (id === 'eitaa') return isNumber ? `eitaa://resolve?phone=${intl}` : `eitaa://resolve?domain=${a}`;
-  if (id === 'bale') return isNumber ? `bale://resolve?phone=${intl}` : `bale://resolve?domain=${a}`;
+  if (id === 'eitaa') return isNumber ? `eitaa://resolve?phone=${intl}${t}` : `eitaa://resolve?domain=${a}${t}`;
+  if (id === 'bale') return isNumber ? `bale://resolve?phone=${intl}${t}` : `bale://resolve?domain=${a}${t}`;
   if (id === 'rubika') return isNumber ? '' : `rubika://resolve?domain=${a}`;
   if (id === 'instagram' && !isNumber) return `instagram://user?username=${a}`;
   return '';
@@ -396,7 +398,7 @@ export const openChat = (id: string, name: string, account: string, text = ''): 
   const needSearch = id === 'bale' || (id === 'eitaa' && isNumber) || !url;
   if (text && !textInLink) copy(text);
   else if (!text && needSearch) copy(who);
-  const pasteNote = text && !textInLink ? ` متن پیام کپی شد؛ در گفتگو بچسبانید (Ctrl+V)${needSearch ? ` و برای پیدا کردن مشتری «${who}» را جست‌وجو کنید` : ''}.` : '';
+  const pasteNote = text && !textInLink ? ` متن پیام را به برنامه دادم و کپی هم شد؛ اگر در کادر پیام ننشست، در گفتگو Ctrl+V بزنید${needSearch ? ` و برای پیدا کردن مشتری «${who}» را جست‌وجو کنید` : ''}.` : '';
   if (app && url) {
     openAppOrWeb(id, app, url);
     return `${name}: اگر برنامه روی این سیستم نصب باشد مستقیم داخل آن باز می‌شود، وگرنه نسخهٔ وب.${pasteNote}${!text && needSearch ? ` «${who}» کپی شد؛ در جست‌وجو بچسبانید.` : ''}`;
