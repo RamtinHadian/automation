@@ -338,7 +338,13 @@ export const socialAppLink = (id: string, account: string): string => {
 };
 
 /** Try the installed app first; when nothing took over (the window kept its focus) open the web version instead. */
-const openAppOrWeb = (app: string, web: string) => {
+/** One separate tab per network that is used again for every click (it is named), so the web of Telegram, WhatsApp, Eitaa, Bale and Rubika never piles up new tabs. */
+const openWebTab = (id: string, url: string) => {
+  const w = window.open(url, 'hoormand_' + id);
+  try { w?.focus(); } catch { /* the browser keeps the focus rule */ }
+};
+
+const openAppOrWeb = (id: string, app: string, web: string) => {
   let left = false;
   const onBlur = () => { left = true; };
   const onVis = () => { if (document.hidden) left = true; };
@@ -352,7 +358,7 @@ const openAppOrWeb = (app: string, web: string) => {
   setTimeout(() => {
     window.removeEventListener('blur', onBlur);
     document.removeEventListener('visibilitychange', onVis);
-    if (!left) window.open(web, '_blank', 'noopener,noreferrer');
+    if (!left) openWebTab(id, web);
   }, 1600);
 };
 
@@ -368,12 +374,14 @@ export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
       const needCopy = id === 'bale' || (id === 'eitaa' && isNumber);
       const v = isNumber ? normPhone(account) : '@' + normText(account).replace(/^@/, '');
       if (needCopy) { try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ } }
-      openAppOrWeb(app, url);
+      openAppOrWeb(id, app, url);
       setNote(`${name}: اگر برنامه روی این سیستم نصب باشد مستقیم داخل آن باز می‌شود${needCopy ? ` و گفتگوی «${v}» را جست‌وجو کنید (کپی شد)` : ''}؛ وگرنه نسخهٔ وب باز می‌شود${needCopy ? ` و «${v}» را در جست‌وجویش بچسبانید` : ''}.`);
       return;
     }
     if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      // the website of the customer opens in a new tab as usual; the chat webs share one tab each
+      if (id === 'website' || id === 'instagram') window.open(url, '_blank', 'noopener,noreferrer');
+      else openWebTab(id, url);
       // these webs cannot be told whom to open: the name or number is copied to be pasted into their search
       if (id === 'bale' || (id === 'eitaa' && isNumber)) {
         const v = isNumber ? normPhone(account) : '@' + normText(account).replace(/^@/, '');
