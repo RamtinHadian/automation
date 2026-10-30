@@ -5,7 +5,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { Modal } from './crmUi';
 import { isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 
-export interface NetworkDef { id: string; name: string; hint: string; iran?: boolean }
+export interface NetworkDef { id: string; name: string; hint: string; iran?: boolean; web?: boolean }
 
 /** the networks a customer can be reached on: three from Iran first, then the others */
 export const NETWORKS: NetworkDef[] = [
@@ -15,6 +15,7 @@ export const NETWORKS: NetworkDef[] = [
   { id: 'instagram', name: 'اینستاگرام', hint: 'نام کاربری (@username)' },
   { id: 'whatsapp', name: 'واتس‌اپ', hint: 'شمارهٔ موبایل' },
   { id: 'whatsappBusiness', name: 'واتس‌اپ بیزینس', hint: 'شمارهٔ موبایل' },
+  { id: 'website', name: 'وب‌سایت', hint: 'آدرس سایت (مثل example.com)', web: true },
   { id: 'telegram', name: 'تلگرام', hint: 'نام کاربری (@username) یا شمارهٔ موبایل' },
 ];
 
@@ -48,6 +49,19 @@ export const SocialLogo: React.FC<{ id: string; size?: number }> = ({ id, size =
           {id === 'whatsapp'
             ? <path d="M9.6 9c.2-.5.6-.4.8 0l.5 1.1c.1.3-.4.9-.5 1.1.5 1 1.3 1.7 2.3 2.1.2-.2.7-.8 1-.7l1.1.5c.4.2.4.6 0 .9-.8.7-1.7.7-2.8.1a6 6 0 0 1-2.6-2.5c-.5-1-.4-1.8.2-2.6z" fill="#fff" />
             : <text x="12" y="15.4" textAnchor="middle" fontSize="8.5" fontWeight="900" fill="#fff" fontFamily="Arial, sans-serif">B</text>}
+        </svg>
+      );
+    case 'website':
+      // a globe on a teal-to-blue disc
+      return (
+        <svg {...s} viewBox="0 0 100 100">
+          <defs><linearGradient id="web-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#14B8A6" /><stop offset="1" stopColor="#2563EB" /></linearGradient></defs>
+          <circle cx="50" cy="50" r="50" fill="url(#web-g)" />
+          <g fill="none" stroke="#fff" strokeWidth="4.5" strokeLinecap="round">
+            <circle cx="50" cy="50" r="29" />
+            <ellipse cx="50" cy="50" rx="12.5" ry="29" />
+            <path d="M21 50h58M26 34h48M26 66h48" />
+          </g>
         </svg>
       );
     case 'bale':
@@ -90,8 +104,8 @@ export const SocialLogo: React.FC<{ id: string; size?: number }> = ({ id, size =
 };
 
 /** what the person typed or pasted (@name, a name, a full link, a number) → the bare user name or number */
-export const cleanAccount = (raw: string): string =>
-  normText(raw)
+export const cleanAccount = (raw: string, id = ''): string =>
+  id === 'website' ? normText(raw).replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase() : normText(raw)
     .replace(/^https?:\/\/(www\.)?/i, '')
     .replace(/^(t\.me|telegram\.me|eitaa\.com|rubika\.ir|ble\.ir|instagram\.com|wa\.me)\//i, '')
     .replace(/[?#].*$/, '')
@@ -99,11 +113,16 @@ export const cleanAccount = (raw: string): string =>
     .replace(/^@/, '')
     .trim();
 const isNumberLike = (v: string) => /^[0-9+\s-]+$/.test(v);
-const validAccount = (v: string) => isNumberLike(v) ? normPhone(v).length >= 10 : /^[A-Za-z0-9_.]{3,}$/.test(v);
+const validAccount = (v: string, id = '') => id === 'website' ? /^([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(v) : isNumberLike(v) ? normPhone(v).length >= 10 : /^[A-Za-z0-9_.]{3,}$/.test(v);
 /** how an account is shown: a user name with @, a number in Persian digits */
-const showAccount = (a: string) => (/^[0-9۰-۹+]+$/.test(a) ? toPersianDigits(a) : '@' + a);
+const showAccount = (a: string, id = '') => (id === 'website' ? a : /^[0-9۰-۹+]+$/.test(a) ? toPersianDigits(a) : '@' + a);
 
-const entryOf = (c: Customer, id: string): SocialEntry => ({ on: false, accounts: [], count: 0, ...(c.social?.[id] || {}) });
+const entryOf = (c: Customer, id: string): SocialEntry => {
+  const saved = c.social?.[id];
+  // the web address already written on the customer's form shows here too, until one is entered on this page
+  if (id === 'website' && !saved?.accounts?.length && c.website?.trim()) return { on: true, accounts: [cleanAccount(c.website, 'website')], count: saved?.count || 0 };
+  return { on: false, accounts: [], count: 0, ...(saved || {}) };
+};
 
 /** how many networks are switched on, and the total of the counts (for the button) */
 export const socialSummary = (c: Customer) => {
@@ -144,9 +163,9 @@ const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; phones: strin
     setPick(true);
   };
   const add = () => {
-    const v = cleanAccount(draft);
+    const v = cleanAccount(draft, def.id);
     if (!v) { setErr(''); return setDraft(''); }
-    if (!validAccount(v)) return setErr('نام کاربری فقط حروف انگلیسی، عدد، _ و نقطه دارد (حداقل ۳ حرف)؛ یا یک شمارهٔ موبایل بنویسید.');
+    if (!validAccount(v, def.id)) return setErr(def.id === 'website' ? 'آدرس سایت را درست بنویسید، مثل example.com یا https://example.com' : 'نام کاربری فقط حروف انگلیسی، عدد، _ و نقطه دارد (حداقل ۳ حرف)؛ یا یک شمارهٔ موبایل بنویسید.');
     setErr('');
     if (entry.accounts.includes(v)) return setDraft('');
     onChange({ ...entry, on: true, accounts: [...entry.accounts, v] });
@@ -158,7 +177,7 @@ const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; phones: strin
         <SocialLogo id={def.id} size={30} />
         <div className="flex-1 min-w-0">
           <div className="text-xs font-black text-[#3A241F] truncate">{def.name}</div>
-          <div className="text-[10px] font-bold text-[#8C6F66]">{def.iran ? 'پیام‌رسان ایرانی' : 'شبکهٔ جهانی'}</div>
+          <div className="text-[10px] font-bold text-[#8C6F66]">{def.web ? 'نشانی اینترنتی' : def.iran ? 'پیام‌رسان ایرانی' : 'شبکهٔ جهانی'}</div>
         </div>
         <button
           type="button"
@@ -172,7 +191,7 @@ const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; phones: strin
           <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all ${entry.on ? 'left-0.5' : 'left-[1.375rem]'}`} />
         </button>
       </div>
-      {def.id !== 'instagram' && (
+      {def.id !== 'instagram' && !def.web && (
         <label className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[11px] font-black cursor-pointer ${isMember ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-[#FAF5F1] text-[#503730] border border-[#EBDBCE]'} ${phones.length === 0 || readOnly ? 'opacity-50 cursor-not-allowed' : ''}`} data-social-same>
           <input type="checkbox" className="w-4 h-4 accent-emerald-600" checked={isMember} disabled={phones.length === 0 || readOnly} onChange={tick} />
           <span className="min-w-0">
@@ -208,7 +227,7 @@ const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; phones: strin
           <div className="space-y-1.5">
             {entry.accounts.map((a) => (
               <div key={a} className="flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-2.5 py-1.5">
-                <span className="text-xs font-black text-[#3A241F] truncate" dir="ltr">{showAccount(a)}</span>
+                <span className="text-xs font-black text-[#3A241F] truncate" dir="ltr">{showAccount(a, def.id)}</span>
                 {!readOnly && <button type="button" onClick={() => onChange({ ...entry, accounts: entry.accounts.filter((x) => x !== a) })} className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer" aria-label="حذف"><X className="w-3.5 h-3.5" /></button>}
               </div>
             ))}
@@ -225,7 +244,7 @@ const NetworkCard: React.FC<{ def: NetworkDef; entry: SocialEntry; phones: strin
               />
             )}
             {err && <div className="text-[11px] font-black text-rose-700 leading-5" data-social-err>{err}</div>}
-            {!readOnly && !err && <div className="text-[10px] font-bold text-[#8C6F66] leading-5">نام کاربری را با یا بدون @ بنویسید؛ لینک کامل (مثل t.me/نام) را هم می‌شود چسباند.</div>}
+            {!readOnly && !err && <div className="text-[10px] font-bold text-[#8C6F66] leading-5">{def.web ? 'آدرس را با یا بدون https:// بنویسید؛ چند سایت هم می‌شود ثبت کرد.' : 'نام کاربری را با یا بدون @ بنویسید؛ لینک کامل (مثل t.me/نام) را هم می‌شود چسباند.'}</div>}
           </div>
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-black text-[#503730]">تعداد تعامل</span>
@@ -248,11 +267,11 @@ export const SocialDialog: React.FC<{ customer: Customer; onClose: () => void; o
   const list = Object.values(social);
   const total = list.reduce((t, e) => t + (e.on ? e.count : 0), 0);
   const active = list.filter((e) => e.on).length;
-  const section = (title: string, iran: boolean) => (
+  const section = (title: string, group: 'iran' | 'world' | 'web') => (
     <section className="space-y-2">
       <h4 className="text-[11px] font-black text-violet-700 flex items-center gap-2"><span className="h-px flex-1 bg-violet-100" />{title}<span className="h-px w-4 bg-violet-100" /></h4>
       <div className="grid sm:grid-cols-2 gap-2.5">
-        {NETWORKS.filter((n) => !!n.iran === iran).map((n) => <NetworkCard key={n.id} def={n} entry={social[n.id]} phones={numbersOf(customer)} onChange={(e) => set(n.id, e)} />)}
+        {NETWORKS.filter((n) => (n.iran ? 'iran' : n.web ? 'web' : 'world') === group).map((n) => <NetworkCard key={n.id} def={n} entry={social[n.id]} phones={numbersOf(customer)} onChange={(e) => set(n.id, e)} />)}
       </div>
     </section>
   );
@@ -277,8 +296,9 @@ export const SocialDialog: React.FC<{ customer: Customer; onClose: () => void; o
           <Share2 className="w-5 h-5 shrink-0" />
           <div className="text-[11px] font-bold leading-6">شبکه‌هایی که این مشتری در آن‌هاست را روشن کنید، شناسه یا شمارهٔ او را بنویسید و هر بار که آنجا با او در تماس بودید یکی به «تعداد تعامل» اضافه کنید.</div>
         </div>
-        {section('پیام‌رسان‌های ایرانی', true)}
-        {section('شبکه‌های جهانی', false)}
+        {section('پیام‌رسان‌های ایرانی', 'iran')}
+        {section('شبکه‌های جهانی', 'world')}
+        {section('وب‌سایت', 'web')}
       </div>
     </Modal>
   );
@@ -290,15 +310,45 @@ export const socialLink = (id: string, account: string): string => {
   const isNumber = /^[0-9+\s-]+$/.test(a);
   const intl = isNumber ? normPhone(a).replace(/^0/, '98') : '';
   switch (id) {
-    case 'telegram': return isNumber ? `https://t.me/+${intl}` : `https://t.me/${a}`;
+    case 'telegram': return isNumber ? `https://t.me/+${intl}` : `https://web.telegram.org/k/#@${a}`;
     case 'whatsapp':
-    case 'whatsappBusiness': return isNumber ? `https://wa.me/${intl}` : '';
+    case 'whatsappBusiness': return isNumber ? `https://web.whatsapp.com/send?phone=${intl}` : '';
     case 'instagram': return isNumber ? '' : `https://instagram.com/${a}`;
-    case 'bale': return isNumber ? `https://ble.ir/+${intl}` : `https://ble.ir/${a}`;
-    case 'eitaa': return isNumber ? '' : `https://eitaa.com/${a}`;
+    case 'bale': return 'https://web.bale.ai/chat'; // Bale web opens on its chat page; the user name or number is copied to search there
+    case 'eitaa': return isNumber ? 'https://web.eitaa.com/' : `https://web.eitaa.com/#@${a}`; // the web version of Eitaa; a number cannot be linked, so it is copied
     case 'rubika': return isNumber ? '' : `https://rubika.ir/${a}`;
+    case 'website': return `https://${a}`;
     default: return '';
   }
+};
+
+/** the address that opens the installed desktop / phone app (Telegram, WhatsApp); '' for the others */
+export const socialAppLink = (id: string, account: string): string => {
+  const a = normText(account).replace(/^@/, '');
+  const isNumber = /^[0-9+\s-]+$/.test(a);
+  const intl = isNumber ? normPhone(a).replace(/^0/, '98') : '';
+  if (id === 'telegram') return isNumber ? `tg://resolve?phone=${intl}` : `tg://resolve?domain=${a}`;
+  if ((id === 'whatsapp' || id === 'whatsappBusiness') && isNumber) return `whatsapp://send?phone=${intl}`;
+  return '';
+};
+
+/** Try the installed app first; when nothing took over (the window kept its focus) open the web version instead. */
+const openAppOrWeb = (app: string, web: string) => {
+  let left = false;
+  const onBlur = () => { left = true; };
+  const onVis = () => { if (document.hidden) left = true; };
+  window.addEventListener('blur', onBlur);
+  document.addEventListener('visibilitychange', onVis);
+  const a = document.createElement('a');
+  a.href = app;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => {
+    window.removeEventListener('blur', onBlur);
+    document.removeEventListener('visibilitychange', onVis);
+    if (!left) window.open(web, '_blank', 'noopener,noreferrer');
+  }, 1600);
 };
 
 /** All networks of a customer in one row (the full summary): the ones not entered are dim; a click opens the chat with him there. */
@@ -306,9 +356,21 @@ export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
   const [note, setNote] = useState('');
   const open = (id: string, name: string, account: string) => {
     const url = socialLink(id, account);
+    const app = socialAppLink(id, account);
+    const isNumber = /^[0-9+\s-]+$/.test(normText(account));
+    if (app && url) {
+      openAppOrWeb(app, url);
+      setNote(`${name}: اگر برنامه روی این سیستم نصب باشد داخل آن باز می‌شود، وگرنه نسخهٔ وب.`);
+      return;
+    }
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
-      setNote('');
+      // these webs cannot be told whom to open: the name or number is copied to be pasted into their search
+      if (id === 'bale' || (id === 'eitaa' && isNumber)) {
+        const v = isNumber ? normPhone(account) : '@' + normText(account).replace(/^@/, '');
+        try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ }
+        setNote(`${name} وب باز شد؛ «${v}» کپی شد، در جست‌وجوی ${name} بچسبانید.`);
+      } else setNote('');
       return;
     }
     try { void navigator.clipboard?.writeText(normPhone(account) || account); } catch { /* no clipboard */ }
@@ -335,7 +397,7 @@ export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {e.accounts.map((a) => (
                     <button key={a} type="button" onClick={(ev) => { ev.stopPropagation(); open(n.id, n.name, a); }} title={`پیام دادن در ${n.name}`} className="text-[11px] font-black bg-white text-[#3A241F] rounded-lg px-2 py-0.5 hover:bg-violet-100 cursor-pointer max-w-full truncate" dir="ltr" data-social-strip-link>
-                      {showAccount(a)}
+                      {showAccount(a, n.id)}
                     </button>
                   ))}
                 </div>
