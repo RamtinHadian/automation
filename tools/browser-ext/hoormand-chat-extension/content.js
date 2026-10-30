@@ -101,7 +101,7 @@
   };
 
   // the first row under the search box: wide, not too tall, with an avatar
-  const firstResult = (searchEl) => {
+  const resultRows = (searchEl) => {
     const sr = searchEl.getBoundingClientRect();
     const col = columnOf(searchEl);
     const cw = col.getBoundingClientRect().width;
@@ -116,8 +116,9 @@
     // wrappers that hold the row (the whole list, a section) are not the row: keep only the innermost ones
     const inner = rows.filter((el) => !rows.some((o) => o !== el && el.contains(o)));
     inner.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
-    return inner[0] || null;
+    return inner;
   };
+  const firstResult = (searchEl) => resultRows(searchEl)[0] || null;
 
   // every element of the page, also inside open shadow roots
   const deepAll = (root, sel, out = []) => {
@@ -170,20 +171,47 @@
     return null;
   };
 
+  // the same text compared without the differences of writing (digits, ya/kaf, half-spaces, @, case)
+  const norm = (s) => String(s || '').toLowerCase().replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[‌\s@]+/g, ' ').trim();
+  const rowMatches = (row, job) => {
+    const t = norm(row.innerText);
+    const who = norm(job.who);
+    const digits = who.replace(/\D/g, '');
+    if (who && who.length >= 3 && t.includes(who)) return true;
+    if (digits.length >= 7 && t.replace(/\D/g, '').includes(digits.slice(-9))) return true;
+    const name = norm(job.name);
+    if (name && t.includes(name)) return true;
+    const parts = name.split(' ').filter((x) => x.length > 1);
+    return parts.length >= 2 && parts.every((x) => t.includes(x));
+  };
+  let lastVerified = true;
   let why = '';
-  const searchAndOpen = async (who) => {
+  const searchAndOpen = async (job) => {
+    const who = job.who;
     const box = await waitFor(() => findSearch(), 3000) || (await openSearchBox());
     if (!box) { why = 'کادر جست‌وجو پیدا نشد'; return false; }
     setText(box, who);
-    await sleep(1800);
-    const row = await waitFor(() => firstResult(box), 5000);
-    if (!row) { why = 'برای «' + who + '» نتیجه‌ای پیدا نشد (شمارهٔ ثبت‌نشده در مخاطبین پیدا نمی‌شود)'; return false; }
-    click(row);
-    return true;
+    // wait until the list of results stops changing (it first shows the old list, then the answer)
+    let last = '';
+    let stable = 0;
+    let rows = [];
+    for (const end = Date.now() + 9000; Date.now() < end;) {
+      await sleep(350);
+      rows = resultRows(box);
+      const sig = rows.map((r) => (r.innerText || '').trim()).join('|');
+      if (rows.length && sig === last) { if (++stable >= 3) break; } else { stable = 0; last = sig; }
+    }
+    if (!rows.length) { why = 'برای «' + who + '» نتیجه‌ای پیدا نشد (شمارهٔ ثبت‌نشده در مخاطبین پیدا نمی‌شود)'; return false; }
+    const hit = rows.filter((r) => rowMatches(r, job))[0];
+    if (hit) { lastVerified = true; click(hit); return true; }
+    if (rows.length === 1) { lastVerified = false; click(rows[0]); return true; }
+    // several rows and none is the customer: opening any of them could be the wrong person
+    why = 'نتیجهٔ مطابق «' + who + '» نبود؛ نتیجه‌ها: ' + rows.slice(0, 3).map((r) => (r.innerText || '').trim().split('\n')[0]).join('، ') + ' — برای اینکه پیام به شخص اشتباه نرود، باز نکردم';
+    return false;
   };
 
   // «new message» (the pencil, then «پیام جدید»): its list has a search box of its own
-  const viaNewMessage = async (who) => {
+  const viaNewMessage = async (job) => {
     const fab = [...document.querySelectorAll('button, [role="button"], div')].filter(visible).find((el) => {
       const r = el.getBoundingClientRect();
       return r.width >= 40 && r.width <= 80 && Math.abs(r.width - r.height) < 6 && r.bottom > innerHeight - 160 && r.left < innerWidth * 0.7 && el.querySelector('svg, img');
@@ -194,14 +222,17 @@
     if (!item) return false;
     click(item);
     await sleep(1200);
-    return searchAndOpen(who);
+    return searchAndOpen(job);
   };
 
   // Sending: Enter first. In Eitaa / Telegram the send button IS the microphone button until the page has taken the text in,
   // so a button is only pressed when the text is still there after Enter, and never one that looks like voice recording.
   const attrsOf = (el) => (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('title') || '') + ' ' + (el.getAttribute('data-icon') || '') + ' ' + (typeof el.className === 'string' ? el.className : '');
-  const isVoice = (el) => /record|voice|mic|audio|ptt|ویس|میکروفون|صدا/i.test(attrsOf(el));
+  const VOICE = /record|voice|mic|audio|ptt|ویس|میکروفون|صدا/i;
+  // a button is a voice button when it says so itself or when its icon inside does (an icon-only button)
+  const isVoice = (el) => VOICE.test(attrsOf(el)) || !!el.querySelector('[class*="mic" i], [class*="record" i], [class*="voice" i], [data-icon*="mic" i], [data-icon*="ptt" i]');
   const textOf = (el) => ((el.value !== undefined ? el.value : el.innerText) || '').trim();
+  let lastSendDiag = '';
   const sendMessage = async (box) => {
     sendEnter(box);
     await sleep(1200);
@@ -211,6 +242,11 @@
       return /(^|\s)(send|ارسال)|btn-send/i.test(t) && !isVoice(el) && el.getBoundingClientRect().top > innerHeight * 0.5;
     });
     if (btn) { click(btn.closest('button, [role="button"]') || btn); await sleep(800); }
+    if (textOf(box)) {
+      // not sent: tell what the bottom of the page offers, so the next fix can be made from the real page
+      lastSendDiag = deepAll(document, 'button, [role="button"]').filter(visible).filter((el) => el.getBoundingClientRect().top > innerHeight * 0.5).slice(0, 5)
+        .map((el) => (attrsOf(el).replace(/\s+/g, ' ').trim().slice(0, 40) || el.tagName) + (isVoice(el) ? '[voice]' : '')).join(' | ');
+    }
     return !textOf(box);
   };
 
@@ -243,7 +279,7 @@
         await waitFor(() => ((pbox.value !== undefined ? pbox.value : pbox.innerText) || '').trim(), 8000, 300);
         if (!((pbox.value !== undefined ? pbox.value : pbox.innerText) || '').trim()) setText(pbox, job.text);
         await sleep(600);
-        if (job.send) { say((await sendMessage(pbox)) ? 'پیام فرستاده شد.' : 'پیام نوشته شد ولی ارسال تأیید نشد؛ اگر نرفته، ارسال را بزنید.', 'ok'); } else say('پیام نوشته شد؛ ارسال را بزنید.', 'ok');
+        if (job.send) { say((await sendMessage(pbox)) ? 'پیام فرستاده شد.' : 'پیام نوشته شد ولی ارسال تأیید نشد؛ ارسال را خودتان بزنید. (' + lastSendDiag + ')', 'ok'); } else say('پیام نوشته شد؛ ارسال را بزنید.', 'ok');
         return;
       }
 
@@ -253,10 +289,10 @@
         opened = !!(await waitFor(findComposer, 10000));
       } else if (job.who) {
         say('در حال پیدا کردن «' + job.who + '»…');
-        opened = (await searchAndOpen(job.who)) && !!(await waitFor(findComposer, 6000));
+        opened = (await searchAndOpen(job)) && !!(await waitFor(findComposer, 6000));
         if (!opened) {
           say('راه دوم: پیام جدید…');
-          opened = (await viaNewMessage(job.who)) && !!(await waitFor(findComposer, 6000));
+          opened = (await viaNewMessage(job)) && !!(await waitFor(findComposer, 6000));
         }
       }
       if (!opened) {
@@ -278,8 +314,10 @@
         say('گفتگو باز شد ولی متن نشست؛ با Ctrl+V بچسبانید.', 'error');
         return;
       }
-      if (job.send) {
-        say((await sendMessage(box)) ? 'پیام فرستاده شد.' : 'پیام نوشته شد ولی ارسال تأیید نشد؛ اگر نرفته، ارسال را بزنید.', 'ok');
+      if (job.send && !lastVerified) {
+        say('پیام نوشته شد ولی مطمئن نیستم این گفتگو مشتری است (نامش با «' + (job.name || job.who) + '» نخواند)؛ برای اطمینان ارسال را خودتان بزنید.', 'ok');
+      } else if (job.send) {
+        say((await sendMessage(box)) ? 'پیام فرستاده شد.' : 'پیام نوشته شد ولی ارسال تأیید نشد؛ ارسال را خودتان بزنید. (' + lastSendDiag + ')', 'ok');
       } else {
         say('پیام نوشته شد؛ ارسال را بزنید.', 'ok');
       }

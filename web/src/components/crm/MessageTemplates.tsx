@@ -194,7 +194,7 @@ export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => vo
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {accounts.map((a) => (
-                      <button key={a.id + a.account} type="button" onClick={() => setNote(openChat(a.id, a.name, a.account, text))} className="flex items-center gap-2 rounded-xl border border-[#EBDBCE] bg-white hover:bg-violet-50 px-3 py-2 cursor-pointer" data-msg-send-to={a.id}>
+                      <button key={a.id + a.account} type="button" onClick={() => setNote(openChat(a.id, a.name, a.account, text, customer.name))} className="flex items-center gap-2 rounded-xl border border-[#EBDBCE] bg-white hover:bg-violet-50 px-3 py-2 cursor-pointer" data-msg-send-to={a.id}>
                         <SocialLogo id={a.id} size={20} />
                         <span className="text-xs font-black text-[#3A241F]">{a.name}</span>
                         <span className="text-[10px] font-bold text-[#8C6F66]" dir="ltr">{/^[0-9۰-۹+]+$/.test(a.account) ? toPersianDigits(a.account) : '@' + a.account}</span>

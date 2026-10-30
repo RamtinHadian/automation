@@ -10,7 +10,7 @@ export interface NetworkDef { id: string; name: string; hint: string; iran?: boo
 
 /** the networks a customer can be reached on: three from Iran first, then the others */
 export const NETWORKS: NetworkDef[] = [
-  { id: 'bale', name: 'بله', hint: 'نام کاربری (@username) یا شمارهٔ موبایل', iran: true },
+  { id: 'bale', name: 'بله', hint: 'نام کاربری (@username)، شناسهٔ عددی (uid) یا شمارهٔ موبایل', iran: true },
   { id: 'eitaa', name: 'ایتا', hint: 'نام کاربری (@username)، شناسهٔ عددی (Numeric ID) یا شمارهٔ موبایل', iran: true },
   { id: 'rubika', name: 'روبیکا', hint: 'نام کاربری (@username) یا شمارهٔ موبایل', iran: true },
   { id: 'instagram', name: 'اینستاگرام', hint: 'نام کاربری (@username)' },
@@ -115,10 +115,11 @@ export const cleanAccount = (raw: string, id = ''): string =>
     .replace(/^@/, '')
     .trim();
 const isNumberLike = (v: string) => /^[0-9+\s-]+$/.test(v);
+const isBaleUid = (v: string) => /^[1-9]\d{5,9}$/.test(v) && !/^98\d{10}$/.test(v); // Bale's chat code: web.bale.ai/chat?uid=306094847
 const isEitaaNumericId = (v: string) => /^\d{5,9}$/.test(v); // «Numeric ID» of Eitaa: web.eitaa.com/#4752207 opens that chat
 const validAccount = (v: string, id = '') =>
   id === 'website' ? /^([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(v)
-  : id === 'eitaa' && isEitaaNumericId(v) ? true
+  : (id === 'eitaa' && isEitaaNumericId(v)) || (id === 'bale' && isBaleUid(v)) ? true
   : isNumberLike(v) ? normPhone(v).length >= 10
   : /^[A-Za-z0-9_.]{3,}$/.test(v);
 /** how an account is shown: a user name with @, a number in Persian digits */
@@ -328,7 +329,7 @@ export const socialLink = (id: string, account: string, text = ''): string => {
     case 'whatsapp':
     case 'whatsappBusiness': return isNumber ? `https://web.whatsapp.com/send?phone=${intl}${text ? '&text=' + encodeURIComponent(text) : ''}` : '';
     case 'instagram': return isNumber ? '' : `https://instagram.com/${a}`;
-    case 'bale': return 'https://web.bale.ai/chat'; // Bale web opens on its chat page; the user name or number is copied to search there
+    case 'bale': return isBaleUid(a) ? `https://web.bale.ai/chat?uid=${a}` : 'https://web.bale.ai/chat'; // Bale web opens on its chat page; the user name or number is copied to search there
     case 'eitaa': return isEitaaNumericId(a) ? `https://web.eitaa.com/#${a}` : isNumber ? 'https://web.eitaa.com/' : `https://web.eitaa.com/#@${a}`; // the web version of Eitaa; a number cannot be linked, so it is copied
     case 'rubika': return isRubikaGuid(a) ? `https://web.rubika.ir/#c=${a}` : 'https://web.rubika.ir/'; // Rubika publishes no link that opens a person's chat: its web opens and the name or number is copied to search there
     case 'website': return `https://${a}`;
@@ -347,6 +348,7 @@ export const socialAppLink = (id: string, account: string, text = ''): string =>
   // Eitaa and Bale desktop apps are built like Telegram's: the same «resolve» address under their own name (if the app is not there nothing happens and the web opens)
   if (id === 'eitaa' && isEitaaNumericId(a)) return '';
   if (id === 'eitaa') return isNumber ? `eitaa://resolve?phone=${intl}${t}` : `eitaa://resolve?domain=${a}${t}`;
+  if (id === 'bale' && isBaleUid(a)) return '';
   if (id === 'bale') return isNumber ? `bale://resolve?phone=${intl}${t}` : `bale://resolve?domain=${a}${t}`;
   if (id === 'rubika') return isNumber ? '' : `rubika://resolve?domain=${a}`;
   if (id === 'instagram' && !isNumber) return `instagram://user?username=${a}`;
@@ -413,7 +415,7 @@ const encodeJob = (job: Record<string, unknown>) => {
  * Opens the chat with a customer's account on a network (the installed app first, then the web in its own tab) and returns the note to show.
  * With a `text` WhatsApp gets it already written in the message box; the other networks cannot be given a text from outside, so it is copied to be pasted (Ctrl+V).
  */
-export const openChat = (id: string, name: string, account: string, text = ''): string => {
+export const openChat = (id: string, name: string, account: string, text = '', customerName = ''): string => {
   const plain = normText(account).replace(/^@/, '');
   const isNumber = /^[0-9+\s-]+$/.test(plain);
   const url = socialLink(id, account, text);
@@ -435,7 +437,13 @@ export const openChat = (id: string, name: string, account: string, text = ''): 
   }
   // with the extension the chat is found, opened and written by the extension: the job travels in the address
   if (EXT_NETWORKS.includes(id) && chatExtOn()) {
-    const job = { who: isNumber ? normPhone(account) : plain, text, send: chatExtSend(), guid: id === 'rubika' && isRubikaGuid(plain) ? plain : undefined,
+    // a chat that the address opens by itself (Bale uid): the extension only writes
+    if (id === 'bale' && isBaleUid(plain)) {
+      openWebTab(id, `${EXT_BASE.bale}?uid=${plain}#hoormand=${encodeJob({ prefilled: true, send: chatExtSend(), text })}`);
+      if (text) copy(text);
+      return `${name} وب باز شد و افزونهٔ هورمند ${text ? 'پیام را می‌نویسد' : 'گفتگو را باز می‌کند'}${text && chatExtSend() ? ' و می‌فرستد' : ''}.`;
+    }
+    const job = { who: isNumber ? normPhone(account) : plain, name: customerName, text, send: chatExtSend(), guid: id === 'rubika' && isRubikaGuid(plain) ? plain : undefined,
       // Eitaa opens a chat straight from the address: #@username or #numeric-id
       peer: id === 'eitaa' ? (isEitaaNumericId(plain) ? plain : isNumber ? undefined : '@' + plain) : undefined };
     openWebTab(id, `${EXT_BASE[id]}#hoormand=${encodeJob(job)}`);
@@ -443,7 +451,7 @@ export const openChat = (id: string, name: string, account: string, text = ''): 
     return `${name} وب باز شد و افزونهٔ هورمند گفتگوی «${who}» را پیدا می‌کند${text ? ' و پیام را می‌نویسد' : ''}${text && chatExtSend() ? ' و می‌فرستد' : ''}. اگر چیزی نشد، متن کپی شده است.`;
   }
   // what the person has to paste: the message when there is one, else the name / number to search for
-  const needSearch = id === 'bale' || (id === 'rubika' && !isRubikaGuid(plain)) || (id === 'eitaa' && isNumber && !isEitaaNumericId(plain)) || !url;
+  const needSearch = (id === 'bale' && !isBaleUid(plain)) || (id === 'rubika' && !isRubikaGuid(plain)) || (id === 'eitaa' && isNumber && !isEitaaNumericId(plain)) || !url;
   if (text && !(isWa && isNumber)) copy(text); // a copy is kept for every network but WhatsApp, in case the text does not land in the box
   else if (!text && needSearch) copy(who);
   const pasteNote = text && textInLink && id === 'telegram' ? ' متن پیام به تلگرام داده شد (و کپی هم شد)؛ اگر در کادر پیام ننشست، Ctrl+V بزنید.' : text && !textInLink ? ` ${name} راه رسمی برای گذاشتن متن در گفتگو ندارد؛ متن پیام کپی شد، در گفتگو Ctrl+V بزنید${needSearch ? ` و برای پیدا کردن مشتری «${who}» را جست‌وجو کنید` : ''}.` : '';
@@ -463,7 +471,7 @@ export const openChat = (id: string, name: string, account: string, text = ''): 
 export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
   const [note, setNote] = useState('');
   const [sendOpen, setSendOpen] = useState(false);
-  const open = (id: string, name: string, account: string) => setNote(openChat(id, name, account));
+  const open = (id: string, name: string, account: string) => setNote(openChat(id, name, account, '', customer.name));
   return (
     <section className="rounded-2xl bg-white/10 border border-white/20 overflow-hidden" data-social-strip>
       <div className="px-4 py-2.5 bg-white/10 text-xs font-black flex items-center justify-between">
