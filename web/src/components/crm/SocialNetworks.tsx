@@ -422,6 +422,17 @@ export const openChat = (id: string, name: string, account: string, text = ''): 
   const textInLink = !!text && ((isWa && isNumber) || id === 'telegram'); // the networks whose own links carry the text
   const who = isNumber ? normPhone(account) : '@' + plain;
   const copy = (v: string) => { try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ } };
+  // sending by itself is only possible in the WEB of WhatsApp / Telegram (the installed apps give no way to press «send» from outside):
+  // with the extension and «send by itself» on, the web is opened with the text already in place and the extension presses send
+  if (text && chatExtOn() && chatExtSend() && ((isWa && isNumber) || id === 'telegram')) {
+    const job = encodeJob({ prefilled: true, send: true, text });
+    const web = isWa
+      ? `${socialLink(id, account, text)}#hoormand=${job}`
+      : `https://web.telegram.org/k/?hoormand=${job}#?tgaddr=${encodeURIComponent(socialAppLink('telegram', account, text))}`;
+    openWebTab(id, web);
+    copy(text);
+    return `${name} وب باز شد و افزونهٔ هورمند پیام را می‌فرستد (برنامهٔ نصب‌شده را نمی‌شود از بیرون «ارسال» زد، پس برای ارسال خودکار وب به کار می‌رود). اگر نشد، متن کپی شده است.`;
+  }
   // with the extension the chat is found, opened and written by the extension: the job travels in the address
   if (EXT_NETWORKS.includes(id) && chatExtOn()) {
     const job = { who: isNumber ? normPhone(account) : plain, text, send: chatExtSend(), guid: id === 'rubika' && isRubikaGuid(plain) ? plain : undefined,

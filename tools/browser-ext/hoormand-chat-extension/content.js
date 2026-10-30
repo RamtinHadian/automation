@@ -18,15 +18,18 @@
     const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
     return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
   };
+  // the job is in the address after #hoormand= (or ?hoormand= where the page already uses the hash)
   const readJob = () => {
-    const h = location.hash || '';
-    const i = h.indexOf(KEY);
-    if (i < 0) return null;
-    try {
-      return decode(h.slice(i + KEY.length).split('&')[0]);
-    } catch (e) {
-      return null;
-    }
+    const take = (s) => {
+      const i = s.indexOf(KEY);
+      if (i < 0) return null;
+      try {
+        return decode(s.slice(i + KEY.length).split('&')[0]);
+      } catch (e) {
+        return null;
+      }
+    };
+    return take(location.hash || '') || take((location.search || '').replace(/^\?/, ''));
   };
 
   // ---------- a small message on the screen ----------
@@ -192,6 +195,16 @@
     return searchAndOpen(who);
   };
 
+  // the send button of the page (WhatsApp, Telegram...) or, failing that, Enter
+  const sendMessage = (box) => {
+    const btn = deepAll(document, 'button, [role="button"], [data-icon="send"]').filter(visible).find((el) => {
+      const t = (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('title') || '') + ' ' + (el.getAttribute('data-icon') || '') + ' ' + (el.className && el.className.baseVal === undefined ? el.className : '');
+      return /(^|\s)(send|ارسال)|btn-send/i.test(t) && el.getBoundingClientRect().top > innerHeight * 0.5;
+    });
+    if (btn) { click(btn.closest('button, [role="button"]') || btn); return; }
+    sendEnter(box);
+  };
+
   const sendEnter = (el) => {
     for (const t of ['keydown', 'keypress', 'keyup']) {
       el.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
@@ -206,10 +219,24 @@
       // an address that opens the chat by itself: Rubika #c=code, Eitaa #@user or #numeric-id
       const target = job.guid ? '#c=' + job.guid : job.peer ? '#' + job.peer : '';
       // the job is removed from the address first; the target is then set as a real change so the page moves to it
-      history.replaceState(null, '', location.pathname + location.search);
+      const u = new URL(location.href);
+      u.searchParams.delete('hoormand');
+      history.replaceState(null, '', u.pathname + u.search + (u.hash.includes(KEY) ? '' : u.hash));
       say('در حال آماده کردن گفتگو…');
       // a copy of the text as a safety net; never waited for (the browser may ask for permission and wait)
       if (job.text) { try { navigator.clipboard.writeText(job.text).catch(() => {}); } catch (e) { /* no clipboard */ } }
+
+      // the web of WhatsApp / Telegram was opened with the text already in the message box: wait for it and send
+      if (job.prefilled) {
+        say('در حال آماده شدن گفتگو…');
+        const pbox = await waitFor(findComposer, 40000, 500);
+        if (!pbox) { say('کادر نوشتن پیدا نشد؛ ' + diag() + (job.text ? ' — متن پیام کپی شده است.' : ''), 'error'); return; }
+        await waitFor(() => ((pbox.value !== undefined ? pbox.value : pbox.innerText) || '').trim(), 8000, 300);
+        if (!((pbox.value !== undefined ? pbox.value : pbox.innerText) || '').trim()) setText(pbox, job.text);
+        await sleep(600);
+        if (job.send) { sendMessage(pbox); say('پیام فرستاده شد.', 'ok'); } else say('پیام نوشته شد؛ ارسال را بزنید.', 'ok');
+        return;
+      }
 
       let opened = false;
       if (target) {
@@ -243,7 +270,7 @@
         return;
       }
       if (job.send) {
-        sendEnter(box);
+        sendMessage(box);
         say('پیام فرستاده شد.', 'ok');
       } else {
         say('پیام نوشته شد؛ ارسال را بزنید.', 'ok');
