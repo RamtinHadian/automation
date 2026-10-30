@@ -38,9 +38,9 @@ import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
-import { ParagraphNotes, NoteLines } from '../common/ParagraphNotes';
+import { ParagraphNotes, noteEntries, canEditNote } from '../common/ParagraphNotes';
 import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/taskDates';
-import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, SupportSub, SupportTicket, User, Warranty } from '../../types';
+import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
@@ -1148,6 +1148,7 @@ export const CrmView: React.FC = () => {
             setEditingCustomer(cu);
           }}
           onMerge={isAdmin ? () => setMergeFor(customerById.get(openCustomer)!) : undefined}
+          onNotes={(noteLog, notes) => saveCustomer({ ...customerById.get(openCustomer)!, noteLog, notes })}
           onAttachments={(files) => saveCustomer({ ...customerById.get(openCustomer)!, attachments: files })}
           onNewDeal={() => { const nd = newDeal(openCustomer); setOpenCustomer(null); setEditingDeal({ deal: nd, isNew: true }); }}
           onOpenDeal={(d) => { setOpenCustomer(null); setEditingDeal({ deal: d, isNew: false }); }}
@@ -1341,6 +1342,31 @@ const DealForm: React.FC<{
 
 // ======================= customer detail =======================
 
+/** The notes of a customer on his page: type, press Enter and the paragraph is saved with the writer's name, the date and the hour. */
+const CustomerNotesInline: React.FC<{ customer: Customer; me: User; onSave: (noteLog: NoteEntry[], notes: string) => void }> = ({ customer, me, onSave }) => {
+  const [live, setLive] = useState<NoteEntry[]>(() => noteEntries(customer.noteLog, customer.notes));
+  const saved = React.useRef(JSON.stringify(noteEntries(customer.noteLog, customer.notes)));
+  useEffect(() => {
+    const now = noteEntries(customer.noteLog, customer.notes);
+    saved.current = JSON.stringify(now);
+    setLive(now);
+  }, [customer.id, customer.noteLog, customer.notes]);
+  return (
+    <ParagraphNotes
+      log={live}
+      onChange={(log) => {
+        setLive(log);
+        const clean = log.filter((e) => !e.draft).map(({ draft, ...e }) => { void draft; return e; });
+        if (JSON.stringify(clean) === saved.current) return; // only a typed-but-not-entered line changed
+        saved.current = JSON.stringify(clean);
+        onSave(clean, clean.map((e) => e.text).join('\n'));
+      }}
+      canEdit={(e) => canEditNote(me, e, customer.ownerId)}
+      placeholder="توضیحات را بنویسید و اینتر بزنید…"
+    />
+  );
+};
+
 const CustomerDetail: React.FC<{
   customer: Customer;
   deals: Deal[];
@@ -1360,8 +1386,9 @@ const CustomerDetail: React.FC<{
   onToggle: (a: CrmActivity) => void;
   onDeleteActivity: (a: CrmActivity) => void;
   onMerge?: () => void;
+  onNotes: (noteLog: NoteEntry[], notes: string) => void;
   onAttachments: (files: CustomerFile[]) => void;
-}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onAttachments, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
+}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onNotes, onAttachments, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
   const [type, setType] = useState<ActivityType>('NOTE');
   const [text, setText] = useState('');
   // «the customer looked for a product we did not have»: ticked, then the product's name (and how many, if known)
@@ -1533,6 +1560,12 @@ const CustomerDetail: React.FC<{
           )}
         </div>
       )}
+      {!c.hiddenContact && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-3 space-y-2" data-customer-notes>
+          <div className="text-[11px] font-black text-[#3A241F]">توضیحات</div>
+          <CustomerNotesInline customer={c} me={me} onSave={onNotes} />
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {reportOpen && <CustomerReportModal customer={c} deals={deals} onClose={() => setReportOpen(false)} />}
       {smsOpen && <SmsModal customerId={c.id} customerName={c.name} phones={c.phones} onClose={() => setSmsOpen(false)} />}
@@ -1629,8 +1662,6 @@ const CustomerDetail: React.FC<{
           ))}
         </div>
       )}
-      {c.notes && <div className="bg-amber-50/50 border border-amber-100 rounded-xl px-3 py-2"><NoteLines log={c.noteLog} text={c.notes} /></div>}
-
       {/* deals */}
       <section className="space-y-2">
         <div className="flex items-center justify-between">
