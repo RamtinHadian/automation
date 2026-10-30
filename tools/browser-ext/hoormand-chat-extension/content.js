@@ -138,6 +138,9 @@
       return !!e && (e === el || el.contains(e) || e.contains(el));
     };
     const real = (el) => getComputedStyle(el).opacity !== '0' && getComputedStyle(el).pointerEvents !== 'none' && !/fake|hidden|clone/i.test(typeof el.className === 'string' ? el.className : '');
+    // Telegram Web K (and Eitaa web, built on it): the real box is .input-message-input, its twin is marked «fake»
+    const k = deepAll(document, '.input-message-input[contenteditable]').filter(visible).filter(low).filter((el) => !/fake/i.test(el.className));
+    if (k.length) return k[k.length - 1];
     const c = deepAll(document, EDITABLE).filter(visible).filter(low).filter((el) => !/جست|search/i.test(el.getAttribute('placeholder') || ''));
     // the page may keep a hidden twin of the box (to measure the text): take the one that is really on top and not faded out
     const best = c.filter(real).filter(topmost);
@@ -266,6 +269,12 @@
     return textTakenByPage();
   };
   const sendMessage = async (box) => {
+    // nothing is pressed unless the page has taken the text in (its mic button has turned into «send»): in Telegram-like pages
+    // Enter on a box the page thinks is empty is the same as pressing the microphone, and starts a voice recording
+    if (!textOf(box) || !textTakenByPage()) {
+      lastSendDiag = bottomButtons().slice(0, 5).map((el) => (attrsOf(el).replace(/\s+/g, ' ').trim().slice(0, 40) || el.tagName) + (isVoice(el) ? '[voice]' : '')).join(' | ');
+      return false;
+    }
     sendEnter(box);
     await sleep(1200);
     if (!textOf(box)) return true; // the box was emptied: the message went
