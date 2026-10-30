@@ -108,6 +108,7 @@ export const SocialLogo: React.FC<{ id: string; size?: number }> = ({ id, size =
 export const cleanAccount = (raw: string, id = ''): string =>
   id === 'website' ? normText(raw).replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase() : normText(raw)
     .replace(/^https?:\/\/(www\.)?/i, '')
+    .replace(/^web\.rubika\.ir\/#c=/i, '')
     .replace(/^(t\.me|telegram\.me|eitaa\.com|rubika\.ir|ble\.ir|instagram\.com|wa\.me)\//i, '')
     .replace(/[?#].*$/, '')
     .replace(/\/+$/, '')
@@ -121,7 +122,8 @@ const prettyNumber = (a: string) => {
   const d = normPhone(a);
   return toPersianDigits(/^09\d{9}$/.test(d) ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : d || a);
 };
-const showAccount = (a: string, id = '') => (id === 'website' ? a : /^[0-9۰-۹+]+$/.test(a) ? prettyNumber(a) : '@' + a);
+const isRubikaGuid = (a: string) => /^[ugc]0[A-Za-z0-9]{20,}$/.test(a); // the chat code that web.rubika.ir/#c=… uses
+const showAccount = (a: string, id = '') => (id === 'website' || (id === 'rubika' && isRubikaGuid(a)) ? a : /^[0-9۰-۹+]+$/.test(a) ? prettyNumber(a) : '@' + a);
 
 export const entryOf = (c: Customer, id: string): SocialEntry => {
   const saved = c.social?.[id];
@@ -323,7 +325,7 @@ export const socialLink = (id: string, account: string, text = ''): string => {
     case 'instagram': return isNumber ? '' : `https://instagram.com/${a}`;
     case 'bale': return 'https://web.bale.ai/chat'; // Bale web opens on its chat page; the user name or number is copied to search there
     case 'eitaa': return isNumber ? 'https://web.eitaa.com/' : `https://web.eitaa.com/#@${a}`; // the web version of Eitaa; a number cannot be linked, so it is copied
-    case 'rubika': return 'https://web.rubika.ir/'; // Rubika publishes no link that opens a person's chat: its web opens and the name or number is copied to search there
+    case 'rubika': return isRubikaGuid(a) ? `https://web.rubika.ir/#c=${a}` : 'https://web.rubika.ir/'; // Rubika publishes no link that opens a person's chat: its web opens and the name or number is copied to search there
     case 'website': return `https://${a}`;
     default: return '';
   }
@@ -396,7 +398,7 @@ export const openChat = (id: string, name: string, account: string, text = ''): 
   const who = isNumber ? normPhone(account) : '@' + plain;
   const copy = (v: string) => { try { void navigator.clipboard?.writeText(v); } catch { /* no clipboard */ } };
   // what the person has to paste: the message when there is one, else the name / number to search for
-  const needSearch = id === 'bale' || id === 'rubika' || (id === 'eitaa' && isNumber) || !url;
+  const needSearch = id === 'bale' || (id === 'rubika' && !isRubikaGuid(plain)) || (id === 'eitaa' && isNumber) || !url;
   if (text && !(isWa && isNumber)) copy(text); // a copy is kept for every network but WhatsApp, in case the text does not land in the box
   else if (!text && needSearch) copy(who);
   const pasteNote = text && textInLink && id === 'telegram' ? ' متن پیام به تلگرام داده شد (و کپی هم شد)؛ اگر در کادر پیام ننشست، Ctrl+V بزنید.' : text && !textInLink ? ` ${name} راه رسمی برای گذاشتن متن در گفتگو ندارد؛ متن پیام کپی شد، در گفتگو Ctrl+V بزنید${needSearch ? ` و برای پیدا کردن مشتری «${who}» را جست‌وجو کنید` : ''}.` : '';
