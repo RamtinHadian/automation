@@ -132,7 +132,16 @@
   // the box the message is written in: at the bottom of the screen
   const findComposer = () => {
     const low = (el) => el.getBoundingClientRect().top > innerHeight * 0.55;
+    const topmost = (el) => {
+      const r = el.getBoundingClientRect();
+      const e = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 20));
+      return !!e && (e === el || el.contains(e) || e.contains(el));
+    };
+    const real = (el) => getComputedStyle(el).opacity !== '0' && getComputedStyle(el).pointerEvents !== 'none' && !/fake|hidden|clone/i.test(typeof el.className === 'string' ? el.className : '');
     const c = deepAll(document, EDITABLE).filter(visible).filter(low).filter((el) => !/جست|search/i.test(el.getAttribute('placeholder') || ''));
+    // the page may keep a hidden twin of the box (to measure the text): take the one that is really on top and not faded out
+    const best = c.filter(real).filter(topmost);
+    if (best.length) return best[best.length - 1];
     if (c.length) return c[c.length - 1];
     // the editable part may be hidden or empty (0 height): find the «Message / پیام بنویسید» hint at the bottom and use what is around it
     const hint = deepAll(document, '*').filter(visible).find((el) => el.children.length === 0 && low(el) && /^(message|پیام( خود را)?( بنویسید)?\.{0,3}|write a message\.{0,3})$/i.test((el.textContent || '').trim()));
@@ -233,19 +242,37 @@
   const isVoice = (el) => VOICE.test(attrsOf(el)) || !!el.querySelector('[class*="mic" i], [class*="record" i], [class*="voice" i], [data-icon*="mic" i], [data-icon*="ptt" i]');
   const textOf = (el) => ((el.value !== undefined ? el.value : el.innerText) || '').trim();
   let lastSendDiag = '';
+  // a button that says «send» itself (not a class name: in Eitaa / Telegram the mic and the send button are one button)
+  const explicitSend = () => deepAll(document, 'button, [role="button"], [data-icon="send"]').filter(visible).find((el) => {
+    const t = (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('title') || '') + ' ' + (el.getAttribute('data-icon') || '');
+    return /(^|\s)(send|ارسال)/i.test(t) && !isVoice(el) && el.getBoundingClientRect().top > innerHeight * 0.5;
+  });
+  const bottomButtons = () => deepAll(document, 'button, [role="button"]').filter(visible).filter((el) => el.getBoundingClientRect().top > innerHeight * 0.5);
+  // did the page take the text in? (its mic button then turns into a send button)
+  const textTakenByPage = () => !!explicitSend() || !bottomButtons().some(isVoice);
+  // writes into the box; when the page did not notice (the mic is still a mic), the text is «pasted» the way a person does it
+  const writeText = async (box, text) => {
+    setText(box, text);
+    await sleep(600);
+    if (textTakenByPage()) return true;
+    try {
+      box.focus();
+      document.execCommand('selectAll', false);
+      const dt = new DataTransfer();
+      dt.setData('text/plain', text);
+      box.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    } catch (e) { /* no synthetic paste here */ }
+    await sleep(700);
+    return textTakenByPage();
+  };
   const sendMessage = async (box) => {
     sendEnter(box);
     await sleep(1200);
     if (!textOf(box)) return true; // the box was emptied: the message went
-    const btn = deepAll(document, 'button, [role="button"], [data-icon="send"]').filter(visible).find((el) => {
-      const t = attrsOf(el);
-      return /(^|\s)(send|ارسال)|btn-send/i.test(t) && !isVoice(el) && el.getBoundingClientRect().top > innerHeight * 0.5;
-    });
+    const btn = explicitSend();
     if (btn) { click(btn.closest('button, [role="button"]') || btn); await sleep(800); }
     if (textOf(box)) {
-      // not sent: tell what the bottom of the page offers, so the next fix can be made from the real page
-      lastSendDiag = deepAll(document, 'button, [role="button"]').filter(visible).filter((el) => el.getBoundingClientRect().top > innerHeight * 0.5).slice(0, 5)
-        .map((el) => (attrsOf(el).replace(/\s+/g, ' ').trim().slice(0, 40) || el.tagName) + (isVoice(el) ? '[voice]' : '')).join(' | ');
+      lastSendDiag = bottomButtons().slice(0, 5).map((el) => (attrsOf(el).replace(/\s+/g, ' ').trim().slice(0, 40) || el.tagName) + (isVoice(el) ? '[voice]' : '')).join(' | ');
     }
     return !textOf(box);
   };
@@ -277,8 +304,9 @@
         const pbox = await waitFor(findComposer, 40000, 500);
         if (!pbox) { say('کادر نوشتن پیدا نشد؛ ' + diag() + (job.text ? ' — متن پیام کپی شده است.' : ''), 'error'); return; }
         await waitFor(() => ((pbox.value !== undefined ? pbox.value : pbox.innerText) || '').trim(), 8000, 300);
-        if (!((pbox.value !== undefined ? pbox.value : pbox.innerText) || '').trim()) setText(pbox, job.text);
-        await sleep(600);
+        if (!textOf(pbox)) await writeText(pbox, job.text);
+        await sleep(300);
+        if (!textOf(pbox)) { say('متن در کادر ننشست؛ هیچ دکمه‌ای نزدم. متن کپی شده است، با Ctrl+V بچسبانید.', 'error'); return; }
         if (job.send) { say((await sendMessage(pbox)) ? 'پیام فرستاده شد.' : 'پیام نوشته شد ولی ارسال تأیید نشد؛ ارسال را خودتان بزنید. (' + lastSendDiag + ')', 'ok'); } else say('پیام نوشته شد؛ ارسال را بزنید.', 'ok');
         return;
       }
@@ -307,11 +335,10 @@
         await sleep(300);
         if (isEditable(document.activeElement)) box = document.activeElement;
       }
-      setText(box, job.text);
-      await sleep(400);
+      await writeText(box, job.text);
       const now = (box.value !== undefined ? box.value : box.innerText) || '';
       if (!now.trim()) {
-        say('گفتگو باز شد ولی متن نشست؛ با Ctrl+V بچسبانید.', 'error');
+        say('گفتگو باز شد ولی متن در کادر نشست نکرد؛ هیچ دکمه‌ای نزدم. متن کپی شده است، با Ctrl+V بچسبانید.', 'error');
         return;
       }
       if (job.send && !lastVerified) {

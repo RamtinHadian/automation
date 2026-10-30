@@ -431,9 +431,10 @@ export const openChat = (id: string, name: string, account: string, text = '', c
     const web = isWa
       ? `${socialLink(id, account, text)}#hoormand=${job}`
       : `https://web.telegram.org/k/?hoormand=${job}#?tgaddr=${encodeURIComponent(socialAppLink('telegram', account, text))}`;
-    openWebTab(id, web);
+    // the installed app comes first (the message waits in its box, «send» is yours: an app cannot be pressed from outside); the web with the extension is the second choice and sends by itself
+    openAppOrWeb(id, socialAppLink(id, account, text), web);
     copy(text);
-    return `${name} وب باز شد و افزونهٔ هورمند پیام را می‌فرستد (برنامهٔ نصب‌شده را نمی‌شود از بیرون «ارسال» زد، پس برای ارسال خودکار وب به کار می‌رود). اگر نشد، متن کپی شده است.`;
+    return `${name}: اول برنامهٔ نصب‌شده روی این سیستم باز می‌شود (پیام در کادر می‌نشیند و «ارسال» با شماست)؛ اگر برنامه نبود، وب باز می‌شود و افزونهٔ هورمند پیام را می‌فرستد. اگر نشد، متن کپی شده است.`;
   }
   // with the extension the chat is found, opened and written by the extension: the job travels in the address
   if (EXT_NETWORKS.includes(id) && chatExtOn()) {

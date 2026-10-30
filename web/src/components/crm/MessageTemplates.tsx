@@ -192,12 +192,12 @@ export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => vo
                 {accounts.length === 0 ? (
                   <div className="text-[11px] font-bold text-[#8C6F66]">برای این مشتری شبکه‌ای ثبت نشده است؛ از «تعاملات مجازی» شماره یا نام کاربری او را ثبت کنید.</div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-2" data-msg-accounts>
                     {accounts.map((a) => (
-                      <button key={a.id + a.account} type="button" onClick={() => setNote(openChat(a.id, a.name, a.account, text, customer.name))} className="flex items-center gap-2 rounded-xl border border-[#EBDBCE] bg-white hover:bg-violet-50 px-3 py-2 cursor-pointer" data-msg-send-to={a.id}>
+                      <button key={a.id + a.account} type="button" onClick={() => setNote(openChat(a.id, a.name, a.account, text, customer.name))} className="w-full flex items-center gap-2.5 rounded-xl border border-[#EBDBCE] bg-white hover:bg-violet-50 px-3.5 py-2.5 cursor-pointer text-right" data-msg-send-to={a.id}>
                         <SocialLogo id={a.id} size={20} />
                         <span className="text-xs font-black text-[#3A241F]">{a.name}</span>
-                        <span className="text-[10px] font-bold text-[#8C6F66]" dir="ltr">{/^[0-9۰-۹+]+$/.test(a.account) ? toPersianDigits(a.account) : '@' + a.account}</span>
+                        <span className="flex-1 text-left text-[12px] font-black text-[#503730] tracking-wide" dir="ltr">{/^[0-9۰-۹+]+$/.test(a.account) ? toPersianDigits(a.account) : '@' + a.account}</span>
                         <Send className="w-3.5 h-3.5 text-violet-600" />
                       </button>
                     ))}
