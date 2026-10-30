@@ -462,6 +462,13 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   reportAiScheduleGet: () => request<{ enabled: boolean; everyDays: number; periodDays: number; lastRunAt?: string; lastError?: string }>('GET', '/api/reports/ai-schedule'),
   reportAiSchedulePut: (b: { enabled: boolean; everyDays: number; periodDays: number }) => request<{ enabled: boolean; everyDays: number; periodDays: number; lastRunAt?: string; lastError?: string }>('PUT', '/api/reports/ai-schedule', b),
   reportAiScheduleRun: () => request<StoredReport>('POST', '/api/reports/ai-schedule/run', {}),
+  minutesTranscribeStart: async (blob: Blob, ext: 'wav' | 'mp3') => {
+    const res = await fetch('/api/minutes/transcribe?ext=' + ext, { method: 'POST', headers: { Authorization: `Bearer ${getToken() || ''}`, 'Content-Type': 'application/octet-stream' }, body: blob });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, json.error || 'فرستادن صدا انجام نشد.');
+    return json as { id: string };
+  },
+  minutesTranscribeGet: (id: string) => request<{ status: 'running' | 'done' | 'error'; text: string; error: string }>('GET', '/api/minutes/transcribe/' + id),
   minutesAi: (b: { mode: 'draft' | 'summary'; text: string; people?: string[] }) => request<{ draft?: { title?: string; agenda?: string[]; discussion?: string; decisions?: { text: string; owner?: string; dueInDays?: number | null }[] }; discussion?: string }>('POST', '/api/minutes/ai', b),
   letterAi: (b: { subject: string; instruction: string; currentText: string; recipient: string; sender: string; tone: string }) => request<{ draft: { subject?: string; paragraphs: string[] } }>('POST', '/api/letters/ai', b),
   voipTranscribe: (id: string) => request<{ status: string }>('POST', `/api/voip/transcribe/${encodeURIComponent(id)}`, {}),

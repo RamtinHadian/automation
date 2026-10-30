@@ -51,6 +51,9 @@ func customerAiGet(w http.ResponseWriter, r *http.Request) {
 		httpx.Forbidden(w)
 		return
 	}
+	if aiDenied(w, auth.Current(r), "ai.customer") {
+		return
+	}
 	m := rawMaps(r.Context(), `SELECT jsonb_build_object('createdAt', to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'by', created_by, 'analysis', result) FROM ai_customer_analyses WHERE customer_id = $1`, id)
 	if len(m) == 0 {
 		httpx.JSON(w, http.StatusOK, map[string]any{"analysis": nil})
@@ -67,6 +70,9 @@ func customerAiRun(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	if !canSeeCrmCustomer(ctx, me, id) {
 		httpx.Forbidden(w)
+		return
+	}
+	if aiDenied(w, me, "ai.customer") {
 		return
 	}
 	s := supportSettings(ctx)

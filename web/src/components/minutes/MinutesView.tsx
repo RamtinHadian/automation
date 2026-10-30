@@ -17,6 +17,8 @@ import { JalaliDateField } from '../tasks/TasksView';
 import { printCertificates } from '../warranty/certificate';
 import { warrantyEnd } from '../../lib/warranty';
 import { Warranty } from '../../types';
+import { canSub } from '../../lib/permissions';
+import { MinutesVoice } from './MinutesVoice';
 
 const uid = () => 'mn-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const STATUS_TEXT: Record<string, string> = { PRESENT: 'حاضر', ABSENT: 'غایب', EXCUSED: 'غایب موجه' };
@@ -329,13 +331,14 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
   const [aiErr, setAiErr] = useState('');
   const people = useMemo(() => staffList.filter((u) => u.isActive !== false), [staffList]);
   const exists = all.some((x) => x.id === m.id);
-  const aiDraft = async () => {
+  const aiDraft = async (textArg?: string) => {
+    const sourceText = textArg ?? aiText;
     const hasWork = m.agenda.some((x) => x.trim()) || (m.discussion || '').trim() || m.decisions.some((d) => d.text.trim());
     if (hasWork && !(await askConfirm('آنچه تا الان در دستور جلسه، شرح مذاکرات و مصوبات نوشته‌اید با نوشتهٔ هوش مصنوعی جایگزین شود؟ بعد از آن می‌توانید همه‌چیز را ویرایش کنید.', { tone: 'danger', confirmText: 'جایگزین شود', title: 'نوشتن با هوش مصنوعی' }))) return;
     setAiBusy('draft');
     setAiErr('');
     try {
-      const r = await api.minutesAi({ mode: 'draft', text: aiText, people: people.map((u) => u.fullName) });
+      const r = await api.minutesAi({ mode: 'draft', text: sourceText, people: people.map((u) => u.fullName) });
       const d = r.draft || {};
       const fa = (s?: string) => toPersianDigits(jalaliizeText(s || ''));
       const today = new Date();
@@ -666,7 +669,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
         </div>
       )}
 
-      {(S.discussion || S.decisions) && (
+      {(S.discussion || S.decisions) && canSub(currentUser, 'ai.minutes') && (
         <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-3 space-y-2" data-minutes-ai>
           <button type="button" onClick={() => setAiOpen(!aiOpen)} className="flex items-center gap-2 text-xs font-black text-violet-800 cursor-pointer" data-minutes-ai-toggle>
             <Sparkles className="w-4 h-4" />
@@ -677,8 +680,9 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
             <div className="space-y-2">
               <p className="text-[11px] font-bold text-violet-900/80 leading-6">هر چه از جلسه دارید اینجا بنویسید یا بچسبانید (یادداشت‌های پراکنده، متن پیاده‌شدهٔ گفتگو، حتی پیام‌های گروه). هوش مصنوعی دستور جلسه، شرح مذاکرات و مصوبات (با مسئول و مهلت، اگر در متن باشد) را می‌نویسد و در همین فرم می‌گذارد. چیزی ذخیره نمی‌شود تا شما بخوانید و ویرایش کنید. متن شما برای نوشتن به سرویس هوش مصنوعی فرستاده می‌شود.</p>
               <textarea className={`${field} min-h-[130px] leading-7`} value={aiText} onChange={(e) => setAiText(e.target.value)} placeholder="مثلاً: امروز آقای رضایی گزارش فروش را داد، قرار شد تا هفتهٔ بعد قیمت‌ها را به‌روز کند…" data-minutes-ai-text />
+              <MinutesVoice disabled={!!aiBusy} onText={(t) => { const all = aiText.trim() ? `${aiText.trim()}\n\n${t}` : t; setAiText(all); aiDraft(all); }} />
               {aiErr && <div className="text-[11px] font-bold text-rose-700">{aiErr}</div>}
-              <button type="button" disabled={!!aiBusy || aiText.trim().length < 30} onClick={aiDraft} className="px-5 py-2.5 rounded-xl bg-violet-700 hover:bg-violet-800 text-white text-xs font-black cursor-pointer flex items-center gap-2 disabled:opacity-50" data-minutes-ai-run>
+              <button type="button" disabled={!!aiBusy || aiText.trim().length < 30} onClick={() => aiDraft()} className="px-5 py-2.5 rounded-xl bg-violet-700 hover:bg-violet-800 text-white text-xs font-black cursor-pointer flex items-center gap-2 disabled:opacity-50" data-minutes-ai-run>
                 {aiBusy === 'draft' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 {aiBusy === 'draft' ? 'در حال نوشتن… (تا دو دقیقه)' : 'بنویس'}
               </button>
@@ -710,7 +714,7 @@ export const MinutesEditor: React.FC<{ initial: Minutes; all: Minutes[]; cfg: Mi
         <div>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className={label}>{t.id === 'handover' || t.id === 'inspection' ? 'شرح و گزارش' : 'شرح مذاکرات (خلاصهٔ آنچه گفته شد)'}</span>
-            {(m.discussion || '').trim().length >= 200 && (
+            {(m.discussion || '').trim().length >= 200 && canSub(currentUser, 'ai.minutes') && (
               <button type="button" disabled={!!aiBusy} onClick={aiSummarize} className="flex items-center gap-1 text-[10px] font-black text-violet-700 cursor-pointer disabled:opacity-50" data-minutes-ai-summary>
                 {aiBusy === 'summary' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                 خلاصه‌کردن با هوش مصنوعی

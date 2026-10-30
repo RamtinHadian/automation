@@ -4,6 +4,8 @@ import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { jalaliizeText } from '../../lib/taskDates';
 import { whenText } from '../admin/AiSalesReport';
+import { useAppContext } from '../../context/AppContext';
+import { canSub } from '../../lib/permissions';
 
 interface Analysis {
   level?: number;
@@ -37,15 +39,17 @@ const arr = (x: unknown): string[] => (Array.isArray(x) ? x.filter((v) => typeof
 
 /** «تحلیل مشتری با هوش مصنوعی»: from everything said and done with this customer, the level (of five), the readiness to buy and what to do next. */
 export const CustomerAiAnalysis: React.FC<{ customerId: string }> = ({ customerId }) => {
+  const { currentUser } = useAppContext();
+  const allowed = canSub(currentUser, 'ai.customer');
   const [st, setSt] = useState<Stored | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   useEffect(() => {
     let live = true;
     setSt(null);
-    api.customerAiGet(customerId).then((r) => live && r.analysis && setSt(r)).catch(() => undefined);
+    if (allowed) api.customerAiGet(customerId).then((r) => live && r.analysis && setSt(r)).catch(() => undefined);
     return () => { live = false; };
-  }, [customerId]);
+  }, [customerId, allowed]);
   const run = async () => {
     setBusy(true);
     setErr('');
@@ -60,6 +64,8 @@ export const CustomerAiAnalysis: React.FC<{ customerId: string }> = ({ customerI
   const a = st?.analysis;
   const level = Math.min(5, Math.max(1, Math.round(a?.level || 1)));
   const w = st ? whenText(st.createdAt) : null;
+  if (!allowed) return null;
+
   return (
     <section onClick={(e) => e.stopPropagation()} className="cursor-default rounded-2xl bg-white text-[#3A241F] border border-violet-200 overflow-hidden" data-customer-ai>
       <div className="px-4 py-3 flex flex-wrap items-center gap-3 bg-gradient-to-l from-violet-50 to-white border-b border-violet-100">

@@ -28,6 +28,9 @@ func minutesAi(w http.ResponseWriter, r *http.Request) {
 		httpx.Forbidden(w)
 		return
 	}
+	if aiDenied(w, auth.Current(r), "ai.minutes") {
+		return
+	}
 	body, ok := httpx.ReadBody(w, r)
 	if !ok {
 		return

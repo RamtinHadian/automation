@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { askConfirm } from '../../lib/confirmDialog';
-import { Bell, BellRing, Check, Clock, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
+import { Bell, BellRing, Check, Clock, ListTodo, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
 import { api, Reminder } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -9,11 +9,39 @@ import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { isAudioReady, isSoundEnabled, playSound } from '../../lib/notifications';
 import { JalaliDateField } from '../tasks/TasksView';
 import { Modal, field, label } from '../crm/crmUi';
+import { PersonPickerMulti } from '../common/PersonPicker';
+import { Task, TaskPriority, User } from '../../types';
+import { adminMenuHidden } from '../../lib/permissions';
 
 const REPEAT_LABEL: Record<string, string> = { none: 'یک‌بار', daily: 'هر روز', weekly: 'هر هفته' };
 const SNOOZE: [string, number][] = [['۵ دقیقه', 5], ['۱۰ دقیقه', 10], ['۳۰ دقیقه', 30], ['۱ ساعت', 60], ['۳ ساعت', 180], ['فردا', 24 * 60]];
 const CHANGED = 'reminders-changed';
 const pad = (n: number) => String(n).padStart(2, '0');
+const PRIORITY_LABEL: [TaskPriority, string][] = [['LOW', 'کم'], ['MEDIUM', 'متوسط'], ['HIGH', 'زیاد'], ['URGENT', 'فوری']];
+
+/** A reminder written down as a task: the title, the note and the day come with it; who does it and how important it is can be chosen. */
+const reminderTask = (r: Reminder, me: User, over: Partial<Task> = {}): Task => {
+  const now = new Date().toISOString();
+  return {
+    id: 'task-' + Math.random().toString(36).substring(2, 10),
+    title: r.title,
+    description: r.note || '',
+    status: 'TODO',
+    priority: 'MEDIUM',
+    creatorId: me.id,
+    creatorName: me.fullName,
+    assigneeIds: [me.id],
+    dueDate: r.date,
+    checklist: [],
+    comments: [],
+    createdAt: now,
+    updatedAt: now,
+    ...over,
+  };
+};
+
+/** may this person make tasks (the same right as the «وظایف» menu) */
+const canMakeTasks = (u: User) => (u.canUseTasks === true || u.role === 'SUPER_ADMIN') && !adminMenuHidden(u, 'tasks');
 
 /** The reminders of the signed-in person, refreshed by itself (every half minute, when the window gets focus, and after any change). */
 function useReminders() {
@@ -39,7 +67,7 @@ function useReminders() {
 
 export const ReminderPopup: React.FC = () => {
   const { list, reload } = useReminders();
-  const { notifications, showToast } = useAppContext();
+  const { notifications, showToast, currentUser, setTasks } = useAppContext();
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   // a reminder that fires reaches the page as a notification as well: fetch at once instead of waiting for the next round
   const lastNote = notifications.find((n) => n.ref?.type === 'reminder')?.id;
@@ -106,6 +134,11 @@ export const ReminderPopup: React.FC = () => {
           <button type="button" onClick={() => act(() => api.reminderDone(r.id), r.repeat === 'none' ? 'یادآور انجام‌شده ثبت شد.' : 'یادآور انجام شد؛ نوبت بعدی ثبت است.')} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-l from-[#0D9488] to-[#16A34A] text-white text-sm font-black shadow-lg cursor-pointer active:scale-[.98]">
             <Check className="w-5 h-5" /> انجام شد
           </button>
+          {canMakeTasks(currentUser) && (
+            <button type="button" onClick={() => act(async () => { setTasks((prev) => [reminderTask(r, currentUser), ...prev]); if (r.repeat === 'none') await api.reminderDone(r.id); else await api.reminderSnooze(r.id, 24 * 60); }, 'به وظیفه تبدیل شد؛ در منوی «وظایف» است.')} className="mt-2 w-full py-2.5 rounded-xl border border-[#7C3AED]/40 bg-violet-50 hover:bg-violet-100 text-violet-800 text-xs font-black cursor-pointer flex items-center justify-center gap-1.5" data-reminder-to-task-quick>
+              <ListTodo className="w-4 h-4" /> تبدیل به وظیفه
+            </button>
+          )}
           <div className="mt-4 text-[11px] font-black text-[#8C6F66]">یادم بینداز بعد از:</div>
           <div className="mt-2 grid grid-cols-3 gap-2">
             {SNOOZE.map(([t, m]) => (
@@ -213,10 +246,57 @@ const ReminderForm: React.FC<{ r: Partial<Reminder>; onClose: () => void; onSave
   );
 };
 
+const ToTaskDialog: React.FC<{ r: Reminder; onClose: () => void; onDone: () => void }> = ({ r, onClose, onDone }) => {
+  const { currentUser, staffList, setTasks, showToast } = useAppContext();
+  const [title, setTitle] = useState(r.title);
+  const [due, setDue] = useState<string | undefined>(r.date);
+  const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
+  const [who, setWho] = useState<string[]>([currentUser.id]);
+  const [busy, setBusy] = useState(false);
+  const people = staffList.filter((u) => u.isActive !== false);
+  const make = async () => {
+    if (!title.trim()) return showToast('عنوان وظیفه را بنویسید.');
+    if (who.length === 0) return showToast('دست‌کم یک نفر را برای انجام وظیفه انتخاب کنید.');
+    setBusy(true);
+    setTasks((prev) => [reminderTask({ ...r, title: title.trim(), date: due || r.date }, currentUser, { priority, assigneeIds: who, dueDate: due }), ...prev]);
+    try {
+      if (r.repeat === 'none') await api.reminderDone(r.id); // a repeating reminder keeps going as it was
+      showToast(r.repeat === 'none' ? 'به وظیفه تبدیل شد و یادآور انجام‌شده ثبت شد؛ وظیفه در منوی «وظایف» است.' : 'وظیفه ساخته شد؛ یادآور تکرارشونده سر جایش ماند.');
+    } catch {
+      showToast('وظیفه ساخته شد، ولی یادآور انجام‌شده ثبت نشد.');
+    }
+    onDone();
+  };
+  return (
+    <Modal title="تبدیل یادآور به وظیفه" onClose={onClose} footer={
+      <>
+        <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-[#EBDBCE] text-xs font-black cursor-pointer">انصراف</button>
+        <button type="button" disabled={busy} onClick={make} className="px-5 py-2.5 rounded-xl bg-[#7C3AED] text-white text-xs font-black cursor-pointer disabled:opacity-60" data-reminder-to-task-make>ساخت وظیفه</button>
+      </>
+    }>
+      <div><span className={label}>عنوان وظیفه</span><input value={title} onChange={(e) => setTitle(e.target.value)} className={field} /></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><span className={label}>مهلت انجام</span><JalaliDateField value={due} onChange={setDue} /></div>
+        <div>
+          <span className={label}>اهمیت</span>
+          <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} className={field}>{PRIORITY_LABEL.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
+        </div>
+      </div>
+      <div>
+        <span className={label}>انجام‌دهنده</span>
+        <PersonPickerMulti title="انجام‌دهندهٔ وظیفه" items={people.map((u) => ({ id: u.id, name: u.fullName, sub: u.departmentName }))} values={who} onChange={setWho} placeholder="انتخاب کنید…" />
+      </div>
+      {r.note && <div><span className={label}>توضیح (از یادآور می‌آید)</span><div className="text-[11px] font-bold text-[#8C6F66] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-2 leading-6 whitespace-pre-wrap">{r.note}</div></div>}
+      <p className="text-[11px] font-bold text-[#8C6F66] leading-6">{r.repeat === 'none' ? 'بعد از ساخت وظیفه، این یادآور انجام‌شده حساب می‌شود و دیگر زنگ نمی‌زند.' : 'این یادآور تکرارشونده است و بعد از ساخت وظیفه هم طبق برنامه ادامه دارد.'}</p>
+    </Modal>
+  );
+};
+
 export const RemindersView: React.FC = () => {
   const { list, reload } = useReminders();
-  const { showToast } = useAppContext();
+  const { showToast, currentUser } = useAppContext();
   const [edit, setEdit] = useState<Partial<Reminder> | null>(null);
+  const [toTask, setToTask] = useState<Reminder | null>(null);
   const [showDone, setShowDone] = useState(false);
 
   const active = (list || []).filter((r) => r.status !== 'done');
@@ -244,6 +324,9 @@ export const RemindersView: React.FC = () => {
         </div>
         {r.note && <div className="text-[11px] text-[#8C6F66] truncate mt-0.5">{r.note}</div>}
       </div>
+      {r.status !== 'done' && canMakeTasks(currentUser) && (
+        <button type="button" onClick={() => setToTask(r)} title="تبدیل به وظیفه" className="p-2 text-[#8C6F66] hover:text-violet-700 cursor-pointer" aria-label="تبدیل به وظیفه" data-reminder-to-task><ListTodo className="w-4 h-4" /></button>
+      )}
       {r.status !== 'done' && (
         <button type="button" onClick={() => setEdit(r)} className="p-2 text-[#8C6F66] hover:text-[#3A241F] cursor-pointer" aria-label="ویرایش"><Pencil className="w-4 h-4" /></button>
       )}
@@ -277,6 +360,7 @@ export const RemindersView: React.FC = () => {
           {showDone && <div className="mt-2 bg-white rounded-2xl border border-[#EBDBCE] divide-y divide-[#F3E8DF] overflow-hidden">{done.map(row)}</div>}
         </div>
       )}
+      {toTask && <ToTaskDialog r={toTask} onClose={() => setToTask(null)} onDone={() => { setToTask(null); reload(); }} />}
       {edit && <ReminderForm r={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }} />}
     </div>
   );

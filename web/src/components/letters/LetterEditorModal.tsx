@@ -13,6 +13,7 @@ import { usePrintBreaks } from './usePrintBreaks';
 import { generateOfficialLetterHtml } from '../../lib/pdfLetterGenerator';
 import { LetterTextTemplatesModal, bodyToText } from './LetterTextTemplatesModal';
 import { LetterAiDialog, letterHtml } from './LetterAiDialog';
+import { canSub } from '../../lib/permissions';
 import { useFitZoom } from '../../lib/useFitZoom';
 import { SIGNATURE_ANCHOR_LEFT, STAMP_ANCHOR_LEFT, signatureAreaHeight } from '../../lib/letterDefaults';
 import { DEFAULT_SIGNATURE_HEIGHT, defaultStampHeight, stampSizeLocked } from '../../lib/letterDefaults';
@@ -979,10 +980,10 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                 + مدیریت قالب‌ها
               </button>
             )}
-            <button type="button" onClick={() => setAiOpen(true)} className="px-2.5 py-1.5 rounded-xl border border-violet-300 bg-violet-50 hover:bg-violet-100 text-[11px] font-black text-violet-800 cursor-pointer shrink-0 flex items-center gap-1" title="با هوش مصنوعی نامه را بنویس یا متن نیمه‌تمام را کامل کن" data-letter-ai-open>
+            {canSub(currentUser, 'ai.letters') && <button type="button" onClick={() => setAiOpen(true)} className="px-2.5 py-1.5 rounded-xl border border-violet-300 bg-violet-50 hover:bg-violet-100 text-[11px] font-black text-violet-800 cursor-pointer shrink-0 flex items-center gap-1" title="با هوش مصنوعی نامه را بنویس یا متن نیمه‌تمام را کامل کن" data-letter-ai-open>
               <Sparkles className="w-3.5 h-3.5" />
               با هوش مصنوعی
-            </button>
+            </button>}
           </div>
 
           {/* Organisation letter template: set once by an admin, used by everyone afterwards */}

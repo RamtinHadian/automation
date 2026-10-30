@@ -207,6 +207,8 @@ func registerMinutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/minutes/{id}", auth.Require(minutesPut))
 	mux.HandleFunc("DELETE /api/minutes/{id}", auth.Require(minutesDelete))
 	mux.HandleFunc("POST /api/minutes/ai", auth.Require(minutesAi))
+	mux.HandleFunc("POST /api/minutes/transcribe", auth.Require(minutesTranscribeStart))
+	mux.HandleFunc("GET /api/minutes/transcribe/{id}", auth.Require(minutesTranscribeGet))
 }
 
 func authorNameOf(ctx context.Context, id string) string {

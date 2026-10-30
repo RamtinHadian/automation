@@ -30,6 +30,8 @@ const savedVolume = (): number => {
 
 /** Plays the recording of one call (fetched with the login, then played from memory). */
 export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean; autoShow?: boolean }> = ({ id, hasTranscript, autoShow }) => {
+  const { currentUser } = useAppContext();
+  const mayConvert = canSub(currentUser, 'ai.calls'); // the text that already exists is shown to everybody who may listen; making it needs the right
   const [url, setUrl] = useState<string | null>(null);
   const [tx, setTx] = useState<{ status: string; text?: string; error?: string } | null>(null);
   const [txOpen, setTxOpen] = useState(false);
@@ -97,9 +99,9 @@ export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean; au
       <button type="button" onClick={open} title={url ? 'بستن پخش' : 'شنیدن مکالمهٔ ضبط‌شده'} className="p-2 rounded-xl text-rose-700 hover:bg-rose-50 cursor-pointer shrink-0">
         {url ? <Pause className="w-4 h-4" /> : <Play className={`w-4 h-4 ${loading ? 'animate-pulse' : ''}`} />}
       </button>
-      <button type="button" data-call-transcript onClick={openText} title={txOpen ? 'بستن متن مکالمه' : hasTranscript ? 'متن مکالمه' : 'تبدیل مکالمه به متن'} className={`p-2 rounded-xl cursor-pointer shrink-0 ${hasTranscript || tx?.status === 'done' ? 'bg-violet-600 text-white hover:bg-violet-700' : txOpen ? 'text-violet-700 hover:bg-violet-50' : 'text-gray-400 hover:bg-violet-50'}`}>
+      {(mayConvert || hasTranscript || tx?.status === 'done') && <button type="button" data-call-transcript onClick={openText} title={txOpen ? 'بستن متن مکالمه' : hasTranscript ? 'متن مکالمه' : 'تبدیل مکالمه به متن'} className={`p-2 rounded-xl cursor-pointer shrink-0 ${hasTranscript || tx?.status === 'done' ? 'bg-violet-600 text-white hover:bg-violet-700' : txOpen ? 'text-violet-700 hover:bg-violet-50' : 'text-gray-400 hover:bg-violet-50'}`}>
         <FileText className={`w-4 h-4 ${tx?.status === 'running' ? 'animate-pulse' : ''}`} />
-      </button>
+      </button>}
       {txOpen && tx && (
         <div className="basis-full order-last bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 text-[11px] font-bold leading-6 text-[#3A241F]">
           {tx.status === 'running' && <span className="text-violet-700">در حال تبدیل مکالمه به متن… چند دقیقه طول می‌کشد.</span>}

@@ -28,6 +28,9 @@ func letterAi(w http.ResponseWriter, r *http.Request) {
 		httpx.Forbidden(w)
 		return
 	}
+	if aiDenied(w, me, "ai.letters") {
+		return
+	}
 	body, ok := httpx.ReadBody(w, r)
 	if !ok {
 		return

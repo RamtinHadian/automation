@@ -56,6 +56,7 @@ import { MessengerSettingsCard } from './MessengerSettingsCard';
 import { NotificationSettingsCard } from './NotificationSettingsCard';
 import { IconTab } from '../common/IconTab';
 import { BackupSettingsCard } from './BackupSettingsCard';
+import { AiSettingsCard } from './AiSettingsCard';
 import { LicenseCard } from './LicenseCard';
 
 interface SettingsViewProps {
@@ -134,7 +135,7 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
-type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'backup' | 'license';
+type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'ai' | 'backup' | 'license';
 
 /** Each group of settings has its own tab under the page title. */
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -150,6 +151,7 @@ const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.Compo
   { id: 'sms', label: 'پیامک', Icon: MessageSquare },
   { id: 'msgr', label: 'تلگرام و بله', Icon: Send },
   { id: 'api', label: 'اتصال برنامه‌ها (API)', Icon: Plug },
+  { id: 'ai', label: 'هوش مصنوعی', Icon: Sparkles },
   { id: 'backup', label: 'پشتیبان‌گیری', Icon: DatabaseBackup },
   { id: 'license', label: 'مجوز و فعال‌سازی', Icon: KeyRound },
 ];
@@ -580,6 +582,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <ApiKeysCard />
         </>
       )}
+
+      {section === 'ai' && <AiSettingsCard />}
 
       {section === 'backup' && <BackupSettingsCard />}
 

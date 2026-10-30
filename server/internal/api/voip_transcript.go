@@ -40,6 +40,8 @@ func sttModel(s jsonx.M) string {
 	return defaultSttModel
 }
 
+const callPrompt = "این یک مکالمهٔ تلفنی فارسی بین کارمند شرکت و مشتری است. عین گفتگو را بنویس، هر جمله در یک خط و با شروع «کارمند:» یا «مشتری:». چیزی از خودت اضافه نکن. اگر گفتاری شنیده نمی‌شود فقط بنویس: گفتاری شنیده نشد."
+
 func transcribeFile(ctx context.Context, key string, s jsonx.M, path string) (string, error) {
 	st, err := os.Stat(path)
 	if err != nil {
@@ -52,8 +54,11 @@ func transcribeFile(ctx context.Context, key string, s jsonx.M, path string) (st
 	if err != nil {
 		return "", fmt.Errorf("فایل ضبط‌شده خوانده نشد.")
 	}
-	ext := strings.ToLower(filepath.Ext(path))
+	return transcribeBytes(ctx, key, s, strings.ToLower(filepath.Ext(path)), data, callPrompt)
+}
 
+// the audio itself (a call or a meeting) turned into text; the prompt tells the chat model what kind of talk it is
+func transcribeBytes(ctx context.Context, key string, s jsonx.M, ext string, data []byte, prompt string) (string, error) {
 	model := sttModel(s)
 	status := 0
 	if m := strings.ToLower(model); strings.Contains(m, "transcribe") || strings.Contains(m, "whisper") {
@@ -63,7 +68,7 @@ func transcribeFile(ctx context.Context, key string, s jsonx.M, path string) (st
 		}
 		status, model = code, fallbackSttModel // the service has no such endpoint: use a chat model that hears audio
 	}
-	return transcribeChat(ctx, key, model, ext, data, status)
+	return transcribeChat(ctx, key, model, ext, data, status, prompt)
 }
 
 // the usual OpenAI-style endpoint; the status code is returned so that «no such endpoint» can be told from other failures
@@ -101,13 +106,13 @@ func transcribeEndpoint(ctx context.Context, key, model, ext string, data []byte
 }
 
 // the audio goes to a chat model that understands it (wav and mp3)
-func transcribeChat(ctx context.Context, key, model, ext string, data []byte, before int) (string, error) {
+func transcribeChat(ctx context.Context, key, model, ext string, data []byte, before int, prompt string) (string, error) {
 	format := strings.TrimPrefix(ext, ".")
 	if format != "wav" && format != "mp3" {
 		return "", fmt.Errorf("فقط فایل‌های wav و mp3 به متن تبدیل می‌شوند (این فایل %s است).", format)
 	}
 	payload, _ := json.Marshal(map[string]any{"model": model, "temperature": 0, "messages": []any{map[string]any{"role": "user", "content": []any{
-		map[string]any{"type": "text", "text": "این یک مکالمهٔ تلفنی فارسی بین کارمند شرکت و مشتری است. عین گفتگو را بنویس، هر جمله در یک خط و با شروع «کارمند:» یا «مشتری:». چیزی از خودت اضافه نکن. اگر گفتاری شنیده نمی‌شود فقط بنویس: گفتاری شنیده نشد."},
+		map[string]any{"type": "text", "text": prompt},
 		map[string]any{"type": "input_audio", "input_audio": map[string]any{"data": base64.StdEncoding.EncodeToString(data), "format": format}},
 	}}}})
 	req2, _ := http.NewRequestWithContext(ctx, http.MethodPost, aiBaseURL+"/chat/completions", bytes.NewReader(payload))
@@ -153,6 +158,9 @@ func voipTranscribe(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !canHearCall(r, me, id) {
 		httpx.Forbidden(w)
+		return
+	}
+	if aiDenied(w, me, "ai.calls") {
 		return
 	}
 	p := recordingFile(id)

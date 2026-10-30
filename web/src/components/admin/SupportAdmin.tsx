@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Bot, Copy, Headset, MessageCircle, Plus } from 'lucide-react';
+import { Bot, Copy, Headset, MessageCircle, Plus } from 'lucide-react';
 import { api } from '../../lib/api';
 import { SupportPlan, SupportSettings } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
-import { formatDateTime } from '../../lib/taskDates';
 import { PlanCard, PlanForm } from '../support/SupportForms';
-import { field, label } from '../crm/crmUi';
 
 /** Console section «پشتیبانی»: the plans the company sells, the customers' page and the optional AI answers. */
 export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }) => {
@@ -13,13 +11,7 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [sset, setSset] = useState<SupportSettings | null>(null);
   const [editing, setEditing] = useState<{ p: SupportPlan | null } | null>(null);
-  const [aiKey, setAiKey] = useState('');
-  const [aiModel, setAiModel] = useState('');
-  const [aiStt, setAiStt] = useState('');
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiOn, setAiOn] = useState(false);
   const [portalOn, setPortalOn] = useState(true);
-  const [aiTest, setAiTest] = useState('');
   const portalUrl = `${window.location.origin}/support`;
 
   const loadPlans = useCallback(() => {
@@ -35,10 +27,6 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
     loadPlans();
     api.supportGetSettings().then((r) => {
       setSset(r);
-      setAiModel(r.aiModel);
-      setAiStt(r.aiSttModel);
-      setAiPrompt(r.aiPrompt);
-      setAiOn(r.aiEnabled);
       setPortalOn(r.portalEnabled);
     }).catch(() => toast('تنظیمات پشتیبانی خوانده نشد.'));
   }, [loadPlans, toast]);
@@ -52,8 +40,7 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
   };
   const save = async (extra: Record<string, unknown> = {}) => {
     try {
-      setSset(await api.supportSaveSettings({ portalEnabled: portalOn, aiEnabled: aiOn, aiModel: aiModel.trim(), aiSttModel: aiStt.trim(), aiPrompt, aiKey: aiKey.trim(), ...extra }));
-      setAiKey('');
+      setSset(await api.supportSaveSettings({ portalEnabled: portalOn, ...extra }));
       toast('تنظیمات ذخیره شد.');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'ذخیره نشد.');
@@ -64,7 +51,7 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
     <div className="space-y-6 max-w-5xl" data-support-admin>
       <div>
         <h3 className="font-black text-lg text-[#3A241F] flex items-center gap-2"><Headset className="w-5 h-5 text-teal-600" />تنظیمات پشتیبانی</h3>
-        <p className="text-xs text-[#8C6F66] mt-1">پلن‌ها، صفحهٔ مشتریان و پاسخ هوشمند. کارکنان از منوی «پشتیبانی» فقط از این‌ها استفاده می‌کنند.</p>
+        <p className="text-xs text-[#8C6F66] mt-1">پلن‌ها و صفحهٔ مشتریان. کارکنان از منوی «پشتیبانی» فقط از این‌ها استفاده می‌کنند.</p>
       </div>
 
       <section className="space-y-3">
@@ -99,62 +86,9 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
         <label className="flex items-center gap-2 text-xs font-black cursor-pointer min-h-[36px]"><input type="checkbox" checked={portalOn} onChange={(e) => setPortalOn(e.target.checked)} />ورود مشتریان باز باشد</label>
       </section>
 
-      <section className="bg-white border border-[#EBDBCE] rounded-3xl p-5 space-y-3">
-        <h4 className="font-black text-sm flex items-center gap-2"><Bot className="w-4 h-4 text-violet-600" />پاسخ هوشمند (togpt)</h4>
-        <p className="text-[11px] font-bold text-[#8C6F66] leading-6">اگر روشن باشد، دستیار هوش مصنوعی به پیام‌های مشتری در صفحهٔ مشتریان یک جواب اولیه می‌دهد. جواب او «پاسخ هوشمند» نام دارد، وضعیت و مهلت درخواست را عوض نمی‌کند و همکار شما همچنان درخواست را می‌بیند. کلید API را از حساب togpt خودتان بگیرید.</p>
-        {sset?.aiLastError && (
-          <div className="rounded-2xl border border-rose-300 bg-rose-50 px-4 py-3 space-y-1" data-ai-health>
-            <div className="font-black text-xs text-rose-800 flex items-center gap-1.5">
-              <AlertTriangle className="w-4 h-4" />
-              {sset.aiLastError.kind === 'credit' ? 'شارژ پنل togpt.ir شما تمام شده است' : sset.aiLastError.kind === 'key' ? 'togpt.ir کلید API شما را نپذیرفت' : sset.aiLastError.kind === 'connection' ? 'ارتباط با togpt.ir برقرار نیست' : 'سرویس togpt.ir خطا می‌دهد'}
-            </div>
-            <p className="text-[11px] font-bold text-rose-900 leading-6">{sset.aiLastError.message}</p>
-            <p className="text-[10px] font-bold text-rose-700">{formatDateTime(sset.aiLastError.at)} · تا اولین استفادهٔ موفق این پیام می‌ماند.</p>
-          </div>
-        )}
-        <div>
-          <label className={label}>نشانی سرویس (ثابت است و تغییر نمی‌کند)</label>
-          <input className={`${field} opacity-70`} dir="ltr" readOnly value={sset?.aiBaseUrl || 'https://togpt.ir/api/v1'} />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className={label}>کلید API {sset?.aiKeySet ? '(ذخیره شده؛ برای تغییر، کلید تازه را بنویسید)' : ''}</label>
-            <input className={field} dir="ltr" type="password" autoComplete="new-password" value={aiKey} onChange={(e) => setAiKey(e.target.value)} placeholder={sset?.aiKeySet ? '••••••••••' : 'sk-…'} />
-          </div>
-          <div>
-            <label className={label}>نام مدل</label>
-            <input className={field} dir="ltr" value={aiModel} onChange={(e) => setAiModel(e.target.value)} placeholder="نام مدل را از togpt بگیرید" />
-          </div>
-        </div>
-        <div>
-          <label className={label}>نام مدل تبدیل صدا به متن (برای نوشتن متن مکالمه‌های ضبط‌شده)</label>
-          <input className={field} dir="ltr" value={aiStt} onChange={(e) => setAiStt(e.target.value)} placeholder="google/gemini-3.7-flash" />
-        </div>
-        <div>
-          <label className={label}>اطلاعات شرکت و محصولات برای دستیار (اختیاری)</label>
-          <textarea className={`${field} min-h-[96px] leading-6`} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="مثلاً: ساعت کاری، شمارهٔ تماس، پاسخ سؤال‌های پرتکرار، روش نصب و عیب‌یابی محصولات…" />
-        </div>
-        <label className="flex items-center gap-2 text-xs font-black cursor-pointer min-h-[36px]"><input type="checkbox" checked={aiOn} onChange={(e) => setAiOn(e.target.checked)} />پاسخ هوشمند روشن باشد</label>
-        {aiTest && <div className="text-[11px] font-bold bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 leading-6">{aiTest}</div>}
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => save()} className="px-6 py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black cursor-pointer">ذخیرهٔ تنظیمات</button>
-          <button
-            type="button"
-            disabled={!sset?.aiKeySet}
-            onClick={async () => {
-              setAiTest('در حال آزمایش…');
-              try {
-                setAiTest('پاسخ آزمایشی: ' + (await api.supportAiTest()).reply);
-              } catch (e) {
-                setAiTest(e instanceof Error ? e.message : 'آزمایش انجام نشد.');
-              }
-            }}
-            className="px-5 py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-white border border-violet-200 text-violet-800 disabled:opacity-50 text-xs font-black cursor-pointer"
-          >
-            آزمایش اتصال
-          </button>
-          {sset?.aiKeySet && <button type="button" onClick={async () => { await save({ aiEnabled: false, aiKey: '', clearKey: true }); setAiOn(false); }} className="px-5 py-2.5 min-h-[44px] sm:min-h-0 rounded-xl text-rose-700 text-xs font-black cursor-pointer">پاک‌کردن کلید</button>}
-        </div>
+      <section className="bg-violet-50/60 border border-violet-200 rounded-3xl p-5 flex items-center gap-3" data-support-ai-moved>
+        <Bot className="w-5 h-5 text-violet-600 shrink-0" />
+        <p className="text-[11px] font-bold text-violet-900 leading-6">کلید و تنظیم‌های هوش مصنوعی و پاسخ هوشمند پشتیبانی به «تنظیمات سیستم ← هوش مصنوعی» رفته است؛ همهٔ تنظیم‌های هوش مصنوعی همان‌جاست.</p>
       </section>
 
       {editing && <PlanForm initial={editing.p} onClose={() => setEditing(null)} onError={toast} onSaved={() => { setEditing(null); toast('پلن ذخیره شد.'); loadPlans(); }} />}

@@ -452,22 +452,14 @@ export const AiSalesReport: React.FC<{ analysis: TeamAnalysis; days: number; ran
       {err && <div className="text-[12px] font-bold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5 leading-7" data-ai-error>{err}</div>}
 
       {isAdmin && sch && (
-        <div className="rounded-3xl border border-[#EBDBCE] bg-white p-4 space-y-3" data-ai-schedule>
-          <div className="font-black text-sm text-[#3A241F] flex items-center gap-2"><CalendarClock className="w-4 h-4 text-violet-700" />تحلیل خودکار</div>
-          <p className="text-[11px] font-bold text-[#8C6F66] leading-6">اگر روشن باشد، خود سرور هر چند روز یک بار اعداد فروش را از سامانه می‌خواند، هوش مصنوعی را صدا می‌زند و گزارش را نگه می‌دارد؛ مدیران سامانه اعلان می‌گیرند و گزارش در «گزارش‌های هوشمند قبلی» همین‌جا می‌ماند. هر بار از حساب togpt شما هزینه دارد.</p>
+        <div className="rounded-3xl border border-[#EBDBCE] bg-white p-4 space-y-2" data-ai-schedule>
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-xs font-black cursor-pointer"><input type="checkbox" checked={sch.enabled} disabled={schBusy} onChange={(e) => saveSch({ ...sch, enabled: e.target.checked })} data-ai-schedule-on />روشن باشد</label>
-            <label className="flex items-center gap-1.5 text-xs font-bold">هر
-              <select className={field} value={sch.everyDays} disabled={schBusy} onChange={(e) => saveSch({ ...sch, everyDays: Number(e.target.value) })}>{(EVERY.includes(sch.everyDays) ? EVERY : [...EVERY, sch.everyDays].sort((x, y) => x - y)).map((n) => <option key={n} value={n}>{toPersianDigits(n)}</option>)}</select>
-              روز</label>
-            <label className="flex items-center gap-1.5 text-xs font-bold">داده‌های
-              <select className={field} value={sch.periodDays} disabled={schBusy} onChange={(e) => saveSch({ ...sch, periodDays: Number(e.target.value) })}>{(PERIODS.includes(sch.periodDays) ? PERIODS : [...PERIODS, sch.periodDays].sort((x, y) => x - y)).map((n) => <option key={n} value={n}>{toPersianDigits(n)}</option>)}</select>
-              روز اخیر</label>
+            <div className="font-black text-sm text-[#3A241F] flex items-center gap-2"><CalendarClock className="w-4 h-4 text-violet-700" />تحلیل خودکار: {sch.enabled ? `روشن، هر ${toPersianDigits(sch.everyDays)} روز` : 'خاموش'}</div>
             <button type="button" disabled={busy} onClick={runServer} className="px-4 py-2 rounded-xl border border-violet-300 bg-violet-50 text-violet-800 text-[11px] font-black cursor-pointer disabled:opacity-60" data-ai-schedule-run>همین حالا بنویس</button>
           </div>
           <div className="text-[10.5px] font-bold text-[#8C6F66] leading-6">
-            {sch.lastRunAt ? `آخرین اجرای خودکار: ${whenText(sch.lastRunAt).date} ساعت ${whenText(sch.lastRunAt).time}` : 'هنوز اجرای خودکاری نشده است.'}
-            {sch.enabled && sch.lastRunAt ? ` · بعدی حدود ${whenText(new Date(new Date(sch.lastRunAt).getTime() + sch.everyDays * 86400000).toISOString()).date}` : ''}
+            {sch.lastRunAt ? `آخرین اجرای خودکار: ${whenText(sch.lastRunAt).date} ساعت ${whenText(sch.lastRunAt).time}. ` : 'هنوز اجرای خودکاری نشده است. '}
+            روشن و خاموش کردن و تعداد روز در «تنظیمات سیستم ← هوش مصنوعی» است.
           </div>
           {sch.lastError && <div className="text-[11px] font-bold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 leading-6">آخرین اجرای خودکار انجام نشد: {sch.lastError}</div>}
         </div>

@@ -165,6 +165,17 @@ export const MENUS: MenuDef[] = [
       { id: 'sepidar.receipt', label: 'ثبت دریافتی', hint: 'برای فاکتور رسید دریافت ثبت می‌کند.', flag: listItem('sepidar.receipt', 'sepidarPerms', 'receipt', 'ثبت دریافتی', 'برای فاکتور رسید دریافت ثبت می‌کند.') },
     ],
   },
+  {
+    id: 'ai',
+    title: 'هوش مصنوعی',
+    tone: '#7C3AED',
+    subs: [
+      { id: 'ai.letters', label: 'نوشتن نامه', hint: 'دکمهٔ «با هوش مصنوعی» در ویرایشگر نامه (نوشتن و کامل‌کردن متن).' },
+      { id: 'ai.minutes', label: 'صورتجلسه', hint: 'نوشتن صورتجلسه از یادداشت یا ویس و خلاصه‌کردن شرح مذاکرات.' },
+      { id: 'ai.calls', label: 'تبدیل مکالمه به متن', hint: 'تبدیل مکالمهٔ ضبط‌شده به متن (دیدن متنِ تبدیل‌شده با این تیک کاری ندارد).' },
+      { id: 'ai.customer', label: 'تحلیل مشتری', hint: 'تحلیل سطح مشتری در پروندهٔ او.' },
+    ],
+  },
 ];
 
 export const isAdminUser = (u: Pick<User, 'role'>) => u.role === 'SUPER_ADMIN';
