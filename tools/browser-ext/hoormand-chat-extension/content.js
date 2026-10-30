@@ -100,6 +100,18 @@
     return document.body;
   };
 
+  // an avatar: a picture / icon, or the round coloured disc with a letter that messengers show when a person has no photo
+  const hasAvatar = (el) => {
+    if (el.querySelector('img, canvas, svg, [class*="avatar" i], [class*="photo" i]')) return true;
+    return [...el.querySelectorAll('div, span')].some((d) => {
+      const r = d.getBoundingClientRect();
+      if (r.width < 28 || r.width > 90 || Math.abs(r.width - r.height) > 6) return false;
+      const br = getComputedStyle(d).borderRadius || '';
+      const n = parseFloat(br);
+      return /%/.test(br) ? n >= 30 : n >= Math.min(r.width, r.height) / 3;
+    });
+  };
+
   // the first row under the search box: wide, not too tall, with an avatar
   const resultRows = (searchEl) => {
     const sr = searchEl.getBoundingClientRect();
@@ -109,7 +121,7 @@
       if (!visible(el)) return false;
       const r = el.getBoundingClientRect();
       if (r.top < sr.bottom - 2 || r.height < 44 || r.height > 130 || r.width < cw * 0.7) return false;
-      if (!el.querySelector('img, canvas, svg, [class*="avatar" i], [class*="photo" i]')) return false;
+      if (!hasAvatar(el)) return false;
       const t = (el.innerText || '').trim();
       return t.length > 0 && !/^(نتایج|چت‌های اخیر|جستجوی اخیر|گفتگوهای|recent|global)/i.test(t);
     });
@@ -207,11 +219,20 @@
     let last = '';
     let stable = 0;
     let rows = [];
-    for (const end = Date.now() + 9000; Date.now() < end;) {
+    // the answer of a messenger can take a while (grey placeholders and a spinner show meanwhile): wait for it, up to 30 seconds,
+    // and stop early only when rows have settled or the page itself says there is nothing
+    const nothing = () => /(نتیجه‌ای|موردی|چیزی)[^]{0,25}(یافت|پیدا)[^]{0,8}نشد|no results|nothing found/i.test((columnOf(box).innerText || ''));
+    const loading = () => !!columnOf(box).querySelector('[class*="skeleton" i], [class*="shimmer" i], [class*="spinner" i], [class*="loading" i], [class*="loader" i]');
+    let emptySince = 0;
+    for (const end = Date.now() + 30000; Date.now() < end;) {
       await sleep(350);
       rows = resultRows(box);
+      if (!rows.length) {
+        if (nothing() && !loading()) { if (!emptySince) emptySince = Date.now(); if (Date.now() - emptySince > 1500) break; } else emptySince = 0;
+        continue;
+      }
       const sig = rows.map((r) => (r.innerText || '').trim()).join('|');
-      if (rows.length && sig === last) { if (++stable >= 3) break; } else { stable = 0; last = sig; }
+      if (sig === last) { if (++stable >= 3 && !loading()) break; } else { stable = 0; last = sig; }
     }
     // the answer is in sections («گفتگوها» = people and chats, «پیام‌ها» = messages that contain the word): messages are not people
     const headers = deepAll(document, '*').filter(visible).filter((el) => el.children.length === 0).map((el) => ({ el, t: norm(el.textContent) }))
