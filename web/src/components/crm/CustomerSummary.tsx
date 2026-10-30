@@ -10,6 +10,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { RecordingButton } from '../common/CallLog';
 import { CustomerAiAnalysis } from './CustomerAiAnalysis';
 import { noteEntries } from '../common/ParagraphNotes';
+import { SocialStrip } from './SocialNetworks';
 import { formatTaskDate } from '../../lib/taskDates';
 
 const when = (iso?: string) => {
@@ -187,6 +188,7 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
           ))}
         </div>
         <CustomerAiAnalysis customerId={customer.id} />
+        <div onClick={(e) => e.stopPropagation()} className="cursor-default"><SocialStrip customer={customer} /></div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Block title="یادداشت‌ها" count={noteActs.length + custNotes.length}>
             {custNotes.map((n, i) => (

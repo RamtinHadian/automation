@@ -3,7 +3,7 @@ import { Check, Minus, Plus, Share2, X } from 'lucide-react';
 import { Customer, SocialEntry } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { Modal } from './crmUi';
-import { isMobileNumber } from '../../lib/customerImport';
+import { isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 
 export interface NetworkDef { id: string; name: string; hint: string; iran?: boolean }
 
@@ -260,5 +260,72 @@ export const SocialDialog: React.FC<{ customer: Customer; onClose: () => void; o
         {section('شبکه‌های جهانی', false)}
       </div>
     </Modal>
+  );
+};
+
+/** the address that opens a conversation with this account (a user name or a mobile number) on the network; '' when only the number can be copied */
+export const socialLink = (id: string, account: string): string => {
+  const a = normText(account).replace(/^@/, '');
+  const isNumber = /^[0-9+\s-]+$/.test(a);
+  const intl = isNumber ? normPhone(a).replace(/^0/, '98') : '';
+  switch (id) {
+    case 'telegram': return isNumber ? `https://t.me/+${intl}` : `https://t.me/${a}`;
+    case 'whatsapp':
+    case 'whatsappBusiness': return isNumber ? `https://wa.me/${intl}` : '';
+    case 'instagram': return isNumber ? '' : `https://instagram.com/${a}`;
+    case 'bale': return isNumber ? `https://ble.ir/+${intl}` : `https://ble.ir/${a}`;
+    case 'eitaa': return isNumber ? '' : `https://eitaa.com/${a}`;
+    case 'rubika': return isNumber ? '' : `https://rubika.ir/${a}`;
+    default: return '';
+  }
+};
+
+/** All networks of a customer in one row (the full summary): the ones not entered are dim; a click opens the chat with him there. */
+export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
+  const [note, setNote] = useState('');
+  const open = (id: string, name: string, account: string) => {
+    const url = socialLink(id, account);
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setNote('');
+      return;
+    }
+    try { void navigator.clipboard?.writeText(normPhone(account) || account); } catch { /* no clipboard */ }
+    setNote(`${name} لینک مستقیم با شماره ندارد؛ «${normPhone(account) || account}» کپی شد، در خود برنامه جست‌وجو کنید.`);
+  };
+  return (
+    <section className="rounded-2xl bg-white/10 border border-white/20 overflow-hidden" data-social-strip>
+      <div className="px-4 py-2.5 bg-white/10 text-xs font-black flex items-center justify-between">
+        <span>شبکه‌های اجتماعی مشتری</span>
+        <span className="opacity-80 text-[10px] font-bold">برای پیام دادن روی هر کدام بزنید</span>
+      </div>
+      <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        {NETWORKS.map((n) => {
+          const e = entryOf(customer, n.id);
+          const set = e.accounts.length > 0;
+          return (
+            <div key={n.id} className={`rounded-xl border px-3 py-2 min-w-0 ${set ? 'bg-white/15 border-white/30' : 'bg-black/20 border-white/10 opacity-55'}`} data-social-strip-item={n.id} data-set={set ? '1' : '0'}>
+              <div className="flex items-center gap-2">
+                <span className={set ? '' : 'grayscale'}><SocialLogo id={n.id} size={22} /></span>
+                <span className="text-[11px] font-black truncate">{n.name}</span>
+                {e.count > 0 && <span className="ms-auto text-[10px] font-black bg-white/20 rounded-full px-1.5">{toPersianDigits(e.count)} تعامل</span>}
+              </div>
+              {set ? (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {e.accounts.map((a) => (
+                    <button key={a} type="button" onClick={(ev) => { ev.stopPropagation(); open(n.id, n.name, a); }} title={`پیام دادن در ${n.name}`} className="text-[11px] font-black bg-white text-[#3A241F] rounded-lg px-2 py-0.5 hover:bg-violet-100 cursor-pointer max-w-full truncate" dir="ltr" data-social-strip-link>
+                      {/^[0-9۰-۹+]+$/.test(a) ? toPersianDigits(a) : a}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-1.5 text-[10px] font-bold">{e.on ? 'روشن است ولی شناسه‌ای وارد نشده' : 'ثبت نشده'}</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {note && <div className="px-4 pb-3 text-[11px] font-bold text-amber-200" data-social-strip-note>{note}</div>}
+    </section>
   );
 };
