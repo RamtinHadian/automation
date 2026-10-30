@@ -202,8 +202,24 @@ export interface Customer {
   notes?: string;
   /** the notes paragraph by paragraph, each with its time and writer (`notes` keeps the same text joined by new lines) */
   noteLog?: NoteEntry[];
+  /** virtual interactions per network (bale, eitaa, rubika, instagram, whatsapp, whatsappBusiness, telegram) */
+  social?: Record<string, SocialEntry>;
   createdAt: string;
   updatedAt: string;
+}
+
+/** What a customer has on one social network: switched on, his accounts there, and how many times we were in touch. */
+export interface SocialEntry {
+  on: boolean;
+  accounts: string[];
+  count: number;
+}
+
+/** What a customer has on one social network: switched on, his accounts there, and how many times we were in touch. */
+export interface SocialEntry {
+  on: boolean;
+  accounts: string[];
+  count: number;
 }
 
 /** One paragraph of a record's notes: when it was written (date, hour, minute) and by whom. */

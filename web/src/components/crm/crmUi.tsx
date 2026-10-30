@@ -7,7 +7,7 @@ export const label = 'block text-[11px] font-black text-[#3A241F] mb-1.5';
 
 export const SOURCES = ['معرفی دوستان', 'وب‌سایت', 'تماس ورودی', 'نمایشگاه', 'شبکه‌های اجتماعی', 'مشتری قبلی'];
 
-export const Modal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode; wide?: boolean; onTop?: boolean | 'max' }> = ({ title, onClose, children, footer, wide, onTop }) => (
+export const Modal: React.FC<{ title: React.ReactNode; onClose: () => void; children: React.ReactNode; footer: React.ReactNode; wide?: boolean; onTop?: boolean | 'max' }> = ({ title, onClose, children, footer, wide, onTop }) => (
   <div className={`fixed inset-0 ${onTop === 'max' ? 'z-[2147483100]' : onTop ? 'z-[70]' : 'z-50'} flex items-center justify-center bg-black/50 backdrop-blur-xs p-3`} onMouseDown={onClose}>
     <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className={`bg-white rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} max-h-[92dvh] flex flex-col border border-[#EBDBCE] text-right`}>
       <div className="flex items-center justify-between px-5 py-4 border-b border-[#EBDBCE]">

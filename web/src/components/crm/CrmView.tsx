@@ -38,9 +38,10 @@ import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
+import { SocialButton, SocialDialog } from './SocialNetworks';
 import { ParagraphNotes, noteEntries, canEditNote } from '../common/ParagraphNotes';
 import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/taskDates';
-import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
+import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SocialEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
 import { CallList } from '../common/CallLog';
@@ -1148,6 +1149,7 @@ export const CrmView: React.FC = () => {
             setEditingCustomer(cu);
           }}
           onMerge={isAdmin ? () => setMergeFor(customerById.get(openCustomer)!) : undefined}
+          onSocial={(social) => saveCustomer({ ...customerById.get(openCustomer)!, social })}
           onNotes={(noteLog, notes) => saveCustomer({ ...customerById.get(openCustomer)!, noteLog, notes })}
           onAttachments={(files) => saveCustomer({ ...customerById.get(openCustomer)!, attachments: files })}
           onNewDeal={() => { const nd = newDeal(openCustomer); setOpenCustomer(null); setEditingDeal({ deal: nd, isNew: true }); }}
@@ -1387,8 +1389,10 @@ const CustomerDetail: React.FC<{
   onDeleteActivity: (a: CrmActivity) => void;
   onMerge?: () => void;
   onNotes: (noteLog: NoteEntry[], notes: string) => void;
+  onSocial: (social: Record<string, SocialEntry>) => void;
   onAttachments: (files: CustomerFile[]) => void;
-}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onNotes, onAttachments, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
+}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onNotes, onSocial, onAttachments, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
+  const [socialOpen, setSocialOpen] = useState(false);
   const [type, setType] = useState<ActivityType>('NOTE');
   const [text, setText] = useState('');
   // «the customer looked for a product we did not have»: ticked, then the product's name (and how many, if known)
@@ -1476,7 +1480,7 @@ const CustomerDetail: React.FC<{
   return (
     <Modal
       wide
-      title={c.name}
+      title={<span className="flex items-center gap-3 min-w-0"><span className="truncate">{c.name}</span>{!c.hiddenContact && <SocialButton customer={c} onClick={() => setSocialOpen(true)} />}</span>}
       onClose={onClose}
       footer={
         <>
@@ -1560,6 +1564,7 @@ const CustomerDetail: React.FC<{
           )}
         </div>
       )}
+      {socialOpen && <SocialDialog customer={c} onClose={() => setSocialOpen(false)} onSave={onSocial} />}
       {!c.hiddenContact && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-3 space-y-2" data-customer-notes>
           <div className="text-[11px] font-black text-[#3A241F]">توضیحات</div>
