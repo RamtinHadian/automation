@@ -149,6 +149,9 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
     return ev.filter((e) => e.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 120);
   }, [s, calls, seesMoney, customer]);
   const custNotes = noteEntries(customer.noteLog, customer.notes);
+  const noteActs = s.others.filter((a) => a.type === 'NOTE');
+  const followActs = s.others.filter((a) => a.type === 'FOLLOWUP');
+  const meetActs = s.others.filter((a) => a.type === 'MEETING' || a.type === 'CALL');
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', esc);
@@ -185,6 +188,28 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
         </div>
         <CustomerAiAnalysis customerId={customer.id} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Block title="یادداشت‌ها" count={noteActs.length + custNotes.length}>
+            {custNotes.map((n, i) => (
+              <div key={'cn' + i} className="px-4 py-2.5 text-xs" data-summary-customer-note>
+                <div className="leading-6 whitespace-pre-wrap">{n.text}</div>
+                <div className="text-[10px] opacity-75">توضیحات مشتری{n.at ? ` · ${when(n.at)}` : ''}{n.byName ? ` · ${n.byName}` : ''}</div>
+              </div>
+            ))}
+            {noteActs.slice(0, 40).map((a) => (
+              <div key={a.id} className="px-4 py-2.5 text-xs">
+                <div className="leading-6 whitespace-pre-wrap">{a.text}</div>
+                <div className="text-[10px] opacity-75">{when(a.createdAt)} · {a.authorName}</div>
+              </div>
+            ))}
+          </Block>
+          <Block title="پیگیری‌ها" count={followActs.length}>
+            {followActs.slice(0, 40).map((a) => (
+              <div key={a.id} className="px-4 py-2.5 text-xs" data-summary-followup>
+                <div className="leading-6 whitespace-pre-wrap">{a.text}</div>
+                <div className="text-[10px] opacity-75">{a.done ? 'انجام شد' : a.dueDate ? `موعد: ${formatTaskDate(a.dueDate)}` : 'باز'} · ثبت: {when(a.createdAt)} · {a.authorName}</div>
+              </div>
+            ))}
+          </Block>
           <Block title="فروش‌ها و خریدها" count={s.won.length}>
             {s.won.map((d) => (
               <div key={d.id} className="px-4 py-2.5 text-xs">
@@ -207,17 +232,11 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
               </div>
             ))}
           </Block>
-          <Block title="یادداشت‌ها، پیگیری‌ها و جلسه‌ها" count={s.others.length + custNotes.length}>
-            {custNotes.map((n, i) => (
-              <div key={'cn' + i} className="px-4 py-2.5 text-xs" data-summary-customer-note>
-                <div className="leading-6 whitespace-pre-wrap">{n.text}</div>
-                <div className="text-[10px] opacity-75">توضیحات مشتری{n.at ? ` · ${when(n.at)}` : ''}{n.byName ? ` · ${n.byName}` : ''}</div>
-              </div>
-            ))}
-            {s.others.slice(0, 40).map((a) => (
+          <Block title="جلسه‌ها و تماس‌های ثبت‌شده" count={meetActs.length}>
+            {meetActs.slice(0, 40).map((a) => (
               <div key={a.id} className="px-4 py-2.5 text-xs">
                 <div className="leading-6 whitespace-pre-wrap">{a.text}</div>
-                <div className="text-[10px] opacity-75">{when(a.createdAt)} · {a.authorName}</div>
+                <div className="text-[10px] opacity-75">{ACT_LABEL[a.type] || 'تعامل'} · {when(a.createdAt)} · {a.authorName}</div>
               </div>
             ))}
           </Block>
