@@ -1,41 +1,68 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, Cake, CalendarClock, CalendarDays, ChevronDown, ChevronUp, LayoutGrid, ListChecks, Moon, Snowflake, Sparkles } from 'lucide-react';
+import { AlertTriangle, Cake, CalendarClock, CalendarDays, ChevronDown, ChevronUp, LayoutGrid, ListChecks, Moon, Snowflake, Sparkles, Trophy, Users } from 'lucide-react';
 import { CrmActivity, Customer, Deal } from '../../types';
 import { birthMonthDay, buildMembers, normalizeClub } from '../../lib/club';
 import { formatMoney, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate, isoToJalaliParts, todayIso } from '../../lib/taskDates';
 import { monthNow, personStats, Targets } from '../../lib/team';
+import { Modal } from './crmUi';
 
 const STALLED_DAYS = 7;
 const OPEN = ['NEW', 'CONTACTED', 'PROPOSAL', 'NEGOTIATION'];
 
-const CARD_IDS = ['follow', 'stalled', 'closing', 'birthday', 'quiet'];
+const CARD_IDS = ['follow', 'stalled', 'closing', 'birthday', 'quiet', 'newDeals', 'newCustomers', 'bigDeals'];
 const CARD_TITLES: Record<string, string> = {
   follow: 'پیگیری‌های امروز و عقب‌افتاده',
   stalled: 'فرصت‌های بدون تغییر بیش از ۷ روز',
   closing: 'فرصت‌هایی که تا یک هفته دیگر باید بسته شوند',
   birthday: 'تولد امروز مشتری‌های شما',
   quiet: 'مشتریانی که مدتی خرید نکرده‌اند',
+  newDeals: 'فرصت‌های تازهٔ ۷ روز اخیر',
+  newCustomers: 'مشتریان تازهٔ ۷ روز اخیر',
+  bigDeals: 'بزرگ‌ترین فرصت‌های باز',
 };
-const LAYOUT_KEY = 'crm_today_layout_v1_';
-/** at most this many cards at once: two by two keeps the page tidy */
-const MAX_CARDS = 4;
-const DEFAULT_HIDDEN = ['birthday']; // the birthdays are also counted in the top tiles
-interface TodayLayout { order: string[]; hidden: string[] }
+/** the small boxes inside the purple header: the person picks at most MAX_TILES of them (four fit in one row) */
+const TILE_IDS = ['todayF', 'lateF', 'stalled', 'birthday', 'closing', 'quiet', 'newDeals', 'newCustomers'];
+const TILE_TITLES: Record<string, string> = {
+  todayF: 'پیگیری برای امروز',
+  lateF: 'پیگیری عقب‌افتاده',
+  stalled: 'فرصت گیرکرده',
+  birthday: 'تولد امروز',
+  closing: 'فرصت نزدیک به بسته‌شدن',
+  quiet: 'مدتی خرید نکرده',
+  newDeals: 'فرصت تازهٔ ۷ روز',
+  newCustomers: 'مشتری تازهٔ ۷ روز',
+};
+const MAX_TILES = 4;
+const DEFAULT_TILES = ['todayF', 'lateF', 'stalled', 'birthday'];
+const DEFAULT_HIDDEN = ['newDeals', 'newCustomers', 'bigDeals']; // the extra cards are off until the person turns them on
+const LAYOUT_KEY = 'crm_today_layout_v2_';
+const OLD_LAYOUT_KEY = 'crm_today_layout_v1_';
+interface TodayLayout { order: string[]; hidden: string[]; tiles: string[] }
+const defaultLayout = (): TodayLayout => ({ order: [...CARD_IDS], hidden: [...DEFAULT_HIDDEN], tiles: [...DEFAULT_TILES] });
 /** The saved choice of this person; a card added later is appended, one that no longer exists is dropped. */
 const loadLayout = (me: string): TodayLayout => {
   try {
-    const v = JSON.parse(localStorage.getItem(LAYOUT_KEY + me) || 'null') as Partial<TodayLayout> | null;
+    const v = JSON.parse(localStorage.getItem(LAYOUT_KEY + me) || localStorage.getItem(OLD_LAYOUT_KEY + me) || 'null') as Partial<TodayLayout> | null;
     if (v && Array.isArray(v.order)) {
       const order = [...v.order.filter((id) => CARD_IDS.includes(id)), ...CARD_IDS.filter((id) => !v.order!.includes(id))];
-      const hidden = (Array.isArray(v.hidden) ? v.hidden : []).filter((id) => CARD_IDS.includes(id));
-      const on = order.filter((id) => !hidden.includes(id));
-      return { order, hidden: [...hidden, ...on.slice(MAX_CARDS)] };
+      const wasOld = !Array.isArray(v.tiles);
+      const hidden = [...(Array.isArray(v.hidden) ? v.hidden : []).filter((id) => CARD_IDS.includes(id)), ...(wasOld ? DEFAULT_HIDDEN : [])];
+      const tiles = (Array.isArray(v.tiles) ? v.tiles : DEFAULT_TILES).filter((id) => TILE_IDS.includes(id)).slice(0, MAX_TILES);
+      return { order, hidden: [...new Set(hidden)], tiles };
     }
   } catch { /* an unreadable choice is the same as none */ }
-  return { order: [...CARD_IDS], hidden: [...DEFAULT_HIDDEN] };
+  return defaultLayout();
 };
+
+/** a switch (on / off) */
+const Switch: React.FC<{ on: boolean; onChange: () => void; label: string }> = ({ on, onChange, label }) => (
+  <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onChange} data-switch={on ? 'on' : 'off'}
+    className={`relative shrink-0 w-11 h-6 rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${on ? 'bg-violet-600' : 'bg-[#D9CCC4]'}`}>
+    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all ${on ? 'left-0.5' : 'left-[1.375rem]'}`} />
+  </button>
+);
 
 const Section: React.FC<{ icon: React.ReactNode; title: string; count: number; tone: string; children: React.ReactNode }> = ({ icon, title, count, tone, children }) => (
   <section className="bg-white border border-[#EBDBCE] rounded-3xl overflow-hidden" data-today-section>
@@ -81,11 +108,16 @@ export const TodayView: React.FC<{
   const jt = isoToJalaliParts(today);
   const myCustomers = useMemo(() => customers.filter((c) => all || c.ownerId === me), [customers, me, all]);
   const birthdays = jt ? myCustomers.filter((c) => { const md = birthMonthDay(c.birthDate); return !!md && md[0] === jt[1] && md[1] === jt[2]; }) : [];
-  const quiet = useMemo(() => {
+  const quietAll = useMemo(() => {
     const cfg = normalizeClub(null);
     const limit = Date.now() - cfg.dormantDays * 86400000;
-    return buildMembers(myCustomers, deals, cfg).filter((m) => m.last && new Date(m.last).getTime() < limit).slice(0, 8);
+    return buildMembers(myCustomers, deals, cfg).filter((m) => m.last && new Date(m.last).getTime() < limit);
   }, [myCustomers, deals]);
+  const quiet = quietAll.slice(0, 8);
+  const weekAgo = Date.now() - 7 * 86400000;
+  const newDeals = useMemo(() => myOpen.filter((d) => d.createdAt && new Date(d.createdAt).getTime() >= weekAgo).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')), [myOpen, weekAgo]);
+  const newCustomers = useMemo(() => myCustomers.filter((c) => c.createdAt && new Date(c.createdAt).getTime() >= weekAgo).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')), [myCustomers, weekAgo]);
+  const bigDeals = useMemo(() => [...myOpen].sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 12), [myOpen]);
 
   // my sales this month against my target
   const myStat = useMemo(() => personStats([me], deals, followups, monthNow(), targets)[0], [me, deals, followups, targets]);
@@ -103,6 +135,7 @@ export const TodayView: React.FC<{
 
   const [layout, setLayout] = useState<TodayLayout>(() => loadLayout(me));
   const [layoutOpen, setLayoutOpen] = useState(false);
+  const [layoutNote, setLayoutNote] = useState('');
   const saveLayout = (next: TodayLayout) => {
     setLayout(next);
     try { localStorage.setItem(LAYOUT_KEY + me, JSON.stringify(next)); } catch { /* the choice is only kept for this visit */ }
@@ -115,16 +148,18 @@ export const TodayView: React.FC<{
     [order[i], order[j]] = [order[j], order[i]];
     saveLayout({ ...layout, order });
   };
-  const shown = layout.order.filter((id) => !layout.hidden.includes(id)).length;
-  const [layoutNote, setLayoutNote] = useState('');
-  const toggle = (id: string) => {
-    if (layout.hidden.includes(id)) {
-      if (shown >= MAX_CARDS) { setLayoutNote(`حداکثر ${toPersianDigits(MAX_CARDS)} کادر می‌تواند روشن باشد تا صفحه به‌هم نریزد؛ اول یکی را خاموش کنید.`); return; }
+  // the cards below the purple box: as many as the person wants
+  const toggleCard = (id: string) => saveLayout({ ...layout, hidden: layout.hidden.includes(id) ? layout.hidden.filter((x) => x !== id) : [...layout.hidden, id] });
+  // the boxes inside the purple box: at most four
+  const toggleTile = (id: string) => {
+    if (layout.tiles.includes(id)) {
       setLayoutNote('');
-      saveLayout({ ...layout, hidden: layout.hidden.filter((x) => x !== id) });
+      saveLayout({ ...layout, tiles: layout.tiles.filter((x) => x !== id) });
+    } else if (layout.tiles.length >= MAX_TILES) {
+      setLayoutNote(`در کادر بنفش حداکثر ${toPersianDigits(MAX_TILES)} مورد جا می‌شود؛ اول یکی را خاموش کنید.`);
     } else {
       setLayoutNote('');
-      saveLayout({ ...layout, hidden: [...layout.hidden, id] });
+      saveLayout({ ...layout, tiles: TILE_IDS.filter((x) => x === id || layout.tiles.includes(x)) });
     }
   };
   // the cards of the page; the person chooses which of them are shown and in what order (kept in this browser)
@@ -154,7 +189,7 @@ export const TodayView: React.FC<{
           </Section>
     ),
     quiet: (
-          <Section icon={<Moon className="w-4 h-4" />} title="مشتریانی که مدتی خرید نکرده‌اند" count={quiet.length} tone="bg-indigo-50 text-indigo-800">
+          <Section icon={<Moon className="w-4 h-4" />} title="مشتریانی که مدتی خرید نکرده‌اند" count={quietAll.length} tone="bg-indigo-50 text-indigo-800">
             {quiet.map((m) => (
               <button key={m.customer.id} type="button" onClick={() => onOpenCustomer(m.customer.id)} className="w-full text-right flex items-center justify-between gap-3 bg-[#FAF5F1] hover:bg-[#F3E8DF] border border-[#EBDBCE] rounded-2xl px-3.5 py-2.5 cursor-pointer">
                 <span className="text-[12px] font-black text-[#3A241F] truncate">{m.customer.name}</span>
@@ -166,6 +201,38 @@ export const TodayView: React.FC<{
             ))}
           </Section>
     ),
+    newDeals: (
+      <Section icon={<Sparkles className="w-4 h-4" />} title="فرصت‌های تازهٔ ۷ روز اخیر" count={newDeals.length} tone="bg-emerald-50 text-emerald-800">
+        {newDeals.slice(0, 12).map((d) => dealRow(d, `${toPersianDigits(daysSince(d.createdAt))} روز پیش`))}
+      </Section>
+    ),
+    newCustomers: (
+      <Section icon={<Users className="w-4 h-4" />} title="مشتریان تازهٔ ۷ روز اخیر" count={newCustomers.length} tone="bg-teal-50 text-teal-800">
+        {newCustomers.slice(0, 12).map((c) => (
+          <button key={c.id} type="button" onClick={() => onOpenCustomer(c.id)} className="w-full text-right flex items-center justify-between gap-3 bg-[#FAF5F1] hover:bg-[#F3E8DF] border border-[#EBDBCE] rounded-2xl px-3.5 py-2.5 cursor-pointer">
+            <span className="text-[12px] font-black text-[#3A241F] truncate">{c.name}</span>
+            <span className="shrink-0 text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(daysSince(c.createdAt))} روز پیش</span>
+          </button>
+        ))}
+      </Section>
+    ),
+    bigDeals: (
+      <Section icon={<Trophy className="w-4 h-4" />} title="بزرگ‌ترین فرصت‌های باز" count={bigDeals.length} tone="bg-fuchsia-50 text-fuchsia-800">
+        {bigDeals.map((d) => dealRow(d, `${formatMoney(d.amount)} ${unitName()}`))}
+      </Section>
+    ),
+  };
+
+  // the numbers in the boxes of the purple header
+  const tileData: Record<string, [number, React.ElementType]> = {
+    todayF: [mineF.length - lateCount, ListChecks],
+    lateF: [lateCount, AlertTriangle],
+    stalled: [stalled.length, Snowflake],
+    birthday: [birthdays.length, Cake],
+    closing: [closingSoon.length, CalendarClock],
+    quiet: [quietAll.length, Moon],
+    newDeals: [newDeals.length, Sparkles],
+    newCustomers: [newCustomers.length, Users],
   };
 
   return (
@@ -185,27 +252,10 @@ export const TodayView: React.FC<{
           </div>
         )}
         <div className="text-[11px] font-bold opacity-85 mt-1">{formatTaskDate(today)}</div>
-        <button type="button" onClick={() => setLayoutOpen((v) => !v)} className="mt-3 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl px-3 py-1.5 text-[11px] font-black cursor-pointer" data-today-layout-toggle>
+        <button type="button" onClick={() => { setLayoutNote(''); setLayoutOpen(true); }} className="mt-3 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl px-3 py-1.5 text-[11px] font-black cursor-pointer" data-today-layout-toggle>
           <LayoutGrid className="w-3.5 h-3.5" />
           چیدمان صفحه
         </button>
-        {layoutOpen && (
-          <div className="mt-2 rounded-2xl bg-white text-[#3A241F] p-3 space-y-1.5 max-w-xl" data-today-layout>
-            <div className="text-[11px] font-bold text-[#8C6F66] leading-6">حداکثر {toPersianDigits(MAX_CARDS)} کادر را روشن کنید ({toPersianDigits(shown)} از {toPersianDigits(MAX_CARDS)}) و ترتیبشان را با فلش‌ها بچینید. این چیدمان فقط برای شماست و در همین مرورگر می‌ماند.</div>
-            {layoutNote && <div className="text-[11px] font-black text-rose-700 leading-6" data-today-layout-note>{layoutNote}</div>}
-            {layout.order.map((id, i) => (
-              <div key={id} className="flex items-center gap-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl px-3 py-1.5" data-today-layout-row={id}>
-                <label className="flex items-center gap-2 text-xs font-black flex-1 min-w-0 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4" checked={!layout.hidden.includes(id)} onChange={() => toggle(id)} />
-                  <span className="truncate">{CARD_TITLES[id]}</span>
-                </label>
-                <button type="button" disabled={i === 0} onClick={() => move(id, -1)} className="p-1 rounded-lg hover:bg-white disabled:opacity-30 cursor-pointer" aria-label="بالاتر"><ChevronUp className="w-4 h-4" /></button>
-                <button type="button" disabled={i === layout.order.length - 1} onClick={() => move(id, 1)} className="p-1 rounded-lg hover:bg-white disabled:opacity-30 cursor-pointer" aria-label="پایین‌تر"><ChevronDown className="w-4 h-4" /></button>
-              </div>
-            ))}
-            <button type="button" onClick={() => saveLayout({ order: [...CARD_IDS], hidden: [...DEFAULT_HIDDEN] })} className="text-[11px] font-black text-violet-700 underline cursor-pointer">بازگشت به چیدمان اولیه</button>
-          </div>
-        )}
         {myStat.target > 0 && (
           <div className="mt-3 rounded-2xl bg-white/15 border border-white/20 px-3.5 py-3" data-my-target>
             <div className="flex items-center justify-between text-[11px] font-bold">
@@ -215,13 +265,8 @@ export const TodayView: React.FC<{
             <div className="h-2 rounded-full bg-white/25 mt-2 overflow-hidden"><div className="h-full bg-white rounded-full" style={{ width: `${Math.min(100, Math.round((myStat.won / myStat.target) * 100))}%` }} /></div>
           </div>
         )}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-          {([
-            ['پیگیری برای امروز', mineF.length - lateCount, ListChecks],
-            ['پیگیری عقب‌افتاده', lateCount, AlertTriangle],
-            ['فرصت گیرکرده', stalled.length, Snowflake],
-            ['تولد امروز', birthdays.length, Cake],
-          ] as const).map(([k, v, Ic]) => (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4" data-today-tiles>
+          {layout.tiles.filter((id) => tileData[id]).map((id) => [TILE_TITLES[id], tileData[id][0], tileData[id][1]] as const).map(([k, v, Ic]) => (
             <div key={k} className="rounded-2xl bg-white/15 border border-white/20 px-3.5 py-3">
               <div className="flex items-center gap-1.5 text-[11px] font-bold opacity-85">
                 <Ic className="w-4 h-4" />
@@ -237,6 +282,52 @@ export const TodayView: React.FC<{
         {layout.order.filter((id) => !layout.hidden.includes(id) && secs[id]).map((id) => <React.Fragment key={id}>{secs[id]}</React.Fragment>)}
       </div>
       {layout.order.every((id) => layout.hidden.includes(id)) && <div className="text-center text-[12px] font-bold text-[#8C6F66] py-8">همهٔ کادرها پنهان است. از «چیدمان صفحه» هر کدام را که می‌خواهید روشن کنید.</div>}
+      {layoutOpen && (
+        <Modal
+          title="چیدمان صفحهٔ «امروز من»"
+          onClose={() => setLayoutOpen(false)}
+          footer={
+            <>
+              <button type="button" onClick={() => { setLayoutNote(''); saveLayout(defaultLayout()); }} className="text-[11px] font-black text-violet-700 underline cursor-pointer" data-today-layout-reset>بازگشت به چیدمان اولیه</button>
+              <button type="button" onClick={() => setLayoutOpen(false)} className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black cursor-pointer">بستن</button>
+            </>
+          }
+        >
+          <div data-today-layout className="space-y-5">
+            <section className="space-y-2" data-today-layout-tiles>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-xs font-black text-[#3A241F]">جعبه‌های داخل کادر بنفش</h4>
+                <span className="text-[11px] font-black text-violet-700 bg-violet-50 rounded-full px-2.5 py-0.5">{toPersianDigits(layout.tiles.length)} از {toPersianDigits(MAX_TILES)}</span>
+              </div>
+              <p className="text-[11px] font-bold text-[#8C6F66] leading-6">تا {toPersianDigits(MAX_TILES)} عدد خلاصه بالای صفحه نشان داده می‌شود؛ بیشتر از این در یک ردیف جا نمی‌شود و ظاهر صفحه به‌هم می‌ریزد.</p>
+              {layoutNote && <div className="text-[11px] font-black text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 leading-6" data-today-layout-note>{layoutNote}</div>}
+              <div className="grid sm:grid-cols-2 gap-2">
+                {TILE_IDS.map((id) => (
+                  <div key={id} className={`flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-2.5 transition-colors ${layout.tiles.includes(id) ? 'bg-violet-50 border-violet-200' : 'bg-[#FAF5F1] border-[#EBDBCE]'}`} data-today-tile-row={id}>
+                    <span className="text-xs font-black text-[#3A241F] truncate">{TILE_TITLES[id]}</span>
+                    <Switch on={layout.tiles.includes(id)} onChange={() => toggleTile(id)} label={TILE_TITLES[id]} />
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="space-y-2" data-today-layout-cards>
+              <h4 className="text-xs font-black text-[#3A241F]">کادرهای زیر صفحه <span className="text-[11px] font-bold text-[#8C6F66]">(هر چند تا که بخواهید)</span></h4>
+              <p className="text-[11px] font-bold text-[#8C6F66] leading-6">هر کادر را روشن کنید تا زیر کادر بنفش بیاید و با فلش‌ها ترتیبش را بچینید.</p>
+              <div className="space-y-2">
+                {layout.order.map((id, i) => (
+                  <div key={id} className={`flex items-center gap-2 rounded-2xl border px-3.5 py-2.5 transition-colors ${layout.hidden.includes(id) ? 'bg-[#FAF5F1] border-[#EBDBCE]' : 'bg-violet-50 border-violet-200'}`} data-today-card-row={id}>
+                    <span className="text-xs font-black text-[#3A241F] flex-1 min-w-0 truncate">{CARD_TITLES[id]}</span>
+                    <button type="button" disabled={i === 0} onClick={() => move(id, -1)} className="p-1.5 rounded-lg bg-white border border-[#EBDBCE] hover:bg-[#FAF5F1] disabled:opacity-30 cursor-pointer" aria-label="بالاتر"><ChevronUp className="w-4 h-4" /></button>
+                    <button type="button" disabled={i === layout.order.length - 1} onClick={() => move(id, 1)} className="p-1.5 rounded-lg bg-white border border-[#EBDBCE] hover:bg-[#FAF5F1] disabled:opacity-30 cursor-pointer" aria-label="پایین‌تر"><ChevronDown className="w-4 h-4" /></button>
+                    <Switch on={!layout.hidden.includes(id)} onChange={() => toggleCard(id)} label={CARD_TITLES[id]} />
+                  </div>
+                ))}
+              </div>
+            </section>
+            <p className="text-[11px] font-bold text-[#8C6F66] leading-6">این چیدمان فقط برای شماست و در همین مرورگر می‌ماند.</p>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
