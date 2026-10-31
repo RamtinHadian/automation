@@ -1,3 +1,4 @@
+import { sanitizeHtml } from '../../lib/sanitizeHtml';
 import React, { useState, useRef, useEffect } from 'react';
 import { letterMetaGridStyle } from '../../lib/letterMeta';
 import { DraggableImage } from './DraggableImage';
@@ -273,7 +274,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const hasPersonal = Object.keys(personalPrefs).length > 0;
   const basePrefs = (orgTpl?.layout && (orgTpl.locked || !hasPersonal) ? orgTpl.layout : personalPrefs) as Record<string, any>;
   const prefs = (editInit ? { ...basePrefs, ...editInit.layout } : basePrefs) as Record<string, any>;
-  const [initialBody] = useState<string>(() => editInit?.bodyHtml || orgTpl?.bodyHtml || TEMPLATES[0].content);
+  const [initialBody] = useState<string>(() => sanitizeHtml(editInit?.bodyHtml || orgTpl?.bodyHtml || TEMPLATES[0].content));
   const fontPref = (v: unknown) => (typeof v === 'string' && fonts.some((f) => f.fontFamily === v) ? v : defaultFont.fontFamily);
   const numPref = (v: unknown, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
   const ptPref = (v: any) => ({ x: numPref(v?.x, 0), y: numPref(v?.y, 0) });
@@ -543,7 +544,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
     if (!t) return;
     if (t.subject) setSubject(t.subject);
     if (editorRef.current) {
-      editorRef.current.innerHTML = t.bodyHtml
+      editorRef.current.innerHTML = sanitizeHtml(t.bodyHtml)
         .replace(/\[نام و سمت فرستنده\]/g, `${currentUser.fullName} - ${currentUser.departmentName}`)
         .replace(/\[نام متقاضی\]/g, currentUser.fullName)
         .replace(/\[نام واحد\]/g, currentUser.departmentName);
@@ -571,7 +572,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
   const handleApplyTemplate = (template: LetterTemplate) => {
     setSubject(template.defaultSubject);
     if (editorRef.current) {
-      editorRef.current.innerHTML = template.content
+      editorRef.current.innerHTML = sanitizeHtml(template.content)
         .replace('[نام و سمت فرستنده]', `${currentUser.fullName} - ${currentUser.departmentName}`)
         .replace('[نام متقاضی]', currentUser.fullName)
         .replace('[نام واحد]', currentUser.departmentName);

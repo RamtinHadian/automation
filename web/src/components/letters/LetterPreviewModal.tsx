@@ -1,3 +1,4 @@
+import { sanitizeHtml } from '../../lib/sanitizeHtml';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { toJalaliDateText } from '../../lib/jalali';
 import { letterMetaGridStyle } from '../../lib/letterMeta';
@@ -361,7 +362,7 @@ const WordEditorPopup: React.FC<WordEditorPopupProps> = ({
             ref={editorRef}
             contentEditable
             suppressContentEditableWarning
-            dangerouslySetInnerHTML={{ __html: initialBody }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(initialBody) }}
             dir="rtl"
             className="w-full min-h-full outline-none text-[#1a1a1a] leading-[2.2] selection:bg-blue-200"
             style={{
@@ -1969,7 +1970,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   suppressContentEditableWarning
                   onInput={(e) => setCustomBody(e.currentTarget.innerHTML)}
                   onBlur={(e) => setCustomBody(e.currentTarget.innerHTML)}
-                  dangerouslySetInnerHTML={{ __html: customBody }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(customBody) }}
                   className="w-full focus:outline-none min-h-[160px] text-[#222] border border-transparent hover:border-amber-200/60 focus:border-amber-400 rounded-xl p-2 transition-all"
                   style={{
                     fontFamily: bodyFontFamily || chosenFont.fontFamily,
@@ -1984,7 +1985,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               ) : (
                 <div
                   ref={bodyViewRef}
-                  dangerouslySetInnerHTML={{ __html: customBody }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(customBody) }}
                   className="w-full min-h-[160px] text-[#222] p-2 leading-relaxed"
                   style={{
                     fontFamily: bodyFontFamily || chosenFont.fontFamily,

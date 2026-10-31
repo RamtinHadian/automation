@@ -20,6 +20,7 @@ import {
 import { LetterFx, User, FileTransfer, AuditLog, SystemSettings, FileCategory, Department, CustomFont, Task, DailyReport, Customer, Deal, CrmActivity } from '../types';
 import { INITIAL_SETTINGS } from '../lib/mock-data';
 import { isChatOpenWith } from '../lib/chatState';
+import { sanitizeHtml } from '../lib/sanitizeHtml';
 import { api, getToken, setToken, setUnauthorizedHandler, ServerState } from '../lib/api';
 import { useServerSync, hasPendingWrites, localWriteEpoch } from '../lib/useServerSync';
 import { putLocalFile, getLocalFile, deleteLocalFile, dataUrlToBlob } from '../lib/localFiles';
@@ -351,7 +352,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const applyServerState = useCallback(
-    (s: ServerState, force = false) => {
+    (raw: ServerState, force = false) => {
+      // the text of every letter is cleaned of anything that could run code before the app uses it (a letter may come from anybody)
+      const s: ServerState = {
+        ...raw,
+        transfers: (raw.transfers || []).map((t) => (t.letterContentHtml ? { ...t, letterContentHtml: sanitizeHtml(t.letterContentHtml) } : t)),
+      };
       const json = JSON.stringify(s);
       if (!force && json === lastStateJson.current) return;
       lastStateJson.current = json;
