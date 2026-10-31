@@ -21,6 +21,10 @@ func customerCallReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
+	if !crmOwnsCustomer(r, me, id) {
+		httpx.Forbidden(w)
+		return
+	}
 	cust := rawMaps(r.Context(), `SELECT data FROM crm_customers WHERE id = $1`, id)
 	if len(cust) == 0 {
 		httpx.Error(w, http.StatusNotFound, "این مشتری پیدا نشد.")
