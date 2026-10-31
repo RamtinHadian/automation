@@ -32,7 +32,7 @@ import {
   Gift,
   Sparkles,
   BookUser,
-  SlidersHorizontal, Link2 } from 'lucide-react';
+  SlidersHorizontal, Link2, Landmark } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
@@ -1575,6 +1575,7 @@ const CustomerDetail: React.FC<{
   onAttachments: (files: CustomerFile[]) => void;
 }> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onNotes, onSocial, onNetwork, onAttachments, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
   const [socialOpen, setSocialOpen] = useState(false);
+  const [panel, setPanel] = useState<null | 'sepidar' | 'warranty' | 'support'>(null);
   const [type, setType] = useState<ActivityType>('NOTE');
   const [text, setText] = useState('');
   // «the customer looked for a product we did not have»: ticked, then the product's name (and how many, if known)
@@ -1917,19 +1918,6 @@ const CustomerDetail: React.FC<{
           </div>
         );
       })()}
-      {c.sepidarInfo && SEPIDAR_FIELDS.some((f) => c.sepidarInfo?.[f.id]) && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-3 space-y-2" data-sepidar-info>
-          <div className="text-[11px] font-black text-rose-800">اطلاعات سپیدار</div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {SEPIDAR_FIELDS.filter((f) => c.sepidarInfo?.[f.id]).map((f) => (
-              <div key={f.id} className="bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 min-w-0">
-                <div className="text-[10px] font-black text-[#8C6F66]">{f.label}</div>
-                <div className="text-xs font-bold text-[#3A241F] truncate">{toPersianDigits(sepidarValueText(f, c.sepidarInfo![f.id]))}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       {referred.length > 0 && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs font-bold text-emerald-900">
           این مشتری {toPersianDigits(referred.length)} مشتری را معرفی کرده است: {referred.map((x) => x.name).join('، ')}.
@@ -1945,58 +1933,7 @@ const CustomerDetail: React.FC<{
         </div>
       )}
 
-      {warr !== null && (
-        <section className="space-y-2" data-customer-warranties>
-          <div className="flex items-center justify-between gap-2">
-            <h4 className="font-black text-xs text-[#3A241F] flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-teal-600" />گارانتی‌ها ({toPersianDigits(warr.length)})</h4>
-            <button type="button" onClick={() => openWarranty({ type: 'new', customerId: c.id })} className="text-[11px] font-black text-teal-700 hover:underline cursor-pointer flex items-center gap-1"><Plus className="w-3.5 h-3.5" />ثبت گارانتی</button>
-          </div>
-          {warr.length === 0 ? (
-            <div className="text-center text-[11px] text-gray-400 font-bold py-3 bg-white border border-[#EBDBCE] rounded-xl">برای این مشتری هنوز گارانتی ثبت نشده است.</div>
-          ) : (
-            warr.map((w) => {
-              const sst = warrantyState(w);
-              return (
-                <button key={w.id} type="button" onClick={() => openWarranty({ type: 'customer', customerId: c.id })} className="w-full flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
-                  <span className="min-w-0">
-                    <span className="block text-xs font-black text-[#3A241F] truncate">{w.productName}</span>
-                    <span className="block text-[10px] text-[#8C6F66]">{codeText(w.warrantyNo)} · {remainingText(w)}</span>
-                  </span>
-                  <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${STATE_LABEL[sst].cls}`}>{STATE_LABEL[sst].label}</span>
-                </button>
-              );
-            })
-          )}
-        </section>
-      )}
 
-      {sup !== null && (
-        <section className="space-y-2" data-customer-support>
-          <div className="flex items-center justify-between gap-2">
-            <h4 className="font-black text-xs text-[#3A241F] flex items-center gap-1.5"><Headset className="w-4 h-4 text-teal-600" />پشتیبانی ({toPersianDigits(sup.subs.length)} اشتراک · {toPersianDigits(sup.tickets.filter(isOpenTicket).length)} درخواست باز)</h4>
-            <span className="flex items-center gap-3">
-              <button type="button" onClick={() => openSupport({ type: 'newTicket', customerId: c.id })} className="text-[11px] font-black text-teal-700 hover:underline cursor-pointer">درخواست</button>
-              <button type="button" onClick={() => openSupport({ type: 'newSub', customerId: c.id })} className="text-[11px] font-black text-teal-700 hover:underline cursor-pointer flex items-center gap-1"><Plus className="w-3.5 h-3.5" />اشتراک</button>
-            </span>
-          </div>
-          {sup.subs.length === 0 ? (
-            <div className="text-center text-[11px] text-gray-400 font-bold py-3 bg-white border border-[#EBDBCE] rounded-xl">این مشتری پلن پشتیبانی ندارد.</div>
-          ) : (
-            sup.subs.map((x) => {
-              const sst = subState(x);
-              return (
-                <div key={x.id} className="flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right">
-                  <span className="min-w-0">
-                    <span className="block text-xs font-black text-[#3A241F] truncate">{x.planName}</span>
-                    <span className="block text-[10px] text-[#8C6F66]">{codeText(x.subNo)} · {subRemaining(x)}</span>
-                  </span>
-                  <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${SUB_STATE[sst].cls}`}>{SUB_STATE[sst].label}</span>
-                </div>
-              );
-            })
-          )}
-        </section>
-      )}
 
       {/* timeline */}
       <section className="space-y-2.5">
@@ -2099,6 +2036,106 @@ const CustomerDetail: React.FC<{
           {activities.length === 0 && <div className="text-center text-[11px] text-gray-400 font-bold py-4">هنوز تعاملی ثبت نشده است.</div>}
         </div>
       </section>
+
+      {/* the Sepidar details, the warranties and the support of the customer: three buttons at the very end of the card; each opens its own window (closed by default) */}
+      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#EBDBCE]" data-card-extras>
+        {c.sepidarInfo && SEPIDAR_FIELDS.some((f) => c.sepidarInfo?.[f.id]) && (
+          <button type="button" onClick={() => setPanel('sepidar')} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black text-rose-800 bg-rose-50 border border-rose-200 hover:bg-rose-100 cursor-pointer" data-extra-sepidar>
+            <Landmark className="w-4 h-4" />
+            اطلاعات سپیدار
+          </button>
+        )}
+        {warr !== null && (
+          <button type="button" onClick={() => setPanel('warranty')} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black text-teal-800 bg-teal-50 border border-teal-200 hover:bg-teal-100 cursor-pointer" data-extra-warranty>
+            <ShieldCheck className="w-4 h-4" />
+            گارانتی‌ها
+            <span className="bg-teal-600 text-white rounded-full px-1.5 min-w-[18px] text-center text-[10px]">{toPersianDigits(warr.length)}</span>
+          </button>
+        )}
+        {sup !== null && (
+          <button type="button" onClick={() => setPanel('support')} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black text-sky-800 bg-sky-50 border border-sky-200 hover:bg-sky-100 cursor-pointer" data-extra-support>
+            <Headset className="w-4 h-4" />
+            پشتیبانی
+            <span className="bg-sky-600 text-white rounded-full px-1.5 min-w-[18px] text-center text-[10px]">{toPersianDigits(sup.subs.length)}</span>
+          </button>
+        )}
+      </div>
+      {panel && (
+        <Modal
+          onTop="max"
+          wide
+          title={`${panel === 'sepidar' ? 'اطلاعات سپیدار' : panel === 'warranty' ? 'گارانتی‌ها' : 'پشتیبانی'} ${c.name}`}
+          onClose={() => setPanel(null)}
+          footer={<><span /><button type="button" onClick={() => setPanel(null)} className="px-5 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer" data-extra-close>بستن</button></>}
+        >
+          <div data-card-extra-window>
+            {panel === 'sepidar' && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-3 space-y-2" data-sepidar-info>
+          <div className="text-[11px] font-black text-rose-800">اطلاعات سپیدار</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {SEPIDAR_FIELDS.filter((f) => c.sepidarInfo?.[f.id]).map((f) => (
+              <div key={f.id} className="bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 min-w-0">
+                <div className="text-[10px] font-black text-[#8C6F66]">{f.label}</div>
+                <div className="text-xs font-bold text-[#3A241F] truncate">{toPersianDigits(sepidarValueText(f, c.sepidarInfo![f.id]))}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+            )}
+            {panel === 'warranty' && warr !== null && (
+        <section className="space-y-2" data-customer-warranties>
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="font-black text-xs text-[#3A241F] flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-teal-600" />گارانتی‌ها ({toPersianDigits(warr.length)})</h4>
+            <button type="button" onClick={() => openWarranty({ type: 'new', customerId: c.id })} className="text-[11px] font-black text-teal-700 hover:underline cursor-pointer flex items-center gap-1"><Plus className="w-3.5 h-3.5" />ثبت گارانتی</button>
+          </div>
+          {warr.length === 0 ? (
+            <div className="text-center text-[11px] text-gray-400 font-bold py-3 bg-white border border-[#EBDBCE] rounded-xl">برای این مشتری هنوز گارانتی ثبت نشده است.</div>
+          ) : (
+            warr.map((w) => {
+              const sst = warrantyState(w);
+              return (
+                <button key={w.id} type="button" onClick={() => openWarranty({ type: 'customer', customerId: c.id })} className="w-full flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-black text-[#3A241F] truncate">{w.productName}</span>
+                    <span className="block text-[10px] text-[#8C6F66]">{codeText(w.warrantyNo)} · {remainingText(w)}</span>
+                  </span>
+                  <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${STATE_LABEL[sst].cls}`}>{STATE_LABEL[sst].label}</span>
+                </button>
+              );
+            })
+          )}
+        </section>
+            )}
+            {panel === 'support' && sup !== null && (
+        <section className="space-y-2" data-customer-support>
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="font-black text-xs text-[#3A241F] flex items-center gap-1.5"><Headset className="w-4 h-4 text-teal-600" />پشتیبانی ({toPersianDigits(sup.subs.length)} اشتراک · {toPersianDigits(sup.tickets.filter(isOpenTicket).length)} درخواست باز)</h4>
+            <span className="flex items-center gap-3">
+              <button type="button" onClick={() => openSupport({ type: 'newTicket', customerId: c.id })} className="text-[11px] font-black text-teal-700 hover:underline cursor-pointer">درخواست</button>
+              <button type="button" onClick={() => openSupport({ type: 'newSub', customerId: c.id })} className="text-[11px] font-black text-teal-700 hover:underline cursor-pointer flex items-center gap-1"><Plus className="w-3.5 h-3.5" />اشتراک</button>
+            </span>
+          </div>
+          {sup.subs.length === 0 ? (
+            <div className="text-center text-[11px] text-gray-400 font-bold py-3 bg-white border border-[#EBDBCE] rounded-xl">این مشتری پلن پشتیبانی ندارد.</div>
+          ) : (
+            sup.subs.map((x) => {
+              const sst = subState(x);
+              return (
+                <div key={x.id} className="flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-black text-[#3A241F] truncate">{x.planName}</span>
+                    <span className="block text-[10px] text-[#8C6F66]">{codeText(x.subNo)} · {subRemaining(x)}</span>
+                  </span>
+                  <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${SUB_STATE[sst].cls}`}>{SUB_STATE[sst].label}</span>
+                </div>
+              );
+            })
+          )}
+        </section>
+            )}
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 };
