@@ -1,3 +1,4 @@
+import { CustomerCalls } from './CustomerCalls';
 import { matchesAll } from '../../lib/searchAll';
 import { isCustomerRecord } from '../../lib/contactTypes';
 import { placeCall } from '../../lib/callFrom';
@@ -1826,28 +1827,19 @@ const CustomerDetail: React.FC<{
         <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-3 space-y-2" data-customer-notes>
           <div className="text-[11px] font-black text-[#3A241F]">توضیحات</div>
           <CustomerNotesInline customer={c} me={me} onSave={onNotes} />
-          {/* the conversations of the call centre with this customer: listen, turn into text with the AI, and put the summary into the notes */}
-          {(() => {
-            const rec = (calls || []).filter((x) => x.hasRecording).slice(0, 12);
-            if (!rec.length) return null;
-            const addSummary = (call: VoipCall, summary: string) => {
-              const line = `خلاصهٔ مکالمهٔ ${call.direction === 'in' ? 'ورودی' : 'خروجی'} (${formatDateTime(call.startedAt)}${call.userName ? ' · ' + call.userName : ''}): ${summary.replace(/\s+/g, ' ').trim()}`;
-              const log = [...noteEntries(c.noteLog, c.notes).filter((e) => !e.draft), { text: line, at: new Date().toISOString(), byId: me.id, byName: me.fullName }];
-              onNotes(log, log.map((e) => e.text).join('\n'));
-            };
-            return (
-              <div className="rounded-xl bg-white/80 border border-amber-200 divide-y divide-amber-100 overflow-hidden" data-call-notes>
-                <div className="px-3 py-2 text-[11px] font-black text-[#3A241F] flex items-center gap-1.5"><PhoneCall className="w-3.5 h-3.5 text-emerald-600" />مکالمه‌های ضبط‌شدهٔ مرکز تماس با این مشتری</div>
-                {rec.map((x) => (
-                  <div key={x.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[11px] font-bold text-[#503730]" data-call-note-row>
-                    <span className="flex-1 min-w-0 truncate">{x.direction === 'in' ? 'ورودی' : x.direction === 'out' ? 'خروجی' : 'داخلی'} · {formatDateTime(x.startedAt)}{x.userName ? ` · ${x.userName}` : ''}{x.duration > 0 ? ` · ${toPersianDigits(Math.floor(x.duration / 60))}:${toPersianDigits(String(x.duration % 60).padStart(2, '0'))}` : ''}</span>
-                    <RecordingButton id={x.id} hasTranscript={x.hasTranscript} onSummary={(t) => addSummary(x, t)} />
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
         </div>
+      )}
+      {calls.length > 0 && (
+        <CustomerCalls
+          calls={calls}
+          me={me}
+          onCall={canCall ? (n) => onCall(n, c.name) : undefined}
+          onSummary={c.hiddenContact ? undefined : (call, summary) => {
+            const line = `خلاصهٔ مکالمهٔ ${call.direction === 'in' ? 'ورودی' : 'خروجی'} (${formatDateTime(call.startedAt)}${call.userName ? ' · ' + call.userName : ''}): ${summary.replace(/\s+/g, ' ').trim()}`;
+            const log = [...noteEntries(c.noteLog, c.notes).filter((e) => !e.draft), { text: line, at: new Date().toISOString(), byId: me.id, byName: me.fullName }];
+            onNotes(log, log.map((e) => e.text).join(String.fromCharCode(10)));
+          }}
+        />
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {reportOpen && <CustomerReportModal customer={c} deals={deals} onClose={() => setReportOpen(false)} />}
@@ -1937,14 +1929,6 @@ const CustomerDetail: React.FC<{
 
       {/* timeline */}
       <section className="space-y-2.5">
-        {calls.length > 0 && (
-          <div className="rounded-2xl border border-[#EBDBCE] overflow-hidden">
-            <div className="px-4 py-2 bg-[#FAF5F1] font-black text-xs text-[#3A241F]">تماس‌های تلفنی با این مشتری</div>
-            <div className="max-h-56 overflow-y-auto">
-              <CallList calls={calls} showUser onCall={canCall ? (n) => onCall(n, c.name) : undefined} />
-            </div>
-          </div>
-        )}
         <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-3 space-y-2" data-missing-form>
           <label className="flex items-center gap-2.5 cursor-pointer min-h-[28px]">
             <input type="checkbox" checked={missingOn} onChange={(e) => setMissingOn(e.target.checked)} className="w-4 h-4 accent-rose-600" />
