@@ -1637,6 +1637,38 @@ const CustomerDetail: React.FC<{
               ایجاد فرصت
             </button>
           </div>
+          {(() => {
+            // a minimal summary: how much is open in all, and how much of it stands in which stage
+            const open = deals.filter((d) => d.stage !== 'WON' && d.stage !== 'LOST');
+            const total = open.reduce((t, d) => t + (d.amount || 0), 0);
+            const parts = STAGES.filter((x) => x.id !== 'WON' && x.id !== 'LOST').map((x) => ({ st: x, n: open.filter((d) => d.stage === x.id).length, sum: open.filter((d) => d.stage === x.id).reduce((t, d) => t + (d.amount || 0), 0) })).filter((x) => x.n > 0);
+            return (
+              <div className="rounded-xl bg-white border border-violet-200 px-3.5 py-3 space-y-2.5" data-open-deals-summary>
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-bold text-[#8C6F66]">جمع فرصت‌های باز</div>
+                    <div className="text-lg font-black text-violet-800 leading-7">{toman(total)} <span className="text-[11px] font-bold text-[#8C6F66]">{unitName()}</span></div>
+                  </div>
+                  <div className="text-[11px] font-black text-[#503730]">{toPersianDigits(open.length)} فرصت</div>
+                </div>
+                {total > 0 && (
+                  <div className="flex h-2 rounded-full overflow-hidden bg-[#FAF5F1] gap-px" aria-hidden>
+                    {parts.filter((x) => x.sum > 0).map((x) => <span key={x.st.id} className={`${x.st.dot} h-full`} style={{ width: `${(x.sum / total) * 100}%` }} />)}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {parts.map((x) => (
+                    <span key={x.st.id} className="flex items-center gap-1.5 text-[11px] font-bold text-[#3A241F]" data-open-deals-stage={x.st.id}>
+                      <span className={`w-2 h-2 rounded-full ${x.st.dot}`} />
+                      {x.st.label}
+                      <span className="text-violet-800 font-black">{toman(x.sum)}</span>
+                      <span className="text-[10px] text-[#8C6F66]">({toPersianDigits(x.n)})</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
           {deals.filter((d) => d.stage !== 'WON' && d.stage !== 'LOST').map((d) => {
             const s = stageOf(d.stage);
             const grp = dealGroup(deals, d);
