@@ -165,6 +165,10 @@ func smsSend(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusForbidden, "اجازهٔ ارسال پیامک برای شما فعال نشده است؛ از مدیر بخواهید در کنسول مدیریت به شما اجازه بدهد.")
 		return
 	}
+	if !allow("sms:"+me.ID(), 60, 10*time.Minute) { // SMS costs money: one person cannot send an endless stream
+		httpx.Error(w, http.StatusTooManyRequests, slowDown)
+		return
+	}
 	c := sms.Load(r.Context())
 	if !c.Enabled || c.Provider == "" || c.APIKey == "" {
 		httpx.Error(w, http.StatusServiceUnavailable, "ارسال پیامک در سامانه فعال نشده است؛ از مدیر بخواهید پنل پیامک را تنظیم کند.")

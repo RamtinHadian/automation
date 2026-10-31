@@ -147,6 +147,11 @@ func post(ctx context.Context, rawURL string, headers map[string]string, body an
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		// the request address holds the panel's API key; the error text must never carry it (it is shown on screen and kept in the log)
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err
+		}
 		return nil, 0, errors.New("اتصال به پنل پیامک برقرار نشد: " + err.Error())
 	}
 	defer resp.Body.Close()

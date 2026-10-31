@@ -106,3 +106,35 @@ func noteDownload(u auth.User) {
 		alertAdmins("MASS_DOWNLOAD_SUSPECTED", "دریافت انبوه فایل", u.Name()+" در ده دقیقه بیش از ۶۰ فایل یا مکالمه را دریافت کرده است.")
 	}
 }
+
+var limiter = &burstCounter{hits: map[string][]time.Time{}}
+
+// allow reports whether one more event for key fits into limit events per window, and counts it. It is the general brake for endpoints
+// that cost money or can be hammered (SMS, public forms).
+func allow(key string, limit int, window time.Duration) bool {
+	now := time.Now()
+	limiter.mu.Lock()
+	defer limiter.mu.Unlock()
+	cut := now.Add(-window)
+	kept := limiter.hits[key][:0]
+	for _, t := range limiter.hits[key] {
+		if t.After(cut) {
+			kept = append(kept, t)
+		}
+	}
+	if len(kept) >= limit {
+		limiter.hits[key] = kept
+		return false
+	}
+	limiter.hits[key] = append(kept, now)
+	if len(limiter.hits) > 5000 {
+		for k, v := range limiter.hits {
+			if len(v) == 0 || v[len(v)-1].Before(cut) {
+				delete(limiter.hits, k)
+			}
+		}
+	}
+	return true
+}
+
+const slowDown = "درخواست‌ها بیش از حد مجاز است؛ چند دقیقه بعد دوباره امتحان کنید."

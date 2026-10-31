@@ -542,6 +542,10 @@ func portalTicketCreate(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !allow("ptk:"+id, 10, time.Hour) {
+		httpx.Error(w, http.StatusTooManyRequests, slowDown)
+		return
+	}
 	body, ok := httpx.ReadBody(w, r)
 	if !ok {
 		return
@@ -610,6 +614,10 @@ func portalTicketCreate(w http.ResponseWriter, r *http.Request) {
 func portalTicketMessage(w http.ResponseWriter, r *http.Request) {
 	_, id, ok := portalCustomer(w, r)
 	if !ok {
+		return
+	}
+	if !allow("ptm:"+id, 60, time.Hour) {
+		httpx.Error(w, http.StatusTooManyRequests, slowDown)
 		return
 	}
 	body, ok := httpx.ReadBody(w, r)

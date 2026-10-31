@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"automation/server/internal/auth"
 	"automation/server/internal/httpx"
@@ -19,6 +20,10 @@ func licenseStatus(w http.ResponseWriter, _ *http.Request) {
 func licenseActivate(w http.ResponseWriter, r *http.Request) {
 	if license.Check().Mode == "active" {
 		httpx.Error(w, http.StatusForbidden, "این سامانه فعال است؛ تمدید را از تنظیمات (پس از ورود مدیر ارشد) انجام دهید.")
+		return
+	}
+	if !allow("lic:"+httpx.ClientIP(r), 10, 10*time.Minute) {
+		httpx.Error(w, http.StatusTooManyRequests, slowDown)
 		return
 	}
 	activate(w, r)

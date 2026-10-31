@@ -35,8 +35,8 @@ const sessions = new Map<string, (m: SignalMsg) => void>();
 let iceServersPromise: Promise<RTCIceServer[]> | null = null;
 const getIceServers = () => {
   if (!iceServersPromise) {
-    iceServersPromise = fetch('/api/config')
-      .then((r) => r.json())
+    iceServersPromise = fetch('/api/config', { headers: { Authorization: `Bearer ${getToken() || ''}` } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('config'))))
       .then((j) => j.iceServers as RTCIceServer[])
       .catch(() => {
         iceServersPromise = null;

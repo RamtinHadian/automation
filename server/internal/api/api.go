@@ -188,7 +188,7 @@ func Router(cfg config.Config) http.Handler {
 	registerReminders(mux)
 	registerMinutes(mux)
 
-	mux.HandleFunc("GET /api/config", iceConfig(cfg))
+	mux.HandleFunc("GET /api/config", auth.Require(iceConfig(cfg)))
 	mux.HandleFunc("GET /api/health", health)
 	mux.HandleFunc("GET /api/demo/info", demo.Info(cfg.Demo, cfg.DemoResetHours))
 
