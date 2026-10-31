@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"golang.org/x/crypto/bcrypt"
 
 	"automation/server/internal/auth"
 	"automation/server/internal/httpx"
@@ -84,12 +83,20 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 	if exists {
 		hash := exHash
 		if password != "" && me.IsAdmin() {
-			b, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+			if why := auth.CheckPassword(password, jsonx.Str(merged, "fullName"), jsonx.Str(merged, "email")); why != "" {
+				httpx.Error(w, http.StatusBadRequest, why)
+				return
+			}
+			b, err := auth.HashPassword(password)
 			if err != nil {
 				internalError(w)
 				return
 			}
-			hash = string(b)
+			hash = b
+			defer auth.EndSessions(ctx, id, "") // the old password's sign-ins end (also the person's own when an administrator resets it)
+		}
+		if jsonx.Str(existing, "role") != "" && !jsonx.Bool(merged, "isActive") && me.IsAdmin() {
+			defer auth.EndSessions(ctx, id, "")
 		}
 		email := jsonx.Str(merged, "email")
 		if email == "" {
@@ -143,13 +150,17 @@ func putStaff(w http.ResponseWriter, r *http.Request, me auth.User, id string, d
 		httpx.Error(w, http.StatusForbidden, "تعداد کاربران به سقف مجاز مجوز شما رسیده است؛ برای افزایش آن با فروشنده تماس بگیرید.")
 		return
 	}
-	b, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	if why := auth.CheckPassword(password, jsonx.Str(merged, "fullName"), jsonx.Str(merged, "email")); why != "" {
+		httpx.Error(w, http.StatusBadRequest, why)
+		return
+	}
+	b, err := auth.HashPassword(password)
 	if err != nil {
 		internalError(w)
 		return
 	}
 	if _, err := store.Pool.Exec(ctx, `INSERT INTO users (id, email, password_hash, data) VALUES ($1, $2, $3, $4::jsonb)`,
-		id, jsonx.Str(merged, "email"), string(b), jsonx.Encode(merged)); err != nil {
+		id, jsonx.Str(merged, "email"), b, jsonx.Encode(merged)); err != nil {
 		if pe, ok := err.(*pgconn.PgError); ok && pe.Code == "23505" {
 			httpx.Error(w, http.StatusConflict, "ایمیل تکراری است.")
 			return

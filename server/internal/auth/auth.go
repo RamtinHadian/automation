@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
@@ -116,27 +117,57 @@ func SetSecret(s string) { secret = []byte(s) }
 // Current returns the user the request was authenticated as.
 func Current(r *http.Request) User { return r.Context().Value(ctxKey{}).(User) }
 
+// A sign-in lives at most sessionAbsolute and ends sooner when the person does nothing for sessionIdle. Every sign-in is a row
+// in auth_sessions, so signing out, changing the password or an administrator's reset really ends it on the server (a copied token is then useless).
+const (
+	sessionAbsolute = 12 * time.Hour
+	sessionIdle     = 4 * time.Hour
+)
+
+func newSessionID() string {
+	b := make([]byte, 24)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// bearerSession returns the session id inside a valid staff token ("" when the token is wrong or expired).
+func bearerSession(r *http.Request) (sid, sub string) {
+	header := r.Header.Get("Authorization")
+	if !strings.HasPrefix(header, "Bearer ") {
+		return "", ""
+	}
+	tok, err := jwt.Parse(strings.TrimPrefix(header, "Bearer "), func(t *jwt.Token) (any, error) { return secret, nil },
+		jwt.WithValidMethods([]string{"HS256"}))
+	if err != nil || !tok.Valid {
+		return "", ""
+	}
+	claims, _ := tok.Claims.(jwt.MapClaims)
+	sid, _ = claims["jti"].(string)
+	sub, _ = tok.Claims.GetSubject()
+	return sid, sub
+}
+
 // Require wraps a handler so it only runs for a valid session token.
 func Require(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		header := r.Header.Get("Authorization")
-		if !strings.HasPrefix(header, "Bearer ") {
+		sid, sub := bearerSession(r)
+		if sid == "" || sub == "" {
 			httpx.Error(w, http.StatusUnauthorized, "unauthenticated")
 			return
 		}
-		tok, err := jwt.Parse(strings.TrimPrefix(header, "Bearer "), func(t *jwt.Token) (any, error) { return secret, nil },
-			jwt.WithValidMethods([]string{"HS256"}))
-		if err != nil || !tok.Valid {
-			httpx.Error(w, http.StatusUnauthorized, "unauthenticated")
-			return
-		}
-		sub, _ := tok.Claims.GetSubject()
 		var id, email string
 		var data []byte
-		err = store.Pool.QueryRow(r.Context(), `SELECT id, email, data FROM users WHERE id = $1`, sub).Scan(&id, &email, &data)
+		var lastSeen time.Time
+		err := store.Pool.QueryRow(r.Context(),
+			`SELECT u.id, u.email, u.data, s.last_seen FROM auth_sessions s JOIN users u ON u.id = s.user_id
+			 WHERE s.id = $1 AND s.user_id = $2 AND s.created_at > now() - $3::interval AND s.last_seen > now() - $4::interval`,
+			sid, sub, sessionAbsolute.String(), sessionIdle.String()).Scan(&id, &email, &data, &lastSeen)
 		if err != nil {
 			httpx.Error(w, http.StatusUnauthorized, "unauthenticated")
 			return
+		}
+		if time.Since(lastSeen) > time.Minute {
+			_, _ = store.Pool.Exec(r.Context(), `UPDATE auth_sessions SET last_seen = now() WHERE id = $1`, sid)
 		}
 		u := User{FromRow(id, email, data)}
 		if !jsonx.Bool(u.M, "isActive") {
@@ -157,7 +188,22 @@ func Require(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// ---- protection against password guessing: 8 failures from one address block it for 10 minutes ----
+// Logout ends this sign-in on the server.
+func Logout(w http.ResponseWriter, r *http.Request) {
+	if sid, _ := bearerSession(r); sid != "" {
+		_, _ = store.Pool.Exec(r.Context(), `DELETE FROM auth_sessions WHERE id = $1`, sid)
+	}
+	httpx.OK(w)
+}
+
+// EndSessions ends every sign-in of a person (after a password change or reset), except the one named in keep.
+func EndSessions(ctx context.Context, userID, keep string) {
+	_, _ = store.Pool.Exec(ctx, `DELETE FROM auth_sessions WHERE user_id = $1 AND id <> $2`, userID, keep)
+}
+
+// ---- protection against password guessing ----
+// Two counters: one per address (8 failures block that address for 10 minutes) and one per account name (10 failures block that
+// account for 10 minutes whatever the address, so a guess spread over many addresses is stopped too).
 
 type failure struct {
 	count int
@@ -169,33 +215,100 @@ var (
 	failures = map[string]*failure{}
 )
 
-func blocked(ip string) bool {
+func blockedKey(key string, limit int) bool {
 	failMu.Lock()
 	defer failMu.Unlock()
-	f := failures[ip]
-	return f != nil && f.count >= 8 && f.until.After(time.Now())
+	f := failures[key]
+	return f != nil && f.count >= limit && f.until.After(time.Now())
 }
 
-func noteFailure(ip string) {
+func noteFailureKey(key string) {
 	failMu.Lock()
 	defer failMu.Unlock()
-	f := failures[ip]
+	f := failures[key]
 	if f == nil || !f.until.After(time.Now()) {
-		failures[ip] = &failure{count: 1, until: time.Now().Add(10 * time.Minute)}
+		failures[key] = &failure{count: 1, until: time.Now().Add(10 * time.Minute)}
 		return
 	}
 	f.count++
 }
 
-func clearFailures(ip string) {
+func clearFailureKey(key string) {
 	failMu.Lock()
-	delete(failures, ip)
+	delete(failures, key)
 	failMu.Unlock()
+}
+
+func blocked(ip string) bool        { return blockedKey("ip:"+ip, 8) }
+func noteFailure(ip string)         { noteFailureKey("ip:" + ip) }
+func clearFailures(ip string)       { clearFailureKey("ip:" + ip) }
+func accountBlocked(id string) bool { return blockedKey("acct:"+id, 10) }
+
+// Forget old counters now and then so the map cannot grow without end.
+func init() {
+	go func() {
+		for range time.Tick(30 * time.Minute) {
+			failMu.Lock()
+			for k, f := range failures {
+				if !f.until.After(time.Now()) {
+					delete(failures, k)
+				}
+			}
+			failMu.Unlock()
+		}
+	}()
 }
 
 const tooMany = "تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره امتحان کنید."
 
-// Login checks the password and returns a 12-hour token.
+// bcryptCost is the work factor for new hashes; an older, cheaper hash is made stronger the next time its owner signs in.
+const bcryptCost = 12
+
+// dummyHash is compared against when the account does not exist, so an unknown name takes as long to refuse as a wrong password.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("not-a-real-password"), bcryptCost)
+
+// HashPassword makes the stored hash of a password.
+func HashPassword(pw string) (string, error) {
+	b, err := bcrypt.GenerateFromPassword([]byte(pw), bcryptCost)
+	return string(b), err
+}
+
+var commonPasswords = map[string]bool{
+	"12345678": true, "123456789": true, "1234567890": true, "11111111": true, "00000000": true, "87654321": true, "password": true,
+	"password1": true, "qwertyui": true, "qwerty123": true, "abcd1234": true, "admin123": true, "admin1234": true, "iloveyou": true,
+	"12341234": true, "a1234567": true, "1q2w3e4r": true, "123123123": true, "change-me": true,
+}
+
+// CheckPassword returns "" when a new password is acceptable, otherwise the reason (in Persian) why not.
+// Rules: at least 8 characters, not made of one repeated character, not a well-known weak password, not the person's own name or user name.
+func CheckPassword(pw string, own ...string) string {
+	r := []rune(pw)
+	if len(r) < 8 {
+		return "کلمه عبور باید حداقل ۸ کاراکتر باشد."
+	}
+	if len(r) > 128 {
+		return "کلمه عبور بیش از حد طولانی است."
+	}
+	same := true
+	for _, c := range r {
+		if c != r[0] {
+			same = false
+			break
+		}
+	}
+	low := strings.ToLower(pw)
+	if same || commonPasswords[low] {
+		return "این کلمه عبور بسیار رایج و ناامن است؛ کلمه‌ای دیگر انتخاب کنید."
+	}
+	for _, o := range own {
+		if o = strings.ToLower(strings.TrimSpace(o)); len([]rune(o)) >= 3 && strings.Contains(low, o) {
+			return "کلمه عبور نباید شامل نام یا نام کاربری خودتان باشد."
+		}
+	}
+	return ""
+}
+
+// Login checks the password and returns a token for a new session.
 func Login(w http.ResponseWriter, r *http.Request) {
 	ip := httpx.ClientIP(r)
 	if blocked(ip) {
@@ -213,6 +326,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "نام کاربری و رمز عبور الزامی است.")
 		return
 	}
+	if len(identifier) > 200 || len(password) > 1024 {
+		httpx.Error(w, http.StatusBadRequest, "ورودی نامعتبر است.")
+		return
+	}
+	if accountBlocked(identifier) {
+		httpx.Error(w, http.StatusTooManyRequests, tooMany)
+		return
+	}
 
 	var id, email, hash string
 	var data []byte
@@ -223,8 +344,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
+	if err == pgx.ErrNoRows {
+		hash = string(dummyHash)
+	}
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil || err != nil {
 		noteFailure(ip)
+		noteFailureKey("acct:" + identifier)
 		if OnLogin != nil {
 			OnLogin(r, identifier, nil, false, "نام کاربری یا رمز عبور نادرست بود")
 		}
@@ -248,15 +373,31 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clearFailures(ip)
+	clearFailureKey("acct:" + identifier)
+	// An older, cheaper hash is replaced by a stronger one now that the real password is at hand.
+	if c, err := bcrypt.Cost([]byte(hash)); err == nil && c < bcryptCost {
+		if nh, err := HashPassword(password); err == nil {
+			_, _ = store.Pool.Exec(r.Context(), `UPDATE users SET password_hash = $2 WHERE id = $1`, id, nh)
+		}
+	}
 	user.M["lastLogin"] = jalali.Timestamp(time.Now())
 	if _, err := store.Pool.Exec(r.Context(), `UPDATE users SET data = $2::jsonb WHERE id = $1`, id, jsonx.Encode(user.M)); err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+	sid := newSessionID()
+	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM auth_sessions WHERE created_at < now() - $1::interval OR last_seen < now() - $2::interval`,
+		sessionAbsolute.String(), sessionIdle.String())
+	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO auth_sessions (id, user_id, ip, agent) VALUES ($1, $2, $3, $4)`,
+		sid, id, ip, truncate(r.UserAgent(), 300)); err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "internal error")
+		return
+	}
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": id,
+		"jti": sid,
 		"iat": time.Now().Unix(),
-		"exp": time.Now().Add(12 * time.Hour).Unix(),
+		"exp": time.Now().Add(sessionAbsolute).Unix(),
 	}).SignedString(secret)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "internal error")
@@ -268,7 +409,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"token": token, "user": user.M})
 }
 
-// ChangePassword lets a signed-in user change their own password.
+func truncate(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
+}
+
+// ChangePassword lets a signed-in user change their own password; every other sign-in of theirs ends.
 func ChangePassword(w http.ResponseWriter, r *http.Request) {
 	ip := httpx.ClientIP(r)
 	if blocked(ip) {
@@ -281,11 +429,11 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	current := jsonx.Str(body, "currentPassword")
 	next := jsonx.Str(body, "newPassword")
-	if len([]rune(next)) < 8 {
-		httpx.Error(w, http.StatusBadRequest, "کلمه عبور جدید باید حداقل ۸ کاراکتر باشد.")
+	me := Current(r)
+	if why := CheckPassword(next, me.Name(), me.Email(), me.ID()); why != "" {
+		httpx.Error(w, http.StatusBadRequest, why)
 		return
 	}
-	me := Current(r)
 	var hash string
 	err := store.Pool.QueryRow(r.Context(), `SELECT password_hash FROM users WHERE id = $1`, me.ID()).Scan(&hash)
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(current)) != nil {
@@ -293,15 +441,17 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusForbidden, "کلمه عبور فعلی نادرست است.")
 		return
 	}
-	newHash, err := bcrypt.GenerateFromPassword([]byte(next), 10)
+	newHash, err := HashPassword(next)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	if _, err := store.Pool.Exec(r.Context(), `UPDATE users SET password_hash = $2 WHERE id = $1`, me.ID(), string(newHash)); err != nil {
+	if _, err := store.Pool.Exec(r.Context(), `UPDATE users SET password_hash = $2 WHERE id = $1`, me.ID(), newHash); err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+	keep, _ := bearerSession(r)
+	EndSessions(r.Context(), me.ID(), keep)
 	httpx.OK(w)
 }
 

@@ -28,6 +28,16 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
 	`CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (lower(email))`,
+	// One row per sign-in. Deleting the row (sign-out, password change) ends that sign-in at once, wherever the token was copied to.
+	`CREATE TABLE IF NOT EXISTS auth_sessions (
+	  id TEXT PRIMARY KEY,
+	  user_id TEXT NOT NULL,
+	  ip TEXT NOT NULL DEFAULT '',
+	  agent TEXT NOT NULL DEFAULT '',
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  last_seen TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
+	`CREATE INDEX IF NOT EXISTS auth_sessions_user_idx ON auth_sessions (user_id)`,
 	`CREATE TABLE IF NOT EXISTS departments (
 	  id TEXT PRIMARY KEY,
 	  data JSONB NOT NULL

@@ -407,6 +407,8 @@ export interface ServerState {
 export const api = {
   login: (identifier: string, password: string, adminOnly = false) =>
     request<{ token: string; user: User }>('POST', '/api/auth/login', { identifier, password, adminOnly }),
+  /** Ends this sign-in on the server too (the token stops working everywhere it was copied to). */
+  logout: () => request<{ ok: true }>('POST', '/api/auth/logout'),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ ok: true }>('POST', '/api/auth/change-password', { currentPassword, newPassword }),
   state: () => request<ServerState>('GET', '/api/state'),

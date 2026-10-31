@@ -713,7 +713,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = useCallback(() => {
     // Stop pushing this user's notifications to this device before the session token is dropped.
-    void Promise.race([disablePush(), new Promise((r) => setTimeout(r, 1500))]).finally(clearSession);
+    void Promise.race([disablePush().then(() => api.logout().catch(() => {})), new Promise((r) => setTimeout(r, 2500))]).finally(clearSession);
   }, [clearSession]);
 
   const handleSendTransfer = useCallback(
