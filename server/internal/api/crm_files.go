@@ -1,6 +1,7 @@
 package api
 
 import (
+	"strings"
 	"automation/server/internal/jsonx"
 	"automation/server/internal/store"
 	"io"
@@ -99,10 +100,18 @@ func fileGetFrom(w http.ResponseWriter, r *http.Request, path string) {
 	st, _ := f.Stat()
 	head := make([]byte, 512)
 	n, _ := f.Read(head)
-	w.Header().Set("Content-Type", http.DetectContentType(head[:n]))
-	if name := r.URL.Query().Get("name"); name != "" {
-		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
+	// Whatever the file says it is, a page that could run (html, svg, xml) is sent as a plain download, and every file is
+	// an attachment: an uploaded page can never be shown from this site's address.
+	ct := http.DetectContentType(head[:n])
+	if l := strings.ToLower(ct); strings.HasPrefix(l, "text/html") || strings.HasPrefix(l, "text/xml") || strings.Contains(l, "xml") || strings.Contains(l, "svg") || strings.HasPrefix(l, "text/plain") {
+		ct = "application/octet-stream"
 	}
+	w.Header().Set("Content-Type", ct)
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		name = "file"
+	}
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_, _ = f.Seek(0, io.SeekStart)
 	http.ServeContent(w, r, "", st.ModTime(), f)

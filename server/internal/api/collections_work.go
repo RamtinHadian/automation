@@ -356,6 +356,11 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 	doc["id"] = id
 	// the admin's «file deleted» / «keep» marks are the server's, not the client's
 	keepMarkers(before, doc)
+	if exists {
+		guardLetterFields(before, doc, me)
+	} else if jsonx.Str(doc, "signatureStatus") == "SIGNED" {
+		doc["signedBy"], doc["signedById"] = me.Name(), me.ID()
+	}
 	if _, err := store.Pool.Exec(ctx,
 		`INSERT INTO transfers (id, sender_id, recipient_ids, data) VALUES ($1, $2, $3, $4::jsonb)
 		 ON CONFLICT (id) DO UPDATE SET recipient_ids = $3, data = $4::jsonb, updated_at = now()`,
@@ -481,4 +486,41 @@ func inactiveAmong(ctx context.Context, ids []string) []string {
 		}
 	}
 	return out
+}
+
+// guardLetterFields keeps what the client may not decide on a stored letter or file:
+//   - who sent it, which stored file it is and when - never change after the first save;
+//   - the signature, the stamp and the signer: only a person who holds the signing right can set them, and the signer's name is always the
+//     signed-in person's own (it cannot be written as somebody else's);
+//   - once an official letter is signed, its text, number, subject, signature, stamp and signing facts are frozen for everybody.
+func guardLetterFields(before, doc jsonx.M, me auth.User) {
+	for _, k := range []string{"sender", "fileId", "sentAt", "isOfficialLetter", "category"} {
+		if v, ok := before[k]; ok {
+			doc[k] = v
+		}
+	}
+	sigKeys := []string{"signatureImageUrl", "companyStampImageUrl", "signedBy", "signedById", "signedAt", "signatureComment"}
+	wasSigned := jsonx.Str(before, "signatureStatus") == "SIGNED"
+	freeze := func(keys []string) {
+		for _, k := range keys {
+			if v, ok := before[k]; ok {
+				doc[k] = v
+			} else {
+				delete(doc, k)
+			}
+		}
+	}
+	switch {
+	case wasSigned && jsonx.Bool(before, "isOfficialLetter"):
+		freeze(append([]string{"letterContentHtml", "letterNumber", "fileName", "signatureStatus", "note"}, sigKeys...))
+	case !jsonx.Bool(me.M, "canSignOfficialLetters"):
+		freeze(append([]string{"signatureStatus"}, sigKeys...))
+		if s := jsonx.Str(doc, "signatureStatus"); s == "SIGNED" {
+			doc["signatureStatus"] = jsonx.Str(before, "signatureStatus")
+		}
+	default:
+		if jsonx.Str(doc, "signatureStatus") == "SIGNED" {
+			doc["signedBy"], doc["signedById"] = me.Name(), me.ID()
+		}
+	}
 }

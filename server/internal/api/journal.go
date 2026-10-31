@@ -103,6 +103,10 @@ var journalRules = []rule{
 var journalSkip = regexp.MustCompile(`^/api/(audit/|notifications|push/|net/|p2p|chat/[^/]+/(read|typing)|state|presence|sounds|voip/recordings|backups|msgr/check|notify/test)`)
 
 func journal(r *http.Request, u auth.User, status int) {
+	if status == http.StatusForbidden {
+		noteDenied(r, u)
+		return
+	}
 	if status >= 400 {
 		return
 	}
@@ -128,6 +132,9 @@ func journal(r *http.Request, u auth.User, status int) {
 		}
 		hit = &rule{action: "ACTIVITY", severity: "INFO", text: "تغییر در سامانه (" + method + " " + path + ")"}
 	}
+	if hit.action == "FILE_DOWNLOAD" || hit.action == "CALL_LISTEN" || hit.action == "CALL_TRANSCRIPT_READ" {
+		noteDownload(u)
+	}
 	writeJournal(r, u, hit.action, hit.severity, hit.text)
 }
 
@@ -144,6 +151,7 @@ func journalLogin(r *http.Request, identifier string, u *auth.User, ok bool, why
 		entry[k] = v
 	}
 	insertJournal(entry)
+	noteFailedLogin(httpx.ClientIP(r), identifier)
 }
 
 func writeJournal(r *http.Request, u auth.User, action, severity, text string) {

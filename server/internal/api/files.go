@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"os"
@@ -82,6 +83,12 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 	// somebody else's file can not be replaced (an administrator may)
 	if b, err := os.ReadFile(ownerPath); err == nil && strings.TrimSpace(string(b)) != me.ID() && !me.IsAdmin() {
 		httpx.Forbidden(w)
+		return
+	}
+	// A file that was sent can not be replaced afterwards, by anybody (the sender, an administrator, or a direct call of this address):
+	// only the letter its author is still writing (an official letter that is not signed yet) may be uploaded again.
+	if st, err := os.Stat(path); err == nil && st.Size() > 0 && transferFrozen(r.Context(), id) {
+		httpx.Error(w, http.StatusForbidden, "فایل ارسال‌شده قابل تغییر نیست.")
 		return
 	}
 	if err := os.MkdirAll(filesDir(), 0o750); err != nil {
@@ -171,4 +178,18 @@ func deleteStoredFiles(id string) {
 			os.Remove(o)
 		}
 	}
+}
+
+// transferFrozen: a transfer record exists for this id and it is not an unsigned official letter (those are still being written).
+// A record the administrator already purged the file of stays frozen too.
+func transferFrozen(ctx context.Context, id string) bool {
+	var raw []byte
+	if err := store.Pool.QueryRow(ctx, `SELECT data FROM transfers WHERE id = $1`, id).Scan(&raw); err != nil {
+		return false // no record yet: this is the first upload
+	}
+	doc := jsonx.Decode(raw)
+	if jsonx.Str(doc, "fileDeletedAt") != "" {
+		return true
+	}
+	return !(jsonx.Bool(doc, "isOfficialLetter") && jsonx.Str(doc, "signatureStatus") != "SIGNED")
 }

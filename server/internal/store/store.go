@@ -75,12 +75,11 @@ var schema = []string{
 	)`,
 	`CREATE INDEX IF NOT EXISTS chat_pair_idx ON chat_messages (sender_id, recipient_id, created_at)`,
 	`CREATE INDEX IF NOT EXISTS chat_unread_idx ON chat_messages (recipient_id) WHERE read_at IS NULL`,
-	// Changes of the CEO («مدیرعامل») are permanent: the database itself refuses to edit or delete those log lines.
+	// The audit log is append-only: the database itself refuses to edit or delete any line (the CEO changes have always been protected this way;
+	// now every line is). The demo clears the table with TRUNCATE, which a row trigger does not see.
 	`CREATE OR REPLACE FUNCTION protect_ceo_log() RETURNS trigger AS $$
 	BEGIN
-	  IF OLD.data->>'action' = 'CEO_CHANGE' THEN RAISE EXCEPTION 'the CEO change log is permanent'; END IF;
-	  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
-	  RETURN NEW;
+	  RAISE EXCEPTION 'the audit log is append-only';
 	END $$ LANGUAGE plpgsql`,
 	`DROP TRIGGER IF EXISTS audit_logs_protect ON audit_logs`,
 	`CREATE TRIGGER audit_logs_protect BEFORE UPDATE OR DELETE ON audit_logs FOR EACH ROW EXECUTE FUNCTION protect_ceo_log()`,
