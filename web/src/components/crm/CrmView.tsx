@@ -156,6 +156,8 @@ export const CrmView: React.FC = () => {
   }, []);
   // a logo on a customer's card: the window for sending to that network
   const [socialSend, setSocialSend] = useState<{ customer: Customer; network: string } | null>(null);
+  // a customer with several web addresses: which one to open
+  const [websitePick, setWebsitePick] = useState<{ name: string; list: string[] } | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [importing, setImporting] = useState(false);
   const [editingDeal, setEditingDeal] = useState<{ deal: Deal; isNew: boolean } | null>(null);
@@ -508,8 +510,9 @@ export const CrmView: React.FC = () => {
         </div>
         {!c.hiddenContact && <CustomerSocialIcons customer={c} onPick={(net) => {
           if (net === 'website') {
-            const w = (c.social?.website?.accounts || [])[0];
-            if (w) window.open(/^https?:/i.test(w) ? w : `https://${w}`, '_blank', 'noopener,noreferrer');
+            const list = c.social?.website?.accounts || [];
+            if (list.length > 1) setWebsitePick({ name: c.name, list }); // several addresses: ask which one
+            else if (list[0]) window.open(/^https?:/i.test(list[0]) ? list[0] : `https://${list[0]}`, '_blank', 'noopener,noreferrer');
             return;
           }
           setSocialSend({ customer: c, network: net });
@@ -1192,6 +1195,18 @@ export const CrmView: React.FC = () => {
           onToggle={toggleDone}
           onDeleteActivity={(a) => setActivities((prev) => prev.filter((x) => x.id !== a.id))}
         />
+      )}
+      {websitePick && (
+        <Modal title={`کدام وب‌سایت ${websitePick.name} باز شود؟`} onTop onClose={() => setWebsitePick(null)} footer={<><span className="text-[11px] font-bold text-[#8C6F66]">{toPersianDigits(websitePick.list.length)} آدرس</span><button type="button" onClick={() => setWebsitePick(null)} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">بستن</button></>}>
+          <div className="space-y-2" data-website-pick>
+            {websitePick.list.map((w) => (
+              <button key={w} type="button" onClick={() => { window.open(/^https?:/i.test(w) ? w : `https://${w}`, '_blank', 'noopener,noreferrer'); setWebsitePick(null); }} className="w-full flex items-center justify-between gap-3 rounded-2xl border border-[#EBDBCE] bg-white hover:bg-violet-50 px-4 py-3 cursor-pointer text-right" data-website-pick-row>
+                <span dir="ltr" className="text-sm font-black text-[#3A241F] truncate">{w}</span>
+                <span className="text-[11px] font-black text-violet-700 whitespace-nowrap">باز کردن ←</span>
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
       {socialSend && <SendMessageDialog customer={socialSend.customer} only={socialSend.network} onClose={() => setSocialSend(null)} />}
       {mergeFor && <MergeModal customer={mergeFor} customers={customers} onClose={() => setMergeFor(null)} onDone={(id) => { setMergeFor(null); setOpenCustomer(id); }} />}
