@@ -1737,16 +1737,19 @@ const CustomerDetail: React.FC<{
             const row = (d: Deal, inGroup: boolean) => {
               const st = stageOf(d.stage);
               return (
-                <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer ${inGroup ? 'bg-white/90 border border-transparent' : 'bg-white border border-violet-200'}`}>
+                <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className={`w-full grid grid-cols-[minmax(0,1fr)_8.5rem_11rem] items-center gap-3 rounded-xl px-3 py-2 text-right hover:shadow-sm hover:bg-violet-50/60 cursor-pointer ${inGroup ? 'bg-white/90 border border-transparent' : 'bg-white border border-violet-200'}`} data-deal-table-row>
                   <span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>
-                  <span className="flex items-center gap-2 shrink-0">
-                    <MoneyTag amount={d.amount} />
-                    <span className={`text-[10px] font-black flex items-center gap-1 ${st.head}`}><span className={`w-2 h-2 rounded-full ${st.dot}`} />{st.label}</span>
-                  </span>
+                  <span className={`text-[10px] font-black flex items-center gap-1.5 whitespace-nowrap ${st.head}`}><span className={`w-2 h-2 rounded-full ${st.dot}`} />{st.label}</span>
+                  <MoneyTag amount={d.amount} className="justify-self-start" />
                 </button>
               );
             };
-            return blocks.map((b) => {
+            const head = (
+              <div className="grid grid-cols-[minmax(0,1fr)_8.5rem_11rem] gap-3 px-3 text-[10px] font-black text-violet-700/80" data-deal-table-head>
+                <span>عنوان فرصت</span><span>مرحله</span><span>مبلغ</span>
+              </div>
+            );
+            return [<React.Fragment key="head">{head}</React.Fragment>, ...blocks.map((b) => {
               if (b.members.length === 1) return row(b.members[0], false);
               b.members.sort(bySeq);
               const grp = dealGroup(deals, b.members[0]);
@@ -1760,7 +1763,7 @@ const CustomerDetail: React.FC<{
                   {b.members.map((m) => row(m, true))}
                 </div>
               );
-            });
+            })];
           })()}
         </section>
       )}
@@ -1950,21 +1953,24 @@ const CustomerDetail: React.FC<{
             فرصت جدید
           </button>
         </div>
+        {deals.length > 0 && (
+          <div className="grid grid-cols-[minmax(0,1fr)_8.5rem_11rem] gap-3 px-3 text-[10px] font-black text-[#8C6F66]">
+            <span>عنوان فرصت</span><span>مرحله</span><span>مبلغ</span>
+          </div>
+        )}
         {deals.length === 0 ? (
           <div className="text-center text-[11px] text-gray-400 font-bold py-3 border border-dashed border-[#EBDBCE] rounded-xl">فرصتی ثبت نشده است.</div>
         ) : (
           [...deals].sort((x, y) => Number(x.stage === 'WON' || x.stage === 'LOST') - Number(y.stage === 'WON' || y.stage === 'LOST')).map((d) => {
             const s = stageOf(d.stage);
             return (
-              <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className="w-full flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
+              <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className="w-full grid grid-cols-[minmax(0,1fr)_8.5rem_11rem] items-center gap-3 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
                 <span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>
-                <span className="flex items-center gap-2 shrink-0">
-                  <MoneyTag amount={d.amount} />
-                  <span className={`text-[10px] font-black flex items-center gap-1 whitespace-nowrap ${s.head}`}>
-                    <span className={`w-2 h-2 rounded-full ${s.dot}`} />
-                    {s.label}
-                  </span>
+                <span className={`text-[10px] font-black flex items-center gap-1.5 whitespace-nowrap ${s.head}`}>
+                  <span className={`w-2 h-2 rounded-full ${s.dot}`} />
+                  {s.label}
                 </span>
+                <MoneyTag amount={d.amount} className="justify-self-start" />
               </button>
             );
           })
