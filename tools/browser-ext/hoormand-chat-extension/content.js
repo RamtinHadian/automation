@@ -267,21 +267,30 @@
       const sig = rows.map((r) => (r.innerText || '').trim()).join('|');
       if (sig === last) { if (++stable >= 3 && !loading()) break; } else { stable = 0; last = sig; }
     }
-    // the answer is in sections («گفتگوها» = people and chats, «پیام‌ها» = messages that contain the word): messages are not people
-    const headers = deepAll(document, '*').filter(visible).filter((el) => el.children.length === 0).map((el) => ({ el, t: norm(el.textContent) }))
-      .filter((h) => /^(گفتگوها|مخاطبین|کاربران|افراد|chats|contacts|people|users|messages|پیام ها)$/.test(h.t));
-    const isMsgSection = (row) => {
+    // The answer is in sections: «گفتگوها» (people the account already talks to), «جستجوی سراسری» (public channels and groups, with a «عضویت» button),
+    // «پیام‌ها» (messages that contain the word). Only the first section holds a person that can be written to.
+    const SECTION = /^(گفتگوها|مخاطبین|مخاطب ها|کاربران|افراد|چت ها|chats|contacts|people|users|messages|پیام ها|جستجوی سراسری|global search|channels|کانال ها|خدمات|بازو)$/;
+    const PERSON_SECTION = /^(گفتگوها|مخاطبین|مخاطب ها|کاربران|افراد|چت ها|chats|contacts|people|users)$/;
+    const headers = deepAll(document, '*').filter(visible).filter((el) => el.children.length === 0).map((el) => ({ el, t: norm(el.textContent) })).filter((h) => SECTION.test(h.t));
+    const sectionOf = (row) => {
       const top = row.getBoundingClientRect().top;
       const above = headers.filter((h) => h.el.getBoundingClientRect().top <= top).sort((a, b) => b.el.getBoundingClientRect().top - a.el.getBoundingClientRect().top)[0];
-      return !!above && /^(messages|پیام ها)$/.test(above.t);
+      return above ? above.t : '';
     };
-    const people = rows.filter((r) => !isMsgSection(r));
+    const hasJoin = (row) => /(^|\s)(عضویت|پیوستن|join)(\s|$)/i.test(norm(row.innerText));
+    const inPeople = rows.filter((r) => PERSON_SECTION.test(sectionOf(r)) && !hasJoin(r));
+    // a channel or a group of the public search is never the customer, even when its name holds the user name
+    const people = headers.some((h) => PERSON_SECTION.test(h.t)) ? inPeople : rows.filter((r) => !hasJoin(r) && !/^(messages|پیام ها|جستجوی سراسری|global search)$/.test(sectionOf(r)));
     if (people.length) rows = people;
+    else if (headers.length) { why = 'برای «' + who + '» در بخش گفتگوها یا مخاطبین کسی پیدا نشد (فقط کانال یا پیام بود)'; return false; }
     if (!rows.length) { why = 'برای «' + who + '» نتیجه‌ای پیدا نشد (شمارهٔ ثبت‌نشده در مخاطبین پیدا نمی‌شود)'; return false; }
     const hit = rows.filter((r) => rowMatches(r, job))[0];
     // the name of the row: its first line of more than one character (a letter avatar adds a line with a single letter)
-    const title = (r) => (r.innerText || '').split('\n').map((x) => x.trim()).find((x) => x.length > 1) || '';
+    const title = (r) => (r.innerText || '').split(String.fromCharCode(10)).map((x) => x.trim()).find((x) => x.length > 1) || '';
     if (hit) { lastVerified = true; lastRowTitle = title(hit); click(hit); return true; }
+    // the first person of «گفتگوها» is the one the messenger itself ranks first for this search: it is opened, but the name does not
+    // prove he is the customer, so the text is only written and «send» stays with the person
+    if (rows.length >= 1 && headers.some((h) => PERSON_SECTION.test(h.t))) { lastVerified = false; lastRowTitle = title(rows[0]); click(rows[0]); return true; }
     if (rows.length === 1) { lastVerified = false; lastRowTitle = title(rows[0]); click(rows[0]); return true; }
     // several rows and none is the customer: opening any of them could be the wrong person
     why = 'نتیجهٔ مطابق «' + who + '» نبود؛ نتیجه‌ها: ' + rows.slice(0, 3).map((r) => (r.innerText || '').trim().split('\n')[0]).join('، ') + ' — برای اینکه پیام به شخص اشتباه نرود، باز نکردم';
