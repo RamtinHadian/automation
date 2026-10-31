@@ -145,18 +145,24 @@ export const socialSummary = (c: Customer) => {
 };
 
 /** The button next to the customer's name: opens the page of his networks. */
-export const SocialButton: React.FC<{ customer: Customer; onClick: () => void }> = ({ customer, onClick }) => {
+export const SocialButton: React.FC<{ customer: Customer; onClick: () => void; onPick?: (networkId: string) => void }> = ({ customer, onClick, onPick }) => {
   const { networks } = socialSummary(customer);
+  const mine = NETWORKS.filter((n) => (customer.social?.[n.id]?.accounts?.length || 0) > 0);
   return (
-    <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 text-[11px] font-black text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 rounded-full px-3 py-1 cursor-pointer" data-social-open>
-      <Share2 className="w-3.5 h-3.5" />
-      تعاملات مجازی
-      {networks > 0 && <span className="bg-violet-600 text-white rounded-full px-1.5 min-w-[18px] text-center text-[10px]">{toPersianDigits(networks)}</span>}
-      {/* the networks the customer has, as small logos (like on the customers' list) */}
-      {NETWORKS.filter((n) => (customer.social?.[n.id]?.accounts?.length || 0) > 0).map((n) => (
-        <span key={n.id} title={n.name} className="inline-flex" data-social-open-logo={n.id}><SocialLogo id={n.id} size={16} /></span>
+    <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 border border-violet-200 pl-1.5 pr-1 py-0.5" data-social-bar>
+      <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 text-[11px] font-black text-violet-700 hover:bg-violet-100 rounded-full px-2.5 py-0.5 cursor-pointer" data-social-open>
+        <Share2 className="w-3.5 h-3.5" />
+        تعاملات مجازی
+        {networks > 0 && <span className="bg-violet-600 text-white rounded-full px-1.5 min-w-[18px] text-center text-[10px]">{toPersianDigits(networks)}</span>}
+      </button>
+      {/* each logo goes straight into its own network (the page of the interactions is the button beside them) */}
+      {mine.length > 0 && <span className="w-px h-4 bg-violet-200 mx-0.5" aria-hidden />}
+      {mine.map((n) => (
+        <button key={n.id} type="button" onClick={() => onPick?.(n.id)} title={n.web ? `${n.name}: ${customer.social![n.id].accounts[0]}` : `ارسال پیام در ${n.name}`} className="rounded-full hover:scale-110 hover:shadow-md transition-transform cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400" data-social-open-logo={n.id}>
+          <SocialLogo id={n.id} size={18} />
+        </button>
       ))}
-    </button>
+    </span>
   );
 };
 

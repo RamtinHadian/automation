@@ -2,6 +2,7 @@ import React from 'react';
 import { Link2 } from 'lucide-react';
 import { Deal } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
+import { formatMoney, unitName } from '../../lib/money';
 
 /** Opportunities written together (Enter in the title of the form) share a group: every one of them wears the same colour. */
 const COLORS = [
@@ -32,5 +33,13 @@ export const LinkedChip: React.FC<{ group: DealGroup }> = ({ group }) => (
   <span className={`inline-flex items-center gap-1 text-[10px] font-black rounded-full border px-2 py-0.5 w-fit ${group.color.chip}`} title="این فرصت همراه فرصت‌های دیگری ثبت شده است" data-deal-linked>
     <Link2 className="w-3 h-3" />
     پیوسته {toPersianDigits(group.index)} از {toPersianDigits(group.size)}
+  </span>
+);
+
+/** An amount on one line with its own small label of the money («تومان» / «ریال»): the number reads left to right and never breaks. */
+export const MoneyTag: React.FC<{ amount: number; tone?: 'violet' | 'plain'; className?: string }> = ({ amount, tone = 'violet', className = '' }) => (
+  <span className={`inline-flex items-center gap-1.5 whitespace-nowrap ${className}`} data-money>
+    <b dir="ltr" className={`text-[12px] font-black tracking-wide ${tone === 'violet' ? 'text-violet-800' : 'text-[#3A241F]'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(amount)}</b>
+    <i className={`not-italic text-[9px] font-black rounded-md px-1.5 py-0.5 border ${tone === 'violet' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-[#FAF5F1] text-[#8C6F66] border-[#EBDBCE]'}`}>{unitName()}</i>
   </span>
 );

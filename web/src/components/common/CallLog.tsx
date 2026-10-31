@@ -29,12 +29,13 @@ const savedVolume = (): number => {
 };
 
 /** Plays the recording of one call (fetched with the login, then played from memory). */
-export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean; autoShow?: boolean }> = ({ id, hasTranscript, autoShow }) => {
+export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean; autoShow?: boolean; onSummary?: (summary: string) => void }> = ({ id, hasTranscript, autoShow, onSummary }) => {
   const { currentUser } = useAppContext();
   const mayConvert = canSub(currentUser, 'ai.calls'); // the text that already exists is shown to everybody who may listen; making it needs the right
   const [url, setUrl] = useState<string | null>(null);
   const [tx, setTx] = useState<{ status: string; text?: string; error?: string } | null>(null);
   const [txOpen, setTxOpen] = useState(false);
+  const [sum, setSum] = useState<'idle' | 'busy' | 'done' | string>('idle');
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
   const poll = async () => {
@@ -112,7 +113,22 @@ export const RecordingButton: React.FC<{ id: string; hasTranscript?: boolean; au
               <div className="mt-1 flex gap-3 text-[10px] text-violet-700">
                 <button type="button" onClick={() => { try { navigator.clipboard.writeText(tx.text || ''); } catch { /* no clipboard */ } }} className="underline cursor-pointer">کپی متن</button>
                 <button type="button" onClick={again} className="underline cursor-pointer">تبدیل دوباره</button>
+                {onSummary && mayConvert && (
+                  <button
+                    type="button"
+                    disabled={sum === 'busy'}
+                    data-call-summary
+                    onClick={async () => {
+                      setSum('busy');
+                      try { const r = await api.voipSummary(id); onSummary(r.summary); setSum('done'); } catch (e) { setSum(e instanceof Error ? e.message : 'خلاصه ساخته نشد.'); }
+                    }}
+                    className="font-black bg-violet-600 text-white rounded-lg px-2.5 py-1 cursor-pointer disabled:opacity-60"
+                  >
+                    {sum === 'busy' ? 'در حال خلاصه‌نویسی…' : sum === 'done' ? 'خلاصه در توضیحات گذاشته شد' : 'خلاصهٔ مکالمه را در توضیحات بگذار'}
+                  </button>
+                )}
               </div>
+              {sum !== 'idle' && sum !== 'busy' && sum !== 'done' && <div className="mt-1 text-[10px] font-bold text-rose-700">{sum}</div>}
             </>
           )}
         </div>

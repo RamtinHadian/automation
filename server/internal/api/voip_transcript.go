@@ -232,3 +232,37 @@ func transcribedSet(ctx context.Context, ids []string) map[string]bool {
 	}
 	return out
 }
+
+const callSummaryPrompt = "متن یک مکالمهٔ تلفنی فارسی بین کارمند شرکت و مشتری را می‌خوانی. خلاصه‌اش را در دو تا چهار جملهٔ کوتاه و ساده بنویس: مشتری چه خواست، چه توافقی شد یا چه ماند، و کار بعدی چیست (اگر گفته شد). فقط از چیزی که در متن هست بنویس و چیزی اضافه نکن. بدون عنوان و بدون فهرست؛ فقط متن خلاصه."
+
+// POST /api/voip/summary/{id}: a short summary of an already converted call (to be put into the notes of the customer)
+func voipSummary(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	id := r.PathValue("id")
+	if !canHearCall(r, me, id) {
+		httpx.Forbidden(w)
+		return
+	}
+	if aiDenied(w, me, "ai.calls") {
+		return
+	}
+	var text string
+	if store.Pool.QueryRow(r.Context(), `SELECT text FROM voip_transcripts WHERE call_id = $1 AND status = 'done'`, id).Scan(&text) != nil || strings.TrimSpace(text) == "" {
+		httpx.Error(w, http.StatusBadRequest, "اول مکالمه را به متن تبدیل کنید.")
+		return
+	}
+	s := supportSettings(r.Context())
+	key, model := jsonx.Str(s, "aiKey"), jsonx.Str(s, "aiModel")
+	if key == "" || model == "" {
+		httpx.Error(w, http.StatusBadRequest, "اول کلید API و نام مدل را در پنل ادمین، تنظیمات پشتیبانی، بخش «پاسخ هوشمند» ذخیره کنید.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Second)
+	defer cancel()
+	out, err := aiChatOpts(ctx, key, model, []aiMsg{{Role: "system", Content: callSummaryPrompt}, {Role: "user", Content: cutRunes(text, 12000)}}, 600, 90*time.Second)
+	if err != nil {
+		httpx.Error(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"summary": strings.TrimSpace(out)})
+}

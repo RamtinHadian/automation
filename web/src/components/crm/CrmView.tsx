@@ -39,13 +39,13 @@ import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { SocialButton, SocialDialog, CustomerSocialIcons } from './SocialNetworks';
 import { SendMessageDialog } from './MessageTemplates';
-import { bySeq, dealGroup, LinkedChip } from './DealLinks';
+import { bySeq, dealGroup, LinkedChip, MoneyTag } from './DealLinks';
 import { ParagraphNotes, noteEntries, canEditNote } from '../common/ParagraphNotes';
 import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SocialEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
-import { CallList } from '../common/CallLog';
+import { CallList, RecordingButton } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
 import { BulkSms } from './BulkSms';
 import { CustomerForm } from './CustomerForm';
@@ -1199,6 +1199,16 @@ export const CrmView: React.FC = () => {
             setEditingCustomer(cu);
           }}
           onMerge={isAdmin ? () => setMergeFor(customerById.get(openCustomer)!) : undefined}
+          onNetwork={(net) => {
+            const cu = customerById.get(openCustomer)!;
+            if (net === 'website') {
+              const list = cu.social?.website?.accounts || [];
+              if (list.length > 1) setWebsitePick({ name: cu.name, list });
+              else if (list[0]) window.open(/^https?:/i.test(list[0]) ? list[0] : `https://${list[0]}`, '_blank', 'noopener,noreferrer');
+              return;
+            }
+            setSocialSend({ customer: cu, network: net });
+          }}
           onSocial={(social) => saveCustomer({ ...customerById.get(openCustomer)!, social })}
           onNotes={(noteLog, notes) => saveCustomer({ ...customerById.get(openCustomer)!, noteLog, notes })}
           onAttachments={(files) => saveCustomer({ ...customerById.get(openCustomer)!, attachments: files })}
@@ -1334,9 +1344,13 @@ const DealForm: React.FC<{
             {d.createdAt && <span className="text-[#8C6F66] font-medium"> · {formatDateTime(d.createdAt)}</span>}
           </div>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_9rem_9rem] gap-4">
-          <div>
-            <label className={label}>عنوان فرصت *</label>
+        {/* every opportunity is a card; the cards stand one under another: the title on its own line, the code and the amount under it */}
+        <div className="space-y-3" data-deal-cards>
+          <div className="rounded-2xl border border-[#EBDBCE] bg-white p-3.5 space-y-3 shadow-2xs" data-deal-card-main>
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center">۱</span>
+              <label className="text-[11px] font-black text-[#3A241F]">عنوان فرصت *</label>
+            </div>
             <input
               className={field}
               value={d.title}
@@ -1347,55 +1361,73 @@ const DealForm: React.FC<{
               data-deal-title
               data-fid="main-title"
             />
-          </div>
-          <div>
-            <label className={label}>کد کالا</label>
-            <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
-          </div>
-          <div>
-            <label className={label}>مبلغ ({unitName()})</label>
-            <input
-              className={field}
-              inputMode="numeric"
-              value={amountText}
-              onChange={(e) => { const n = parseNumber(e.target.value); setAmountText(n ? formatNumber(n) : ''); patch({ amount: fromDisplay(n) }); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'amount'); } }}
-              placeholder="۰"
-              data-deal-amount
-              data-fid="main-amount"
-            />
-          </div>
-        </div>
-        {more.length > 0 && (
-          <div className="space-y-3 -mt-1" data-deal-more>
-            {more.map((r, i) => (
-              <div key={r.id} className="grid grid-cols-[1fr_9rem_9rem_auto] gap-4 items-center" data-deal-more-row>
-                <input
-                  className={field}
-                  value={r.title}
-                  data-fid={`${r.id}-title`}
-                  onChange={(e) => patchMore(r.id, { title: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'title'); }
-                    if (e.key === 'Backspace' && !r.title && !r.code && !r.amountText) { e.preventDefault(); setMore((p) => p.filter((x) => x.id !== r.id)); }
-                  }}
-                  placeholder={`عنوان فرصت ${toPersianDigits(i + 2)}`}
-                />
-                <input className={field} dir="ltr" value={r.code} onChange={(e) => patchMore(r.id, { code: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="کد کالا" data-fid={`${r.id}-code`} />
-                <input
-                  className={field}
-                  inputMode="numeric"
-                  value={r.amountText}
-                  onChange={(e) => { const n = parseNumber(e.target.value); patchMore(r.id, { amountText: n ? formatNumber(n) : '', amount: fromDisplay(n) }); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'amount'); } }}
-                  data-fid={`${r.id}-amount`}
-                  placeholder={`مبلغ (${unitName()})`}
-                />
-                <button type="button" onClick={() => setMore((p) => p.filter((x) => x.id !== r.id))} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer" aria-label="حذف این خط"><X className="w-4 h-4" /></button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
+                <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
               </div>
-            ))}
+              <div>
+                <label className="block text-[10px] font-black text-[#8C6F66] mb-1">مبلغ</label>
+                <div className="relative">
+                  <input
+                    className={`${field} pl-16`}
+                    inputMode="numeric"
+                    dir="ltr"
+                    value={amountText}
+                    onChange={(e) => { const n = parseNumber(e.target.value); setAmountText(n ? formatNumber(n) : ''); patch({ amount: fromDisplay(n) }); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'amount'); } }}
+                    placeholder="۰"
+                    data-deal-amount
+                    data-fid="main-amount"
+                  />
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black rounded-md px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 pointer-events-none">{unitName()}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+          {more.map((r, i) => (
+            <div key={r.id} className="rounded-2xl border border-[#EBDBCE] bg-white p-3.5 space-y-3 shadow-2xs" data-deal-more-row>
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center">{toPersianDigits(i + 2)}</span>
+                <span className="flex-1 text-[11px] font-black text-[#3A241F]">عنوان فرصت {toPersianDigits(i + 2)}</span>
+                <button type="button" onClick={() => setMore((p) => p.filter((x) => x.id !== r.id))} className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer" aria-label="حذف این فرصت"><X className="w-4 h-4" /></button>
+              </div>
+              <input
+                className={field}
+                value={r.title}
+                data-fid={`${r.id}-title`}
+                onChange={(e) => patchMore(r.id, { title: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'title'); }
+                  if (e.key === 'Backspace' && !r.title && !r.code && !r.amountText) { e.preventDefault(); setMore((p) => p.filter((x) => x.id !== r.id)); }
+                }}
+                placeholder="عنوان فرصت"
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
+                  <input className={field} dir="ltr" value={r.code} onChange={(e) => patchMore(r.id, { code: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="مثلاً A-1024" data-fid={`${r.id}-code`} />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-[#8C6F66] mb-1">مبلغ</label>
+                  <div className="relative">
+                    <input
+                      className={`${field} pl-16`}
+                      inputMode="numeric"
+                      dir="ltr"
+                      value={r.amountText}
+                      onChange={(e) => { const n = parseNumber(e.target.value); patchMore(r.id, { amountText: n ? formatNumber(n) : '', amount: fromDisplay(n) }); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'amount'); } }}
+                      data-fid={`${r.id}-amount`}
+                      placeholder="۰"
+                    />
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black rounded-md px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 pointer-events-none">{unitName()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={`${label} flex items-center justify-between`}>
@@ -1538,8 +1570,10 @@ const CustomerDetail: React.FC<{
   onMerge?: () => void;
   onNotes: (noteLog: NoteEntry[], notes: string) => void;
   onSocial: (social: Record<string, SocialEntry>) => void;
+  /** a logo beside «تعاملات مجازی»: go into that network */
+  onNetwork: (network: string) => void;
   onAttachments: (files: CustomerFile[]) => void;
-}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onNotes, onSocial, onAttachments, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
+}> = ({ customer: c, deals, activities, staff, me, referred, allDeals, allTexts, canCall, onCall, onClose, onEdit, onMerge, onNotes, onSocial, onNetwork, onAttachments, onNewDeal, onOpenDeal, onAddActivity, onToggle, onDeleteActivity }) => {
   const [socialOpen, setSocialOpen] = useState(false);
   const [type, setType] = useState<ActivityType>('NOTE');
   const [text, setText] = useState('');
@@ -1628,7 +1662,7 @@ const CustomerDetail: React.FC<{
   return (
     <Modal
       wide
-      title={<span className="flex items-center gap-3 min-w-0"><span className="truncate">{c.name}</span>{!c.hiddenContact && <SocialButton customer={c} onClick={() => setSocialOpen(true)} />}</span>}
+      title={<span className="flex items-center gap-3 min-w-0"><span className="truncate">{c.name}</span>{!c.hiddenContact && <SocialButton customer={c} onClick={() => setSocialOpen(true)} onPick={onNetwork} />}</span>}
       onClose={onClose}
       footer={
         <>
@@ -1706,7 +1740,7 @@ const CustomerDetail: React.FC<{
                 <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer ${inGroup ? 'bg-white/90 border border-transparent' : 'bg-white border border-violet-200'}`}>
                   <span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>
                   <span className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-black text-violet-700">{toman(d.amount)} {unitShort()}</span>
+                    <MoneyTag amount={d.amount} />
                     <span className={`text-[10px] font-black flex items-center gap-1 ${st.head}`}><span className={`w-2 h-2 rounded-full ${st.dot}`} />{st.label}</span>
                   </span>
                 </button>
@@ -1721,7 +1755,7 @@ const CustomerDetail: React.FC<{
                 <div key={b.key} className="rounded-2xl p-2 space-y-1.5 border" style={{ borderColor: grp?.color.bar, borderRightWidth: 5, background: `${grp?.color.bar}12` }} data-deal-group>
                   <div className="flex items-center justify-between gap-2 px-1">
                     <span className="flex items-center gap-1.5 text-[11px] font-black" style={{ color: grp?.color.bar }}><Link2 className="w-3.5 h-3.5" />فرصت‌های پیوسته · {toPersianDigits(b.members.length)} فرصت</span>
-                    <span className="text-[11px] font-black text-[#3A241F]">جمع {toman(sum)} {unitShort()}</span>
+                    <span className="flex items-center gap-1.5 text-[11px] font-black text-[#3A241F] whitespace-nowrap">جمع <MoneyTag amount={sum} tone="plain" /></span>
                   </div>
                   {b.members.map((m) => row(m, true))}
                 </div>
@@ -1788,6 +1822,27 @@ const CustomerDetail: React.FC<{
         <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-3 space-y-2" data-customer-notes>
           <div className="text-[11px] font-black text-[#3A241F]">توضیحات</div>
           <CustomerNotesInline customer={c} me={me} onSave={onNotes} />
+          {/* the conversations of the call centre with this customer: listen, turn into text with the AI, and put the summary into the notes */}
+          {(() => {
+            const rec = (calls || []).filter((x) => x.hasRecording).slice(0, 12);
+            if (!rec.length) return null;
+            const addSummary = (call: VoipCall, summary: string) => {
+              const line = `خلاصهٔ مکالمهٔ ${call.direction === 'in' ? 'ورودی' : 'خروجی'} (${formatDateTime(call.startedAt)}${call.userName ? ' · ' + call.userName : ''}): ${summary.replace(/\s+/g, ' ').trim()}`;
+              const log = [...noteEntries(c.noteLog, c.notes).filter((e) => !e.draft), { text: line, at: new Date().toISOString(), byId: me.id, byName: me.fullName }];
+              onNotes(log, log.map((e) => e.text).join('\n'));
+            };
+            return (
+              <div className="rounded-xl bg-white/80 border border-amber-200 divide-y divide-amber-100 overflow-hidden" data-call-notes>
+                <div className="px-3 py-2 text-[11px] font-black text-[#3A241F] flex items-center gap-1.5"><PhoneCall className="w-3.5 h-3.5 text-emerald-600" />مکالمه‌های ضبط‌شدهٔ مرکز تماس با این مشتری</div>
+                {rec.map((x) => (
+                  <div key={x.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[11px] font-bold text-[#503730]" data-call-note-row>
+                    <span className="flex-1 min-w-0 truncate">{x.direction === 'in' ? 'ورودی' : x.direction === 'out' ? 'خروجی' : 'داخلی'} · {formatDateTime(x.startedAt)}{x.userName ? ` · ${x.userName}` : ''}{x.duration > 0 ? ` · ${toPersianDigits(Math.floor(x.duration / 60))}:${toPersianDigits(String(x.duration % 60).padStart(2, '0'))}` : ''}</span>
+                    <RecordingButton id={x.id} hasTranscript={x.hasTranscript} onSummary={(t) => addSummary(x, t)} />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1904,8 +1959,8 @@ const CustomerDetail: React.FC<{
               <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className="w-full flex items-center justify-between gap-2 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
                 <span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>
                 <span className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] font-black text-violet-700">{toman(d.amount)} {unitShort()}</span>
-                  <span className={`text-[10px] font-black flex items-center gap-1 ${s.head}`}>
+                  <MoneyTag amount={d.amount} />
+                  <span className={`text-[10px] font-black flex items-center gap-1 whitespace-nowrap ${s.head}`}>
                     <span className={`w-2 h-2 rounded-full ${s.dot}`} />
                     {s.label}
                   </span>

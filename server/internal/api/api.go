@@ -112,6 +112,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("POST /api/reports/ai-schedule/run", auth.Require(reportAiScheduleRun))
 	mux.HandleFunc("POST /api/voip/transcribe/{id}", auth.Require(voipTranscribe))
 	mux.HandleFunc("GET /api/voip/transcript/{id}", auth.Require(voipTranscript))
+	mux.HandleFunc("POST /api/voip/summary/{id}", auth.Require(voipSummary))
 	mux.HandleFunc("GET /api/voip/recording-setup", auth.Require(voipRecordingSetup))
 	mux.HandleFunc("PUT /api/voip/recordings/{id}", voipRecordingUpload)
 	mux.HandleFunc("POST /api/voip/recordings/{id}", voipRecordingUpload)
