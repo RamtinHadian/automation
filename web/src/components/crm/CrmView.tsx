@@ -1099,6 +1099,10 @@ export const CrmView: React.FC = () => {
             if (d.stage === 'PROPOSAL' && editingDeal.deal.stage !== 'PROPOSAL' && !d.proformaNumber) setProformaFor(d);
             showToast(editingDeal.isNew ? 'فرصت فروش ثبت شد.' : 'فرصت ذخیره شد.');
           }}
+          onSaveMore={(list) => {
+            list.forEach((x) => saveDeal(x));
+            showToast(`${toPersianDigits(list.length + 1)} فرصت فروش برای این مشتری ثبت شد.`);
+          }}
           onDelete={() => removeDeal(editingDeal.deal)}
         />
       )}
@@ -1190,11 +1194,27 @@ const DealForm: React.FC<{
   canDelete: boolean;
   onClose: () => void;
   onSave: (d: Deal) => void;
+  /** more opportunities written under the first one (Enter in the title): all for the same customer */
+  onSaveMore?: (list: Deal[]) => void;
   onProforma: (d: Deal) => void;
   onDelete: () => void;
   onCreateCustomer: (cb: (c: Customer) => void) => void;
-}> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onProforma, onDelete, onCreateCustomer }) => {
+}> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onSaveMore, onProforma, onDelete, onCreateCustomer }) => {
   const [d, setD] = useState<Deal>(initial);
+  // Enter in a title opens the line of the next opportunity (title, product code, amount); every line becomes an opportunity of the same customer
+  const [more, setMore] = useState<{ id: string; title: string; code: string; amountText: string; amount: number }[]>([]);
+  const [focusMore, setFocusMore] = useState('');
+  // after = the line the new one goes under (null = right under the first one)
+  const addMore = (after: string | null) => {
+    const row = { id: uid('mr'), title: '', code: '', amountText: '', amount: 0 };
+    setMore((p) => {
+      const i = after ? p.findIndex((r) => r.id === after) : -1;
+      return [...p.slice(0, i + 1), row, ...p.slice(i + 1)];
+    });
+    setFocusMore(row.id);
+  };
+  const patchMore = (id: string, u: Partial<{ title: string; code: string; amountText: string; amount: number }>) => setMore((p) => p.map((r) => (r.id === id ? { ...r, ...u } : r)));
+  const filledMore = more.filter((r) => r.title.trim());
   const [amountText, setAmountText] = useState(initial.amount ? toman(initial.amount) : '');
   const patch = (u: Partial<Deal>) => setD((p) => ({ ...p, ...u }));
   const valid = d.title.trim() && d.customerId && (d.stage !== 'LOST' || !!d.lostReason);
@@ -1203,7 +1223,17 @@ const DealForm: React.FC<{
     if (!valid) return;
     const owner = staff.find((u) => u.id === d.ownerId);
     const co = (d.coOwnerIds || []).filter((id) => id !== d.ownerId);
-    onSave({ ...d, ownerName: owner?.fullName || d.ownerName, coOwnerIds: co, coOwnerNames: co.map((id) => staff.find((u) => u.id === id)?.fullName || '') });
+    const main = { ...d, ownerName: owner?.fullName || d.ownerName, coOwnerIds: co, coOwnerNames: co.map((id) => staff.find((u) => u.id === id)?.fullName || '') };
+    onSave(main);
+    if (filledMore.length && onSaveMore) {
+      const at = nowIso();
+      onSaveMore(filledMore.map((r) => ({
+        ...main, id: uid('dl'), title: r.title.trim(), productCode: r.code.trim() || undefined, amount: r.amount, createdAt: at, updatedAt: at,
+        createdById: undefined, createdByName: undefined, createdByGuess: undefined, closedAt: undefined, noteLog: undefined, notes: '',
+        proformaNumber: undefined, proformaAt: undefined, validUntil: undefined, items: undefined, proformaApproval: undefined, proformaFields: undefined, proformaIssuerId: undefined,
+        discountPercent: undefined, taxPercent: undefined, terms: undefined, expectedClose: undefined, expectedCloseTime: undefined,
+      })));
+    }
   };
   return (
     <form onSubmit={submit}>
@@ -1228,7 +1258,7 @@ const DealForm: React.FC<{
                   پیش‌فاکتور
                 </button>
               )}
-              <button type="submit" disabled={!valid} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">{isNew ? 'ثبت فرصت' : 'ذخیره'}</button>
+              <button type="submit" disabled={!valid} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">{filledMore.length ? `ثبت ${toPersianDigits(filledMore.length + 1)} فرصت` : isNew ? 'ثبت فرصت' : 'ذخیره'}</button>
             </div>
           </>
         }
@@ -1243,13 +1273,50 @@ const DealForm: React.FC<{
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-2">
             <label className={label}>عنوان فرصت *</label>
-            <input className={field} value={d.title} onChange={(e) => patch({ title: e.target.value })} autoFocus={isNew} placeholder="مثلاً: قرارداد پشتیبانی سالانه" />
+            <input
+              className={field}
+              value={d.title}
+              onChange={(e) => patch({ title: e.target.value })}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (d.title.trim()) addMore(null); } }}
+              autoFocus={isNew}
+              placeholder="مثلاً: قرارداد پشتیبانی سالانه (با Enter فرصت بعدی)"
+              data-deal-title
+            />
           </div>
           <div>
             <label className={label}>کد کالا</label>
             <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} placeholder="مثلاً A-1024" />
           </div>
         </div>
+        {more.length > 0 && (
+          <div className="space-y-2 rounded-2xl border border-violet-200 bg-violet-50/40 p-3" data-deal-more>
+            <div className="text-[11px] font-black text-violet-800">فرصت‌های بعدی برای همین مشتری (هر خط یک فرصت؛ با Enter خط بعدی)</div>
+            {more.map((r, i) => (
+              <div key={r.id} className="grid grid-cols-[1fr_7.5rem_7.5rem_auto] gap-2 items-center" data-deal-more-row>
+                <input
+                  className={field}
+                  value={r.title}
+                  autoFocus={focusMore === r.id}
+                  onChange={(e) => patchMore(r.id, { title: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); if (r.title.trim()) addMore(r.id); }
+                    if (e.key === 'Backspace' && !r.title && !r.code && !r.amountText) { e.preventDefault(); setMore((p) => p.filter((x) => x.id !== r.id)); }
+                  }}
+                  placeholder={`عنوان فرصت ${toPersianDigits(i + 2)}`}
+                />
+                <input className={field} dir="ltr" value={r.code} onChange={(e) => patchMore(r.id, { code: e.target.value })} placeholder="کد کالا" />
+                <input
+                  className={field}
+                  inputMode="numeric"
+                  value={r.amountText}
+                  onChange={(e) => { const n = parseNumber(e.target.value); patchMore(r.id, { amountText: n ? formatNumber(n) : '', amount: fromDisplay(n) }); }}
+                  placeholder={`مبلغ (${unitName()})`}
+                />
+                <button type="button" onClick={() => setMore((p) => p.filter((x) => x.id !== r.id))} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer" aria-label="حذف این خط"><X className="w-4 h-4" /></button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={`${label} flex items-center justify-between`}>
