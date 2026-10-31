@@ -1642,7 +1642,7 @@ const CustomerDetail: React.FC<{
         </>
       }
     >
-      {deals.some((d) => d.stage !== 'WON' && d.stage !== 'LOST') && (
+      {(
         <section className="space-y-1.5 rounded-2xl border-2 border-violet-300 bg-violet-50 p-3" data-open-deals>
           <div className="flex items-center justify-between gap-2">
             <h4 className="font-black text-xs text-violet-900">فرصت فروش باز این مشتری</h4>
@@ -1651,9 +1651,16 @@ const CustomerDetail: React.FC<{
               ایجاد فرصت
             </button>
           </div>
+          {!deals.some((d) => d.stage !== 'WON' && d.stage !== 'LOST') && (
+            <div className="rounded-xl bg-white border border-dashed border-violet-300 px-4 py-3.5 text-center space-y-0.5" data-open-deals-empty>
+              <div className="text-xs font-black text-[#3A241F]">این مشتری فرصت فروش بازی ندارد</div>
+              <div className="text-[11px] font-bold text-[#8C6F66]">{deals.length ? `${toPersianDigits(deals.length)} فرصت بسته‌شده دارد؛ برای فروش تازه «ایجاد فرصت» را بزنید.` : 'هنوز فرصتی برایش ثبت نشده؛ «ایجاد فرصت» را بزنید.'}</div>
+            </div>
+          )}
           {(() => {
             // a minimal summary: how much is open in all, and how much of it stands in which stage
             const open = deals.filter((d) => d.stage !== 'WON' && d.stage !== 'LOST');
+            if (!open.length) return null;
             const total = open.reduce((t, d) => t + (d.amount || 0), 0);
             const parts = STAGES.filter((x) => x.id !== 'WON' && x.id !== 'LOST').map((x) => ({ st: x, n: open.filter((d) => d.stage === x.id).length, sum: open.filter((d) => d.stage === x.id).reduce((t, d) => t + (d.amount || 0), 0) })).filter((x) => x.n > 0);
             return (
