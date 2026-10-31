@@ -243,19 +243,22 @@ export async function createCustomer(sp, body) {
   }
 }
 
-/** The customer Sepidar already has for this body: the same mobile (last nine digits) or the same national code. takenIds = Sepidar customers already tied to another Hoormand customer. */
-export function matchSepidarCustomer(body, list, takenIds = new Set()) {
+/**
+ * The customer Sepidar already has for this body: the same mobile (last nine digits) or the same national code. takenIds = Sepidar customers already tied to another Hoormand customer.
+ * extraPhones = the other numbers of the Hoormand customer (the body carries only one): any of them equal to a number in Sepidar is the same person.
+ */
+export function matchSepidarCustomer(body, list, takenIds = new Set(), extraPhones = []) {
   const tail = (v) => {
     const d = toLatin(String(v || '')).replace(/\D/g, '');
     return d.length >= 9 ? d.slice(-9) : '';
   };
-  const phone = tail(body.PhoneNumber);
+  const mine = new Set([body.PhoneNumber, ...extraPhones].map(tail).filter(Boolean));
   const nid = toLatin(String(body.NationalID || '')).replace(/\D/g, '');
   for (const c of list) {
     const id = c.CustomerID;
     if (takenIds.has(id)) continue;
     const phones = [c.PhoneNumber, c.MobileNumber, c.Phone].map(tail).filter(Boolean);
-    if ((phone && phones.includes(phone)) || (nid && toLatin(String(c.NationalID || '')).replace(/\D/g, '') === nid)) return c;
+    if (phones.some((p) => mine.has(p)) || (nid && toLatin(String(c.NationalID || '')).replace(/\D/g, '') === nid)) return c;
   }
   return null;
 }
@@ -708,8 +711,20 @@ export const jobHandlers = {
     const body = customerBody(c, divs);
     const addr = addressFor(c, divs);
     const list = await sp.get('/api/Customers');
-    const found = list.find((x) => String(x.GUID || '').toLowerCase() === body.GUID.toLowerCase()) || (state.customers?.[c.id] ? list.find((x) => x.CustomerID === state.customers[c.id]) : null);
+    let found = list.find((x) => String(x.GUID || '').toLowerCase() === body.GUID.toLowerCase()) || (state.customers?.[c.id] ? list.find((x) => x.CustomerID === state.customers[c.id]) : null);
     state.customers ||= {};
+    // The same person may already be in Sepidar under another record (same mobile or national code, never tied to this Hoormand customer):
+    // that record is UPDATED, no second person is made. Sepidar customers already tied to ANOTHER Hoormand customer are left alone.
+    let viaMobile = false;
+    if (!found) {
+      const others = (m) => [...(m instanceof Map ? m.entries() : Object.entries(m))].filter(([k]) => k !== c.id).map(([, v]) => v);
+      const taken = new Set([...others(state.customers), ...others(await hoormandLinks(cfg))]);
+      const same = matchSepidarCustomer(body, list, taken, c.phones || []);
+      if (same) {
+        found = same;
+        viaMobile = true;
+      }
+    }
     if (!found) {
       if (!body.Name) throw new Error('مشتری نام ندارد.');
       const r = await createCustomer(sp, body);
@@ -751,7 +766,7 @@ export const jobHandlers = {
         const notes = [];
         if (body.Name && !t.names) notes.push('نام در سپیدار بروز نشد (سپیدار ویرایش نام را نپذیرفت)');
         if (haveAddr && !t.adr) notes.push(`نشانی در سپیدار بروز نشد: ${firstErr?.message || ''}`);
-        return { sepidarId: found.CustomerID, message: 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') };
+        return { sepidarId: found.CustomerID, message: (viaMobile ? 'این شخص با همین شمارهٔ موبایل (یا کد ملی) از قبل در سپیدار بود؛ مشتری تازه‌ای ساخته نشد و همان بروزرسانی شد. ' : '') + 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') };
       } catch (e) {
         if (e && (e.status === 403 || e.status === 401)) throw e; // no right: nothing else would work either
         firstErr ||= e;

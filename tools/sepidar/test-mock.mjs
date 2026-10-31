@@ -403,6 +403,18 @@ r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-7']?.ok === true && sp.put?.Version === 'v1' && sp.put.NationalID === '0012345678' && Array.isArray(sp.put.Addresses), 'customer.send updates a customer that is already in Sepidar (the whole customer with its Version and Addresses)' + String.fromCharCode(10) + JSON.stringify(hoormandResults['sj-7']) );
 ok(sp.put?.Name === 'علی' && sp.put?.LastName === 'رضایی', 'customer.send also sends the name (the whole edit of Hoormand goes to Sepidar)');
 ok(sp.put?.Addresses?.[0]?.CityRef === 5 && sp.put.Addresses[0].IsMain === true && /نشانی/.test(hoormandResults['sj-7']?.message || ''), 'customer.send also puts the address (city number, main) into the Sepidar customer');
+// the same person already in Sepidar under another record (same mobile, never tied to this Hoormand customer): that record is UPDATED, no second person is made
+{
+  customers.push({ id: 'c-9', name: 'حسن احمدی', firstName: 'حسن', lastName: 'احمدی', phones: ['۰۹۱۹۹۹۹۱۱۱۱', '۰۹۳۵۱۱۱۲۲۲۲'], status: 'ACTIVE', province: 'اصفهان', city: 'اصفهان', address: 'اصفهان، اصفهان، خیابان نو، پلاک ۵', postalCode: '۸۱۸۱۸۱۸۱۸۲' });
+  sp.customers.push({ CustomerID: 901, GUID: 'aaaaaaaa-0000-0000-0000-000000000901', Name: 'حسن', LastName: 'احمدی قدیمی', PhoneNumber: '09351112222', CustomerType: 1, Addresses: [] });
+  const countBefore = sp.customers.length;
+  sp.put = null;
+  hoormandJobs.push({ id: 'sj-7b', kind: 'customer.send', data: { customerId: 'c-9' } });
+  r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+  const stM = JSON.parse(fs.readFileSync(state, 'utf8'));
+  ok(hoormandResults['sj-7b']?.ok === true && hoormandResults['sj-7b'].sepidarId === 901 && sp.customers.length === countBefore && sp.put && stM.customers['c-9'] === 901, 'customer.send with the same mobile as a Sepidar customer (even as his second number) updates THAT customer and makes no second one' + String.fromCharCode(10) + JSON.stringify(hoormandResults['sj-7b']));
+  ok(/تازه‌ای ساخته نشد/.test(hoormandResults['sj-7b']?.message || '') && sp.put?.Name === 'حسن' && sp.put?.LastName === 'احمدی', 'the message says that no new customer was made, and the name is brought up to date');
+}
 hoormandJobs.push({ id: 'sj-8', kind: 'refresh', data: {} });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-8']?.ok === true && hoormandCaches.invoices?.length === 1 && hoormandCaches.bankAccounts?.[0].BankAccountID === 9 && hoormandCaches.balances?.[0].Remainder === 1234 && hoormandCaches.priceNotes?.[0].code === '1001' && hoormandLinks.some((l) => l.kind === 'customer'), 'refresh sends invoices, bank accounts, balances, price lists and the links');

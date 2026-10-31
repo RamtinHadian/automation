@@ -92,7 +92,7 @@ func putCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		return
 	}
 	if exists && customerSepidarChanged(jsonx.Decode(raw), doc) {
-		queueSepidarCustomerEdit(r.Context(), me, id, jsonx.Str(doc, "name")) // an edited customer that is in Sepidar goes there again
+		queueSepidarCustomerEdit(r.Context(), me, id, jsonx.Str(doc, "name"), doc) // an edited customer that is in Sepidar goes there again
 	}
 	notifyNewOwner(r, me, owner, oldOwner, "customer", "مشتری جدید", "مشتری «"+jsonx.Str(doc, "name")+"» به شما سپرده شد", id)
 	if !exists {
