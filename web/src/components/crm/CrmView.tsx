@@ -32,8 +32,7 @@ import {
   Gift,
   Sparkles,
   BookUser,
-  SlidersHorizontal,
-} from 'lucide-react';
+  SlidersHorizontal, Link2 } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
@@ -422,6 +421,16 @@ export const CrmView: React.FC = () => {
     id: uid('cu'), name: '', company: '', phones: [], email: '', address: '', status: 'LEAD', source: '', tags: [],
     ownerId: me, ownerName: currentUser.fullName, notes: '', createdAt: nowIso(), updatedAt: nowIso(),
   });
+  // A deal made from a customer's card right after another one of his (by the same person, within half an hour) is linked to it
+  const pendingLink = useRef<Record<string, string>>({});
+  const newLinkedDeal = (customerId: string): Deal => {
+    const nd = newDeal(customerId);
+    const prev = deals.filter((x) => x.customerId === customerId && x.createdById === me && Date.now() - new Date(x.createdAt).getTime() < 30 * 60000).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
+    if (!prev) return nd;
+    const gid = prev.groupId || uid('gr');
+    pendingLink.current[nd.id] = prev.id;
+    return { ...nd, groupId: gid };
+  };
   const newDeal = (customerId = ''): Deal => ({
     id: uid('dl'), title: '', customerId, customerName: customerById.get(customerId)?.name || '', amount: 0, stage: 'NEW',
     ownerId: me, ownerName: currentUser.fullName, createdById: me, createdByName: currentUser.fullName, expectedClose: undefined, notes: '', createdAt: nowIso(), updatedAt: nowIso(),
@@ -1117,6 +1126,9 @@ export const CrmView: React.FC = () => {
           }}
           onSave={(d) => {
             saveDeal(d);
+            // the earlier deal it was linked to gets the same group
+            const prevId = pendingLink.current[d.id];
+            if (prevId && d.groupId) { const pv = deals.find((x) => x.id === prevId); if (pv && pv.groupId !== d.groupId) saveDeal({ ...pv, groupId: d.groupId }); delete pendingLink.current[d.id]; }
             setEditingDeal(null);
             if (d.stage === 'PROPOSAL' && editingDeal.deal.stage !== 'PROPOSAL' && !d.proformaNumber) setProformaFor(d);
             showToast(editingDeal.isNew ? 'فرصت فروش ثبت شد.' : 'فرصت ذخیره شد.');
@@ -1189,7 +1201,7 @@ export const CrmView: React.FC = () => {
           onSocial={(social) => saveCustomer({ ...customerById.get(openCustomer)!, social })}
           onNotes={(noteLog, notes) => saveCustomer({ ...customerById.get(openCustomer)!, noteLog, notes })}
           onAttachments={(files) => saveCustomer({ ...customerById.get(openCustomer)!, attachments: files })}
-          onNewDeal={() => { const nd = newDeal(openCustomer); setOpenCustomer(null); setEditingDeal({ deal: nd, isNew: true }); }}
+          onNewDeal={() => { const nd = newLinkedDeal(openCustomer); setOpenCustomer(null); setEditingDeal({ deal: nd, isNew: true }); }}
           onOpenDeal={(d) => { setOpenCustomer(null); setEditingDeal({ deal: d, isNew: false }); }}
           onAddActivity={(type, text, extra) => addActivity(openCustomer, type, text, extra)}
           onToggle={toggleDone}
@@ -1669,19 +1681,43 @@ const CustomerDetail: React.FC<{
               </div>
             );
           })()}
-          {deals.filter((d) => d.stage !== 'WON' && d.stage !== 'LOST').map((d) => {
-            const s = stageOf(d.stage);
-            const grp = dealGroup(deals, d);
-            return (
-              <button key={d.id} type="button" onClick={() => onOpenDeal(d)} style={grp ? { borderRightWidth: 5, borderRightColor: grp.color.bar } : undefined} className="w-full flex items-center justify-between gap-2 bg-white border border-violet-200 rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
-                <span className="flex items-center gap-2 min-w-0"><span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>{grp && <LinkedChip group={grp} />}</span>
-                <span className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] font-black text-violet-700">{toman(d.amount)} {unitShort()}</span>
-                  <span className={`text-[10px] font-black flex items-center gap-1 ${s.head}`}><span className={`w-2 h-2 rounded-full ${s.dot}`} />{s.label}</span>
-                </span>
-              </button>
-            );
-          })}
+          {(() => {
+            const open = deals.filter((d) => d.stage !== 'WON' && d.stage !== 'LOST');
+            // the linked ones (written one after another) are drawn together in one block, the others stand alone
+            const blocks: { key: string; members: Deal[] }[] = [];
+            for (const d of open) {
+              const g = d.groupId && open.filter((x) => x.groupId === d.groupId).length > 1 ? d.groupId : '';
+              const at = g ? blocks.find((b) => b.key === g) : undefined;
+              if (at) at.members.push(d);
+              else blocks.push({ key: g || d.id, members: [d] });
+            }
+            const row = (d: Deal, inGroup: boolean) => {
+              const st = stageOf(d.stage);
+              return (
+                <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer ${inGroup ? 'bg-white/90 border border-transparent' : 'bg-white border border-violet-200'}`}>
+                  <span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] font-black text-violet-700">{toman(d.amount)} {unitShort()}</span>
+                    <span className={`text-[10px] font-black flex items-center gap-1 ${st.head}`}><span className={`w-2 h-2 rounded-full ${st.dot}`} />{st.label}</span>
+                  </span>
+                </button>
+              );
+            };
+            return blocks.map((b) => {
+              if (b.members.length === 1) return row(b.members[0], false);
+              const grp = dealGroup(deals, b.members[0]);
+              const sum = b.members.reduce((t, x) => t + (x.amount || 0), 0);
+              return (
+                <div key={b.key} className="rounded-2xl p-2 space-y-1.5 border" style={{ borderColor: grp?.color.bar, borderRightWidth: 5, background: `${grp?.color.bar}12` }} data-deal-group>
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <span className="flex items-center gap-1.5 text-[11px] font-black" style={{ color: grp?.color.bar }}><Link2 className="w-3.5 h-3.5" />فرصت‌های پیوسته · {toPersianDigits(b.members.length)} فرصت</span>
+                    <span className="text-[11px] font-black text-[#3A241F]">جمع {toman(sum)} {unitShort()}</span>
+                  </div>
+                  {b.members.map((m) => row(m, true))}
+                </div>
+              );
+            });
+          })()}
         </section>
       )}
       <CustomerSummaryStrip customer={c} deals={allDeals.filter((d) => d.customerId === c.id)} activities={activities} calls={calls} />
