@@ -227,7 +227,7 @@ func Router(cfg config.Config) http.Handler {
 	}))
 	mux.Handle("/", frontend(cfg.StaticDir))
 	if cfg.Demo {
-		return restoreGuard(licenseGuard(demo.Guard(mux)))
+		return securityHeaders(restoreGuard(licenseGuard(demo.Guard(mux))))
 	}
-	return restoreGuard(licenseGuard(mux))
+	return securityHeaders(restoreGuard(licenseGuard(mux)))
 }

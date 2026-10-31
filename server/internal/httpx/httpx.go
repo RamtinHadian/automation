@@ -38,14 +38,21 @@ func ReadBody(w http.ResponseWriter, r *http.Request) (jsonx.M, bool) {
 	return m, true
 }
 
-// ClientIP is the caller's address; behind a proxy the first X-Forwarded-For entry is used.
+// ClientIP is the caller's address. X-Forwarded-For is believed only when the request comes from a proxy on this machine or
+// its private network (the HTTPS front, Caddy), and then the LAST entry is used: that is the one the proxy itself added, while
+// the earlier ones can be written by the caller. A request that comes straight from the internet cannot choose its own address.
 func ClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if ip := net.ParseIP(host); ip != nil && (ip.IsLoopback() || ip.IsPrivate()) {
+			parts := strings.Split(xff, ",")
+			if last := strings.TrimSpace(parts[len(parts)-1]); net.ParseIP(last) != nil {
+				return last
+			}
+		}
 	}
 	return host
 }
