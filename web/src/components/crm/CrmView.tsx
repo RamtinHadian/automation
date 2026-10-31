@@ -38,7 +38,8 @@ import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
-import { SocialButton, SocialDialog } from './SocialNetworks';
+import { SocialButton, SocialDialog, CustomerSocialIcons } from './SocialNetworks';
+import { SendMessageDialog } from './MessageTemplates';
 import { ParagraphNotes, noteEntries, canEditNote } from '../common/ParagraphNotes';
 import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SocialEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
@@ -137,6 +138,8 @@ export const CrmView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
   const [openCustomer, setOpenCustomer] = useState<string | null>(null);
+  // a logo on a customer's card: the window for sending to that network
+  const [socialSend, setSocialSend] = useState<{ customer: Customer; network: string } | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [importing, setImporting] = useState(false);
   const [editingDeal, setEditingDeal] = useState<{ deal: Deal; isNew: boolean } | null>(null);
@@ -487,6 +490,14 @@ export const CrmView: React.FC = () => {
             </button>
           )}
         </div>
+        {!c.hiddenContact && <CustomerSocialIcons customer={c} onPick={(net) => {
+          if (net === 'website') {
+            const w = (c.social?.website?.accounts || [])[0];
+            if (w) window.open(/^https?:/i.test(w) ? w : `https://${w}`, '_blank', 'noopener,noreferrer');
+            return;
+          }
+          setSocialSend({ customer: c, network: net });
+        }} />}
         <div className="flex items-center justify-between text-[10px] font-bold text-[#8C6F66]">
           <span className="flex items-center gap-1.5">
             {userById.get(c.ownerId)?.fullName || c.ownerName}
@@ -1159,6 +1170,7 @@ export const CrmView: React.FC = () => {
           onDeleteActivity={(a) => setActivities((prev) => prev.filter((x) => x.id !== a.id))}
         />
       )}
+      {socialSend && <SendMessageDialog customer={socialSend.customer} only={socialSend.network} onClose={() => setSocialSend(null)} />}
       {mergeFor && <MergeModal customer={mergeFor} customers={customers} onClose={() => setMergeFor(null)} onDone={(id) => { setMergeFor(null); setOpenCustomer(id); }} />}
       {shareOpen && <ShareWithAgentModal customers={customers} staff={staffList} onClose={() => setShareOpen(false)} onSave={(list) => { setCustomers((prev) => prev.map((x) => list.find((y) => y.id === x.id) || x)); showToast('نمایش مشتریان به نماینده ذخیره شد.'); }} />}
       {transferOpen && <TransferModal staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN'))} customers={customers} deals={deals} activities={activities} onClose={() => setTransferOpen(false)} />}

@@ -468,6 +468,28 @@ export const openChat = (id: string, name: string, account: string, text = '', c
   return `${name} لینک مستقیم ندارد؛ «${text ? 'متن پیام' : who}» کپی شد، در خود برنامه جست‌وجو و بچسبانید.`;
 };
 
+/** The small logos of the networks a customer is in (the customer list): a click gives the network that was pressed. */
+export const CustomerSocialIcons: React.FC<{ customer: Customer; onPick: (networkId: string) => void }> = ({ customer, onPick }) => {
+  const mine = NETWORKS.filter((n) => (customer.social?.[n.id]?.accounts?.length || 0) > 0);
+  if (!mine.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" data-customer-social onClick={(e) => e.stopPropagation()}>
+      {mine.map((n) => (
+        <button
+          key={n.id}
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onPick(n.id); }}
+          title={n.web ? `${n.name}: ${customer.social![n.id].accounts[0]}` : `ارسال پیام در ${n.name}`}
+          className="rounded-full hover:scale-110 hover:shadow-md transition-transform cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          data-customer-social-icon={n.id}
+        >
+          <SocialLogo id={n.id} size={22} />
+        </button>
+      ))}
+    </div>
+  );
+};
+
 /** All networks of a customer in one row (the full summary): the ones not entered are dim; a click opens the chat with him there. */
 export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
   const [note, setNote] = useState('');

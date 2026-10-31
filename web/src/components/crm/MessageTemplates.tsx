@@ -128,7 +128,7 @@ export const TemplatesManager: React.FC<{ templates: CustomerMsgTemplate[]; onCh
 };
 
 /** Pick a ready-made message and the customer's account to send it to: WhatsApp gets the text already written, the other networks get it copied to paste. */
-export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => void }> = ({ customer, onClose }) => {
+export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => void; only?: string }> = ({ customer, onClose, only }) => {
   const { settings, setSettings, currentUser, showToast } = useAppContext();
   const templates = settings.customerMsgTemplates || [];
   const [tplId, setTplId] = useState(templates[0]?.id || '');
@@ -137,8 +137,8 @@ export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => vo
   const [ext, setExt] = useState(chatExtOn());
   const [extSend, setExtSend] = useState(chatExtSend());
   const accounts = useMemo(
-    () => NETWORKS.filter((n) => !n.web).flatMap((n) => entryOf(customer, n.id).accounts.map((a) => ({ id: n.id, name: n.name, account: a }))),
-    [customer],
+    () => NETWORKS.filter((n) => !n.web && (!only || n.id === only)).flatMap((n) => entryOf(customer, n.id).accounts.map((a) => ({ id: n.id, name: n.name, account: a }))),
+    [customer, only],
   );
   const tpl = templates.find((t) => t.id === tplId) || templates[0];
   const [text, setText] = useState(() => (tpl ? buildMessage(tpl, customer.name) : ''));
@@ -154,7 +154,7 @@ export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => vo
       <Modal
         wide
         onTop="max"
-        title={`پیام آماده برای ${customer.name}`}
+        title={`پیام آماده برای ${customer.name}${only ? ' در ' + (NETWORKS.find((n) => n.id === only)?.name || '') : ''}`}
         onClose={onClose}
         footer={
           <>
@@ -169,12 +169,13 @@ export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => vo
         }
       >
         <div className="space-y-4" data-msg-send>
-          {templates.length === 0 ? (
-            <div className="text-center text-xs font-bold text-[#8C6F66] py-6 space-y-2">
-              <div>هنوز پیام آماده‌ای ساخته نشده است.</div>
-              {isAdmin ? <button type="button" onClick={() => setMgr(true)} className="text-violet-700 underline cursor-pointer">همین حالا یکی بسازید</button> : <div>از مدیر کل بخواهید پیام‌های آماده را بنویسد.</div>}
+          {templates.length === 0 && (
+            <div className="text-center text-[11px] font-bold text-[#8C6F66] rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] py-3 px-3 space-y-1">
+              <div>هنوز پیام آماده‌ای ساخته نشده است؛ می‌توانید همین‌جا متن را خودتان بنویسید.</div>
+              {isAdmin ? <button type="button" onClick={() => setMgr(true)} className="text-violet-700 underline cursor-pointer">ساختن پیام آماده</button> : <div>برای داشتن پیام‌های آماده از مدیر کل بخواهید آن‌ها را بنویسد.</div>}
             </div>
-          ) : (
+          )}
+          {(
             <>
               <div className="flex flex-wrap gap-2">
                 {templates.map((t) => (
