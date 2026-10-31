@@ -84,6 +84,7 @@ export const SupportAdmin: React.FC<{ toast: (m: string) => void }> = ({ toast }
           <button type="button" onClick={() => copy(portalUrl)} className="shrink-0 flex items-center gap-1 text-[11px] font-black text-teal-700 cursor-pointer"><Copy className="w-3.5 h-3.5" />کپی</button>
         </div>
         <label className="flex items-center gap-2 text-xs font-black cursor-pointer min-h-[36px]"><input type="checkbox" checked={portalOn} onChange={(e) => setPortalOn(e.target.checked)} />ورود مشتریان باز باشد</label>
+        <label className="flex items-center gap-2 text-xs font-black cursor-pointer min-h-[36px]" data-portal-sms-toggle><input type="checkbox" checked={!!sset?.portalSmsLogin} onChange={(e) => void save({ portalSmsLogin: e.target.checked })} />ورود مشتری با کد پیامکی هم انجام شود (اختیاری؛ پنل پیامک باید فعال باشد)</label>
       </section>
 
       <section className="bg-violet-50/60 border border-violet-200 rounded-3xl p-5 flex items-center gap-3" data-support-ai-moved>

@@ -57,6 +57,9 @@ export const PortalPage: React.FC = () => {
   const [authed, setAuthed] = useState(false);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
+  // optional second step: the code sent by SMS (only when the company switched it on)
+  const [needSms, setNeedSms] = useState(false);
+  const [smsCode, setSmsCode] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -98,9 +101,15 @@ export const PortalPage: React.FC = () => {
     setBusy(true);
     setErr('');
     try {
-      const r = await call<{ token: string }>('POST', '/api/portal/login', { phone, code });
+      const r = await call<{ token?: string; needSms?: boolean }>('POST', '/api/portal/login', { phone, code, sms: smsCode });
+      if (r.needSms || !r.token) {
+        setNeedSms(true);
+        return;
+      }
       localStorage.setItem(TOKEN, r.token);
       setCode('');
+      setSmsCode('');
+      setNeedSms(false);
       await loadMe();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'ورود انجام نشد.');
@@ -185,8 +194,14 @@ export const PortalPage: React.FC = () => {
               <label className="block text-xs font-black mb-1.5">چهار رقم آخر کد ملی</label>
               <input className={inputCls} inputMode="numeric" autoComplete="off" dir="ltr" maxLength={4} value={code} onChange={(e) => setCode(e.target.value)} placeholder="••••" />
             </div>
+            {needSms && (
+              <div data-portal-sms>
+                <label className="block text-xs font-black mb-1.5">کد پیامک‌شده به موبایل شما</label>
+                <input className={inputCls} inputMode="numeric" autoComplete="one-time-code" dir="ltr" maxLength={5} autoFocus value={smsCode} onChange={(e) => setSmsCode(e.target.value)} placeholder="•••••" />
+              </div>
+            )}
             {err && <div className="text-xs font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{err}</div>}
-            <button type="submit" disabled={busy || !phone.trim() || code.trim().length !== 4} className="w-full min-h-[48px] rounded-2xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-black cursor-pointer">{busy ? 'در حال بررسی…' : 'ورود'}</button>
+            <button type="submit" disabled={busy || !phone.trim() || code.trim().length !== 4 || (needSms && smsCode.trim().length !== 5)} className="w-full min-h-[48px] rounded-2xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-black cursor-pointer">{busy ? 'در حال بررسی…' : 'ورود'}</button>
             {info.demoHint && <div className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{info.demoHint}</div>}
           </form>
         )}

@@ -3,7 +3,9 @@ package api
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/subtle"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +19,7 @@ import (
 	"automation/server/internal/httpx"
 	"automation/server/internal/jsonx"
 	"automation/server/internal/notify"
+	"automation/server/internal/sms"
 	"automation/server/internal/store"
 )
 
@@ -136,7 +139,7 @@ func supportGetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	s := supportSettings(r.Context())
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"portalEnabled": s["portalEnabled"], "aiEnabled": jsonx.Bool(s, "aiEnabled"), "aiModel": jsonx.Str(s, "aiModel"), "aiSttModel": sttModel(s),
+		"portalEnabled": s["portalEnabled"], "portalSmsLogin": jsonx.Bool(s, "portalSmsLogin"), "aiEnabled": jsonx.Bool(s, "aiEnabled"), "aiModel": jsonx.Str(s, "aiModel"), "aiSttModel": sttModel(s),
 		"aiLastError": s["aiLastError"], "aiPrompt": jsonx.Str(s, "aiPrompt"), "aiKeySet": jsonx.Str(s, "aiKey") != "", "aiBaseUrl": aiBaseURL,
 	})
 }
@@ -154,6 +157,9 @@ func supportSaveSettings(w http.ResponseWriter, r *http.Request) {
 	s := supportSettings(r.Context())
 	if v, ok := body["portalEnabled"].(bool); ok {
 		s["portalEnabled"] = v
+	}
+	if v, ok := body["portalSmsLogin"].(bool); ok {
+		s["portalSmsLogin"] = v
 	}
 	if v, ok := body["aiEnabled"].(bool); ok {
 		s["aiEnabled"] = v
@@ -425,12 +431,84 @@ func portalLogin(w http.ResponseWriter, r *http.Request) {
 		fail()
 		return
 	}
+	// optional second step (switched on by the administrator): a 5-digit code sent by SMS to the number that was typed
+	if jsonx.Bool(supportSettings(r.Context()), "portalSmsLogin") {
+		if c := sms.Load(r.Context()); c.Enabled && c.APIKey != "" {
+			entered := strings.TrimSpace(faDigits.Replace(jsonx.Str(body, "sms")))
+			if entered == "" {
+				if !allow("potp:"+customer, 3, 10*time.Minute) || !allow("potp-ip:"+ip, 10, 10*time.Minute) {
+					httpx.Error(w, http.StatusTooManyRequests, slowDown)
+					return
+				}
+				code := portalOTPNew(customer)
+				if err := sms.SendAndLog(r.Context(), "پورتال مشتری", []string{jsonx.Str(body, "phone")}, "کد ورود شما به پشتیبانی: "+code+"\nاین کد تا ۵ دقیقه معتبر است."); err != nil {
+					httpx.Error(w, http.StatusBadGateway, "ارسال پیامک انجام نشد؛ کمی بعد دوباره امتحان کنید.")
+					return
+				}
+				httpx.JSON(w, http.StatusOK, map[string]any{"needSms": true})
+				return
+			}
+			if !portalOTPCheck(customer, entered) {
+				pFail("ip:" + ip)
+				pFail("ph:" + key)
+				httpx.Error(w, http.StatusUnauthorized, "کد پیامکی درست نیست یا منقضی شده است.")
+				return
+			}
+		}
+	}
 	tok, err := auth.PortalToken(customer)
 	if err != nil {
 		internalError(w)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"token": tok})
+}
+
+// ---- the SMS code of the customer portal: kept in memory (5 minutes, 5 tries, used once) ----
+
+type portalOTP struct {
+	hash  string
+	until time.Time
+	tries int
+}
+
+var (
+	otpMu  sync.Mutex
+	otpMap = map[string]*portalOTP{}
+)
+
+func portalOTPNew(customer string) string {
+	b := make([]byte, 4)
+	_, _ = rand.Read(b)
+	code := fmt.Sprintf("%05d", binary.BigEndian.Uint32(b)%100000)
+	otpMu.Lock()
+	defer otpMu.Unlock()
+	for k, v := range otpMap {
+		if time.Now().After(v.until) {
+			delete(otpMap, k)
+		}
+	}
+	otpMap[customer] = &portalOTP{hash: auth.PortalHash(customer, code), until: time.Now().Add(5 * time.Minute)}
+	return code
+}
+
+func portalOTPCheck(customer, code string) bool {
+	otpMu.Lock()
+	defer otpMu.Unlock()
+	o := otpMap[customer]
+	if o == nil || time.Now().After(o.until) {
+		return false
+	}
+	o.tries++
+	if o.tries > 5 {
+		delete(otpMap, customer)
+		return false
+	}
+	if subtle.ConstantTimeCompare([]byte(o.hash), []byte(auth.PortalHash(customer, code))) != 1 {
+		return false
+	}
+	delete(otpMap, customer)
+	return true
 }
 
 // what a customer may see of a ticket's log: their own messages, answers meant for them, the AI's answers and the steps

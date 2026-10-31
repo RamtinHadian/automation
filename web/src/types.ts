@@ -999,6 +999,7 @@ export interface SupportTicket {
 
 export interface SupportSettings {
   portalEnabled: boolean;
+  portalSmsLogin?: boolean;
   aiEnabled: boolean;
   aiModel: string;
   aiSttModel: string;
