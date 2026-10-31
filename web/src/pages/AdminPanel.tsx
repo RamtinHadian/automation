@@ -102,6 +102,9 @@ export default function AdminPanel() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  // two-step sign-in: the code box appears after a right password when the account has it on
+  const [adminNeedCode, setAdminNeedCode] = useState(false);
+  const [adminCode, setAdminCode] = useState('');
   const demoInfo = useDemoInfo();
   useEffect(() => {
     const d = demoInfo?.accounts?.[0];
@@ -252,8 +255,13 @@ export default function AdminPanel() {
       return;
     }
 
-    const result = await loginWithCredentials(uQuery, adminPassword, true);
+    const result = await loginWithCredentials(uQuery, adminPassword, true, adminCode);
     if (!result.ok) {
+      if (result.error.startsWith('کد ورود دو مرحله‌ای را وارد')) {
+        setAdminNeedCode(true);
+        setAuthError('کد برنامهٔ احراز هویت (یا کد بازیابی) را وارد کنید.');
+        return;
+      }
       setAuthError(result.error);
       generateCaptcha();
       return;
@@ -380,6 +388,24 @@ export default function AdminPanel() {
             </div>
 
             {/* Error message */}
+            {adminNeedCode && (
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-[#3A241F]">کد ورود دو مرحله‌ای:</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  value={adminCode}
+                  onChange={(e) => setAdminCode(e.target.value)}
+                  placeholder="کد برنامهٔ احراز هویت"
+                  dir="ltr"
+                  data-two-factor-input
+                  className="w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl text-xs font-bold text-[#3A241F] text-center tracking-widest font-mono focus:outline-none focus:border-[#6E1B1B]"
+                />
+              </div>
+            )}
+
             {authError && (
               <div className="bg-[#D34A32]/10 border border-[#D34A32]/30 text-[#D34A32] text-xs font-bold px-3.5 py-2.5 rounded-2xl text-center flex items-center justify-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />

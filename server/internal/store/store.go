@@ -38,6 +38,15 @@ var schema = []string{
 	  last_seen TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
 	`CREATE INDEX IF NOT EXISTS auth_sessions_user_idx ON auth_sessions (user_id)`,
+	// two-step sign-in: the authenticator secret (kept encrypted), the last code step used and the hashes of the unused recovery codes
+	`CREATE TABLE IF NOT EXISTS user_2fa (
+	  user_id TEXT PRIMARY KEY,
+	  secret TEXT NOT NULL,
+	  enabled BOOLEAN NOT NULL DEFAULT false,
+	  last_step BIGINT NOT NULL DEFAULT 0,
+	  recovery TEXT[] NOT NULL DEFAULT '{}',
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
 	`CREATE TABLE IF NOT EXISTS departments (
 	  id TEXT PRIMARY KEY,
 	  data JSONB NOT NULL

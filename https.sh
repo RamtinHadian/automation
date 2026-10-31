@@ -144,6 +144,16 @@ for _ in $(seq 1 45); do
     if [ "$PUBLIC_PORT" = "443" ]; then url="https://$DOMAIN"; else url="https://$DOMAIN:$PUBLIC_PORT"; fi
     echo
     echo "Done. Open this address on your phone:  $url"
+    if [ "${HARDEN:-}" = "1" ]; then
+      # Optional lock-down (run with HARDEN=1): the plain-HTTP port is closed to the network (only this HTTPS front reaches the app) and any
+      # request that still arrives over plain HTTP is sent to HTTPS. Do NOT use it while programs (the accounting tool, the phone system's
+      # recording upload) still reach the server by its plain http://address:port: point them to the https address first.
+      for kv in BIND_ADDR=127.0.0.1 FORCE_HTTPS=1; do
+        k="${kv%%=*}"; grep -q "^$k=" .env && sed -i "s|^$k=.*|$kv|" .env || echo "$kv" >> .env
+      done
+      docker compose up -d app >/dev/null 2>&1 || true
+      echo "Locked down: the app now answers only through HTTPS (BIND_ADDR=127.0.0.1, FORCE_HTTPS=1 in .env)."
+    fi
     exit 0
   fi
   sleep 2

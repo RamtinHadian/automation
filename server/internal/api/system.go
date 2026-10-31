@@ -83,6 +83,11 @@ func frontend(dir string) http.Handler {
 	}
 	files := http.FileServer(http.Dir(dir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// dot-files and files that only ever hold secrets, backups or logs are never served, whatever they are called or wherever they lie
+		if hiddenPath(r.URL.Path) {
+			http.NotFound(w, r)
+			return
+		}
 		clean := filepath.Join(dir, filepath.FromSlash(strings.TrimPrefix(filepath.ToSlash(filepath.Clean("/"+r.URL.Path)), "/")))
 		if st, err := os.Stat(clean); err == nil && !st.IsDir() {
 			if strings.HasSuffix(clean, "sw.js") {
@@ -94,4 +99,19 @@ func frontend(dir string) http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeFile(w, r, index)
 	})
+}
+
+// hiddenPath: a path with a dot-folder or dot-file in it (.env, .git/…), or a name that ends like a secret, a backup, a database dump or a log.
+func hiddenPath(p string) bool {
+	for _, seg := range strings.Split(strings.ToLower(p), "/") {
+		if strings.HasPrefix(seg, ".") && seg != "" && seg != ".well-known" {
+			return true
+		}
+		for _, ext := range []string{".env", ".sql", ".bak", ".log", ".pem", ".key", ".yml", ".yaml", ".sqlite", ".db", ".swp", "~"} {
+			if strings.HasSuffix(seg, ext) {
+				return true
+			}
+		}
+	}
+	return false
 }

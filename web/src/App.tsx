@@ -48,8 +48,8 @@ function AppRoutes() {
               <DayNightToggle className="fixed top-4 left-4 z-50 p-2.5 rounded-2xl bg-white/80 hover:bg-white text-[#6E1B1B] border border-[#EBDBCE] shadow-md" />
             <LoginPage
               staffList={staffList}
-              onLogin={async (identifier, password) => {
-                const result = await loginWithCredentials(identifier, password);
+              onLogin={async (identifier, password, code) => {
+                const result = await loginWithCredentials(identifier, password, false, code);
                 return result.ok ? null : result.error;
               }}
               onAdminLogin={handleAdminLogin}

@@ -372,6 +372,20 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// two-step sign-in: the password was right; whoever has it switched on must also give the code of the authenticator app (or a recovery code)
+	if needed, good := verifySecondStep(r.Context(), id, jsonx.Str(body, "code")); needed && !good {
+		if strings.TrimSpace(jsonx.Str(body, "code")) == "" {
+			httpx.Error(w, http.StatusUnauthorized, TwoFactorRequired)
+			return
+		}
+		noteFailure(ip)
+		noteFailureKey("acct:" + identifier)
+		if OnLogin != nil {
+			OnLogin(r, identifier, nil, false, "کد ورود دو مرحله‌ای نادرست بود")
+		}
+		httpx.Error(w, http.StatusUnauthorized, "کد ورود دو مرحله‌ای نادرست است.")
+		return
+	}
 	clearFailures(ip)
 	clearFailureKey("acct:" + identifier)
 	// An older, cheaper hash is replaced by a stronger one now that the real password is at hand.

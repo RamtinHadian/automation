@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User as UserIcon, Lock, Eye, EyeOff } from 'lucide-react';
+import { User as UserIcon, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { User } from '../types';
 import { useDemoInfo } from '../components/common/DemoBanner';
 import { useCompanyName } from '../lib/useCompanyName';
@@ -8,7 +8,7 @@ import { LoginBackdrop, GLASS_CARD, GLASS_FIELD } from '../components/common/Log
 interface LoginPageProps {
   staffList: User[];
   /** Resolves to an error message, or null when the sign-in succeeded. */
-  onLogin: (identifier: string, password: string) => Promise<string | null>;
+  onLogin: (identifier: string, password: string, code?: string) => Promise<string | null>;
   onAdminLogin: () => void;
 }
 
@@ -30,6 +30,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
   }, [demoAccount?.identifier, demoAccount?.password]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // two-step sign-in: the server asks for the authenticator code after a right password
+  const [needCode, setNeedCode] = useState(false);
+  const [code, setCode] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const filtered = staffList.filter((u) => u.isActive !== false).filter((u) =>
@@ -67,9 +70,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
       return;
     }
 
+    if (needCode && !code.trim()) {
+      setError('کد برنامهٔ احراز هویت (یا یکی از کدهای بازیابی) را وارد کنید.');
+      return;
+    }
     setSubmitting(true);
-    const failure = await onLogin(selectedUser?.email || query, password);
+    const failure = await onLogin(selectedUser?.email || query, password, code);
     setSubmitting(false);
+    if (failure && failure.startsWith('کد ورود دو مرحله‌ای را وارد')) {
+      setNeedCode(true);
+      return;
+    }
     if (failure) setError(failure);
   };
 
@@ -168,6 +179,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
             />
             <Lock className="w-5 h-5 text-white/85 shrink-0" />
           </div>
+
+          {/* second step: the code of the authenticator app */}
+          {needCode && (
+            <div className={GLASS_FIELD}>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                  setError('');
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                autoComplete="one-time-code"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="go"
+                autoFocus
+                aria-label="کد ورود دو مرحله‌ای"
+                placeholder="کد برنامهٔ احراز هویت"
+                data-two-factor-input
+                className="glass-input flex-1 bg-transparent text-center text-sm font-bold text-white placeholder:text-white/70 focus:outline-none font-mono min-w-0 tracking-widest"
+              />
+              <ShieldCheck className="w-5 h-5 text-white/85 shrink-0" />
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

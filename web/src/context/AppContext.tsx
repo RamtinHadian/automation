@@ -40,7 +40,8 @@ interface AppContextType {
   loginWithCredentials: (
     identifier: string,
     password: string,
-    adminOnly?: boolean
+    adminOnly?: boolean,
+    code?: string
   ) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   logout: () => void;
 
@@ -699,9 +700,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const loginWithCredentials = useCallback(
-    async (identifier: string, password: string, adminOnly = false) => {
+    async (identifier: string, password: string, adminOnly = false, code = '') => {
       try {
-        const { token, user } = await api.login(identifier, password, adminOnly);
+        const { token, user } = await api.login(identifier, password, adminOnly, code);
         setToken(token);
         const s = await api.state();
         applyServerState(s, true);

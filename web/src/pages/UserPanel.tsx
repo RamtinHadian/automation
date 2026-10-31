@@ -1,3 +1,4 @@
+import { TwoFactorCard } from '../components/common/TwoFactorCard';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { DayNightToggle } from '../components/common/DayNightToggle';
 import { askConfirm } from '../lib/confirmDialog';
@@ -911,7 +912,7 @@ export default function UserPanel() {
                   setConfirmPassword('');
                   setShowPasswordModal(true);
                 }}
-                title="تغییر کلمه عبور حساب کاربری"
+                title="رمز عبور و ورود دو مرحله‌ای"
                 className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-white hover:bg-amber-100 text-[#6E1B1B] border border-[#EBDBCE] flex items-center justify-center transition-colors cursor-pointer"
               >
                 <KeyRound className="w-3.5 h-3.5" />
@@ -2479,7 +2480,7 @@ export default function UserPanel() {
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm text-[#3A241F]">تغییر کلمه عبور</h3>
+                  <h3 className="font-black text-sm text-[#3A241F]">رمز عبور و امنیت حساب</h3>
                   <p className="text-[11px] text-[#8C6F66]">تعیین رمز جدید برای حساب «{currentUser.fullName}»</p>
                 </div>
               </div>
@@ -2568,6 +2569,7 @@ export default function UserPanel() {
                 </button>
               </div>
             </form>
+            <TwoFactorCard showToast={showToast} />
           </div>
         </div>
       )}
