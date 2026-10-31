@@ -48,7 +48,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Award,
-  Type
+  Type,
+  ArrowUpDown
 } from 'lucide-react';
 import { FileTransfer, User, LetterNumberingSettings } from '../../types';
 import { formatCurrentJalaliDateTime, toPersianDigits, convertNumbersInHtmlToPersian } from '../../lib/jalali';
@@ -123,6 +124,7 @@ interface LetterEditorModalProps {
     bodyPaddingX?: number;
     metaRowGap?: number;
     signerBelow?: boolean;
+    dateFirst?: boolean;
     attachmentFileName?: string;
     attachmentFileSize?: string;
     attachmentFileDataUrl?: string;
@@ -216,6 +218,7 @@ function parseLetterForEdit(t: FileTransfer) {
   if (t.fx) {
     layout.metaRowGap = t.fx.metaRowGap;
     layout.signerBelow = !!t.fx.signerBelow; // an older letter keeps its old order (name above the stamp)
+    layout.dateFirst = !!t.fx.dateFirst;
   }
   layout.footerNoteOffset = pt(t.footerNoteOffsetX, t.footerNoteOffsetY);
   if (t.headerCenterFontFamily) layout.headerCenterFontFamily = t.headerCenterFontFamily;
@@ -287,6 +290,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [bodyPaddingX, setBodyPaddingX] = useState<number>(() => numPref(prefs.bodyPaddingX, 32));
   const [metaRowGap, setMetaRowGap] = useState<number>(() => numPref(prefs.metaRowGap, 4)); // px between the lines of number / date / attachment
   const [signerBelow, setSignerBelow] = useState<boolean>(() => (editInit?.layout ? !!editInit.layout.signerBelow : prefs.signerBelow !== false)); // the name under the stamp and signature
+  // the date line above the number line (the two swap places)
+  const [dateFirst, setDateFirst] = useState<boolean>(() => (editInit?.layout ? !!editInit.layout.dateFirst : prefs.dateFirst === true));
   // «درج جدول»: the person chooses the number of rows and columns first
   const [tableOpen, setTableOpen] = useState(false);
   const [tableRows, setTableRows] = useState('3');
@@ -379,7 +384,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
 
   const collectLayout = () => ({
     selectedFontFamily, headerCenterFontFamily, subjectFontFamily, metaFontFamily, signerFontFamily, signerFontSize,
-    selectedFontSize, headerCenterTitle, bodyPaddingX, metaRowGap, signerBelow, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
+    selectedFontSize, headerCenterTitle, bodyPaddingX, metaRowGap, signerBelow, dateFirst, bodyOffsetX, signatureHeight, pageSize, signatureAlign,
     signatureOffset, sigImgOffset, stampOffset, stampHeightOverride, headerCenterOffset, subjectOffset, metaOffset, footerNoteOffset,
     orgOffset, bodyOffsetY, layoutLocked, letterhead: lh, logoSize, orgTextScale, logoOffset, orgTextOffset,
     showSignatureImage: showSigImg, showStampImage: showStampImg, showLogo, showOrgName, showSubject, showFooterNote,
@@ -422,6 +427,7 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
     setBodyPaddingX(numPref(base.bodyPaddingX, 32));
     setMetaRowGap(numPref(base.metaRowGap, 4));
     setSignerBelow(base.signerBelow !== false);
+    setDateFirst(base.dateFirst === true);
     setBodyOffsetX(numPref(base.bodyOffsetX, 0));
     setSignatureHeight(numPref(base.signatureHeight, settings.ceoSignatureHeight || DEFAULT_SIGNATURE_HEIGHT));
     setSignatureAlign('left');
@@ -758,7 +764,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
       orgOffsetX: orgOffset.x,
       orgOffsetY: orgOffset.y,
       bodyPaddingX,
-      fx: { metaRowGap, signerBelow },
+      fx: { metaRowGap, signerBelow, dateFirst },
       attachmentFileName: attachedFile?.name,
       attachmentFileSize: attachedFile?.size,
       attachmentFileDataUrl: attachedFile?.dataUrl,
@@ -1152,33 +1158,33 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
 
                   {/* Perfectly Stacked Under Each Other with Fixed Column Alignment */}
                   <div style={letterMetaGridStyle(pageSize === 'A5', metaRowGap)}>
-                    <span className="text-[#8C6F66] font-bold text-right shrink-0">{showNo ? 'شماره:' : ''}</span>
+                    <span style={{ order: dateFirst ? 3 : 1 }} className="text-[#8C6F66] font-bold text-right shrink-0">{showNo ? 'شماره:' : ''}</span>
                     <input
                       type="text"
                       value={letterNumber}
                       onChange={(e) => setLetterNumber(toPersianDigits(e.target.value))}
                       placeholder="شماره نامه"
-                      style={{ fontFamily: metaFontFamily, fontSize: 'inherit', lineHeight: 'inherit' }}
+                      style={{ fontFamily: metaFontFamily, fontSize: 'inherit', lineHeight: 'inherit', order: dateFirst ? 4 : 2 }}
                       className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full min-w-0 text-right px-0.5"
                     />
 
-                    <span className="text-[#8C6F66] font-bold text-right shrink-0">{showDate ? 'تاریخ:' : ''}</span>
+                    <span style={{ order: dateFirst ? 1 : 3 }} className="text-[#8C6F66] font-bold text-right shrink-0">{showDate ? 'تاریخ:' : ''}</span>
                     <input
                       type="text"
                       value={customDate}
                       onChange={(e) => setCustomDate(toPersianDigits(e.target.value))}
                       placeholder="تاریخ نامه"
-                      style={{ fontFamily: metaFontFamily, fontSize: 'inherit', lineHeight: 'inherit' }}
+                      style={{ fontFamily: metaFontFamily, fontSize: 'inherit', lineHeight: 'inherit', order: dateFirst ? 2 : 4 }}
                       className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full min-w-0 text-right px-0.5"
                     />
 
-                    <span className="text-[#8C6F66] font-bold text-right shrink-0">{showAtt ? 'پیوست:' : ''}</span>
+                    <span style={{ order: 5 }} className="text-[#8C6F66] font-bold text-right shrink-0">{showAtt ? 'پیوست:' : ''}</span>
                     <input
                       type="text"
                       value={attachment}
                       onChange={(e) => setAttachment(e.target.value)}
                       placeholder="پیوست"
-                      style={{ fontFamily: metaFontFamily, fontSize: 'inherit', lineHeight: 'inherit' }}
+                      style={{ fontFamily: metaFontFamily, fontSize: 'inherit', lineHeight: 'inherit', order: 6 }}
                       className="font-bold text-[#3A241F] bg-transparent border-b border-transparent hover:border-[#C98B6A] focus:border-[#6E1B1B] focus:outline-none w-full min-w-0 text-right px-0.5"
                     />
 
@@ -1544,6 +1550,11 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
               />
               <span className="font-mono text-[10px] font-bold text-[#6E1B1B] w-7 text-center">{toPersianDigits(metaRowGap)}px</span>
             </div>
+
+            <button type="button" onClick={() => setDateFirst((v) => !v)} className={`flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] shadow-2xs text-[11px] font-bold text-[#3A241F] hover:bg-[#FAF5F1] cursor-pointer ${side ? 'col-span-2' : ''}`} data-swap-date-number title="جای خط تاریخ و خط شماره را عوض می‌کند">
+              <ArrowUpDown className="w-3.5 h-3.5 text-[#6E1B1B]" />
+              جابه‌جایی تاریخ و شماره ({dateFirst ? 'تاریخ بالا' : 'شماره بالا'})
+            </button>
 
             <label className={`flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] shadow-2xs text-[11px] font-bold text-[#3A241F] cursor-pointer ${side ? 'col-span-2' : ''}`} data-signer-below>
               <input type="checkbox" checked={signerBelow} onChange={(e) => setSignerBelow(e.target.checked)} />

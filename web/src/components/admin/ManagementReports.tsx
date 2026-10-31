@@ -12,6 +12,7 @@ import { todayIso } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
 import { SalesAnalysis } from './SalesAnalysis';
 import { AiDailyReport } from './AiDailyReport';
+import { SocialStatsReport } from './SocialStatsReport';
 import { canSeeSalesTotals } from '../../lib/permissions';
 
 const compactM = (n: number) => compact(toDisplay(n));
@@ -164,6 +165,8 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
         <Kpi accent={C.magenta} icon={<UserPlus className="w-5 h-5" />} label={`مشتری جدید (${rangeLabel})`} value={fa(k.newCustomers)} sub={`${toPersianDigits(k.proformas)} پیش‌فاکتور · ${compactM(k.proformaValue)}`} />
         <Kpi accent={C.yellow} icon={<Phone className="w-5 h-5" />} label="تماس بی‌پاسخ (۷ روز)" value={fa(missedCalls)} sub={callDays.length ? `از ${toPersianDigits(callDays.reduce((a, d) => a + d.total, 0))} تماس` : 'هنوز تماسی ثبت نشده'} tone={missedCalls ? 'bad' : 'good'} />
       </div>
+
+      <SocialStatsReport customers={customers} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <ChartCard title="فایل و نامه در طول زمان" subtitle={`تعداد ارسال در هر روز (${rangeLabel} اخیر)`} legend={[{ label: 'فایل', color: C.blue }, { label: 'نامهٔ رسمی', color: C.orange }]} className="xl:col-span-2">

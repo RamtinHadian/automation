@@ -515,6 +515,9 @@ func Reset(ctx context.Context) error {
 	if err := addITData(ctx, now, by); err != nil { // before addModules, so these customers get every field too
 		return err
 	}
+	if err := addCrowd(ctx, now, by); err != nil { // a hundred and fifty more customers with their deals, notes and follow-ups, and thirty more tasks
+		return err
+	}
 	if err := addModules(ctx, now, by); err != nil {
 		return err
 	}
@@ -522,6 +525,9 @@ func Reset(ctx context.Context) error {
 		return err
 	}
 	if err := addMinutes(ctx, now, by); err != nil {
+		return err
+	}
+	if err := addSocial(ctx, now, by); err != nil { // the networks of the customers and the ready-made messages
 		return err
 	}
 	store.BackfillDealCreators(ctx) // the sample opportunities also say who made them

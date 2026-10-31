@@ -542,9 +542,9 @@ export function generateOfficialLetterHtml(
       </div>
       <div class="meta-box" style="transform: translate(${metaOffsetX}px, ${metaOffsetY}px); font-family: '${metaFont}', inherit; text-align: right; line-height: 1.45;">
         <div style="${letterMetaGridCss(isA5, fx.metaRowGap)}">
-          <span class="ml">${showNo ? 'شماره:' : ''}</span><span class="mv">${letterNo}</span>
-          <span class="ml">${showDate ? 'تاریخ:' : ''}</span><span class="mv">${letterDate}</span>
-          <span class="ml">${showAtt ? 'پیوست:' : ''}</span><span class="mv">${letterAttach}</span>
+          <span class="ml" style="order: ${fx.dateFirst ? 3 : 1};">${showNo ? 'شماره:' : ''}</span><span class="mv" style="order: ${fx.dateFirst ? 4 : 2};">${letterNo}</span>
+          <span class="ml" style="order: ${fx.dateFirst ? 1 : 3};">${showDate ? 'تاریخ:' : ''}</span><span class="mv" style="order: ${fx.dateFirst ? 2 : 4};">${letterDate}</span>
+          <span class="ml" style="order: 5;">${showAtt ? 'پیوست:' : ''}</span><span class="mv" style="order: 6;">${letterAttach}</span>
         </div>
       </div>
     </div>

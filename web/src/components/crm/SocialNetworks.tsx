@@ -129,7 +129,7 @@ const prettyNumber = (a: string) => {
   return toPersianDigits(/^09\d{9}$/.test(d) ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : d || a);
 };
 const isRubikaGuid = (a: string) => /^[ugc]0[A-Za-z0-9]{20,}$/.test(a); // the chat code that web.rubika.ir/#c=… uses
-const showAccount = (a: string, id = '') => (id === 'website' || (id === 'rubika' && isRubikaGuid(a)) ? a : /^[0-9۰-۹+]+$/.test(a) ? prettyNumber(a) : '@' + a);
+export const showAccount = (a: string, id = '') => (id === 'website' || (id === 'rubika' && isRubikaGuid(a)) ? a : /^[0-9۰-۹+]+$/.test(a) ? prettyNumber(a) : '@' + a);
 
 export const entryOf = (c: Customer, id: string): SocialEntry => {
   const saved = c.social?.[id];

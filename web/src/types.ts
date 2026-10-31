@@ -1176,4 +1176,6 @@ export interface LetterFx {
   metaRowGap?: number;
   /** the name and title of the signer under the signature and the stamp (instead of above them) */
   signerBelow?: boolean;
+  /** the date line above the number line (the two swap places) */
+  dateFirst?: boolean;
 }

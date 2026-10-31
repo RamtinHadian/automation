@@ -1861,10 +1861,11 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   )}
                   <div style={letterMetaGridStyle(pageSize === 'A5', letter.fx?.metaRowGap)}>
                   <>
-                    <span className="text-[#8C6F66] font-bold">{showNo ? 'شماره:' : ''}</span>
+                    <span style={{ order: letter.fx?.dateFirst ? 3 : 1 }} className="text-[#8C6F66] font-bold">{showNo ? 'شماره:' : ''}</span>
                     {isEditable ? (
                       <input
                         type="text"
+                        style={{ order: letter.fx?.dateFirst ? 4 : 2 }}
                         value={headerNumber}
                         onChange={(e) => setHeaderNumber(toPersianDigits(e.target.value))}
                         placeholder="شماره نامه"
@@ -1874,14 +1875,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         }`}
                       />
                     ) : (
-                      <b className="font-bold text-[#3A241F]">{toPersianDigits(headerNumber)}</b>
+                      <b style={{ order: letter.fx?.dateFirst ? 4 : 2 }} className="font-bold text-[#3A241F]">{toPersianDigits(headerNumber)}</b>
                     )}
                   </>
                   <>
-                    <span className="text-[#8C6F66] font-bold">{showDate ? 'تاریخ:' : ''}</span>
+                    <span style={{ order: letter.fx?.dateFirst ? 1 : 3 }} className="text-[#8C6F66] font-bold">{showDate ? 'تاریخ:' : ''}</span>
                     {isEditable ? (
                       <input
                         type="text"
+                        style={{ order: letter.fx?.dateFirst ? 2 : 4 }}
                         value={headerDate}
                         onChange={(e) => setHeaderDate(toPersianDigits(e.target.value))}
                         placeholder="تاریخ نامه"
@@ -1891,14 +1893,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         }`}
                       />
                     ) : (
-                      <b className="font-bold text-[#3A241F]">{toPersianDigits(headerDate)}</b>
+                      <b style={{ order: letter.fx?.dateFirst ? 2 : 4 }} className="font-bold text-[#3A241F]">{toPersianDigits(headerDate)}</b>
                     )}
                   </>
                   <>
-                    <span className="text-[#8C6F66] font-bold">{showAtt ? 'پیوست:' : ''}</span>
+                    <span style={{ order: 5 }} className="text-[#8C6F66] font-bold">{showAtt ? 'پیوست:' : ''}</span>
                     {isEditable ? (
                       <input
                         type="text"
+                        style={{ order: 6 }}
                         value={headerAttachment}
                         onChange={(e) => setHeaderAttachment(e.target.value)}
                         placeholder="وضعیت پیوست"
@@ -1908,7 +1911,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                         }`}
                       />
                     ) : (
-                      <b className="font-bold text-[#3A241F]">{headerAttachment}</b>
+                      <b style={{ order: 6 }} className="font-bold text-[#3A241F]">{headerAttachment}</b>
                     )}
                   </>
                   </div>
