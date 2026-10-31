@@ -50,7 +50,10 @@ export const CustomerDealsPage: React.FC<{ customer: Customer; deals: Deal[]; se
           <div className="text-[13px] font-black leading-6 break-words">{d.title}</div>
           <span className="shrink-0 flex items-center gap-1.5 text-[10px] font-black rounded-full bg-white/90 text-[#3A241F] px-2.5 py-0.5"><span className="w-2 h-2 rounded-full" style={{ background: st.dot }} />{st.label}</span>
         </div>
-        <div className="text-lg font-black">{money(d.amount || 0)}</div>
+        <div className="flex items-baseline gap-1.5">
+          <b dir="ltr" className="text-xl font-black bg-gradient-to-l from-amber-200 via-yellow-100 to-white bg-clip-text text-transparent drop-shadow-[0_1px_8px_rgba(253,224,71,0.35)]" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(d.amount || 0)}</b>
+          <i className="not-italic text-[9px] font-black rounded-md px-1.5 py-0.5 bg-amber-300/25 text-amber-100 border border-amber-200/40">{unitName()}</i>
+        </div>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold opacity-85">
           {d.productCode && <span dir="ltr">کد کالا: {toPersianDigits(d.productCode)}</span>}
           <span>مسئول: {d.ownerName}</span>
