@@ -210,10 +210,12 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
                       <span className="text-[12px] font-black leading-5 break-words">{d.title}</span>
                       <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 ${d.stage === 'WON' ? 'bg-emerald-400/90 text-emerald-950' : d.stage === 'LOST' ? 'bg-rose-400/90 text-rose-950' : 'bg-white/90 text-[#3A241F]'}`}>{DEAL_STAGE_FA[d.stage] || d.stage}</span>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] font-bold opacity-90">
-                      <span dir="ltr">{d.productCode || ''}</span>
-                      {seesMoneyTop && <span>{formatMoney(d.amount || 0)} {unitName()}</span>}
+                    {/* the amount of the opportunity (the card of the customer shows it too), and under it the code of the product */}
+                    <div className="flex items-baseline gap-1.5" data-summary-deal-amount>
+                      <b dir="ltr" className="text-[17px] font-black leading-7" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(d.amount || 0)}</b>
+                      <i className="not-italic text-[9px] font-black rounded-md px-1.5 py-0.5 bg-white/20 border border-white/30">{unitName()}</i>
                     </div>
+                    {d.productCode && d.productCode !== d.title && <div className="text-[10px] font-bold opacity-80">کد کالا: <span dir="ltr">{toPersianDigits(d.productCode)}</span></div>}
                   </div>
                 ); })}
               </div>
