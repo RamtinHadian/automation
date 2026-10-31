@@ -16,7 +16,7 @@
     "react-router-dom": "^7.18.2",
     "tailwind-merge": "^2.6.0",
     "vazirmatn": "^33.0.3",
-    "xlsx": "^0.18.5"
+    "xlsx": "file:vendor/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/node": "^22.13.1",

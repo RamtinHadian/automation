@@ -1,3 +1,4 @@
+import { safeCell } from '../../lib/csv';
 import React, { useMemo, useState } from 'react';
 import { Download, Globe2, Printer, Search, Users, X } from 'lucide-react';
 import { Customer } from '../../types';
@@ -28,7 +29,7 @@ const personOf = (c: Customer, id: string): Person => {
   return { id: c.id, name: c.name, owner: c.ownerName || '', kind: kindOf(c), accounts: e.accounts, count: e.count };
 };
 
-const csvCell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+const csvCell = (v: string) => `"${safeCell(v).replace(/"/g, '""')}"`;
 // a mobile number is written as ="0912…" so a spreadsheet keeps its leading zero
 const latin = (s: string) => s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
 const csvAccount = (id: string, a: string) => (id !== 'website' && /^[0-9۰-۹+\s-]{9,}$/.test(a) ? `="${latin(a)}"` : csvCell(a));

@@ -2,6 +2,8 @@
 FROM node:22-alpine AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
+# the spreadsheet library (a fixed version of SheetJS, kept in the repository: the npm registry only carries an old, vulnerable one)
+COPY web/vendor ./vendor
 RUN npm ci
 COPY web/index.html web/vite.config.ts web/tsconfig.json web/tailwind.config.js web/postcss.config.js ./
 COPY web/public ./public
@@ -11,7 +13,7 @@ ENV NODE_OPTIONS=--max-old-space-size=900
 RUN npx vite build
 
 # Stage 2: build the Go API server (dependencies are vendored, so no network is needed for them)
-FROM golang:1.23-alpine AS api
+FROM golang:1.27.3-alpine AS api
 WORKDIR /src
 # this stage starts only when the frontend is built (the two builds never run side by side: together they need more memory than the server has)
 COPY --from=web /web/dist/index.html /tmp/frontend-built
