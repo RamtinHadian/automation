@@ -2,6 +2,7 @@
 package store
 
 import (
+	"strings"
 	"context"
 	"encoding/json"
 	"log"
@@ -453,6 +454,13 @@ func seed(ctx context.Context, cfg config.Config) error {
 	}
 	if cfg.AdminPassword == "" {
 		log.Fatal("ADMIN_PASSWORD must be set to create the first admin user")
+	}
+	// no well-known first password on a real installation (the public demo keeps its own)
+	if !cfg.Demo {
+		low := strings.ToLower(strings.TrimSpace(cfg.AdminPassword))
+		if len(cfg.AdminPassword) < 10 || low == "change-me" || low == "admin" || low == "admin1234" || low == "password" || low == "12345678" || strings.HasPrefix(low, "change-me") {
+			log.Fatal("ADMIN_PASSWORD is too weak or still the example value: use at least 10 random characters (install.sh makes one for you)")
+		}
 	}
 	dept := jsonx.M{"id": "dept-general", "name": "مدیریت کل", "code": "HQ", "color": "#6E1B1B", "defaultQuotaGB": 100}
 	if _, err := Pool.Exec(ctx, `INSERT INTO departments (id, data) VALUES ($1, $2::jsonb) ON CONFLICT DO NOTHING`, "dept-general", jsonx.Encode(dept)); err != nil {

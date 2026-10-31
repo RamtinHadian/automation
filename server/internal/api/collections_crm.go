@@ -1,6 +1,7 @@
 package api
 
 import (
+	"math"
 	"context"
 	"net/http"
 	"os"
@@ -203,6 +204,7 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		delete(doc, "createdByName")
 	}
 	stage := jsonx.Str(doc, "stage")
+	enforceProformaAmount(doc)
 	if msg := dealRuleViolation(r, me, jsonx.Str(before, "stage"), stage, jsonx.Num(doc["amount"]), jsonx.Str(doc, "proformaNumber")); msg != "" {
 		httpx.Error(w, http.StatusForbidden, msg)
 		return
@@ -483,4 +485,49 @@ func hasMobile(phones []string) bool {
 		}
 	}
 	return false
+}
+
+// enforceProformaAmount: the money of an issued proforma is worked out here, from its rows, with the same rule the page uses (row total = quantity x price
+// minus the row discount; the percentage discount on the sum; tax on what is left). The amount the page sent is not believed: a changed page, or a call of
+// the API by hand, cannot make a proforma worth something else than its rows. Percentages are kept between 0 and 100 and rows cannot have negative
+// quantities or prices. Deals without priced rows keep the amount that was typed.
+func enforceProformaAmount(doc jsonx.M) {
+	if jsonx.Str(doc, "proformaNumber") == "" {
+		return
+	}
+	rows := jsonx.Arr(doc, "items")
+	priced := false
+	for _, v := range rows {
+		if it, ok := v.(map[string]any); ok && jsonx.Num(it["unitPrice"]) != 0 {
+			priced = true
+		}
+	}
+	clamp := func(x, lo, hi float64) float64 { return math.Min(hi, math.Max(lo, x)) }
+	disc := clamp(jsonx.Num(doc["discountPercent"]), 0, 100)
+	tax := clamp(jsonx.Num(doc["taxPercent"]), 0, 100)
+	if _, has := doc["discountPercent"]; has {
+		doc["discountPercent"] = disc
+	}
+	if _, has := doc["taxPercent"]; has {
+		doc["taxPercent"] = tax
+	}
+	if !priced {
+		return
+	}
+	round := func(x float64) float64 { return math.Floor(x + 0.5) } // like the page: halves go up
+	subtotal := 0.0
+	for _, v := range rows {
+		it, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		qty, price, off := math.Max(0, jsonx.Num(it["qty"])), math.Max(0, jsonx.Num(it["unitPrice"])), math.Max(0, jsonx.Num(it["discount"]))
+		it["qty"], it["unitPrice"] = qty, price
+		if _, has := it["discount"]; has {
+			it["discount"] = off
+		}
+		subtotal += math.Max(0, qty*price-off)
+	}
+	after := subtotal - round(subtotal*disc/100)
+	doc["amount"] = after + round(after*tax/100)
 }
