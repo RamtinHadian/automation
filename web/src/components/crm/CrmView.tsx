@@ -39,7 +39,7 @@ import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { SocialButton, SocialDialog, CustomerSocialIcons } from './SocialNetworks';
 import { SendMessageDialog } from './MessageTemplates';
-import { dealGroup, LinkedChip } from './DealLinks';
+import { bySeq, dealGroup, LinkedChip } from './DealLinks';
 import { ParagraphNotes, noteEntries, canEditNote } from '../common/ParagraphNotes';
 import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SocialEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
@@ -428,8 +428,9 @@ export const CrmView: React.FC = () => {
     const prev = deals.filter((x) => x.customerId === customerId && x.createdById === me && Date.now() - new Date(x.createdAt).getTime() < 30 * 60000).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
     if (!prev) return nd;
     const gid = prev.groupId || uid('gr');
+    const seq = Math.max(prev.groupSeq ?? 1, ...deals.filter((x) => x.groupId === gid).map((x) => x.groupSeq ?? 1)) + 1;
     pendingLink.current[nd.id] = prev.id;
-    return { ...nd, groupId: gid };
+    return { ...nd, groupId: gid, groupSeq: seq };
   };
   const newDeal = (customerId = ''): Deal => ({
     id: uid('dl'), title: '', customerId, customerName: customerById.get(customerId)?.name || '', amount: 0, stage: 'NEW',
@@ -1128,7 +1129,7 @@ export const CrmView: React.FC = () => {
             saveDeal(d);
             // the earlier deal it was linked to gets the same group
             const prevId = pendingLink.current[d.id];
-            if (prevId && d.groupId) { const pv = deals.find((x) => x.id === prevId); if (pv && pv.groupId !== d.groupId) saveDeal({ ...pv, groupId: d.groupId }); delete pendingLink.current[d.id]; }
+            if (prevId && d.groupId) { const pv = deals.find((x) => x.id === prevId); if (pv && pv.groupId !== d.groupId) saveDeal({ ...pv, groupId: d.groupId, groupSeq: pv.groupSeq ?? 1 }); delete pendingLink.current[d.id]; }
             setEditingDeal(null);
             if (d.stage === 'PROPOSAL' && editingDeal.deal.stage !== 'PROPOSAL' && !d.proformaNumber) setProformaFor(d);
             showToast(editingDeal.isNew ? 'فرصت فروش ثبت شد.' : 'فرصت ذخیره شد.');
@@ -1285,12 +1286,13 @@ const DealForm: React.FC<{
     const owner = staff.find((u) => u.id === d.ownerId);
     const co = (d.coOwnerIds || []).filter((id) => id !== d.ownerId);
     const gid = filledMore.length ? d.groupId || uid('gr') : d.groupId;
-    const main = { ...d, groupId: gid, ownerName: owner?.fullName || d.ownerName, coOwnerIds: co, coOwnerNames: co.map((id) => staff.find((u) => u.id === id)?.fullName || '') };
+    const base = d.groupSeq ?? 1;
+    const main = { ...d, groupId: gid, groupSeq: gid ? base : undefined, ownerName: owner?.fullName || d.ownerName, coOwnerIds: co, coOwnerNames: co.map((id) => staff.find((u) => u.id === id)?.fullName || '') };
     onSave(main);
     if (filledMore.length && onSaveMore) {
       const at = nowIso();
-      onSaveMore(filledMore.map((r) => ({
-        ...main, id: uid('dl'), groupId: gid, title: r.title.trim(), productCode: r.code.trim() || undefined, amount: r.amount, createdAt: at, updatedAt: at,
+      onSaveMore(filledMore.map((r, k) => ({
+        ...main, id: uid('dl'), groupId: gid, groupSeq: base + k + 1, title: r.title.trim(), productCode: r.code.trim() || undefined, amount: r.amount, createdAt: at, updatedAt: at,
         createdById: undefined, createdByName: undefined, createdByGuess: undefined, closedAt: undefined, noteLog: undefined, notes: '',
         proformaNumber: undefined, proformaAt: undefined, validUntil: undefined, items: undefined, proformaApproval: undefined, proformaFields: undefined, proformaIssuerId: undefined,
         discountPercent: undefined, taxPercent: undefined, terms: undefined, expectedClose: undefined, expectedCloseTime: undefined,
@@ -1705,6 +1707,7 @@ const CustomerDetail: React.FC<{
             };
             return blocks.map((b) => {
               if (b.members.length === 1) return row(b.members[0], false);
+              b.members.sort(bySeq);
               const grp = dealGroup(deals, b.members[0]);
               const sum = b.members.reduce((t, x) => t + (x.amount || 0), 0);
               return (

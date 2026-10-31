@@ -266,6 +266,8 @@ export interface Deal {
   createdByGuess?: boolean;
   /** opportunities that were written together share this id (they are shown as linked) */
   groupId?: string;
+  /** the place of the opportunity inside its group (1, 2, 3... in the order they were written) */
+  groupSeq?: number;
   /** Expected closing day, yyyy-mm-dd. */
   expectedClose?: string;
   /** The hour and minute of the expected closing, «HH:MM» (empty = the time the opportunity was created at); a reminder comes at that moment. */

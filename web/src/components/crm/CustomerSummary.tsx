@@ -12,6 +12,7 @@ import { CustomerAiAnalysis } from './CustomerAiAnalysis';
 import { noteEntries } from '../common/ParagraphNotes';
 import { SocialStrip } from './SocialNetworks';
 import { dealGroup, LinkedChip } from './DealLinks';
+import { CustomerDealsPage } from './CustomerDealsPage';
 import { formatTaskDate } from '../../lib/taskDates';
 
 const when = (iso?: string) => {
@@ -131,6 +132,7 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
   const { currentUser } = useAppContext();
   const seesMoney = canSeeSalesTotals(currentUser);
   const seesMoneyTop = seesMoney;
+  const [dealsPage, setDealsPage] = useState(false);
   // everything that happened with this customer in one list, newest first
   const timeline = useMemo(() => {
     const ev: Ev[] = [];
@@ -190,14 +192,15 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
             </div>
           ))}
         </div>
+        {dealsPage && <CustomerDealsPage customer={customer} deals={s.deals} seesMoney={seesMoney} onClose={() => setDealsPage(false)} />}
         <CustomerAiAnalysis customerId={customer.id} />
         <div onClick={(e) => e.stopPropagation()} className="cursor-default space-y-4">
           <SocialStrip customer={customer} />
           <section className="rounded-2xl bg-white/10 border border-white/20 overflow-hidden" data-summary-deals>
-            <div className="px-4 py-2.5 bg-white/10 text-xs font-black flex items-center justify-between">
-              <span>فرصت‌های فروش</span>
+            <button type="button" onClick={() => setDealsPage(true)} className="w-full px-4 py-2.5 bg-white/10 hover:bg-white/20 text-xs font-black flex items-center justify-between cursor-pointer transition-colors" data-summary-deals-open title="برای دیدن همهٔ فرصت‌ها در صفحهٔ جداگانه بزنید">
+              <span>فرصت‌های فروش <span className="opacity-70 font-bold">· دیدن همه ←</span></span>
               <span className="opacity-80">{toPersianDigits(s.deals.length)} فرصت{seesMoneyTop ? ` · جمع ${formatMoney(s.deals.reduce((t, d) => t + (d.amount || 0), 0))} ${unitName()}` : ''}</span>
-            </div>
+            </button>
             {s.deals.length === 0 ? <div className="px-4 py-4 text-[11px] opacity-70 text-center">هنوز فرصتی نیست</div> : (
               <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                 {[...s.deals].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).map((d) => { const grp = dealGroup(s.deals, d); return (

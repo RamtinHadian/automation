@@ -14,12 +14,15 @@ const COLORS = [
 ];
 const hash = (s: string) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
 
+/** inside a group: by the written order (groupSeq), then by creation */
+export const bySeq = (a: Deal, b: Deal) => (a.groupSeq ?? 1e9) - (b.groupSeq ?? 1e9) || (a.createdAt || '').localeCompare(b.createdAt || '') || a.id.localeCompare(b.id);
+
 export interface DealGroup { size: number; index: number; color: (typeof COLORS)[number]; members: Deal[] }
 
 /** The group of a deal (null when it stands alone or the others are no longer there). */
 export const dealGroup = (all: Deal[], d: Deal): DealGroup | null => {
   if (!d.groupId) return null;
-  const members = all.filter((x) => x.groupId === d.groupId).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || a.id.localeCompare(b.id));
+  const members = all.filter((x) => x.groupId === d.groupId).sort(bySeq);
   if (members.length < 2) return null;
   return { size: members.length, index: members.findIndex((x) => x.id === d.id) + 1, color: COLORS[hash(d.groupId) % COLORS.length], members };
 };
