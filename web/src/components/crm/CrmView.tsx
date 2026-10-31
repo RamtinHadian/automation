@@ -518,6 +518,13 @@ export const CrmView: React.FC = () => {
             </button>
           )}
         </div>
+        <div className="flex items-center justify-between text-[10px] font-bold text-[#8C6F66]">
+          <span className="flex items-center gap-1.5">
+            {userById.get(c.ownerId)?.fullName || c.ownerName}
+          </span>
+          <span>{open > 0 ? `${toman(open)} ${unitName()} در جریان` : last ? `آخرین تعامل: ${formatTaskDate(last.slice(0, 10))}` : ''}</span>
+        </div>
+        {c.createdAt && <div className="text-[10px] font-medium text-[#8C6F66]/80" data-customer-since>مشتری از {formatDateTime(c.createdAt)}</div>}
         {!c.hiddenContact && <CustomerSocialIcons customer={c} onPick={(net) => {
           if (net === 'website') {
             const list = c.social?.website?.accounts || [];
@@ -527,13 +534,6 @@ export const CrmView: React.FC = () => {
           }
           setSocialSend({ customer: c, network: net });
         }} />}
-        <div className="flex items-center justify-between text-[10px] font-bold text-[#8C6F66]">
-          <span className="flex items-center gap-1.5">
-            {userById.get(c.ownerId)?.fullName || c.ownerName}
-          </span>
-          <span>{open > 0 ? `${toman(open)} ${unitName()} در جریان` : last ? `آخرین تعامل: ${formatTaskDate(last.slice(0, 10))}` : ''}</span>
-        </div>
-        {c.createdAt && <div className="text-[10px] font-medium text-[#8C6F66]/80" data-customer-since>مشتری از {formatDateTime(c.createdAt)}</div>}
       </div>
     );
   };
