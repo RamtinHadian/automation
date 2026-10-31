@@ -152,6 +152,10 @@ export const SocialButton: React.FC<{ customer: Customer; onClick: () => void }>
       <Share2 className="w-3.5 h-3.5" />
       تعاملات مجازی
       {networks > 0 && <span className="bg-violet-600 text-white rounded-full px-1.5 min-w-[18px] text-center text-[10px]">{toPersianDigits(networks)}</span>}
+      {/* the networks the customer has, as small logos (like on the customers' list) */}
+      {NETWORKS.filter((n) => (customer.social?.[n.id]?.accounts?.length || 0) > 0).map((n) => (
+        <span key={n.id} title={n.name} className="inline-flex" data-social-open-logo={n.id}><SocialLogo id={n.id} size={16} /></span>
+      ))}
     </button>
   );
 };
@@ -466,6 +470,11 @@ export const openChat = (id: string, name: string, account: string, text = '', c
     return `${name} باز شد.${pasteNote}${!text && needSearch ? ` «${who}» کپی شد؛ در جست‌وجوی ${name} بچسبانید.` : ''}`;
   }
   return `${name} لینک مستقیم ندارد؛ «${text ? 'متن پیام' : who}» کپی شد، در خود برنامه جست‌وجو و بچسبانید.`;
+};
+
+/** One interaction more on a network of a customer (a message was sent from Hoormand): the customer list that is open adds it to the counter. */
+export const countInteraction = (customerId: string, network: string) => {
+  try { window.dispatchEvent(new CustomEvent('hoormand-social-count', { detail: { customerId, network } })); } catch { /* no window */ }
 };
 
 /** The small logos of the networks a customer is in (the customer list): a click gives the network that was pressed. */

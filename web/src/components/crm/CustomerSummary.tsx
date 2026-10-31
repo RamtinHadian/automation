@@ -11,6 +11,7 @@ import { RecordingButton } from '../common/CallLog';
 import { CustomerAiAnalysis } from './CustomerAiAnalysis';
 import { noteEntries } from '../common/ParagraphNotes';
 import { SocialStrip } from './SocialNetworks';
+import { dealGroup, LinkedChip } from './DealLinks';
 import { formatTaskDate } from '../../lib/taskDates';
 
 const when = (iso?: string) => {
@@ -88,6 +89,7 @@ export const CustomerSummaryStrip: React.FC<{ customer: Customer; deals: Deal[];
 type Summary = ReturnType<typeof summarize>;
 
 interface Ev { id: string; at: string; title: string; by?: string; text?: string; Icon: React.ComponentType<{ className?: string }>; call?: VoipCall }
+const DEAL_STAGE_FA: Record<string, string> = { NEW: 'جدید', CONTACTED: 'تماس گرفته شد', PROPOSAL: 'پیشنهاد ارسال شد', NEGOTIATION: 'مذاکره', WON: 'فروش موفق', LOST: 'از دست رفت' };
 const ACT_LABEL: Record<string, string> = { NOTE: 'یادداشت', CALL: 'ثبت تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', QUOTE: 'قیمت داده شد' };
 
 /** The player, the «متن مکالمه» button and (when it is already written) the text of one recorded call; a click here does not close the page. */
@@ -128,6 +130,7 @@ const Block: React.FC<{ title: string; count: number; children: React.ReactNode 
 const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: VoipCall[]; onClose: () => void }> = ({ customer, s, calls, onClose }) => {
   const { currentUser } = useAppContext();
   const seesMoney = canSeeSalesTotals(currentUser);
+  const seesMoneyTop = seesMoney;
   // everything that happened with this customer in one list, newest first
   const timeline = useMemo(() => {
     const ev: Ev[] = [];
@@ -188,7 +191,32 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
           ))}
         </div>
         <CustomerAiAnalysis customerId={customer.id} />
-        <div onClick={(e) => e.stopPropagation()} className="cursor-default"><SocialStrip customer={customer} /></div>
+        <div onClick={(e) => e.stopPropagation()} className="cursor-default space-y-4">
+          <SocialStrip customer={customer} />
+          <section className="rounded-2xl bg-white/10 border border-white/20 overflow-hidden" data-summary-deals>
+            <div className="px-4 py-2.5 bg-white/10 text-xs font-black flex items-center justify-between">
+              <span>فرصت‌های فروش</span>
+              <span className="opacity-80">{toPersianDigits(s.deals.length)} فرصت{seesMoneyTop ? ` · جمع ${formatMoney(s.deals.reduce((t, d) => t + (d.amount || 0), 0))} ${unitName()}` : ''}</span>
+            </div>
+            {s.deals.length === 0 ? <div className="px-4 py-4 text-[11px] opacity-70 text-center">هنوز فرصتی نیست</div> : (
+              <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {[...s.deals].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).map((d) => { const grp = dealGroup(s.deals, d); return (
+                  <div key={d.id} style={grp ? { borderRightWidth: 5, borderRightColor: grp.color.bar } : undefined} className="rounded-xl bg-white/15 border border-white/25 px-3 py-2.5 space-y-1" data-summary-deal>
+                    {grp && <LinkedChip group={grp} />}
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-[12px] font-black leading-5 break-words">{d.title}</span>
+                      <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 ${d.stage === 'WON' ? 'bg-emerald-400/90 text-emerald-950' : d.stage === 'LOST' ? 'bg-rose-400/90 text-rose-950' : 'bg-white/90 text-[#3A241F]'}`}>{DEAL_STAGE_FA[d.stage] || d.stage}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] font-bold opacity-90">
+                      <span dir="ltr">{d.productCode || ''}</span>
+                      {seesMoneyTop && <span>{formatMoney(d.amount || 0)} {unitName()}</span>}
+                    </div>
+                  </div>
+                ); })}
+              </div>
+            )}
+          </section>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Block title="یادداشت‌ها" count={noteActs.length + custNotes.length}>
             {custNotes.map((n, i) => (

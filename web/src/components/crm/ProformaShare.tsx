@@ -9,7 +9,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
 import { Customer, Deal, SystemSettings } from '../../types';
 import { Modal, field, label } from './crmUi';
-import { NETWORKS, SocialLogo, entryOf, openChat } from './SocialNetworks';
+import { NETWORKS, SocialLogo, countInteraction, entryOf, openChat } from './SocialNetworks';
 
 const newFileId = () => 'prof_' + Array.from(crypto.getRandomValues(new Uint8Array(12))).map((b) => b.toString(16).padStart(2, '0')).join('');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -66,6 +66,7 @@ export const ProformaShareDialog: React.FC<{ deal: Deal; customer: Customer; set
 
   const sendRow = (r: { key: string; id: string; name: string; account: string }) => {
     setNote(openChat(r.id, r.name, r.account, text, customer.name));
+    countInteraction(customer.id, r.id);
     setDone((d) => (d.includes(r.key) ? d : [...d, r.key]));
   };
   // one after the other, with a pause (every network opens its own app or tab; the person presses «send» in each)
@@ -84,6 +85,7 @@ export const ProformaShareDialog: React.FC<{ deal: Deal; customer: Customer; set
       const chatId = ch === 'telegram' ? customer.telegramChatId! : customer.baleChatId!;
       await api.msgrSendFile({ channel: ch, chatId, customerId: customer.id, caption: text.split('\n').filter((l) => !l.includes(link)).join('\n'), file: blobRef.current, filename: fileName });
       setDone((d) => [...d, 'bot|' + ch]);
+      countInteraction(customer.id, ch);
       showToast(`پیش‌فاکتور با ربات در ${ch === 'bale' ? 'بله' : 'تلگرام'} ارسال شد.`);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'ارسال با ربات نشد.');

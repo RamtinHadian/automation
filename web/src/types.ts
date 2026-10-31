@@ -264,6 +264,8 @@ export interface Deal {
   createdByName?: string;
   /** True when the creator was filled in later from the main owner (the real creator was not recorded). */
   createdByGuess?: boolean;
+  /** opportunities that were written together share this id (they are shown as linked) */
+  groupId?: string;
   /** Expected closing day, yyyy-mm-dd. */
   expectedClose?: string;
   /** The hour and minute of the expected closing, «HH:MM» (empty = the time the opportunity was created at); a reminder comes at that moment. */

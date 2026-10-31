@@ -40,6 +40,7 @@ import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { SocialButton, SocialDialog, CustomerSocialIcons } from './SocialNetworks';
 import { SendMessageDialog } from './MessageTemplates';
+import { dealGroup, LinkedChip } from './DealLinks';
 import { ParagraphNotes, noteEntries, canEditNote } from '../common/ParagraphNotes';
 import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SocialEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
@@ -138,6 +139,21 @@ export const CrmView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
   const [openCustomer, setOpenCustomer] = useState<string | null>(null);
+  // a message was sent from Hoormand on a network of a customer: one more interaction on that network's counter
+  useEffect(() => {
+    const h = (e: Event) => {
+      const { customerId, network } = (e as CustomEvent<{ customerId: string; network: string }>).detail || ({} as { customerId: string; network: string });
+      if (!customerId || !network) return;
+      setCustomers((prev) => prev.map((c) => (c.id !== customerId || c.hiddenContact ? c : {
+        ...c,
+        social: { ...(c.social || {}), [network]: { on: true, accounts: c.social?.[network]?.accounts || [], count: (c.social?.[network]?.count || 0) + 1 } },
+        updatedAt: nowIso(),
+      })));
+    };
+    window.addEventListener('hoormand-social-count', h);
+    return () => window.removeEventListener('hoormand-social-count', h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // a logo on a customer's card: the window for sending to that network
   const [socialSend, setSocialSend] = useState<{ customer: Customer; network: string } | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -511,6 +527,7 @@ export const CrmView: React.FC = () => {
 
   const dealCard = (d: Deal) => {
     const overdue = !!d.expectedClose && OPEN_STAGES.includes(d.stage) && d.expectedClose < todayIso();
+    const grp = dealGroup(deals, d);
     return (
       <div
         key={d.id}
@@ -521,8 +538,10 @@ export const CrmView: React.FC = () => {
         }}
         onDragEnd={() => setDragId(null)}
         onClick={() => setEditingDeal({ deal: d, isNew: false })}
+        style={grp ? { borderRightWidth: 5, borderRightColor: grp.color.bar } : undefined}
         className={`bg-white rounded-2xl border p-3.5 space-y-2 text-right shadow-2xs hover:shadow-md transition-all cursor-pointer ${dragId === d.id ? 'opacity-40' : ''} ${overdue ? 'border-rose-300' : 'border-[#EBDBCE]'}`}
       >
+        {grp && <LinkedChip group={grp} />}
         <div className="font-black text-[13px] text-[#3A241F] leading-6">{d.title}</div>
         {d.productCode && <div className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 w-fit" dir="ltr">{toPersianDigits(d.productCode)}</div>}
         {approvalRequired(settings, d.proformaIssuerId) && d.proformaApproval && (
@@ -1203,7 +1222,6 @@ const DealForm: React.FC<{
   const [d, setD] = useState<Deal>(initial);
   // Enter in a title opens the line of the next opportunity (title, product code, amount); every line becomes an opportunity of the same customer
   const [more, setMore] = useState<{ id: string; title: string; code: string; amountText: string; amount: number }[]>([]);
-  const [focusMore, setFocusMore] = useState('');
   // after = the line the new one goes under (null = right under the first one)
   const addMore = (after: string | null) => {
     const row = { id: uid('mr'), title: '', code: '', amountText: '', amount: 0 };
@@ -1211,7 +1229,23 @@ const DealForm: React.FC<{
       const i = after ? p.findIndex((r) => r.id === after) : -1;
       return [...p.slice(0, i + 1), row, ...p.slice(i + 1)];
     });
-    setFocusMore(row.id);
+    goTo(`${row.id}-title`);
+  };
+  // Enter walks through the fields: title -> product code -> amount -> the title of the next line (a new line is made after the last one)
+  const goTo = (fid: string) => {
+    const at = () => document.querySelector(`[data-fid="${fid}"]`) as HTMLInputElement | null;
+    if (at()) at()!.focus(); // a field that is already there gets the cursor at once
+    else setTimeout(() => at()?.focus(), 30); // a new line has to be drawn first
+  };
+  const enterAt = (line: string | null, field: 'title' | 'code' | 'amount') => {
+    const id = line === null ? 'main' : line;
+    if (field === 'title') return goTo(`${id}-code`);
+    if (field === 'code') return goTo(`${id}-amount`);
+    if (line === null ? !d.title.trim() : !more.find((r) => r.id === line)?.title.trim()) return; // an empty line does not start a new one
+    const i = line === null ? -1 : more.findIndex((r) => r.id === line);
+    const next = more[i + 1];
+    if (next) return goTo(`${next.id}-title`);
+    addMore(line);
   };
   const patchMore = (id: string, u: Partial<{ title: string; code: string; amountText: string; amount: number }>) => setMore((p) => p.map((r) => (r.id === id ? { ...r, ...u } : r)));
   const filledMore = more.filter((r) => r.title.trim());
@@ -1223,12 +1257,13 @@ const DealForm: React.FC<{
     if (!valid) return;
     const owner = staff.find((u) => u.id === d.ownerId);
     const co = (d.coOwnerIds || []).filter((id) => id !== d.ownerId);
-    const main = { ...d, ownerName: owner?.fullName || d.ownerName, coOwnerIds: co, coOwnerNames: co.map((id) => staff.find((u) => u.id === id)?.fullName || '') };
+    const gid = filledMore.length ? d.groupId || uid('gr') : d.groupId;
+    const main = { ...d, groupId: gid, ownerName: owner?.fullName || d.ownerName, coOwnerIds: co, coOwnerNames: co.map((id) => staff.find((u) => u.id === id)?.fullName || '') };
     onSave(main);
     if (filledMore.length && onSaveMore) {
       const at = nowIso();
       onSaveMore(filledMore.map((r) => ({
-        ...main, id: uid('dl'), title: r.title.trim(), productCode: r.code.trim() || undefined, amount: r.amount, createdAt: at, updatedAt: at,
+        ...main, id: uid('dl'), groupId: gid, title: r.title.trim(), productCode: r.code.trim() || undefined, amount: r.amount, createdAt: at, updatedAt: at,
         createdById: undefined, createdByName: undefined, createdByGuess: undefined, closedAt: undefined, noteLog: undefined, notes: '',
         proformaNumber: undefined, proformaAt: undefined, validUntil: undefined, items: undefined, proformaApproval: undefined, proformaFields: undefined, proformaIssuerId: undefined,
         discountPercent: undefined, taxPercent: undefined, terms: undefined, expectedClose: undefined, expectedCloseTime: undefined,
@@ -1270,46 +1305,61 @@ const DealForm: React.FC<{
             {d.createdAt && <span className="text-[#8C6F66] font-medium"> · {formatDateTime(d.createdAt)}</span>}
           </div>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="sm:col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_9rem_9rem] gap-4">
+          <div>
             <label className={label}>عنوان فرصت *</label>
             <input
               className={field}
               value={d.title}
               onChange={(e) => patch({ title: e.target.value })}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (d.title.trim()) addMore(null); } }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'title'); } }}
               autoFocus={isNew}
-              placeholder="مثلاً: قرارداد پشتیبانی سالانه (با Enter فرصت بعدی)"
+              placeholder="مثلاً: قرارداد پشتیبانی سالانه (با Enter فیلد بعدی)"
               data-deal-title
+              data-fid="main-title"
             />
           </div>
           <div>
             <label className={label}>کد کالا</label>
-            <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} placeholder="مثلاً A-1024" />
+            <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
+          </div>
+          <div>
+            <label className={label}>مبلغ ({unitName()})</label>
+            <input
+              className={field}
+              inputMode="numeric"
+              value={amountText}
+              onChange={(e) => { const n = parseNumber(e.target.value); setAmountText(n ? formatNumber(n) : ''); patch({ amount: fromDisplay(n) }); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'amount'); } }}
+              placeholder="۰"
+              data-deal-amount
+              data-fid="main-amount"
+            />
           </div>
         </div>
         {more.length > 0 && (
-          <div className="space-y-2 rounded-2xl border border-violet-200 bg-violet-50/40 p-3" data-deal-more>
-            <div className="text-[11px] font-black text-violet-800">فرصت‌های بعدی برای همین مشتری (هر خط یک فرصت؛ با Enter خط بعدی)</div>
+          <div className="space-y-3 -mt-1" data-deal-more>
             {more.map((r, i) => (
-              <div key={r.id} className="grid grid-cols-[1fr_7.5rem_7.5rem_auto] gap-2 items-center" data-deal-more-row>
+              <div key={r.id} className="grid grid-cols-[1fr_9rem_9rem_auto] gap-4 items-center" data-deal-more-row>
                 <input
                   className={field}
                   value={r.title}
-                  autoFocus={focusMore === r.id}
+                  data-fid={`${r.id}-title`}
                   onChange={(e) => patchMore(r.id, { title: e.target.value })}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); if (r.title.trim()) addMore(r.id); }
+                    if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'title'); }
                     if (e.key === 'Backspace' && !r.title && !r.code && !r.amountText) { e.preventDefault(); setMore((p) => p.filter((x) => x.id !== r.id)); }
                   }}
                   placeholder={`عنوان فرصت ${toPersianDigits(i + 2)}`}
                 />
-                <input className={field} dir="ltr" value={r.code} onChange={(e) => patchMore(r.id, { code: e.target.value })} placeholder="کد کالا" />
+                <input className={field} dir="ltr" value={r.code} onChange={(e) => patchMore(r.id, { code: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="کد کالا" data-fid={`${r.id}-code`} />
                 <input
                   className={field}
                   inputMode="numeric"
                   value={r.amountText}
                   onChange={(e) => { const n = parseNumber(e.target.value); patchMore(r.id, { amountText: n ? formatNumber(n) : '', amount: fromDisplay(n) }); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'amount'); } }}
+                  data-fid={`${r.id}-amount`}
                   placeholder={`مبلغ (${unitName()})`}
                 />
                 <button type="button" onClick={() => setMore((p) => p.filter((x) => x.id !== r.id))} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer" aria-label="حذف این خط"><X className="w-4 h-4" /></button>
@@ -1328,18 +1378,8 @@ const DealForm: React.FC<{
             <PersonPicker title="انتخاب مشتری" items={customerItems(customers)} value={d.customerId} onChange={(id) => patch({ customerId: id })} emptyLabel="انتخاب مشتری..." />
           </div>
           <div>
-            <label className={label}>مبلغ ({unitName()})</label>
-            <input
-              className={field}
-              inputMode="numeric"
-              value={amountText}
-              onChange={(e) => {
-                const n = parseNumber(e.target.value);
-                setAmountText(n ? formatNumber(n) : '');
-                patch({ amount: fromDisplay(n) });
-              }}
-              placeholder="۰"
-            />
+            <label className={label}>مبلغ کل ({unitName()})</label>
+            <div className={`${field} bg-violet-50 border-violet-200 font-black text-violet-900`} data-deal-total>{toman((d.amount || 0) + more.reduce((t, r) => t + (r.amount || 0), 0))}</div>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1575,12 +1615,19 @@ const CustomerDetail: React.FC<{
     >
       {deals.some((d) => d.stage !== 'WON' && d.stage !== 'LOST') && (
         <section className="space-y-1.5 rounded-2xl border-2 border-violet-300 bg-violet-50 p-3" data-open-deals>
-          <h4 className="font-black text-xs text-violet-900">فرصت فروش باز این مشتری</h4>
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="font-black text-xs text-violet-900">فرصت فروش باز این مشتری</h4>
+            <button type="button" onClick={onNewDeal} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-black text-white bg-violet-600 hover:bg-violet-700 cursor-pointer" data-open-deals-new>
+              <Plus className="w-3.5 h-3.5" />
+              ایجاد فرصت
+            </button>
+          </div>
           {deals.filter((d) => d.stage !== 'WON' && d.stage !== 'LOST').map((d) => {
             const s = stageOf(d.stage);
+            const grp = dealGroup(deals, d);
             return (
-              <button key={d.id} type="button" onClick={() => onOpenDeal(d)} className="w-full flex items-center justify-between gap-2 bg-white border border-violet-200 rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
-                <span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>
+              <button key={d.id} type="button" onClick={() => onOpenDeal(d)} style={grp ? { borderRightWidth: 5, borderRightColor: grp.color.bar } : undefined} className="w-full flex items-center justify-between gap-2 bg-white border border-violet-200 rounded-xl px-3 py-2 text-right hover:shadow-sm cursor-pointer">
+                <span className="flex items-center gap-2 min-w-0"><span className="text-xs font-black text-[#3A241F] truncate">{d.title}</span>{grp && <LinkedChip group={grp} />}</span>
                 <span className="flex items-center gap-2 shrink-0">
                   <span className="text-[11px] font-black text-violet-700">{toman(d.amount)} {unitShort()}</span>
                   <span className={`text-[10px] font-black flex items-center gap-1 ${s.head}`}><span className={`w-2 h-2 rounded-full ${s.dot}`} />{s.label}</span>

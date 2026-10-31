@@ -6,7 +6,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { askConfirm } from '../../lib/confirmDialog';
 import { deleteMsgFile, msgFileUrl, uploadMsgFile } from '../../lib/serverFiles';
 import { Modal, field, label } from './crmUi';
-import { NETWORKS, SocialLogo, chatExtOn, chatExtSend, entryOf, openChat, setChatExt, setChatExtSend } from './SocialNetworks';
+import { NETWORKS, SocialLogo, chatExtOn, chatExtSend, countInteraction, entryOf, openChat, setChatExt, setChatExtSend } from './SocialNetworks';
 
 const newId = () => 'tm_' + Math.random().toString(36).slice(2, 10);
 const newFileId = () => 'tplf_' + Array.from(crypto.getRandomValues(new Uint8Array(12))).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -195,7 +195,7 @@ export const SendMessageDialog: React.FC<{ customer: Customer; onClose: () => vo
                 ) : (
                   <div className="flex flex-col gap-2" data-msg-accounts>
                     {accounts.map((a) => (
-                      <button key={a.id + a.account} type="button" onClick={() => setNote(openChat(a.id, a.name, a.account, text, customer.name))} className="w-full flex items-center gap-2.5 rounded-xl border border-[#EBDBCE] bg-white hover:bg-violet-50 px-3.5 py-2.5 cursor-pointer text-right" data-msg-send-to={a.id}>
+                      <button key={a.id + a.account} type="button" onClick={() => { setNote(openChat(a.id, a.name, a.account, text, customer.name) + (text.trim() ? ' (یک تعامل در ' + a.name + ' ثبت شد.)' : '')); if (text.trim()) countInteraction(customer.id, a.id); }} className="w-full flex items-center gap-2.5 rounded-xl border border-[#EBDBCE] bg-white hover:bg-violet-50 px-3.5 py-2.5 cursor-pointer text-right" data-msg-send-to={a.id}>
                         <SocialLogo id={a.id} size={20} />
                         <span className="text-xs font-black text-[#3A241F]">{a.name}</span>
                         <span className="flex-1 text-left text-[12px] font-black text-[#503730] tracking-wide" dir="ltr">{/^[0-9۰-۹+]+$/.test(a.account) ? toPersianDigits(a.account) : '@' + a.account}</span>
