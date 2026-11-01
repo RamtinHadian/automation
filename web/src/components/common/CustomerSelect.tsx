@@ -14,7 +14,7 @@ const inp = 'w-full px-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE
 
 /** The quick form that adds a new customer from any place where a customer is searched (name, company, mobile); the full record is completed later in «مشتریان». */
 export const QuickCustomerDialog: React.FC<{ initialName?: string; initialPhone?: string; withType?: boolean; onClose: () => void; onCreated: (c: Customer) => void }> = ({ initialName = '', initialPhone = '', withType, onClose, onCreated }) => {
-  const { customers, setCustomers, currentUser, showToast } = useAppContext();
+  const { customers, setCustomers, currentUser, showToast, settings } = useAppContext();
   const [name, setName] = useState(initialName);
   const [company, setCompany] = useState('');
   const [phone, setPhone] = useState(digitsOf(initialPhone));
@@ -23,7 +23,7 @@ export const QuickCustomerDialog: React.FC<{ initialName?: string; initialPhone?
     const n = name.trim();
     const ph = digitsOf(phone);
     if (!n) return showToast('نام مشتری را بنویسید.');
-    if (!isCompleteMobile(ph)) return showToast('شمارهٔ موبایل لازم است و باید ۱۱ رقم باشد (مثل ۰۹۱۲۳۴۵۶۷۸۹).');
+    if (settings?.requireMobile !== false ? !isCompleteMobile(ph) : ph !== '' && !isCompleteMobile(ph)) return showToast('شمارهٔ موبایل لازم است و باید ۱۱ رقم باشد (مثل ۰۹۱۲۳۴۵۶۷۸۹).');
     const norm = (x: string) => x.replace(/[‌\s]+/g, ' ').trim();
     const samePhone = customers.find((c) => ph && (c.phones || []).some((p) => digitsOf(p) === ph));
     if (samePhone) {

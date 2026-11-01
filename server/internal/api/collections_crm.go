@@ -65,7 +65,7 @@ func putCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		}
 	}
 	// a new customer or person is registered only with a mobile number (calls, SMS and the accounting link all work with it); old records are not blocked
-	if !exists && !hasMobile(jsonx.Strings(data, "phones")) {
+	if !exists && mobileRequired(r.Context()) && !hasMobile(jsonx.Strings(data, "phones")) {
 		httpx.Error(w, http.StatusBadRequest, "برای ثبت مشتری یا هر شخص، شمارهٔ موبایل لازم است (۱۱ رقم، مثل ۰۹۱۲۳۴۵۶۷۸۹).")
 		return
 	}
@@ -455,6 +455,13 @@ func removeActivity(w http.ResponseWriter, r *http.Request, me auth.User, id str
 func proformaReadyForCustomer(ctx context.Context, doc jsonx.M) bool {
 	required, _ := proformaApprovalConfig(ctx, jsonx.Str(doc, "proformaIssuerId"))
 	return !required || jsonx.Str(jsonx.Sub(doc, "proformaApproval"), "status") == "approved"
+}
+
+// mobileRequired: the console switch «شمارهٔ موبایل واجب باشد» (on unless the administrator switched it off).
+func mobileRequired(ctx context.Context) bool {
+	var v *string
+	_ = store.Pool.QueryRow(ctx, `SELECT data->>'requireMobile' FROM settings WHERE key = 'main'`).Scan(&v)
+	return v == nil || *v != "false"
 }
 
 // hasMobile: at least one of the numbers is a complete Iranian mobile («09…» with 11 digits, also written +98…, 0098… or 98…, with Persian digits).

@@ -137,6 +137,7 @@ export const CustomerForm: React.FC<{
   const [landlineDraft, setLandlineDraft] = useState('');
   const [tagDraft, setTagDraft] = useState('');
   const [mobileErr, setMobileErr] = useState(false);
+  const mobileMust = useAppContext().settings?.requireMobile !== false; // the console can make the mobile number optional
   const patch = (u: Partial<Customer>) => setC((p) => ({ ...p, ...u }));
   const sepidarOn = useSepidarConnected();
   const isCompany = c.kind === 'COMPANY';
@@ -172,7 +173,7 @@ export const CustomerForm: React.FC<{
     if (md) m = [...new Set([...m, md])];
     if (ld) l = [...new Set([...l, ld])];
     // a new customer or person is registered only with a mobile number (the whole company works with it: calls, SMS, Sepidar)
-    if (isNew && !m.some((x) => isCompleteMobile(x))) {
+    if (isNew && mobileMust && !m.some((x) => isCompleteMobile(x))) {
       setMobileErr(true);
       document.querySelector('[data-mobile-required]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;

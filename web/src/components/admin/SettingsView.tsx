@@ -37,6 +37,7 @@ import {
   DatabaseBackup,
   KeyRound,
   ScrollText,
+  Phone,
 } from 'lucide-react';
 import { SystemSettings, LetterNumberingSettings } from '../../types';
 import { FontManagementModal } from './FontManagementModal';
@@ -1218,6 +1219,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'policies' && (
       <>
+      <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-3 text-xs" data-require-mobile-card>
+        <div className="flex items-center gap-2.5 text-[#3A241F]">
+          <Phone className="w-5 h-5 text-[#6E1B1B]" />
+          <h3 className="font-bold text-sm">شمارهٔ موبایل مشتری</h3>
+        </div>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" className="mt-1 w-4 h-4 accent-[#6E1B1B]" checked={settings.requireMobile !== false} onChange={(e) => setSettings({ ...settings, requireMobile: e.target.checked })} data-require-mobile />
+          <span className="leading-6">
+            <span className="font-black text-[#3A241F]">ثبت مشتری یا هر شخص تازه فقط با شمارهٔ موبایل ۱۱ رقمی انجام شود</span>
+            <span className="block text-[#8C6F66]">اگر این تیک را بردارید، مشتری و شخص جدید (فرم کامل، ثبت سریع، ورود از اکسل و سرور) بدون موبایل هم ثبت می‌شود. توجه: تماس، پیامک و اتصال به سپیدار برای کسی که موبایل ندارد کار نمی‌کند؛ سپیدار مشتری بدون شمارهٔ تلفن را نمی‌پذیرد و برنامهٔ واسط چنین مشتری‌ای را در سپیدار ثبت نمی‌کند. بعد از تغییر، «ذخیره» را بزنید.</span>
+          </span>
+        </label>
+      </div>
       {/* ========================================================================= */}
       {/* SECTION 6: SYSTEM POLICIES & UPLOAD LIMITS */}
       {/* ========================================================================= */}

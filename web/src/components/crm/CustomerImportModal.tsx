@@ -1,3 +1,4 @@
+import { useAppContext } from '../../context/AppContext';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FileSpreadsheet, Upload, X, Download } from 'lucide-react';
 import { Customer, CustomerStatus } from '../../types';
@@ -39,6 +40,7 @@ export const CustomerImportModal: React.FC<{
   const [status, setStatus] = useState<CustomerStatus>('ACTIVE');
   const [skipDup, setSkipDup] = useState(true);
   const [syncAddr, setSyncAddr] = useState(true);
+  const mobileMust = useAppContext().settings?.requireMobile !== false;
   const [nameSel, setNameSel] = useState<Record<string, boolean>>({});
   const [later, setLater] = useState<Set<string>>(new Set()); // put off to another time: left out of «all» and of the final button
   const input = useRef<HTMLInputElement>(null);
@@ -165,7 +167,7 @@ export const CustomerImportModal: React.FC<{
         continue;
       }
       const phones = [...new Set(['mobile', 'mobile2', 'phone', 'phone2'].map((f) => normPhone(map[f as ImportField] >= 0 ? r[map[f as ImportField]] : '')).filter(Boolean))];
-      if (!phones.some((p) => isCompleteMobile(p))) {
+      if (mobileMust ? !phones.some((p) => isCompleteMobile(p)) : false) {
         noMobile++;
         issues.push({ row: rowNo, what: name, reason: phones.length ? `موبایل کامل ندارد (شماره‌های فایل: ${phones.join('، ')})؛ موبایل باید ۱۱ رقم و مثل ۰۹۱۲۳۴۵۶۷۸۹ باشد` : 'شمارهٔ موبایل ندارد' });
         continue;

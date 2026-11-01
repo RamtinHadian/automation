@@ -701,6 +701,8 @@ export interface SystemSettings {
   companyWebsite?: string;
   /** A proforma may be sent only after the CEO approved it (the CEO's stamp and signature are then put on it automatically). */
   proformaApprovalRequired?: boolean;
+  /** a new customer or person must have a complete mobile number (default: yes); the administrator can make it optional in the console */
+  requireMobile?: boolean;
   /** Sent files older than this many days are removed from the server (0 = keep). Files marked «keep» stay. */
   fileRetentionDays?: number;
   /** Who approves (and so stamps and signs) the official company's proformas; empty = anyone who may sign letters. */
