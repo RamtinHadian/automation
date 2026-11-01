@@ -1,4 +1,6 @@
 import { useAppContext } from '../../context/AppContext';
+import { askConfirm } from '../../lib/confirmDialog';
+import { ImportRulesDialog } from './ImportRulesDialog';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FileSpreadsheet, Upload, X, Download } from 'lucide-react';
 import { Customer, CustomerStatus } from '../../types';
@@ -43,6 +45,7 @@ export const CustomerImportModal: React.FC<{
   const [skipDup, setSkipDup] = useState(true);
   const [syncAddr, setSyncAddr] = useState(true);
   const mobileMust = useAppContext().settings?.requireMobile !== false;
+  const [rulesOpen, setRulesOpen] = useState(false); // the page with every rule; it comes first after «افزودن», the numbers are asked once more after it
   const [nameSel, setNameSel] = useState<Record<string, boolean>>({});
   const [skipRows, setSkipRows] = useState<Set<number>>(new Set()); // new people left for another time (not ticked)
   const [addedRows, setAddedRows] = useState<Set<number>>(new Set()); // rows of the file whose person was added one by one
@@ -398,6 +401,7 @@ export const CustomerImportModal: React.FC<{
                   </select>
                 </div>
               </div>
+              <button type="button" onClick={() => setRulesOpen(true)} className="flex items-center gap-1.5 text-[11px] font-black text-violet-700 underline cursor-pointer" data-import-rules-link>قوانین ورود مشتریان و شماره‌ها را ببینید</button>
               <label className="flex items-center gap-2 text-xs font-bold text-[#3A241F] cursor-pointer">
                 <input type="checkbox" checked={skipDup} onChange={(e) => setSkipDup(e.target.checked)} />
                 مشتریانی که شمارهٔ تلفن یا کد ملی‌شان قبلاً در سامانه هست، اضافه نشوند
@@ -568,16 +572,34 @@ export const CustomerImportModal: React.FC<{
           <button
             type="button"
             disabled={!rows || (toAdd.length === 0 && result.addrUpdates.length === 0 && pickedNames.length === 0)}
-            onClick={() => {
-              onImport(toAdd, result.addrUpdates.map((u) => ({ id: u.id, address: u.next, city: u.city })), pickedNames.map((n) => ({ id: n.id, name: n.next, firstName: n.first, lastName: n.last })));
-              onClose();
-            }}
+            onClick={() => setRulesOpen(true)}
+            data-import-final
             className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
           >
             {rows ? `افزودن ${toPersianDigits(toAdd.length)} مشتری${result.addrUpdates.length ? ` و به‌روزکردن نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری` : ''}${pickedNames.length ? ` و عوض‌کردن نام ${toPersianDigits(pickedNames.length)} مشتری` : ''}` : 'افزودن'}
           </button>
         </div>
       </div>
+      {rulesOpen && (
+        <ImportRulesDialog
+          summary={{ add: toAdd.length, renames: pickedNames.length, addrUpdates: result.addrUpdates.length, duplicates: dupRows.length, rejected: issueRows.length, skipDup, syncAddr, mobileMust, sepidarOn: !!connected }}
+          onCancel={() => setRulesOpen(false)}
+          onContinue={async () => {
+            // the second question: the exact work, once more, in plain words
+            const lines = [
+              `${toPersianDigits(toAdd.length)} مشتری تازه اضافه می‌شود`,
+              pickedNames.length ? `نام ${toPersianDigits(pickedNames.length)} مشتری موجود عوض می‌شود` : '',
+              result.addrUpdates.length ? `نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری موجود به‌روز می‌شود` : '',
+              dupRows.length ? `${toPersianDigits(dupRows.length)} ردیف تکراری وارد نمی‌شود` : '',
+            ].filter(Boolean);
+            const ok = await askConfirm(`${lines.join('، ')}.\nاین کار با یک کلیک برگردانده نمی‌شود. مطمئن هستید که انجام شود؟`, { tone: 'warning', title: 'تأیید نهایی ورود', confirmText: 'بله، انجام شود', cancelText: 'نه، برگرد' });
+            if (!ok) return;
+            setRulesOpen(false);
+            onImport(toAdd, result.addrUpdates.map((u) => ({ id: u.id, address: u.next, city: u.city })), pickedNames.map((n) => ({ id: n.id, name: n.next, firstName: n.first, lastName: n.last })));
+            onClose();
+          }}
+        />
+      )}
     </div>
   );
 };
