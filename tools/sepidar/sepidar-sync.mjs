@@ -41,6 +41,10 @@ const log = (...a) => {
 };
 const toLatin = (s) => String(s ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 
+// Hoormand's requests (and the sign of life the page shows) must not wait for a long synchronisation: while it runs, the loops below call
+// pumpJobs() between customers, pushes and quotations. The automatic mode (watch) puts the real function here; everywhere else it does nothing.
+let pumpJobs = async () => false;
+
 function loadConfig() {
   if (!fs.existsSync(cfgPath)) {
     console.error(`فایل تنظیمات پیدا نشد: ${cfgPath}\nفایل config.example.json را کپی کنید، اسمش را config.json بگذارید و پر کنید.`);
@@ -555,6 +559,11 @@ async function cmdSync(cfg) {
   const divs = await loadDivisions(sp);
   let addrNotes = 0;
   for (const c of hoormandCustomers) {
+    if (await pumpJobs()) {
+      Object.assign(state, loadState()); // the requests that were just done changed the saved state: take it over
+      state.customers ||= {};
+      state.quotations ||= {};
+    }
     const body = customerBody(c, divs);
     if (addressFor(c, divs)?.note && !state.customers[c.id] && ++addrNotes <= 5) log(`  ${c.name || c.company}: ${addressFor(c, divs).note}`);
     let existing = byGuid.get(body.GUID.toLowerCase()) ?? state.customers[c.id] ?? links.get(c.id);
@@ -591,6 +600,14 @@ async function cmdSync(cfg) {
       report.customersNoPhone++;
       continue;
     }
+    // a customer that Sepidar refused (400) is not sent again every few minutes with the very same data: that was what made every round long
+    const failKey = JSON.stringify([body.Name, body.LastName, body.PhoneNumber, body.NationalID, body.EconomicCode]);
+    state.failed ||= {};
+    const was = state.failed[c.id];
+    if (apply && was && was.key === failKey && Date.now() - was.at < 6 * 3600 * 1000) {
+      report.customersFail++;
+      continue;
+    }
     if (!apply) {
       log(`  مشتری تازه: ${body.Name} ${body.LastName} ${body.PhoneNumber}`);
       report.customersNew++;
@@ -600,12 +617,17 @@ async function cmdSync(cfg) {
     try {
       const r = await createCustomer(sp, body);
       state.customers[c.id] = r.CustomerID;
+      delete state.failed[c.id];
       refOf.set(c.id, r.CustomerID);
       saveState(state);
       report.customersNew++;
       log(`  مشتری ثبت شد: ${body.Name} ${body.LastName} (شناسه ${r.CustomerID})`);
     } catch (e) {
       report.customersFail++;
+      if (e && e.status === 400) {
+        state.failed[c.id] = { key: failKey, at: Date.now() };
+        saveState(state);
+      }
       if (e && e.status === 403) {
         // the Sepidar user may not register customers: one note, and the rest of the list is not tried again and again
         log(`  خطا در ثبت مشتری «${body.Name} ${body.LastName}»: ${e.message}`);
@@ -621,6 +643,11 @@ async function cmdSync(cfg) {
     const itemsByCode = new Map(items.filter((i) => i.IsActive !== false && i.IsSellable !== false).map((i) => [String(i.Code).trim(), i]));
     const deals = await hoormandAll(cfg, '/deals', 'deals');
     for (const d of deals) {
+      if (await pumpJobs()) {
+        Object.assign(state, loadState());
+        state.customers ||= {};
+        state.quotations ||= {};
+      }
       if (!d.proformaNumber || !Array.isArray(d.items) || d.items.length === 0 || d.stage === 'LOST') continue;
       if (state.quotations[d.id]) continue;
       const label = `پیش‌فاکتور ${d.proformaNumber} (${d.customerName || ''})`;
@@ -867,6 +894,7 @@ const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefin
 export async function pushCaches(cfg, sp, state) {
   const push = (cache, items) => hoormandPost(cfg, '/sepidar/push', { cache, items });
   const tryPush = async (cache, path, map) => {
+    if (await pumpJobs()) Object.assign(state, loadState());
     try {
       const list = await sp.get(path);
       log(`  ${cache}: ${Array.isArray(list) ? list.length : 0} ردیف از ${path}${list && list[0] ? ' | فیلدها: ' + Object.keys(list[0]).slice(0, 12).join(',') : ''}`);
@@ -1180,6 +1208,21 @@ async function main() {
     // requests from Hoormand's people are looked at every few seconds; the full synchronisation runs every intervalMinutes
     let nextFull = 0;
     let nextUpdate = 0;
+    let lastJobs = 0;
+    let inPump = false;
+    pumpJobs = async () => {
+      if (inPump || Date.now() - lastJobs < (cfg.sync.jobSeconds || 15) * 1000) return false;
+      inPump = true;
+      try {
+        return (await cmdJobs(cfg)) > 0;
+      } catch (e) {
+        log('خطا:', e.message);
+        return false;
+      } finally {
+        inPump = false;
+        lastJobs = Date.now();
+      }
+    };
     ensureWatchdog();
     for (;;) {
       try {
