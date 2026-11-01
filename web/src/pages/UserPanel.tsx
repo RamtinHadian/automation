@@ -1,3 +1,4 @@
+import { SepidarOfflineBanner } from '../components/sepidar/SepidarOfflineBanner';
 import { TwoFactorCard } from '../components/common/TwoFactorCard';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { DayNightToggle } from '../components/common/DayNightToggle';
@@ -825,6 +826,7 @@ export default function UserPanel() {
       dir="rtl"
     >
       <ReminderPopup />
+      <SepidarOfflineBanner />
       <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 h-full">
       {/* The window never scrolls: only this area does. On a computer the header and the main menu stay pinned at its top (the sub-menus of every
           page pin themselves right under them, see data-subtabs in index.css); on a phone the main menu is the bottom bar and the header scrolls away. */}

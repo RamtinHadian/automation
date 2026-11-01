@@ -630,7 +630,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     if (!res.ok) throw new Error('فایل‌ها دریافت نشد.');
     return res.blob();
   },
-  sepidarConnected: () => request<{ connected: boolean; choice: 'yes' | 'no' | 'auto'; seen: boolean }>('GET', '/api/sepidar/connected'),
+  sepidarConnected: () => request<{ connected: boolean; choice: 'yes' | 'no' | 'auto'; seen: boolean; alive?: boolean; seenAt?: string }>('GET', '/api/sepidar/connected'),
   sepidarSetSwitch: (value: 'yes' | 'no') => request<{ ok: true }>('PUT', '/api/sepidar/switch', { value }),
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),

@@ -161,7 +161,12 @@ func sepidarConnected(w http.ResponseWriter, r *http.Request) {
 	if choice == "" {
 		choice = "auto"
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"connected": sepidarEnabled(ctx), "choice": choice, "seen": seen != ""})
+	// alive: the program took Hoormand's requests within the last 3 minutes (the page shows a warning on top when Sepidar is on but this is false)
+	alive := false
+	if t, err := time.Parse("2006-01-02T15:04:05.000Z", seen); err == nil && time.Since(t) < 3*time.Minute {
+		alive = true
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"connected": sepidarEnabled(ctx), "choice": choice, "seen": seen != "", "alive": alive, "seenAt": seen})
 }
 
 // sepidarChoice is what the manager picked in the console: «yes» (سپیدار دارم), «no» (سپیدار ندارم) or "" (not picked yet).
