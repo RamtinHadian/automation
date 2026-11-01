@@ -756,6 +756,10 @@ export const jobHandlers = {
     const divs = await loadDivisions(sp);
     const body = customerBody(c, divs);
     const addr = addressFor(c, divs);
+    // Sepidar's customer has ONE phone number (PhoneNumber): the mobile (else the first number) goes there; the others stay in Hoormand, and the result says so
+    const sentTail = String(body.PhoneNumber || '').replace(/\D/g, '').slice(-10);
+    const leftOut = [...new Set((c.phones || []).map((x) => toLatin(x).replace(/[\s-]/g, '')).filter((x) => x && x.replace(/\D/g, '').slice(-10) !== sentTail))];
+    const phoneNote = leftOut.length ? ` فقط یک شمارهٔ تلفن به سپیدار می‌رود (${body.PhoneNumber}؛ موبایل در اولویت است)؛ ${leftOut.join('، ')} در سپیدار جا ندارد و در هورمند می‌ماند.` : '';
     const list = await sp.get('/api/Customers');
     let found = list.find((x) => String(x.GUID || '').toLowerCase() === body.GUID.toLowerCase()) || (state.customers?.[c.id] ? list.find((x) => x.CustomerID === state.customers[c.id]) : null);
     state.customers ||= {};
@@ -775,7 +779,7 @@ export const jobHandlers = {
       if (!body.Name) throw new Error('مشتری نام ندارد.');
       const r = await createCustomer(sp, body);
       state.customers[c.id] = r.CustomerID;
-      return { sepidarId: r.CustomerID, message: 'مشتری در سپیدار ثبت شد.' + (addr?.note ? ' ' + addr.note : addr?.address ? ' نشانی هم ثبت شد.' : '') };
+      return { sepidarId: r.CustomerID, message: 'مشتری در سپیدار ثبت شد.' + (addr?.note ? ' ' + addr.note : addr?.address ? ' نشانی هم ثبت شد.' : '') + phoneNote };
     }
     state.customers[c.id] = found.CustomerID;
     const cur = await sp.get('/api/Customers/' + found.CustomerID);
@@ -812,7 +816,7 @@ export const jobHandlers = {
         const notes = [];
         if (body.Name && !t.names) notes.push('نام در سپیدار بروز نشد (سپیدار ویرایش نام را نپذیرفت)');
         if (haveAddr && !t.adr) notes.push(`نشانی در سپیدار بروز نشد: ${firstErr?.message || ''}`);
-        return { sepidarId: found.CustomerID, message: (viaMobile ? 'این شخص با همین شمارهٔ موبایل (یا کد ملی) از قبل در سپیدار بود؛ مشتری تازه‌ای ساخته نشد و همان بروزرسانی شد. ' : '') + 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') };
+        return { sepidarId: found.CustomerID, message: (viaMobile ? 'این شخص با همین شمارهٔ موبایل (یا کد ملی) از قبل در سپیدار بود؛ مشتری تازه‌ای ساخته نشد و همان بروزرسانی شد. ' : '') + 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') + phoneNote };
       } catch (e) {
         if (e && (e.status === 403 || e.status === 401)) throw e; // no right: nothing else would work either
         firstErr ||= e;
