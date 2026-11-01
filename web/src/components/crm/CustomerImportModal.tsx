@@ -23,8 +23,10 @@ export const CustomerImportModal: React.FC<{
   ownerName: string;
   onClose: () => void;
   /** the new customers, and the new address (as in the file / Sepidar) of customers that were already in the system */
+  /** one person's name changed at once, the window stays open (the others wait) */
+  onApplyName?: (u: { id: string; name: string; firstName?: string; lastName?: string }) => void;
   onImport: (customers: Customer[], addressUpdates?: { id: string; address: string; city?: string }[], nameUpdates?: { id: string; name: string; firstName?: string; lastName?: string }[]) => void;
-}> = ({ existing, ownerId, ownerName, onClose, onImport }) => {
+}> = ({ existing, ownerId, ownerName, onClose, onImport, onApplyName }) => {
   const [rows, setRows] = useState<string[][] | null>(null);
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
@@ -38,6 +40,7 @@ export const CustomerImportModal: React.FC<{
   const [skipDup, setSkipDup] = useState(true);
   const [syncAddr, setSyncAddr] = useState(true);
   const [nameSel, setNameSel] = useState<Record<string, boolean>>({});
+  const [later, setLater] = useState<Set<string>>(new Set()); // put off to another time: left out of «all» and of the final button
   const input = useRef<HTMLInputElement>(null);
 
   // One or several files: every one is brought to Hoormand's standard columns and the rows are put together in one list
@@ -237,8 +240,11 @@ export const CustomerImportModal: React.FC<{
     return { ok, noName, dup, noMobile, issues, dupList, addrUpdates: [...addrUpdates.values()], nameChanges: [...nameChanges.values()] };
   }, [data, map, existing, status, skipDup, syncAddr, ownerId, ownerName, fields, serverDup]);
 
+  const waiting = result.nameChanges.filter((n) => !later.has(n.id));
+  const postponed = result.nameChanges.filter((n) => later.has(n.id));
   const nameOn = (n: { id: string; generic: boolean }) => nameSel[n.id] ?? n.generic;
-  const pickedNames = result.nameChanges.filter(nameOn);
+  const pickedNames = waiting.filter(nameOn);
+  const later1 = (id: string, on: boolean) => setLater((s0) => { const n = new Set(s0); if (on) n.add(id); else n.delete(id); return n; });
 
   const download = () => {
     const a = document.createElement('a');
@@ -443,25 +449,45 @@ export const CustomerImportModal: React.FC<{
               {result.nameChanges.length > 0 && (
                 <div className="rounded-2xl border-2 border-sky-300 bg-sky-50/70 px-3 py-2.5" data-import-names>
                   <div className="text-[12px] font-black text-sky-900">این افراد با همین شمارهٔ موبایل در هورمند هستند، ولی نامشان فرق دارد ({toPersianDigits(result.nameChanges.length)})</div>
-                  <p className="mt-1 text-[10.5px] font-bold text-sky-900/80 leading-5">مشتری تازه‌ای با این شماره‌ها ساخته نمی‌شود. برای هر نفر که تیک بزنید، فقط نام همان مشتری موجود به نام فایل عوض می‌شود. نام‌هایی که چیزی نمی‌گویند (مثل «شرکت») از قبل تیک خورده‌اند؛ بقیه را خودتان بررسی کنید.</p>
+                  <p className="mt-1 text-[10.5px] font-bold text-sky-900/80 leading-5">مشتری تازه‌ای با این شماره‌ها ساخته نمی‌شود. برای هر نفر می‌توانید جدا تصمیم بگیرید: «عوض کن» همان لحظه نام او را عوض می‌کند، «بعداً» او را به فرصتی دیگر می‌سپارد (با واردکردن دوبارهٔ همین فایل دوباره می‌آید). یا چند نفر را تیک بزنید و با دکمهٔ پایین یک‌جا عوض کنید. نام‌هایی که چیزی نمی‌گویند (مثل «شرکت») از قبل تیک خورده‌اند.</p>
                   <div className="mt-2 flex gap-2 text-[10.5px] font-black">
-                    <button type="button" onClick={() => setNameSel(Object.fromEntries(result.nameChanges.map((n) => [n.id, true])))} className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">همه را انتخاب کن</button>
-                    <button type="button" onClick={() => setNameSel(Object.fromEntries(result.nameChanges.map((n) => [n.id, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">هیچ‌کدام</button>
+                    <button type="button" onClick={() => setNameSel(Object.fromEntries(waiting.map((n) => [n.id, true])))} className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">همه را انتخاب کن</button>
+                    <button type="button" onClick={() => setNameSel(Object.fromEntries(waiting.map((n) => [n.id, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">هیچ‌کدام</button>
                   </div>
-                  <div className="mt-2 max-h-64 overflow-y-auto space-y-1.5">
-                    {result.nameChanges.slice(0, 300).map((n) => (
-                      <label key={n.id} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 cursor-pointer ${nameOn(n) ? 'bg-white border-sky-400' : 'bg-white/60 border-sky-100'}`} data-import-name-row>
-                        <input type="checkbox" className="mt-1 w-4 h-4 accent-sky-600" checked={nameOn(n)} onChange={(e) => setNameSel((m) => ({ ...m, [n.id]: e.target.checked }))} />
+                  <div className="mt-2 max-h-72 overflow-y-auto space-y-1.5">
+                    {waiting.slice(0, 300).map((n) => (
+                      <div key={n.id} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 ${nameOn(n) ? 'bg-white border-sky-400' : 'bg-white/60 border-sky-100'}`} data-import-name-row>
+                        <input type="checkbox" aria-label="انتخاب" className="mt-1.5 w-4 h-4 accent-sky-600 cursor-pointer" checked={nameOn(n)} onChange={(e) => setNameSel((m) => ({ ...m, [n.id]: e.target.checked }))} />
                         <span className="flex-1 min-w-0 text-[11.5px] leading-6">
                           <span className="font-bold text-[#8C6F66]">در هورمند: </span><span className="font-black text-[#3A241F]">{n.old}</span>
                           <span className="mx-1.5 text-sky-700">←</span>
                           <span className="font-bold text-[#8C6F66]">در فایل: </span><span className="font-black text-sky-900">{n.next}</span>
                           <span className="block text-[10px] font-bold text-[#8C6F66]" dir="ltr">{n.phones.map((p) => toPersianDigits(p)).join(' ، ')} · ردیف {toPersianDigits(n.row)}</span>
                         </span>
-                      </label>
+                        <span className="flex flex-col sm:flex-row gap-1 shrink-0">
+                          {onApplyName && (
+                            <button type="button" onClick={() => onApplyName({ id: n.id, name: n.next, firstName: n.first, lastName: n.last })} className="px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[10.5px] font-black cursor-pointer" data-import-name-apply>عوض کن</button>
+                          )}
+                          <button type="button" onClick={() => later1(n.id, true)} className="px-2.5 py-1.5 rounded-lg bg-white border border-sky-300 text-sky-800 text-[10.5px] font-black cursor-pointer" data-import-name-later>بعداً</button>
+                        </span>
+                      </div>
                     ))}
-                    {result.nameChanges.length > 300 && <div className="py-1 text-[10.5px] font-bold text-[#8C6F66]">و {toPersianDigits(result.nameChanges.length - 300)} نفر دیگر.</div>}
+                    {waiting.length > 300 && <div className="py-1 text-[10.5px] font-bold text-[#8C6F66]">و {toPersianDigits(waiting.length - 300)} نفر دیگر.</div>}
+                    {waiting.length === 0 && <div className="py-2 text-center text-[11px] font-bold text-sky-800">همهٔ این افراد یا انجام شدند یا به بعد سپرده شدند.</div>}
                   </div>
+                  {postponed.length > 0 && (
+                    <details className="mt-2 rounded-xl border border-sky-200 bg-white/70 px-2.5 py-1.5" data-import-later>
+                      <summary className="cursor-pointer text-[11px] font-black text-sky-900">به بعد سپرده شد ({toPersianDigits(postponed.length)})</summary>
+                      <div className="mt-1.5 space-y-1">
+                        {postponed.map((n) => (
+                          <div key={n.id} className="flex items-center gap-2 text-[11px]">
+                            <span className="flex-1 min-w-0 truncate font-bold text-[#503730]">{n.old} ← {n.next}</span>
+                            <button type="button" onClick={() => later1(n.id, false)} className="px-2 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 text-[10.5px] font-black cursor-pointer">برگردان</button>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
                 </div>
               )}
               {result.dupList.length > 0 && (

@@ -1116,6 +1116,10 @@ export const CrmView: React.FC = () => {
           ownerId={me}
           ownerName={currentUser.fullName}
           onClose={() => setImporting(false)}
+          onApplyName={(u) => {
+            setCustomers((prev) => prev.map((c) => (c.id === u.id ? { ...c, name: u.name, firstName: u.firstName || c.firstName, lastName: u.lastName || c.lastName, updatedAt: new Date().toISOString() } : c)));
+            showToast(`نام مشتری به «${u.name}» عوض شد.`);
+          }}
           onImport={(list, addrUpdates = [], nameUpdates = []) => {
             const upd = new Map(addrUpdates.map((u) => [u.id, u]));
             const names = new Map(nameUpdates.map((u) => [u.id, u]));
