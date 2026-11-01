@@ -134,18 +134,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
         </div>
       )}
 
-      {(shownTab === 'stock' || shownTab === 'products') && groups.length > 1 && groups.some(([g]) => g.includes(' / ')) && (
-        <GroupTree products={st.products} value={group} onChange={setGroup} />
-      )}
-      {(shownTab === 'stock' || shownTab === 'products') && groups.length > 1 && !groups.some(([g]) => g.includes(' / ')) && (
-        <div className="flex flex-wrap gap-1.5" data-group-bar>
-          {[['', 'همهٔ گروه‌ها', st.products.length] as [string, string, number], ...groups].map(([g, text, n]) => (
-            <button key={g || 'all'} type="button" onClick={() => setGroup(g)} className={`px-3 py-1.5 rounded-full text-[11px] font-black border cursor-pointer ${group === g ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-amber-50'}`}>
-              {text} <span className={group === g ? 'opacity-80' : 'text-[#8C6F66]'}>{toPersianDigits(n)}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      {(shownTab === 'stock' || shownTab === 'products') && groups.length > 1 && <GroupPicker products={st.products} value={group} onChange={setGroup} />}
       {shownTab === 'stock' && <StockTab st={st} group={group} onCard={setCardOf} />}
       {shownTab === 'docs' && <DocsTab st={st} onOpen={setDocOpen} isAdmin={isAdmin} sepidar={sepidar} />}
       {shownTab === 'products' && <ProductsTab st={st} group={group} sepidar={sepidar} onEdit={setProdEdit} onCard={setCardOf} />}
@@ -195,58 +184,135 @@ const inGroup = (p: WhProduct, group: string): boolean => {
   return g === group || g.startsWith(group + ' / ');
 };
 
-/** The groups of the products as a tree, the way Sepidar shows them (a group, its sub-groups, how many products each holds). */
-const GroupTree: React.FC<{ products: WhProduct[]; value: string; onChange: (g: string) => void }> = ({ products, value, onChange }) => {
-  type Node = { name: string; path: string; count: number; kids: Map<string, Node> };
-  const root: Node = { name: '', path: '', count: 0, kids: new Map() };
-  for (const p of products) {
-    let node = root;
-    let path = '';
-    for (const part of (p.group || 'بدون گروه').split(' / ')) {
-      path = path ? path + ' / ' + part : part;
-      let k = node.kids.get(part);
-      if (!k) {
-        k = { name: part, path, count: 0, kids: new Map() };
-        node.kids.set(part, k);
+/**
+ * The group of the products as one nice box (a combo): it shows the chosen group and how many products it holds; a tap opens a panel with a search field and
+ * the groups as cards, the way Sepidar has them (a group, its sub-groups «پدر / فرزند», how many products each holds). A parent holds its children's products.
+ */
+const GroupPicker: React.FC<{ products: WhProduct[]; value: string; onChange: (g: string) => void }> = ({ products, value, onChange }) => {
+  type GNode = { name: string; path: string; count: number; kids: Map<string, GNode> };
+  const { root, flat } = useMemo(() => {
+    const r: GNode = { name: '', path: '', count: 0, kids: new Map() };
+    for (const p of products) {
+      let node = r;
+      let path = '';
+      for (const part of (p.group || 'بدون گروه').split(' / ')) {
+        path = path ? path + ' / ' + part : part;
+        let k = node.kids.get(part);
+        if (!k) {
+          k = { name: part, path, count: 0, kids: new Map() };
+          node.kids.set(part, k);
+        }
+        k.count++;
+        node = k;
       }
-      k.count++;
-      node = k;
     }
-  }
-  const [open, setOpen] = useState<Set<string>>(new Set());
-  const toggle = (path: string) => setOpen((o) => { const n = new Set(o); if (n.has(path)) n.delete(path); else n.add(path); return n; });
-  const row = (n: Node, depth: number): React.ReactNode => {
+    const all: GNode[] = [];
+    const walk = (n: GNode) => [...n.kids.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa')).forEach((k) => { all.push(k); walk(k); });
+    walk(r);
+    return { root: r, flat: all };
+  }, [products]);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const box = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [open]);
+  const pick = (g: string) => {
+    onChange(g);
+    setOpen(false);
+    setQ('');
+  };
+  const current = flat.find((n) => n.path === value);
+  const toggle = (path: string) => setExpanded((o) => { const n = new Set(o); if (n.has(path)) n.delete(path); else n.add(path); return n; });
+  const card = (n: GNode, depth: number): React.ReactNode => {
     const kids = [...n.kids.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
-    const isOpen = open.has(n.path) || value === n.path || value.startsWith(n.path + ' / ');
+    const isOpen = expanded.has(n.path) || value === n.path || value.startsWith(n.path + ' / ');
+    const sel = value === n.path;
     return (
       <div key={n.path}>
-        <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 ${value === n.path ? 'bg-amber-100' : 'hover:bg-amber-50'}`} style={{ paddingRight: 8 + depth * 18 }}>
+        <div className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 mb-1 transition-colors ${sel ? 'bg-amber-100 border-amber-400' : 'bg-white border-[#EBDBCE] hover:bg-amber-50'}`} style={{ marginRight: depth * 16 }}>
           {kids.length > 0 ? (
-            <button type="button" onClick={() => toggle(n.path)} aria-label="باز و بسته" className="w-5 h-5 flex items-center justify-center text-[#8C6F66] cursor-pointer">
+            <button type="button" onClick={() => toggle(n.path)} aria-label="باز و بسته" className="w-6 h-6 rounded-lg flex items-center justify-center text-[#8C6F66] hover:bg-amber-100 cursor-pointer shrink-0">
               {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
           ) : (
-            <span className="w-5" />
+            <span className="w-6 shrink-0" />
           )}
-          <Folder className="w-4 h-4 text-amber-600 shrink-0" />
-          <button type="button" onClick={() => onChange(value === n.path ? '' : n.path)} className="flex-1 min-w-0 text-right text-[12px] font-black text-[#3A241F] truncate cursor-pointer" data-group-node={n.path}>
-            {n.name}
+          <button type="button" onClick={() => pick(n.path)} className="flex-1 min-w-0 flex items-center gap-2 text-right cursor-pointer" data-group-node={n.path}>
+            <Folder className="w-4 h-4 text-amber-600 shrink-0" />
+            <span className="flex-1 min-w-0 truncate text-[12px] font-black text-[#3A241F]">{n.name}</span>
           </button>
-          <span className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(n.count)}</span>
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-black shrink-0 ${sel ? 'bg-amber-600 text-white' : 'bg-[#FAF5F1] text-[#8C6F66] border border-[#EBDBCE]'}`}>{toPersianDigits(n.count)}</span>
         </div>
-        {isOpen && kids.map((k) => row(k, depth + 1))}
+        {isOpen && kids.map((k) => card(k, depth + 1))}
       </div>
     );
   };
+  const hits = q.trim() ? flat.filter((n) => matchesAll({ path: n.path } as unknown as Record<string, unknown>, q, [])) : [];
   const top = [...root.kids.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
   return (
-    <div className="rounded-2xl border border-[#EBDBCE] bg-white p-2 space-y-0.5 max-h-72 overflow-y-auto" data-group-tree>
-      <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 cursor-pointer ${value === '' ? 'bg-amber-100' : 'hover:bg-amber-50'}`} onClick={() => onChange('')}>
-        <Boxes className="w-4 h-4 text-amber-700" />
-        <span className="flex-1 text-[12px] font-black text-[#3A241F]">همهٔ گروه‌ها</span>
-        <span className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(products.length)}</span>
+    <div className="relative" ref={box} data-group-picker>
+      <div className="flex items-stretch gap-1.5">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className={`flex-1 min-w-0 sm:flex-none sm:min-w-[300px] flex items-center gap-2.5 rounded-2xl border-2 px-3 py-2 text-right cursor-pointer shadow-sm transition-colors ${value ? 'bg-amber-50 border-amber-400' : 'bg-white border-[#EBDBCE] hover:border-amber-300'}`}
+        >
+          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow shrink-0"><Folder className="w-5 h-5" /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[10px] font-bold text-[#8C6F66] leading-4">گروه کالا</span>
+            <span className="block truncate text-[13px] font-black text-[#3A241F] leading-5" data-group-current>{value ? (current?.path || value) : 'همهٔ گروه‌ها'}</span>
+          </span>
+          <span className="rounded-full bg-white border border-amber-300 text-amber-800 px-2 py-0.5 text-[11px] font-black shrink-0">{toPersianDigits(value ? current?.count ?? 0 : products.length)}</span>
+          <ChevronDown className={`w-4 h-4 text-[#8C6F66] shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {value && (
+          <button type="button" onClick={() => pick('')} aria-label="نمایش همهٔ گروه‌ها" title="نمایش همهٔ گروه‌ها" className="px-3 rounded-2xl border-2 border-[#EBDBCE] bg-white text-[#8C6F66] hover:text-rose-600 hover:border-rose-300 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
-      {top.map((n) => row(n, 0))}
+      {open && (
+        <div className="absolute right-0 top-full mt-2 z-40 w-[min(94vw,440px)] rounded-2xl border border-[#EBDBCE] bg-[#FFFDFB] shadow-2xl p-2.5" data-group-panel>
+          <div className="relative mb-2">
+            <Search className="w-4 h-4 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" />
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجوی گروه…" className="w-full rounded-xl border border-[#EBDBCE] bg-white pr-9 pl-3 py-2 text-[12px] font-bold focus:outline-none focus:border-amber-500" />
+          </div>
+          <div className="max-h-72 overflow-y-auto pl-0.5">
+            <button
+              type="button"
+              onClick={() => pick('')}
+              className={`w-full flex items-center gap-2 rounded-xl border px-2.5 py-2 mb-1 text-right cursor-pointer ${value === '' ? 'bg-amber-100 border-amber-400' : 'bg-white border-[#EBDBCE] hover:bg-amber-50'}`}
+            >
+              <Boxes className="w-4 h-4 text-amber-700 shrink-0" />
+              <span className="flex-1 text-[12px] font-black text-[#3A241F]">همهٔ گروه‌ها</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${value === '' ? 'bg-amber-600 text-white' : 'bg-[#FAF5F1] text-[#8C6F66] border border-[#EBDBCE]'}`}>{toPersianDigits(products.length)}</span>
+            </button>
+            {q.trim()
+              ? hits.length
+                ? hits.map((n) => (
+                    <button key={n.path} type="button" onClick={() => pick(n.path)} className="w-full flex items-center gap-2 rounded-xl border border-[#EBDBCE] bg-white hover:bg-amber-50 px-2.5 py-2 mb-1 text-right cursor-pointer" data-group-node={n.path}>
+                      <Folder className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="flex-1 min-w-0 truncate text-[12px] font-black text-[#3A241F]">{n.path}</span>
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-black bg-[#FAF5F1] text-[#8C6F66] border border-[#EBDBCE]">{toPersianDigits(n.count)}</span>
+                    </button>
+                  ))
+                : <div className="py-6 text-center text-[11px] font-bold text-[#8C6F66]">گروهی با این نام نیست.</div>
+              : top.map((n) => card(n, 0))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

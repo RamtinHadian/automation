@@ -23,7 +23,7 @@ export const CustomerImportModal: React.FC<{
   ownerName: string;
   onClose: () => void;
   /** the new customers, and the new address (as in the file / Sepidar) of customers that were already in the system */
-  onImport: (customers: Customer[], addressUpdates?: { id: string; address: string; city?: string }[]) => void;
+  onImport: (customers: Customer[], addressUpdates?: { id: string; address: string; city?: string }[], nameUpdates?: { id: string; name: string; firstName?: string; lastName?: string }[]) => void;
 }> = ({ existing, ownerId, ownerName, onClose, onImport }) => {
   const [rows, setRows] = useState<string[][] | null>(null);
   const [fileName, setFileName] = useState('');
@@ -37,6 +37,7 @@ export const CustomerImportModal: React.FC<{
   const [status, setStatus] = useState<CustomerStatus>('ACTIVE');
   const [skipDup, setSkipDup] = useState(true);
   const [syncAddr, setSyncAddr] = useState(true);
+  const [nameSel, setNameSel] = useState<Record<string, boolean>>({});
   const input = useRef<HTMLInputElement>(null);
 
   // One or several files: every one is brought to Hoormand's standard columns and the rows are put together in one list
@@ -116,6 +117,8 @@ export const CustomerImportModal: React.FC<{
     const ok: Customer[] = [];
     // customers already in the system whose address in the file is different (Sepidar is the source of the address): only the address is changed
     const addrUpdates = new Map<string, { id: string; name: string; old: string; next: string; city?: string }>();
+    // the same mobile, but the name in the file is another one than the name of the customer already in the system: the person is asked (nothing is made twice)
+    const nameChanges = new Map<string, { id: string; row: number; old: string; next: string; first?: string; last?: string; phones: string[]; generic: boolean }>();
     let noName = 0;
     let dup = 0;
     let noMobile = 0;
@@ -173,6 +176,12 @@ export const CustomerImportModal: React.FC<{
         const earlier = [...phones, ...ids].map((k) => seenAt.get(k)).find((x) => x !== undefined);
         const matched = mine ? `${mine.name} (در هورمند)` : srvHit ? (srvHit.visible && srvHit.name ? `${srvHit.name} (در هورمند)` : 'مشتری همکار (در هورمند)') : earlier !== undefined ? `ردیف ${toPersianDigits(earlier)} همین فایل` : '';
         dupList.push({ row: rowNo, name, phones, matched });
+        if (mine && normText(mine.name) !== name && !nameChanges.has(mine.id)) {
+          const old = normText(mine.name);
+          // a name that says nothing («شرکت»، «شرکت »، «مشتری»، only a number…) is the usual case of an accounting name that never came over
+          const generic = !old || /^(شرکت|مشتری|فروشگاه|آقای|خانم|نامشخص|بدون نام)$/.test(old) || /^[\d\s۰-۹]+$/.test(old);
+          nameChanges.set(mine.id, { id: mine.id, row: rowNo, old: old || '(بدون نام)', next: name, first: opt(first || (main && family ? main : '')), last: opt(family), phones, generic });
+        }
         const srcAddr = addrOf(r, phones);
         if (syncAddr && mine && srcAddr && normText(mine.address || '') !== srcAddr && !addrUpdates.has(mine.id)) addrUpdates.set(mine.id, { id: mine.id, name: mine.name, old: mine.address || '', next: srcAddr, city: mine.city ? undefined : cityOfAddress(srcAddr) });
         issues.push({ row: rowNo, what: `${name} · ${phones.map((p) => toPersianDigits(p)).join('، ')}`, reason: `تکراری و ارسال نشد؛ مشتری موجود دست‌نخورده ماند${matched ? ` (${matched})` : ''}` });
@@ -225,8 +234,11 @@ export const CustomerImportModal: React.FC<{
         updatedAt: now,
       });
     }
-    return { ok, noName, dup, noMobile, issues, dupList, addrUpdates: [...addrUpdates.values()] };
+    return { ok, noName, dup, noMobile, issues, dupList, addrUpdates: [...addrUpdates.values()], nameChanges: [...nameChanges.values()] };
   }, [data, map, existing, status, skipDup, syncAddr, ownerId, ownerName, fields, serverDup]);
+
+  const nameOn = (n: { id: string; generic: boolean }) => nameSel[n.id] ?? n.generic;
+  const pickedNames = result.nameChanges.filter(nameOn);
 
   const download = () => {
     const a = document.createElement('a');
@@ -428,6 +440,30 @@ export const CustomerImportModal: React.FC<{
                   </div>
                 </details>
               )}
+              {result.nameChanges.length > 0 && (
+                <div className="rounded-2xl border-2 border-sky-300 bg-sky-50/70 px-3 py-2.5" data-import-names>
+                  <div className="text-[12px] font-black text-sky-900">این افراد با همین شمارهٔ موبایل در هورمند هستند، ولی نامشان فرق دارد ({toPersianDigits(result.nameChanges.length)})</div>
+                  <p className="mt-1 text-[10.5px] font-bold text-sky-900/80 leading-5">مشتری تازه‌ای با این شماره‌ها ساخته نمی‌شود. برای هر نفر که تیک بزنید، فقط نام همان مشتری موجود به نام فایل عوض می‌شود. نام‌هایی که چیزی نمی‌گویند (مثل «شرکت») از قبل تیک خورده‌اند؛ بقیه را خودتان بررسی کنید.</p>
+                  <div className="mt-2 flex gap-2 text-[10.5px] font-black">
+                    <button type="button" onClick={() => setNameSel(Object.fromEntries(result.nameChanges.map((n) => [n.id, true])))} className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">همه را انتخاب کن</button>
+                    <button type="button" onClick={() => setNameSel(Object.fromEntries(result.nameChanges.map((n) => [n.id, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">هیچ‌کدام</button>
+                  </div>
+                  <div className="mt-2 max-h-64 overflow-y-auto space-y-1.5">
+                    {result.nameChanges.slice(0, 300).map((n) => (
+                      <label key={n.id} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 cursor-pointer ${nameOn(n) ? 'bg-white border-sky-400' : 'bg-white/60 border-sky-100'}`} data-import-name-row>
+                        <input type="checkbox" className="mt-1 w-4 h-4 accent-sky-600" checked={nameOn(n)} onChange={(e) => setNameSel((m) => ({ ...m, [n.id]: e.target.checked }))} />
+                        <span className="flex-1 min-w-0 text-[11.5px] leading-6">
+                          <span className="font-bold text-[#8C6F66]">در هورمند: </span><span className="font-black text-[#3A241F]">{n.old}</span>
+                          <span className="mx-1.5 text-sky-700">←</span>
+                          <span className="font-bold text-[#8C6F66]">در فایل: </span><span className="font-black text-sky-900">{n.next}</span>
+                          <span className="block text-[10px] font-bold text-[#8C6F66]" dir="ltr">{n.phones.map((p) => toPersianDigits(p)).join(' ، ')} · ردیف {toPersianDigits(n.row)}</span>
+                        </span>
+                      </label>
+                    ))}
+                    {result.nameChanges.length > 300 && <div className="py-1 text-[10.5px] font-bold text-[#8C6F66]">و {toPersianDigits(result.nameChanges.length - 300)} نفر دیگر.</div>}
+                  </div>
+                </div>
+              )}
               {result.dupList.length > 0 && (
                 <details className="rounded-2xl border border-amber-300 bg-amber-50/60 px-3 py-2" data-import-dups open>
                   <summary className="cursor-pointer text-[11px] font-black text-amber-900">مشتریان تکراری؛ به هورمند فرستاده نمی‌شوند ({toPersianDigits(result.dupList.length)})</summary>
@@ -477,14 +513,14 @@ export const CustomerImportModal: React.FC<{
           </button>
           <button
             type="button"
-            disabled={!rows || (result.ok.length === 0 && result.addrUpdates.length === 0)}
+            disabled={!rows || (result.ok.length === 0 && result.addrUpdates.length === 0 && pickedNames.length === 0)}
             onClick={() => {
-              onImport(result.ok, result.addrUpdates.map((u) => ({ id: u.id, address: u.next, city: u.city })));
+              onImport(result.ok, result.addrUpdates.map((u) => ({ id: u.id, address: u.next, city: u.city })), pickedNames.map((n) => ({ id: n.id, name: n.next, firstName: n.first, lastName: n.last })));
               onClose();
             }}
             className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
           >
-            {rows ? `افزودن ${toPersianDigits(result.ok.length)} مشتری${result.addrUpdates.length ? ` و به‌روزکردن نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری` : ''}` : 'افزودن'}
+            {rows ? `افزودن ${toPersianDigits(result.ok.length)} مشتری${result.addrUpdates.length ? ` و به‌روزکردن نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری` : ''}${pickedNames.length ? ` و عوض‌کردن نام ${toPersianDigits(pickedNames.length)} مشتری` : ''}` : 'افزودن'}
           </button>
         </div>
       </div>

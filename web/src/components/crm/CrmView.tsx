@@ -1,3 +1,4 @@
+import { ProductTitleInput } from './ProductTitleInput';
 import { CustomerCalls } from './CustomerCalls';
 import { matchesAll } from '../../lib/searchAll';
 import { isCustomerRecord } from '../../lib/contactTypes';
@@ -60,7 +61,7 @@ import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/p
 import { CustomerReportModal } from './CustomerReportModal';
 import { Modal, field, label, SOURCES } from './crmUi';
 import { CustomerImportModal } from './CustomerImportModal';
-import type { VoipCall } from '../../lib/api';
+import type { VoipCall, WhProduct } from '../../lib/api';
 import { PersonPicker, staffItems, customerItems } from '../common/PersonPicker';
 import { PhraseChips } from '../common/PhraseChips';
 import { PhoneBook } from './PhoneBook';
@@ -254,6 +255,7 @@ export const CrmView: React.FC = () => {
         }
         if (type === 'newCustomer') {
           setTab('customers');
+          showAllCustomers();
           setEditingCustomer({ ...newCustomer(), phones: phone ? [normPhone(phone) || phone] : [], name: callerNameOnly(name, phone), source: 'تماس تلفنی' });
           return;
         }
@@ -294,6 +296,14 @@ export const CrmView: React.FC = () => {
       .filter((c) => !quietLimit || new Date(lastActivity.get(c.id) || c.updatedAt).getTime() < quietLimit)
       .sort((a, b) => (lastActivity.get(b.id) || b.updatedAt).localeCompare(lastActivity.get(a.id) || a.updatedAt));
   }, [customers, statusFilter, mineOnly, search, me, lastActivity, searchIndex, adv, boughtIds]);
+  // every filter of the list is lifted: a customer that was just made (here, or from the phone book / a call) must be seen in the list, not hidden behind the
+  // search text, the status, «فقط مشتریان من» or the advanced filters that were left on
+  const showAllCustomers = () => {
+    setSearch('');
+    setStatusFilter('ALL');
+    setMineOnly(false);
+    setAdv({ province: '', city: '', source: '', tag: '', owner: '', kind: '', bought: '', quiet: '' });
+  };
   const advCount = Object.values(adv).filter(Boolean).length;
   const facets = useMemo(() => {
     const uniq = (f: (c: Customer) => string | undefined) => [...new Set(customers.map(f).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'fa'));
@@ -1088,6 +1098,7 @@ export const CrmView: React.FC = () => {
           onSave={(c) => {
             const isNew = !customers.some((x) => x.id === c.id);
             saveCustomer(c);
+            if (isNew) showAllCustomers();
             setEditingCustomer(null);
             showToast(isNew ? 'مشتری ثبت شد.' : 'اطلاعات مشتری ذخیره شد.');
             if (customerCb) {
@@ -1105,10 +1116,17 @@ export const CrmView: React.FC = () => {
           ownerId={me}
           ownerName={currentUser.fullName}
           onClose={() => setImporting(false)}
-          onImport={(list, addrUpdates = []) => {
+          onImport={(list, addrUpdates = [], nameUpdates = []) => {
             const upd = new Map(addrUpdates.map((u) => [u.id, u]));
-            setCustomers((prev) => [...list, ...prev.map((c) => (upd.has(c.id) ? { ...c, address: upd.get(c.id)!.address, city: c.city || upd.get(c.id)!.city, updatedAt: new Date().toISOString() } : c))]);
-            showToast(`${toPersianDigits(list.length)} مشتری اضافه شد${addrUpdates.length ? ` و نشانی ${toPersianDigits(addrUpdates.length)} مشتری طبق فایل به‌روز شد` : ''}.`);
+            const names = new Map(nameUpdates.map((u) => [u.id, u]));
+            setCustomers((prev) => [...list, ...prev.map((c) => {
+              let n = c;
+              if (upd.has(c.id)) n = { ...n, address: upd.get(c.id)!.address, city: c.city || upd.get(c.id)!.city, updatedAt: new Date().toISOString() };
+              const nm = names.get(c.id);
+              if (nm) n = { ...n, name: nm.name, firstName: nm.firstName || n.firstName, lastName: nm.lastName || n.lastName, updatedAt: new Date().toISOString() };
+              return n;
+            })]);
+            showToast(`${toPersianDigits(list.length)} مشتری اضافه شد${addrUpdates.length ? ` و نشانی ${toPersianDigits(addrUpdates.length)} مشتری طبق فایل به‌روز شد` : ''}${nameUpdates.length ? ` و نام ${toPersianDigits(nameUpdates.length)} مشتری عوض شد` : ''}.`);
           }}
         />
       )}
@@ -1261,6 +1279,13 @@ const DealForm: React.FC<{
   const [d, setD] = useState<Deal>(initial);
   // Enter in a title opens the line of the next opportunity (title, product code, amount); every line becomes an opportunity of the same customer
   const [more, setMore] = useState<{ id: string; title: string; code: string; amountText: string; amount: number }[]>([]);
+  // the products of the warehouse: the title of an opportunity is matched against them (who has no right to the warehouse simply gets no suggestions)
+  const [whProducts, setWhProducts] = useState<WhProduct[]>([]);
+  useEffect(() => {
+    let live = true;
+    api.warehouse().then((w) => { if (live) setWhProducts((w.products || []).filter((p) => p.active !== false)); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
   // after = the line the new one goes under (null = right under the first one)
   const addMore = (after: string | null) => {
     const row = { id: uid('mr'), title: '', code: '', amountText: '', amount: 0 };
@@ -1352,15 +1377,17 @@ const DealForm: React.FC<{
               <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center">۱</span>
               <label className="text-[11px] font-black text-[#3A241F]">عنوان فرصت *</label>
             </div>
-            <input
+            <ProductTitleInput
               className={field}
               value={d.title}
-              onChange={(e) => patch({ title: e.target.value })}
+              products={whProducts}
+              onChange={(t) => patch({ title: t })}
+              onPick={(p) => patch({ title: p.title, productCode: p.code || d.productCode })}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'title'); } }}
               autoFocus={isNew}
               placeholder="مثلاً: قرارداد پشتیبانی سالانه (با Enter فیلد بعدی)"
-              data-deal-title
-              data-fid="main-title"
+              fid="main-title"
+              extraAttrs={{ 'data-deal-title': true }}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -1393,11 +1420,13 @@ const DealForm: React.FC<{
                 <span className="flex-1 text-[11px] font-black text-[#3A241F]">عنوان فرصت {toPersianDigits(i + 2)}</span>
                 <button type="button" onClick={() => setMore((p) => p.filter((x) => x.id !== r.id))} className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer" aria-label="حذف این فرصت"><X className="w-4 h-4" /></button>
               </div>
-              <input
+              <ProductTitleInput
                 className={field}
                 value={r.title}
-                data-fid={`${r.id}-title`}
-                onChange={(e) => patchMore(r.id, { title: e.target.value })}
+                products={whProducts}
+                fid={`${r.id}-title`}
+                onChange={(t) => patchMore(r.id, { title: t })}
+                onPick={(p) => patchMore(r.id, { title: p.title, code: p.code || r.code })}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'title'); }
                   if (e.key === 'Backspace' && !r.title && !r.code && !r.amountText) { e.preventDefault(); setMore((p) => p.filter((x) => x.id !== r.id)); }
