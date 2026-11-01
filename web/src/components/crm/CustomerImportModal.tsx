@@ -1,6 +1,7 @@
 import { useAppContext } from '../../context/AppContext';
 import { askConfirm } from '../../lib/confirmDialog';
 import { ImportRulesDialog } from './ImportRulesDialog';
+import { applyFieldRules, nameKey, patchFor, resolveRules } from '../../lib/importRules';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FileSpreadsheet, Upload, X, Download } from 'lucide-react';
 import { Customer, CustomerStatus } from '../../types';
@@ -29,9 +30,11 @@ export const CustomerImportModal: React.FC<{
   /** one person's name changed at once, the window stays open (the others wait) */
   /** one new person added at once, the window stays open (the others wait) */
   onAddOne?: (c: Customer) => void;
+  /** the numbers of one row added to the person of the same name at once, the window stays open */
+  onAddNumber?: (id: string, phones: string[]) => void;
   onApplyName?: (u: { id: string; name: string; firstName?: string; lastName?: string }) => void;
-  onImport: (customers: Customer[], addressUpdates?: { id: string; address: string; city?: string }[], nameUpdates?: { id: string; name: string; firstName?: string; lastName?: string }[]) => void;
-}> = ({ existing, ownerId, ownerName, onClose, onImport, onApplyName, onAddOne }) => {
+  onImport: (customers: Customer[], addressUpdates?: { id: string; address: string; city?: string }[], nameUpdates?: { id: string; name: string; firstName?: string; lastName?: string }[], fieldUpdates?: { id: string; patch: Partial<Customer> }[], numberAdds?: { id: string; phones: string[] }[]) => void;
+}> = ({ existing, ownerId, ownerName, onClose, onImport, onApplyName, onAddOne, onAddNumber }) => {
   const [rows, setRows] = useState<string[][] | null>(null);
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
@@ -42,10 +45,18 @@ export const CustomerImportModal: React.FC<{
   const fields = useMemo(() => importFields(connected), [connected]);
   const [sources, setSources] = useState<{ name: string; count: number; unknown: string[] }[]>([]);
   const [status, setStatus] = useState<CustomerStatus>('ACTIVE');
-  const [skipDup, setSkipDup] = useState(true);
-  const [syncAddr, setSyncAddr] = useState(true);
-  const mobileMust = useAppContext().settings?.requireMobile !== false;
-  const [rulesOpen, setRulesOpen] = useState(false); // the page with every rule; it comes first after «افزودن», the numbers are asked once more after it
+  const ctx = useAppContext();
+  const mobileMust = ctx.settings?.requireMobile !== false;
+  // the rules (what is carried over and how): the company's default, changeable for this import on the rules page
+  const [rules, setRules] = useState(() => resolveRules(ctx.settings?.importRules));
+  const skipDup = rules.skipDup;
+  const syncAddr = rules.syncAddr;
+  const setSkipDup = (v: boolean) => setRules((r0) => ({ ...r0, skipDup: v }));
+  const setSyncAddr = (v: boolean) => setRules((r0) => ({ ...r0, syncAddr: v }));
+  const [fieldSel, setFieldSel] = useState<Record<string, boolean>>({});
+  const [numSel, setNumSel] = useState<Record<number, boolean>>({}); // by the row of the file: add this number to the person of the same name
+  const [numGone, setNumGone] = useState<Set<number>>(new Set()); // rows done or dropped («بیخیال»)
+  const [rulesMode, setRulesMode] = useState<null | 'confirm' | 'edit'>(null); // the page with every rule; it comes first after «افزودن», the numbers are asked once more after it
   const [nameSel, setNameSel] = useState<Record<string, boolean>>({});
   const [skipRows, setSkipRows] = useState<Set<number>>(new Set()); // new people left for another time (not ticked)
   const [addedRows, setAddedRows] = useState<Set<number>>(new Set()); // rows of the file whose person was added one by one
@@ -131,6 +142,10 @@ export const CustomerImportModal: React.FC<{
     // customers already in the system whose address in the file is different (Sepidar is the source of the address): only the address is changed
     const addrUpdates = new Map<string, { id: string; name: string; old: string; next: string; city?: string }>();
     // the same mobile, but the name in the file is another one than the name of the customer already in the system: the person is asked (nothing is made twice)
+    const numberAdds: { row: number; id: string; name: string; fileName: string; phones: string[] }[] = [];
+    const byName = new Map<string, Customer>();
+    if (rules.sameName === 'ask') for (const c of existing) { const k = nameKey(c.name); if (k && !byName.has(k)) byName.set(k, c); }
+    const fieldUpdates = new Map<string, { id: string; name: string; row: number; patch: Partial<Customer>; labels: string[] }>();
     const nameChanges = new Map<string, { id: string; row: number; old: string; next: string; first?: string; last?: string; phones: string[]; generic: boolean }>();
     let noName = 0;
     let dup = 0;
@@ -180,35 +195,11 @@ export const CustomerImportModal: React.FC<{
         issues.push({ row: rowNo, what: name, reason: phones.length ? `موبایل کامل ندارد (شماره‌های فایل: ${phones.join('، ')})؛ موبایل باید ۱۱ رقم و مثل ۰۹۱۲۳۴۵۶۷۸۹ باشد` : 'شمارهٔ موبایل ندارد' });
         continue;
       }
-      const ids = [get(r, 'nationalCode'), get(r, 'nationalId')].filter(Boolean);
-      const srvHit = phones.map((p) => serverDup.phones[p]).find(Boolean) || ids.map((x) => serverDup.codes[x]).find(Boolean);
-      if (skipDup && ((phones.length && phones.some((p) => known.has(p) || seen.has(p))) || ids.some((x) => knownIds.has(x) || seen.has(x)) || srvHit)) {
-        dup++;
-        // who it matches: a customer already in the system (named when this person may see them), or an earlier row of the same file
-        const mine = existing.find((c) => c.phones.some((p) => phones.includes(normPhone(p))) || [c.nationalCode, c.nationalId].some((x) => x && ids.includes(normText(x))));
-        const earlier = [...phones, ...ids].map((k) => seenAt.get(k)).find((x) => x !== undefined);
-        const matched = mine ? `${mine.name} (در هورمند)` : srvHit ? (srvHit.visible && srvHit.name ? `${srvHit.name} (در هورمند)` : 'مشتری همکار (در هورمند)') : earlier !== undefined ? `ردیف ${toPersianDigits(earlier)} همین فایل` : '';
-        dupList.push({ row: rowNo, name, phones, matched });
-        if (mine && normText(mine.name) !== name && !nameChanges.has(mine.id)) {
-          const old = normText(mine.name);
-          // a name that says nothing («شرکت»، «شرکت »، «مشتری»، only a number…) is the usual case of an accounting name that never came over
-          const generic = !old || /^(شرکت|مشتری|فروشگاه|آقای|خانم|نامشخص|بدون نام)$/.test(old) || /^[\d\s۰-۹]+$/.test(old);
-          nameChanges.set(mine.id, { id: mine.id, row: rowNo, old: old || '(بدون نام)', next: name, first: opt(first || (main && family ? main : '')), last: opt(family), phones, generic });
-        }
-        const srcAddr = addrOf(r, phones);
-        if (syncAddr && mine && srcAddr && normText(mine.address || '') !== srcAddr && !addrUpdates.has(mine.id)) addrUpdates.set(mine.id, { id: mine.id, name: mine.name, old: mine.address || '', next: srcAddr, city: mine.city ? undefined : cityOfAddress(srcAddr) });
-        issues.push({ row: rowNo, what: `${name} · ${phones.map((p) => toPersianDigits(p)).join('، ')}`, reason: `تکراری و ارسال نشد؛ مشتری موجود دست‌نخورده ماند${matched ? ` (${matched})` : ''}` });
-        continue;
-      }
-      phones.forEach((p) => { seen.add(p); seenAt.set(p, rowNo); });
-      ids.forEach((x) => { seen.add(x); seenAt.set(x, rowNo); });
       const now = new Date().toISOString();
       const kind = importKind(get(r, 'kind')) || (get(r, 'nationalId') || get(r, 'economicCode') ? 'COMPANY' : undefined);
       const repMobile = normPhone(map.repMobile >= 0 ? r[map.repMobile] : '');
-      const newId = uid();
-      okRow.set(newId, rowNo);
-      ok.push({
-        id: newId,
+      const build = (id: string): Customer => ({
+        id,
         name,
         company: get(r, 'company') && get(r, 'name') ? get(r, 'company') : '',
         kind,
@@ -248,9 +239,46 @@ export const CustomerImportModal: React.FC<{
         createdAt: now,
         updatedAt: now,
       });
+      const ids = [get(r, 'nationalCode'), get(r, 'nationalId')].filter(Boolean);
+      const srvHit = phones.map((p) => serverDup.phones[p]).find(Boolean) || ids.map((x) => serverDup.codes[x]).find(Boolean);
+      if (skipDup && ((phones.length && phones.some((p) => known.has(p) || seen.has(p))) || ids.some((x) => knownIds.has(x) || seen.has(x)) || srvHit)) {
+        dup++;
+        // who it matches: a customer already in the system (named when this person may see them), or an earlier row of the same file
+        const mine = existing.find((c) => c.phones.some((p) => phones.includes(normPhone(p))) || [c.nationalCode, c.nationalId].some((x) => x && ids.includes(normText(x))));
+        const earlier = [...phones, ...ids].map((k) => seenAt.get(k)).find((x) => x !== undefined);
+        const matched = mine ? `${mine.name} (در هورمند)` : srvHit ? (srvHit.visible && srvHit.name ? `${srvHit.name} (در هورمند)` : 'مشتری همکار (در هورمند)') : earlier !== undefined ? `ردیف ${toPersianDigits(earlier)} همین فایل` : '';
+        dupList.push({ row: rowNo, name, phones, matched });
+        if (mine && rules.existing !== 'none' && !fieldUpdates.has(mine.id)) {
+          const candidate = applyFieldRules(build(mine.id), rules);
+          if (!get(r, 'source')) candidate.source = ''; // «ورود از اکسل» is only the default of a new person: it must not replace the source of somebody who is already there
+          const pf = patchFor(mine, candidate, rules.existing);
+          if (pf.labels.length) fieldUpdates.set(mine.id, { id: mine.id, name: mine.name, row: rowNo, patch: pf.values, labels: pf.labels });
+        }
+        if (mine && rules.nameReview !== 'never' && normText(mine.name) !== name && !nameChanges.has(mine.id)) {
+          const old = normText(mine.name);
+          // a name that says nothing («شرکت»، «شرکت »، «مشتری»، only a number…) is the usual case of an accounting name that never came over
+          const generic = !old || /^(شرکت|مشتری|فروشگاه|آقای|خانم|نامشخص|بدون نام)$/.test(old) || /^[\d\s۰-۹]+$/.test(old);
+          nameChanges.set(mine.id, { id: mine.id, row: rowNo, old: old || '(بدون نام)', next: name, first: opt(first || (main && family ? main : '')), last: opt(family), phones, generic });
+        }
+        const srcAddr = addrOf(r, phones);
+        if (syncAddr && mine && srcAddr && normText(mine.address || '') !== srcAddr && !addrUpdates.has(mine.id)) addrUpdates.set(mine.id, { id: mine.id, name: mine.name, old: mine.address || '', next: srcAddr, city: mine.city ? undefined : cityOfAddress(srcAddr) });
+        issues.push({ row: rowNo, what: `${name} · ${phones.map((p) => toPersianDigits(p)).join('، ')}`, reason: `تکراری و ارسال نشد؛ مشتری موجود دست‌نخورده ماند${matched ? ` (${matched})` : ''}` });
+        continue;
+      }
+      phones.forEach((p) => { seen.add(p); seenAt.set(p, rowNo); });
+      ids.forEach((x) => { seen.add(x); seenAt.set(x, rowNo); });
+      // the very same name is already in the system, this number is not: not a second person of that name, the number may be added to him
+      const sameNamed = rules.sameName === 'ask' ? byName.get(nameKey(name)) : undefined;
+      if (sameNamed) {
+        numberAdds.push({ row: rowNo, id: sameNamed.id, name: sameNamed.name, fileName: name, phones: phones.filter((p) => isCompleteMobile(p) || !mobileMust) });
+        continue;
+      }
+      const newId = uid();
+      okRow.set(newId, rowNo);
+      ok.push(applyFieldRules(build(newId), rules));
     }
-    return { ok, okRow, noName, dup, noMobile, issues, dupList, addrUpdates: [...addrUpdates.values()], nameChanges: [...nameChanges.values()] };
-  }, [data, map, existing, status, skipDup, syncAddr, ownerId, ownerName, fields, serverDup]);
+    return { ok, okRow, noName, dup, noMobile, issues, dupList, addrUpdates: [...addrUpdates.values()], nameChanges: [...nameChanges.values()], fieldUpdates: [...fieldUpdates.values()], numberAdds };
+  }, [data, map, existing, status, rules, ownerId, ownerName, fields, serverDup]);
 
   // a person added one by one is in the system now: the same row would show again as a duplicate of itself, so it is left out of every list
   const toAdd = result.ok.filter((c) => !skipRows.has(result.okRow.get(c.id) ?? -1));
@@ -258,6 +286,11 @@ export const CustomerImportModal: React.FC<{
   const issueRows = result.issues.filter((i) => !addedRows.has(i.row));
   const rowOfNew = (c: Customer) => result.okRow.get(c.id) ?? 0;
   const toggleRow = (row: number, on: boolean) => setSkipRows((s0) => { const n = new Set(s0); if (on) n.delete(row); else n.add(row); return n; });
+  const numPending = result.numberAdds.filter((n) => !numGone.has(n.row));
+  const numOn = (row: number) => numSel[row] ?? false; // not ticked from the start: a namesake is a guess, the person decides
+  const pickedNumbers = numPending.filter((n) => numOn(n.row));
+  const fieldOn = (id: string) => fieldSel[id] ?? true;
+  const pickedFields = result.fieldUpdates.filter((u) => fieldOn(u.id));
   const waiting = result.nameChanges.filter((n) => !later.has(n.id));
   const postponed = result.nameChanges.filter((n) => later.has(n.id));
   const nameOn = (n: { id: string; generic: boolean }) => nameSel[n.id] ?? n.generic;
@@ -401,7 +434,7 @@ export const CustomerImportModal: React.FC<{
                   </select>
                 </div>
               </div>
-              <button type="button" onClick={() => setRulesOpen(true)} className="flex items-center gap-1.5 text-[11px] font-black text-violet-700 underline cursor-pointer" data-import-rules-link>قوانین ورود مشتریان و شماره‌ها را ببینید</button>
+              <button type="button" onClick={() => setRulesMode('edit')} className="flex items-center gap-1.5 text-[11px] font-black text-violet-700 underline cursor-pointer" data-import-rules-link>قوانین ورود: چه چیزهایی و چگونه منتقل شود (تعریف و مرور)</button>
               <label className="flex items-center gap-2 text-xs font-bold text-[#3A241F] cursor-pointer">
                 <input type="checkbox" checked={skipDup} onChange={(e) => setSkipDup(e.target.checked)} />
                 مشتریانی که شمارهٔ تلفن یا کد ملی‌شان قبلاً در سامانه هست، اضافه نشوند
@@ -477,6 +510,49 @@ export const CustomerImportModal: React.FC<{
                     {result.addrUpdates.length > 200 && <div className="py-1.5 font-bold text-[#8C6F66]">و {toPersianDigits(result.addrUpdates.length - 200)} مشتری دیگر.</div>}
                   </div>
                 </details>
+              )}
+              {numPending.length > 0 && (
+                <div className="rounded-2xl border-2 border-indigo-300 bg-indigo-50/70 px-3 py-2.5" data-import-samename>
+                  <div className="text-[12px] font-black text-indigo-900">این نام‌ها در هورمند هست ولی شمارهٔ فایل در هورمند نیست ({toPersianDigits(numPending.length)})</div>
+                  <p className="mt-1 text-[10.5px] font-bold text-indigo-900/80 leading-5">مشتری دومی با همین نام ساخته نمی‌شود. برای هر نفر: «شماره را اضافه کن» شمارهٔ فایل را به همان شخصِ هم‌نام در هورمند می‌افزاید، یا «بیخیال» تا این ردیف وارد نشود. چند نفر را هم می‌توانید تیک بزنید و با دکمهٔ پایین یک‌جا اضافه کنید.</p>
+                  <div className="mt-2 flex gap-2 text-[10.5px] font-black">
+                    <button type="button" onClick={() => setNumSel(Object.fromEntries(numPending.map((n) => [n.row, true])))} className="px-2.5 py-1 rounded-lg bg-white border border-indigo-300 text-indigo-800 cursor-pointer">همه را انتخاب کن</button>
+                    <button type="button" onClick={() => setNumSel(Object.fromEntries(numPending.map((n) => [n.row, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-indigo-300 text-indigo-800 cursor-pointer">هیچ‌کدام</button>
+                  </div>
+                  <div className="mt-2 max-h-64 overflow-y-auto space-y-1.5">
+                    {numPending.slice(0, 300).map((n) => (
+                      <div key={n.row} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 ${numOn(n.row) ? 'bg-white border-indigo-400' : 'bg-white/60 border-indigo-100'}`} data-import-samename-row>
+                        <input type="checkbox" aria-label="انتخاب" className="mt-1.5 w-4 h-4 accent-indigo-600 cursor-pointer" checked={numOn(n.row)} onChange={(e) => setNumSel((m) => ({ ...m, [n.row]: e.target.checked }))} />
+                        <span className="flex-1 min-w-0 text-[11.5px] leading-6">
+                          <span className="font-black text-[#3A241F]">{n.name}</span>
+                          <span className="font-bold text-[#8C6F66]"> ← شمارهٔ تازه: </span>
+                          <span className="font-black text-indigo-900" dir="ltr">{n.phones.map((p) => toPersianDigits(p)).join(' ، ')}</span>
+                          <span className="block text-[10px] font-bold text-[#8C6F66]">ردیف {toPersianDigits(n.row)}{n.fileName !== n.name ? ` · نام در فایل: ${n.fileName}` : ''}</span>
+                        </span>
+                        <span className="flex flex-col sm:flex-row gap-1 shrink-0">
+                          {onAddNumber && (
+                            <button type="button" onClick={() => { onAddNumber(n.id, n.phones); setNumGone((g) => new Set(g).add(n.row)); }} className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10.5px] font-black cursor-pointer" data-import-samename-add>شماره را اضافه کن</button>
+                          )}
+                          <button type="button" onClick={() => setNumGone((g) => new Set(g).add(n.row))} className="px-2.5 py-1.5 rounded-lg bg-white border border-indigo-300 text-indigo-800 text-[10.5px] font-black cursor-pointer" data-import-samename-skip>بیخیال</button>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {result.fieldUpdates.length > 0 && (
+                <div className="rounded-2xl border-2 border-teal-300 bg-teal-50/70 px-3 py-2.5" data-import-fields>
+                  <div className="text-[12px] font-black text-teal-900">اطلاعات این مشتریان موجود طبق قانون «{rules.existing === 'fill' ? 'پر کردن جاهای خالی' : 'جایگزینی با فایل'}» عوض می‌شود ({toPersianDigits(result.fieldUpdates.length)})</div>
+                  <p className="mt-1 text-[10.5px] font-bold text-teal-900/80 leading-5">هر نفر را که نمی‌خواهید، تیکش را بردارید؛ دست‌نخورده می‌ماند.</p>
+                  <div className="mt-2 max-h-56 overflow-y-auto space-y-1.5">
+                    {result.fieldUpdates.slice(0, 300).map((u) => (
+                      <label key={u.id} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 cursor-pointer ${fieldOn(u.id) ? 'bg-white border-teal-400' : 'bg-white/60 border-teal-100'}`} data-import-field-row>
+                        <input type="checkbox" className="mt-1.5 w-4 h-4 accent-teal-600" checked={fieldOn(u.id)} onChange={(e) => setFieldSel((m) => ({ ...m, [u.id]: e.target.checked }))} />
+                        <span className="flex-1 min-w-0 text-[11.5px] leading-6"><span className="font-black text-[#3A241F]">{u.name}</span><span className="text-[#8C6F66] font-bold"> · {u.labels.join('، ')}</span><span className="block text-[10px] font-bold text-[#8C6F66]">ردیف {toPersianDigits(u.row)}</span></span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               )}
               {result.nameChanges.length > 0 && (
                 <div className="rounded-2xl border-2 border-sky-300 bg-sky-50/70 px-3 py-2.5" data-import-names>
@@ -571,31 +647,38 @@ export const CustomerImportModal: React.FC<{
           </button>
           <button
             type="button"
-            disabled={!rows || (toAdd.length === 0 && result.addrUpdates.length === 0 && pickedNames.length === 0)}
-            onClick={() => setRulesOpen(true)}
+            disabled={!rows || (toAdd.length === 0 && result.addrUpdates.length === 0 && pickedNames.length === 0 && pickedFields.length === 0 && pickedNumbers.length === 0)}
+            onClick={() => setRulesMode('confirm')}
             data-import-final
             className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
           >
-            {rows ? `افزودن ${toPersianDigits(toAdd.length)} مشتری${result.addrUpdates.length ? ` و به‌روزکردن نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری` : ''}${pickedNames.length ? ` و عوض‌کردن نام ${toPersianDigits(pickedNames.length)} مشتری` : ''}` : 'افزودن'}
+            {rows ? `افزودن ${toPersianDigits(toAdd.length)} مشتری${result.addrUpdates.length ? ` و به‌روزکردن نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری` : ''}${pickedNames.length ? ` و عوض‌کردن نام ${toPersianDigits(pickedNames.length)} مشتری` : ''}${pickedFields.length ? ` و تکمیل اطلاعات ${toPersianDigits(pickedFields.length)} مشتری` : ''}${pickedNumbers.length ? ` و افزودن شماره به ${toPersianDigits(pickedNumbers.length)} نفر` : ''}` : 'افزودن'}
           </button>
         </div>
       </div>
-      {rulesOpen && (
+      {rulesMode && (
         <ImportRulesDialog
-          summary={{ add: toAdd.length, renames: pickedNames.length, addrUpdates: result.addrUpdates.length, duplicates: dupRows.length, rejected: issueRows.length, skipDup, syncAddr, mobileMust, sepidarOn: !!connected }}
-          onCancel={() => setRulesOpen(false)}
+          mode={rulesMode}
+          rules={rules}
+          onChange={setRules}
+          summary={{ add: toAdd.length, renames: pickedNames.length, addrUpdates: result.addrUpdates.length, fieldUpdates: pickedFields.length, duplicates: dupRows.length, rejected: issueRows.length, numberAdds: pickedNumbers.length, mobileMust, sepidarOn: !!connected }}
+          canSave={ctx.currentUser.role === 'SUPER_ADMIN'}
+          onSave={() => { ctx.setSettings((s0) => ({ ...s0, importRules: rules })); ctx.showToast('قوانین ورود به‌عنوان قانون سازمان ذخیره شد.'); }}
+          onCancel={() => setRulesMode(null)}
           onContinue={async () => {
             // the second question: the exact work, once more, in plain words
             const lines = [
               `${toPersianDigits(toAdd.length)} مشتری تازه اضافه می‌شود`,
+              pickedFields.length ? `اطلاعات ${toPersianDigits(pickedFields.length)} مشتری موجود ${rules.existing === 'fill' ? 'تکمیل' : 'عوض'} می‌شود` : '',
               pickedNames.length ? `نام ${toPersianDigits(pickedNames.length)} مشتری موجود عوض می‌شود` : '',
+              pickedNumbers.length ? `شمارهٔ ${toPersianDigits(pickedNumbers.length)} نفر به همنام‌شان در هورمند افزوده می‌شود` : '',
               result.addrUpdates.length ? `نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری موجود به‌روز می‌شود` : '',
               dupRows.length ? `${toPersianDigits(dupRows.length)} ردیف تکراری وارد نمی‌شود` : '',
             ].filter(Boolean);
             const ok = await askConfirm(`${lines.join('، ')}.\nاین کار با یک کلیک برگردانده نمی‌شود. مطمئن هستید که انجام شود؟`, { tone: 'warning', title: 'تأیید نهایی ورود', confirmText: 'بله، انجام شود', cancelText: 'نه، برگرد' });
             if (!ok) return;
-            setRulesOpen(false);
-            onImport(toAdd, result.addrUpdates.map((u) => ({ id: u.id, address: u.next, city: u.city })), pickedNames.map((n) => ({ id: n.id, name: n.next, firstName: n.first, lastName: n.last })));
+            setRulesMode(null);
+            onImport(toAdd, result.addrUpdates.map((u) => ({ id: u.id, address: u.next, city: u.city })), pickedNames.map((n) => ({ id: n.id, name: n.next, firstName: n.first, lastName: n.last })), pickedFields.map((u) => ({ id: u.id, patch: u.patch })), pickedNumbers.map((n) => ({ id: n.id, phones: n.phones })));
             onClose();
           }}
         />

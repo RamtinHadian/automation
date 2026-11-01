@@ -1116,6 +1116,10 @@ export const CrmView: React.FC = () => {
           ownerId={me}
           ownerName={currentUser.fullName}
           onClose={() => setImporting(false)}
+          onAddNumber={(id, phones) => {
+            setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, phones: [...new Set([...(c.phones || []), ...phones])], updatedAt: new Date().toISOString() } : c)));
+            showToast('شماره به مشتری هم‌نام اضافه شد.');
+          }}
           onAddOne={(c) => {
             setCustomers((prev) => [c, ...prev]);
             showToast(`«${c.name}» اضافه شد.`);
@@ -1124,17 +1128,21 @@ export const CrmView: React.FC = () => {
             setCustomers((prev) => prev.map((c) => (c.id === u.id ? { ...c, name: u.name, firstName: u.firstName || c.firstName, lastName: u.lastName || c.lastName, updatedAt: new Date().toISOString() } : c)));
             showToast(`نام مشتری به «${u.name}» عوض شد.`);
           }}
-          onImport={(list, addrUpdates = [], nameUpdates = []) => {
+          onImport={(list, addrUpdates = [], nameUpdates = [], fieldUpdates = [], numberAdds = []) => {
+            const nums = new Map(numberAdds.map((u) => [u.id, u.phones]));
             const upd = new Map(addrUpdates.map((u) => [u.id, u]));
+            const fields = new Map(fieldUpdates.map((u) => [u.id, u.patch]));
             const names = new Map(nameUpdates.map((u) => [u.id, u]));
             setCustomers((prev) => [...list, ...prev.map((c) => {
               let n = c;
               if (upd.has(c.id)) n = { ...n, address: upd.get(c.id)!.address, city: c.city || upd.get(c.id)!.city, updatedAt: new Date().toISOString() };
+              if (fields.has(c.id)) n = { ...n, ...fields.get(c.id)!, updatedAt: new Date().toISOString() };
+              if (nums.has(c.id)) n = { ...n, phones: [...new Set([...(n.phones || []), ...nums.get(c.id)!])], updatedAt: new Date().toISOString() };
               const nm = names.get(c.id);
               if (nm) n = { ...n, name: nm.name, firstName: nm.firstName || n.firstName, lastName: nm.lastName || n.lastName, updatedAt: new Date().toISOString() };
               return n;
             })]);
-            showToast(`${toPersianDigits(list.length)} مشتری اضافه شد${addrUpdates.length ? ` و نشانی ${toPersianDigits(addrUpdates.length)} مشتری طبق فایل به‌روز شد` : ''}${nameUpdates.length ? ` و نام ${toPersianDigits(nameUpdates.length)} مشتری عوض شد` : ''}.`);
+            showToast(`${toPersianDigits(list.length)} مشتری اضافه شد${addrUpdates.length ? ` و نشانی ${toPersianDigits(addrUpdates.length)} مشتری طبق فایل به‌روز شد` : ''}${nameUpdates.length ? ` و نام ${toPersianDigits(nameUpdates.length)} مشتری عوض شد` : ''}${fieldUpdates.length ? ` و اطلاعات ${toPersianDigits(fieldUpdates.length)} مشتری تکمیل شد` : ''}${numberAdds.length ? ` و شمارهٔ ${toPersianDigits(numberAdds.length)} نفر به همنام‌شان اضافه شد` : ''}.`);
           }}
         />
       )}
