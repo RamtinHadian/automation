@@ -56,6 +56,7 @@ export const CustomerImportModal: React.FC<{
   const [fieldSel, setFieldSel] = useState<Record<string, boolean>>({});
   const [numSel, setNumSel] = useState<Record<number, boolean>>({}); // by the row of the file: add this number to the person of the same name
   const [numGone, setNumGone] = useState<Set<number>>(new Set()); // rows done or dropped («بیخیال»)
+  const [lim, setLim] = useState<Record<string, number>>({ new: 50, addr: 50, num: 50, field: 50, name: 50, dup: 50, issue: 50 });
   const [rulesMode, setRulesMode] = useState<null | 'confirm' | 'edit'>(null); // the page with every rule; it comes first after «افزودن», the numbers are asked once more after it
   const [nameSel, setNameSel] = useState<Record<string, boolean>>({});
   const [skipRows, setSkipRows] = useState<Set<number>>(new Set()); // new people left for another time (not ticked)
@@ -130,10 +131,31 @@ export const CustomerImportModal: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, map, hasHeader]);
 
+  // The people already in the system, indexed once: by every number, every national code / id and the name. Looking a row up is then one step; before, every row
+  // of the file walked through all the customers (1600 rows x 1600 customers = seconds on every click).
+  const index = useMemo(() => {
+    const byPhone = new Map<string, Customer>();
+    const byCode = new Map<string, Customer>();
+    const byName = new Map<string, Customer>();
+    for (const c of existing) {
+      for (const ph of c.phones || []) {
+        const k = normPhone(ph);
+        if (k && !byPhone.has(k)) byPhone.set(k, c);
+      }
+      for (const x of [c.nationalCode, c.nationalId]) {
+        const k = normText(x);
+        if (k && !byCode.has(k)) byCode.set(k, c);
+      }
+      const nk = nameKey(c.name);
+      if (nk && !byName.has(nk)) byName.set(nk, c);
+    }
+    return { byPhone, byCode, byName };
+  }, [existing]);
+
   // Turn rows into customers; count what is skipped and why.
   const result = useMemo(() => {
-    const known = new Set(existing.flatMap((c) => c.phones.map(normPhone)).filter(Boolean));
-    const knownIds = new Set(existing.flatMap((c) => [c.nationalCode, c.nationalId]).map((x) => normText(x)).filter(Boolean));
+    const known = index.byPhone;
+    const knownIds = index.byCode;
     const seen = new Set<string>();
     const seenAt = new Map<string, number>(); // number or code → the row of the file that had it first
     const dupList: { row: number; name: string; phones: string[]; matched: string }[] = [];
@@ -143,8 +165,7 @@ export const CustomerImportModal: React.FC<{
     const addrUpdates = new Map<string, { id: string; name: string; old: string; next: string; city?: string }>();
     // the same mobile, but the name in the file is another one than the name of the customer already in the system: the person is asked (nothing is made twice)
     const numberAdds: { row: number; id: string; name: string; fileName: string; phones: string[] }[] = [];
-    const byName = new Map<string, Customer>();
-    if (rules.sameName === 'ask') for (const c of existing) { const k = nameKey(c.name); if (k && !byName.has(k)) byName.set(k, c); }
+    const byName = index.byName;
     const fieldUpdates = new Map<string, { id: string; name: string; row: number; patch: Partial<Customer>; labels: string[] }>();
     const nameChanges = new Map<string, { id: string; row: number; old: string; next: string; first?: string; last?: string; phones: string[]; generic: boolean }>();
     let noName = 0;
@@ -244,7 +265,7 @@ export const CustomerImportModal: React.FC<{
       if (skipDup && ((phones.length && phones.some((p) => known.has(p) || seen.has(p))) || ids.some((x) => knownIds.has(x) || seen.has(x)) || srvHit)) {
         dup++;
         // who it matches: a customer already in the system (named when this person may see them), or an earlier row of the same file
-        const mine = existing.find((c) => c.phones.some((p) => phones.includes(normPhone(p))) || [c.nationalCode, c.nationalId].some((x) => x && ids.includes(normText(x))));
+        const mine = phones.map((p) => known.get(p)).find(Boolean) || ids.map((x) => knownIds.get(x)).find(Boolean);
         const earlier = [...phones, ...ids].map((k) => seenAt.get(k)).find((x) => x !== undefined);
         const matched = mine ? `${mine.name} (در هورمند)` : srvHit ? (srvHit.visible && srvHit.name ? `${srvHit.name} (در هورمند)` : 'مشتری همکار (در هورمند)') : earlier !== undefined ? `ردیف ${toPersianDigits(earlier)} همین فایل` : '';
         dupList.push({ row: rowNo, name, phones, matched });
@@ -278,7 +299,7 @@ export const CustomerImportModal: React.FC<{
       ok.push(applyFieldRules(build(newId), rules));
     }
     return { ok, okRow, noName, dup, noMobile, issues, dupList, addrUpdates: [...addrUpdates.values()], nameChanges: [...nameChanges.values()], fieldUpdates: [...fieldUpdates.values()], numberAdds };
-  }, [data, map, existing, status, rules, ownerId, ownerName, fields, serverDup]);
+  }, [data, map, existing, index, status, rules, ownerId, ownerName, fields, serverDup]);
 
   // a person added one by one is in the system now: the same row would show again as a duplicate of itself, so it is left out of every list
   const toAdd = result.ok.filter((c) => !skipRows.has(result.okRow.get(c.id) ?? -1));
@@ -293,6 +314,12 @@ export const CustomerImportModal: React.FC<{
   const pickedFields = result.fieldUpdates.filter((u) => fieldOn(u.id));
   const waiting = result.nameChanges.filter((n) => !later.has(n.id));
   const postponed = result.nameChanges.filter((n) => later.has(n.id));
+  const moreBtn = (k: string, total: number) =>
+    total > lim[k] ? (
+      <button type="button" onClick={() => setLim((l) => ({ ...l, [k]: l[k] + 100 }))} className="mt-1 w-full py-1.5 rounded-lg bg-white border border-[#EBDBCE] text-[10.5px] font-black text-[#3A241F] cursor-pointer" data-import-more={k}>
+        نمایش {toPersianDigits(Math.min(100, total - lim[k]))} مورد بیشتر ({toPersianDigits(total - lim[k])} مورد پنهان است)
+      </button>
+    ) : null;
   const nameOn = (n: { id: string; generic: boolean }) => nameSel[n.id] ?? n.generic;
   const pickedNames = waiting.filter(nameOn);
   const later1 = (id: string, on: boolean) => setLater((s0) => { const n = new Set(s0); if (on) n.add(id); else n.delete(id); return n; });
@@ -455,7 +482,7 @@ export const CustomerImportModal: React.FC<{
                     </tr>
                   </thead>
                   <tbody>
-                    {result.ok.slice(0, 300).map((c) => {
+                    {result.ok.slice(0, lim.new).map((c) => {
                       const row = rowOfNew(c);
                       const on = !skipRows.has(row);
                       return (
@@ -477,8 +504,8 @@ export const CustomerImportModal: React.FC<{
                         </tr>
                       );
                     })}
-                    {result.ok.length > 300 && (
-                      <tr><td colSpan={6} className="px-3 py-2 text-center text-[10.5px] font-bold text-[#8C6F66]">و {toPersianDigits(result.ok.length - 300)} نفر دیگر (با دکمهٔ پایین همه یک‌جا اضافه می‌شوند).</td></tr>
+                    {result.ok.length > lim.new && (
+                      <tr><td colSpan={6} className="px-3 py-2">{moreBtn('new', result.ok.length)}</td></tr>
                     )}
                     {result.ok.length === 0 && (
                       <tr>
@@ -500,14 +527,14 @@ export const CustomerImportModal: React.FC<{
                 <details className="rounded-2xl border border-violet-300 bg-violet-50/60 px-3 py-2" data-import-addr-updates open>
                   <summary className="cursor-pointer text-[11px] font-black text-violet-900">نشانی این مشتریان موجود طبق فایل عوض می‌شود ({toPersianDigits(result.addrUpdates.length)})</summary>
                   <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-violet-100 text-[11px]">
-                    {result.addrUpdates.slice(0, 200).map((u) => (
+                    {result.addrUpdates.slice(0, lim.addr).map((u) => (
                       <div key={u.id} className="py-1.5">
                         <span className="font-black text-[#3A241F]">{u.name}</span>
                         <span className="block text-[#8C6F66]">قبلی: {u.old ? toPersianDigits(u.old) : 'نشانی نداشت'}</span>
                         <span className="block text-violet-900 font-bold">طبق فایل: {toPersianDigits(u.next)}</span>
                       </div>
                     ))}
-                    {result.addrUpdates.length > 200 && <div className="py-1.5 font-bold text-[#8C6F66]">و {toPersianDigits(result.addrUpdates.length - 200)} مشتری دیگر.</div>}
+                    {moreBtn('addr', result.addrUpdates.length)}
                   </div>
                 </details>
               )}
@@ -520,7 +547,7 @@ export const CustomerImportModal: React.FC<{
                     <button type="button" onClick={() => setNumSel(Object.fromEntries(numPending.map((n) => [n.row, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-indigo-300 text-indigo-800 cursor-pointer">هیچ‌کدام</button>
                   </div>
                   <div className="mt-2 max-h-64 overflow-y-auto space-y-1.5">
-                    {numPending.slice(0, 300).map((n) => (
+                    {numPending.slice(0, lim.num).map((n) => (
                       <div key={n.row} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 ${numOn(n.row) ? 'bg-white border-indigo-400' : 'bg-white/60 border-indigo-100'}`} data-import-samename-row>
                         <input type="checkbox" aria-label="انتخاب" className="mt-1.5 w-4 h-4 accent-indigo-600 cursor-pointer" checked={numOn(n.row)} onChange={(e) => setNumSel((m) => ({ ...m, [n.row]: e.target.checked }))} />
                         <span className="flex-1 min-w-0 text-[11.5px] leading-6">
@@ -537,6 +564,7 @@ export const CustomerImportModal: React.FC<{
                         </span>
                       </div>
                     ))}
+                    {moreBtn('num', numPending.length)}
                   </div>
                 </div>
               )}
@@ -545,12 +573,13 @@ export const CustomerImportModal: React.FC<{
                   <div className="text-[12px] font-black text-teal-900">اطلاعات این مشتریان موجود طبق قانون «{rules.existing === 'fill' ? 'پر کردن جاهای خالی' : 'جایگزینی با فایل'}» عوض می‌شود ({toPersianDigits(result.fieldUpdates.length)})</div>
                   <p className="mt-1 text-[10.5px] font-bold text-teal-900/80 leading-5">هر نفر را که نمی‌خواهید، تیکش را بردارید؛ دست‌نخورده می‌ماند.</p>
                   <div className="mt-2 max-h-56 overflow-y-auto space-y-1.5">
-                    {result.fieldUpdates.slice(0, 300).map((u) => (
+                    {result.fieldUpdates.slice(0, lim.field).map((u) => (
                       <label key={u.id} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 cursor-pointer ${fieldOn(u.id) ? 'bg-white border-teal-400' : 'bg-white/60 border-teal-100'}`} data-import-field-row>
                         <input type="checkbox" className="mt-1.5 w-4 h-4 accent-teal-600" checked={fieldOn(u.id)} onChange={(e) => setFieldSel((m) => ({ ...m, [u.id]: e.target.checked }))} />
                         <span className="flex-1 min-w-0 text-[11.5px] leading-6"><span className="font-black text-[#3A241F]">{u.name}</span><span className="text-[#8C6F66] font-bold"> · {u.labels.join('، ')}</span><span className="block text-[10px] font-bold text-[#8C6F66]">ردیف {toPersianDigits(u.row)}</span></span>
                       </label>
                     ))}
+                    {moreBtn('field', result.fieldUpdates.length)}
                   </div>
                 </div>
               )}
@@ -563,7 +592,7 @@ export const CustomerImportModal: React.FC<{
                     <button type="button" onClick={() => setNameSel(Object.fromEntries(waiting.map((n) => [n.id, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">هیچ‌کدام</button>
                   </div>
                   <div className="mt-2 max-h-72 overflow-y-auto space-y-1.5">
-                    {waiting.slice(0, 300).map((n) => (
+                    {waiting.slice(0, lim.name).map((n) => (
                       <div key={n.id} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 ${nameOn(n) ? 'bg-white border-sky-400' : 'bg-white/60 border-sky-100'}`} data-import-name-row>
                         <input type="checkbox" aria-label="انتخاب" className="mt-1.5 w-4 h-4 accent-sky-600 cursor-pointer" checked={nameOn(n)} onChange={(e) => setNameSel((m) => ({ ...m, [n.id]: e.target.checked }))} />
                         <span className="flex-1 min-w-0 text-[11.5px] leading-6">
@@ -580,7 +609,7 @@ export const CustomerImportModal: React.FC<{
                         </span>
                       </div>
                     ))}
-                    {waiting.length > 300 && <div className="py-1 text-[10.5px] font-bold text-[#8C6F66]">و {toPersianDigits(waiting.length - 300)} نفر دیگر.</div>}
+                    {moreBtn('name', waiting.length)}
                     {waiting.length === 0 && <div className="py-2 text-center text-[11px] font-bold text-sky-800">همهٔ این افراد یا انجام شدند یا به بعد سپرده شدند.</div>}
                   </div>
                   {postponed.length > 0 && (
@@ -603,7 +632,7 @@ export const CustomerImportModal: React.FC<{
                   <summary className="cursor-pointer text-[11px] font-black text-amber-900">مشتریان تکراری؛ به هورمند فرستاده نمی‌شوند ({toPersianDigits(dupRows.length)})</summary>
                   <p className="mt-1 text-[10.5px] font-bold text-amber-900/80 leading-5">این افراد از قبل در هورمند (یا در همین فایل) هستند. هیچ‌چیز از آن‌ها وارد، عوض یا پاک نمی‌شود؛ تماس‌ها، یادداشت‌ها و فرصت‌های مشتریِ موجود همان‌طور که هست می‌ماند. فهرستشان فقط برای گزارش اینجاست.</p>
                   <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-amber-100 text-[11px]">
-                    {dupRows.slice(0, 300).map((d, k) => (
+                    {dupRows.slice(0, lim.dup).map((d, k) => (
                       <div key={k} className="py-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
                         <span className="shrink-0 font-black text-amber-800">ردیف {toPersianDigits(d.row)}</span>
                         <span className="font-black text-[#3A241F]">{d.name}</span>
@@ -611,6 +640,7 @@ export const CustomerImportModal: React.FC<{
                         {d.matched && <span className="text-[#6b5048]">← {d.matched}</span>}
                       </div>
                     ))}
+                    {moreBtn('dup', dupRows.length)}
                   </div>
                   <button type="button" onClick={() => downloadCsv('مشتریان-تکراری.csv', [['ردیف', 'نام', 'شماره‌ها', 'همان مشتری در هورمند'], ...dupRows.map((d) => [d.row, d.name, d.phones.join(' - '), d.matched])])} className="mt-2 flex items-center gap-1 text-[11px] font-black text-amber-900 cursor-pointer" data-import-dups-download>
                     <Download className="w-3.5 h-3.5" />
@@ -622,14 +652,14 @@ export const CustomerImportModal: React.FC<{
                 <details className="rounded-2xl border border-rose-200 bg-rose-50/50 px-3 py-2" data-import-issues open>
                   <summary className="cursor-pointer text-[11px] font-black text-rose-800">ردیف‌های ردشده و دلیل هر کدام ({toPersianDigits(issueRows.length)})</summary>
                   <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-rose-100 text-[11px]">
-                    {issueRows.slice(0, 300).map((i, k) => (
+                    {issueRows.slice(0, lim.issue).map((i, k) => (
                       <div key={k} className="py-1.5 flex gap-2">
                         <span className="shrink-0 font-black text-rose-700">ردیف {toPersianDigits(i.row)}</span>
                         <span className="shrink-0 font-bold text-[#3A241F] max-w-[40%] truncate">{i.what}</span>
                         <span className="text-[#6b5048]">{i.reason}</span>
                       </div>
                     ))}
-                    {issueRows.length > 300 && <div className="py-1.5 font-bold text-[#8C6F66]">و {toPersianDigits(issueRows.length - 300)} ردیف دیگر؛ فهرست کامل را دانلود کنید.</div>}
+                    {moreBtn('issue', issueRows.length)}
                   </div>
                   <button type="button" onClick={() => downloadCsv('ردیف‌های-ردشده.csv', [['ردیف', 'مشخصات', 'دلیل'], ...issueRows.map((i) => [i.row, i.what, i.reason])])} className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black border border-rose-300 bg-white text-rose-800 cursor-pointer">
                     <Download className="w-3.5 h-3.5" />
