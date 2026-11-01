@@ -1,4 +1,4 @@
-import { SepidarOfflineBanner } from '../components/sepidar/SepidarOfflineBanner';
+import { SepidarStatusChip } from '../components/sepidar/SepidarStatusChip';
 import { TwoFactorCard } from '../components/common/TwoFactorCard';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { DayNightToggle } from '../components/common/DayNightToggle';
@@ -826,7 +826,6 @@ export default function UserPanel() {
       dir="rtl"
     >
       <ReminderPopup />
-      <SepidarOfflineBanner />
       <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 h-full">
       {/* The window never scrolls: only this area does. On a computer the header and the main menu stay pinned at its top (the sub-menus of every
           page pin themselves right under them, see data-subtabs in index.css); on a phone the main menu is the bottom bar and the header scrolls away. */}
@@ -848,6 +847,7 @@ export default function UserPanel() {
                   <img src="/images/brand-name.png" alt="هورمند" className="brand-word h-6 sm:h-8 w-auto" draggable={false} />
                 </h1>
                 <VersionBadge className="text-[10px] font-bold text-[#8C6F66]" />
+                <SepidarStatusChip show={canAccessSepidarMenu} />
                 {canSignOfficial && (
                   <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 shadow-2xs shrink-0">
                     <Award className="w-3 h-3 text-amber-700" />

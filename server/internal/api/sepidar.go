@@ -111,6 +111,13 @@ func sepidarTop(me auth.User) bool {
 
 func sepidarAny(me auth.User) bool { return me.IsAdmin() || len(jsonx.Strings(me.M, "sepidarPerms")) > 0 }
 
+// sepidarConnectedSince: when the program's present unbroken connection began ("" when unknown).
+func sepidarConnectedSince(ctx context.Context) string {
+	var raw []byte
+	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarConnector'`).Scan(&raw)
+	return jsonx.Str(jsonx.Decode(raw), "since")
+}
+
 func sepidarConnectorSeen(ctx context.Context) (seen, version string) {
 	var raw []byte
 	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarConnector'`).Scan(&raw)
@@ -166,7 +173,7 @@ func sepidarConnected(w http.ResponseWriter, r *http.Request) {
 	if t, err := time.Parse("2006-01-02T15:04:05.000Z", seen); err == nil && time.Since(t) < 3*time.Minute {
 		alive = true
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"connected": sepidarEnabled(ctx), "choice": choice, "seen": seen != "", "alive": alive, "seenAt": seen})
+	httpx.JSON(w, http.StatusOK, map[string]any{"connected": sepidarEnabled(ctx), "choice": choice, "seen": seen != "", "alive": alive, "seenAt": seen, "since": sepidarConnectedSince(ctx)})
 }
 
 // sepidarChoice is what the manager picked in the console: «yes» (سپیدار دارم), «no» (سپیدار ندارم) or "" (not picked yet).
@@ -462,7 +469,15 @@ func sepidarJobCancel(w http.ResponseWriter, r *http.Request) {
 // ---------- the program on the accounting computer ----------
 
 func sepidarBeat(ctx context.Context, keyName string) {
-	d := jsonx.M{"lastSeenAt": now(), "name": keyName}
+	// "since": when the present unbroken connection began (a silence of more than 3 minutes starts a new one); the page says how long it has been connected
+	var raw []byte
+	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarConnector'`).Scan(&raw)
+	prev := jsonx.Decode(raw)
+	since := jsonx.Str(prev, "since")
+	if t, err := time.Parse("2006-01-02T15:04:05.000Z", jsonx.Str(prev, "lastSeenAt")); err != nil || time.Since(t) > 3*time.Minute || since == "" {
+		since = now()
+	}
+	d := jsonx.M{"lastSeenAt": now(), "name": keyName, "since": since}
 	_, _ = store.Pool.Exec(ctx, `INSERT INTO settings (key, data) VALUES ('sepidarConnector', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`, jsonx.Encode(d))
 }
 
