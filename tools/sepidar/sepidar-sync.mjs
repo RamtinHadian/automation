@@ -1259,9 +1259,19 @@ async function main() {
           }
         }
         if (Date.now() >= nextFull) {
-          await cmdSync(cfg);
-          await cmdCache(cfg);
+          // the next full round is fixed first: when this one fails (Sepidar refuses, is switched off...) it waits the same time instead of
+          // trying again every 15 seconds, and - most important - a failed round never stops the program from taking Hoormand's requests below
           nextFull = Date.now() + Math.max(5, Number(cfg.sync.intervalMinutes) || 10) * 60000;
+          try {
+            await cmdSync(cfg);
+            await cmdCache(cfg);
+          } catch (e) {
+            log('همگام‌سازی کامل انجام نشد:', e.message);
+            if (/دستگاه غیر فعال|دستگاه نامعتبر|کد دستگاه/.test(String(e.message))) {
+              log('  راه‌حل: در سپیدار (برنامه در حالت سرویس‌دهنده روشن باشد) از «سفارش‌گیری و پخش» ← «دستگاه‌ها» ببینید دستگاه هورمند فعال است و کاربر دارد.');
+              log('  اگر دستگاه حذف شده بود، دستگاه تازه بسازید، سریال تازه را در config.json بنویسید و ثبت دستگاه را دوباره اجرا کنید.');
+            }
+          }
         }
         await cmdJobs(cfg);
       } catch (e) {
