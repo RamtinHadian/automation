@@ -172,6 +172,25 @@ export function cityRefFor(divs, province, city) {
   return (inProvince || pool[0]).DivisionID;
 }
 
+/**
+ * The city field of the customer is empty: the city is looked for in the written address (a city of Sepidar's list that stands there as a whole word).
+ * Only a clear, single answer is used (two different cities in the text = no guess); returns the title of the city or "".
+ */
+export function guessCityFromText(divs, text) {
+  const t = ' ' + faNorm(text).replace(/[،,.\-–:؛()\/\\]+/g, ' ').replace(/\s+/g, ' ') + ' ';
+  if (!Array.isArray(divs) || divs.length === 0 || t.trim().length < 3) return '';
+  const titles = new Set();
+  for (const d of divs) {
+    if (d.ParentDivisionRef == null) continue; // provinces are not cities
+    const name = faNorm(d.Title);
+    if (name.length >= 3 && t.includes(' ' + name + ' ')) titles.add(name);
+  }
+  // a short name inside a longer one that is also there («کاشان» inside «نوش‌آباد کاشان»...) counts once: keep only the names that no other found name contains
+  const all = [...titles];
+  const own = all.filter((n) => !all.some((m) => m !== n && m.includes(n)));
+  return own.length === 1 ? own[0] : '';
+}
+
 /** The street part of the address: Sepidar has the province and the city in CityRef, so they are not written again at the start of the text. */
 export function addressText(c) {
   const full = String(c.address || '').trim();
@@ -189,12 +208,17 @@ export function addressFor(c, divs) {
   const text = addressText(c);
   const zip = toLatin(c.postalCode || '').replace(/\D/g, '');
   if (!text && !zip) return null;
-  const cityRef = cityRefFor(divs, c.province, c.city);
+  let guess = '';
+  let cityRef = cityRefFor(divs, c.province, c.city);
+  if (cityRef == null && !c.city) {
+    guess = guessCityFromText(divs, c.address || '');
+    if (guess) cityRef = cityRefFor(divs, c.province, guess);
+  }
   if (cityRef == null) {
-    const why = !c.city ? 'شهر مشتری در هورمند نوشته نشده' : !divs || divs.length === 0 ? 'فهرست شهرهای سپیدار خوانده نشد' : `شهر «${c.city}» در فهرست مناطق سپیدار پیدا نشد`;
+    const why = !c.city ? 'شهر مشتری در هورمند نوشته نشده و در متن نشانی هم نام یک شهر روشن پیدا نشد؛ شهر را در فرم مشتری بنویسید' : !divs || divs.length === 0 ? 'فهرست شهرهای سپیدار خوانده نشد' : `شهر «${c.city}» در فهرست مناطق سپیدار پیدا نشد`;
     return { note: `نشانی فرستاده نشد (${why}).` };
   }
-  return { address: { Title: 'نشانی اصلی', IsMain: true, CityRef: cityRef, Address: text, ZipCode: zip, Latitude: 0, Longitude: 0, GUID: guidFrom('address:' + c.id) } };
+  return { address: { Title: 'نشانی اصلی', IsMain: true, CityRef: cityRef, Address: text, ZipCode: zip, Latitude: 0, Longitude: 0, GUID: guidFrom('address:' + c.id) }, guess };
 }
 
 export function customerBody(c, divs = []) {
@@ -779,7 +803,7 @@ export const jobHandlers = {
       if (!body.Name) throw new Error('مشتری نام ندارد.');
       const r = await createCustomer(sp, body);
       state.customers[c.id] = r.CustomerID;
-      return { sepidarId: r.CustomerID, message: 'مشتری در سپیدار ثبت شد.' + (addr?.note ? ' ' + addr.note : addr?.address ? ' نشانی هم ثبت شد.' : '') + phoneNote };
+      return { sepidarId: r.CustomerID, message: 'مشتری در سپیدار ثبت شد.' + (addr?.note ? ' ' + addr.note : addr?.address ? ' نشانی هم ثبت شد.' + (addr.guess ? ` (شهر «${addr.guess}» از متن نشانی تشخیص داده شد؛ بهتر است در هورمند هم نوشته شود)` : '') : '') + phoneNote };
     }
     state.customers[c.id] = found.CustomerID;
     const cur = await sp.get('/api/Customers/' + found.CustomerID);
@@ -816,7 +840,7 @@ export const jobHandlers = {
         const notes = [];
         if (body.Name && !t.names) notes.push('نام در سپیدار بروز نشد (سپیدار ویرایش نام را نپذیرفت)');
         if (haveAddr && !t.adr) notes.push(`نشانی در سپیدار بروز نشد: ${firstErr?.message || ''}`);
-        return { sepidarId: found.CustomerID, message: (viaMobile ? 'این شخص با همین شمارهٔ موبایل (یا کد ملی) از قبل در سپیدار بود؛ مشتری تازه‌ای ساخته نشد و همان بروزرسانی شد. ' : '') + 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') + phoneNote };
+        return { sepidarId: found.CustomerID, message: (viaMobile ? 'این شخص با همین شمارهٔ موبایل (یا کد ملی) از قبل در سپیدار بود؛ مشتری تازه‌ای ساخته نشد و همان بروزرسانی شد. ' : '') + 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') + (haveAddr && addr.guess ? ` (شهر «${addr.guess}» از متن نشانی تشخیص داده شد؛ بهتر است در هورمند هم نوشته شود)` : '') + phoneNote };
       } catch (e) {
         if (e && (e.status === 403 || e.status === 401)) throw e; // no right: nothing else would work either
         firstErr ||= e;

@@ -182,6 +182,15 @@ ok(cc.CustomerType === 2 && cc.Name === 'شرکت نمونه' && cc.LastName ===
   const a1 = customerBody(customers[0], divs).Addresses[0];
   ok(a1 && a1.CityRef === 5 && a1.IsMain === true && a1.ZipCode === '8181818181' && a1.Address === 'خیابان چهارباغ، پلاک ۱۲', 'address: city of the province (not the province itself), province/city cut from the front, Latin zip code');
   ok(cityRefFor(divs, 'فارس', 'شیراز') === 2 && cityRefFor(divs, 'اصفهان', 'شیراز') === 6, 'address: the same city name under two provinces is told apart by the province');
+  { // the city field is empty: it is found in the address text when that gives one clear answer
+    const noCity = { ...customers[0], city: '', province: '', address: 'اصفهان، خیابان چهارباغ، پلاک ۱۲' };
+    const g = addressFor(noCity, divs);
+    ok(g?.address?.CityRef === 5 && g.guess === 'اصفهان', 'address: an empty city field is taken from the address text when one city stands there');
+    const two = addressFor({ ...customers[0], city: '', province: '', address: 'شیراز، خیابان اصفهان' }, divs);
+    ok(!two.address && /نوشته نشده/.test(two.note || ''), 'address: two different cities in the text = no guess, the reason is told');
+    const none = addressFor({ ...customers[0], city: '', province: '', address: 'خیابان آزادی، پلاک ۴' }, divs);
+    ok(!none.address, 'address: no city in the text = no address');
+  }
   ok(cityRefFor(divs, '', 'ي كاشان') === null && cityRefFor(divs, 'فارس', 'اصفهان') === 5, 'address: unknown city gives nothing; a city of another province is still found when it is the only one of that name');
   ok(customerBody(customers[0], []).Addresses.length === 0 && addressFor(customers[0], []).note.includes('خوانده نشد'), 'address: no list of cities from Sepidar = no address and the reason is told');
 }
