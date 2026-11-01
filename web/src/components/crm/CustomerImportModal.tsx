@@ -32,9 +32,11 @@ export const CustomerImportModal: React.FC<{
   onAddOne?: (c: Customer) => void;
   /** the numbers of one row added to the person of the same name at once, the window stays open */
   onAddNumber?: (id: string, phones: string[]) => void;
+  /** the ticked people of ONE box taken into the system at once (the same work as «افزودن» below, for that box only); the window stays open */
+  onApplyPart?: (list: Customer[], addressUpdates: { id: string; address: string; city?: string }[], nameUpdates: { id: string; name: string; firstName?: string; lastName?: string }[], fieldUpdates: { id: string; patch: Partial<Customer> }[], numberAdds: { id: string; phones: string[] }[]) => void;
   onApplyName?: (u: { id: string; name: string; firstName?: string; lastName?: string }) => void;
   onImport: (customers: Customer[], addressUpdates?: { id: string; address: string; city?: string }[], nameUpdates?: { id: string; name: string; firstName?: string; lastName?: string }[], fieldUpdates?: { id: string; patch: Partial<Customer> }[], numberAdds?: { id: string; phones: string[] }[]) => void;
-}> = ({ existing, ownerId, ownerName, onClose, onImport, onApplyName, onAddOne, onAddNumber }) => {
+}> = ({ existing, ownerId, ownerName, onClose, onImport, onApplyName, onAddOne, onAddNumber, onApplyPart }) => {
   const [rows, setRows] = useState<string[][] | null>(null);
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
@@ -55,6 +57,8 @@ export const CustomerImportModal: React.FC<{
   const setSyncAddr = (v: boolean) => setRules((r0) => ({ ...r0, syncAddr: v }));
   const [fieldSel, setFieldSel] = useState<Record<string, boolean>>({});
   const [numSel, setNumSel] = useState<Record<number, boolean>>({}); // by the row of the file: add this number to the person of the same name
+  const [sect, setSect] = useState({ new: true, addr: true, names: true, fields: true, numbers: true }); // which boxes the button below takes into the system
+  const [addrSel, setAddrSel] = useState<Record<string, boolean>>({}); // the address updates: all ticked from the start
   const [numGone, setNumGone] = useState<Set<number>>(new Set()); // rows done or dropped («بیخیال»)
   const [lim, setLim] = useState<Record<string, number>>({ new: 50, addr: 50, num: 50, field: 50, name: 50, dup: 50, issue: 50 });
   const [rulesMode, setRulesMode] = useState<null | 'confirm' | 'edit'>(null); // the page with every rule; it comes first after «افزودن», the numbers are asked once more after it
@@ -310,8 +314,26 @@ export const CustomerImportModal: React.FC<{
   const numPending = result.numberAdds.filter((n) => !numGone.has(n.row));
   const numOn = (row: number) => numSel[row] ?? false; // not ticked from the start: a namesake is a guess, the person decides
   const pickedNumbers = numPending.filter((n) => numOn(n.row));
+  const addrOn = (id: string) => addrSel[id] ?? true;
+  const pickedAddr = result.addrUpdates.filter((u) => addrOn(u.id));
+  const addrPart = pickedAddr.map((u) => ({ id: u.id, address: u.next, city: u.city }));
+  const namePart = (list: typeof pickedNames) => list.map((n) => ({ id: n.id, name: n.next, firstName: n.first, lastName: n.last }));
+  // the button on top of every box: all that is ticked in THAT box goes into the system now (one question first); what was taken disappears from the lists
+  const applyPart = async (title: string, count: number, part: Parameters<NonNullable<typeof onApplyPart>>, after?: () => void) => {
+    if (!count || !onApplyPart) return;
+    const ok = await askConfirm(`${title}: ${toPersianDigits(count)} مورد همین حالا در هورمند اعمال می‌شود. این کار با یک کلیک برگردانده نمی‌شود. ادامه می‌دهید؟`, { tone: 'warning', title: 'تأیید اعمال این بخش', confirmText: 'بله، اعمال شود', cancelText: 'نه' });
+    if (!ok) return;
+    onApplyPart(...part);
+    after?.();
+  };
+  const partBtn = (label: string, count: number, onClick: () => void, tone: string, attr: string) => (
+    <button type="button" disabled={count === 0 || !onApplyPart} onClick={onClick} className={`px-3 py-1.5 rounded-lg text-[11px] font-black text-white disabled:opacity-40 cursor-pointer ${tone}`} {...{ [attr]: true }}>
+      {label} ({toPersianDigits(count)})
+    </button>
+  );
   const fieldOn = (id: string) => fieldSel[id] ?? true;
   const pickedFields = result.fieldUpdates.filter((u) => fieldOn(u.id));
+
   const waiting = result.nameChanges.filter((n) => !later.has(n.id));
   const postponed = result.nameChanges.filter((n) => later.has(n.id));
   const moreBtn = (k: string, total: number) =>
@@ -322,6 +344,12 @@ export const CustomerImportModal: React.FC<{
     ) : null;
   const nameOn = (n: { id: string; generic: boolean }) => nameSel[n.id] ?? n.generic;
   const pickedNames = waiting.filter(nameOn);
+  const finalAdd = sect.new ? toAdd : [];
+  const finalAddr = sect.addr ? pickedAddr : [];
+  const finalNames = sect.names ? pickedNames : [];
+  const finalFields = sect.fields ? pickedFields : [];
+  const finalNumbers = sect.numbers ? pickedNumbers : [];
+  const finalAddrPart = finalAddr.map((u) => ({ id: u.id, address: u.next, city: u.city }));
   const later1 = (id: string, on: boolean) => setLater((s0) => { const n = new Set(s0); if (on) n.add(id); else n.delete(id); return n; });
 
   const download = () => {
@@ -470,6 +498,10 @@ export const CustomerImportModal: React.FC<{
                 <input type="checkbox" checked={syncAddr} onChange={(e) => setSyncAddr(e.target.checked)} />
                 نشانی مشتریانی که از قبل در سامانه هستند هم عیناً طبق فایل (سپیدار) به‌روز شود؛ فقط نشانی عوض می‌شود، بقیهٔ اطلاعات و سابقه دست‌نخورده می‌ماند
               </label>
+              <div className="flex flex-wrap items-center justify-between gap-2" data-import-new-bar>
+                <span className="text-[11.5px] font-black text-[#3A241F]">افراد تازه: {toPersianDigits(toAdd.length)} تیک‌خورده از {toPersianDigits(result.ok.length)}</span>
+                {partBtn('افزودن تیک‌خورده‌ها', toAdd.length, () => applyPart('افزودن مشتری تازه', toAdd.length, [toAdd, [], [], [], []], () => setAddedRows((s0) => new Set([...s0, ...toAdd.map((c) => result.okRow.get(c.id) ?? -1)]))), 'bg-violet-600 hover:bg-violet-700', 'data-apply-new')}
+              </div>
               <div className="rounded-2xl border border-[#EBDBCE] overflow-auto max-h-72" data-import-new>
                 <table className="w-full text-[11px]">
                   <thead className="bg-[#FAF5F1] text-[#8C6F66]">
@@ -526,13 +558,21 @@ export const CustomerImportModal: React.FC<{
               {result.addrUpdates.length > 0 && (
                 <details className="rounded-2xl border border-violet-300 bg-violet-50/60 px-3 py-2" data-import-addr-updates open>
                   <summary className="cursor-pointer text-[11px] font-black text-violet-900">نشانی این مشتریان موجود طبق فایل عوض می‌شود ({toPersianDigits(result.addrUpdates.length)})</summary>
+                  <div className="mt-2 flex flex-wrap gap-2 items-center">
+                    {partBtn('عوض‌کردن نشانی تیک‌خورده‌ها', pickedAddr.length, () => applyPart('عوض‌کردن نشانی', pickedAddr.length, [[], addrPart, [], [], []]), 'bg-violet-600 hover:bg-violet-700', 'data-apply-addr')}
+                    <button type="button" onClick={() => setAddrSel(Object.fromEntries(result.addrUpdates.map((u) => [u.id, true])))} className="px-2.5 py-1 rounded-lg bg-white border border-violet-300 text-violet-800 text-[10.5px] font-black cursor-pointer">همه را انتخاب کن</button>
+                    <button type="button" onClick={() => setAddrSel(Object.fromEntries(result.addrUpdates.map((u) => [u.id, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-violet-300 text-violet-800 text-[10.5px] font-black cursor-pointer">هیچ‌کدام</button>
+                  </div>
                   <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-violet-100 text-[11px]">
                     {result.addrUpdates.slice(0, lim.addr).map((u) => (
-                      <div key={u.id} className="py-1.5">
+                      <label key={u.id} className="py-1.5 flex items-start gap-2.5 cursor-pointer" data-import-addr-row>
+                        <input type="checkbox" className="mt-1 w-4 h-4 accent-violet-600" checked={addrOn(u.id)} onChange={(e) => setAddrSel((m) => ({ ...m, [u.id]: e.target.checked }))} />
+                        <span className="flex-1 min-w-0">
                         <span className="font-black text-[#3A241F]">{u.name}</span>
                         <span className="block text-[#8C6F66]">قبلی: {u.old ? toPersianDigits(u.old) : 'نشانی نداشت'}</span>
                         <span className="block text-violet-900 font-bold">طبق فایل: {toPersianDigits(u.next)}</span>
-                      </div>
+                        </span>
+                      </label>
                     ))}
                     {moreBtn('addr', result.addrUpdates.length)}
                   </div>
@@ -545,6 +585,7 @@ export const CustomerImportModal: React.FC<{
                   <div className="mt-2 flex gap-2 text-[10.5px] font-black">
                     <button type="button" onClick={() => setNumSel(Object.fromEntries(numPending.map((n) => [n.row, true])))} className="px-2.5 py-1 rounded-lg bg-white border border-indigo-300 text-indigo-800 cursor-pointer">همه را انتخاب کن</button>
                     <button type="button" onClick={() => setNumSel(Object.fromEntries(numPending.map((n) => [n.row, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-indigo-300 text-indigo-800 cursor-pointer">هیچ‌کدام</button>
+                    {partBtn('اضافه‌کردن شمارهٔ تیک‌خورده‌ها', pickedNumbers.length, () => applyPart('اضافه‌کردن شماره به هم‌نام‌ها', pickedNumbers.length, [[], [], [], [], pickedNumbers.map((n) => ({ id: n.id, phones: n.phones }))], () => { setNumGone((g) => new Set([...g, ...pickedNumbers.map((n) => n.row)])); setAddedRows((s0) => new Set([...s0, ...pickedNumbers.map((n) => n.row)])); }), 'bg-indigo-600 hover:bg-indigo-700', 'data-apply-numbers')}
                   </div>
                   <div className="mt-2 max-h-64 overflow-y-auto space-y-1.5">
                     {numPending.slice(0, lim.num).map((n) => (
@@ -572,6 +613,11 @@ export const CustomerImportModal: React.FC<{
                 <div className="rounded-2xl border-2 border-teal-300 bg-teal-50/70 px-3 py-2.5" data-import-fields>
                   <div className="text-[12px] font-black text-teal-900">اطلاعات این مشتریان موجود طبق قانون «{rules.existing === 'fill' ? 'پر کردن جاهای خالی' : 'جایگزینی با فایل'}» عوض می‌شود ({toPersianDigits(result.fieldUpdates.length)})</div>
                   <p className="mt-1 text-[10.5px] font-bold text-teal-900/80 leading-5">هر نفر را که نمی‌خواهید، تیکش را بردارید؛ دست‌نخورده می‌ماند.</p>
+                  <div className="mt-2 flex flex-wrap gap-2 items-center">
+                    {partBtn('تکمیل اطلاعات تیک‌خورده‌ها', pickedFields.length, () => applyPart('تکمیل اطلاعات مشتریان', pickedFields.length, [[], [], [], pickedFields.map((u) => ({ id: u.id, patch: u.patch })), []]), 'bg-teal-600 hover:bg-teal-700', 'data-apply-fields')}
+                    <button type="button" onClick={() => setFieldSel(Object.fromEntries(result.fieldUpdates.map((u) => [u.id, true])))} className="px-2.5 py-1 rounded-lg bg-white border border-teal-300 text-teal-800 text-[10.5px] font-black cursor-pointer">همه را انتخاب کن</button>
+                    <button type="button" onClick={() => setFieldSel(Object.fromEntries(result.fieldUpdates.map((u) => [u.id, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-teal-300 text-teal-800 text-[10.5px] font-black cursor-pointer">هیچ‌کدام</button>
+                  </div>
                   <div className="mt-2 max-h-56 overflow-y-auto space-y-1.5">
                     {result.fieldUpdates.slice(0, lim.field).map((u) => (
                       <label key={u.id} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 cursor-pointer ${fieldOn(u.id) ? 'bg-white border-teal-400' : 'bg-white/60 border-teal-100'}`} data-import-field-row>
@@ -590,6 +636,7 @@ export const CustomerImportModal: React.FC<{
                   <div className="mt-2 flex gap-2 text-[10.5px] font-black">
                     <button type="button" onClick={() => setNameSel(Object.fromEntries(waiting.map((n) => [n.id, true])))} className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">همه را انتخاب کن</button>
                     <button type="button" onClick={() => setNameSel(Object.fromEntries(waiting.map((n) => [n.id, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">هیچ‌کدام</button>
+                    {partBtn('عوض‌کردن نام تیک‌خورده‌ها', pickedNames.length, () => applyPart('عوض‌کردن نام', pickedNames.length, [[], [], namePart(pickedNames), [], []]), 'bg-sky-600 hover:bg-sky-700', 'data-apply-names')}
                   </div>
                   <div className="mt-2 max-h-72 overflow-y-auto space-y-1.5">
                     {waiting.slice(0, lim.name).map((n) => (
@@ -671,18 +718,35 @@ export const CustomerImportModal: React.FC<{
           )}
         </div>
 
+        {rows && (
+          <div className="flex flex-wrap items-center gap-1.5 px-5 pt-3 border-t border-[#EBDBCE]" data-import-sections>
+            <span className="text-[10.5px] font-black text-[#8C6F66]">دکمهٔ پایین فقط این بخش‌ها را (با تیک‌خورده‌هایشان) اعمال کند:</span>
+            {([
+              ['new', 'افراد تازه', toAdd.length, 'violet'],
+              ['addr', 'نشانی', pickedAddr.length, 'emerald'],
+              ['names', 'نام', pickedNames.length, 'sky'],
+              ['fields', 'تکمیل اطلاعات', pickedFields.length, 'teal'],
+              ['numbers', 'شمارهٔ هم‌نام', pickedNumbers.length, 'indigo'],
+            ] as const).filter(([, , n]) => n > 0).map(([k, label, n, tone]) => (
+              <label key={k} className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10.5px] font-black cursor-pointer ${sect[k] ? `bg-${tone}-100 border-${tone}-400 text-${tone}-900` : 'bg-white border-[#EBDBCE] text-[#8C6F66]'}`} data-import-section={k}>
+                <input type="checkbox" className="w-3.5 h-3.5" checked={sect[k]} onChange={(e) => setSect((x) => ({ ...x, [k]: e.target.checked }))} />
+                {label} ({toPersianDigits(n)})
+              </label>
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[#EBDBCE]">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">
             انصراف
           </button>
           <button
             type="button"
-            disabled={!rows || (toAdd.length === 0 && result.addrUpdates.length === 0 && pickedNames.length === 0 && pickedFields.length === 0 && pickedNumbers.length === 0)}
+            disabled={!rows || (finalAdd.length === 0 && finalAddr.length === 0 && finalNames.length === 0 && finalFields.length === 0 && finalNumbers.length === 0)}
             onClick={() => setRulesMode('confirm')}
             data-import-final
             className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
           >
-            {rows ? `افزودن ${toPersianDigits(toAdd.length)} مشتری${result.addrUpdates.length ? ` و به‌روزکردن نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری` : ''}${pickedNames.length ? ` و عوض‌کردن نام ${toPersianDigits(pickedNames.length)} مشتری` : ''}${pickedFields.length ? ` و تکمیل اطلاعات ${toPersianDigits(pickedFields.length)} مشتری` : ''}${pickedNumbers.length ? ` و افزودن شماره به ${toPersianDigits(pickedNumbers.length)} نفر` : ''}` : 'افزودن'}
+            {rows ? `افزودن ${toPersianDigits(finalAdd.length)} مشتری${finalAddr.length ? ` و به‌روزکردن نشانی ${toPersianDigits(finalAddr.length)} مشتری` : ''}${finalNames.length ? ` و عوض‌کردن نام ${toPersianDigits(finalNames.length)} مشتری` : ''}${finalFields.length ? ` و تکمیل اطلاعات ${toPersianDigits(finalFields.length)} مشتری` : ''}${finalNumbers.length ? ` و افزودن شماره به ${toPersianDigits(finalNumbers.length)} نفر` : ''}` : 'افزودن'}
           </button>
         </div>
       </div>
@@ -691,24 +755,24 @@ export const CustomerImportModal: React.FC<{
           mode={rulesMode}
           rules={rules}
           onChange={setRules}
-          summary={{ add: toAdd.length, renames: pickedNames.length, addrUpdates: result.addrUpdates.length, fieldUpdates: pickedFields.length, duplicates: dupRows.length, rejected: issueRows.length, numberAdds: pickedNumbers.length, mobileMust, sepidarOn: !!connected }}
+          summary={{ add: finalAdd.length, renames: finalNames.length, addrUpdates: finalAddr.length, fieldUpdates: finalFields.length, duplicates: dupRows.length, rejected: issueRows.length, numberAdds: finalNumbers.length, mobileMust, sepidarOn: !!connected }}
           canSave={ctx.currentUser.role === 'SUPER_ADMIN'}
           onSave={() => { ctx.setSettings((s0) => ({ ...s0, importRules: rules })); ctx.showToast('قوانین ورود به‌عنوان قانون سازمان ذخیره شد.'); }}
           onCancel={() => setRulesMode(null)}
           onContinue={async () => {
             // the second question: the exact work, once more, in plain words
             const lines = [
-              `${toPersianDigits(toAdd.length)} مشتری تازه اضافه می‌شود`,
-              pickedFields.length ? `اطلاعات ${toPersianDigits(pickedFields.length)} مشتری موجود ${rules.existing === 'fill' ? 'تکمیل' : 'عوض'} می‌شود` : '',
-              pickedNames.length ? `نام ${toPersianDigits(pickedNames.length)} مشتری موجود عوض می‌شود` : '',
-              pickedNumbers.length ? `شمارهٔ ${toPersianDigits(pickedNumbers.length)} نفر به همنام‌شان در هورمند افزوده می‌شود` : '',
-              result.addrUpdates.length ? `نشانی ${toPersianDigits(result.addrUpdates.length)} مشتری موجود به‌روز می‌شود` : '',
+              `${toPersianDigits(finalAdd.length)} مشتری تازه اضافه می‌شود`,
+              finalFields.length ? `اطلاعات ${toPersianDigits(finalFields.length)} مشتری موجود ${rules.existing === 'fill' ? 'تکمیل' : 'عوض'} می‌شود` : '',
+              finalNames.length ? `نام ${toPersianDigits(finalNames.length)} مشتری موجود عوض می‌شود` : '',
+              finalNumbers.length ? `شمارهٔ ${toPersianDigits(finalNumbers.length)} نفر به همنام‌شان در هورمند افزوده می‌شود` : '',
+              finalAddr.length ? `نشانی ${toPersianDigits(finalAddr.length)} مشتری موجود به‌روز می‌شود` : '',
               dupRows.length ? `${toPersianDigits(dupRows.length)} ردیف تکراری وارد نمی‌شود` : '',
             ].filter(Boolean);
             const ok = await askConfirm(`${lines.join('، ')}.\nاین کار با یک کلیک برگردانده نمی‌شود. مطمئن هستید که انجام شود؟`, { tone: 'warning', title: 'تأیید نهایی ورود', confirmText: 'بله، انجام شود', cancelText: 'نه، برگرد' });
             if (!ok) return;
             setRulesMode(null);
-            onImport(toAdd, result.addrUpdates.map((u) => ({ id: u.id, address: u.next, city: u.city })), pickedNames.map((n) => ({ id: n.id, name: n.next, firstName: n.first, lastName: n.last })), pickedFields.map((u) => ({ id: u.id, patch: u.patch })), pickedNumbers.map((n) => ({ id: n.id, phones: n.phones })));
+            onImport(finalAdd, finalAddrPart, namePart(finalNames), finalFields.map((u) => ({ id: u.id, patch: u.patch })), finalNumbers.map((n) => ({ id: n.id, phones: n.phones })));
             onClose();
           }}
         />
