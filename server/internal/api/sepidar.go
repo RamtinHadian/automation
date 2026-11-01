@@ -461,7 +461,8 @@ func sepidarBeat(ctx context.Context, keyName string) {
 	_, _ = store.Pool.Exec(ctx, `INSERT INTO settings (key, data) VALUES ('sepidarConnector', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`, jsonx.Encode(d))
 }
 
-// GET /api/ext/v1/sepidar/jobs: the waiting jobs (they become «running»); a call also tells Hoormand that the program is alive.
+// GET /api/ext/v1/sepidar/jobs: the waiting jobs (they become «running»). Only this call tells Hoormand that the program is alive ("connected" on the page): the other calls
+// (looking for a new version, sending copies of Sepidar's data) say nothing about whether the requests of Hoormand's people are being taken.
 func extSepidarJobs(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
 	ctx := r.Context()
 	sepidarBeat(ctx, k.Name)
@@ -571,7 +572,6 @@ func sepidarToolDir() string {
 
 // GET /api/ext/v1/sepidar/tool: {version, files:[{name, sha256, size}]}; version is a short hash of all the files
 func extSepidarTool(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
-	sepidarBeat(r.Context(), k.Name)
 	files := []jsonx.M{}
 	all := sha256.New()
 	for _, name := range sepidarToolFiles {
@@ -872,7 +872,6 @@ func extSepidarPush(w http.ResponseWriter, r *http.Request, k extKey, user auth.
 		return
 	}
 	ctx := r.Context()
-	sepidarBeat(ctx, k.Name)
 	if name := jsonx.Str(body, "cache"); name != "" {
 		if !sepidarCaches[name] {
 			httpx.Error(w, http.StatusBadRequest, "نوع اطلاعات نامعتبر است.")
