@@ -30,6 +30,25 @@ const flag = (name) => {
 const cfgPath = flag('--config') || path.join(dir, 'config.json');
 const statePath = flag('--state') || path.join(dir, 'state.json');
 
+// In the automatic mode the program writes its own report to sepidar-log.txt (opened and closed for every line, so it can be renamed): at 1 MB the file
+// becomes sepidar-log-old.txt and a new one starts, so the two together never pass 2 MB. Nothing more goes to the screen / to sepidar.log, which the
+// start-up script keeps open and which therefore cannot be shortened from inside (it used to grow by many MB a day).
+function startFileLog() {
+  const file = path.join(dir, 'sepidar-log.txt');
+  const old = path.join(dir, 'sepidar-log-old.txt');
+  const toScreen = console.log.bind(console);
+  const write = (a) => {
+    try {
+      if (fs.existsSync(file) && fs.statSync(file).size > 1024 * 1024) fs.renameSync(file, old);
+      const t = new Date();
+      const stamp = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`;
+      fs.appendFileSync(file, `${stamp}  ${a.map((x) => (typeof x === 'string' ? x : String(x))).join(' ')}\n`);
+    } catch {
+      toScreen(...a);
+    }
+  };
+  console.log = (...a) => write(a);
+}
 const recentLog = [];
 const log = (...a) => {
   console.log(...a);
@@ -1157,7 +1176,7 @@ async function cmdSetup() {
         try {
           execFileSync('schtasks', ['/Create', '/TN', 'HoormandSepidar', '/SC', 'ONLOGON', '/RL', 'LIMITED', '/F', '/TR', `wscript.exe "${vbs}"`], { stdio: 'pipe' });
           spawn('wscript.exe', [vbs], { detached: true, stdio: 'ignore' }).unref();
-          log('اجرای خودکار فعال شد و همین الان هم شروع به کار کرد (بی‌صدا، در پس‌زمینه). گزارش کارها در فایل sepidar.log است.');
+          log('اجرای خودکار فعال شد و همین الان هم شروع به کار کرد (بی‌صدا، در پس‌زمینه). گزارش کارها در فایل sepidar-log.txt است (حجمش خودکار کم می‌ماند).');
         } catch (e) {
           log(`ساخت اجرای خودکار نشد (${String(e.message).slice(0, 120)}). فایل «۵-اجرای-خودکار» را باز بگذارید.`);
         }
@@ -1206,6 +1225,7 @@ async function main() {
   if (cmd === 'cache') return cmdCache(cfg);
   if (cmd === 'watch') {
     // requests from Hoormand's people are looked at every few seconds; the full synchronisation runs every intervalMinutes
+    startFileLog();
     let nextFull = 0;
     let nextUpdate = 0;
     let lastJobs = 0;
@@ -1241,7 +1261,7 @@ async function main() {
         if (Date.now() >= nextFull) {
           await cmdSync(cfg);
           await cmdCache(cfg);
-          nextFull = Date.now() + cfg.sync.intervalMinutes * 60000;
+          nextFull = Date.now() + Math.max(5, Number(cfg.sync.intervalMinutes) || 10) * 60000;
         }
         await cmdJobs(cfg);
       } catch (e) {
