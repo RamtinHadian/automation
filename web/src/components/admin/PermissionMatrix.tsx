@@ -8,6 +8,7 @@ import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { api, WhState } from '../../lib/api';
+import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
 import { matchesAll } from '../../lib/searchAll';
 
 const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'مدیر ارشد', DEPT_ADMIN: 'مدیر واحد', STAFF: 'کارمند' };
@@ -300,6 +301,7 @@ const WhDialog: React.FC<{ u: User; tab0?: 'wh' | 'prod' | 'groups'; onSave: (wa
 
 export const PermissionMatrix: React.FC<{ users: User[]; departments: Department[]; onUpdateUser: (id: string, updates: Partial<User>) => void }> = ({ users, departments, onUpdateUser }) => {
   const { showToast } = useAppContext();
+  const sepidarOn = useSepidarConnected();
   const [whDlg, setWhDlg] = useState<{ u: User; tab: 'wh' | 'prod' | 'groups' } | null>(null);
   const [teamDlg, setTeamDlg] = useState<User | null>(null);
   const [q, setQ] = useState('');
@@ -347,6 +349,16 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
     if (on && c.id === 'warehouse.groups') setWhDlg({ u, tab: 'groups' });
     if (on && c.id === 'crm.team') setTeamDlg({ ...u, canSeeTeamCrm: true }); // choose whose customers (or «all») right away
     showToast(`«${c.label}» برای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
+    if (on && sepidarOn && (c.id === 'crm.customers' || c.id === 'crm.import')) void offerSepidarCustomerRight(u);
+  };
+  // Whoever may create / edit customers in Hoormand but may not in Sepidar: his edits would stay only in Hoormand, with no sign in the Sepidar requests. So the moment the right is given, ask.
+  const offerSepidarCustomerRight = async (u: User) => {
+    const have = u.sepidarPerms || [];
+    if (['customer', 'customerNew', 'customerUpdate'].some((k) => have.includes(k))) return;
+    const ok = await askConfirm(`«${u.fullName}» حالا می‌تواند مشتری بسازد و ویرایش کند، ولی در سپیدار اجازهٔ ثبت و بروزرسانی مشتری ندارد؛ پس ویرایش‌هایش فقط در هورمند می‌ماند و به سپیدار نمی‌رود. همین دسترسی در سپیدار هم داده شود؟`, { tone: 'warning', title: 'هشدار: دسترسی سپیدار', confirmText: 'بله، در سپیدار هم داده شود', cancelText: 'نه، فقط هورمند' });
+    if (!ok) return;
+    onUpdateUser(u.id, { sepidarPerms: [...have, 'customer'] });
+    showToast(`«مشتری (ثبت و بروزرسانی)» در سپیدار هم برای ${u.fullName} داده شد.`);
   };
   const rowAll = (u: User, on: boolean) => {
     onUpdateUser(u.id, colPatchMany(u, COLUMNS, on));
