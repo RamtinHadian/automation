@@ -265,7 +265,7 @@ export const ChatView: React.FC<{ initialPeer?: string; onPeerChange?: (id: stri
                 }}
                 rows={1}
                 maxLength={2000}
-                placeholder="پیام خود را بنویسید…  (Enter = ارسال)"
+                placeholder="پیام خود را بنویسید…  (Enter = ارسال · Shift+Enter = خط بعد)" data-no-hint
                 className="flex-1 resize-none max-h-32 px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl text-[13px] font-semibold text-[#3A241F] focus:border-[#6E1B1B] focus:outline-none"
               />
               <button type="button" onClick={() => void send()} disabled={!text.trim() || sending} className="w-11 h-11 rounded-2xl bg-[#6E1B1B] hover:bg-[#D34A32] disabled:opacity-40 text-white flex items-center justify-center cursor-pointer shrink-0" aria-label="ارسال">

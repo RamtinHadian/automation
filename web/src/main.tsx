@@ -6,9 +6,11 @@ import 'vazirmatn/Vazirmatn-Variable-font-face.css'; // the font is bundled with
 import './fa-digits.css'; // Latin digits shown with Persian shapes everywhere
 import './index.css';
 import { installPersianDigits } from './lib/persianDigits';
+import { installEnterKey } from './lib/enterKey';
 import { installPublicIp } from './lib/publicIp';
 
 installPersianDigits();
+installEnterKey();
 installPublicIp();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
