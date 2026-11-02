@@ -79,6 +79,7 @@ const NumberList: React.FC<{ title: string; icon: React.ReactNode; items: string
           className={field}
           dir="ltr"
           inputMode="tel"
+          data-phone-draft={title.startsWith('موبایل') ? 'mobile' : 'landline'}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -423,43 +424,15 @@ export const CustomerForm: React.FC<{
           </>
         ) : !isCompany ? (
           <Section title="مشخصات شخص">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* first the name; Enter walks on: name -> family name -> the mobile number */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={label}>نام *</label>
-                <input className={field} value={c.firstName || ''} onChange={(e) => patch({ firstName: e.target.value })} autoFocus={isNew} />
+                <input className={field} value={c.firstName || ''} onChange={(e) => patch({ firstName: e.target.value })} autoFocus={isNew} data-person-first onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (document.querySelector('[data-person-last]') as HTMLInputElement | null)?.focus(); } }} />
               </div>
               <div>
                 <label className={label}>نام خانوادگی *</label>
-                <input className={field} value={c.lastName || ''} onChange={(e) => patch({ lastName: e.target.value })} />
-              </div>
-              <div>
-                <label className={label}>نام پدر</label>
-                <input className={field} value={c.fatherName || ''} onChange={(e) => patch({ fatherName: e.target.value })} />
-              </div>
-              <div>
-                <label className={label}>کد ملی {!contactKind && <span className="font-medium text-[#8C6F66]">(چهار رقم آخر، رمز ورود به صفحهٔ پشتیبانی مشتری است)</span>}</label>
-                <input className={field} dir="ltr" inputMode="numeric" maxLength={10} value={c.nationalCode || ''} onChange={(e) => patch({ nationalCode: e.target.value })} />
-                {hint(nationalCodeBad, 'کد ملی معتبر نیست.')}
-              </div>
-              <div>
-                <label className={label}>شمارهٔ شناسنامه</label>
-                <input className={field} dir="ltr" inputMode="numeric" value={c.idNumber || ''} onChange={(e) => patch({ idNumber: e.target.value })} />
-              </div>
-              <div>
-                <label className={label}>جنسیت</label>
-                <select className={field} value={c.gender || ''} onChange={(e) => patch({ gender: (e.target.value || undefined) as Customer['gender'] })}>
-                  <option value="">—</option>
-                  <option value="M">آقا</option>
-                  <option value="F">خانم</option>
-                </select>
-              </div>
-              <div className="sm:col-span-2">
-                <label className={label}>تاریخ تولد</label>
-                <JalaliDateField value={c.birthDate} minYear={1300} maxYear={isoToJalaliParts(todayIso())![0]} onChange={(v) => patch({ birthDate: v })} />
-              </div>
-              <div>
-                <label className={label}>شغل / محل کار</label>
-                <input className={field} value={c.company || ''} onChange={(e) => patch({ company: e.target.value })} />
+                <input className={field} value={c.lastName || ''} onChange={(e) => patch({ lastName: e.target.value })} data-person-last onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (document.querySelector('[data-phone-draft="mobile"]') as HTMLInputElement | null)?.focus(); } }} />
               </div>
             </div>
           </Section>
@@ -572,6 +545,42 @@ export const CustomerForm: React.FC<{
             </p>
           )}
         </Section>
+
+        {!isCompany && !isShop && (
+          <Section title="اطلاعات تکمیلی شخص">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className={label}>نام پدر</label>
+                <input className={field} value={c.fatherName || ''} onChange={(e) => patch({ fatherName: e.target.value })} />
+              </div>
+              <div>
+                <label className={label}>کد ملی {!contactKind && <span className="font-medium text-[#8C6F66]">(چهار رقم آخر، رمز ورود به صفحهٔ پشتیبانی مشتری است)</span>}</label>
+                <input className={field} dir="ltr" inputMode="numeric" maxLength={10} value={c.nationalCode || ''} onChange={(e) => patch({ nationalCode: e.target.value })} />
+                {hint(nationalCodeBad, 'کد ملی معتبر نیست.')}
+              </div>
+              <div>
+                <label className={label}>شمارهٔ شناسنامه</label>
+                <input className={field} dir="ltr" inputMode="numeric" value={c.idNumber || ''} onChange={(e) => patch({ idNumber: e.target.value })} />
+              </div>
+              <div>
+                <label className={label}>جنسیت</label>
+                <select className={field} value={c.gender || ''} onChange={(e) => patch({ gender: (e.target.value || undefined) as Customer['gender'] })}>
+                  <option value="">—</option>
+                  <option value="M">آقا</option>
+                  <option value="F">خانم</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={label}>تاریخ تولد</label>
+                <JalaliDateField value={c.birthDate} minYear={1300} maxYear={isoToJalaliParts(todayIso())![0]} onChange={(v) => patch({ birthDate: v })} />
+              </div>
+              <div>
+                <label className={label}>شغل / محل کار</label>
+                <input className={field} value={c.company || ''} onChange={(e) => patch({ company: e.target.value })} />
+              </div>
+            </div>
+          </Section>
+        )}
 
         <Section title="نشانی و راه‌های ارتباطی">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
