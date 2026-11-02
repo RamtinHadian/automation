@@ -14,6 +14,7 @@ export const NETWORKS: NetworkDef[] = [
   { id: 'eitaa', name: 'ایتا', hint: 'نام کاربری (@username)، شناسهٔ عددی (Numeric ID) یا شمارهٔ موبایل', iran: true },
   { id: 'rubika', name: 'روبیکا', hint: 'نام کاربری (@username) یا شمارهٔ موبایل', iran: true },
   { id: 'instagram', name: 'اینستاگرام', hint: 'نام کاربری (@username)' },
+  { id: 'linkedin', name: 'لینکدین', hint: 'نام نمایه (مثل ali-ahmadi) یا آدرس نمایه' },
   { id: 'whatsapp', name: 'واتس‌اپ', hint: 'شمارهٔ موبایل' },
   { id: 'whatsappBusiness', name: 'واتس‌اپ بیزینس', hint: 'شمارهٔ موبایل' },
   { id: 'website', name: 'وب‌سایت', hint: 'آدرس سایت (مثل example.com)', web: true },
@@ -32,6 +33,15 @@ export const SocialLogo: React.FC<{ id: string; size?: number }> = ({ id, size =
           <rect x="5.5" y="5.5" width="13" height="13" rx="4" fill="none" stroke="#fff" strokeWidth="1.8" />
           <circle cx="12" cy="12" r="3.1" fill="none" stroke="#fff" strokeWidth="1.8" />
           <circle cx="16.1" cy="7.9" r="1" fill="#fff" />
+        </svg>
+      );
+    case 'linkedin':
+      return (
+        <svg {...s}>
+          <rect width="24" height="24" rx="5" fill="#0A66C2" />
+          <rect x="5" y="9.5" width="2.8" height="8.5" fill="#fff" />
+          <circle cx="6.4" cy="6.5" r="1.7" fill="#fff" />
+          <path d="M10.4 9.5h2.7v1.2c.5-.9 1.5-1.4 2.7-1.4 2.3 0 3.2 1.5 3.2 3.8V18h-2.8v-4.4c0-1.1-.3-1.9-1.4-1.9s-1.6.8-1.6 1.9V18h-2.8z" fill="#fff" />
         </svg>
       );
     case 'telegram':
@@ -109,6 +119,7 @@ export const cleanAccount = (raw: string, id = ''): string =>
   id === 'website' ? normText(raw).replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase() : normText(raw)
     .replace(/^https?:\/\/(www\.)?/i, '')
     .replace(/^web\.rubika\.ir\/#c=/i, '')
+    .replace(/^linkedin\.com\/(in\/|(?=company\/))/i, '')
     .replace(/^(t\.me|telegram\.me|eitaa\.com|rubika\.ir|ble\.ir|instagram\.com|wa\.me)\//i, '')
     .replace(/[?#].*$/, '')
     .replace(/\/+$/, '')
@@ -119,6 +130,7 @@ const isBaleUid = (v: string) => /^[1-9]\d{5,9}$/.test(v) && !/^98\d{10}$/.test(
 const isEitaaNumericId = (v: string) => /^\d{5,9}$/.test(v); // «Numeric ID» of Eitaa: web.eitaa.com/#4752207 opens that chat
 const validAccount = (v: string, id = '') =>
   id === 'website' ? /^([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(v)
+  : id === 'linkedin' ? /^(company\/)?[A-Za-z0-9_.%-]{3,100}$/.test(v)
   : (id === 'eitaa' && isEitaaNumericId(v)) || (id === 'bale' && isBaleUid(v)) ? true
   : isNumberLike(v) ? normPhone(v).length >= 10
   : /^[A-Za-z0-9_.]{3,}$/.test(v);
@@ -339,6 +351,7 @@ export const socialLink = (id: string, account: string, text = ''): string => {
     case 'whatsapp':
     case 'whatsappBusiness': return isNumber ? `https://web.whatsapp.com/send?phone=${intl}${text ? '&text=' + encodeURIComponent(text) : ''}` : '';
     case 'instagram': return isNumber ? '' : `https://instagram.com/${a}`;
+    case 'linkedin': return isNumber ? '' : `https://www.linkedin.com/${a.startsWith('company/') ? a : 'in/' + a}`;
     case 'bale': return isBaleUid(a) ? `https://web.bale.ai/chat?uid=${a}` : 'https://web.bale.ai/chat'; // Bale web opens on its chat page; the user name or number is copied to search there
     case 'eitaa': return isEitaaNumericId(a) ? `https://web.eitaa.com/#${a}` : isNumber ? 'https://web.eitaa.com/' : `https://web.eitaa.com/#@${a}`; // the web version of Eitaa; a number cannot be linked, so it is copied
     case 'rubika': return isRubikaGuid(a) ? `https://web.rubika.ir/#c=${a}` : 'https://web.rubika.ir/'; // Rubika publishes no link that opens a person's chat: its web opens and the name or number is copied to search there
@@ -471,7 +484,7 @@ export const openChat = (id: string, name: string, account: string, text = '', c
     return `${name}: اگر برنامه روی این سیستم نصب باشد مستقیم داخل آن باز می‌شود، وگرنه نسخهٔ وب.${pasteNote}${!text && needSearch ? ` «${who}» کپی شد؛ در جست‌وجو بچسبانید.` : ''}`;
   }
   if (url) {
-    if (id === 'website' || id === 'instagram') window.open(url, '_blank', 'noopener,noreferrer');
+    if (id === 'website' || id === 'instagram' || id === 'linkedin') window.open(url, '_blank', 'noopener,noreferrer');
     else openWebTab(id, url);
     return `${name} باز شد.${pasteNote}${!text && needSearch ? ` «${who}» کپی شد؛ در جست‌وجوی ${name} بچسبانید.` : ''}`;
   }

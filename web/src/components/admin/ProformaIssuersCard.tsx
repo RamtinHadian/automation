@@ -47,25 +47,45 @@ const PictureField: React.FC<{ title: string; value?: string; onChange: (v: stri
 const input2 = input;
 
 /** The tick «send to the CEO for approval» each of the two companies has. */
-const ApprovalTick: React.FC<{ checked: boolean; onChange: (v: boolean) => void; approverId?: string; onApprover: (v: string) => void; staff: { id: string; name: string }[] }> = ({ checked, onChange, approverId, onApprover, staff }) => (
+const ApprovalTick: React.FC<{ checked: boolean; onChange: (v: boolean) => void; approverIds: string[]; onApprovers: (v: string[]) => void; staff: { id: string; name: string }[] }> = ({ checked, onChange, approverIds, onApprovers, staff }) => {
+  const set = (i: number, v: string) => onApprovers(approverIds.map((x, k) => (k === i ? v : x)));
+  const move = (i: number, d: number) => {
+    const j = i + d;
+    if (j < 0 || j >= approverIds.length) return;
+    const l = approverIds.slice();
+    [l[i], l[j]] = [l[j], l[i]];
+    onApprovers(l);
+  };
+  return (
   <div className="rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-2.5">
   <label className="flex items-start gap-2.5 cursor-pointer">
     <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 w-4 h-4 accent-[#6E1B1B]" />
     <span>
       <span className="block font-black text-[#3A241F]">ارسال پیش‌فاکتور برای تایید و امضای مدیرعامل</span>
       <span className="block text-[11px] leading-6 text-[#8C6F66] font-medium">
-        اگر روشن باشد، پیش‌فاکتور اول به «پیش‌فاکتورهای ارسالی» مدیرعامل می‌رود؛ پس از تایید، مهر و امضای همین شرکت پای آن درج می‌شود و بعد می‌شود آن را چاپ یا ارسال کرد.
+        اگر روشن باشد، پیش‌فاکتور اول به «پیش‌فاکتورهای ارسالی» تأییدکننده می‌رود؛ پس از تایید، مهر و امضای همین شرکت پای آن درج می‌شود و بعد می‌شود آن را چاپ یا ارسال کرد.
       </span>
     </span>
   </label>
   {checked && (
-    <div className="flex flex-wrap items-center gap-2 pr-6">
-      <span className="font-black text-[#3A241F]">با تایید چه کسی مهر و امضا شود؟</span>
-      <PersonPicker title="تأیید‌کنندهٔ مهر و امضا" items={staff.map((u) => ({ id: u.id, name: u.name }))} value={approverId || ''} onChange={onApprover} emptyLabel="هر کسی که اجازهٔ امضای نامهٔ رسمی دارد" className="min-w-[240px]" />
+    <div className="pr-6 space-y-2" data-approval-steps>
+      <div className="font-black text-[#3A241F]">مرحله‌به‌مرحله چه کسانی تایید کنند؟</div>
+      <div className="text-[11px] font-medium text-[#8C6F66] leading-6">اول نفر مرحلهٔ ۱ تایید می‌کند، بعد پیش‌فاکتور خودکار برای نفر بعدی می‌رود و همین‌طور تا آخر. بعد از تایید نفر آخر مهر و امضا درج می‌شود. اگر هیچ‌کس نگذارید، هر کسی که اجازهٔ امضای نامهٔ رسمی دارد می‌تواند تایید کند.</div>
+      {approverIds.map((id, i) => (
+        <div key={i} className="flex flex-wrap items-center gap-2">
+          <span className="w-16 shrink-0 font-black text-[#6E1B1B]">مرحلهٔ {String(i + 1).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])}</span>
+          <PersonPicker title={`تأییدکنندهٔ مرحلهٔ ${i + 1}`} items={staff.filter((u) => u.id === id || !approverIds.includes(u.id)).map((u) => ({ id: u.id, name: u.name }))} value={id} onChange={(v) => set(i, v)} emptyLabel="یک نفر را انتخاب کنید" className="min-w-[220px]" />
+          <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="px-2 py-1 rounded-lg border border-[#EBDBCE] bg-white font-black disabled:opacity-30 cursor-pointer" title="مرحلهٔ زودتر">↑</button>
+          <button type="button" onClick={() => move(i, 1)} disabled={i === approverIds.length - 1} className="px-2 py-1 rounded-lg border border-[#EBDBCE] bg-white font-black disabled:opacity-30 cursor-pointer" title="مرحلهٔ دیرتر">↓</button>
+          <button type="button" onClick={() => onApprovers(approverIds.filter((_, k) => k !== i))} className="px-2 py-1 rounded-lg text-rose-600 hover:bg-rose-50 font-black cursor-pointer">حذف</button>
+        </div>
+      ))}
+      <button type="button" onClick={() => onApprovers([...approverIds, ''])} disabled={approverIds.some((x) => !x)} className="px-3 py-1.5 rounded-xl border border-[#6E1B1B]/30 text-[#6E1B1B] font-black bg-white hover:bg-[#FAF5F1] disabled:opacity-40 cursor-pointer" data-add-approval-step>+ افزودن مرحله</button>
     </div>
   )}
   </div>
-);
+  );
+};
 
 /**
  * The proforma settings: exactly two issuing companies.
@@ -132,7 +152,7 @@ export const ProformaIssuersCard: React.FC<{ staff: { id: string; name: string }
           <PictureField title="مهر" value={settings.companyStampUrl} onChange={(v) => setSettings({ ...settings, companyStampUrl: v })} />
           <PictureField title="امضا" value={settings.ceoSignatureUrl} onChange={(v) => setSettings({ ...settings, ceoSignatureUrl: v })} />
         </div>
-        <ApprovalTick staff={staff} checked={settings.proformaApprovalRequired === true} onChange={(v) => setSettings({ ...settings, proformaApprovalRequired: v })} approverId={settings.proformaApproverId} onApprover={(v) => setSettings({ ...settings, proformaApproverId: v || undefined })} />
+        <ApprovalTick staff={staff} checked={settings.proformaApprovalRequired === true} onChange={(v) => setSettings({ ...settings, proformaApprovalRequired: v })} approverIds={settings.proformaApproverIds?.length ? settings.proformaApproverIds : settings.proformaApproverId ? [settings.proformaApproverId] : []} onApprovers={(v) => setSettings({ ...settings, proformaApproverIds: v, proformaApproverId: v.filter(Boolean)[0] || undefined })} />
         {children}
       </div>
 
@@ -164,7 +184,7 @@ export const ProformaIssuersCard: React.FC<{ staff: { id: string; name: string }
           <PictureField title="مهر" value={other.stampUrl} onChange={(v) => patch({ stampUrl: v })} />
           <PictureField title="امضا" value={other.signatureUrl} onChange={(v) => patch({ signatureUrl: v })} />
         </div>
-        <ApprovalTick staff={staff} checked={other.approvalRequired === true} onChange={(v) => patch({ approvalRequired: v })} approverId={other.approverId} onApprover={(v) => patch({ approverId: v || undefined })} />
+        <ApprovalTick staff={staff} checked={other.approvalRequired === true} onChange={(v) => patch({ approvalRequired: v })} approverIds={other.approverIds?.length ? other.approverIds : other.approverId ? [other.approverId] : []} onApprovers={(v) => patch({ approverIds: v, approverId: v.filter(Boolean)[0] || undefined })} />
         {unofficialChildren}
       </div>
     </>

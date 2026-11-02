@@ -57,7 +57,7 @@ import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../
 import { callerNameOnly, isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 import { remainingText, STATE_LABEL, warrantyState, codeText } from '../../lib/warranty';
 import { subRemaining, subState, SUB_STATE, isOpenTicket } from '../../lib/support';
-import { approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
+import { approvalProgress, approvalRequired, canApproveProforma, isAnyApprover } from '../../lib/proformaApproval';
 import { CustomerReportModal } from './CustomerReportModal';
 import { Modal, field, label, SOURCES } from './crmUi';
 import { CustomerImportModal } from './CustomerImportModal';
@@ -465,7 +465,7 @@ export const CrmView: React.FC = () => {
     ownerId: me, ownerName: currentUser.fullName, createdById: me, createdByName: currentUser.fullName, expectedClose: undefined, notes: '', createdAt: nowIso(), updatedAt: nowIso(),
   });
 
-  const mine = (d: Deal) => canApproveProforma(currentUser, settings, d.proformaIssuerId);
+  const mine = (d: Deal) => canApproveProforma(currentUser, settings, d.proformaIssuerId, d);
   const pendingProformas = deals.filter((d) => d.proformaApproval?.status === 'PENDING' && mine(d));
   const baseTabs = [
     ['today', 'امروز من', Sparkles],
@@ -595,7 +595,7 @@ export const CrmView: React.FC = () => {
                   : 'text-amber-800 bg-amber-50 border-amber-200'
             }`}
           >
-            پیش‌فاکتور: {d.proformaApproval.status === 'APPROVED' ? 'تایید شد' : d.proformaApproval.status === 'REJECTED' ? 'رد شد' : 'منتظر تایید مدیرعامل'}
+            پیش‌فاکتور: {d.proformaApproval.status === 'APPROVED' ? 'تایید شد' : d.proformaApproval.status === 'REJECTED' ? 'رد شد' : (approvalProgress(d, (id) => userById.get(id)?.fullName || 'تأییدکننده') || 'منتظر تایید مدیرعامل')}
           </div>
         )}
         <div className="text-[11px] text-[#8C6F66] flex items-center gap-1">

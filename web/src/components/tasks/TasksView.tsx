@@ -742,7 +742,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
             </div>
           </div>
 
-          <CustomerFiles base="tasks" customerId={t.id} files={t.attachments || []} me={me.id} isAdmin={fullEdit} accept="application/pdf,image/*" canAdd hint="فایلی روی این وظیفه نیست. PDF یا عکس (مثلاً نمونه، اسکن، تصویر خطا) را اینجا بگذارید." onChange={(attachments) => patch({ attachments })} />
+          <CustomerFiles base="tasks" customerId={t.id} files={t.attachments || []} me={me.id} isAdmin={fullEdit} canAdd hint="فایلی روی این وظیفه نیست. هر فایلی (PDF، عکس، Word، Excel، فشرده، صوت، ویدیو و…) تا ۲۵ مگابایت را اینجا بگذارید." onChange={(attachments) => patch({ attachments })} />
 
           {!isNew && (
             <div className="text-[10px] font-bold text-[#8C6F66] flex flex-wrap gap-x-4 gap-y-1">

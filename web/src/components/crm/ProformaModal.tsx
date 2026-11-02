@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 import { downloadBlob, renderProformaJpeg, renderProformaPdf } from '../../lib/proformaFile';
 import { formatTaskDate } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
-import { approvalRequired, canApproveProforma, proformaReleased } from '../../lib/proformaApproval';
+import { approvalRequired, canApproveProforma, dealChain, proformaReleased } from '../../lib/proformaApproval';
 import { issuersOf, MAIN_ISSUER_ID, officialProblems, titleFor } from '../../lib/proformaIssuer';
 import { toPersianDigits } from '../../lib/jalali';
 import { addDaysIso, DEFAULT_PROFORMA_TERMS, nextProformaNumber, openProformaPdf, proformaTotals } from '../../lib/proformaPdf';
@@ -164,10 +164,12 @@ export const ProformaModal: React.FC<{
   const [showStamp, setShowStamp] = useState(deal.proformaFields?.showStamp !== false);
   const [showSignature, setShowSignature] = useState(deal.proformaFields?.showSignature !== false);
   // ---- send straight to the customer's Telegram / Bale ----
-  const { showToast, currentUser } = useAppContext();
+  const { showToast, currentUser, staffList } = useAppContext();
+  const nameOf = (id: string) => staffList.find((u) => u.id === id)?.fullName || 'تأییدکننده';
   // CEO approval: with the setting on, only an approved proforma may be printed or sent
   const required = approvalRequired(settings, issuerId);
-  const isCeo = canApproveProforma(currentUser, settings, issuerId);
+  const isCeo = canApproveProforma(currentUser, settings, issuerId, deal);
+  const chain = dealChain(deal, settings, issuerId);
   const released = proformaReleased({ ...deal, proformaIssuerId: issuerId }, settings);
   const approval = deal.proformaApproval;
   const [msgr, setMsgr] = useState<{ telegram: boolean; bale: boolean } | null>(null);
@@ -250,8 +252,18 @@ export const ProformaModal: React.FC<{
       note = answer.trim();
     }
     const base = build();
-    const next: Deal = { ...base, proformaApproval: { ...(deal.proformaApproval || {}), status, ...(note ? { note } : {}) } };
+    // a chain of approvers: an approval that is not the last one only passes the proforma on to the next person (it stays «waiting»)
+    const stepNow = deal.proformaApproval?.step || 0;
+    const middle = status === 'APPROVED' && chain.length > 0 && stepNow + 1 < chain.length && deal.proformaApproval?.status === 'PENDING';
+    const next: Deal = middle
+      ? { ...base, proformaApproval: { ...(deal.proformaApproval || {}), status: 'PENDING', decision: 'APPROVED', chain, step: stepNow + 1, steps: [...(deal.proformaApproval?.steps || []), { id: currentUser.id, name: currentUser.fullName, status: 'APPROVED', at: new Date().toISOString() }] } }
+      : { ...base, proformaApproval: { ...(deal.proformaApproval || {}), status, ...(note ? { note } : {}) } };
     onSave(next);
+    if (middle) {
+      showToast(`تایید شما ثبت شد؛ پیش‌فاکتور برای ${nameOf(chain[stepNow + 1])} (مرحلهٔ ${toPersianDigits(stepNow + 2)} از ${toPersianDigits(chain.length)}) فرستاده شد.`);
+      onClose();
+      return;
+    }
     showToast(
       status === 'PENDING' ? 'پیش‌فاکتور برای تایید مدیرعامل فرستاده شد.' : status === 'APPROVED' ? 'پیش‌فاکتور تایید شد؛ مهر و امضای مدیرعامل درج شد.' : 'پیش‌فاکتور رد شد.'
     );
@@ -350,10 +362,28 @@ export const ProformaModal: React.FC<{
               ) : approval?.status === 'REJECTED' ? (
                 <>رد شد توسط {approval.decidedByName || 'مدیرعامل'}{approval.note ? `: ${approval.note}` : ''}. پس از اصلاح می‌توانید دوباره برای تایید بفرستید.</>
               ) : approval?.status === 'PENDING' ? (
-                <>در انتظار تایید مدیرعامل{approval.requestedByName ? ` (ارسال‌کننده: ${approval.requestedByName})` : ''}. {isCeo ? ' شما می‌توانید قبل از تایید، هر بخشی از پیش‌فاکتور (ردیف‌ها، قیمت، تخفیف، مالیات، مشخصات خریدار و ...) را تغییر دهید؛ «تایید و آمادهٔ ارسال» همین نسخهٔ اصلاح‌شده را امضا می‌کند. تیک‌های «مهر شرکت» و «امضا» (پایین‌تر در همین پنجره) را هم شما تعیین می‌کنید: هر کدام را نزنید روی پیش‌فاکتور درج نمی‌شود.' : ' چاپ و ارسال پس از تایید ممکن می‌شود.'}</>
+                <>{chain.length > 1 ? `در انتظار تایید ${nameOf(chain[approval.step || 0])} (مرحلهٔ ${toPersianDigits((approval.step || 0) + 1)} از ${toPersianDigits(chain.length)})` : 'در انتظار تایید مدیرعامل'}{approval.requestedByName ? ` (ارسال‌کننده: ${approval.requestedByName})` : ''}. {isCeo ? ' شما می‌توانید قبل از تایید، هر بخشی از پیش‌فاکتور (ردیف‌ها، قیمت، تخفیف، مالیات، مشخصات خریدار و ...) را تغییر دهید؛ «تایید و آمادهٔ ارسال» همین نسخهٔ اصلاح‌شده را امضا می‌کند. تیک‌های «مهر شرکت» و «امضا» (پایین‌تر در همین پنجره) را هم شما تعیین می‌کنید: هر کدام را نزنید روی پیش‌فاکتور درج نمی‌شود.' : ' چاپ و ارسال پس از تایید ممکن می‌شود.'}</>
               ) : (
                 <>این پیش‌فاکتور پیش از ارسال باید مدیرعامل تایید کند؛ پس از تایید، مهر و امضای مدیرعامل خودکار درج می‌شود.</>
               )}
+            </div>
+          )}
+          {required && chain.length > 1 && (
+            <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] px-4 py-2.5 flex flex-wrap items-center gap-1.5 text-[11px] font-black text-[#3A241F]" data-approval-chain>
+              <span className="text-[#8C6F66]">مراحل تایید:</span>
+              {chain.map((id, i) => {
+                const done = (approval?.steps || []).find((x, k) => k === i && x.status === 'APPROVED');
+                const cur = approval?.status === 'PENDING' && (approval.step || 0) === i;
+                const rejected = approval?.status === 'REJECTED' && (approval.steps || [])[i]?.status === 'REJECTED';
+                return (
+                  <React.Fragment key={id + i}>
+                    {i > 0 && <span className="text-[#C9B8AE]">←</span>}
+                    <span className={`rounded-full border px-2.5 py-0.5 ${done || (approval?.status === 'APPROVED') ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : rejected ? 'bg-rose-50 border-rose-300 text-rose-800' : cur ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-white border-[#EBDBCE] text-[#8C6F66]'}`}>
+                      {toPersianDigits(i + 1)}. {nameOf(id)}{done || approval?.status === 'APPROVED' ? ' ✓' : rejected ? ' ✕' : ''}
+                    </span>
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
           <div className="space-y-2">
@@ -609,7 +639,7 @@ export const ProformaModal: React.FC<{
                   <button type="button" disabled={!okItems.length} onClick={() => decide('APPROVED')} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">تایید و آمادهٔ ارسال</button>
                 </>
                 ) : (
-                <span className="px-5 py-2 rounded-xl text-xs font-black text-amber-800 bg-amber-100 border border-amber-200">در انتظار تایید مدیرعامل</span>
+                <span className="px-5 py-2 rounded-xl text-xs font-black text-amber-800 bg-amber-100 border border-amber-200">{chain.length > 1 ? `در انتظار تایید ${nameOf(chain[approval?.step || 0])}` : 'در انتظار تایید مدیرعامل'}</span>
                 )
               ) : (
                 <button type="button" disabled={!okItems.length} onClick={() => decide('PENDING')} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">

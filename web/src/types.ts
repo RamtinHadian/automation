@@ -202,7 +202,7 @@ export interface Customer {
   notes?: string;
   /** the notes paragraph by paragraph, each with its time and writer (`notes` keeps the same text joined by new lines) */
   noteLog?: NoteEntry[];
-  /** virtual interactions per network (bale, eitaa, rubika, instagram, whatsapp, whatsappBusiness, telegram) */
+  /** virtual interactions per network (bale, eitaa, rubika, instagram, linkedin, whatsapp, whatsappBusiness, telegram) */
   social?: Record<string, SocialEntry>;
   createdAt: string;
   updatedAt: string;
@@ -298,6 +298,12 @@ export interface Deal {
     decidedByName?: string;
     decidedAt?: string;
     note?: string;
+    /** the people who approve one after the other (fixed when the proforma is sent), the place of the one whose turn it is, and what each has decided */
+    chain?: string[];
+    step?: number;
+    /** only sent by the browser: «I approve this step» while the proforma stays waiting for the next person */
+    decision?: 'APPROVED' | 'REJECTED';
+    steps?: { id: string; name: string; status: 'APPROVED' | 'REJECTED'; at: string; note?: string }[];
   };
   /** Issue day and last valid day, yyyy-mm-dd. */
   proformaAt?: string;
@@ -709,6 +715,8 @@ export interface SystemSettings {
   fileRetentionDays?: number;
   /** Who approves (and so stamps and signs) the official company's proformas; empty = anyone who may sign letters. */
   proformaApproverId?: string;
+  /** The people who approve the official company's proformas one after the other (the order is the order of approval). */
+  proformaApproverIds?: string[];
   /** Official identity of the main company (tax invoices). */
   companyNationalId?: string;
   companyRegistrationNumber?: string;
@@ -819,6 +827,8 @@ export interface ProformaIssuer {
   approvalRequired?: boolean;
   /** The person who approves this company's proformas; empty = anyone who may sign letters. */
   approverId?: string;
+  /** the people who approve this company's proformas one after the other */
+  approverIds?: string[];
   /** شمارهٔ مجوز کسب‌وکار (for an individual with a business licence). */
   licenseNumber?: string;
 }

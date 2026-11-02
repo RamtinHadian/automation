@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"automation/server/internal/auth"
 	"automation/server/internal/jsonx"
@@ -39,19 +40,64 @@ func proformaApprovalConfig(ctx context.Context, issuerID string) (bool, string)
 	return required, approver
 }
 
+// proformaApprovalChain: the people who approve a proforma of this issuing company, one after the other (the managing director sets the order).
+// Empty = one step that anyone who holds the signing tick may take. The older single «approverId» still counts as a chain of one.
+func proformaApprovalChain(ctx context.Context, issuerID string) []string {
+	var raw []byte
+	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
+	set := jsonx.Decode(raw)
+	var ids []string
+	var single string
+	if issuerID == "" || issuerID == "main" {
+		ids, single = jsonx.Strings(set, "proformaApproverIds"), jsonx.Str(set, "proformaApproverId")
+	} else {
+		for _, o := range jsonx.Arr(set, "proformaIssuers") {
+			if m, ok := o.(map[string]any); ok && jsonx.Str(m, "id") == issuerID {
+				ids, single = jsonx.Strings(m, "approverIds"), jsonx.Str(m, "approverId")
+			}
+		}
+	}
+	out := []string{}
+	for _, id := range ids {
+		if id != "" && !jsonx.Contains(out, id) {
+			out = append(out, id)
+		}
+	}
+	if len(out) == 0 && single != "" {
+		out = []string{single}
+	}
+	return out
+}
+
 func proformaApprovalGate(ctx context.Context, me auth.User, before, doc jsonx.M) string {
-	required, approver := proformaApprovalConfig(ctx, jsonx.Str(doc, "proformaIssuerId"))
+	required, _ := proformaApprovalConfig(ctx, jsonx.Str(doc, "proformaIssuerId"))
 	if !required {
 		return ""
-	}
-	// the person chosen for this company approves; without a choice, anyone who may sign official letters
-	canSign := jsonx.Bool(me.M, "canSignOfficialLetters")
-	if approver != "" {
-		canSign = me.ID() == approver
 	}
 	old := jsonx.Sub(before, "proformaApproval")
 	incoming := jsonx.Sub(doc, "proformaApproval")
 	oldStatus, newStatus := jsonx.Str(old, "status"), jsonx.Str(incoming, "status")
+	canSignFlag := jsonx.Bool(me.M, "canSignOfficialLetters")
+
+	// the chain that was fixed when the proforma was sent for approval (a later change of the settings does not confuse a running approval)
+	chain := jsonx.Strings(old, "chain")
+	if oldStatus == "" {
+		chain = proformaApprovalChain(ctx, jsonx.Str(doc, "proformaIssuerId"))
+	}
+	step := jsonx.Int(old, "step")
+	if step < 0 || (len(chain) > 0 && step >= len(chain)) {
+		step = 0
+	}
+	// whose turn is it: the person of this step; without a chain, anyone with the signing tick
+	myTurn := canSignFlag
+	if len(chain) > 0 {
+		myTurn = me.ID() == chain[step]
+	}
+	// may this person change an approved proforma without losing the approval: anybody in the chain (or a signer when there is no chain)
+	inChain := canSignFlag
+	if len(chain) > 0 {
+		inChain = jsonx.Contains(chain, me.ID())
+	}
 
 	keepOld := func() {
 		if oldStatus != "" {
@@ -61,33 +107,51 @@ func proformaApprovalGate(ctx context.Context, me auth.User, before, doc jsonx.M
 		}
 	}
 
-	if newStatus != oldStatus {
-		switch newStatus {
+	if newStatus != oldStatus || (oldStatus == "PENDING" && newStatus == "PENDING" && jsonx.Str(incoming, "decision") != "") {
+		decision := newStatus
+		if oldStatus == "PENDING" && newStatus == "PENDING" {
+			decision = jsonx.Str(incoming, "decision")
+		}
+		switch decision {
 		case "APPROVED", "REJECTED":
-			if !canSign {
+			if oldStatus != "PENDING" || !myTurn {
 				keepOld()
 				return ""
 			}
 			a := jsonx.Copy(old)
-			a["status"], a["decidedBy"], a["decidedByName"], a["decidedAt"] = newStatus, me.ID(), me.Name(), now()
-			if note := jsonx.Str(incoming, "note"); note != "" {
+			steps := jsonx.Arr(a, "steps")
+			stepRow := jsonx.M{"id": me.ID(), "name": me.Name(), "status": decision, "at": now()}
+			note := jsonx.Str(incoming, "note")
+			if note != "" {
+				stepRow["note"] = note
+			}
+			a["steps"] = append(steps, stepRow)
+			a["chain"] = chain
+			if decision == "APPROVED" && len(chain) > 0 && step+1 < len(chain) {
+				a["step"] = step + 1 // the next person in the chain
+				doc["proformaApproval"] = a
+				return "step"
+			}
+			a["status"], a["decidedBy"], a["decidedByName"], a["decidedAt"] = decision, me.ID(), me.Name(), now()
+			if note != "" {
 				a["note"] = note
 			} else {
 				delete(a, "note")
 			}
 			doc["proformaApproval"] = a
-			if newStatus == "APPROVED" {
+			if decision == "APPROVED" {
 				return "approved"
 			}
 			return "rejected"
 		case "PENDING":
 			doc["proformaApproval"] = jsonx.M{
 				"status": "PENDING", "requestedBy": me.ID(), "requestedByName": me.Name(), "requestedAt": now(),
+				"chain": chain, "step": 0, "steps": []any{},
 			}
 			return "pending"
 		default:
 			// clearing the approval is not possible for others
-			if !canSign {
+			if !inChain {
 				keepOld()
 			}
 			return ""
@@ -96,9 +160,17 @@ func proformaApprovalGate(ctx context.Context, me auth.User, before, doc jsonx.M
 
 	// no change of status: the details are the server's, never the client's
 	keepOld()
-	if oldStatus == "APPROVED" && !canSign && proformaContent(before) != proformaContent(doc) {
+	changed := oldStatus != "" && proformaContent(before) != proformaContent(doc)
+	if oldStatus == "APPROVED" && !inChain && changed {
 		delete(doc, "proformaApproval")
 		return "reset"
+	}
+	// a proforma that was changed after some of the approvals starts again from the first person
+	if oldStatus == "PENDING" && changed && (step > 0 || len(jsonx.Arr(old, "steps")) > 0) {
+		a := jsonx.Copy(old)
+		a["step"], a["steps"] = 0, []any{}
+		doc["proformaApproval"] = a
+		return "pending"
 	}
 	return ""
 }
@@ -110,8 +182,8 @@ func notifyProformaApproval(r *http.Request, me auth.User, event string, doc jso
 	switch event {
 	case "pending":
 		var ceo []string
-		if _, approver := proformaApprovalConfig(r.Context(), jsonx.Str(doc, "proformaIssuerId")); approver != "" {
-			ceo = []string{approver}
+		if chain := jsonx.Strings(ap, "chain"); len(chain) > 0 {
+			ceo = []string{chain[0]}
 		} else {
 			rows, err := store.Pool.Query(r.Context(), `SELECT id FROM users WHERE data->>'canSignOfficialLetters' = 'true'`)
 			if err != nil {
@@ -129,6 +201,18 @@ func notifyProformaApproval(r *http.Request, me auth.User, event string, doc jso
 			Kind: "task", Label: "تایید پیش‌فاکتور", Title: "پیش‌فاکتور «" + title + "» منتظر تایید شماست",
 			Body: "ارسال‌کننده: " + me.Name() + " · شمارهٔ " + jsonx.Str(doc, "proformaNumber"), Ref: ref("deal", id), Repeat: true,
 		}, "")
+	case "step":
+		chain := jsonx.Strings(ap, "chain")
+		st := jsonx.Int(ap, "step")
+		if st >= 0 && st < len(chain) {
+			notify.Notify(r.Context(), []string{chain[st]}, notify.Note{
+				Kind: "task", Label: "تایید پیش‌فاکتور", Title: "پیش‌فاکتور «" + title + "» منتظر تایید شماست (مرحلهٔ " + strconv.Itoa(st+1) + " از " + strconv.Itoa(len(chain)) + ")",
+				Body: "مرحلهٔ قبل را " + me.Name() + " تایید کرد · شمارهٔ " + jsonx.Str(doc, "proformaNumber"), Ref: ref("deal", id), Repeat: true,
+			}, me.ID())
+		}
+		if by := jsonx.Str(ap, "requestedBy"); by != "" && by != me.ID() {
+			notify.Notify(r.Context(), []string{by}, notify.Note{Kind: "task", Label: "پیش‌فاکتور یک مرحله جلو رفت", Title: "پیش‌فاکتور «" + title + "» را " + me.Name() + " تایید کرد و به نفر بعدی رفت", Ref: ref("deal", id)}, me.ID())
+		}
 	case "approved", "rejected":
 		to := []string{}
 		for _, u := range []string{jsonx.Str(ap, "requestedBy"), jsonx.Str(doc, "ownerId")} {
@@ -138,7 +222,7 @@ func notifyProformaApproval(r *http.Request, me auth.User, event string, doc jso
 		}
 		label, text := "پیش‌فاکتور تایید شد", "پیش‌فاکتور «"+title+"» تایید شد؛ مهر و امضا درج شد و می‌توانید آن را بفرستید"
 		if event == "rejected" {
-			label, text = "پیش‌فاکتور رد شد", "پیش‌فاکتور «"+title+"» توسط مدیرعامل رد شد"
+			label, text = "پیش‌فاکتور رد شد", "پیش‌فاکتور «"+title+"» توسط "+me.Name()+" رد شد"
 		}
 		notify.Notify(r.Context(), to, notify.Note{
 			Kind: "task", Label: label, Title: text, Body: jsonx.Str(ap, "note"), Ref: ref("deal", id), Repeat: true,
