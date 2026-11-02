@@ -516,9 +516,41 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
     deps: [bodyTick, pageSize, lh, subject, letterNumber, signerName, signerTitle, copies, headerCenterTitle, bodyPaddingX, bodyOffsetX, bodyOffsetY, selectedFontFamily, selectedFontSize, signatureHeight, stampHeightOverride, logoSize, orgTextScale],
   });
 
+  // The last piece of the letter body that was selected: choosing a font or a size from the lists takes the focus, but the piece is remembered
+  const lastRange = useRef<Range | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const keep = () => {
+      const sel = window.getSelection();
+      const ed = editorRef.current;
+      if (sel && ed && sel.rangeCount && !sel.isCollapsed && ed.contains(sel.anchorNode) && ed.contains(sel.focusNode)) lastRange.current = sel.getRangeAt(0).cloneRange();
+    };
+    document.addEventListener('selectionchange', keep);
+    return () => document.removeEventListener('selectionchange', keep);
+  }, [isOpen]);
+  // gives back the remembered piece (when it is still in the letter); null when nothing is selected
+  const pickedPiece = (): Range | null => {
+    const ed = editorRef.current;
+    const r = lastRange.current;
+    if (!ed || !r || r.collapsed || !ed.contains(r.commonAncestorContainer)) return null;
+    ed.focus();
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(r);
+    return r;
+  };
+
   if (!isOpen) return null;
 
+  // With a piece of the letter selected, the font / size changes only that piece; with nothing selected it is the font / size of the whole letter
   const handleFontChange = (fontFamily: string) => {
+    if (pickedPiece()) {
+      document.execCommand('styleWithCSS', false, 'true');
+      document.execCommand('fontName', false, fontFamily);
+      document.execCommand('styleWithCSS', false, 'false');
+      setBodyTick((t) => t + 1);
+      return;
+    }
     setSelectedFontFamily(fontFamily);
     if (editorRef.current) {
       editorRef.current.style.fontFamily = fontFamily;
@@ -530,6 +562,21 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
   };
 
   const handleFontSizeChange = (size: string) => {
+    if (pickedPiece()) {
+      // execCommand knows only seven sizes: ask for the biggest, then turn those marks into the exact size
+      document.execCommand('fontSize', false, '7');
+      editorRef.current?.querySelectorAll('font[size="7"]').forEach((f) => {
+        const span = document.createElement('span');
+        span.style.fontSize = size;
+        span.innerHTML = (f as HTMLElement).innerHTML;
+        f.replaceWith(span);
+      });
+      editorRef.current?.querySelectorAll('span').forEach((sp) => {
+        if ((sp as HTMLElement).style.fontSize === '-webkit-xxx-large' || (sp as HTMLElement).style.fontSize === 'xxx-large') (sp as HTMLElement).style.fontSize = size;
+      });
+      setBodyTick((t) => t + 1);
+      return;
+    }
     setSelectedFontSize(size);
     if (editorRef.current) {
       editorRef.current.style.fontSize = size;
@@ -1398,7 +1445,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                 value={selectedFontFamily}
                 onChange={(e) => handleFontChange(e.target.value)}
                 className="bg-transparent text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer py-0.5 px-1 max-w-[160px]"
-                title="انتخاب قلم و فونت نامه"
+                title="قلم: اگر قسمتی از متن را انتخاب کرده‌اید فقط همان قسمت، وگرنه کل نامه"
               >
                 {fonts.map((f) => (
                   <option key={f.id} value={f.fontFamily} style={{ fontFamily: f.fontFamily }}>
@@ -1414,7 +1461,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                 value={selectedFontSize}
                 onChange={(e) => handleFontSizeChange(e.target.value)}
                 className="bg-transparent text-xs font-bold text-[#3A241F] focus:outline-none cursor-pointer py-0.5 px-1"
-                title="اندازه قلم متن"
+                title="اندازه: اگر قسمتی از متن را انتخاب کرده‌اید فقط همان قسمت، وگرنه کل نامه"
               >
                 <option value="11px">۱۱ (ریز)</option>
                 <option value="12px">۱۲ (متوسط)</option>
@@ -1422,6 +1469,8 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                 <option value="14px">۱۴ (خوانا)</option>
                 <option value="16px">۱۶ (بزرگ)</option>
                 <option value="18px">۱۸ (تیتر)</option>
+                <option value="20px">۲۰</option>
+                <option value="24px">۲۴</option>
               </select>
             </div>
 

@@ -1,4 +1,8 @@
 import React, { useRef, useState } from 'react';
+import { Move } from 'lucide-react';
+
+// A phone (finger as the pointer): touching a box must still scroll the page, so a box is moved by its own round handle instead of by grabbing it anywhere
+const isTouchOnly = () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches;
 
 interface MoveBoxProps {
   offset: { x: number; y: number };
@@ -27,11 +31,12 @@ export const MoveBox: React.FC<MoveBoxProps> = ({ offset, onChange, locked, scal
   const live = useRef<{ x: number; y: number } | null>(null);
   const frame = useRef(0);
   const [active, setActive] = useState(false);
+  const touch = useRef(isTouchOnly()).current;
 
   const down = (e: React.PointerEvent) => {
     if (locked) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    if ((e.target as HTMLElement).closest('input, textarea, select, button, option, a, [contenteditable="true"], [data-no-drag]')) return;
+    if (!(e.target as HTMLElement).closest('[data-move-handle]') && (e.target as HTMLElement).closest('input, textarea, select, button, option, a, [contenteditable="true"], [data-no-drag]')) return;
     e.preventDefault();
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -64,20 +69,34 @@ export const MoveBox: React.FC<MoveBoxProps> = ({ offset, onChange, locked, scal
 
   const interactive = locked
     ? ''
+    : touch
+    ? `rounded-md ${active ? 'outline outline-2 outline-amber-500 bg-amber-50/40' : 'outline outline-1 outline-dashed outline-amber-400/70'}`
     : `cursor-grab active:cursor-grabbing hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-500 hover:bg-amber-50/30 rounded-md ${active ? 'outline outline-2 outline-amber-500 bg-amber-50/40' : ''}`;
 
   return (
     <div
       ref={box}
       dir={dir}
-      onPointerDown={down}
+      onPointerDown={touch ? undefined : down}
       onPointerMove={move}
       onPointerUp={up}
       onPointerCancel={up}
       className={`${className} ${interactive}`}
-      style={{ ...style, transform: `translate(${offset.x}px, ${offset.y}px)`, touchAction: locked ? undefined : 'none', willChange: active ? 'transform' : undefined }}
+      style={{ ...style, transform: `translate(${offset.x}px, ${offset.y}px)`, touchAction: locked || touch ? undefined : 'none', willChange: active ? 'transform' : undefined }}
     >
       {children}
+      {touch && !locked && (
+        <span
+          data-move-handle
+          data-no-print
+          onPointerDown={down}
+          className="print:hidden absolute z-30 flex items-center justify-center rounded-full bg-amber-500 text-white shadow-lg cursor-grab active:cursor-grabbing"
+          style={{ width: 34 / scale, height: 34 / scale, top: -14 / scale, left: -14 / scale, touchAction: 'none' }}
+          aria-label="جابه‌جا کردن این بخش"
+        >
+          <Move style={{ width: 18 / scale, height: 18 / scale }} />
+        </span>
+      )}
     </div>
   );
 };

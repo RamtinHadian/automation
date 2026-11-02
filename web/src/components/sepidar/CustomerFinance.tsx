@@ -42,7 +42,10 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
   const rem = data.remainder;
   const hasBalance = typeof rem === 'number';
   // in Sepidar's accounts a positive balance is what the customer still owes the company
-  const tone = !hasBalance ? '' : rem > 0 ? 'text-rose-700' : rem < 0 ? 'text-emerald-700' : 'text-[#3A241F]';
+  const tone = !hasBalance ? '' : rem > 0 ? 'text-rose-700' : 'text-emerald-700';
+  // a debtor is red; a settled or creditor customer is green; no figure at all stays neutral
+  const debtor = hasBalance && rem > 0;
+  const paid = hasBalance && rem <= 0;
   const word = !hasBalance ? 'مانده نامشخص' : rem > 0 ? 'بدهکار' : rem < 0 ? 'بستانکار' : 'تسویه‌شده';
   const stale = data.balanceAt ? Date.now() - new Date(data.balanceAt).getTime() > 24 * 3600 * 1000 : false;
 
@@ -52,9 +55,9 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
 
   if (compact) {
     return (
-      <div className={`px-3.5 border-t border-rose-100 flex items-center justify-between gap-2 font-bold text-rose-950 ${hasBalance && rem > 0 ? 'py-3 bg-rose-100 text-[13px]' : 'py-2 bg-rose-50 text-[11px]'}`} data-call-finance>
+      <div className={`px-3.5 border-t flex items-center justify-between gap-2 font-bold ${debtor ? 'py-3 border-rose-100 bg-rose-100 text-rose-950 text-[13px]' : paid ? 'py-2 border-emerald-100 bg-emerald-50 text-emerald-950 text-[11px]' : 'py-2 border-slate-100 bg-slate-50 text-slate-900 text-[11px]'}`} data-call-finance>
         <span className="flex items-center gap-1.5 min-w-0">
-          <Landmark className="w-3.5 h-3.5 shrink-0 text-rose-700" />
+          <Landmark className={`w-3.5 h-3.5 shrink-0 ${debtor ? 'text-rose-700' : paid ? 'text-emerald-700' : 'text-slate-500'}`} />
           <span className="truncate">وضعیت مالی (سپیدار):</span>
           {hasBalance ? (
             <span className={`font-black ${tone}`}>
@@ -71,9 +74,9 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
   }
 
   return (
-    <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4 space-y-3" data-customer-finance>
-      <div className="flex items-center gap-2 text-xs font-black text-rose-900">
-        <Landmark className="w-4 h-4 text-rose-700" />
+    <div className={`rounded-2xl border p-4 space-y-3 ${debtor ? 'border-rose-200 bg-rose-50/50' : paid ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/50'}`} data-customer-finance>
+      <div className={`flex items-center gap-2 text-xs font-black ${debtor ? 'text-rose-900' : paid ? 'text-emerald-900' : 'text-slate-800'}`}>
+        <Landmark className={`w-4 h-4 ${debtor ? 'text-rose-700' : paid ? 'text-emerald-700' : 'text-slate-500'}`} />
         وضعیت مالی در سپیدار{data.title ? ` · ${data.title}` : ''}
       </div>
       <div className="grid grid-cols-2 gap-2">

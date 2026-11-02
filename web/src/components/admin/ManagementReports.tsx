@@ -13,6 +13,7 @@ import { useAppContext } from '../../context/AppContext';
 import { SalesAnalysis } from './SalesAnalysis';
 import { AiDailyReport } from './AiDailyReport';
 import { SocialStatsReport } from './SocialStatsReport';
+import { LeaveReport } from './LeaveReport';
 import { canSeeSalesTotals } from '../../lib/permissions';
 
 const compactM = (n: number) => compact(toDisplay(n));
@@ -165,6 +166,8 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
         <Kpi accent={C.magenta} icon={<UserPlus className="w-5 h-5" />} label={`مشتری جدید (${rangeLabel})`} value={fa(k.newCustomers)} sub={`${toPersianDigits(k.proformas)} پیش‌فاکتور · ${compactM(k.proformaValue)}`} />
         <Kpi accent={C.yellow} icon={<Phone className="w-5 h-5" />} label="تماس بی‌پاسخ (۷ روز)" value={fa(missedCalls)} sub={callDays.length ? `از ${toPersianDigits(callDays.reduce((a, d) => a + d.total, 0))} تماس` : 'هنوز تماسی ثبت نشده'} tone={missedCalls ? 'bad' : 'good'} />
       </div>
+
+      <LeaveReport range={range} rangeLabel={rangeLabel} />
 
       <SocialStatsReport customers={customers} />
 
