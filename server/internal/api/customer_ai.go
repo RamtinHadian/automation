@@ -116,6 +116,34 @@ func customerAiRun(w http.ResponseWriter, r *http.Request) {
 			line += " · پیش‌بینی بستن " + jalaliText(ec)
 		}
 		b.WriteString(line + "\n")
+		// the items of the proforma made for this opportunity (what was offered, how many, at what price)
+		if n := jsonx.Str(d, "proformaNumber"); n != "" {
+			b.WriteString("  پیش‌فاکتور شمارهٔ " + cutRunes(n, 30))
+			if v := jsonx.Num(d["discountPercent"]); v > 0 {
+				b.WriteString(" · تخفیف " + strconv.Itoa(int(v)) + "٪")
+			}
+			b.WriteString(":\n")
+		}
+		if items, ok := d["items"].([]any); ok {
+			for k, it := range items {
+				if k >= 15 {
+					b.WriteString("  … و " + strconv.Itoa(len(items)-k) + " ردیف دیگر\n")
+					break
+				}
+				m, _ := it.(map[string]any)
+				if m == nil {
+					continue
+				}
+				row := "  · " + cutRunes(jsonx.Str(m, "title"), 80) + " × " + strconv.Itoa(int(jsonx.Num(m["qty"])))
+				if u := jsonx.Str(m, "unit"); u != "" {
+					row += " " + cutRunes(u, 15)
+				}
+				if money && jsonx.Num(m["unitPrice"]) > 0 {
+					row += " به قیمت واحد " + strconv.Itoa(int(jsonx.Num(m["unitPrice"])))
+				}
+				b.WriteString(row + "\n")
+			}
+		}
 	}
 	acts := rawMaps(ctx, `SELECT data FROM crm_activities WHERE customer_id = $1 AND data->>'type' <> 'MISSING' ORDER BY created_at DESC LIMIT 60`, id)
 	b.WriteString("\nتعامل‌ها (تازه‌ترین اول، " + strconv.Itoa(len(acts)) + " مورد):\n")

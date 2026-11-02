@@ -2004,7 +2004,7 @@ const CustomerDetail: React.FC<{
           ) : (
             <PhraseChips sources={allTexts} onPick={(t) => setText((cur) => (cur ? cur.replace(/\s+$/, '') + ' ' : '') + t)} />
           )}
-          {type !== 'QUOTE' && <textarea className={`${field} min-h-[64px] leading-6`} value={text} onChange={(e) => setText(e.target.value)} placeholder={type === 'FOLLOWUP' ? 'چه کاری باید پیگیری شود؟' : type === 'CALL' ? 'خلاصهٔ تماس...' : type === 'MEETING' ? 'خلاصهٔ جلسه...' : 'یادداشت...'} />}
+          {type !== 'QUOTE' && <textarea className={`${field} min-h-[64px] leading-6`} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (text.trim()) add(); } }}placeholder={type === 'FOLLOWUP' ? 'چه کاری باید پیگیری شود؟' : type === 'CALL' ? 'خلاصهٔ تماس...' : type === 'MEETING' ? 'خلاصهٔ جلسه...' : 'یادداشت...'} />}
           {type === 'FOLLOWUP' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
