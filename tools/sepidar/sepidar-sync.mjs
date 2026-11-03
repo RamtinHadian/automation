@@ -836,7 +836,16 @@ export const jobHandlers = {
         u.LastName = body.LastName || '';
       }
       try {
-        await sp.call('PUT', path, u);
+        try {
+          await sp.call('PUT', path, u);
+        } catch (e) {
+          // «این رکورد توسط کاربر دیگری یا از طریق یک فرم دیگر تغییر یافته است» (400): someone (or another job) changed the customer after its Version was read.
+          // The newest Version is read and the same edit is sent once more.
+          if (e && e.status === 400 && /تغییر یافته|changed|modified/i.test(String(e.message || ''))) {
+            const fresh = await sp.get(path);
+            await sp.call('PUT', path, { ...u, Version: fresh.Version });
+          } else throw e;
+        }
         const notes = [];
         if (body.Name && !t.names) notes.push('نام در سپیدار بروز نشد (سپیدار ویرایش نام را نپذیرفت)');
         if (haveAddr && !t.adr) notes.push(`نشانی در سپیدار بروز نشد: ${firstErr?.message || ''}`);
