@@ -144,6 +144,14 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	case me.IsAdmin() || creator == me.ID() || isManagerOf(managedStaff(ctx, me.ID()), append([]string{creator}, assignees...)...):
 		doc = jsonx.Copy(data)
 		doc["id"], doc["creatorId"], doc["creatorName"] = id, creator, before["creatorName"]
+		// the description is the maker's: nobody else (the receiver, a unit manager) changes it afterwards; the system administrator may
+		if creator != me.ID() && me.Role() != "SUPER_ADMIN" {
+			if v, ok := before["description"]; ok {
+				doc["description"] = v
+			} else {
+				delete(doc, "description")
+			}
+		}
 	case jsonx.Contains(assignees, me.ID()):
 		// Assignees may move the task along, tick the checklist and comment; nothing else.
 		doc = jsonx.Copy(before)

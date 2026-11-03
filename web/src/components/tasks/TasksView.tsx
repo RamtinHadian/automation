@@ -568,6 +568,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
   const [newItem, setNewItem] = useState('');
   const [newComment, setNewComment] = useState('');
   const patch = (u: Partial<Task>) => setT((prev) => ({ ...prev, ...u }));
+  // the description is written when the task is made; afterwards only its maker (and the system administrator) can change it, never the receiver
+  const canEditDesc = isNew || me.id === initial.creatorId || me.role === 'SUPER_ADMIN';
+  // a task needs someone responsible: without one the person is asked, in a window, who it should be
+  const [askWho, setAskWho] = useState(false);
+  const [whoQ, setWhoQ] = useState('');
 
   const field =
     'w-full px-3.5 py-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-medium text-[#3A241F] outline-hidden focus:ring-2 focus:ring-sky-500/20 disabled:opacity-70';
@@ -589,6 +594,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!t.title.trim()) return;
+    if (fullEdit && t.assigneeIds.length === 0) {
+      setAskWho(true);
+      return;
+    }
     onSave(t);
   };
 
@@ -599,6 +608,28 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
         onMouseDown={(e) => e.stopPropagation()}
         className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92dvh] flex flex-col border border-[#EBDBCE] text-right"
       >
+        {askWho && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-3" onMouseDown={() => setAskWho(false)} data-ask-assignee>
+            <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[80dvh] flex flex-col border border-rose-200">
+              <div className="px-5 py-4 border-b border-rose-100">
+                <div className="text-xs font-black text-rose-700">برای این وظیفه مسئولی انتخاب نشده است.</div>
+                <div className="text-[12px] font-black text-[#3A241F] mt-1">چه کسی را مسئول انجام کنیم؟ روی نام او کلیک کنید.</div>
+                <input autoFocus value={whoQ} onChange={(e) => setWhoQ(e.target.value)} placeholder="جستجوی نام…" className="mt-2.5 w-full px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold outline-hidden" />
+              </div>
+              <div className="overflow-y-auto p-2 space-y-1">
+                {staff.filter((u) => !whoQ.trim() || `${u.fullName} ${u.departmentName || ''}`.includes(whoQ.trim())).map((u) => (
+                  <button key={u.id} type="button" onClick={() => { const next = { ...t, assigneeIds: [u.id] }; setT(next); setAskWho(false); onSave(next); }} className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-[#EBDBCE] hover:bg-sky-50 hover:border-sky-300 text-right cursor-pointer" data-assignee-option>
+                    <span className="text-[12px] font-black text-[#3A241F]">{u.fullName}</span>
+                    <span className="text-[10px] font-bold text-[#8C6F66]">{u.departmentName || ''}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="px-5 py-3 border-t border-[#EBDBCE] text-left">
+                <button type="button" onClick={() => setAskWho(false)} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">بازگشت</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#EBDBCE]">
           <h3 className="font-black text-sm text-[#3A241F]">{isNew ? 'تعریف وظیفه جدید' : 'جزئیات وظیفه'}</h3>
           <button type="button" onClick={onClose} className="p-1.5 text-[#8C6F66] hover:text-[#3A241F] rounded-xl cursor-pointer">
@@ -620,7 +651,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
 
           <div>
             <label className={label}>توضیحات</label>
-            <textarea className={`${field} min-h-[88px] leading-6`} value={t.description} disabled={!fullEdit} onChange={(e) => patch({ description: e.target.value })} placeholder="جزئیات کار، انتظارات و نکات مهم..." />
+            <textarea className={`${field} min-h-[88px] leading-6`} value={t.description} disabled={!canEditDesc} title={canEditDesc ? undefined : 'توضیحات را فقط سازندهٔ وظیفه می‌تواند عوض کند.'} onChange={(e) => patch({ description: e.target.value })} placeholder="جزئیات کار، انتظارات و نکات مهم..." />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
