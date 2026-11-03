@@ -176,6 +176,12 @@ const cb = customerBody(customers[0]);
 ok(cb.Name === ar('علی') && cb.LastName === ar('رضایی') && cb.PhoneNumber === '09121234567' && cb.CustomerType === 1 && cb.GUID === guidFrom('customer:c-1'), 'customer body: person, Latin digits, stable GUID (amount times the unit multiplier)');
 const cc = customerBody(customers[1]);
 ok(cc.CustomerType === 2 && cc.Name === ar('شرکت نمونه') && cc.LastName === '' && cc.NationalID === '10100000000' && cc.EconomicCode === '411111111111', 'customer body: company');
+{
+  const withRep = customerBody({ ...customers[1], repName: 'علی رضایی' });
+  ok(withRep.CustomerType === 2 && withRep.Name === ar('شرکت نمونه - علی رضایی') && withRep.LastName === '', 'customer body: a company gets the name of its representative after the company name, with a dash');
+  const already = customerBody({ ...customers[1], company: 'شرکت نمونه - علی رضایی', repName: 'علی رضایی' });
+  ok(already.Name === ar('شرکت نمونه - علی رضایی'), 'customer body: the representative is not added twice');
+}
 // the address: Sepidar's own city number is found by name under the province, the street part has no province/city in front, the zip is Latin
 {
   const divs = [{ DivisionID: 1, Title: 'اصفهان', ParentDivisionRef: null }, { DivisionID: 9, Title: 'فارس', ParentDivisionRef: null }, { DivisionID: 5, Title: 'اصفهان', ParentDivisionRef: 1 }, { DivisionID: 6, Title: 'شیراز', ParentDivisionRef: 1 }, { DivisionID: 2, Title: 'شیراز', ParentDivisionRef: 9 }];

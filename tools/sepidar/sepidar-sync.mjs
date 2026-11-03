@@ -226,7 +226,10 @@ export function addressFor(c, divs) {
 
 export function customerBody(c, divs = []) {
   const company = c.kind === 'COMPANY';
-  const person = company ? { Name: c.company || c.name, LastName: '' } : c.firstName || c.lastName ? { Name: c.firstName || '', LastName: c.lastName || '' } : splitName(c.name);
+  // a legal customer in Sepidar has no family name: the name of the company's representative is written after the company name, with a dash (the other way, it would not fit anywhere)
+  const companyName = String(c.company || c.name || '').trim();
+  const rep = String(c.repName || '').trim();
+  const person = company ? { Name: rep && !companyName.includes(rep) ? `${companyName} - ${rep}` : companyName, LastName: '' } : c.firstName || c.lastName ? { Name: c.firstName || '', LastName: c.lastName || '' } : splitName(c.name);
   const phone = (c.phones || []).map(toLatin).find((p) => /^(\+98|0098|98|0)?9\d{9}$/.test(p.replace(/[\s-]/g, ''))) || toLatin((c.phones || [])[0] || '');
   const body = {
     GUID: guidFrom('customer:' + c.id),
