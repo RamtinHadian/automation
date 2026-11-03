@@ -631,7 +631,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     return res.blob();
   },
   sepidarExplain: (customerId: string) => request<{ lines: string[]; verdict: string }>('GET', `/api/sepidar/explain/${encodeURIComponent(customerId)}`),
-  sepidarConnected: () => request<{ connected: boolean; choice: 'yes' | 'no' | 'auto'; seen: boolean; alive?: boolean; seenAt?: string; since?: string }>('GET', '/api/sepidar/connected'),
+  sepidarConnected: () => request<{ connected: boolean; choice: 'yes' | 'no' | 'auto'; seen: boolean; alive?: boolean; seenAt?: string; since?: string; toolVersion?: string }>('GET', '/api/sepidar/connected'),
   sepidarSetSwitch: (value: 'yes' | 'no') => request<{ ok: true }>('PUT', '/api/sepidar/switch', { value }),
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),

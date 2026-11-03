@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 
-type State = { alive: boolean; seenAt: string; since: string } | null;
+type State = { alive: boolean; seenAt: string; since: string; toolVersion: string } | null;
 
 /** «۵ دقیقه»، «۲ ساعت و ۱۰ دقیقه»، «۳ روز و ۴ ساعت». */
 export const spanText = (ms: number): string => {
@@ -32,7 +32,7 @@ export const SepidarStatusChip: React.FC<{ show: boolean }> = ({ show }) => {
       api
         .sepidarConnected()
         .then((r) => {
-          if (live && r.connected) setSt({ alive: r.alive !== false, seenAt: r.seenAt || '', since: r.since || '' });
+          if (live && r.connected) setSt({ alive: r.alive !== false, seenAt: r.seenAt || '', since: r.since || '', toolVersion: r.toolVersion || '' });
         })
         .catch(() => {});
     void check();
@@ -68,6 +68,7 @@ export const SepidarStatusChip: React.FC<{ show: boolean }> = ({ show }) => {
     : Number.isFinite(ms(st.seenAt))
       ? `${spanText(ms(st.seenAt))} است که قطع است.`
       : 'هنوز هیچ‌وقت متصل نشده است.';
+  const verNote = st.toolVersion ? ` برنامهٔ سپیدار روی رایانهٔ حسابداری: نسخهٔ ${st.toolVersion.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])}.` : ' نسخهٔ برنامهٔ سپیدار هنوز اعلام نشده (برنامه قدیمی است و باید با نسخهٔ تازه جایگزین شود).';
   return (
     <div className="relative shrink-0" ref={box} data-sepidar-chip data-state={on ? 'on' : 'off'}>
       <button
@@ -88,7 +89,7 @@ export const SepidarStatusChip: React.FC<{ show: boolean }> = ({ show }) => {
       {open && (
         <div role="status" className="absolute right-0 top-full mt-2 z-[70] min-w-[250px] rounded-2xl border border-[#EBDBCE] bg-white px-3.5 py-2.5 shadow-xl text-[11.5px] font-bold text-[#3A241F] leading-6" data-sepidar-chip-note>
           <div className={`font-black mb-0.5 ${on ? 'text-emerald-700' : 'text-rose-700'}`}>{on ? 'سپیدار متصل است' : 'سپیدار قطع است'}</div>
-          {note}
+          {note}{verNote}
         </div>
       )}
     </div>

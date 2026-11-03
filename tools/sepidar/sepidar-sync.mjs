@@ -90,6 +90,9 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
+/** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
+export const TOOL_VERSION = '1.64.5';
+
 async function hoormand(cfg, p) {
   const res = await netFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } }, 'هورمند');
   const j = await res.json().catch(() => ({}));
@@ -962,7 +965,7 @@ export const jobHandlers = {
 
 /** Takes the waiting requests from Hoormand, does them in Sepidar and reports each result. */
 export async function cmdJobs(cfg) {
-  const { jobs } = await hoormand(cfg, '/sepidar/jobs');
+  const { jobs } = await hoormand(cfg, '/sepidar/jobs?v=' + encodeURIComponent(TOOL_VERSION));
   if (!jobs.length) return 0;
   const state = loadState();
   const sp = client(cfg, state);

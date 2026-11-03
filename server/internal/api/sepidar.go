@@ -120,6 +120,12 @@ func sepidarConnectedSince(ctx context.Context) string {
 	return jsonx.Str(jsonx.Decode(raw), "since")
 }
 
+func sepidarToolVersion(ctx context.Context) string {
+	var raw []byte
+	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarConnector'`).Scan(&raw)
+	return jsonx.Str(jsonx.Decode(raw), "toolVersion")
+}
+
 func sepidarConnectorSeen(ctx context.Context) (seen, version string) {
 	var raw []byte
 	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarConnector'`).Scan(&raw)
@@ -175,7 +181,7 @@ func sepidarConnected(w http.ResponseWriter, r *http.Request) {
 	if t, err := time.Parse("2006-01-02T15:04:05.000Z", seen); err == nil && time.Since(t) < 3*time.Minute {
 		alive = true
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"connected": sepidarEnabled(ctx), "choice": choice, "seen": seen != "", "alive": alive, "seenAt": seen, "since": sepidarConnectedSince(ctx)})
+	httpx.JSON(w, http.StatusOK, map[string]any{"connected": sepidarEnabled(ctx), "choice": choice, "seen": seen != "", "alive": alive, "seenAt": seen, "since": sepidarConnectedSince(ctx), "toolVersion": sepidarToolVersion(ctx)})
 }
 
 // sepidarChoice is what the manager picked in the console: «yes» (سپیدار دارم), «no» (سپیدار ندارم) or "" (not picked yet).
@@ -470,7 +476,7 @@ func sepidarJobCancel(w http.ResponseWriter, r *http.Request) {
 
 // ---------- the program on the accounting computer ----------
 
-func sepidarBeat(ctx context.Context, keyName string) {
+func sepidarBeat(ctx context.Context, keyName, toolVersion string) {
 	// "since": when the present unbroken connection began (a silence of more than 3 minutes starts a new one); the page says how long it has been connected
 	var raw []byte
 	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarConnector'`).Scan(&raw)
@@ -479,7 +485,10 @@ func sepidarBeat(ctx context.Context, keyName string) {
 	if t, err := time.Parse("2006-01-02T15:04:05.000Z", jsonx.Str(prev, "lastSeenAt")); err != nil || time.Since(t) > 3*time.Minute || since == "" {
 		since = now()
 	}
-	d := jsonx.M{"lastSeenAt": now(), "name": keyName, "since": since}
+	if toolVersion == "" {
+		toolVersion = jsonx.Str(prev, "toolVersion") // an older program does not say it
+	}
+	d := jsonx.M{"lastSeenAt": now(), "name": keyName, "since": since, "toolVersion": toolVersion}
 	_, _ = store.Pool.Exec(ctx, `INSERT INTO settings (key, data) VALUES ('sepidarConnector', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`, jsonx.Encode(d))
 }
 
@@ -487,7 +496,11 @@ func sepidarBeat(ctx context.Context, keyName string) {
 // (looking for a new version, sending copies of Sepidar's data) say nothing about whether the requests of Hoormand's people are being taken.
 func extSepidarJobs(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
 	ctx := r.Context()
-	sepidarBeat(ctx, k.Name)
+	ver := r.URL.Query().Get("v")
+	if len(ver) > 20 {
+		ver = ver[:20]
+	}
+	sepidarBeat(ctx, k.Name, ver)
 	rows, err := store.Pool.Query(ctx, `UPDATE sepidar_jobs SET status = 'running', started_at = now() WHERE id IN (SELECT id FROM sepidar_jobs WHERE status = 'pending' ORDER BY created_at LIMIT 20 FOR UPDATE SKIP LOCKED) RETURNING id, kind, data`)
 	if err != nil {
 		internalError(w)
