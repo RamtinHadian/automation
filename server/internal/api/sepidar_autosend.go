@@ -72,10 +72,29 @@ func sepidarHasSamePerson(ctx context.Context, id string, doc jsonx.M) bool {
 		}
 	}
 	nat, nid := digitsOnly(jsonx.Str(doc, "nationalCode")), digitsOnly(jsonx.Str(doc, "nationalId"))
-	if len(keys) == 0 && nat == "" && nid == "" {
+	myName := sepidarNameKey(jsonx.Str(doc, "name"))
+	if len(keys) == 0 && nat == "" && nid == "" && len(myName) < 6 {
 		return false
 	}
-	for _, c := range loadSepidarCustomers(ctx) {
+	// the same full name counts when exactly one Sepidar customer (not tied to another Hoormand customer) carries it
+	sameName := 0
+	list := loadSepidarCustomers(ctx)
+	if len(myName) >= 6 {
+		for _, c := range list {
+			if sepidarNameKey(jsonx.Str(c, "name")) != myName {
+				continue
+			}
+			var ref string
+			if store.Pool.QueryRow(ctx, `SELECT ref FROM sepidar_links WHERE kind = 'customer' AND sepidar_id = $1 LIMIT 1`, sepidarIDOf(c)).Scan(&ref) == nil && ref != id {
+				continue
+			}
+			sameName++
+		}
+		if sameName == 1 {
+			return true
+		}
+	}
+	for _, c := range list {
 		hit := false
 		for _, p := range jsonx.Strings(c, "phones") {
 			d := digitsOnly(p)
@@ -101,4 +120,10 @@ func sepidarHasSamePerson(ctx context.Context, id string, doc jsonx.M) bool {
 		return true
 	}
 	return false
+}
+
+// sepidarNameKey: a name written the same way (Arabic ye / kaf, half spaces, repeated blanks and case do not matter).
+func sepidarNameKey(s string) string {
+	s = strings.NewReplacer("ي", "ی", "ك", "ک", "‌", " ", "‏", " ", "‎", " ").Replace(s)
+	return strings.ToLower(strings.Join(strings.Fields(s), " "))
 }

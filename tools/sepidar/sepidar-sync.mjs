@@ -307,6 +307,13 @@ export function matchSepidarCustomer(body, list, takenIds = new Set(), extraPhon
     const phones = [c.PhoneNumber, c.MobileNumber, c.Phone].map(tail).filter(Boolean);
     if (phones.some((p) => mine.has(p)) || (nid && toLatin(String(c.NationalID || '')).replace(/\D/g, '') === nid)) return c;
   }
+  // no number or code in common (Sepidar's record often has none): the SAME full name, when only one free Sepidar customer carries it, is the same person
+  const nm = (v) => String(v || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[‌‏‎]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  const mineName = nm(`${body.Name || ''} ${body.LastName || ''}`);
+  if (mineName.length >= 6) {
+    const same = list.filter((c) => !takenIds.has(c.CustomerID) && (nm(c.Title) === mineName || nm(`${c.Name || ''} ${c.LastName || ''}`) === mineName));
+    if (same.length === 1) return same[0];
+  }
   return null;
 }
 
@@ -849,7 +856,7 @@ export const jobHandlers = {
         const notes = [];
         if (body.Name && !t.names) notes.push('نام در سپیدار بروز نشد (سپیدار ویرایش نام را نپذیرفت)');
         if (haveAddr && !t.adr) notes.push(`نشانی در سپیدار بروز نشد: ${firstErr?.message || ''}`);
-        return { sepidarId: found.CustomerID, message: (viaMobile ? 'این شخص با همین شمارهٔ موبایل (یا کد ملی) از قبل در سپیدار بود؛ مشتری تازه‌ای ساخته نشد و همان بروزرسانی شد. ' : '') + 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') + (haveAddr && addr.guess ? ` (شهر «${addr.guess}» از متن نشانی تشخیص داده شد؛ بهتر است در هورمند هم نوشته شود)` : '') + phoneNote };
+        return { sepidarId: found.CustomerID, message: (viaMobile ? 'این شخص با همین شمارهٔ موبایل، کد ملی یا نام کامل از قبل در سپیدار بود؛ مشتری تازه‌ای ساخته نشد و همان بروزرسانی شد. ' : '') + 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') + (haveAddr && addr.guess ? ` (شهر «${addr.guess}» از متن نشانی تشخیص داده شد؛ بهتر است در هورمند هم نوشته شود)` : '') + phoneNote };
       } catch (e) {
         if (e && (e.status === 403 || e.status === 401)) throw e; // no right: nothing else would work either
         firstErr ||= e;
