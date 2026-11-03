@@ -91,7 +91,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.65.5';
+export const TOOL_VERSION = '1.66.2';
 
 async function hoormand(cfg, p) {
   const res = await netFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } }, 'هورمند');
@@ -878,6 +878,8 @@ export const jobHandlers = {
         u.LastName = renameLast;
         // the «عنوان» (Title) that Sepidar's lists and search show is made when the customer is created and is not remade from the new name: it is sent too, and read back below
         u.Title = renameName;
+        // the «عنوان تفصیلی» of the form may be another field of the record than «Title» (a DL title...): every field of the record whose name says «title» gets the name
+        for (const k of Object.keys(cur || {})) if (/title/i.test(k) && k !== 'Title' && typeof cur[k] === 'string') u[k] = renameName;
       }
       try {
         // Sepidar's customer may be of the LEGAL kind while Hoormand wrote the same one as a person (first + last name): a legal customer has no family name,
@@ -916,9 +918,14 @@ export const jobHandlers = {
             // the same name in the two systems is written with different ye / kaf, half spaces, dashes and blanks: those are not a difference
             const flat = (v) => String(v || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[‌‏‎]/g, ' ').replace(/[‐-―−]/g, '-').replace(/\s*-\s*/g, ' - ').replace(/\s+/g, ' ').trim().toLowerCase();
             const same = (x, y) => flat(x) === flat(y);
-            if (after.Title !== undefined && !same(after.Title, renameName)) {
-              notes.push(`نام عوض شد ولی «عنوان» (که در فهرست و جستجوی سپیدار دیده می‌شود) هنوز «${after.Title || ''}» است؛ اگر لازم است عنوان را در خود سپیدار (فرم طرف حساب، «عنوان تفصیلی») عوض کنید`);
-              log('  عنوان مشتری در سپیدار عوض نشد:', JSON.stringify({ title: after.Title, name: after.Name, wanted: renameName }));
+            // every title-like field of the record is read back: the ones that took the name and the ones that kept the old text are told apart
+            const titleKeys = Object.keys(after || {}).filter((k) => /title/i.test(k) && typeof after[k] === 'string');
+            const kept = titleKeys.filter((k) => !same(after[k], renameName));
+            if (titleKeys.length && kept.length) {
+              notes.push(`نام عوض شد ولی «عنوان» (که در فهرست و جستجوی سپیدار دیده می‌شود) هنوز ${kept.map((k) => `${k} = «${after[k]}»`).join('، ')} است؛ می‌خواستیم «${renameName}» باشد. اگر لازم است عنوان را در خود سپیدار (فرم طرف حساب، «عنوان تفصیلی») عوض کنید. فیلدهای رکورد در سپیدار: ${Object.keys(after).join('، ')}`);
+              log('  عنوان مشتری در سپیدار عوض نشد:', JSON.stringify({ kept: Object.fromEntries(kept.map((k) => [k, after[k]])), name: after.Name, wanted: renameName, fields: Object.keys(after) }));
+            } else if (titleKeys.length) {
+              log('  عنوان مشتری در سپیدار هم عوض شد:', titleKeys.join('، '));
             }
             if (!same(after.Name, u.Name)) {
               notes.push(`سپیدار درخواست را پذیرفت ولی نام را عوض نکرد (در سپیدار هنوز «${after.Name || ''}» است؛ می‌خواستیم «${renameName}» باشد). نام را در خود سپیدار عوض کنید`);

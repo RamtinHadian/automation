@@ -547,7 +547,7 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 		return
 	}
 	success := jsonx.Bool(body, "ok")
-	msg := whText(body, "message", 400)
+	msg := whText(body, "message", 1200)
 	status := "done"
 	if !success {
 		status = "failed"
