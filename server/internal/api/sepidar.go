@@ -588,7 +588,7 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 			what += " «" + cutRunes(t, 60) + "»"
 		}
 		label, nk, title := "در سپیدار انجام شد", "task", what+" در سپیدار انجام شد"
-		if strings.Contains(msg, "نشد") || strings.Contains(msg, "عوض نکرد") {
+		if strings.Contains(msg, "نشد") || strings.Contains(msg, "عوض نکرد") || strings.Contains(msg, "ولی") || strings.Contains(msg, "هنوز") {
 			label, nk, title = "در سپیدار ناقص انجام شد", "alert", what+" در سپیدار انجام شد، ولی بخشی از آن نشد"
 		}
 		notify.Notify(ctx, []string{by}, notify.Note{
