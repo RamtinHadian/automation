@@ -814,6 +814,8 @@ export const jobHandlers = {
     }
     state.customers[c.id] = found.CustomerID;
     const cur = await sp.get('/api/Customers/' + found.CustomerID);
+    // what Sepidar's customer record holds (to see whether it has a place for the related persons of «افراد مرتبط»): written to the log once per run
+    if (!state.loggedCustomerKeys) { state.loggedCustomerKeys = true; log('  فیلدهای رکورد مشتری در سپیدار:', Object.keys(cur || {}).map((k) => k + (Array.isArray(cur[k]) ? '[]' : '')).join('، ')); }
     // Sepidar's documentation for the edit: PhoneNumber, BirthDate, NationalID, EconomicCode, Version and the list of addresses (an empty list = the addresses stay as they are)
     const upd = { PhoneNumber: body.PhoneNumber || cur.PhoneNumber || '', Version: cur.Version, Addresses: [] };
     if (body.NationalID) upd.NationalID = body.NationalID;
