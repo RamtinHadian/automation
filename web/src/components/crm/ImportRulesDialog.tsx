@@ -9,6 +9,7 @@ export interface ImportSummary {
   renames: number;
   addrUpdates: number;
   fieldUpdates: number;
+  kindChanges?: number;
   numberAdds: number;
   duplicates: number;
   rejected: number;
@@ -103,6 +104,7 @@ export const ImportRulesDialog: React.FC<{
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-import-rules-summary>
             {stat(s.add, 'مشتری تازه', 'bg-violet-50 border-violet-200 text-violet-900')}
             {stat(s.fieldUpdates, 'اطلاعات تکمیل می‌شود', 'bg-teal-50 border-teal-200 text-teal-900')}
+            {stat(s.kindChanges || 0, 'نوع مشتری عوض می‌شود', 'bg-rose-50 border-rose-200 text-rose-900')}
             {stat(s.renames, 'نام عوض می‌شود', 'bg-sky-50 border-sky-200 text-sky-900')}
             {stat(s.numberAdds, 'شماره به همنام اضافه می‌شود', 'bg-indigo-50 border-indigo-200 text-indigo-900')}
             {stat(s.addrUpdates, 'نشانی به‌روز می‌شود', 'bg-emerald-50 border-emerald-200 text-emerald-900')}

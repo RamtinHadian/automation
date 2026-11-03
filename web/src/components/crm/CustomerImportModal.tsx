@@ -21,6 +21,26 @@ const uid = () => 'cu-' + Math.random().toString(36).substring(2, 10);
 const sel = 'w-full px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden';
 
 /** Bulk-add customers from an Excel / CSV file exported from the accounting program. */
+type KindId = 'PERSON' | 'COMPANY' | 'SHOP';
+const KIND_FA: Record<string, string> = { PERSON: 'حقیقی', COMPANY: 'حقوقی', SHOP: 'فروشگاه' };
+/** What changes in a customer when his kind changes to the one in the file: the kind, and the name of the company / the family name where they are empty. */
+const kindPatch = (mine: Customer, to: KindId, cand: Customer): Partial<Customer> => {
+  const p: Partial<Customer> = { kind: to };
+  if (to !== 'PERSON') {
+    if (!mine.company) p.company = cand.company || mine.name;
+  } else {
+    if (!mine.firstName && cand.firstName) p.firstName = cand.firstName;
+    if (!mine.lastName && cand.lastName) p.lastName = cand.lastName;
+  }
+  return p;
+};
+/** Two lists of «id + patch» become one: a customer who is in both gets both changes. */
+const mergeParts = (a: { id: string; patch: Partial<Customer> }[], b: { id: string; patch: Partial<Customer> }[]) => {
+  const m = new Map<string, { id: string; patch: Partial<Customer> }>();
+  for (const u of [...a, ...b]) m.set(u.id, { id: u.id, patch: { ...(m.get(u.id)?.patch || {}), ...u.patch } });
+  return [...m.values()];
+};
+
 export const CustomerImportModal: React.FC<{
   existing: Customer[];
   ownerId: string;
@@ -57,10 +77,11 @@ export const CustomerImportModal: React.FC<{
   const setSyncAddr = (v: boolean) => setRules((r0) => ({ ...r0, syncAddr: v }));
   const [fieldSel, setFieldSel] = useState<Record<string, boolean>>({});
   const [numSel, setNumSel] = useState<Record<number, boolean>>({}); // by the row of the file: add this number to the person of the same name
-  const [sect, setSect] = useState({ new: true, addr: true, names: true, fields: true, numbers: true }); // which boxes the button below takes into the system
+  const [kindSel, setKindSel] = useState<Record<string, boolean>>({}); // changing the kind of a customer who is already there: never ticked from the start, every one needs its own permission
+  const [sect, setSect] = useState({ new: true, addr: true, names: true, fields: true, numbers: true, kinds: true }); // which boxes the button below takes into the system
   const [addrSel, setAddrSel] = useState<Record<string, boolean>>({}); // the address updates: all ticked from the start
   const [numGone, setNumGone] = useState<Set<number>>(new Set()); // rows done or dropped («بیخیال»)
-  const [lim, setLim] = useState<Record<string, number>>({ new: 50, addr: 50, num: 50, field: 50, name: 50, dup: 50, issue: 50 });
+  const [lim, setLim] = useState<Record<string, number>>({ new: 50, addr: 50, num: 50, field: 50, name: 50, dup: 50, issue: 50, kind: 50 });
   const [rulesMode, setRulesMode] = useState<null | 'confirm' | 'edit'>(null); // the page with every rule; it comes first after «افزودن», the numbers are asked once more after it
   const [nameSel, setNameSel] = useState<Record<string, boolean>>({});
   const [skipRows, setSkipRows] = useState<Set<number>>(new Set()); // new people left for another time (not ticked)
@@ -171,6 +192,7 @@ export const CustomerImportModal: React.FC<{
     const numberAdds: { row: number; id: string; name: string; fileName: string; phones: string[] }[] = [];
     const byName = index.byName;
     const fieldUpdates = new Map<string, { id: string; name: string; row: number; patch: Partial<Customer>; labels: string[] }>();
+    const kindChanges = new Map<string, { id: string; name: string; row: number; from: KindId; to: KindId; patch: Partial<Customer> }>();
     const nameChanges = new Map<string, { id: string; row: number; old: string; next: string; first?: string; last?: string; phones: string[]; generic: boolean }>();
     let noName = 0;
     let dup = 0;
@@ -277,7 +299,14 @@ export const CustomerImportModal: React.FC<{
           const candidate = applyFieldRules(build(mine.id), rules);
           if (!get(r, 'source')) candidate.source = ''; // «ورود از اکسل» is only the default of a new person: it must not replace the source of somebody who is already there
           const pf = patchFor(mine, candidate, rules.existing);
-          if (pf.labels.length) fieldUpdates.set(mine.id, { id: mine.id, name: mine.name, row: rowNo, patch: pf.values, labels: pf.labels });
+          // the kind is never changed by the general rule: it has its own box and its own permission
+          const { kind: _k, ...values } = pf.values as Partial<Customer>;
+          const labels = pf.labels.filter((l) => l !== 'نوع');
+          if (labels.length) fieldUpdates.set(mine.id, { id: mine.id, name: mine.name, row: rowNo, patch: values, labels });
+        }
+        const fileKind = importKind(get(r, 'kind'));
+        if (mine && fileKind && (mine.kind || 'PERSON') !== fileKind && !kindChanges.has(mine.id)) {
+          kindChanges.set(mine.id, { id: mine.id, name: mine.name, row: rowNo, from: (mine.kind || 'PERSON') as KindId, to: fileKind, patch: kindPatch(mine, fileKind, build(mine.id)) });
         }
         if (mine && rules.nameReview !== 'never' && normText(mine.name) !== name && !nameChanges.has(mine.id)) {
           const old = normText(mine.name);
@@ -302,7 +331,7 @@ export const CustomerImportModal: React.FC<{
       okRow.set(newId, rowNo);
       ok.push(applyFieldRules(build(newId), rules));
     }
-    return { ok, okRow, noName, dup, noMobile, issues, dupList, addrUpdates: [...addrUpdates.values()], nameChanges: [...nameChanges.values()], fieldUpdates: [...fieldUpdates.values()], numberAdds };
+    return { ok, okRow, noName, dup, noMobile, issues, dupList, addrUpdates: [...addrUpdates.values()], nameChanges: [...nameChanges.values()], fieldUpdates: [...fieldUpdates.values()], kindChanges: [...kindChanges.values()], numberAdds };
   }, [data, map, existing, index, status, rules, ownerId, ownerName, fields, serverDup]);
 
   // a person added one by one is in the system now: the same row would show again as a duplicate of itself, so it is left out of every list
@@ -331,6 +360,9 @@ export const CustomerImportModal: React.FC<{
       {label} ({toPersianDigits(count)})
     </button>
   );
+  const kindOn = (id: string) => kindSel[id] ?? false;
+  const pickedKinds = result.kindChanges.filter((k) => kindOn(k.id));
+  const kindParts = (list: typeof pickedKinds) => list.map((k) => ({ id: k.id, patch: k.patch }));
   const fieldOn = (id: string) => fieldSel[id] ?? true;
   const pickedFields = result.fieldUpdates.filter((u) => fieldOn(u.id));
 
@@ -349,6 +381,7 @@ export const CustomerImportModal: React.FC<{
   const finalNames = sect.names ? pickedNames : [];
   const finalFields = sect.fields ? pickedFields : [];
   const finalNumbers = sect.numbers ? pickedNumbers : [];
+  const finalKinds = sect.kinds ? pickedKinds : [];
   const finalAddrPart = finalAddr.map((u) => ({ id: u.id, address: u.next, city: u.city }));
   const later1 = (id: string, on: boolean) => setLater((s0) => { const n = new Set(s0); if (on) n.add(id); else n.delete(id); return n; });
 
@@ -520,7 +553,7 @@ export const CustomerImportModal: React.FC<{
                       return (
                         <tr key={c.id} className={`border-t border-[#EBDBCE]/60 ${on ? '' : 'opacity-50'}`} data-import-new-row>
                           <td className="px-2 py-1.5"><input type="checkbox" aria-label="افزودن" className="w-4 h-4 accent-violet-600 cursor-pointer" checked={on} onChange={(e) => toggleRow(row, e.target.checked)} /></td>
-                          <td className="px-3 py-1.5 font-bold text-[#3A241F]">{c.name}<span className="block text-[9.5px] font-bold text-[#8C6F66]">ردیف {toPersianDigits(row)}</span></td>
+                          <td className="px-3 py-1.5 font-bold text-[#3A241F]">{c.name}<span className="block text-[9.5px] font-bold text-[#8C6F66]">ردیف {toPersianDigits(row)} · <span className="text-violet-800" data-import-new-kind>{KIND_FA[c.kind || 'PERSON']}</span></span></td>
                           <td className="px-3 py-1.5">{c.company}</td>
                           <td className="px-3 py-1.5" dir="ltr">
                             {toPersianDigits(c.phones[0] || '')}
@@ -606,6 +639,31 @@ export const CustomerImportModal: React.FC<{
                       </div>
                     ))}
                     {moreBtn('num', numPending.length)}
+                  </div>
+                </div>
+              )}
+              {result.kindChanges.length > 0 && (
+                <div className="rounded-2xl border-2 border-rose-300 bg-rose-50/70 px-3 py-2.5" data-import-kinds>
+                  <div className="text-[12px] font-black text-rose-900">نوع این مشتریان موجود در فایل فرق دارد و با اجازهٔ شما عوض می‌شود ({toPersianDigits(result.kindChanges.length)})</div>
+                  <p className="mt-1 text-[10.5px] font-bold text-rose-900/80 leading-5">مثلاً در هورمند «حقیقی» است ولی در فایل «حقوقی». هیچ‌کدام از پیش تیک نخورده؛ فقط آن‌هایی که تیک بزنید به نوع فایل منتقل می‌شوند (نام شرکت یا نام و نام خانوادگیِ خالی هم از روی همان نام پر می‌شود).</p>
+                  <div className="mt-2 flex flex-wrap gap-2 items-center">
+                    {partBtn('عوض‌کردن نوع تیک‌خورده‌ها', pickedKinds.length, () => applyPart('عوض‌کردن نوع مشتری', pickedKinds.length, [[], [], [], kindParts(pickedKinds), []]), 'bg-rose-600 hover:bg-rose-700', 'data-apply-kinds')}
+                    <button type="button" onClick={() => setKindSel(Object.fromEntries(result.kindChanges.map((k) => [k.id, true])))} className="px-2.5 py-1 rounded-lg bg-white border border-rose-300 text-rose-800 text-[10.5px] font-black cursor-pointer">همه را انتخاب کن</button>
+                    <button type="button" onClick={() => setKindSel(Object.fromEntries(result.kindChanges.map((k) => [k.id, false])))} className="px-2.5 py-1 rounded-lg bg-white border border-rose-300 text-rose-800 text-[10.5px] font-black cursor-pointer">هیچ‌کدام</button>
+                  </div>
+                  <div className="mt-2 max-h-56 overflow-y-auto space-y-1.5">
+                    {result.kindChanges.slice(0, lim.kind).map((k) => (
+                      <label key={k.id} className={`flex items-start gap-2.5 rounded-xl border px-2.5 py-2 cursor-pointer ${kindOn(k.id) ? 'bg-white border-rose-400' : 'bg-white/60 border-rose-100'}`} data-import-kind-row>
+                        <input type="checkbox" className="mt-1.5 w-4 h-4 accent-rose-600" checked={kindOn(k.id)} onChange={(e) => setKindSel((m) => ({ ...m, [k.id]: e.target.checked }))} />
+                        <span className="flex-1 min-w-0 text-[11.5px] leading-6">
+                          <span className="font-black text-[#3A241F]">{k.name}</span>
+                          <span className="text-[#8C6F66] font-bold"> · الان: {KIND_FA[k.from]}</span>
+                          <span className="text-rose-900 font-black"> ← طبق فایل: {KIND_FA[k.to]}</span>
+                          <span className="block text-[10px] font-bold text-[#8C6F66]">ردیف {toPersianDigits(k.row)}</span>
+                        </span>
+                      </label>
+                    ))}
+                    {moreBtn('kind', result.kindChanges.length)}
                   </div>
                 </div>
               )}
@@ -727,6 +785,7 @@ export const CustomerImportModal: React.FC<{
               ['names', 'نام', pickedNames.length, 'sky'],
               ['fields', 'تکمیل اطلاعات', pickedFields.length, 'teal'],
               ['numbers', 'شمارهٔ هم‌نام', pickedNumbers.length, 'indigo'],
+              ['kinds', 'تغییر نوع مشتری', pickedKinds.length, 'rose'],
             ] as const).filter(([, , n]) => n > 0).map(([k, label, n, tone]) => (
               <label key={k} className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10.5px] font-black cursor-pointer ${sect[k] ? `bg-${tone}-100 border-${tone}-400 text-${tone}-900` : 'bg-white border-[#EBDBCE] text-[#8C6F66]'}`} data-import-section={k}>
                 <input type="checkbox" className="w-3.5 h-3.5" checked={sect[k]} onChange={(e) => setSect((x) => ({ ...x, [k]: e.target.checked }))} />
@@ -741,12 +800,12 @@ export const CustomerImportModal: React.FC<{
           </button>
           <button
             type="button"
-            disabled={!rows || (finalAdd.length === 0 && finalAddr.length === 0 && finalNames.length === 0 && finalFields.length === 0 && finalNumbers.length === 0)}
+            disabled={!rows || (finalAdd.length === 0 && finalAddr.length === 0 && finalNames.length === 0 && finalFields.length === 0 && finalNumbers.length === 0 && finalKinds.length === 0)}
             onClick={() => setRulesMode('confirm')}
             data-import-final
             className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
           >
-            {rows ? `افزودن ${toPersianDigits(finalAdd.length)} مشتری${finalAddr.length ? ` و به‌روزکردن نشانی ${toPersianDigits(finalAddr.length)} مشتری` : ''}${finalNames.length ? ` و عوض‌کردن نام ${toPersianDigits(finalNames.length)} مشتری` : ''}${finalFields.length ? ` و تکمیل اطلاعات ${toPersianDigits(finalFields.length)} مشتری` : ''}${finalNumbers.length ? ` و افزودن شماره به ${toPersianDigits(finalNumbers.length)} نفر` : ''}` : 'افزودن'}
+            {rows ? `افزودن ${toPersianDigits(finalAdd.length)} مشتری${finalKinds.length ? ` و عوض‌کردن نوع ${toPersianDigits(finalKinds.length)} مشتری` : ''}${finalAddr.length ? ` و به‌روزکردن نشانی ${toPersianDigits(finalAddr.length)} مشتری` : ''}${finalNames.length ? ` و عوض‌کردن نام ${toPersianDigits(finalNames.length)} مشتری` : ''}${finalFields.length ? ` و تکمیل اطلاعات ${toPersianDigits(finalFields.length)} مشتری` : ''}${finalNumbers.length ? ` و افزودن شماره به ${toPersianDigits(finalNumbers.length)} نفر` : ''}` : 'افزودن'}
           </button>
         </div>
       </div>
@@ -755,7 +814,7 @@ export const CustomerImportModal: React.FC<{
           mode={rulesMode}
           rules={rules}
           onChange={setRules}
-          summary={{ add: finalAdd.length, renames: finalNames.length, addrUpdates: finalAddr.length, fieldUpdates: finalFields.length, duplicates: dupRows.length, rejected: issueRows.length, numberAdds: finalNumbers.length, mobileMust, sepidarOn: !!connected }}
+          summary={{ add: finalAdd.length, renames: finalNames.length, addrUpdates: finalAddr.length, fieldUpdates: finalFields.length, duplicates: dupRows.length, rejected: issueRows.length, numberAdds: finalNumbers.length, kindChanges: finalKinds.length, mobileMust, sepidarOn: !!connected }}
           canSave={ctx.currentUser.role === 'SUPER_ADMIN'}
           onSave={() => { ctx.setSettings((s0) => ({ ...s0, importRules: rules })); ctx.showToast('قوانین ورود به‌عنوان قانون سازمان ذخیره شد.'); }}
           onCancel={() => setRulesMode(null)}
@@ -766,13 +825,14 @@ export const CustomerImportModal: React.FC<{
               finalFields.length ? `اطلاعات ${toPersianDigits(finalFields.length)} مشتری موجود ${rules.existing === 'fill' ? 'تکمیل' : 'عوض'} می‌شود` : '',
               finalNames.length ? `نام ${toPersianDigits(finalNames.length)} مشتری موجود عوض می‌شود` : '',
               finalNumbers.length ? `شمارهٔ ${toPersianDigits(finalNumbers.length)} نفر به همنام‌شان در هورمند افزوده می‌شود` : '',
+              finalKinds.length ? `نوع ${toPersianDigits(finalKinds.length)} مشتری موجود عوض می‌شود (حقیقی، حقوقی یا فروشگاه)` : '',
               finalAddr.length ? `نشانی ${toPersianDigits(finalAddr.length)} مشتری موجود به‌روز می‌شود` : '',
               dupRows.length ? `${toPersianDigits(dupRows.length)} ردیف تکراری وارد نمی‌شود` : '',
             ].filter(Boolean);
             const ok = await askConfirm(`${lines.join('، ')}.\nاین کار با یک کلیک برگردانده نمی‌شود. مطمئن هستید که انجام شود؟`, { tone: 'warning', title: 'تأیید نهایی ورود', confirmText: 'بله، انجام شود', cancelText: 'نه، برگرد' });
             if (!ok) return;
             setRulesMode(null);
-            onImport(finalAdd, finalAddrPart, namePart(finalNames), finalFields.map((u) => ({ id: u.id, patch: u.patch })), finalNumbers.map((n) => ({ id: n.id, phones: n.phones })));
+            onImport(finalAdd, finalAddrPart, namePart(finalNames), mergeParts(finalFields.map((u) => ({ id: u.id, patch: u.patch })), kindParts(finalKinds)), finalNumbers.map((n) => ({ id: n.id, phones: n.phones })));
             onClose();
           }}
         />
