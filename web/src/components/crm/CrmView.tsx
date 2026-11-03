@@ -139,6 +139,14 @@ export const CrmView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
+  // how the customer list is ordered and drawn (remembered in this browser)
+  type CustSort = 'activity' | 'newest' | 'oldest' | 'az' | 'za';
+  type CustView = 'cards' | 'compact' | 'list';
+  const readPref = <T extends string>(k: string, ok: T[], d: T): T => { try { const v = localStorage.getItem(k) as T | null; return v && ok.includes(v) ? v : d; } catch { return d; } };
+  const [custSort, setCustSortState] = useState<CustSort>(() => readPref('crm_cust_sort', ['activity', 'newest', 'oldest', 'az', 'za'], 'activity'));
+  const [custView, setCustViewState] = useState<CustView>(() => readPref('crm_cust_view', ['cards', 'compact', 'list'], 'cards'));
+  const setCustSort = (v: CustSort) => { setCustSortState(v); try { localStorage.setItem('crm_cust_sort', v); } catch { /* not kept */ } };
+  const setCustView = (v: CustView) => { setCustViewState(v); try { localStorage.setItem('crm_cust_view', v); } catch { /* not kept */ } };
   const [openCustomer, setOpenCustomer] = useState<string | null>(null);
   // a message was sent from Hoormand on a network of a customer: one more interaction on that network's counter
   useEffect(() => {
@@ -294,8 +302,13 @@ export const CrmView: React.FC = () => {
       .filter((c) => (!adv.province || c.province === adv.province) && (!adv.city || c.city === adv.city) && (!adv.source || c.source === adv.source) && (!adv.tag || c.tags.includes(adv.tag)) && (!adv.owner || c.ownerId === adv.owner) && (!adv.kind || (c.kind || 'PERSON') === adv.kind))
       .filter((c) => (adv.bought === 'yes' ? boughtIds.has(c.id) : adv.bought === 'no' ? !boughtIds.has(c.id) : true))
       .filter((c) => !quietLimit || new Date(lastActivity.get(c.id) || c.updatedAt).getTime() < quietLimit)
-      .sort((a, b) => (lastActivity.get(b.id) || b.updatedAt).localeCompare(lastActivity.get(a.id) || a.updatedAt));
-  }, [customers, statusFilter, mineOnly, search, me, lastActivity, searchIndex, adv, boughtIds]);
+      .sort((a, b) =>
+        custSort === 'newest' ? (b.createdAt || '').localeCompare(a.createdAt || '')
+        : custSort === 'oldest' ? (a.createdAt || '').localeCompare(b.createdAt || '')
+        : custSort === 'az' ? (a.name || '').localeCompare(b.name || '', 'fa')
+        : custSort === 'za' ? (b.name || '').localeCompare(a.name || '', 'fa')
+        : (lastActivity.get(b.id) || b.updatedAt).localeCompare(lastActivity.get(a.id) || a.updatedAt));
+  }, [customers, statusFilter, mineOnly, search, me, lastActivity, searchIndex, adv, boughtIds, custSort]);
   // every filter of the list is lifted: a customer that was just made (here, or from the phone book / a call) must be seen in the list, not hidden behind the
   // search text, the status, «فقط مشتریان من» or the advanced filters that were left on
   const showAllCustomers = () => {
@@ -488,6 +501,23 @@ export const CrmView: React.FC = () => {
     if (!tabs.some(([id]) => id === tab) && tabs[0]) setTab(tabs[0][0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser.hiddenSub]);
+
+  // the short line of the «لیست» view: name, number, owner, status and the day he was registered
+  const customerRow = (c: Customer) => {
+    const st = STATUS[c.status];
+    return (
+      <div key={c.id} onClick={() => setOpenCustomer(c.id)} className="flex items-center gap-3 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 hover:bg-[#FAF5F1] cursor-pointer text-right" data-customer-row>
+        <div className="flex-1 min-w-0">
+          <div className="font-black text-[12.5px] text-[#3A241F] truncate">{c.name}</div>
+          {c.company && c.company !== c.name && <div className="text-[10.5px] text-[#8C6F66] truncate">{c.company}</div>}
+        </div>
+        <div className="hidden sm:block w-32 text-[11px] font-bold text-[#3A241F]" dir="ltr">{toPersianDigits(c.phones?.[0] || '')}</div>
+        <div className="hidden md:block w-28 text-[11px] text-[#8C6F66] truncate">{c.ownerName || ''}</div>
+        <div className="hidden md:block w-24 text-[10.5px] text-[#8C6F66]">{c.createdAt ? formatTaskDate(c.createdAt.slice(0, 10)) : ''}</div>
+        <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${st.cls || 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>{st.label}</span>
+      </div>
+    );
+  };
 
   const customerCard = (c: Customer) => {
     const st = STATUS[c.status];
@@ -919,13 +949,36 @@ export const CrmView: React.FC = () => {
               {advCount > 0 && <button type="button" onClick={() => setAdv({ province: '', city: '', source: '', tag: '', owner: '', kind: '', bought: '', quiet: '' })} className="col-span-2 lg:col-span-4 text-[11px] font-black text-rose-600 underline cursor-pointer text-right">پاک‌کردن فیلترهای پیشرفته</button>}
             </div>
           )}
-          <div className="text-[11px] font-bold text-[#8C6F66]">{toPersianDigits(filteredCustomers.length)} مشتری از {toPersianDigits(customers.length)}</div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[11px] font-bold text-[#8C6F66]">{toPersianDigits(filteredCustomers.length)} مشتری از {toPersianDigits(customers.length)}</div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-black" data-customer-order>
+              <label className="flex items-center gap-1.5 bg-white border border-[#EBDBCE] rounded-xl px-2.5 py-1.5 text-[#3A241F]">
+                مرتب‌سازی:
+                <select value={custSort} onChange={(e) => setCustSort(e.target.value as CustSort)} className="bg-transparent focus:outline-none cursor-pointer" data-customer-sort>
+                  <option value="activity">آخرین تعامل</option>
+                  <option value="newest">جدیدترین ثبت</option>
+                  <option value="oldest">قدیمی‌ترین ثبت</option>
+                  <option value="az">الفبایی (الف تا ی)</option>
+                  <option value="za">الفبایی (ی تا الف)</option>
+                </select>
+              </label>
+              <div className="flex items-center gap-1 bg-white border border-[#EBDBCE] rounded-xl p-1" data-customer-view>
+                {([['cards', 'کارت'], ['compact', 'کارت کوچک'], ['list', 'لیست']] as const).map(([k, t]) => (
+                  <button key={k} type="button" onClick={() => setCustView(k)} className={`px-2.5 py-1 rounded-lg cursor-pointer ${custView === k ? 'bg-violet-600 text-white' : 'text-[#3A241F] hover:bg-[#FAF5F1]'}`}>{t}</button>
+                ))}
+              </div>
+            </div>
+          </div>
           {filteredCustomers.length === 0 ? (
             <div className="text-center text-xs font-bold text-gray-400 py-14 bg-white border border-[#EBDBCE] rounded-3xl">
               {customers.length === 0 ? 'هنوز مشتری ثبت نشده است. با «مشتری جدید» شروع کنید.' : 'مشتری با این جستجو پیدا نشد.'}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{filteredCustomers.map(customerCard)}</div>
+            custView === 'list' ? (
+              <div className="space-y-1.5">{filteredCustomers.map(customerRow)}</div>
+            ) : (
+              <div className={`grid grid-cols-1 gap-3 ${custView === 'compact' ? 'md:grid-cols-3 xl:grid-cols-5' : 'md:grid-cols-2 xl:grid-cols-3'}`}>{filteredCustomers.map(customerCard)}</div>
+            )
           )}
         </div>
       )}
