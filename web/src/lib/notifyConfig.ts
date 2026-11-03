@@ -52,6 +52,9 @@ export const EVENTS: { label: string; kind: NotificationKind; group: string }[] 
   { label: 'فروش موفق', kind: 'task', group: 'مشتریان' },
   { label: 'اتصال به ربات', kind: 'task', group: 'مشتریان' },
   { label: 'پیام جدید', kind: 'chat', group: 'گفتگو' },
+  { label: 'در سپیدار انجام شد', kind: 'task', group: 'سپیدار' },
+  { label: 'در سپیدار ناقص انجام شد', kind: 'alert', group: 'سپیدار' },
+  { label: 'در سپیدار انجام نشد', kind: 'alert', group: 'سپیدار' },
   { label: 'تماس ورودی', kind: 'call', group: 'تلفن' },
   { label: 'تماس بی‌پاسخ', kind: 'call', group: 'تلفن' },
 ];

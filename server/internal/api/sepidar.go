@@ -551,6 +551,23 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 			Kind: "alert", Label: "در سپیدار انجام نشد", Title: what + " در سپیدار انجام نشد", Body: reason, Ref: jsonx.M{"type": "sepidar", "id": id}, Repeat: true,
 		}, "")
 	}
+	if success && by != "" {
+		// the requester is told the request was done too; when Sepidar did it only partly (the message says something «نشد») it is a warning
+		what := sepidarJobs[kind].Title
+		if what == "" {
+			what = "درخواست سپیدار"
+		}
+		if t := jsonx.Str(d, "title"); t != "" {
+			what += " «" + cutRunes(t, 60) + "»"
+		}
+		label, nk, title := "در سپیدار انجام شد", "task", what+" در سپیدار انجام شد"
+		if strings.Contains(msg, "نشد") || strings.Contains(msg, "عوض نکرد") {
+			label, nk, title = "در سپیدار ناقص انجام شد", "alert", what+" در سپیدار انجام شد، ولی بخشی از آن نشد"
+		}
+		notify.Notify(ctx, []string{by}, notify.Note{
+			Kind: nk, Label: label, Title: title, Body: msg, Ref: jsonx.M{"type": "sepidar", "id": id}, Repeat: true,
+		}, "")
+	}
 	if success {
 		sid, hasID := whNum(body, "sepidarId")
 		number, hasNum := whNum(body, "number")
