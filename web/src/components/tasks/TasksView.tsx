@@ -568,8 +568,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
   const [newItem, setNewItem] = useState('');
   const [newComment, setNewComment] = useState('');
   const patch = (u: Partial<Task>) => setT((prev) => ({ ...prev, ...u }));
-  // the description is written when the task is made; afterwards only its maker (and the system administrator) can change it, never the receiver
-  const canEditDesc = isNew || me.id === initial.creatorId || me.role === 'SUPER_ADMIN';
+  // the description is written once, when the task is made; afterwards nobody changes it (only the system administrator), not the receiver and not even the maker
+  const canEditDesc = isNew || me.role === 'SUPER_ADMIN';
   // a task needs someone responsible: without one the person is asked, in a window, who it should be
   const [askWho, setAskWho] = useState(false);
   const [whoQ, setWhoQ] = useState('');
@@ -651,7 +651,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
 
           <div>
             <label className={label}>توضیحات</label>
-            <textarea className={`${field} min-h-[88px] leading-6`} value={t.description} disabled={!canEditDesc} title={canEditDesc ? undefined : 'توضیحات را فقط سازندهٔ وظیفه می‌تواند عوض کند.'} onChange={(e) => patch({ description: e.target.value })} placeholder="جزئیات کار، انتظارات و نکات مهم..." />
+            <textarea className={`${field} min-h-[88px] leading-6`} value={t.description} disabled={!canEditDesc} title={canEditDesc ? undefined : 'توضیحات بعد از ساخته‌شدن وظیفه قابل ویرایش نیست (فقط مدیر کل سیستم). برای نکتهٔ تازه از «گفت‌وگو و گزارش پیشرفت» استفاده کنید.'} onChange={(e) => patch({ description: e.target.value })} placeholder="جزئیات کار، انتظارات و نکات مهم..." />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

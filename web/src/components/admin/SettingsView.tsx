@@ -1219,6 +1219,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'policies' && (
       <>
+      <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-3 text-xs" data-task-archive-card>
+        <div className="flex items-center gap-2.5 text-[#3A241F]">
+          <HardDrive className="w-5 h-5 text-[#6E1B1B]" />
+          <h3 className="font-bold text-sm">بایگانی خودکار وظیفه‌های انجام‌شده</h3>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5 font-bold text-[#3A241F]">
+          بعد از
+          <input dir="ltr" inputMode="numeric" value={settings.taskArchiveDays ?? 7} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setSettings({ ...settings, taskArchiveDays: v === '' ? 0 : Math.min(3650, Number(v)) }); }} className="w-20 px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-black text-center" data-task-archive-days-input />
+          روز که وظیفه «انجام شد» ماند، خودکار به بایگانی برود (۰ = هرگز)
+        </div>
+        <p className="text-[#8C6F66] leading-6">هر فرد را هم می‌شود عدد جدا داد: در «کاربران و سهمیه‌ها»، ویرایش فرد، «بایگانی خودکار وظیفه‌های انجام‌شده». عدد فرد برای وظیفه‌هایی است که خودش ساخته و بر عدد سازمان می‌چربد. وظیفه‌ای که دوباره جابه‌جا شود از بایگانی بیرون می‌آید.</p>
+      </div>
       <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-3 text-xs" data-require-mobile-card>
         <div className="flex items-center gap-2.5 text-[#3A241F]">
           <Phone className="w-5 h-5 text-[#6E1B1B]" />

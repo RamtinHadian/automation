@@ -27,6 +27,7 @@ export interface UserForm {
   /** the warehouse product groups this person may see (none = every group) */
   whGroups?: string[];
   canUseTasks?: boolean;
+  taskArchiveDays?: number;
   canSignOfficialLetters?: boolean;
   canSendOfficialLetters?: boolean;
   extension?: string;
@@ -163,6 +164,11 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
                   <option value="SUPER_ADMIN">مدیر ارشد سامانه</option>
                 </select>
               </div>
+            </div>
+            <div className="rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-3" data-task-archive-days>
+              <label className={label}>بایگانی خودکار وظیفه‌های انجام‌شدهٔ این فرد (بعد از چند روز)</label>
+              <input dir="ltr" inputMode="numeric" value={form.taskArchiveDays ?? ''} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); set({ taskArchiveDays: v === '' ? undefined : Math.min(3650, Number(v)) }); }} placeholder="خالی = عدد سازمان" className={`${field} font-mono text-right`} />
+              <p className="mt-1 text-[10.5px] font-medium text-[#8C6F66] leading-5">برای وظیفه‌هایی که این فرد ساخته است. خالی بگذارید تا عدد سازمان (پیش‌فرض ۷ روز) اعمال شود؛ ۰ یعنی هرگز خودکار بایگانی نشود.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

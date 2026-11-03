@@ -28,6 +28,8 @@ export interface User {
   canSignOfficialLetters?: boolean;
   /** Access to the task-management menu (super/department admins always have it). */
   canUseTasks?: boolean;
+  /** after how many days a finished task made by this person goes to the archive by itself (empty = the company's number, 0 = never) */
+  taskArchiveDays?: number;
   /** Access to the customer (CRM) menu; admins always have it. */
   canUseCrm?: boolean;
   /** Warranty menu (also open to everybody who works with customers). */
@@ -717,6 +719,8 @@ export interface SystemSettings {
   proformaApproverId?: string;
   /** The people who approve the official company's proformas one after the other (the order is the order of approval). */
   proformaApproverIds?: string[];
+  /** after how many days a finished task goes to the archive by itself (default 7; 0 = never); a person's own number wins */
+  taskArchiveDays?: number;
   /** Official identity of the main company (tax invoices). */
   companyNationalId?: string;
   companyRegistrationNumber?: string;

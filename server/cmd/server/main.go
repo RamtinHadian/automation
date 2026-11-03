@@ -70,6 +70,7 @@ func main() {
 	go msgr.Run(ctx)
 	go work.RunTaskReminders(ctx)
 	go api.RunFileRetention(ctx)
+	go api.RunTaskAutoArchive(ctx)
 	go api.RunAiReports(ctx)
 	go api.RunReminders(ctx)
 	go api.RunNetWatch(ctx)

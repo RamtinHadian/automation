@@ -144,8 +144,8 @@ func putTask(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	case me.IsAdmin() || creator == me.ID() || isManagerOf(managedStaff(ctx, me.ID()), append([]string{creator}, assignees...)...):
 		doc = jsonx.Copy(data)
 		doc["id"], doc["creatorId"], doc["creatorName"] = id, creator, before["creatorName"]
-		// the description is the maker's: nobody else (the receiver, a unit manager) changes it afterwards; the system administrator may
-		if creator != me.ID() && me.Role() != "SUPER_ADMIN" {
+		// the description is written once: after the task is made nobody changes it, not even its maker (the system administrator alone may)
+		if me.Role() != "SUPER_ADMIN" {
 			if v, ok := before["description"]; ok {
 				doc["description"] = v
 			} else {
