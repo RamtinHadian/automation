@@ -881,6 +881,17 @@ export const jobHandlers = {
         }
         const notes = [];
         if (body.Name && !t.names) notes.push('نام در سپیدار بروز نشد (سپیدار ویرایش نام را نپذیرفت)');
+        // Sepidar may accept the edit and still leave the name as it was: the record is read again and the name compared
+        if (body.Name && t.names) {
+          try {
+            const after = await sp.get(path);
+            const same = (x, y) => String(x || '').replace(/\s+/g, ' ').trim() === String(y || '').replace(/\s+/g, ' ').trim();
+            if (!same(after.Name, u.Name)) {
+              notes.push(`سپیدار درخواست را پذیرفت ولی نام را عوض نکرد (در سپیدار هنوز «${after.Name || ''}» است؛ می‌خواستیم «${u.Name}» باشد). نام را در خود سپیدار عوض کنید`);
+              log('  نام مشتری در سپیدار عوض نشد:', JSON.stringify({ before: cur.Name, sent: u.Name, after: after.Name }));
+            }
+          } catch { /* the check is only a help */ }
+        }
         if (haveAddr && !t.adr) notes.push(`نشانی در سپیدار بروز نشد: ${firstErr?.message || ''}`);
         return { sepidarId: found.CustomerID, message: (viaMobile ? 'این شخص با همین شمارهٔ موبایل، کد ملی یا نام کامل از قبل در سپیدار بود؛ مشتری تازه‌ای ساخته نشد و همان بروزرسانی شد. ' : '') + 'اطلاعات' + (haveAddr && t.adr ? ' و نشانی' : '') + ' مشتری در سپیدار بروزرسانی شد.' + (notes.length ? ' ' + notes.join('؛ ') + '.' : '') + (addr?.note ? ' ' + addr.note : '') + (haveAddr && addr.guess ? ` (شهر «${addr.guess}» از متن نشانی تشخیص داده شد؛ بهتر است در هورمند هم نوشته شود)` : '') + phoneNote };
       } catch (e) {
