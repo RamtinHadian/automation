@@ -532,7 +532,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     request<{
       matches: { id: string; name: string; ownerName: string; mine: boolean }[];
       sepidar?: { sepidarId: number; name: string; code?: string; linkedCustomerId?: string }[];
-      sepidarLinked?: { sepidarId: number; name: string } | null;
+      sepidarLinked?: { sepidarId: number; name: string; code?: string } | null;
     }>('POST', '/api/crm/duplicates', b),
   crmSepidarLink: (customerId: string, sepidarId: number) => request<{ ok: true; name?: string }>('POST', '/api/crm/sepidar-link', { customerId, sepidarId }),
   crmMerge: (keepId: string, dropId: string) => request<{ ok: true; keepId: string }>('POST', '/api/crm/merge', { keepId, dropId }),
@@ -630,6 +630,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     if (!res.ok) throw new Error('فایل‌ها دریافت نشد.');
     return res.blob();
   },
+  sepidarCodeCheck: (code: string) => request<{ known: boolean; exists?: boolean; name?: string; count?: number }>('GET', `/api/sepidar/code-check?code=${encodeURIComponent(code)}`),
   sepidarExplain: (customerId: string) => request<{ lines: string[]; verdict: string }>('GET', `/api/sepidar/explain/${encodeURIComponent(customerId)}`),
   sepidarConnected: () => request<{ connected: boolean; choice: 'yes' | 'no' | 'auto'; seen: boolean; alive?: boolean; seenAt?: string; since?: string; toolVersion?: string; toolLatest?: string }>('GET', '/api/sepidar/connected'),
   sepidarSetSwitch: (value: 'yes' | 'no') => request<{ ok: true }>('PUT', '/api/sepidar/switch', { value }),

@@ -222,7 +222,15 @@ export const CustomerForm: React.FC<{
   // customers Sepidar (accounting) already has under this number / national code, and the one this customer is already tied to
   type SepMatch = { sepidarId: number; name: string; code?: string; linkedCustomerId?: string };
   const [sepMatches, setSepMatches] = useState<SepMatch[]>([]);
-  const [sepLinked, setSepLinked] = useState<{ sepidarId: number; name: string } | null>(null);
+  // the code typed (or imported) in «کد مشتری در سپیدار» is looked up in Sepidar's customers: a code that is not there is told
+  useEffect(() => {
+    const code = (c.sepidarInfo?.code || '').trim();
+    if (!sepidarOn || !code) { setCodeCheck(null); return; }
+    const t = setTimeout(() => { api.sepidarCodeCheck(code).then(setCodeCheck).catch(() => setCodeCheck(null)); }, 500);
+    return () => clearTimeout(t);
+  }, [sepidarOn, c.sepidarInfo?.code]);
+  const [sepLinked, setSepLinked] = useState<{ sepidarId: number; name: string; code?: string } | null>(null);
+  const [codeCheck, setCodeCheck] = useState<{ known: boolean; exists?: boolean; name?: string; count?: number } | null>(null);
   const [sepBusy, setSepBusy] = useState(false);
   const [sepError, setSepError] = useState('');
   const [recheck, setRecheck] = useState(0); // bumped to ask the server again (after the tie is removed)
@@ -729,6 +737,20 @@ export const CustomerForm: React.FC<{
                     </select>
                   ) : (
                     <input className={field} inputMode={f.kind === 'num' ? 'decimal' : undefined} value={c.sepidarInfo?.[f.id] || ''} onChange={(e) => patch({ sepidarInfo: { ...c.sepidarInfo, [f.id]: e.target.value } })} placeholder={f.kind === 'date' ? 'مثلاً ۱۳۷۰/۰۵/۱۲' : undefined} />
+                  )}
+                  {f.id === 'code' && codeCheck?.known && codeCheck.exists === false && (
+                    <div className="mt-1 text-[11px] font-bold text-rose-700" data-sepidar-code-missing>
+                      این کد در فهرست مشتریان سپیدار پیدا نشد (از {toPersianDigits(codeCheck.count || 0)} مشتری). ممکن است از فایل اکسل یا دستی نوشته شده باشد، یا آن مشتری در سپیدار پاک یا با کد دیگری دوباره ساخته شده باشد.
+                    </div>
+                  )}
+                  {f.id === 'code' && codeCheck?.known && codeCheck.exists && codeCheck.name && (
+                    <div className="mt-1 text-[11px] font-bold text-emerald-700">در سپیدار این کد برای «{codeCheck.name}» است.</div>
+                  )}
+                  {f.id === 'code' && sepLinked?.code && toPersianDigits(sepLinked.code) !== toPersianDigits(c.sepidarInfo?.code || '') && (
+                    <div className="mt-1 text-[11px] font-bold text-sky-800 flex flex-wrap items-center gap-2" data-sepidar-real-code>
+                      کد واقعی این مشتری در سپیدار: {toPersianDigits(sepLinked.code)}
+                      <button type="button" onClick={() => patch({ sepidarInfo: { ...c.sepidarInfo, code: sepLinked.code! } })} className="px-2 py-0.5 rounded-lg bg-white border border-sky-300 text-sky-800 cursor-pointer">همین را بگذار</button>
+                    </div>
                   )}
                 </div>
               ))}

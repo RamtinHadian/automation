@@ -144,7 +144,7 @@ export const CrmView: React.FC = () => {
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN';
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar'>('today');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar'>('customers');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);

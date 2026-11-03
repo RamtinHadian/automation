@@ -181,3 +181,24 @@ func sepidarExplain(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, jsonx.M{"lines": lines, "verdict": verdict})
 }
+
+// queueSepidarCustomerNew: a customer that has just been made in Hoormand is put in the queue of the program at once (it otherwise waits for the next full round, up to ten minutes).
+// Only for someone who may register customers in Sepidar, only with a mobile number (Sepidar needs a number), and not while many such requests already wait (a big import
+// is left to the full round: one request for every row would keep the program busy for an hour).
+func queueSepidarCustomerNew(ctx context.Context, me auth.User, id, title string, doc jsonx.M) {
+	if !sepidarEnabled(ctx) || !sepidarCan(me, "customerNew") || !hasMobile(jsonx.Strings(doc, "phones")) {
+		return
+	}
+	var pending int
+	_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM sepidar_jobs WHERE kind = 'customer.send' AND status = 'pending'`).Scan(&pending)
+	if pending >= 20 {
+		return
+	}
+	var mine int
+	_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM sepidar_jobs WHERE kind = 'customer.send' AND ref = $1 AND status = 'pending'`, id).Scan(&mine)
+	if mine > 0 {
+		return
+	}
+	_, _ = store.Pool.Exec(ctx, `INSERT INTO sepidar_jobs (id, kind, ref, data, created_by, created_by_name) VALUES ($1, 'customer.send', $2, $3::jsonb, $4, $5)`,
+		"sj-"+randomHex(6), id, jsonx.Encode(jsonx.M{"customerId": id, "title": title, "auto": true}), me.ID(), me.Name()+" (مشتری تازه)")
+}

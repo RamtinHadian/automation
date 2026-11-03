@@ -849,7 +849,7 @@ func sepidarCustomerMatches(r *http.Request, phoneKeys []string, nat, nid, excep
 		id := sepidarIDOf(c)
 		name := jsonx.Str(c, "name")
 		if hasLink && id == sid {
-			linked = jsonx.M{"sepidarId": id, "name": name}
+			linked = jsonx.M{"sepidarId": id, "name": name, "code": jsonx.Str(c, "code")}
 		}
 		hit := false
 		for _, p := range jsonx.Strings(c, "phones") {
@@ -1089,8 +1089,27 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/ext/v1/sepidar/tool/{name}", extAuth("sepidar.connect", extSepidarToolFile))
 	mux.HandleFunc("POST /api/crm/sepidar-link", auth.Require(crmSepidarLink))
 	mux.HandleFunc("GET /api/sepidar/explain/{customerId}", auth.Require(sepidarExplain))
+	mux.HandleFunc("GET /api/sepidar/code-check", auth.Require(sepidarCodeCheck))
 	mux.HandleFunc("GET /api/sepidar/finance/{customerId}", auth.Require(sepidarFinance))
 	mux.HandleFunc("GET /api/sepidar/connected", auth.Require(sepidarConnected))
 	mux.HandleFunc("PUT /api/sepidar/switch", auth.Require(sepidarSetSwitch))
 	mux.HandleFunc("GET /api/sepidar/tool-files", auth.Require(sepidarToolZip))
+}
+
+// GET /api/sepidar/code-check?code=11053: is there a customer with this code in the copy of Sepidar's customers that the program keeps in Hoormand?
+// (the «کد مشتری در سپیدار» of a customer is typed or comes from a sheet; Sepidar itself is the only one that knows the real code)
+func sepidarCodeCheck(w http.ResponseWriter, r *http.Request) {
+	code := digitsOnly(r.URL.Query().Get("code"))
+	list := loadSepidarCustomers(r.Context())
+	if len(list) == 0 || code == "" {
+		httpx.JSON(w, http.StatusOK, jsonx.M{"known": false})
+		return
+	}
+	for _, c := range list {
+		if digitsOnly(jsonx.Str(c, "code")) == code {
+			httpx.JSON(w, http.StatusOK, jsonx.M{"known": true, "exists": true, "name": jsonx.Str(c, "name")})
+			return
+		}
+	}
+	httpx.JSON(w, http.StatusOK, jsonx.M{"known": true, "exists": false, "count": len(list)})
 }

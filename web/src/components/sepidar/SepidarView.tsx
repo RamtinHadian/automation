@@ -66,7 +66,7 @@ export const SepidarView: React.FC = () => {
   const customers = useMemo(() => allContacts.filter((c) => !c.contactType), [allContacts]); // phone-book entries that are not customers are not counted or listed here (the same as in the customer menu)
   const [st, setSt] = useState<State | null>(null);
   const [err, setErr] = useState('');
-  const [tab, setTab] = useState<Tab>('deals');
+  const [tab, setTab] = useState<Tab>('customers');
   const [q, setQ] = useState('');
   const [receiptFor, setReceiptFor] = useState<any | null>(null);
   // clicking a customer's name shows his financial position in Sepidar
