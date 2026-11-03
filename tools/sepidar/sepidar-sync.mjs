@@ -91,7 +91,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.64.7';
+export const TOOL_VERSION = '1.65.0';
 
 async function hoormand(cfg, p) {
   const res = await netFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } }, 'هورمند');
@@ -844,7 +844,10 @@ export const jobHandlers = {
     // what Sepidar's customer record holds (to see whether it has a place for the related persons of «افراد مرتبط»): written to the log once per run
     if (!state.loggedCustomerKeys) { state.loggedCustomerKeys = true; log('  فیلدهای رکورد مشتری در سپیدار:', Object.keys(cur || {}).map((k) => k + (Array.isArray(cur[k]) ? '[]' : '')).join('، ')); }
     // Sepidar's documentation for the edit: PhoneNumber, BirthDate, NationalID, EconomicCode, Version and the list of addresses (an empty list = the addresses stay as they are)
-    const upd = { PhoneNumber: body.PhoneNumber || cur.PhoneNumber || '', Version: cur.Version, Addresses: [] };
+    // Sepidar checks the name on every edit by the kind of the record: a real person needs a family name, a legal customer must have none. So the edit always carries
+    // the names (the ones the record has now, unless they are changed below); leaving them out counts as an empty family name and a real person is refused («نام خانوادگی نباید خالی باشد»).
+    const legalNow = Number(cur.CustomerType) === 2;
+    const upd = { PhoneNumber: body.PhoneNumber || cur.PhoneNumber || '', Version: cur.Version, Addresses: [], Name: cur.Name || '', LastName: legalNow ? '' : cur.LastName || '' };
     if (body.NationalID) upd.NationalID = body.NationalID;
     if (body.EconomicCode) upd.EconomicCode = body.EconomicCode;
     if (body.BirthDate) upd.BirthDate = body.BirthDate;
@@ -863,13 +866,16 @@ export const jobHandlers = {
     // the rest is still sent and the message says which one was not taken
     const path = '/api/Customers/' + found.CustomerID;
     const tries = [];
-    for (const names of body.Name ? [true, false] : [false]) for (const adr of haveAddr ? [true, false] : [false]) tries.push({ names, adr });
+    // the name of Hoormand can be put in the record only in a form its kind accepts: a legal record takes the whole name in «Name»; a real person needs a family name
+    const renameName = legalNow ? `${body.Name || ''} ${body.LastName || ''}`.trim() : body.LastName ? body.Name : '';
+    const renameLast = legalNow ? '' : body.LastName || '';
+    for (const names of renameName ? [true, false] : [false]) for (const adr of haveAddr ? [true, false] : [false]) tries.push({ names, adr });
     let firstErr = null;
     for (const t of tries) {
       const u = { ...upd, Addresses: t.adr ? upd.Addresses : [] };
       if (t.names) {
-        u.Name = body.Name;
-        u.LastName = body.LastName || '';
+        u.Name = renameName;
+        u.LastName = renameLast;
       }
       try {
         // Sepidar's customer may be of the LEGAL kind while Hoormand wrote the same one as a person (first + last name): a legal customer has no family name,
@@ -900,13 +906,14 @@ export const jobHandlers = {
         }
         const notes = [];
         if (body.Name && !t.names) notes.push('نام در سپیدار بروز نشد (سپیدار ویرایش نام را نپذیرفت)');
+        if (body.Name && !renameName) notes.push('نام در سپیدار عوض نشد: مشتری در سپیدار «حقیقی» است و نام خانوادگی لازم دارد، ولی در هورمند نام خانوادگی جدا نوشته نشده');
         // Sepidar may accept the edit and still leave the name as it was: the record is read again and the name compared
-        if (body.Name && t.names) {
+        if (body.Name && t.names && renameName) {
           try {
             const after = await sp.get(path);
             const same = (x, y) => String(x || '').replace(/\s+/g, ' ').trim() === String(y || '').replace(/\s+/g, ' ').trim();
             if (!same(after.Name, u.Name)) {
-              notes.push(`سپیدار درخواست را پذیرفت ولی نام را عوض نکرد (در سپیدار هنوز «${after.Name || ''}» است؛ می‌خواستیم «${u.Name}» باشد). نام را در خود سپیدار عوض کنید`);
+              notes.push(`سپیدار درخواست را پذیرفت ولی نام را عوض نکرد (در سپیدار هنوز «${after.Name || ''}» است؛ می‌خواستیم «${renameName}» باشد). نام را در خود سپیدار عوض کنید`);
               log('  نام مشتری در سپیدار عوض نشد:', JSON.stringify({ before: cur.Name, sent: u.Name, after: after.Name }));
             }
           } catch { /* the check is only a help */ }
