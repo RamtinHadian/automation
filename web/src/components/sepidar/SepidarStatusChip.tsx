@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
+import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
 
 type State = { alive: boolean; seenAt: string; since: string; toolVersion: string; toolLatest: string } | null;
@@ -20,6 +21,7 @@ export const spanText = (ms: number): string => {
  * computer is connected, a blinking red one while it is not. A tap opens a small note: how long it has been connected, or how long it has been cut.
  */
 export const SepidarStatusChip: React.FC<{ show: boolean }> = ({ show }) => {
+  const isTop = useAppContext().currentUser?.role === 'SUPER_ADMIN'; // the version of the accounting computer's program and the update notice are for the top administrator only
   const [st, setSt] = useState<State>(null);
   const [open, setOpen] = useState(false);
   const [, tick] = useState(0);
@@ -72,7 +74,7 @@ export const SepidarStatusChip: React.FC<{ show: boolean }> = ({ show }) => {
   // the program on the accounting computer is older than the one this server carries (or does not say its version at all)
   const vnum = (v: string) => v.split('.').map((x) => parseInt(x, 10) || 0);
   const older = (a: string, b: string) => { const x = vnum(a), y = vnum(b); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); } return false; };
-  const outdated = !!st.toolLatest && (!st.toolVersion || older(st.toolVersion, st.toolLatest));
+  const outdated = isTop && !!st.toolLatest && (!st.toolVersion || older(st.toolVersion, st.toolLatest));
   const downloadZip = async () => {
     try {
       const blob = await api.sepidarToolFiles();
@@ -105,7 +107,7 @@ export const SepidarStatusChip: React.FC<{ show: boolean }> = ({ show }) => {
       {open && (
         <div role="status" className="absolute right-0 top-full mt-2 z-[70] min-w-[250px] rounded-2xl border border-[#EBDBCE] bg-white px-3.5 py-2.5 shadow-xl text-[11.5px] font-bold text-[#3A241F] leading-6" data-sepidar-chip-note>
           <div className={`font-black mb-0.5 ${on ? 'text-emerald-700' : 'text-rose-700'}`}>{on ? 'سپیدار متصل است' : 'سپیدار قطع است'}</div>
-          {note}{verNote}
+          {note}{isTop ? verNote : ''}
           {outdated && (
             <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] leading-6 text-amber-900" data-sepidar-outdated>
               <div className="font-black">برنامهٔ رایانهٔ حسابداری باید به‌روز شود{st.toolLatest ? ` (نسخهٔ تازه: ${st.toolLatest.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])})` : ''}.</div>
