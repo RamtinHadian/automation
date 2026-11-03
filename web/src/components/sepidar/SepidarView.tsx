@@ -62,7 +62,8 @@ const timeOf = (iso?: string) => (iso ? `${formatTaskDate(iso)} ${toPersianDigit
 type Tab = 'deals' | 'customers' | 'invoices' | 'prices' | 'jobs';
 
 export const SepidarView: React.FC = () => {
-  const { customers, deals, showToast } = useAppContext();
+  const { customers: allContacts, deals, showToast } = useAppContext();
+  const customers = useMemo(() => allContacts.filter((c) => !c.contactType), [allContacts]); // phone-book entries that are not customers are not counted or listed here (the same as in the customer menu)
   const [st, setSt] = useState<State | null>(null);
   const [err, setErr] = useState('');
   const [tab, setTab] = useState<Tab>('deals');
