@@ -83,6 +83,14 @@ import { buildCustomerIndex, matchesQuery } from '../../lib/customerSearch';
 import { canSub, canSeeSalesTotals } from '../../lib/permissions';
 import { SEPIDAR_FIELDS, sepidarValueText } from '../../lib/sepidarCustomerFields';
 
+/** The category of a customer as shown on the cards: real person, legal person (company) or shop. */
+const KIND_NAME: Record<string, { label: string; cls: string }> = {
+  PERSON: { label: 'حقیقی', cls: 'bg-sky-50 text-sky-800 border-sky-200' },
+  COMPANY: { label: 'حقوقی', cls: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
+  SHOP: { label: 'فروشگاه', cls: 'bg-orange-50 text-orange-800 border-orange-200' },
+};
+const kindOf = (c: { kind?: string }) => KIND_NAME[c.kind || 'PERSON'] || KIND_NAME.PERSON;
+
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
   ACTIVE: { label: 'مشتری فعال', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -511,6 +519,7 @@ export const CrmView: React.FC = () => {
           <div className="font-black text-[12.5px] text-[#3A241F] truncate">{c.name}</div>
           {c.company && c.company !== c.name && <div className="text-[10.5px] text-[#8C6F66] truncate">{c.company}</div>}
         </div>
+        <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>
         <div className="hidden sm:block w-32 text-[11px] font-bold text-[#3A241F]" dir="ltr">{toPersianDigits(c.phones?.[0] || '')}</div>
         <div className="hidden md:block w-28 text-[11px] text-[#8C6F66] truncate">{c.ownerName || ''}</div>
         <div className="hidden md:block w-24 text-[10.5px] text-[#8C6F66]">{c.createdAt ? formatTaskDate(c.createdAt.slice(0, 10)) : ''}</div>
@@ -528,6 +537,7 @@ export const CrmView: React.FC = () => {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="font-black text-[13px] text-[#3A241F] truncate">{c.name}</div>
+            <span className={`inline-block text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>
             {c.company && c.company !== c.name && (
               <div className="text-[11px] text-[#8C6F66] flex items-center gap-1 truncate">
                 <Building2 className="w-3 h-3 shrink-0" />
@@ -960,6 +970,15 @@ export const CrmView: React.FC = () => {
                   <option value="oldest">قدیمی‌ترین ثبت</option>
                   <option value="az">الفبایی (الف تا ی)</option>
                   <option value="za">الفبایی (ی تا الف)</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-1.5 bg-white border border-[#EBDBCE] rounded-xl px-2.5 py-1.5 text-[#3A241F]">
+                نوع مشتری:
+                <select value={adv.kind} onChange={(e) => setAdv((v) => ({ ...v, kind: e.target.value }))} className="bg-transparent focus:outline-none cursor-pointer" data-customer-kind-filter>
+                  <option value="">همه</option>
+                  <option value="PERSON">حقیقی</option>
+                  <option value="COMPANY">حقوقی</option>
+                  <option value="SHOP">فروشگاه</option>
                 </select>
               </label>
               <div className="flex items-center gap-1 bg-white border border-[#EBDBCE] rounded-xl p-1" data-customer-view>

@@ -1,8 +1,8 @@
 package api
 
 import (
-	"math"
 	"context"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -150,6 +150,7 @@ func removeCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id str
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM crm_activities WHERE customer_id = $1`, id)
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM crm_deals WHERE customer_id = $1`, id)
 	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM crm_customers WHERE id = $1`, id)
+	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM sepidar_links WHERE kind = 'customer' AND ref = $1`, id) // its tie to Sepidar goes with it
 	_ = os.RemoveAll(filepath.Join(filesDir(), "crm", id))
 	httpx.OK(w)
 }

@@ -388,6 +388,24 @@ export default function UserPanel() {
     } else setMainMenuTab('files');
   };
   const canAccessCrmMenu = Boolean((currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN') && !hid('crm'));
+
+  // «open this customer's card» asked from another menu (the Sepidar customers tab): go to the customer menu and open it
+  useEffect(() => {
+    const go = (e: Event) => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+      if (!id || !canAccessCrmMenu) return;
+      try {
+        sessionStorage.setItem('crm_open', JSON.stringify({ type: 'customer', id }));
+      } catch {
+        /* storage unavailable */
+      }
+      window.dispatchEvent(new Event('open-crm-item'));
+      setMainMenuTab('crm');
+    };
+    window.addEventListener('hoormand-open-customer', go);
+    return () => window.removeEventListener('hoormand-open-customer', go);
+  }, [canAccessCrmMenu]);
+
   // the warranty menu: admins, people with the warranty switch, and everybody who works with customers
   const sepidarOn = useSepidarConnected(); // «سپیدار دارم / ندارم» of the console: without Sepidar there are no Sepidar menus
   const canAccessSepidarMenu = Boolean(sepidarOn && (currentUser.role === 'SUPER_ADMIN' || (currentUser.sepidarPerms || []).length > 0) && !hid('sepidar'));

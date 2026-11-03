@@ -91,7 +91,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.64.5';
+export const TOOL_VERSION = '1.64.7';
 
 async function hoormand(cfg, p) {
   const res = await netFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } }, 'هورمند');
@@ -329,6 +329,23 @@ export function matchSepidarCustomer(body, list, takenIds = new Set(), extraPhon
 }
 
 /** The customers tied by hand in Hoormand to a customer Sepidar already had (Hoormand customer id -> Sepidar CustomerID). An older Hoormand without this answers nothing. */
+/**
+ * The Sepidar customers that already belong to a Hoormand customer (other than `exceptRef`). A tie that the program remembers for a Hoormand customer that is
+ * not in Hoormand any more (deleted there) does not hold its Sepidar record: that record is free to be updated again. Without an answer from Hoormand the
+ * remembered ties all count, as before.
+ */
+async function takenIds(cfg, state, exceptRef = null) {
+  let links = null;
+  try {
+    const j = await hoormand(cfg, '/sepidar/links');
+    links = new Map((j.links || []).map((l) => [l.ref, l.sepidarId]));
+  } catch { /* an older Hoormand: the program's own memory is all there is */ }
+  const out = new Set();
+  for (const [ref, id] of Object.entries(state.customers || {})) if (ref !== exceptRef && (!links || links.has(ref))) out.add(id);
+  if (links) for (const [ref, id] of links) if (ref !== exceptRef) out.add(id);
+  return out;
+}
+
 async function hoormandLinks(cfg) {
   try {
     const j = await hoormand(cfg, '/sepidar/links');
@@ -611,7 +628,7 @@ async function cmdSync(cfg) {
   const sepidarCustomers = await sp.get('/api/Customers');
   const byGuid = new Map(sepidarCustomers.map((c) => [String(c.GUID || '').toLowerCase(), c.CustomerID]));
   const links = await hoormandLinks(cfg);
-  const taken = new Set([...Object.values(state.customers), ...links.values()]);
+  const taken = await takenIds(cfg, state);
   // the live list of Sepidar tells which of the remembered customers still exist (a customer deleted in Sepidar is registered again); an empty list is not trusted
   const alive = new Set(sepidarCustomers.map((c) => c.CustomerID));
   let resetCount = 0;
@@ -779,7 +796,7 @@ async function sepidarCustomerRef(cfg, sp, state, c) {
     state.customers[c.id] = tied;
     return tied;
   }
-  const taken = new Set([...Object.values(state.customers), ...(await hoormandLinks(cfg)).values()]);
+  const taken = await takenIds(cfg, state);
   const same = matchSepidarCustomer(body, list, taken);
   if (same) {
     state.customers[c.id] = same.CustomerID;
@@ -809,8 +826,7 @@ export const jobHandlers = {
     // that record is UPDATED, no second person is made. Sepidar customers already tied to ANOTHER Hoormand customer are left alone.
     let viaMobile = false;
     if (!found) {
-      const others = (m) => [...(m instanceof Map ? m.entries() : Object.entries(m))].filter(([k]) => k !== c.id).map(([, v]) => v);
-      const taken = new Set([...others(state.customers), ...others(await hoormandLinks(cfg))]);
+      const taken = await takenIds(cfg, state, c.id);
       const same = matchSepidarCustomer(body, list, taken, c.phones || []);
       if (same) {
         found = same;

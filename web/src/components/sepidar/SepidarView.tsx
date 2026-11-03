@@ -351,7 +351,9 @@ export const SepidarView: React.FC = () => {
                 icon={<Users className="w-5 h-5" />}
                 tone="rose"
                 title={
-                  nameBtn(c.id, c.name)
+                  <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('hoormand-open-customer', { detail: { id: c.id } }))} className="font-black underline decoration-dotted underline-offset-4 cursor-pointer text-right hover:text-rose-800" title="باز کردن کارت مشتری (همهٔ کارهای مشتری آن‌جا انجام می‌شود)" data-open-customer-card>
+                    {c.name}
+                  </button>
                 }
                 sub={[c.company, c.phones?.[0] ? toPersianDigits(c.phones[0]) : ''].filter(Boolean).join(' · ')}
                 badge={l ? ['در سپیدار', 'bg-emerald-50 text-emerald-800 border-emerald-200'] : ['هنوز در سپیدار نیست', 'bg-amber-50 text-amber-800 border-amber-200']}
@@ -361,6 +363,11 @@ export const SepidarView: React.FC = () => {
                 ]}
               >
                 {!l && failNote('customer.send', 'customerId', c.id)}
+                {can('viewBalance') && (
+                  <button type="button" onClick={() => setFinanceFor({ id: c.id, name: c.name })} className={`${BtnS} bg-white border-[#EBDBCE]`}>
+                    وضعیت مالی
+                  </button>
+                )}
                 {(l ? can('customerUpdate') : can('customerNew')) && (
                   <button type="button" disabled={busy.has('customer.send:' + c.id)} onClick={() => ask({ kind: 'customer.send', customerId: c.id }, 'درخواست برای سپیدار در صف قرار گرفت.')} className={`${BtnS} bg-white border-[#EBDBCE]`}>
                     {l ? 'بروزرسانی در سپیدار' : 'ثبت در سپیدار'}

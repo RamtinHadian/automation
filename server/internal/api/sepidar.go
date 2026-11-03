@@ -917,7 +917,7 @@ func crmSepidarLink(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/ext/v1/sepidar/links: the customers tied by hand to a customer that Sepidar already had (the program uses them instead of creating a new one)
 func extSepidarLinks(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
-	rows, err := store.Pool.Query(r.Context(), `SELECT ref, sepidar_id FROM sepidar_links WHERE kind = 'customer'`)
+	rows, err := store.Pool.Query(r.Context(), `SELECT l.ref, l.sepidar_id FROM sepidar_links l JOIN crm_customers c ON c.id = l.ref WHERE l.kind = 'customer'`) // a tie to a customer that was deleted in Hoormand holds nothing
 	if err != nil {
 		internalError(w)
 		return
