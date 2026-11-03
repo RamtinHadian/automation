@@ -91,7 +91,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.65.4';
+export const TOOL_VERSION = '1.65.5';
 
 async function hoormand(cfg, p) {
   const res = await netFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } }, 'هورمند');
@@ -876,6 +876,8 @@ export const jobHandlers = {
       if (t.names) {
         u.Name = renameName;
         u.LastName = renameLast;
+        // the «عنوان» (Title) that Sepidar's lists and search show is made when the customer is created and is not remade from the new name: it is sent too, and read back below
+        u.Title = renameName;
       }
       try {
         // Sepidar's customer may be of the LEGAL kind while Hoormand wrote the same one as a person (first + last name): a legal customer has no family name,
@@ -914,6 +916,10 @@ export const jobHandlers = {
             // the same name in the two systems is written with different ye / kaf, half spaces, dashes and blanks: those are not a difference
             const flat = (v) => String(v || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[‌‏‎]/g, ' ').replace(/[‐-―−]/g, '-').replace(/\s*-\s*/g, ' - ').replace(/\s+/g, ' ').trim().toLowerCase();
             const same = (x, y) => flat(x) === flat(y);
+            if (after.Title !== undefined && !same(after.Title, renameName)) {
+              notes.push(`نام عوض شد ولی «عنوان» (که در فهرست و جستجوی سپیدار دیده می‌شود) هنوز «${after.Title || ''}» است؛ اگر لازم است عنوان را در خود سپیدار (فرم طرف حساب، «عنوان تفصیلی») عوض کنید`);
+              log('  عنوان مشتری در سپیدار عوض نشد:', JSON.stringify({ title: after.Title, name: after.Name, wanted: renameName }));
+            }
             if (!same(after.Name, u.Name)) {
               notes.push(`سپیدار درخواست را پذیرفت ولی نام را عوض نکرد (در سپیدار هنوز «${after.Name || ''}» است؛ می‌خواستیم «${renameName}» باشد). نام را در خود سپیدار عوض کنید`);
               log('  نام مشتری در سپیدار عوض نشد:', JSON.stringify({ before: cur.Name, sent: u.Name, after: after.Name }));
