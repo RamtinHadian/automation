@@ -843,8 +843,17 @@ export const jobHandlers = {
         u.LastName = body.LastName || '';
       }
       try {
+        // Sepidar's customer may be of the LEGAL kind while Hoormand wrote the same one as a person (first + last name): a legal customer has no family name,
+        // so the whole name goes into «Name» and «LastName» stays empty
+        const asLegal = (x) => ({ ...x, Name: `${x.Name || ''} ${x.LastName || ''}`.trim(), LastName: '' });
+        const isLegalError = (e) => !!e && e.status === 400 && /نوع حقوقی|نام خانوادگی/.test(String(e.message || ''));
         try {
-          await sp.call('PUT', path, u);
+          try {
+            await sp.call('PUT', path, u);
+          } catch (e0) {
+            if (!(t.names && isLegalError(e0))) throw e0;
+            await sp.call('PUT', path, asLegal(u));
+          }
         } catch (e) {
           // «این رکورد توسط کاربر دیگری یا از طریق یک فرم دیگر تغییر یافته است» (400): someone (or another job) changed the customer after its Version was read.
           // The newest Version is read and the same edit is sent once more.
