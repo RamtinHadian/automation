@@ -852,7 +852,14 @@ export const jobHandlers = {
             await sp.call('PUT', path, u);
           } catch (e0) {
             if (!(t.names && isLegalError(e0))) throw e0;
-            await sp.call('PUT', path, asLegal(u));
+            try {
+              await sp.call('PUT', path, asLegal(u));
+            } catch (e1) {
+              if (!isLegalError(e1)) throw e1;
+              // some Sepidar versions refuse even an empty family name for a legal customer: the field is left out altogether
+              const { LastName: _drop, ...noLast } = asLegal(u);
+              await sp.call('PUT', path, noLast);
+            }
           }
         } catch (e) {
           // «این رکورد توسط کاربر دیگری یا از طریق یک فرم دیگر تغییر یافته است» (400): someone (or another job) changed the customer after its Version was read.
