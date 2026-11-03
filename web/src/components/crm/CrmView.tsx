@@ -34,7 +34,7 @@ import {
   Gift,
   Sparkles,
   BookUser,
-  SlidersHorizontal, Link2, Landmark } from 'lucide-react';
+  SlidersHorizontal, Link2, Landmark, Tags } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
@@ -47,6 +47,7 @@ import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/t
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SocialEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
+import { KindFixModal } from './KindFixModal';
 import { CallList, RecordingButton } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
 import { BulkSms } from './BulkSms';
@@ -177,6 +178,7 @@ export const CrmView: React.FC = () => {
   const [websitePick, setWebsitePick] = useState<{ name: string; list: string[] } | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [importing, setImporting] = useState(false);
+  const [kindFix, setKindFix] = useState(false);
   const [editingDeal, setEditingDeal] = useState<{ deal: Deal; isNew: boolean } | null>(null);
   const [voip, setVoip] = useState<{ enabled: boolean; connected: boolean; extension: string } | null>(null);
   const [proformaFor, setProformaFor] = useState<Deal | null>(null);
@@ -718,6 +720,14 @@ export const CrmView: React.FC = () => {
             <BookUser className="w-4 h-4" />
             دفتر تلفن
           </button>}
+          {isAdmin && <button
+            onClick={() => setKindFix(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-black cursor-pointer"
+            data-kind-fix-btn
+          >
+            <Tags className="w-4 h-4" />
+            اصلاح نوع مشتریان
+          </button>}
           {canSub(currentUser, 'crm.import') && <button
             onClick={() => setImporting(true)}
             className="flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
@@ -1198,6 +1208,8 @@ export const CrmView: React.FC = () => {
           onDelete={() => removeCustomer(editingCustomer)}
         />
       )}
+
+      {kindFix && <KindFixModal customers={customers} onClose={() => setKindFix(false)} onApply={(patches) => importApply([], [], [], patches, [])} />}
 
       {importing && (
         <CustomerImportModal
