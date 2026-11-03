@@ -3,12 +3,12 @@ package api
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"math/big"
 	"encoding/json"
-	"context"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -49,23 +49,23 @@ var sepidarPerms = []struct{ Key, Title string }{
 
 // a broad right includes the small ones under it (so what people were given before keeps working); a small right can also be given alone
 var sepidarImplies = map[string][]string{
-	"view":      {"viewInvoices", "viewPrices", "viewBalance", "viewCredit", "callFinance", "refresh"},
+	"view": {"viewInvoices", "viewPrices", "viewBalance", "viewCredit", "callFinance", "refresh"},
 	// whoever could see the balance before the pop-up right existed keeps seeing it there
 	"viewBalance": {"callFinance"},
-	"customer":  {"customerNew", "customerUpdate"},
-	"quotation": {"quotationSend", "quotationClose", "quotationDelete"},
+	"customer":    {"customerNew", "customerUpdate"},
+	"quotation":   {"quotationSend", "quotationClose", "quotationDelete"},
 }
 
 // the jobs and the right each one needs
 var sepidarJobs = map[string]struct{ Perm, Title string }{
-	"customer.send":       {"customerNew", "ثبت یا بروزرسانی مشتری"},
-	"quotation.send":      {"quotationSend", "ارسال پیش‌فاکتور"},
-	"quotation.close":     {"quotationClose", "بستن پیش‌فاکتور"},
-	"quotation.unclose":   {"quotationClose", "بازکردن پیش‌فاکتور"},
-	"quotation.delete":    {"quotationDelete", "حذف پیش‌فاکتور"},
+	"customer.send":        {"customerNew", "ثبت یا بروزرسانی مشتری"},
+	"quotation.send":       {"quotationSend", "ارسال پیش‌فاکتور"},
+	"quotation.close":      {"quotationClose", "بستن پیش‌فاکتور"},
+	"quotation.unclose":    {"quotationClose", "بازکردن پیش‌فاکتور"},
+	"quotation.delete":     {"quotationDelete", "حذف پیش‌فاکتور"},
 	"invoice.fromProforma": {"invoice", "صدور فاکتور"},
-	"receipt.add":         {"receipt", "ثبت دریافتی"},
-	"refresh":             {"refresh", "بروزرسانی اطلاعات سپیدار"},
+	"receipt.add":          {"receipt", "ثبت دریافتی"},
+	"refresh":              {"refresh", "بروزرسانی اطلاعات سپیدار"},
 }
 
 // what the program may store as a copy of Sepidar's data
@@ -109,7 +109,9 @@ func sepidarTop(me auth.User) bool {
 	return jsonx.Str(me.M, "role") == "SUPER_ADMIN" || jsonx.Bool(me.M, "canSignOfficialLetters")
 }
 
-func sepidarAny(me auth.User) bool { return me.IsAdmin() || len(jsonx.Strings(me.M, "sepidarPerms")) > 0 }
+func sepidarAny(me auth.User) bool {
+	return me.IsAdmin() || len(jsonx.Strings(me.M, "sepidarPerms")) > 0
+}
 
 // sepidarConnectedSince: when the program's present unbroken connection began ("" when unknown).
 func sepidarConnectedSince(ctx context.Context) string {
@@ -532,6 +534,23 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 		return
 	}
 	d := jsonx.Decode(data)
+	if !success && by != "" {
+		// whoever asked for it (or whose edit made the request) is told at once, with the reason, as a notification and a pop-up
+		what := sepidarJobs[kind].Title
+		if what == "" {
+			what = "درخواست سپیدار"
+		}
+		if t := jsonx.Str(d, "title"); t != "" {
+			what += " «" + cutRunes(t, 60) + "»"
+		}
+		reason := msg
+		if reason == "" {
+			reason = "سپیدار دلیلی نگفت؛ در منوی سپیدار، تب «درخواست‌ها» را ببینید."
+		}
+		notify.Notify(ctx, []string{by}, notify.Note{
+			Kind: "alert", Label: "در سپیدار انجام نشد", Title: what + " در سپیدار انجام نشد", Body: reason, Ref: jsonx.M{"type": "sepidar", "id": id}, Repeat: true,
+		}, "")
+	}
 	if success {
 		sid, hasID := whNum(body, "sepidarId")
 		number, hasNum := whNum(body, "number")
