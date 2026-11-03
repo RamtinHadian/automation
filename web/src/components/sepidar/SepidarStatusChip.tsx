@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 
-type State = { alive: boolean; seenAt: string; since: string; toolVersion: string } | null;
+type State = { alive: boolean; seenAt: string; since: string; toolVersion: string; toolLatest: string } | null;
 
 /** «۵ دقیقه»، «۲ ساعت و ۱۰ دقیقه»، «۳ روز و ۴ ساعت». */
 export const spanText = (ms: number): string => {
@@ -32,7 +32,7 @@ export const SepidarStatusChip: React.FC<{ show: boolean }> = ({ show }) => {
       api
         .sepidarConnected()
         .then((r) => {
-          if (live && r.connected) setSt({ alive: r.alive !== false, seenAt: r.seenAt || '', since: r.since || '', toolVersion: r.toolVersion || '' });
+          if (live && r.connected) setSt({ alive: r.alive !== false, seenAt: r.seenAt || '', since: r.since || '', toolVersion: r.toolVersion || '', toolLatest: r.toolLatest || '' });
         })
         .catch(() => {});
     void check();
@@ -69,6 +69,22 @@ export const SepidarStatusChip: React.FC<{ show: boolean }> = ({ show }) => {
       ? `${spanText(ms(st.seenAt))} است که قطع است.`
       : 'هنوز هیچ‌وقت متصل نشده است.';
   const verNote = st.toolVersion ? ` برنامهٔ سپیدار روی رایانهٔ حسابداری: نسخهٔ ${st.toolVersion.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])}.` : ' نسخهٔ برنامهٔ سپیدار هنوز اعلام نشده (برنامه قدیمی است و باید با نسخهٔ تازه جایگزین شود).';
+  // the program on the accounting computer is older than the one this server carries (or does not say its version at all)
+  const vnum = (v: string) => v.split('.').map((x) => parseInt(x, 10) || 0);
+  const older = (a: string, b: string) => { const x = vnum(a), y = vnum(b); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); } return false; };
+  const outdated = !!st.toolLatest && (!st.toolVersion || older(st.toolVersion, st.toolLatest));
+  const downloadZip = async () => {
+    try {
+      const blob = await api.sepidarToolFiles();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'hoormand-sepidar-program.zip';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'فایل‌ها دریافت نشد.');
+    }
+  };
   return (
     <div className="relative shrink-0" ref={box} data-sepidar-chip data-state={on ? 'on' : 'off'}>
       <button
@@ -90,6 +106,14 @@ export const SepidarStatusChip: React.FC<{ show: boolean }> = ({ show }) => {
         <div role="status" className="absolute right-0 top-full mt-2 z-[70] min-w-[250px] rounded-2xl border border-[#EBDBCE] bg-white px-3.5 py-2.5 shadow-xl text-[11.5px] font-bold text-[#3A241F] leading-6" data-sepidar-chip-note>
           <div className={`font-black mb-0.5 ${on ? 'text-emerald-700' : 'text-rose-700'}`}>{on ? 'سپیدار متصل است' : 'سپیدار قطع است'}</div>
           {note}{verNote}
+          {outdated && (
+            <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] leading-6 text-amber-900" data-sepidar-outdated>
+              <div className="font-black">برنامهٔ رایانهٔ حسابداری باید به‌روز شود{st.toolLatest ? ` (نسخهٔ تازه: ${st.toolLatest.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])})` : ''}.</div>
+              <div>۱) «دانلود فایل‌های برنامه» را بزنید و محتوای zip را داخل پوشهٔ برنامه روی رایانهٔ حسابداری (C:\ProgramData\HoormandSepidar) کپی کنید.</div>
+              <div>۲) روی فایل <span dir="ltr" className="font-black">Beroozresani-va-Ejra-Dobare.cmd</span> دوبار کلیک کنید؛ خودش برنامه را می‌بندد، فایل‌های تازه را می‌گیرد و دوباره روشن می‌کند.</div>
+              <button type="button" onClick={downloadZip} className="mt-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black cursor-pointer" data-sepidar-download>دانلود فایل‌های برنامه</button>
+            </div>
+          )}
         </div>
       )}
     </div>

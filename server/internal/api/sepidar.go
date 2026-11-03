@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -120,6 +121,19 @@ func sepidarConnectedSince(ctx context.Context) string {
 	return jsonx.Str(jsonx.Decode(raw), "since")
 }
 
+// the newest version of the program that this server carries (written in its main file as TOOL_VERSION)
+func sepidarToolLatest() string {
+	b, err := os.ReadFile(filepath.Join(sepidarToolDir(), "sepidar-sync.mjs"))
+	if err != nil {
+		return ""
+	}
+	m := regexp.MustCompile(`TOOL_VERSION\s*=\s*'([0-9.]+)'`).FindSubmatch(b)
+	if m == nil {
+		return ""
+	}
+	return string(m[1])
+}
+
 func sepidarToolVersion(ctx context.Context) string {
 	var raw []byte
 	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'sepidarConnector'`).Scan(&raw)
@@ -181,7 +195,7 @@ func sepidarConnected(w http.ResponseWriter, r *http.Request) {
 	if t, err := time.Parse("2006-01-02T15:04:05.000Z", seen); err == nil && time.Since(t) < 3*time.Minute {
 		alive = true
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"connected": sepidarEnabled(ctx), "choice": choice, "seen": seen != "", "alive": alive, "seenAt": seen, "since": sepidarConnectedSince(ctx), "toolVersion": sepidarToolVersion(ctx)})
+	httpx.JSON(w, http.StatusOK, map[string]any{"connected": sepidarEnabled(ctx), "choice": choice, "seen": seen != "", "alive": alive, "seenAt": seen, "since": sepidarConnectedSince(ctx), "toolVersion": sepidarToolVersion(ctx), "toolLatest": sepidarToolLatest()})
 }
 
 // sepidarChoice is what the manager picked in the console: «yes» (سپیدار دارم), «no» (سپیدار ندارم) or "" (not picked yet).
@@ -630,7 +644,7 @@ func ref0(kind, id string) jsonx.M { return jsonx.M{"type": kind, "id": id} }
 // ---------- the program on the accounting computer updates itself from here ----------
 // The server holds a copy of the program's files (the Docker image carries them, so they are updated from Git together with the app);
 // the program compares its own files with this list and downloads what differs. Only these names can ever be served.
-var sepidarToolFiles = []string{"sepidar-sync.mjs", "sepidar-client.mjs", "console-fa.mjs", "config-help.mjs", "ui.mjs", "updater.mjs", "Vazirmatn-Regular.woff2", "Vazirmatn-Bold.woff2"}
+var sepidarToolFiles = []string{"sepidar-sync.mjs", "sepidar-client.mjs", "console-fa.mjs", "config-help.mjs", "ui.mjs", "updater.mjs", "Vazirmatn-Regular.woff2", "Vazirmatn-Bold.woff2", "Beroozresani-va-Ejra-Dobare.cmd"}
 
 func sepidarToolDir() string {
 	if d := os.Getenv("SEPIDAR_TOOL_DIR"); d != "" {
