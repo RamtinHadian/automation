@@ -204,6 +204,9 @@ export function addressText(c) {
 }
 
 /** The main address for Sepidar, or { note } saying why it cannot be sent. */
+/** Sepidar keeps its text with the Arabic letters ي and ك (its own search finds only those): Persian ی and ک are turned into them before anything is sent. */
+export const arabicLetters = (t) => String(t ?? '').replace(/ی/g, 'ي').replace(/ک/g, 'ك');
+
 export function addressFor(c, divs) {
   const text = addressText(c);
   const zip = toLatin(c.postalCode || '').replace(/\D/g, '');
@@ -218,7 +221,7 @@ export function addressFor(c, divs) {
     const why = !c.city ? 'شهر مشتری در هورمند نوشته نشده و در متن نشانی هم نام یک شهر روشن پیدا نشد؛ شهر را در فرم مشتری بنویسید' : !divs || divs.length === 0 ? 'فهرست شهرهای سپیدار خوانده نشد' : `شهر «${c.city}» در فهرست مناطق سپیدار پیدا نشد`;
     return { note: `نشانی فرستاده نشد (${why}).` };
   }
-  return { address: { Title: 'نشانی اصلی', IsMain: true, CityRef: cityRef, Address: text, ZipCode: zip, Latitude: 0, Longitude: 0, GUID: guidFrom('address:' + c.id) }, guess };
+  return { address: { Title: 'نشانی اصلی', IsMain: true, CityRef: cityRef, Address: arabicLetters(text), ZipCode: zip, Latitude: 0, Longitude: 0, GUID: guidFrom('address:' + c.id) }, guess };
 }
 
 export function customerBody(c, divs = []) {
@@ -234,6 +237,8 @@ export function customerBody(c, divs = []) {
   };
   const a = addressFor(c, divs);
   if (a?.address) body.Addresses.push(a.address);
+  body.Name = arabicLetters(body.Name);
+  body.LastName = arabicLetters(body.LastName);
   const nid = toLatin(company ? c.nationalId : c.nationalCode);
   if (nid) body.NationalID = nid;
   if (company && c.economicCode) body.EconomicCode = toLatin(c.economicCode);
