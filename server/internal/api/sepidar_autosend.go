@@ -2,9 +2,12 @@ package api
 
 import (
 	"context"
+	"net/http"
+	"strconv"
 	"strings"
 
 	"automation/server/internal/auth"
+	"automation/server/internal/httpx"
 	"automation/server/internal/jsonx"
 	"automation/server/internal/store"
 )
@@ -126,4 +129,55 @@ func sepidarHasSamePerson(ctx context.Context, id string, doc jsonx.M) bool {
 func sepidarNameKey(s string) string {
 	s = strings.NewReplacer("ي", "ی", "ك", "ک", "‌", " ", "‏", " ", "‎", " ").Replace(s)
 	return strings.ToLower(strings.Join(strings.Fields(s), " "))
+}
+
+// GET /api/sepidar/explain/{customerId}: why did (or did not) an edit of this customer go to Sepidar? Every condition, one line each, for the person who edits.
+func sepidarExplain(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	id := r.PathValue("customerId")
+	ctx := r.Context()
+	if !crmOwnsCustomer(r, me, id) {
+		httpx.Forbidden(w)
+		return
+	}
+	var raw []byte
+	if store.Pool.QueryRow(ctx, `SELECT data FROM crm_customers WHERE id = $1`, id).Scan(&raw) != nil {
+		httpx.Error(w, http.StatusNotFound, "این مشتری پیدا نشد.")
+		return
+	}
+	doc := jsonx.Decode(raw)
+	yes := func(ok bool) string {
+		if ok {
+			return "✓ "
+		}
+		return "✗ "
+	}
+	lines := []string{}
+	on := sepidarEnabled(ctx)
+	lines = append(lines, yes(on)+"سپیدار در کنسول روشن است")
+	can := sepidarCan(me, "customerUpdate")
+	lines = append(lines, yes(can)+"شما ("+me.Name()+") حق «بروزرسانی مشتری» در سپیدار را دارید")
+	var linked int
+	_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM sepidar_links WHERE kind = 'customer' AND ref = $1`, id).Scan(&linked)
+	lines = append(lines, yes(linked > 0)+"این مشتری به یک مشتری سپیدار وصل است")
+	cache := loadSepidarCustomers(ctx)
+	lines = append(lines, "• فهرست مشتریان سپیدار در هورمند: "+strconv.Itoa(len(cache))+" نفر")
+	same := sepidarHasSamePerson(ctx, id, doc)
+	lines = append(lines, yes(same)+"در سپیدار یک مشتری با شمارهٔ موبایل، کد ملی یا نام کامل یکسان (و آزاد) هست")
+	var pending int
+	_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM sepidar_jobs WHERE kind = 'customer.send' AND ref = $1 AND status = 'pending'`, id).Scan(&pending)
+	if pending > 0 {
+		lines = append(lines, "• یک درخواست در صف منتظر برنامهٔ سپیدار است")
+	}
+	var st, msg, at string
+	if store.Pool.QueryRow(ctx, `SELECT status, COALESCE(result->>'message', ''), to_char(created_at, 'YYYY-MM-DD HH24:MI') FROM sepidar_jobs WHERE kind = 'customer.send' AND ref = $1 ORDER BY created_at DESC LIMIT 1`, id).Scan(&st, &msg, &at) == nil {
+		lines = append(lines, "• آخرین درخواست این مشتری: "+st+" ("+at+") "+msg)
+	} else {
+		lines = append(lines, "• تا حالا هیچ درخواستی برای این مشتری ساخته نشده")
+	}
+	verdict := "با این شرایط ویرایش بعدی (اگر نام، شماره، کد ملی یا نشانی عوض شود) به سپیدار می‌رود."
+	if !on || !can || (linked == 0 && !same) {
+		verdict = "ویرایش به سپیدار نمی‌رود: اولین ✗ بالا دلیل آن است."
+	}
+	httpx.JSON(w, http.StatusOK, jsonx.M{"lines": lines, "verdict": verdict})
 }

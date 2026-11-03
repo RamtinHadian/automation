@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Download, FileText, Image as ImageIcon, Paperclip, Plus, Trash2 } from 'lucide-react';
 import { CustomerFile } from '../../types';
 import { getToken } from '../../lib/api';
@@ -14,7 +14,7 @@ const size = (n: number) => (n >= 1048576 ? `${toPersianDigits((n / 1048576).toF
 const newId = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 /** The files kept on a customer's page: contracts, payment slips, photos. The list is part of the customer's record; the bytes are on the server. */
-export const CustomerFiles: React.FC<{ customerId: string; files: CustomerFile[]; me: string; isAdmin: boolean; onChange: (files: CustomerFile[]) => void; base?: 'crm' | 'tasks'; accept?: string; hint?: string; canAdd?: boolean }> = ({ customerId, files, me, isAdmin, onChange, base = 'crm', accept, hint, canAdd = true }) => {
+export const CustomerFiles: React.FC<{ customerId: string; files: CustomerFile[]; me: string; isAdmin: boolean; onChange: (files: CustomerFile[]) => void; base?: 'crm' | 'tasks'; accept?: string; hint?: string; canAdd?: boolean; pasteAnywhere?: boolean }> = ({ customerId, files, me, isAdmin, onChange, base = 'crm', accept, hint, canAdd = true, pasteAnywhere }) => {
   const { showToast, currentUser } = useAppContext();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -45,6 +45,26 @@ export const CustomerFiles: React.FC<{ customerId: string; files: CustomerFile[]
       showToast(added.length === 1 ? 'فایل ذخیره شد.' : `${toPersianDigits(added.length)} فایل ذخیره شد.`);
     }
   };
+
+  // A picture (a screenshot) or a file copied to the clipboard is attached with Ctrl+V from anywhere in the window that holds this box; typed text is left alone
+  const uploadRef = useRef(upload);
+  uploadRef.current = upload;
+  useEffect(() => {
+    if (!pasteAnywhere || !canAdd) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const got = Array.from(e.clipboardData?.files || []);
+      if (!got.length) return;
+      e.preventDefault();
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      const named = got.map((f, i) => (/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) ? new File([f], `screenshot-${stamp}${got.length > 1 ? '-' + (i + 1) : ''}.${f.name.split('.').pop()}`, { type: f.type }) : f));
+      const dt = new DataTransfer();
+      named.forEach((f) => dt.items.add(f));
+      setOpen(true);
+      void uploadRef.current(dt.files);
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [pasteAnywhere, canAdd]);
 
   const download = async (f: CustomerFile) => {
     try {

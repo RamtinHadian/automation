@@ -325,6 +325,18 @@ export const CustomerForm: React.FC<{
             <div className="font-medium text-amber-800">اگر همان مشتری است، به‌جای ثبت دوباره، با مسئولش هماهنگ کنید.</div>
           </div>
         )}
+        {!contactKind && sepidarOn && !isNew && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => api.sepidarExplain(c.id).then((r) => window.alert(r.lines.join(String.fromCharCode(10)) + String.fromCharCode(10, 10) + r.verdict)).catch((e) => window.alert(e instanceof Error ? e.message : 'بررسی ممکن نشد.'))}
+              className="text-[11px] font-black text-sky-700 hover:underline cursor-pointer"
+              data-sepidar-explain
+            >
+              چرا ویرایش این مشتری به سپیدار می‌رود یا نمی‌رود؟
+            </button>
+          </div>
+        )}
         {!contactKind && sepLinked && !isNew && (
           <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-[11px] font-bold text-emerald-900 flex flex-wrap items-center gap-2" data-sepidar-linked>
             <Landmark className="w-4 h-4 shrink-0" />

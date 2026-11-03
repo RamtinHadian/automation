@@ -706,7 +706,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
           </div>
 
           <div>
-            <label className={label}>گفت‌وگو و گزارش پیشرفت</label>
+            <label className={label}>گفت‌وگو و گزارش پیشرفت <span className="font-medium text-[#8C6F66]">(عکس یا اسکرین‌شات را در همین پنجره Ctrl+V کنید تا به پیوست‌ها برود)</span></label>
             <div className="space-y-2">
               {t.comments.map((c) => (
                 <div key={c.id} className="bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl px-3.5 py-2.5">
@@ -742,7 +742,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ initial, isNew, staff, me, fullEd
             </div>
           </div>
 
-          <CustomerFiles base="tasks" customerId={t.id} files={t.attachments || []} me={me.id} isAdmin={fullEdit} canAdd hint="فایلی روی این وظیفه نیست. هر فایلی (PDF، عکس، Word، Excel، فشرده، صوت، ویدیو و…) تا ۲۵ مگابایت را اینجا بگذارید." onChange={(attachments) => patch({ attachments })} />
+          <CustomerFiles base="tasks" customerId={t.id} files={t.attachments || []} me={me.id} isAdmin={fullEdit} canAdd pasteAnywhere hint="فایلی روی این وظیفه نیست. هر فایلی (PDF، عکس، Word، Excel، فشرده، صوت، ویدیو و…) تا ۲۵ مگابایت را اینجا بگذارید؛ عکس یا اسکرین‌شات کپی‌شده را هم همین‌جا با Ctrl+V بچسبانید." onChange={(attachments) => patch({ attachments })} />
 
           {!isNew && (
             <div className="text-[10px] font-bold text-[#8C6F66] flex flex-wrap gap-x-4 gap-y-1">
