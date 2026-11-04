@@ -42,7 +42,8 @@ export const ProformaModal: React.FC<{
   // A proforma that is made for the first time starts with every OPEN opportunity of this customer as a line (this one first); the lines that are not wanted are removed.
   // A proforma that already has its lines keeps them.
   const OPEN = ['NEW', 'CONTACTED', 'PROPOSAL', 'NEGOTIATION'];
-  const [pulled] = useState(() => (deal.items && deal.items.length ? [] : allDeals.filter((d) => d.id !== deal.id && d.customerId === deal.customerId && OPEN.includes(d.stage) && !d.proformaNumber && !d.mergedInto && !(d.items && d.items.length))));
+  // only what the person ticked goes in a proforma (the lines come with the deal); no other opportunity is pulled in by itself
+  const [pulled] = useState<Deal[]>(() => (true ? [] : allDeals.filter((d) => d.id !== deal.id && d.customerId === deal.customerId && OPEN.includes(d.stage) && !d.proformaNumber && !d.mergedInto && !(d.items && d.items.length))));
   const [items, setItems] = useState<ProformaItem[]>(() =>
     deal.items && deal.items.length
       ? deal.items
@@ -202,7 +203,8 @@ export const ProformaModal: React.FC<{
     proformaNumber: number.trim() || nextProformaNumber(allDeals, tpl),
     proformaFields: (({ sellerName, sellerAddress, sellerPhone, sellerEconomicCode, sellerNationalId, sellerRegistrationNumber, sellerPostalCode, sellerProvince, sellerCounty, sellerCity, ...rest }) => ({ ...rest, showStamp, showSignature }))(f),
     proformaIssuerId: issuerId,
-    amount: totals.payable,
+    // the opportunity keeps its OWN amount (quantity x unit price that the person wrote); the proforma's total (all lines, tax, discount) stays on the proforma
+    amount: deal.unitPrice !== undefined ? deal.amount : totals.payable,
   });
 
   const sendTo = async (ch: 'telegram' | 'bale', format: 'pdf' | 'jpg' = 'pdf') => {

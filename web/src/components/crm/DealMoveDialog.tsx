@@ -18,7 +18,7 @@ export const DealMoveDialog: React.FC<{
   onClose: () => void;
 }> = ({ customerName, dragged, members, target, stageLabel, onConfirm, onClose }) => {
   const [sel, setSel] = useState<Record<string, boolean>>({ [dragged.id]: true });
-  const [merge, setMerge] = useState(true);
+  const merge = true; // moving to «پیشنهاد ارسال شد» always issues the proforma of exactly the ticked ones
   const picked = members.filter((m) => sel[m.id] && m.stage !== target.id);
   const toProposal = target.id === 'PROPOSAL';
   return (
@@ -48,14 +48,11 @@ export const DealMoveDialog: React.FC<{
               );
             })}
           </div>
-          {toProposal && picked.length > 1 && (
-            <label className="flex items-start gap-2.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 cursor-pointer" data-deal-merge>
-              <input type="checkbox" className="mt-1 w-4 h-4 accent-emerald-600" checked={merge} onChange={(e) => setMerge(e.target.checked)} />
-              <span className="text-[11.5px] font-black text-emerald-900 leading-6">
-                {toPersianDigits(picked.length)} فرصت تیک‌خورده در یک پیش‌فاکتور بیایند
-                <span className="block text-[10.5px] font-bold text-emerald-800">پیش‌فاکتور روی فرصتی که کشیدید ساخته می‌شود و همهٔ کالاها، تعدادها و جمع کل را دارد. هیچ فرصتی پاک نمی‌شود؛ بقیه در همین ستون می‌مانند و مبلغشان فقط یک بار حساب می‌شود.</span>
-              </span>
-            </label>
+          {toProposal && (
+            <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-[11.5px] font-black text-emerald-900 leading-6" data-deal-merge>
+              برای «پیشنهاد ارسال شد» پیش‌فاکتور صادر می‌شود و هر فرصت تیک‌خورده یک ردیف آن است؛ هیچ فرصت دیگری در آن نمی‌آید.
+              <span className="block text-[10.5px] font-bold text-emerald-800">هیچ فرصتی پاک نمی‌شود؛ تیک‌نخورده‌ها همان‌جا می‌مانند.</span>
+            </div>
           )}
         </div>
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[#EBDBCE]">

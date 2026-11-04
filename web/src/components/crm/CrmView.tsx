@@ -415,9 +415,7 @@ export const CrmView: React.FC = () => {
   };
   // the lines of an opportunity as the lines of a proforma: its own lines, or one line from its title, quantity and price of one
   const dealLinesOf = (x: Deal) =>
-    x.items && x.items.length
-      ? x.items
-      : [{ title: x.title, qty: x.quantity && x.quantity > 0 ? x.quantity : 1, unitPrice: x.unitPrice ?? (x.amount || 0) / (x.quantity && x.quantity > 0 ? x.quantity : 1), code: x.productCode }];
+    [{ title: x.title, qty: x.quantity && x.quantity > 0 ? x.quantity : 1, unitPrice: x.unitPrice ?? (x.amount || 0) / (x.quantity && x.quantity > 0 ? x.quantity : 1), code: x.productCode }];
   const [moveAsk, setMoveAsk] = useState<{ id: string; stage: DealStage } | null>(null);
   const doGroupMove = async (ids: string[], stage: DealStage, merge: boolean) => {
     const picked = ids.map((i) => deals.find((x) => x.id === i)).filter((x): x is Deal => !!x);
@@ -425,15 +423,14 @@ export const CrmView: React.FC = () => {
     if (merge && stage === 'PROPOSAL' && picked.length >= 2) {
       const main = picked[0];
       const others = picked.slice(1);
-      // one line per opportunity: a line that is already there (the same title and code, from an earlier merge) is never added a second time
-      const seen = new Set<string>();
-      const lines = picked.flatMap(dealLinesOf).filter((l) => { const k = `${(l.title || '').trim()}|${l.code || ''}`; if (seen.has(k)) return false; seen.add(k); return true; });
-      const total = lines.reduce((t, l) => t + (l.qty || 0) * (l.unitPrice || 0), 0);
+      // exactly one line for each ticked opportunity, nothing else
+      const lines = picked.flatMap(dealLinesOf);
+      const total = main.amount; // the main opportunity keeps its own amount; the proforma carries the lines of all the ticked ones
       const blocked = ruleViolation(rules, isAdmin, main.stage, stage, total, main.proformaNumber);
       if (blocked) { showToast(blocked); return; }
       if (!(await askConfirm(`${toPersianDigits(picked.length)} فرصت «${picked.map((x) => x.title).join('»، «')}» همگی در یک پیش‌فاکتور (روی فرصت «${main.title}») می‌آیند و به «پیشنهاد ارسال شد» می‌روند. هیچ فرصتی پاک نمی‌شود: بقیه در همان ستون می‌مانند با نشان «در پیش‌فاکتور …» و مبلغشان فقط یک بار، در فرصت «${main.title}»، حساب می‌شود. ادامه می‌دهید؟`, { tone: 'info', title: 'یک پیش‌فاکتور برای چند فرصت', confirmText: 'بله، ادامه' }))) return;
       const stillLinked = deals.some((x) => x.groupId && x.groupId === main.groupId && !picked.some((q) => q.id === x.id));
-      const merged: Deal = { ...main, stage, items: lines, amount: total, quantity: undefined, unitPrice: undefined, groupId: stillLinked ? main.groupId : undefined, groupSeq: stillLinked ? main.groupSeq : undefined, updatedAt: nowIso() };
+      const merged: Deal = { ...main, stage, items: lines, amount: total, groupId: stillLinked ? main.groupId : undefined, groupSeq: stillLinked ? main.groupSeq : undefined, updatedAt: nowIso() };
       // the others stay (nothing is deleted): they go to the same column, point to the main one and their amount is counted only there
       others.forEach((o) => saveDeal({ ...o, stage, mergedInto: main.id, mergedAmount: o.mergedAmount ?? o.amount, amount: 0 }));
       saveDeal({ ...merged, mergedInto: undefined, mergedAmount: undefined });
