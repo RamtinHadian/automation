@@ -1092,6 +1092,7 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/sepidar/code-check", auth.Require(sepidarCodeCheck))
 	mux.HandleFunc("GET /api/sepidar/finance/{customerId}", auth.Require(sepidarFinance))
 	mux.HandleFunc("GET /api/sepidar/connected", auth.Require(sepidarConnected))
+	mux.HandleFunc("GET /api/server-time", auth.Require(serverTime))
 	mux.HandleFunc("PUT /api/sepidar/switch", auth.Require(sepidarSetSwitch))
 	mux.HandleFunc("GET /api/sepidar/tool-files", auth.Require(sepidarToolZip))
 }
@@ -1112,4 +1113,14 @@ func sepidarCodeCheck(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httpx.JSON(w, http.StatusOK, jsonx.M{"known": true, "exists": false, "count": len(list)})
+}
+
+// GET /api/server-time: the clock of the server and the time zone it keeps (every call, file, letter and task is stamped with this clock, not with the phone system's or a browser's).
+func serverTime(w http.ResponseWriter, r *http.Request) {
+	loc, err := time.LoadLocation("Asia/Tehran")
+	if err != nil {
+		loc = time.Local
+	}
+	n := time.Now()
+	httpx.JSON(w, http.StatusOK, jsonx.M{"iso": n.UTC().Format("2006-01-02T15:04:05.000Z"), "zone": loc.String(), "local": n.In(loc).Format("2006-01-02 15:04:05")})
 }

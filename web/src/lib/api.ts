@@ -631,6 +631,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     return res.blob();
   },
   sepidarCodeCheck: (code: string) => request<{ known: boolean; exists?: boolean; name?: string; count?: number }>('GET', `/api/sepidar/code-check?code=${encodeURIComponent(code)}`),
+  serverTime: () => request<{ iso: string; zone: string; local: string }>('GET', '/api/server-time'),
   sepidarExplain: (customerId: string) => request<{ lines: string[]; verdict: string }>('GET', `/api/sepidar/explain/${encodeURIComponent(customerId)}`),
   sepidarConnected: () => request<{ connected: boolean; choice: 'yes' | 'no' | 'auto'; seen: boolean; alive?: boolean; seenAt?: string; since?: string; toolVersion?: string; toolLatest?: string }>('GET', '/api/sepidar/connected'),
   sepidarSetSwitch: (value: 'yes' | 'no') => request<{ ok: true }>('PUT', '/api/sepidar/switch', { value }),

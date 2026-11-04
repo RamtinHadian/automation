@@ -1,3 +1,4 @@
+import { api } from '../../lib/api';
 import React, { useState, useRef, useEffect } from 'react';
 import { ProformaIssuersCard } from './ProformaIssuersCard';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -1219,6 +1220,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'policies' && (
       <>
+      <ServerClockCard />
       <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-3 text-xs" data-task-archive-card>
         <div className="flex items-center gap-2.5 text-[#3A241F]">
           <HardDrive className="w-5 h-5 text-[#6E1B1B]" />
@@ -1418,5 +1420,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </div>
     </form>
+  );
+};
+
+
+/** The clock the server stamps everything with, next to this browser's clock: a difference is told. */
+const ServerClockCard: React.FC = () => {
+  const [t, setT] = React.useState<{ iso: string; zone: string; local: string; at: number } | null>(null);
+  React.useEffect(() => {
+    let live = true;
+    const load = () => api.serverTime().then((r) => live && setT({ ...r, at: Date.now() })).catch(() => {});
+    load();
+    const id = window.setInterval(load, 30000);
+    return () => { live = false; window.clearInterval(id); };
+  }, []);
+  const diffSec = t ? Math.round((new Date(t.iso).getTime() - t.at) / 1000) : 0;
+  return (
+    <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-2 text-xs" data-server-clock>
+      <h3 className="font-bold text-sm text-[#3A241F]">ساعت سرور</h3>
+      <p className="text-[#8C6F66] leading-6">همهٔ تماس‌ها و مکالمات، فایل‌ها، نامه‌ها، وظایف و گزارش‌ها با ساعت همین سرور ثبت می‌شوند، نه با ساعت تلفن‌سانتر یا رایانهٔ هر کاربر.</p>
+      {t ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-black text-[#3A241F]">
+          <div className="rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] px-3 py-2"><span className="block text-[10px] font-bold text-[#8C6F66]">ساعت سرور</span><span dir="ltr">{t.local}</span></div>
+          <div className="rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] px-3 py-2"><span className="block text-[10px] font-bold text-[#8C6F66]">منطقهٔ زمانی سرور</span><span dir="ltr">{t.zone}</span></div>
+          <div className={`rounded-xl border px-3 py-2 ${Math.abs(diffSec) > 120 ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}><span className="block text-[10px] font-bold">اختلاف با ساعت همین رایانه</span>{Math.abs(diffSec) > 120 ? `${Math.abs(diffSec)} ثانیه` : 'درست است'}</div>
+        </div>
+      ) : null}
+    </div>
   );
 };
