@@ -34,6 +34,9 @@ type Event map[string]string
 type Client struct {
 	cfg       Config
 	connected atomic.Bool
+	upAt      atomic.Int64 // when the present session logged in (0 = it did not, yet)
+	loginErr  atomic.Value // set when the phone system refused the login (the read error that follows would say nothing)
+	lastErr   atomic.Value // the reason of the last drop or refusal, in words
 	seq       atomic.Uint64
 
 	mu      sync.Mutex // guards conn writes and pending
@@ -51,6 +54,14 @@ func NewClient(cfg Config) *Client {
 func (c *Client) Enabled() bool   { return c.cfg.Enabled() }
 func (c *Client) Connected() bool { return c.connected.Load() }
 
+// LastError: why the connection is down (empty while it is up or when nothing went wrong yet).
+func (c *Client) LastError() string {
+	if v, ok := c.lastErr.Load().(string); ok && !c.connected.Load() {
+		return v
+	}
+	return ""
+}
+
 // Run connects and stays connected until ctx ends.
 func (c *Client) Run(ctx context.Context) {
 	if !c.cfg.Enabled() {
@@ -59,10 +70,20 @@ func (c *Client) Run(ctx context.Context) {
 	}
 	backoff := 2 * time.Second
 	for ctx.Err() == nil {
+		c.upAt.Store(0)
 		err := c.session(ctx)
 		c.connected.Store(false)
 		if ctx.Err() != nil {
 			return
+		}
+		if why, _ := c.loginErr.Swap("").(string); why != "" {
+			c.lastErr.Store(why)
+		} else if err != nil {
+			c.lastErr.Store("اتصال ساخته نشد یا قطع شد: " + err.Error())
+		}
+		// a connection that was up and then dropped is tried again at once (2 seconds); only a connection that never gets up waits longer and longer (up to 30 seconds)
+		if c.upAt.Load() != 0 {
+			backoff = 2 * time.Second
 		}
 		Logf("ارتباط با صندوق تلفن قطع شد (%v)؛ %s دیگر دوباره تلاش می‌شود.", err, backoff)
 		select {
@@ -108,11 +129,13 @@ func (c *Client) session(ctx context.Context) error {
 	go func() {
 		resp, err := c.wait(loginID, 8*time.Second)
 		if err != nil || resp["Response"] != "Success" {
+			c.loginErr.Store("ورود به صندوق تلفن رد شد؛ نام کاربری یا رمز AMI درست نیست یا این سرور اجازهٔ ورود ندارد (در manager.conf تلفن‌سانتر، permit باید نشانی این سرور را داشته باشد). " + resp["Message"])
 			Logf("ورود به صندوق تلفن رد شد (نام کاربری یا رمز AMI را بررسی کنید): %v %s", err, resp["Message"])
 			conn.Close()
 			return
 		}
 		c.connected.Store(true)
+		c.upAt.Store(time.Now().Unix())
 		Logf("به صندوق تلفن وصل شد؛ منتظر تماس هستم.")
 		// A Ping every 20 seconds: the phone system answers it, so the line is read at least that often. When nothing arrives for 70 seconds
 		// (the connection died silently, which a plain read would wait on for ever) the reader gives up and the connection is made again.

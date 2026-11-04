@@ -1,11 +1,11 @@
 package api
 
 import (
-	"strings"
 	"encoding/json"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -59,7 +59,7 @@ func voipStatus(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		// the demo has no phone system; it shows the phone as connected so the call buttons are there to try
 		"enabled":   DemoMode || (phone != nil && phone.Enabled()),
-		"connected": DemoMode || (phone != nil && phone.Connected()),
+		"connected": DemoMode || (phone != nil && phone.Connected()), "lastError": voipLastError(),
 		"extension": jsonx.Str(me.M, "extension"),
 		"areaCode":  voip.AreaCode(),
 	})
@@ -127,8 +127,8 @@ func voipLog(w http.ResponseWriter, r *http.Request) {
 		lastAt = last
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"enabled":    DemoMode || (phone != nil && phone.Enabled()),
-		"connected":  DemoMode || (phone != nil && phone.Connected()),
+		"enabled":   DemoMode || (phone != nil && phone.Enabled()),
+		"connected": DemoMode || (phone != nil && phone.Connected()), "lastError": voipLastError(),
 		"eventCount": count,
 		"lastEvent":  lastAt,
 		"entries":    voip.Recent(),
@@ -395,4 +395,12 @@ func voipCallCustomer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.OK(w)
+}
+
+// voipLastError: why the connection to the phone system is down, for the admin card (empty while it is up).
+func voipLastError() string {
+	if phone == nil {
+		return ""
+	}
+	return phone.LastError()
 }

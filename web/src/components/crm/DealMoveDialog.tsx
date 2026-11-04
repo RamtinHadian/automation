@@ -52,8 +52,8 @@ export const DealMoveDialog: React.FC<{
             <label className="flex items-start gap-2.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 cursor-pointer" data-deal-merge>
               <input type="checkbox" className="mt-1 w-4 h-4 accent-emerald-600" checked={merge} onChange={(e) => setMerge(e.target.checked)} />
               <span className="text-[11.5px] font-black text-emerald-900 leading-6">
-                {toPersianDigits(picked.length)} فرصت تیک‌خورده یکی شوند و یک پیش‌فاکتور برایشان صادر شود
-                <span className="block text-[10.5px] font-bold text-emerald-800">یک فرصت می‌ماند (فرصتی که کشیدید) با همهٔ کالاها، تعدادها و جمع کل؛ بقیه در آن ادغام می‌شوند و جدا نمی‌مانند.</span>
+                {toPersianDigits(picked.length)} فرصت تیک‌خورده در یک پیش‌فاکتور بیایند
+                <span className="block text-[10.5px] font-bold text-emerald-800">پیش‌فاکتور روی فرصتی که کشیدید ساخته می‌شود و همهٔ کالاها، تعدادها و جمع کل را دارد. هیچ فرصتی پاک نمی‌شود؛ بقیه در همین ستون می‌مانند و مبلغشان فقط یک بار حساب می‌شود.</span>
               </span>
             </label>
           )}
@@ -61,7 +61,7 @@ export const DealMoveDialog: React.FC<{
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[#EBDBCE]">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">انصراف</button>
           <button type="button" disabled={picked.length === 0} onClick={() => onConfirm(picked.map((m) => m.id), toProposal && picked.length > 1 && merge)} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer" data-deal-move-go>
-            {picked.length > 1 && toProposal && merge ? `یکی کن و پیش‌فاکتور بساز (${toPersianDigits(picked.length)} فرصت)` : `ببر (${toPersianDigits(picked.length)} فرصت)`}
+            {picked.length > 1 && toProposal && merge ? `ببر و یک پیش‌فاکتور بساز (${toPersianDigits(picked.length)} فرصت)` : `ببر (${toPersianDigits(picked.length)} فرصت)`}
           </button>
         </div>
       </div>

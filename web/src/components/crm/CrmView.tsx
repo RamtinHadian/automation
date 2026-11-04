@@ -429,12 +429,13 @@ export const CrmView: React.FC = () => {
       const total = lines.reduce((t, l) => t + (l.qty || 0) * (l.unitPrice || 0), 0);
       const blocked = ruleViolation(rules, isAdmin, main.stage, stage, total, main.proformaNumber);
       if (blocked) { showToast(blocked); return; }
-      if (!(await askConfirm(`${toPersianDigits(picked.length)} فرصت «${picked.map((x) => x.title).join('»، «')}» در یک فرصت ادغام می‌شوند و یک پیش‌فاکتور برایشان صادر می‌شود. فقط فرصت «${main.title}» می‌ماند و بقیه در آن ادغام و حذف می‌شوند. ادامه می‌دهید؟`, { tone: 'warning', title: 'ادغام فرصت‌ها', confirmText: 'بله، یکی شوند' }))) return;
+      if (!(await askConfirm(`${toPersianDigits(picked.length)} فرصت «${picked.map((x) => x.title).join('»، «')}» همگی در یک پیش‌فاکتور (روی فرصت «${main.title}») می‌آیند و به «پیشنهاد ارسال شد» می‌روند. هیچ فرصتی پاک نمی‌شود: بقیه در همان ستون می‌مانند با نشان «در پیش‌فاکتور …» و مبلغشان فقط یک بار، در فرصت «${main.title}»، حساب می‌شود. ادامه می‌دهید؟`, { tone: 'info', title: 'یک پیش‌فاکتور برای چند فرصت', confirmText: 'بله، ادامه' }))) return;
       const stillLinked = deals.some((x) => x.groupId && x.groupId === main.groupId && !picked.some((q) => q.id === x.id));
       const merged: Deal = { ...main, stage, items: lines, amount: total, quantity: undefined, unitPrice: undefined, groupId: stillLinked ? main.groupId : undefined, groupSeq: stillLinked ? main.groupSeq : undefined, updatedAt: nowIso() };
-      setDeals((prev) => prev.filter((x) => !others.some((o) => o.id === x.id)));
-      saveDeal(merged);
-      addActivity(main.customerId, 'NOTE', `فرصت‌های «${picked.map((x) => x.title).join('»، «')}» در یک فرصت ادغام شدند و برایشان یک پیش‌فاکتور صادر می‌شود.`);
+      // the others stay (nothing is deleted): they go to the same column, point to the main one and their amount is counted only there
+      others.forEach((o) => saveDeal({ ...o, stage, mergedInto: main.id, mergedAmount: o.mergedAmount ?? o.amount, amount: 0 }));
+      saveDeal({ ...merged, mergedInto: undefined, mergedAmount: undefined });
+      addActivity(main.customerId, 'NOTE', `فرصت‌های «${picked.map((x) => x.title).join('»، «')}» در یک پیش‌فاکتور (روی فرصت «${main.title}») آمدند.`);
       setProformaFor(merged);
       return;
     }
@@ -660,6 +661,11 @@ export const CrmView: React.FC = () => {
         className={`bg-white rounded-2xl border p-3.5 space-y-2 text-right shadow-2xs hover:shadow-md transition-all cursor-pointer ${dragId === d.id ? 'opacity-40' : ''} ${overdue ? 'border-rose-300' : 'border-[#EBDBCE]'}`}
       >
         {grp && <LinkedChip group={grp} />}
+        {d.mergedInto && (
+          <div className="text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 w-fit" title="کالاهای این فرصت در پیش‌فاکتور فرصت دیگری آمده و مبلغش فقط آن‌جا حساب می‌شود" data-deal-merged>
+            در پیش‌فاکتور «{deals.find((x) => x.id === d.mergedInto)?.title || 'فرصت دیگر'}»{d.mergedAmount ? ` · ${toman(d.mergedAmount)} ${unitName()}` : ''}
+          </div>
+        )}
         <div className="font-black text-[13px] text-[#3A241F] leading-6">{d.title}</div>
         {d.productCode && <div className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 w-fit" dir="ltr">{toPersianDigits(d.productCode)}</div>}
         {approvalRequired(settings, d.proformaIssuerId) && d.proformaApproval && (
@@ -1559,7 +1565,7 @@ const DealForm: React.FC<{
               fid="main-title"
               extraAttrs={{ 'data-deal-title': true }}
             />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-[1fr_0.55fr_1.7fr_1.7fr] gap-3">
               <div>
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
                 <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
@@ -1582,7 +1588,7 @@ const DealForm: React.FC<{
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">قیمت واحد</label>
                 <div className="relative">
                   <input
-                    className={`${field} pl-16`}
+                    className={`${field} pl-14 text-left`}
                     inputMode="numeric"
                     dir="ltr"
                     value={amountText}
@@ -1621,7 +1627,7 @@ const DealForm: React.FC<{
                 }}
                 placeholder="عنوان فرصت"
               />
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-[1fr_0.55fr_1.7fr_1.7fr] gap-3">
                 <div>
                   <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
                   <input className={field} dir="ltr" value={r.code} onChange={(e) => patchMore(r.id, { code: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="مثلاً A-1024" data-fid={`${r.id}-code`} />
@@ -1643,7 +1649,7 @@ const DealForm: React.FC<{
                   <label className="block text-[10px] font-black text-[#8C6F66] mb-1">قیمت واحد</label>
                   <div className="relative">
                     <input
-                      className={`${field} pl-16`}
+                      className={`${field} pl-14 text-left`}
                       inputMode="numeric"
                       dir="ltr"
                       value={r.amountText}

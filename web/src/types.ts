@@ -253,6 +253,9 @@ export interface Deal {
   customerName: string;
   /** کد کالا: the code of the product / service this opportunity is about. */
   productCode?: string;
+  /** This opportunity's lines were put in the proforma of another opportunity (its id): its amount is counted there, once; the real amount is kept in mergedAmount. */
+  mergedInto?: string;
+  mergedAmount?: number;
   /** How many of the product (default 1); amount = quantity x unitPrice. */
   quantity?: number;
   /** The price of one (in the same unit as amount). */

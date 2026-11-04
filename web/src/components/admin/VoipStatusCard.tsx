@@ -11,6 +11,7 @@ import { resetVoipArea } from '../../lib/voipArea';
 interface VoipLog {
   enabled: boolean;
   connected: boolean;
+  lastError?: string;
   eventCount: number;
   lastEvent: string | null;
   entries: { at: string; text: string }[];
@@ -216,6 +217,13 @@ export const VoipStatusCard: React.FC = () => {
               <b>{state === 'on' ? 'منتظر تماس' : state === 'down' ? 'در حال تلاش برای اتصال' : 'اتصال تنظیم نشده'}</b>
             </div>
           </div>
+          {state === 'down' && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11.5px] font-bold text-rose-900 leading-6" data-voip-down-reason>
+              برنامه خودش هر چند ثانیه دوباره وصل می‌شود (بعد از قطعی بلافاصله، و اگر هیچ‌وقت وصل نشود با فاصلهٔ بیشتر تا ۳۰ ثانیه).
+              {log?.lastError ? <span className="block mt-1">دلیل آخرین قطعی: {log.lastError}</span> : null}
+              <span className="block mt-1 text-rose-800 font-medium">اگر فقط از این سرور وصل نمی‌شود (و از سرور دیگر وصل می‌شود)، معمولاً چون در تلفن‌سانتر، فایل manager.conf (بخش AMI)، نشانی این سرور در <span dir="ltr">permit</span> نیست یا پورت ۵۰۳۸ برای این سرور باز نیست.</span>
+            </div>
+          )}
 
           {stats && (stats.byDay ?? []).length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
