@@ -311,7 +311,7 @@ export const CrmView: React.FC = () => {
       .filter((c) => (statusFilter === 'ALL' ? true : c.status === statusFilter))
       .filter((c) => (mineOnly ? c.ownerId === me : true))
       .filter((c) => matchesQuery(searchIndex.get(c.id), search))
-      .filter((c) => (!adv.province || c.province === adv.province) && (!adv.city || c.city === adv.city) && (!adv.source || c.source === adv.source) && (!adv.tag || c.tags.includes(adv.tag)) && (!adv.owner || c.ownerId === adv.owner) && (!adv.kind || adv.kind === 'SUPPLIER' ? !!c.isSupplier : (c.kind || 'PERSON') === adv.kind))
+      .filter((c) => (!adv.province || c.province === adv.province) && (!adv.city || c.city === adv.city) && (!adv.source || c.source === adv.source) && (!adv.tag || c.tags.includes(adv.tag)) && (!adv.owner || c.ownerId === adv.owner) && (!adv.kind || (adv.kind === 'SUPPLIER' ? !!c.isSupplier : (c.kind || 'PERSON') === adv.kind)))
       .filter((c) => (adv.bought === 'yes' ? boughtIds.has(c.id) : adv.bought === 'no' ? !boughtIds.has(c.id) : true))
       .filter((c) => !quietLimit || new Date(lastActivity.get(c.id) || c.updatedAt).getTime() < quietLimit)
       .sort((a, b) =>
