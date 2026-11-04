@@ -27,6 +27,17 @@ const parseNumber = (s: string) => {
 const field = 'w-full px-3 py-2 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-medium text-[#3A241F] outline-hidden focus:ring-2 focus:ring-violet-500/20';
 const label = 'block text-[11px] font-black text-[#3A241F] mb-1.5';
 
+/** Lines that are exactly the same (title, code, quantity, price, discount) are one line: earlier merges could leave the same line more than once. */
+const dedupeLines = (list: ProformaItem[]): ProformaItem[] => {
+  const seen = new Set<string>();
+  return list.filter((l) => {
+    const k = [(l.title || '').trim(), l.code || '', l.qty, l.unitPrice, l.discount || 0].join('|');
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
+
 export const ProformaModal: React.FC<{
   deal: Deal;
   allDeals: Deal[];
@@ -43,10 +54,18 @@ export const ProformaModal: React.FC<{
   // A proforma that already has its lines keeps them.
   const OPEN = ['NEW', 'CONTACTED', 'PROPOSAL', 'NEGOTIATION'];
   // only what the person ticked goes in a proforma (the lines come with the deal); no other opportunity is pulled in by itself
+  // the opportunities that came into THIS proforma (this one and the ones that were put under it): one line each, nothing else
+  const ownLines = (): ProformaItem[] =>
+    [deal, ...allDeals.filter((d) => d.mergedInto === deal.id)].map((d) => {
+      const q = d.quantity && d.quantity > 0 ? d.quantity : 1;
+      const amount = d.mergedAmount ?? d.amount ?? 0;
+      return { title: d.title, qty: q, unitPrice: d.unitPrice ?? amount / q, code: d.productCode };
+    });
+  const removedDup = deal.items && deal.items.length ? deal.items.length - dedupeLines(deal.items).length : 0;
   const [pulled] = useState<Deal[]>(() => (true ? [] : allDeals.filter((d) => d.id !== deal.id && d.customerId === deal.customerId && OPEN.includes(d.stage) && !d.proformaNumber && !d.mergedInto && !(d.items && d.items.length))));
   const [items, setItems] = useState<ProformaItem[]>(() =>
     deal.items && deal.items.length
-      ? deal.items
+      ? dedupeLines(deal.items)
       : [deal, ...pulled].map((d) => ({ title: d.title, qty: d.quantity && d.quantity > 0 ? d.quantity : 1, unitPrice: d.unitPrice ?? (d.amount || 0) / (d.quantity && d.quantity > 0 ? d.quantity : 1), code: d.productCode }))
   );
   const [discountPercent, setDiscountPercent] = useState(deal.discountPercent ?? (deal.proformaNumber ? 0 : defaultDiscount || 0));
@@ -392,6 +411,17 @@ export const ProformaModal: React.FC<{
                   </React.Fragment>
                 );
               })}
+            </div>
+          )}
+          {(allDeals.some((d) => d.mergedInto === deal.id) || items.length > 1) && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] font-bold text-violet-900 leading-6 flex flex-wrap items-center gap-2" data-proforma-rebuild>
+              اگر ردیف‌ها بیش از فرصت‌های همین پیش‌فاکتور (خود این فرصت و فرصت‌هایی که زیرش آمده‌اند) است:
+              <button type="button" onClick={() => setItems(ownLines())} className="px-3 py-1 rounded-lg bg-violet-600 text-white font-black cursor-pointer">فقط ردیف همین فرصت (و فرصت‌های زیرش) بماند</button>
+            </div>
+          )}
+          {removedDup > 0 && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-900 leading-6" data-proforma-dedup>
+              {toPersianDigits(removedDup)} ردیف کاملاً تکراری (همان کالا، تعداد و قیمت) برداشته شد. اگر لازم بود، با «افزودن ردیف» برگردانید.
             </div>
           )}
           {pulled.length > 0 && !deal.items?.length && (
