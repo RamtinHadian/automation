@@ -730,6 +730,8 @@ export interface SystemSettings {
   proformaApproverIds?: string[];
   /** after how many days a finished task goes to the archive by itself (default 7; 0 = never); a person's own number wins */
   taskArchiveDays?: number;
+  /** The analog clock at the top of the page: on/off and which of the 100 designs (set by the administrator). */
+  analogClock?: { enabled: boolean; design: number };
   /** Official identity of the main company (tax invoices). */
   companyNationalId?: string;
   companyRegistrationNumber?: string;

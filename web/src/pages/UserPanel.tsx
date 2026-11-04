@@ -7,6 +7,7 @@ import { matchesAll } from '../lib/searchAll';
 import { adminMenuHidden, canSub } from '../lib/permissions';
 import { ManagementReports } from '../components/admin/ManagementReports';
 import { VersionBadge } from '../components/common/VersionBadge';
+import { AnalogClock } from '../components/common/AnalogClock';
 import { ChatView } from '../components/chat/ChatView';
 import { AgentLetter } from '../components/letters/AgentLetter';
 import { LeaveView } from '../components/leave/LeaveView';
@@ -863,6 +864,7 @@ export default function UserPanel() {
         <div ref={shellPinRef} className="sm:sticky sm:top-0 sm:z-30 bg-[#FAF5F1] shrink-0">
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 max-sm:pt-[calc(1.25rem+env(safe-area-inset-top,0px))] bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
+{settings.analogClock?.enabled && <AnalogClock design={settings.analogClock.design ?? 0} size={62} />}
 <div className="w-7 h-7 rounded-xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1">
               <img src="/images/mark.png" alt="" className="brand-logo w-full h-full object-contain" draggable={false} />
             </div>

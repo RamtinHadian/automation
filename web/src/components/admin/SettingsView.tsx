@@ -1,4 +1,5 @@
 import { api } from '../../lib/api';
+import { ClockFace, CLOCK_COUNT, designName } from '../common/AnalogClock';
 import React, { useState, useRef, useEffect } from 'react';
 import { ProformaIssuersCard } from './ProformaIssuersCard';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -1221,6 +1222,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {section === 'policies' && (
       <>
       <ServerClockCard />
+      <AnalogClockCard settings={settings} setSettings={setSettings} />
       <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-3 text-xs" data-task-archive-card>
         <div className="flex items-center gap-2.5 text-[#3A241F]">
           <HardDrive className="w-5 h-5 text-[#6E1B1B]" />
@@ -1446,6 +1448,36 @@ const ServerClockCard: React.FC = () => {
           <div className={`rounded-xl border px-3 py-2 ${Math.abs(diffSec) > 120 ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}><span className="block text-[10px] font-bold">اختلاف با ساعت همین رایانه</span>{Math.abs(diffSec) > 120 ? `${Math.abs(diffSec)} ثانیه` : 'درست است'}</div>
         </div>
       ) : null}
+    </div>
+  );
+};
+
+
+/** Put the analog clock (100 designs, with the Persian date) at the top of every page, or take it off; the administrator picks the design. */
+const AnalogClockCard: React.FC<{ settings: SystemSettings; setSettings: (s: SystemSettings) => void }> = ({ settings, setSettings }) => {
+  const cur = settings.analogClock || { enabled: false, design: 0 };
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const set = (u: Partial<{ enabled: boolean; design: number }>) => setSettings({ ...settings, analogClock: { ...cur, ...u } });
+  return (
+    <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-3 text-xs" data-analog-clock-card>
+      <h3 className="font-bold text-sm text-[#3A241F]">ساعت آنالوگ بالای صفحه (۱۰۰ طرح)</h3>
+      <label className="flex items-center gap-2.5 font-black text-[#3A241F] cursor-pointer">
+        <input type="checkbox" className="w-4 h-4 accent-[#6E1B1B]" checked={cur.enabled} onChange={(e) => set({ enabled: e.target.checked })} data-analog-clock-enable />
+        ساعت آنالوگ با تاریخ شمسی بالای صفحهٔ همهٔ کاربران نمایش داده شود
+      </label>
+      <p className="text-[#8C6F66]">طرح فعلی: <b className="text-[#3A241F]">{toPersianDigits(cur.design + 1)} · {designName(cur.design)}</b>. با برداشتن تیک بالا، ساعت از سایت برداشته می‌شود. ساعت، ساعت رایانهٔ هر کاربر را نشان می‌دهد.</p>
+      <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2 max-h-80 overflow-y-auto p-1" data-analog-clock-grid>
+        {Array.from({ length: CLOCK_COUNT }, (_, i) => (
+          <button key={i} type="button" onClick={() => set({ design: i, enabled: true })} title={designName(i)} className={`rounded-xl border p-1 cursor-pointer flex flex-col items-center ${cur.design === i ? 'border-[#6E1B1B] bg-[#FAF5F1] ring-2 ring-[#6E1B1B]/30' : 'border-[#EBDBCE] hover:bg-[#FAF5F1]'}`}>
+            <ClockFace design={i} time={now} size={52} />
+            <span className="text-[9px] font-black text-[#8C6F66]">{toPersianDigits(i + 1)}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
