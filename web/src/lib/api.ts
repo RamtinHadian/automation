@@ -631,6 +631,12 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     return res.blob();
   },
   sepidarCodeCheck: (code: string) => request<{ known: boolean; exists?: boolean; name?: string; count?: number }>('GET', `/api/sepidar/code-check?code=${encodeURIComponent(code)}`),
+  /** The call report as a spreadsheet file (top administrator and managing director only). */
+  voipExport: async (from: string, to: string): Promise<Blob> => {
+    const res = await fetch(`/api/voip/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'گزارش دریافت نشد.');
+    return res.blob();
+  },
   serverTime: () => request<{ iso: string; zone: string; local: string }>('GET', '/api/server-time'),
   sepidarExplain: (customerId: string) => request<{ lines: string[]; verdict: string }>('GET', `/api/sepidar/explain/${encodeURIComponent(customerId)}`),
   sepidarConnected: () => request<{ connected: boolean; choice: 'yes' | 'no' | 'auto'; seen: boolean; alive?: boolean; seenAt?: string; since?: string; toolVersion?: string; toolLatest?: string }>('GET', '/api/sepidar/connected'),

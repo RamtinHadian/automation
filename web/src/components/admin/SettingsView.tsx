@@ -1464,10 +1464,10 @@ const AnalogClockCard: React.FC<{ settings: SystemSettings; setSettings: (s: Sys
   const set = (u: Partial<{ enabled: boolean; design: number }>) => setSettings({ ...settings, analogClock: { ...cur, ...u } });
   return (
     <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-3 text-xs" data-analog-clock-card>
-      <h3 className="font-bold text-sm text-[#3A241F]">ساعت آنالوگ بالای صفحه (۱۰۰ طرح)</h3>
+      <h3 className="font-bold text-sm text-[#3A241F]">ساعت آنالوگ بالای صفحه (۱۵۰ طرح)</h3>
       <label className="flex items-center gap-2.5 font-black text-[#3A241F] cursor-pointer">
         <input type="checkbox" className="w-4 h-4 accent-[#6E1B1B]" checked={cur.enabled} onChange={(e) => set({ enabled: e.target.checked })} data-analog-clock-enable />
-        ساعت آنالوگ با تاریخ شمسی بالای صفحهٔ همهٔ کاربران نمایش داده شود
+        ساعت آنالوگ با تاریخ شمسی بالای صفحه نمایش داده شود (پیش‌فرض همهٔ کاربران؛ هر کاربر خودش هم می‌تواند در کنار «رنگبندی» روشن یا خاموش و طرحش را عوض کند)
       </label>
       <p className="text-[#8C6F66]">طرح فعلی: <b className="text-[#3A241F]">{toPersianDigits(cur.design + 1)} · {designName(cur.design)}</b>. با برداشتن تیک بالا، ساعت از سایت برداشته می‌شود. ساعت، ساعت رایانهٔ هر کاربر را نشان می‌دهد.</p>
       <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2 max-h-80 overflow-y-auto p-1" data-analog-clock-grid>

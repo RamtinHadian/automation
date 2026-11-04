@@ -1093,6 +1093,7 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/sepidar/finance/{customerId}", auth.Require(sepidarFinance))
 	mux.HandleFunc("GET /api/sepidar/connected", auth.Require(sepidarConnected))
 	mux.HandleFunc("GET /api/server-time", auth.Require(serverTime))
+	mux.HandleFunc("GET /api/voip/export", auth.Require(voipExport))
 	mux.HandleFunc("PUT /api/sepidar/switch", auth.Require(sepidarSetSwitch))
 	mux.HandleFunc("GET /api/sepidar/tool-files", auth.Require(sepidarToolZip))
 }

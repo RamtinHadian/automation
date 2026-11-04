@@ -40,6 +40,7 @@ import { CalculatorButton } from '../components/common/Calculator';
 import { AuditLogsView } from '../components/admin/AuditLogsView';
 import { ServerAddressCard } from '../components/admin/ServerAddressCard';
 import { TransfersMonitor } from '../components/admin/TransfersMonitor';
+import { HoormandWord } from '../components/common/HoormandWord';
 import { SettingsView } from '../components/admin/SettingsView';
 import { LetterManagementAdminView } from '../components/admin/LetterManagementAdminView';
 import { Stamp, Trash2, CalendarCheck2 } from 'lucide-react';
@@ -447,13 +448,10 @@ export default function AdminPanel() {
         {/* Top Admin Header: the same look as the application's own panel (light bar, brand name, rounded action buttons), tidy on a phone */}
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1.5">
-              <img src="/images/mark.png" alt="" className="brand-logo w-full h-full object-contain" draggable={false} />
-            </div>
-            <div className="min-w-0">
+                        <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="leading-none flex items-center gap-2">
-                  <img src="/images/brand-name.png" alt="هورمند" className="brand-word h-6 sm:h-8 w-auto" draggable={false} />
+                  <HoormandWord className="h-6 sm:h-8 w-auto" />
                 </h1>
                 <span className="bg-[#6E1B1B] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-2xs shrink-0">کنسول مدیریت</span>
                 <VersionBadge withDate className="text-[10px] font-bold text-[#8C6F66]" />

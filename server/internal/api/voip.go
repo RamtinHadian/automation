@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -403,4 +404,71 @@ func voipLastError() string {
 		return ""
 	}
 	return phone.LastError()
+}
+
+// GET /api/voip/export?from=YYYY-MM-DD&to=YYYY-MM-DD: the report of the calls as a spreadsheet file (CSV that Excel opens), for the top administrator and the managing director only.
+func voipExport(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if me.Role() != "SUPER_ADMIN" && !isCEO(me) {
+		httpx.Forbidden(w)
+		return
+	}
+	loc, err := time.LoadLocation("Asia/Tehran")
+	if err != nil {
+		loc = time.Local
+	}
+	q := r.URL.Query()
+	day := func(v string, end bool) (time.Time, bool) {
+		t, err := time.ParseInLocation("2006-01-02", v, loc)
+		if err != nil {
+			return time.Time{}, false
+		}
+		if end {
+			t = t.AddDate(0, 0, 1)
+		}
+		return t, true
+	}
+	from, ok1 := day(q.Get("from"), false)
+	to, ok2 := day(q.Get("to"), true)
+	if !ok1 || !ok2 || !to.After(from) || to.Sub(from) > 400*24*time.Hour {
+		httpx.Error(w, http.StatusBadRequest, "بازهٔ تاریخ را درست انتخاب کنید (حداکثر ۴۰۰ روز).")
+		return
+	}
+	rows, err := store.Pool.Query(r.Context(),
+		`SELECT started_at, direction, status, ext, other_num, other_name, customer_name, duration_sec,
+		        COALESCE((SELECT data->>'fullName' FROM users WHERE id = voip_calls.user_id), '')
+		   FROM voip_calls WHERE started_at >= $1 AND started_at < $2 ORDER BY started_at DESC LIMIT 200000`, from, to)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	defer rows.Close()
+	cell := func(v string) string {
+		if len(v) > 0 && strings.ContainsRune("=+-@	", rune(v[0])) {
+			v = "'" + v
+		}
+		return `"` + strings.ReplaceAll(v, `"`, `""`) + `"`
+	}
+	dirFa := map[string]string{"in": "ورودی", "out": "خروجی", "internal": "داخلی"}
+	stFa := map[string]string{"answered": "پاسخ داده شد", "missed": "بی‌پاسخ", "busy": "مشغول", "failed": "ناموفق"}
+	var b strings.Builder
+	b.WriteString("\uFEFF")
+	b.WriteString(strings.Join([]string{"تاریخ", "ساعت", "جهت", "وضعیت", "داخلی", "همکار", "شمارهٔ طرف مقابل", "نام طرف مقابل", "مشتری", "مدت (ثانیه)", "مدت"}, ",") + "\r\n")
+	for rows.Next() {
+		var started time.Time
+		var dir, st, ext, num, name, cname, uname string
+		var dur int
+		if rows.Scan(&started, &dir, &st, &ext, &num, &name, &cname, &dur, &uname) != nil {
+			continue
+		}
+		t := started.In(loc)
+		b.WriteString(strings.Join([]string{
+			cell(jalaliText(t.Format("2006-01-02"))), cell(t.Format("15:04:05")), cell(dirFa[dir]), cell(stFa[st]), cell(ext), cell(uname), cell(num), cell(name), cell(cname),
+			strconv.Itoa(dur), cell(fmt.Sprintf("%02d:%02d:%02d", dur/3600, dur%3600/60, dur%60)),
+		}, ",") + "\r\n")
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"calls-"+q.Get("from")+"-to-"+q.Get("to")+".csv\"")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(b.String()))
 }

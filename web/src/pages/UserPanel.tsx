@@ -7,7 +7,9 @@ import { matchesAll } from '../lib/searchAll';
 import { adminMenuHidden, canSub } from '../lib/permissions';
 import { ManagementReports } from '../components/admin/ManagementReports';
 import { VersionBadge } from '../components/common/VersionBadge';
+import { HoormandWord } from '../components/common/HoormandWord';
 import { AnalogClock } from '../components/common/AnalogClock';
+import { ClockPref, useClockPref } from '../components/common/ClockPref';
 import { ChatView } from '../components/chat/ChatView';
 import { AgentLetter } from '../components/letters/AgentLetter';
 import { LeaveView } from '../components/leave/LeaveView';
@@ -389,6 +391,7 @@ export default function UserPanel() {
       }, 350);
     } else setMainMenuTab('files');
   };
+  const clockPref = useClockPref();
   const canAccessCrmMenu = Boolean((currentUser.canUseCrm === true || currentUser.role === 'SUPER_ADMIN') && !hid('crm'));
 
   // «open this customer's card» asked from another menu (the Sepidar customers tab): go to the customer menu and open it
@@ -864,14 +867,11 @@ export default function UserPanel() {
         <div ref={shellPinRef} className="sm:sticky sm:top-0 sm:z-30 bg-[#FAF5F1] shrink-0">
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 max-sm:pt-[calc(1.25rem+env(safe-area-inset-top,0px))] bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
-{settings.analogClock?.enabled && <AnalogClock design={settings.analogClock.design ?? 0} size={62} />}
-<div className="w-7 h-7 rounded-xl bg-white border border-[#EBDBCE] flex items-center justify-center shadow-md shrink-0 p-1">
-              <img src="/images/mark.png" alt="" className="brand-logo w-full h-full object-contain" draggable={false} />
-            </div>
+{clockPref.enabled && <div className="max-sm:hidden"><AnalogClock design={clockPref.design ?? 0} size={62} /></div>}
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="leading-none">
-                  <img src="/images/brand-name.png" alt="هورمند" className="brand-word h-6 sm:h-8 w-auto" draggable={false} />
+                  <HoormandWord className="h-6 sm:h-8 w-auto" />
                 </h1>
                 <VersionBadge className="text-[10px] font-bold text-[#8C6F66]" />
                 <SepidarStatusChip show={canAccessSepidarMenu} />
@@ -911,6 +911,7 @@ export default function UserPanel() {
               <Palette className="w-4 h-4" />
               <span className="hidden sm:inline">رنگبندی</span>
             </button>
+            <ClockPref />
 
             {(currentUser.role === 'SUPER_ADMIN') && (
               <button

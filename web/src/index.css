@@ -301,6 +301,12 @@ html.night [class*='from-[#3A241F]'] {
 .brand-word {
   filter: hue-rotate(var(--word-hue, 0deg));
 }
+.hoormand-word {
+  fill: var(--theme-primary, #6E1B1B);
+}
+html.night .hoormand-word {
+  fill: color-mix(in srgb, var(--theme-primary, #6E1B1B) 45%, #ffffff);
+}
 html.night .brand-logo {
   filter: invert(1) hue-rotate(180deg) hue-rotate(var(--logo-hue, 0deg));
 }

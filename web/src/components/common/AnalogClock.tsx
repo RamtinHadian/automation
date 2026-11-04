@@ -5,7 +5,7 @@ import { gregorianToJalali, toPersianDigits } from '../../lib/jalali';
  * An analog clock with 100 designs: 10 colour schemes x 10 shapes (design = shape * 10 + scheme). It shows the time of the computer it runs on and, under it, the weekday and the
  * Persian (Jalali) date. The clock is drawn as one small SVG; nothing is loaded from outside.
  */
-export const CLOCK_COUNT = 100;
+export const CLOCK_COUNT = 150;
 
 const SCHEMES: { name: string; face: string; ring: string; tick: string; hour: string; minute: string; second: string; text: string }[] = [
   { name: 'عاج', face: '#FFFBF5', ring: '#6E1B1B', tick: '#3A241F', hour: '#3A241F', minute: '#3A241F', second: '#D34A32', text: '#3A241F' },
@@ -20,7 +20,8 @@ const SCHEMES: { name: string; face: string; ring: string; tick: string; hour: s
   { name: 'طلایی', face: '#FFF8E1', ring: '#B8860B', tick: '#8A6508', hour: '#5C4305', minute: '#5C4305', second: '#B3261E', text: '#5C4305' },
 ];
 
-const SHAPES = ['میله‌ای', 'نقطه‌ای', 'ساده', 'حلقهٔ دوتایی', 'عدد کامل', 'چهار عدد', 'الماسی', 'ظریف', 'قطاع‌دار', 'پررنگ'];
+const SHAPES = ['میله‌ای', 'نقطه‌ای', 'ساده', 'حلقهٔ دوتایی', 'عدد کامل', 'چهار عدد', 'الماسی', 'ظریف', 'قطاع‌دار', 'پررنگ', 'نقطهٔ رنگی و عدد', 'عدد طلایی', 'اداری با ثانیه‌شمار قرمز', 'عدد رومی', 'میله‌های چوبی'];
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 const FA = '۰۱۲۳۴۵۶۷۸۹';
 const WEEK = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
@@ -40,6 +41,7 @@ export const ClockFace: React.FC<{ design: number; time: Date; size?: number }> 
   const d = ((design % CLOCK_COUNT) + CLOCK_COUNT) % CLOCK_COUNT;
   const c = SCHEMES[d % 10];
   const shape = Math.floor(d / 10);
+  const photo = shape >= 10; // the five shapes made after reference photos of real wall clocks
   const s = time.getSeconds() + time.getMilliseconds() / 1000;
   const m = time.getMinutes() + s / 60;
   const h = (time.getHours() % 12) + m / 60;
@@ -49,6 +51,11 @@ export const ClockFace: React.FC<{ design: number; time: Date; size?: number }> 
   for (let i = 0; i < 60; i++) {
     const big = i % 5 === 0;
     const a = i * 6;
+    if (shape === 10) { if (big) { const [x, y] = P(C, C, 40, a); ticks.push(<circle key={i} cx={x} cy={y} r={3} fill={[c.tick, c.ring, c.second, c.minute][(i / 5) % 4]} opacity={0.55 + ((i / 5) % 3) * 0.2} />); } continue; }
+    if (shape === 11) continue;
+    if (shape === 12) { const [x1, y1] = P(C, C, big ? 41 : 43, a); const [x2, y2] = P(C, C, 46, a); ticks.push(<line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={c.tick} strokeWidth={big ? 1.2 : 0.6} />); continue; }
+    if (shape === 13) { if (!big) { const [x1, y1] = P(C, C, 44, a); const [x2, y2] = P(C, C, 46, a); ticks.push(<line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={c.tick} strokeWidth={0.5} />); } continue; }
+    if (shape === 14) { const [x1, y1] = P(C, C, big ? 33 : 41, a); const [x2, y2] = P(C, C, 46, a); ticks.push(<line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={c.tick} strokeWidth={big ? 2.4 : 0.5} />); continue; }
     if (shape === 2 && !big) continue; // minimal: only the twelve
     if (shape === 1) { // dots
       const [x, y] = P(C, C, 42, a);
@@ -61,6 +68,13 @@ export const ClockFace: React.FC<{ design: number; time: Date; size?: number }> 
     ticks.push(<line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={c.tick} strokeWidth={big ? (shape === 9 ? 3 : 1.8) : 0.6} strokeLinecap="round" />);
   }
   const numerals: React.ReactNode[] = [];
+  if (shape === 10 || shape === 11 || shape === 12 || shape === 13) {
+    for (let n = 1; n <= 12; n++) {
+      const [x, y] = P(C, C, shape === 12 ? 33 : shape === 13 ? 33.5 : shape === 10 ? 30 : 36, n * 30);
+      const txt = shape === 13 ? ROMAN[n - 1] : String(n).split('').map((ch) => FA[+ch]).join('');
+      numerals.push(<text key={n} x={x} y={y + 3} textAnchor="middle" fontSize={shape === 12 ? 11 : shape === 13 ? 7.2 : shape === 11 ? 9 : 6.5} fontWeight={shape === 13 ? 600 : shape === 11 ? 700 : 800} fill={shape === 11 ? c.ring : c.text} fontFamily={shape === 13 ? 'Georgia, serif' : 'inherit'}>{txt}</text>);
+    }
+  }
   if (shape === 4 || shape === 5) {
     for (let n = 1; n <= 12; n++) {
       if (shape === 5 && n % 3 !== 0) continue;
@@ -81,15 +95,16 @@ export const ClockFace: React.FC<{ design: number; time: Date; size?: number }> 
   const wM = shape === 9 ? 3.2 : shape === 7 ? 1.1 : 2;
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden>
-      <circle cx={C} cy={C} r={48} fill={c.face} stroke={c.ring} strokeWidth={shape === 9 ? 4.5 : 2.4} />
+      <circle cx={C} cy={C} r={48} fill={c.face} stroke={c.ring} strokeWidth={shape === 9 ? 4.5 : shape === 14 ? 5 : shape === 12 ? 4 : 2.4} />
       {shape === 3 && <circle cx={C} cy={C} r={43.5} fill="none" stroke={c.ring} strokeWidth={0.8} />}
       {sectors}
       {ticks}
       {numerals}
       {handH ? <path d={handH} fill={c.hour} transform={`rotate(${aH} ${C} ${C})`} /> : <line x1={C} y1={C + 5} x2={C} y2={C - 24} stroke={c.hour} strokeWidth={wH} strokeLinecap="round" transform={`rotate(${aH} ${C} ${C})`} />}
       {handM ? <path d={handM} fill={c.minute} transform={`rotate(${aM} ${C} ${C})`} /> : <line x1={C} y1={C + 6} x2={C} y2={C - 35} stroke={c.minute} strokeWidth={wM} strokeLinecap="round" transform={`rotate(${aM} ${C} ${C})`} />}
-      <line x1={C} y1={C + (shape === 9 ? 14 : 10)} x2={C} y2={C - 38} stroke={c.second} strokeWidth={0.9} strokeLinecap="round" transform={`rotate(${aS} ${C} ${C})`} />
-      <circle cx={C} cy={C} r={shape === 9 ? 3.6 : 2.6} fill={c.second} />
+      <line x1={C} y1={C + (shape === 9 ? 14 : shape === 12 || shape === 14 ? 14 : 10)} x2={C} y2={C - (shape === 14 ? 40 : 38)} stroke={c.second} strokeWidth={0.9} strokeLinecap="round" transform={`rotate(${aS} ${C} ${C})`} />
+      {shape === 12 && <circle cx={P(C, C, 14, aS + 180)[0]} cy={P(C, C, 14, aS + 180)[1]} r={2.2} fill={c.second} />}
+      <circle cx={C} cy={C} r={shape === 9 ? 3.6 : photo ? 2.2 : 2.6} fill={photo && shape !== 12 ? c.hour : c.second} />
       <circle cx={C} cy={C} r={1} fill={c.face} />
     </svg>
   );

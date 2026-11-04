@@ -114,6 +114,41 @@ const AreaSetup: React.FC = () => {
 };
 
 /** Connection state of the company phone system plus a diary of what happened to recent calls. */
+/** The call report as an Excel file for a chosen period: only the top administrator and the managing director (the server refuses everybody else). */
+const CallExport: React.FC = () => {
+  const { currentUser, showToast } = useAppContext();
+  const iso = (d: Date) => d.toLocaleDateString('en-CA');
+  const [from, setFrom] = useState(() => iso(new Date(Date.now() - 29 * 86400000)));
+  const [to, setTo] = useState(() => iso(new Date()));
+  const [busy, setBusy] = useState(false);
+  if (currentUser.role !== 'SUPER_ADMIN' && !currentUser.canSignOfficialLetters) return null;
+  const go = async () => {
+    setBusy(true);
+    try {
+      const blob = await api.voipExport(from, to);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `calls-${from}-to-${to}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      showToast('گزارش تماس‌ها دریافت شد (فایل را با Excel باز کنید).');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'گزارش دریافت نشد.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 flex flex-wrap items-end gap-3" data-call-export>
+      <div className="font-black text-[#3A241F] w-full">گزارش تماس‌ها به صورت اکسل</div>
+      <label className="text-[11px] font-bold text-[#3A241F]">از تاریخ<input type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} className="block mt-1 px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] bg-white text-xs" /></label>
+      <label className="text-[11px] font-bold text-[#3A241F]">تا تاریخ<input type="date" dir="ltr" value={to} onChange={(e) => setTo(e.target.value)} className="block mt-1 px-2.5 py-1.5 rounded-xl border border-[#EBDBCE] bg-white text-xs" /></label>
+      <button type="button" disabled={busy || !from || !to} onClick={go} className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black cursor-pointer disabled:opacity-50" data-call-export-go>{busy ? 'در حال ساخت…' : 'دریافت فایل Excel'}</button>
+      <p className="w-full text-[10.5px] font-medium text-[#8C6F66] leading-5">همهٔ تماس‌های بازه (تاریخ شمسی، ساعت، جهت، وضعیت، داخلی، همکار، شمارهٔ طرف مقابل، مشتری، مدت) با ساعت سرور. فقط مدیر ارشد و مدیرعامل این را می‌بینند.</p>
+    </div>
+  );
+};
+
 export const VoipStatusCard: React.FC = () => {
   const { showToast } = useAppContext();
   const [log, setLog] = useState<VoipLog | null>(null);
@@ -263,6 +298,8 @@ export const VoipStatusCard: React.FC = () => {
               </div>
             </div>
           )}
+
+          <CallExport />
 
           {recent.length > 0 && (
             <div className="rounded-2xl border border-[#EBDBCE] overflow-hidden">
