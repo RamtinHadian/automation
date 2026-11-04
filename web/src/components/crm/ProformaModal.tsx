@@ -42,7 +42,7 @@ export const ProformaModal: React.FC<{
   // A proforma that is made for the first time starts with every OPEN opportunity of this customer as a line (this one first); the lines that are not wanted are removed.
   // A proforma that already has its lines keeps them.
   const OPEN = ['NEW', 'CONTACTED', 'PROPOSAL', 'NEGOTIATION'];
-  const [pulled] = useState(() => (deal.items && deal.items.length ? [] : allDeals.filter((d) => d.id !== deal.id && d.customerId === deal.customerId && OPEN.includes(d.stage) && !d.proformaNumber)));
+  const [pulled] = useState(() => (deal.items && deal.items.length ? [] : allDeals.filter((d) => d.id !== deal.id && d.customerId === deal.customerId && OPEN.includes(d.stage) && !d.proformaNumber && !d.mergedInto && !(d.items && d.items.length))));
   const [items, setItems] = useState<ProformaItem[]>(() =>
     deal.items && deal.items.length
       ? deal.items

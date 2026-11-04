@@ -425,7 +425,9 @@ export const CrmView: React.FC = () => {
     if (merge && stage === 'PROPOSAL' && picked.length >= 2) {
       const main = picked[0];
       const others = picked.slice(1);
-      const lines = picked.flatMap(dealLinesOf);
+      // one line per opportunity: a line that is already there (the same title and code, from an earlier merge) is never added a second time
+      const seen = new Set<string>();
+      const lines = picked.flatMap(dealLinesOf).filter((l) => { const k = `${(l.title || '').trim()}|${l.code || ''}`; if (seen.has(k)) return false; seen.add(k); return true; });
       const total = lines.reduce((t, l) => t + (l.qty || 0) * (l.unitPrice || 0), 0);
       const blocked = ruleViolation(rules, isAdmin, main.stage, stage, total, main.proformaNumber);
       if (blocked) { showToast(blocked); return; }
