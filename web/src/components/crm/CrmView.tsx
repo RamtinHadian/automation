@@ -91,6 +91,7 @@ const KIND_NAME: Record<string, { label: string; cls: string }> = {
   COMPANY: { label: 'حقوقی', cls: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
   SHOP: { label: 'فروشگاه', cls: 'bg-orange-50 text-orange-800 border-orange-200' },
 };
+const supplierChip = (c: { isSupplier?: boolean }) => (c.isSupplier ? <span className="inline-block text-[9.5px] font-black rounded-full px-1.5 py-px border bg-amber-50 text-amber-900 border-amber-300 mr-1" data-customer-supplier>تأمین‌کننده</span> : null);
 const kindOf = (c: { kind?: string }) => KIND_NAME[c.kind || 'PERSON'] || KIND_NAME.PERSON;
 
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
@@ -310,7 +311,7 @@ export const CrmView: React.FC = () => {
       .filter((c) => (statusFilter === 'ALL' ? true : c.status === statusFilter))
       .filter((c) => (mineOnly ? c.ownerId === me : true))
       .filter((c) => matchesQuery(searchIndex.get(c.id), search))
-      .filter((c) => (!adv.province || c.province === adv.province) && (!adv.city || c.city === adv.city) && (!adv.source || c.source === adv.source) && (!adv.tag || c.tags.includes(adv.tag)) && (!adv.owner || c.ownerId === adv.owner) && (!adv.kind || (c.kind || 'PERSON') === adv.kind))
+      .filter((c) => (!adv.province || c.province === adv.province) && (!adv.city || c.city === adv.city) && (!adv.source || c.source === adv.source) && (!adv.tag || c.tags.includes(adv.tag)) && (!adv.owner || c.ownerId === adv.owner) && (!adv.kind || adv.kind === 'SUPPLIER' ? !!c.isSupplier : (c.kind || 'PERSON') === adv.kind))
       .filter((c) => (adv.bought === 'yes' ? boughtIds.has(c.id) : adv.bought === 'no' ? !boughtIds.has(c.id) : true))
       .filter((c) => !quietLimit || new Date(lastActivity.get(c.id) || c.updatedAt).getTime() < quietLimit)
       .sort((a, b) =>
@@ -556,7 +557,7 @@ export const CrmView: React.FC = () => {
           <div className="font-black text-[12.5px] text-[#3A241F] truncate">{c.name}</div>
           {c.company && c.company !== c.name && <div className="text-[10.5px] text-[#8C6F66] truncate">{c.company}</div>}
         </div>
-        <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>
+        <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}
         <div className="hidden sm:block w-32 text-[11px] font-bold text-[#3A241F]" dir="ltr">{toPersianDigits(c.phones?.[0] || '')}</div>
         <div className="hidden md:block w-28 text-[11px] text-[#8C6F66] truncate">{c.ownerName || ''}</div>
         <div className="hidden md:block w-24 text-[10.5px] text-[#8C6F66]">{c.createdAt ? formatTaskDate(c.createdAt.slice(0, 10)) : ''}</div>
@@ -574,7 +575,7 @@ export const CrmView: React.FC = () => {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="font-black text-[13px] text-[#3A241F] truncate">{c.name}</div>
-            <span className={`inline-block text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>
+            <span className={`inline-block text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}
             {c.company && c.company !== c.name && (
               <div className="text-[11px] text-[#8C6F66] flex items-center gap-1 truncate">
                 <Building2 className="w-3 h-3 shrink-0" />
@@ -989,6 +990,7 @@ export const CrmView: React.FC = () => {
                   <option value="PERSON">شخص حقیقی</option>
                   <option value="COMPANY">شرکت</option>
                   <option value="SHOP">فروشگاه</option>
+                  <option value="SUPPLIER">تأمین‌کننده</option>
                 </select>
               </div>
               <div>
@@ -1029,6 +1031,7 @@ export const CrmView: React.FC = () => {
                   <option value="PERSON">حقیقی</option>
                   <option value="COMPANY">حقوقی</option>
                   <option value="SHOP">فروشگاه</option>
+                  <option value="SUPPLIER">تأمین‌کننده</option>
                 </select>
               </label>
               <div className="flex items-center gap-1 bg-white border border-[#EBDBCE] rounded-xl p-1" data-customer-view>

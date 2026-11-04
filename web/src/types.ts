@@ -155,6 +155,8 @@ export interface Customer {
   company?: string;
   /** Real person (default) or legal entity. */
   kind?: 'PERSON' | 'COMPANY' | 'SHOP';
+  /** also (or only) a supplier: the same person / company can be both a customer and a supplier */
+  isSupplier?: boolean;
   // --- shop («SHOP»): the shop's name is name / company; the owner is firstName / lastName
   /** What the shop sells or does (guild / line of business). */
   shopType?: string;

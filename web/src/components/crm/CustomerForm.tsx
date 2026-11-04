@@ -391,6 +391,10 @@ export const CustomerForm: React.FC<{
           {typeBtn('COMPANY', 'شرکت / شخص حقوقی', Building2)}
           {typeBtn('SHOP', 'فروشگاه / مغازه', Store)}
         </div>
+        <label className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black cursor-pointer ${c.isSupplier ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`} data-supplier-toggle>
+          <input type="checkbox" className="w-4 h-4 accent-amber-600" checked={!!c.isSupplier} onChange={(e) => patch({ isSupplier: e.target.checked || undefined })} />
+          تأمین‌کننده هم هست (کنار حقیقی، حقوقی یا فروشگاه؛ فقط در هورمند علامت می‌خورد)
+        </label>
 
         {isShop ? (
           <>
