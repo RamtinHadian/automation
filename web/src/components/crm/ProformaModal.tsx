@@ -39,8 +39,14 @@ export const ProformaModal: React.FC<{
   /** Called with the deal updated by the proforma (items, number, amount...). */
   onSave: (d: Deal) => void;
 }> = ({ deal, allDeals, customer, settings, issuerName, defaultDiscount, onClose, onSave }) => {
-  const [items, setItems] = useState<ProformaItem[]>(
-    deal.items && deal.items.length ? deal.items : [{ title: deal.title, qty: 1, unitPrice: deal.amount || 0, code: deal.productCode }]
+  // A proforma that is made for the first time starts with every OPEN opportunity of this customer as a line (this one first); the lines that are not wanted are removed.
+  // A proforma that already has its lines keeps them.
+  const OPEN = ['NEW', 'CONTACTED', 'PROPOSAL', 'NEGOTIATION'];
+  const [pulled] = useState(() => (deal.items && deal.items.length ? [] : allDeals.filter((d) => d.id !== deal.id && d.customerId === deal.customerId && OPEN.includes(d.stage) && !d.proformaNumber)));
+  const [items, setItems] = useState<ProformaItem[]>(() =>
+    deal.items && deal.items.length
+      ? deal.items
+      : [deal, ...pulled].map((d) => ({ title: d.title, qty: 1, unitPrice: d.amount || 0, code: d.productCode }))
   );
   const [discountPercent, setDiscountPercent] = useState(deal.discountPercent ?? (deal.proformaNumber ? 0 : defaultDiscount || 0));
   // the warehouse: what is in stock and the prices of the product, to put next to each line
@@ -384,6 +390,11 @@ export const ProformaModal: React.FC<{
                   </React.Fragment>
                 );
               })}
+            </div>
+          )}
+          {pulled.length > 0 && !deal.items?.length && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] font-bold text-violet-900 leading-6" data-proforma-pulled>
+              {toPersianDigits(pulled.length)} فرصت بازِ دیگر این مشتری هم به‌عنوان ردیف آمد. ردیف‌هایی را که نمی‌خواهید با «حذف» بردارید.
             </div>
           )}
           <div className="space-y-2">

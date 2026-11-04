@@ -126,7 +126,7 @@ export function generateOfficialLetterHtml(
   const rawLetterDate = overrides?.customDate || transfer.customHeaderDate || transfer.sentAt.split(' - ')[0] || formatCurrentJalaliDateTime().split(' - ')[0];
   const letterDate = toPersianDigits(toJalaliDateText(rawLetterDate));
 
-  const letterAttach = overrides?.customAttachment || transfer.customHeaderAttachment || 'دارد (الکترونیک)';
+  const letterAttach = overrides?.customAttachment || transfer.customHeaderAttachment || (transfer.attachmentFileName ? 'دارد' : 'ندارد');
   const letterSubject = overrides?.customSubject || transfer.customHeaderSubject || transfer.fileName.replace(/\.[^/.]+$/, '').replace(/^نامه_/, '').replace(/_/g, ' ');
   const headerTitle = overrides?.customHeaderTitle !== undefined ? overrides.customHeaderTitle : (transfer.customHeaderCenterTitle !== undefined ? transfer.customHeaderCenterTitle : '');
 

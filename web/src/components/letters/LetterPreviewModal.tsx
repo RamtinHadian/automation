@@ -527,7 +527,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const [pageSize, setPageSize] = useState<string>('A4');
   const [headerNumber, setHeaderNumber] = useState('');
   const [headerDate, setHeaderDate] = useState('');
-  const [headerAttachment, setHeaderAttachment] = useState('دارد (الکترونیک)');
+  const [headerAttachment, setHeaderAttachment] = useState('ندارد');
   const [headerSubject, setHeaderSubject] = useState('');
   const [headerCompanyTitle, setHeaderCompanyTitle] = useState('');
   const [headerCompanySubtitle, setHeaderCompanySubtitle] = useState('');
@@ -601,7 +601,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setPageSize(letter.pageSize || 'A4');
       setHeaderNumber(toPersianDigits(letter.customHeaderNumber || letter.letterNumber || letter.fileName.replace(/\.[^/.]+$/, '').replace(/^نامه_/, '')));
       setHeaderDate(toPersianDigits(toJalaliDateText(letter.customHeaderDate || (letter.sentAt ? letter.sentAt.split(' - ')[0] : formatCurrentJalaliDateTime().split(' - ')[0]))));
-      setHeaderAttachment(letter.customHeaderAttachment || 'دارد (الکترونیک)');
+      // the attachment line says «دارد» only when something is attached; a letter with nothing attached says «ندارد»
+      setHeaderAttachment(letter.customHeaderAttachment || (letter.attachmentFileName ? 'دارد' : 'ندارد'));
       setHeaderSubject(letter.customHeaderSubject || letter.fileName.replace(/\.[^/.]+$/, '').replace(/^نامه_/, '').replace(/_/g, ' '));
       setHeaderCompanyTitle(letter.customHeaderCompanyTitle !== undefined ? letter.customHeaderCompanyTitle : (settings.companyName || ''));
       setHeaderCompanySubtitle(letter.customHeaderCompanySubtitle !== undefined ? letter.customHeaderCompanySubtitle : (settings.companySubtitle || ''));
