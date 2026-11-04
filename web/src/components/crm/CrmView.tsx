@@ -47,6 +47,7 @@ import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/t
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SocialEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { ProformaModal } from './ProformaModal';
+import { DealMoveDialog } from './DealMoveDialog';
 import { KindFixModal } from './KindFixModal';
 import { CallList, RecordingButton } from '../common/CallLog';
 import { SmsModal } from './SmsModal';
@@ -412,8 +413,42 @@ export const CrmView: React.FC = () => {
       addActivity(next.customerId, 'NOTE', `مرحلهٔ فرصت «${next.title}» از «${stageOf(before.stage).label}» به «${stageOf(next.stage).label}» تغییر کرد.${next.stage === 'LOST' && next.lostReason ? ` دلیل: ${next.lostReason}.` : ''}`, { dealId: next.id });
     }
   };
+  // the lines of an opportunity as the lines of a proforma: its own lines, or one line from its title, quantity and price of one
+  const dealLinesOf = (x: Deal) =>
+    x.items && x.items.length
+      ? x.items
+      : [{ title: x.title, qty: x.quantity && x.quantity > 0 ? x.quantity : 1, unitPrice: x.unitPrice ?? (x.amount || 0) / (x.quantity && x.quantity > 0 ? x.quantity : 1), code: x.productCode }];
+  const [moveAsk, setMoveAsk] = useState<{ id: string; stage: DealStage } | null>(null);
+  const doGroupMove = async (ids: string[], stage: DealStage, merge: boolean) => {
+    const picked = ids.map((i) => deals.find((x) => x.id === i)).filter((x): x is Deal => !!x);
+    if (!picked.length) return;
+    if (merge && stage === 'PROPOSAL' && picked.length >= 2) {
+      const main = picked[0];
+      const others = picked.slice(1);
+      const lines = picked.flatMap(dealLinesOf);
+      const total = lines.reduce((t, l) => t + (l.qty || 0) * (l.unitPrice || 0), 0);
+      const blocked = ruleViolation(rules, isAdmin, main.stage, stage, total, main.proformaNumber);
+      if (blocked) { showToast(blocked); return; }
+      if (!(await askConfirm(`${toPersianDigits(picked.length)} فرصت «${picked.map((x) => x.title).join('»، «')}» در یک فرصت ادغام می‌شوند و یک پیش‌فاکتور برایشان صادر می‌شود. فقط فرصت «${main.title}» می‌ماند و بقیه در آن ادغام و حذف می‌شوند. ادامه می‌دهید؟`, { tone: 'warning', title: 'ادغام فرصت‌ها', confirmText: 'بله، یکی شوند' }))) return;
+      const stillLinked = deals.some((x) => x.groupId && x.groupId === main.groupId && !picked.some((q) => q.id === x.id));
+      const merged: Deal = { ...main, stage, items: lines, amount: total, quantity: undefined, unitPrice: undefined, groupId: stillLinked ? main.groupId : undefined, groupSeq: stillLinked ? main.groupSeq : undefined, updatedAt: nowIso() };
+      setDeals((prev) => prev.filter((x) => !others.some((o) => o.id === x.id)));
+      saveDeal(merged);
+      addActivity(main.customerId, 'NOTE', `فرصت‌های «${picked.map((x) => x.title).join('»، «')}» در یک فرصت ادغام شدند و برایشان یک پیش‌فاکتور صادر می‌شود.`);
+      setProformaFor(merged);
+      return;
+    }
+    picked.forEach((x) => saveDeal({ ...x, stage }));
+    if (stage === 'PROPOSAL' && picked.length === 1 && !picked[0].proformaNumber) setProformaFor({ ...picked[0], stage });
+    if (picked.length > 1) showToast(`${toPersianDigits(picked.length)} فرصت به «${stageOf(stage).label}» رفت.`);
+  };
   const moveDeal = (id: string, stage: DealStage) => {
     const d = deals.find((x) => x.id === id);
+    // a linked opportunity never moves alone without asking: the person is told they are all the customer's opportunities and ticks the ones that go (a lost one still asks its reason below)
+    if (d && d.stage !== stage && stage !== 'LOST' && dealGroup(deals, d)) {
+      setMoveAsk({ id, stage });
+      return;
+    }
     if (d && d.stage !== stage) {
       // a lost opportunity must say why: the edit window opens with the stage already set and asks for the reason
       if (stage === 'LOST') return setEditingDeal({ deal: { ...d, stage }, isNew: false });
@@ -1284,6 +1319,22 @@ export const CrmView: React.FC = () => {
           }}
         />
       )}
+      {moveAsk && (() => {
+        const dragged = deals.find((x) => x.id === moveAsk.id);
+        const g = dragged ? dealGroup(deals, dragged) : null;
+        if (!dragged || !g) return null;
+        return (
+          <DealMoveDialog
+            customerName={customerById.get(dragged.customerId)?.name || dragged.customerName}
+            dragged={dragged}
+            members={g.members}
+            target={{ id: moveAsk.stage, label: stageOf(moveAsk.stage).label }}
+            stageLabel={(st) => stageOf(st as DealStage).label}
+            onClose={() => setMoveAsk(null)}
+            onConfirm={(ids, merge) => { const st = moveAsk.stage; setMoveAsk(null); void doGroupMove([dragged.id, ...ids.filter((i) => i !== dragged.id)].filter((i) => ids.includes(i)), st, merge); }}
+          />
+        );
+      })()}
       {proformaFor && (
         <ProformaModal
           deal={proformaFor}
@@ -1381,7 +1432,7 @@ const DealForm: React.FC<{
 }> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onSaveMore, onProforma, onDelete, onCreateCustomer }) => {
   const [d, setD] = useState<Deal>(initial);
   // Enter in a title opens the line of the next opportunity (title, product code, amount); every line becomes an opportunity of the same customer
-  const [more, setMore] = useState<{ id: string; title: string; code: string; amountText: string; amount: number }[]>([]);
+  const [more, setMore] = useState<{ id: string; title: string; code: string; amountText: string; amount: number; qtyText: string; qty: number }[]>([]);
   // the products of the warehouse: the title of an opportunity is matched against them (who has no right to the warehouse simply gets no suggestions)
   const [whProducts, setWhProducts] = useState<WhProduct[]>([]);
   useEffect(() => {
@@ -1391,7 +1442,7 @@ const DealForm: React.FC<{
   }, []);
   // after = the line the new one goes under (null = right under the first one)
   const addMore = (after: string | null) => {
-    const row = { id: uid('mr'), title: '', code: '', amountText: '', amount: 0 };
+    const row = { id: uid('mr'), title: '', code: '', amountText: '', amount: 0, qtyText: '1', qty: 1 };
     setMore((p) => {
       const i = after ? p.findIndex((r) => r.id === after) : -1;
       return [...p.slice(0, i + 1), row, ...p.slice(i + 1)];
@@ -1401,22 +1452,30 @@ const DealForm: React.FC<{
   // Enter walks through the fields: title -> product code -> amount -> the title of the next line (a new line is made after the last one)
   const goTo = (fid: string) => {
     const at = () => document.querySelector(`[data-fid="${fid}"]`) as HTMLInputElement | null;
-    if (at()) at()!.focus(); // a field that is already there gets the cursor at once
-    else setTimeout(() => at()?.focus(), 30); // a new line has to be drawn first
+    const focus = () => { const el = at(); if (el) { el.focus(); el.select?.(); } };
+    if (at()) focus(); // a field that is already there gets the cursor at once (its text selected)
+    else setTimeout(focus, 30); // a new line has to be drawn first
   };
-  const enterAt = (line: string | null, field: 'title' | 'code' | 'amount') => {
+  const enterAt = (line: string | null, field: 'title' | 'code' | 'qty' | 'amount') => {
     const id = line === null ? 'main' : line;
     if (field === 'title') return goTo(`${id}-code`);
-    if (field === 'code') return goTo(`${id}-amount`);
+    if (field === 'code') return goTo(`${id}-qty`);
+    if (field === 'qty') return goTo(`${id}-amount`);
     if (line === null ? !d.title.trim() : !more.find((r) => r.id === line)?.title.trim()) return; // an empty line does not start a new one
     const i = line === null ? -1 : more.findIndex((r) => r.id === line);
     const next = more[i + 1];
     if (next) return goTo(`${next.id}-title`);
     addMore(line);
   };
-  const patchMore = (id: string, u: Partial<{ title: string; code: string; amountText: string; amount: number }>) => setMore((p) => p.map((r) => (r.id === id ? { ...r, ...u } : r)));
+  const patchMore = (id: string, u: Partial<{ title: string; code: string; amountText: string; amount: number; qtyText: string; qty: number }>) => setMore((p) => p.map((r) => (r.id === id ? { ...r, ...u } : r)));
+  const unitOfMore = (r: { amountText: string; qty: number; amount: number }) => (r.qty ? r.amount / r.qty : r.amount);
   const filledMore = more.filter((r) => r.title.trim());
-  const [amountText, setAmountText] = useState(initial.amount ? toman(initial.amount) : '');
+  // a line is «how many» x «price of one» = the total of the line (a deal that only had a total keeps it: one piece at that price)
+  const initQty = initial.quantity && initial.quantity > 0 ? initial.quantity : 1;
+  const initUnit = initial.unitPrice ?? (initial.amount ? initial.amount / initQty : 0);
+  const [qtyText, setQtyText] = useState(String(initQty));
+  const [unitNow, setUnitNow] = useState(initUnit);
+  const [amountText, setAmountText] = useState(initUnit ? toman(initUnit) : '');
   const patch = (u: Partial<Deal>) => setD((p) => ({ ...p, ...u }));
   const valid = d.title.trim() && d.customerId && (d.stage !== 'LOST' || !!d.lostReason);
   const submit = (e: React.FormEvent) => {
@@ -1431,7 +1490,7 @@ const DealForm: React.FC<{
     if (filledMore.length && onSaveMore) {
       const at = nowIso();
       onSaveMore(filledMore.map((r, k) => ({
-        ...main, id: uid('dl'), groupId: gid, groupSeq: base + k + 1, title: r.title.trim(), productCode: r.code.trim() || undefined, amount: r.amount, createdAt: at, updatedAt: at,
+        ...main, id: uid('dl'), groupId: gid, groupSeq: base + k + 1, title: r.title.trim(), productCode: r.code.trim() || undefined, quantity: r.qty > 1 ? r.qty : undefined, unitPrice: r.qty ? r.amount / r.qty : r.amount, amount: r.amount, createdAt: at, updatedAt: at,
         createdById: undefined, createdByName: undefined, createdByGuess: undefined, closedAt: undefined, noteLog: undefined, notes: '',
         proformaNumber: undefined, proformaAt: undefined, validUntil: undefined, items: undefined, proformaApproval: undefined, proformaFields: undefined, proformaIssuerId: undefined,
         discountPercent: undefined, taxPercent: undefined, terms: undefined, expectedClose: undefined, expectedCloseTime: undefined,
@@ -1456,9 +1515,17 @@ const DealForm: React.FC<{
             <div className="flex gap-2 flex-wrap">
               <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">انصراف</button>
               {valid && (
-                <button type="button" onClick={() => onProforma({ ...d, ownerName: staff.find((u) => u.id === d.ownerId)?.fullName || d.ownerName })} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer">
+                <button type="button" onClick={async () => {
+                  const owner = staff.find((u) => u.id === d.ownerId)?.fullName || d.ownerName;
+                  if (!filledMore.length) { onProforma({ ...d, ownerName: owner }); return; }
+                  // several lines written together: they all are opportunities of this customer; they become ONE opportunity with one proforma
+                  const lines = [{ title: d.title.trim(), qty: d.quantity && d.quantity > 0 ? d.quantity : 1, unitPrice: unitNow, code: d.productCode }, ...filledMore.map((r) => ({ title: r.title.trim(), qty: r.qty || 1, unitPrice: unitOfMore(r), code: r.code.trim() || undefined }))];
+                  const who = customers.find((c) => c.id === d.customerId)?.name || d.customerName || 'این مشتری';
+                  if (!(await askConfirm(`این ${toPersianDigits(lines.length)} ردیف همگی فرصت‌های «${who}» هستند. همه در یک فرصت و یک پیش‌فاکتور یکی می‌شوند. ادامه می‌دهید؟`, { tone: 'info', title: 'پیش‌فاکتور برای همهٔ ردیف‌ها', confirmText: 'بله، یکی شوند' }))) return;
+                  onProforma({ ...d, ownerName: owner, items: lines, amount: lines.reduce((t, l) => t + l.qty * l.unitPrice, 0), quantity: undefined, unitPrice: undefined, groupId: undefined, groupSeq: undefined });
+                }} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer">
                   <FileText className="w-4 h-4" />
-                  پیش‌فاکتور
+                  {filledMore.length ? `پیش‌فاکتور برای همهٔ ${toPersianDigits(filledMore.length + 1)} ردیف` : 'پیش‌فاکتور'}
                 </button>
               )}
               <button type="submit" disabled={!valid} className="px-5 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">{filledMore.length ? `ثبت ${toPersianDigits(filledMore.length + 1)} فرصت` : isNew ? 'ثبت فرصت' : 'ذخیره'}</button>
@@ -1492,20 +1559,34 @@ const DealForm: React.FC<{
               fid="main-title"
               extraAttrs={{ 'data-deal-title': true }}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
                 <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-[#8C6F66] mb-1">مبلغ</label>
+                <label className="block text-[10px] font-black text-[#8C6F66] mb-1">تعداد</label>
+                <input
+                  className={field}
+                  inputMode="numeric"
+                  dir="ltr"
+                  value={qtyText}
+                  onChange={(e) => { const n = Math.max(0, parseNumber(e.target.value) || 0); setQtyText(n ? formatNumber(n) : ''); patch({ quantity: n || undefined, amount: unitNow * (n || 1) }); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'qty'); } }}
+                  placeholder="۱"
+                  data-deal-qty
+                  data-fid="main-qty"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-[#8C6F66] mb-1">قیمت واحد</label>
                 <div className="relative">
                   <input
                     className={`${field} pl-16`}
                     inputMode="numeric"
                     dir="ltr"
                     value={amountText}
-                    onChange={(e) => { const n = parseNumber(e.target.value); setAmountText(n ? formatNumber(n) : ''); patch({ amount: fromDisplay(n) }); }}
+                    onChange={(e) => { const n = parseNumber(e.target.value); const unit = fromDisplay(n); setAmountText(n ? formatNumber(n) : ''); setUnitNow(unit); patch({ unitPrice: unit, amount: unit * (d.quantity || 1) }); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'amount'); } }}
                     placeholder="۰"
                     data-deal-amount
@@ -1513,6 +1594,10 @@ const DealForm: React.FC<{
                   />
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black rounded-md px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 pointer-events-none">{unitName()}</span>
                 </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-[#8C6F66] mb-1">جمع این ردیف</label>
+                <div className={`${field} bg-violet-50 border-violet-200 font-black text-violet-900`} data-deal-line-total>{toman(d.amount || 0)}</div>
               </div>
             </div>
           </div>
@@ -1536,26 +1621,43 @@ const DealForm: React.FC<{
                 }}
                 placeholder="عنوان فرصت"
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
                   <input className={field} dir="ltr" value={r.code} onChange={(e) => patchMore(r.id, { code: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="مثلاً A-1024" data-fid={`${r.id}-code`} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-[#8C6F66] mb-1">مبلغ</label>
+                  <label className="block text-[10px] font-black text-[#8C6F66] mb-1">تعداد</label>
+                  <input
+                    className={field}
+                    inputMode="numeric"
+                    dir="ltr"
+                    value={r.qtyText}
+                    onChange={(e) => { const n = Math.max(0, parseNumber(e.target.value) || 0); patchMore(r.id, { qtyText: n ? formatNumber(n) : '', qty: n || 1, amount: unitOfMore(r) * (n || 1) }); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'qty'); } }}
+                    placeholder="۱"
+                    data-fid={`${r.id}-qty`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-[#8C6F66] mb-1">قیمت واحد</label>
                   <div className="relative">
                     <input
                       className={`${field} pl-16`}
                       inputMode="numeric"
                       dir="ltr"
                       value={r.amountText}
-                      onChange={(e) => { const n = parseNumber(e.target.value); patchMore(r.id, { amountText: n ? formatNumber(n) : '', amount: fromDisplay(n) }); }}
+                      onChange={(e) => { const n = parseNumber(e.target.value); const unit = fromDisplay(n); patchMore(r.id, { amountText: n ? formatNumber(n) : '', amount: unit * (r.qty || 1) }); }}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'amount'); } }}
                       data-fid={`${r.id}-amount`}
                       placeholder="۰"
                     />
                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black rounded-md px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 pointer-events-none">{unitName()}</span>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-[#8C6F66] mb-1">جمع این ردیف</label>
+                  <div className={`${field} bg-violet-50 border-violet-200 font-black text-violet-900`}>{toman(r.amount || 0)}</div>
                 </div>
               </div>
             </div>

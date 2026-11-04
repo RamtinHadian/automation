@@ -46,7 +46,7 @@ export const ProformaModal: React.FC<{
   const [items, setItems] = useState<ProformaItem[]>(() =>
     deal.items && deal.items.length
       ? deal.items
-      : [deal, ...pulled].map((d) => ({ title: d.title, qty: 1, unitPrice: d.amount || 0, code: d.productCode }))
+      : [deal, ...pulled].map((d) => ({ title: d.title, qty: d.quantity && d.quantity > 0 ? d.quantity : 1, unitPrice: d.unitPrice ?? (d.amount || 0) / (d.quantity && d.quantity > 0 ? d.quantity : 1), code: d.productCode }))
   );
   const [discountPercent, setDiscountPercent] = useState(deal.discountPercent ?? (deal.proformaNumber ? 0 : defaultDiscount || 0));
   // the warehouse: what is in stock and the prices of the product, to put next to each line

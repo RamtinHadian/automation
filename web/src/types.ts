@@ -253,6 +253,10 @@ export interface Deal {
   customerName: string;
   /** کد کالا: the code of the product / service this opportunity is about. */
   productCode?: string;
+  /** How many of the product (default 1); amount = quantity x unitPrice. */
+  quantity?: number;
+  /** The price of one (in the same unit as amount). */
+  unitPrice?: number;
   /** Amount in Toman. */
   amount: number;
   stage: DealStage;
