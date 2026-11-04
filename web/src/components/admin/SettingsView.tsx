@@ -1140,6 +1140,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'look' && (
       <>
+        <AnalogClockCard settings={settings} setSettings={setSettings} />
       <LoginDesignCard value={settings.loginDesign} onChange={(d) => { setSettings((prev) => ({ ...prev, loginDesign: d })); onSaveSettings({ ...initialSettings, ...settings, loginDesign: d }); }} />
       <LoginImagesCard images={settings.loginImages || []} toast={(m) => showToast(m)} onChange={(list) => { setSettings((prev) => ({ ...prev, loginImages: list })); onSaveSettings({ ...initialSettings, ...settings, loginImages: list }); }} />
       {/* ========================================================================= */}
@@ -1222,7 +1223,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {section === 'policies' && (
       <>
       <ServerClockCard />
-      <AnalogClockCard settings={settings} setSettings={setSettings} />
       <div className="bg-white p-6 rounded-3xl border border-[#EBDBCE] shadow-xs space-y-3 text-xs" data-task-archive-card>
         <div className="flex items-center gap-2.5 text-[#3A241F]">
           <HardDrive className="w-5 h-5 text-[#6E1B1B]" />
