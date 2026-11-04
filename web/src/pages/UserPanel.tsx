@@ -98,7 +98,7 @@ import { CustomerReportModal } from '../components/crm/CustomerReportModal';
 import { LetterEditorModal } from '../components/letters/LetterEditorModal';
 import { LetterThumbnail } from '../components/letters/LetterThumbnail';
 import { LetterPreviewModal } from '../components/letters/LetterPreviewModal';
-import { PersonPicker } from '../components/common/PersonPicker';
+import { PersonPicker, PersonPickerMulti } from '../components/common/PersonPicker';
 
 const renderCategoryIcon = (category: FileCategory) => {
   switch (category) {
@@ -204,6 +204,7 @@ export default function UserPanel() {
   const signatoriesList = staffList.filter((u) => u.canSignOfficialLetters && u.isActive !== false);
 
   const [recipientId, setRecipientId] = useState<string>('');
+  const [fileRecipientIds, setFileRecipientIds] = useState<string[]>([]); // the colleagues one file is sent to at once
   const [letterRecipientId, setLetterRecipientId] = useState<string>('');
   const [note, setNote] = useState('');
   const [letterSubject, setLetterSubject] = useState('');
@@ -580,12 +581,17 @@ export default function UserPanel() {
 
   const onSendFile = () => {
     if (!selectedFile || isUploading) return;
+    if (fileRecipientIds.length === 0) {
+      showToast('گیرنده را انتخاب کنید؛ می‌توانید چند نفر را با هم انتخاب کنید.');
+      return;
+    }
     setIsUploading(true);
     setUploadProgress(0);
 
     handleSendTransfer({
       rawFile: selectedFile.file,
-      recipientId: activeRecipientId,
+      recipientId: fileRecipientIds[0],
+      recipientIds: fileRecipientIds,
       note,
       isOfficialLetter: false,
       onProgress: (p) => setUploadProgress(p),
@@ -593,6 +599,7 @@ export default function UserPanel() {
         setIsUploading(false);
         setSelectedFile(null);
         setNote('');
+        setFileRecipientIds([]);
       },
     });
   };
@@ -1299,14 +1306,14 @@ export default function UserPanel() {
 
                 {/* Recipient */}
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-[#3A241F]">انتخاب گیرنده (همکار / واحد):</label>
-                  <PersonPicker
-                    title="انتخاب گیرنده فایل"
+                  <label className="block text-[11px] font-bold text-[#3A241F]">انتخاب گیرنده (همکار / واحد؛ هر تعداد که لازم است):</label>
+                  <PersonPickerMulti
+                    title="انتخاب گیرندگان فایل"
                     items={otherStaff.map((user) => ({ id: user.id, name: user.fullName, sub: `${user.departmentName} (${user.email})` }))}
-                    value={activeRecipientId}
-                    onChange={setRecipientId}
+                    values={fileRecipientIds}
+                    onChange={setFileRecipientIds}
                     disabled={otherStaff.length === 0}
-                    placeholder={otherStaff.length === 0 ? 'همکار دیگری ثبت نشده (از پنل مدیریت کارمند جدید اضافه کنید)' : 'انتخاب کنید…'}
+                    placeholder={otherStaff.length === 0 ? 'همکار دیگری ثبت نشده (از پنل مدیریت کارمند جدید اضافه کنید)' : 'یک یا چند نفر را انتخاب کنید…'}
                   />
                 </div>
 
@@ -1349,7 +1356,7 @@ export default function UserPanel() {
                   }`}
               >
                 <Send className="w-4 h-4" />
-                <span>ارسال فایل به گیرنده</span>
+                <span>{fileRecipientIds.length > 1 ? `ارسال فایل به ${toPersianDigits(fileRecipientIds.length)} نفر` : 'ارسال فایل به گیرنده'}</span>
               </button>
             </section>
 

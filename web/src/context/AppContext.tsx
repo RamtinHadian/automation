@@ -100,6 +100,8 @@ interface AppContextType {
     replaceId?: string;
     rawFile: globalThis.File;
     recipientId: string;
+    /** Several receivers of one file at once (the file is uploaded once); recipientId is then the first of them. */
+    recipientIds?: string[];
     note: string;
     letterContentHtml?: string;
     letterNumber?: string;
@@ -728,6 +730,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       replaceId,
       rawFile,
       recipientId,
+      recipientIds,
       note,
       letterContentHtml,
       letterNumber,
@@ -790,6 +793,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       replaceId?: string;
       rawFile: globalThis.File;
       recipientId: string;
+      recipientIds?: string[];
       note: string;
       letterContentHtml?: string;
       letterNumber?: string;
@@ -855,7 +859,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         onDone();
         return;
       }
-      const recipient = staffList.find((u) => u.id === recipientId) || staffList[1];
+      const recipients = (recipientIds && recipientIds.length ? recipientIds : [recipientId]).map((id) => staffList.find((u) => u.id === id)).filter((u): u is typeof staffList[number] => !!u);
+      if (!recipients.length && staffList[1]) recipients.push(staffList[1]);
+      const recipient = recipients[0];
       const transferId = replaceId || 'tr-' + Math.random().toString(36).substring(2, 9);
 
       // The file itself stays on the sender's computer; only the letter/transfer record goes to the database.
@@ -892,7 +898,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             fileSize: formatBytes(rawFile.size),
             category,
             sender: currentUser,
-            recipients: [recipient],
+            recipients,
             note: note.trim() || (isOfficialLetter ? 'نامه رسمی جهت بررسی و امضای مدیر' : 'فایل ارسالی درون‌سازمانی'),
             letterContentHtml: convertNumbersInHtmlToPersian(letterContentHtml || (isOfficialLetter ? note : undefined) || ''),
             letterNumber: finalLetterNumber,
@@ -963,7 +969,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             action: 'FILE_TRANSFER',
             severity: 'INFO',
             ipAddress: '',
-            details: `ارسال فایل "${newTransfer.fileName}" (${newTransfer.fileSize}) برای ${recipient.fullName}.`,
+            details: `ارسال فایل "${newTransfer.fileName}" (${newTransfer.fileSize}) برای ${recipients.map((r) => r.fullName).join('، ')}.`,
           };
 
           if (replaceId) {
