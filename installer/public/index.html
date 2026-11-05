@@ -58,6 +58,34 @@
   textarea.rep { width:100%; min-height:210px; padding:10px; border:1px solid var(--line); border-radius:10px; background:#faf5f1; font-size:12.5px; line-height:2; direction:rtl; }
   header { flex-wrap: wrap; } .tabs { display:flex; gap:6px; margin-inline-start:14px; } .tabs button { background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.3); padding:7px 14px; font-size:12px; } .tabs button.on { background:#fff; color:var(--brand); }
   .bar { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+
+  /* compact layout: the whole panel fits one screen, nothing scrolls the page */
+  html, body { height:100%; overflow:hidden; }
+  body { font-size:12px; display:flex; flex-direction:column; }
+  header { padding:7px 14px; gap:8px; flex:0 0 auto; } header h1 { font-size:14px; } header span { font-size:10.5px; }
+  .tabs { margin-inline-start:8px; gap:4px; } .tabs button { padding:4px 10px; font-size:11px; border-radius:9px; }
+  main { flex:1 1 auto; min-height:0; max-width:none; width:100%; margin:0; padding:8px 10px; gap:8px; grid-template-columns: 300px 1fr; align-items:stretch; }
+  main > section { min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+  .card { padding:9px 11px; border-radius:12px; }
+  h2 { font-size:12.5px; margin:0 0 5px; }
+  label { margin:6px 0 2px; font-size:11px; }
+  input { padding:6px 8px; font-size:12px; border-radius:8px; }
+  .row { grid-template-columns: 1fr 64px; gap:6px; }
+  button { padding:7px 11px; font-size:12px; border-radius:9px; }
+  .full { margin-top:8px; }
+  .note { font-size:10.5px; line-height:1.6; margin:5px 0 0; }
+  .guide { display:none; font-size:11px; line-height:1.7; padding:7px 9px; margin:0 0 6px; }
+  .guide.open { display:block; max-height:170px; overflow-y:auto; }
+  .gtoggle { background:#fff8e6; color:#7a1c20; border:1px solid #ecd9a6; padding:3px 9px; font-size:11px; margin-bottom:5px; }
+  ol.steps { gap:4px; } ol.steps li { padding:5px 8px; gap:7px; border-radius:9px; } .dot { width:17px; height:17px; font-size:10px; }
+  li .t { font-size:11.5px; } li .n { font-size:10.5px; line-height:1.5; }
+  #stage { padding:6px; border-radius:10px; flex:1 1 auto; min-height:120px; display:flex; }
+  #term { height:auto; flex:1 1 auto; font-size:11.5px; line-height:1.6; }
+  #term .ln { min-height:1.6em; } #term .ln.code { font-size:11px; }
+  .gallery a { width:110px; } .report .item { padding:5px 8px; } textarea.rep { min-height:110px; font-size:11.5px; line-height:1.7; }
+  .ask, .result, .err { padding:9px; margin-top:8px; border-radius:11px; }
+  .bar { margin-top:6px; gap:6px; }
+  @media (max-width: 900px) { html, body { overflow:auto; height:auto; } main { grid-template-columns:1fr; } main > section { overflow:visible; } }
 </style>
 </head>
 <body>
@@ -66,12 +94,13 @@
   <section>
     <div class="card" id="loginCard">
       <h2>۱. ورود به سرور (SSH)</h2>
-      <div class="guide" id="guide"></div>
+      <button type="button" class="gtoggle" id="gtoggle">راهنما ▾</button><div class="guide" id="guide"></div>
       <label id="lbHost">آدرس سرور</label>
       <div class="row"><input id="host" placeholder="مثلاً 192.168.1.80" autocomplete="off" /><input id="port" value="22" title="پورت SSH" /></div>
       <label id="lbUser">نام کاربری</label><input id="user" placeholder="مثلاً paya یا root" autocomplete="off" />
       <label id="lbPass">رمز عبور</label><input id="pass" type="password" autocomplete="off" />
       <div id="voipFields" style="display:none">
+        <label>حالت شبکه</label><select id="vMode" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#faf5f1;font-family:inherit;font-size:12px"><option value="local">هر دو سرور در یک شبکهٔ داخلی‌اند (پینگ، IP ثابت، اتصال با آدرس داخلی)</option><option value="remote">در شبکه‌های جدا هستند (باز کردن پورت ۵۰۳۸ روی میکروتیک)</option></select>
         <div style="margin:16px 0 4px;font-weight:bold;font-size:13px;color:#7a1c20">۲. سرور برنامهٔ هورمند (پنل خودش آدرس و پوشهٔ برنامه را پیدا می‌کند، تنظیم را می‌نویسد و برنامه را دوباره راه می‌اندازد)</div>
         <label>آدرس و پورت SSH <b>سرور برنامهٔ هورمند</b> (پورت چپ: مثلاً 2292 = سرور 248، 2293 = mitto)</label><div class="row"><input id="aHost" placeholder="مثلاً 37.255.238.219" /><input id="aPort" value="22" title="پورت SSH سرور برنامه" /></div>
         <label>نام کاربری سرور برنامه (اوبونتو)</label><input id="aUser" /><label>رمز SSH سرور برنامه</label><input id="aPass" type="password" autocomplete="off" />
@@ -106,6 +135,13 @@
       <button class="full" id="startBtn" style="display:none">شروع نصب</button>
       <div class="err" id="connErr"></div>
       <p class="note">نام کاربری و رمز را خودتان می‌زنید و فقط برای همین اتصال استفاده می‌شود. پنل از اینجا به بعد، دستورها را یکی‌یکی و بر اساس جواب سرور اجرا می‌کند.</p>
+    </div>
+    <div class="ask" id="askMt">
+      <h3>پورت ۵۰۳۸ را روی میکروتیکِ شبکهٔ ایزابل باز کنید</h3>
+      <div class="note" id="mtText"></div>
+      <textarea id="mtCode" readonly style="width:100%;height:96px;direction:ltr;text-align:left;font-family:Consolas,monospace;font-size:11px;margin-top:6px;padding:6px;border:1px solid var(--line);border-radius:8px;background:#fff"></textarea>
+      <div class="note">در WinBox ← New Terminal، این دو خط را بچسبانید و Enter بزنید. بعد از اینکه اجرا شد، دکمهٔ «انجام دادم» را بزنید؛ پنل منتظر است و آزمایش را دوباره می‌کند.</div>
+      <div class="btns"><button id="mtCopy" class="sec" type="button">کپی دو خط</button><button id="mtYes" type="button">انجام دادم، ادامه بده</button><button id="mtNo" class="sec" type="button">انصراف</button></div>
     </div>
     <div class="ask" id="askIp">
       <h3>آدرس IP سرور را ثابت کنیم؟</h3>
@@ -199,6 +235,7 @@
     else if (m.type === 'stopped' && mode === 'nginx') { $('stopBox').style.display = 'block'; $('stopBox').innerHTML = '<b>تنظیم انجینکس متوقف شد.</b><br>' + esc(m.note) + '<br>اصلاح کنید و دوباره «اعمال» را بزنید.'; $('startBtn').disabled = false; $('startBtn').textContent = 'اعمال تنظیم انجینکس'; }
     else if (m.type === 'stopped') { $('stopBox').style.display = 'block'; $('stopBox').innerHTML = '<b>نصب در این مرحله متوقف شد.</b><br>' + esc(m.note) + '<br>اسکرین‌شات این مرحله ساخته شده؛ با «کپی گزارش» یا اسکرین‌شات‌ها برای پشتیبانی بفرستید. بعد از رفع مشکل دوباره «شروع نصب» را بزنید.'; $('startBtn').disabled = false; $('startBtn').textContent = 'تلاش دوباره'; }
     else if (m.type === 'ask-ip') askIp(m);
+    else if (m.type === 'ask-mt') askMt(m);
     else if (m.type === 'voip-done') showVoipDone(m);
     else if (m.type === 'done') { showDone(m); $('startBtn').textContent = 'نصب کامل شد ✓'; }
   };
@@ -220,6 +257,13 @@
       $('gallery').appendChild(a);
     }).catch(function () {});
   }
+  function askMt(m) {
+    $('mtText').innerHTML = 'سرور برنامه از بیرون با آدرس <b dir="ltr">' + m.appHost + '</b> به <b dir="ltr">' + m.pbxPublic + '</b> می‌رسد. این فرمان فقط همین آدرس را به ایزابل (<b dir="ltr">' + m.lanPbx + '</b>) می‌رساند.' + (m.round ? ' (بار ' + (m.round + 1) + ')' : '');
+    $('mtCode').value = m.code; $('askMt').style.display = 'block';
+  }
+  $('mtCopy').onclick = function () { $('mtCode').select(); document.execCommand('copy'); $('mtCopy').textContent = 'کپی شد'; };
+  $('mtYes').onclick = function () { $('askMt').style.display = 'none'; ws.send(JSON.stringify({ type: 'ip-answer', apply: true })); };
+  $('mtNo').onclick = function () { $('askMt').style.display = 'none'; ws.send(JSON.stringify({ type: 'ip-answer', apply: false })); };
   function askIp(m) {
     $('ipIface').value = m.iface; $('ipAddr').value = m.ip; $('ipPrefix').value = m.prefix; $('ipGw').value = m.gateway; $('ipDns').value = m.dns;
     $('askIp').style.display = 'block'; $('askIp').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -319,6 +363,7 @@
   var GUIDE_MIG = '<b>انتقال کامل یک هورمند به سرور دیگر</b><ol><li>اول روی <b>سرور مقصد</b> هورمند را با «نصب برنامه روی سرور» نصب کنید (خالی و تازه).</li><li>بالا ورود SSH <b>سرور مبدأ</b> (جایی که اطلاعات هست) و پایین ورود SSH <b>سرور مقصد</b> را بنویسید.</li><li>«شروع انتقال کامل» را بزنید. پنل نسخهٔ کامل دیتابیس (نامه‌ها، امضاها، مشتریان و…) و پوشهٔ فایل‌ها را می‌گیرد، سالم بودنش را می‌سنجد، به مقصد می‌برد و آنجا بازیابی می‌کند.</li><li>به سرور مبدأ دست نمی‌زند؛ هر دو سرور بعد از کار سالم می‌مانند.</li></ol>';
   $('tabMig').onclick = function () { setMode('migrate'); };
   $('tabNginx').onclick = function () { setMode('nginx'); };
+  $('gtoggle').onclick = function () { var g = $('guide'); g.classList.toggle('open'); $('gtoggle').textContent = g.classList.contains('open') ? 'راهنما ▴' : 'راهنما ▾'; };
   $('tabInstall').onclick = function () { setMode('install'); }; $('tabVoip').onclick = function () { setMode('voip'); }; setMode(mode);
   function sendStart() {
     if (mode === 'migrate') {
@@ -332,7 +377,7 @@
       return;
     }
     if (mode === 'voip') {
-      ws.send(JSON.stringify({ type: 'voip-start', appHost: $('vApp').value.trim(), amiUser: $('vUser').value.trim(), amiSecret: $('vSecret').value.trim(),
+      ws.send(JSON.stringify({ type: 'voip-start', netMode: $('vMode').value, appHost: $('vApp').value.trim(), amiUser: $('vUser').value.trim(), amiSecret: $('vSecret').value.trim(),
         appSsh: $('aHost').value.trim() ? { host: $('aHost').value.trim(), port: $('aPort').value.trim(), user: $('aUser').value.trim(), password: $('aPass').value, dir: $('aDir').value.trim() } : null }));
     } else ws.send(JSON.stringify({ type: 'start', appPort: $('appPort').value, name: $('instName').value, domain: $('instDomain').value, hostname: $('instHost').value }));
   }

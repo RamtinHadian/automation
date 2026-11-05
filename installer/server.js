@@ -834,6 +834,8 @@ class Session {
     this.running = true;
     this.cancelled = false;
     let appHost = String(o.appHost || '').trim();
+    // «local»: both servers are in one network (they talk by their LAN addresses, which are made fixed); «remote»: different networks (the router of the phone system's network opens port 5038)
+    const mode = o.mode === 'remote' ? 'remote' : 'local';
     // the address this machine uses to reach the LAN/internet: the source address of the route to a public address
     const LAN_CMD = `ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1`;
     const pbxLogin = { host: this.host, port: this.sshPort, username: this.user, password: this.password };
@@ -851,6 +853,7 @@ class Session {
       { id: 'ami', title: 'ساخت کاربر AMI', status: 'wait' },
       { id: 'fw', title: 'فایروال ایزابل (پورت ۵۰۳۸)', status: 'wait' },
       { id: 'rec', title: 'بررسی پوشهٔ ضبط مکالمات', status: 'wait' },
+      ...(mode === 'local' && app ? [{ id: 'net', title: 'شبکهٔ داخلی: پینگ دوطرفه و IP ثابت', status: 'wait' }] : []),
       { id: 'app', title: 'اتصال سرور برنامه', status: 'wait' },
     ];
     this.send({ type: 'steps', steps: this.steps });
@@ -878,6 +881,12 @@ class Session {
         this.conn = null;
         try { await this.connect(pbxLogin); } catch (e) { return { ok: false, note: 'برگشتن به ایزابل نشد: ' + e.message }; }
         if (!dir) return { ok: false, note: 'برنامهٔ هورمند روی سرور برنامه پیدا نشد (Docker یا پوشهٔ /opt/automation). اول نصب برنامه را کامل کنید.' };
+        if (mode === 'remote' && !appHost) {
+          const pubIp = (await this.run('curl -s -m 8 https://api.ipify.org || curl -s -m 8 https://ifconfig.me', { quiet: true })).out.trim();
+          if (!ip4.test(pubIp)) return { ok: false, note: 'آدرس عمومی سرور برنامه را نخواندم (اینترنت سرور برنامه را ببینید)؛ آن را در بخش پیشرفته بنویسید.' };
+          appHost = pubIp;
+          this.log('شبکه‌ها جدا هستند: ایزابل باید آدرس عمومی سرور برنامه (' + pubIp + ') را بپذیرد.', 'gray');
+        }
         if (!appHost) {
           if (!ip4.test(lan)) return { ok: false, note: 'آدرس داخلی سرور برنامه را نخواندم؛ آن را در بخش پیشرفته بنویسید.' };
           appHost = lan;
@@ -894,7 +903,7 @@ class Session {
         pbxCands = found;
         if (found.length) {
           this.log('آدرس‌های داخلی ایزابل: ' + found.join('، ') + (found[0] !== pbxHost ? '؛ برنامه با ' + found[0] + ' به ایزابل وصل می‌شود (نه با ' + pbxHost + ' که فقط برای SSH از بیرون است).' : ''), 'gray');
-          if (found[0] !== pbxHost) pbxHost = found[0];
+          if (mode === 'local' && found[0] !== pbxHost) pbxHost = found[0];
         } else if (!/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(pbxHost)) {
           this.log('هشدار: آدرس داخلی ایزابل را پیدا نکردم و آدرسی که با آن SSH زدید (' + pbxHost + ') بیرونی است؛ اتصال برنامه به ایزابل با آن کار نمی‌کند.', 'yellow');
         }
@@ -966,6 +975,34 @@ class Session {
         }
         return { ok: true, note: (n ? 'پوشهٔ ضبط پیدا شد (' + n + ' فایل)' : 'ضبط هنوز روشن نیست (دستی در ایزابل)') + '؛ ارسال خودکار به سرور برنامه نصب شد.' };
       },
+      // both servers are in one network: find the LAN addresses, ping each other, make the addresses fixed (when they come from DHCP) - everything after uses these addresses
+      net: async () => {
+        const pbxLan = pbxHost;
+        if (!ip4.test(pbxLan) || !ip4.test(appHost)) return { ok: false, note: 'آدرس داخلی ایزابل یا سرور برنامه معلوم نیست؛ این دو باید آدرس داخلی (192.168… یا 10…) باشند.' };
+        this.log('آدرس داخلی ایزابل: ' + pbxLan + ' | آدرس داخلی سرور برنامه: ' + appHost, 'yellow');
+        // phone system -> app server
+        const p1 = await this.run('ping -c2 -W2 ' + appHost + ' >/dev/null 2>&1 && echo ping-ok || echo ping-fail', { quiet: true });
+        this.log('پینگ از ایزابل به سرور برنامه: ' + (/ping-ok/.test(p1.out) ? 'جواب می‌دهد' : 'جواب نمی‌دهد'), /ping-ok/.test(p1.out) ? 'gray' : 'red');
+        // the phone system's own address: fixed or not
+        const pbxIp = await this.stepIp();
+        this.log(pbxIp.note, pbxIp.ok ? 'gray' : 'yellow');
+        try { this.conn && this.conn.end(); } catch {}
+        this.conn = null;
+        try { await this.connect({ host: app.host, port: app.port || 22, username: app.user, password: app.password }); } catch (e) { return { ok: false, note: 'به سرور برنامه وصل نشدم: ' + e.message }; }
+        const p2 = await this.run('ping -c2 -W2 ' + pbxLan + ' >/dev/null 2>&1 && echo ping-ok || echo ping-fail', { quiet: true });
+        this.log('پینگ از سرور برنامه به ایزابل: ' + (/ping-ok/.test(p2.out) ? 'جواب می‌دهد' : 'جواب نمی‌دهد'), /ping-ok/.test(p2.out) ? 'gray' : 'red');
+        if (!/ping-ok/.test(p1.out) || !/ping-ok/.test(p2.out)) {
+          return { ok: false, note: 'دو سرور داخل شبکه به هم پینگ ندارند؛ یا در دو شبکهٔ جدا هستند (حالت «شبکه‌های جدا» را انتخاب کنید) یا فایروال پینگ را بسته است.' };
+        }
+        const appIp = await this.stepIp();
+        this.log(appIp.note, appIp.ok ? 'gray' : 'yellow');
+        // reconnect to the phone system for the next steps
+        try { this.conn && this.conn.end(); } catch {}
+        this.conn = null;
+        try { await this.connect(pbxLogin); } catch (e) { return { ok: false, note: 'برگشتن به ایزابل نشد: ' + e.message }; }
+        if (appIp.ok === false) return appIp;
+        return { ok: true, note: 'پینگ دوطرفه درست است؛ آدرس‌های داخلی: ایزابل ' + pbxLan + '، سرور برنامه ' + appHost + '. اگر یکی هنوز DHCP است، روی روتر برایش «رزرو آدرس» بگذارید.' };
+      },
       app: async () => {
         if (!app) return { ok: true, note: 'مشخصات SSH سرور برنامه داده نشد؛ مقدارها را پایین ببینید و خودتان در .env بگذارید.' };
         try { this.conn && this.conn.end(); } catch {}
@@ -978,7 +1015,7 @@ class Session {
         const dir = String(app.dir || '/opt/automation').replace(/[^A-Za-z0-9/_.-]/g, '');
         this.dir = dir;
         // find the address of the phone system that THIS server can really reach, before anything is written into .env
-        const tryHosts = [...new Set([pbxHost, ...pbxCands])];
+        const tryHosts = mode === 'remote' ? [pbxHost] : [...new Set([pbxHost, ...pbxCands])];
         const testHosts = async () => {
           for (const h of tryHosts) {
             const t = await this.run('timeout 6 bash -c "echo > /dev/tcp/' + h + '/5038" && echo reach-ok || echo reach-fail', { quiet: true });
@@ -1042,6 +1079,21 @@ class Session {
           return { ok: true, host: gw, port: '15038' };
         };
         let okHost = await testHosts();
+        if (!okHost && mode === 'remote') {
+          // the router of the phone system's network has to open port 5038 for this server: the user pastes two lines into the MikroTik terminal and confirms; then the test is repeated
+          const lanPbx = pbxCands[0] || '192.168.x.x';
+          const code = [
+            '/ip firewall nat add chain=dstnat protocol=tcp dst-port=5038 in-interface-list=WAN src-address=' + appHost + ' action=dst-nat to-addresses=' + lanPbx + ' to-ports=5038 comment="Hoormand AMI"',
+            '/ip firewall filter add chain=forward protocol=tcp dst-port=5038 src-address=' + appHost + ' action=accept place-before=0 comment="Hoormand AMI"',
+          ].join('\n');
+          for (let round = 0; round < 4 && !okHost; round++) {
+            const a = await this.ask({ type: 'ask-mt', code, appHost, lanPbx, pbxPublic: pbxLogin.host, round });
+            if (!a || !a.apply) return { ok: false, note: 'پورت ۵۰۳۸ روی میکروتیک باز نشد (انتخاب شما)؛ بعد از بازکردن، «تلاش دوباره» را بزنید.' };
+            okHost = await testHosts();
+            if (!okHost) this.log('هنوز پورت ۵۰۳۸ روی ' + pbxLogin.host + ' برای این سرور باز نیست. دو خط را دوباره بررسی کنید (رابط اینترنت میکروتیک در فهرست WAN هست؟) و باز تأیید بدهید.', 'yellow');
+          }
+          if (!okHost) return { ok: false, note: 'بعد از چند بار تلاش پورت ۵۰۳۸ باز نشد. فرمان میکروتیک و نام رابط اینترنت را بررسی کنید.' };
+        }
         if (!okHost) {
           // what does the network between the two machines do? (route, ping, the first hops)
           const H = tryHosts[0];
@@ -1068,10 +1120,7 @@ class Session {
           } else if (!seenIps.length) {
             const fwl = (await this.run('iptables -L INPUT -n --line-numbers 2>/dev/null | head -12', { root: true, quiet: true })).out;
             if (fwl.trim()) this.log('قواعد فایروال ایزابل:\n' + fwl, 'gray');
-            const t = await tunnelFallback();
-            if (!t.ok) return t;
-            okHost = t.host;
-            amiPort = t.port;
+            return { ok: false, note: 'دو سرور از داخل شبکه به هم راه ندارند (احتمالاً در دو شبکهٔ جدا هستند). اگر ایزابل در شبکهٔ دیگری است، در بالا حالت «شبکه‌های جدا» را انتخاب کنید و دوباره شروع کنید.' };
           } else {
             try { this.conn && this.conn.end(); } catch {}
             this.conn = null;
@@ -1223,7 +1272,7 @@ wss.on('connection', (ws) => {
         s.send({ type: 'connect-failed', note: text });
       }
     } else if (m.type === 'voip-start') {
-      s.voipSetup({ appHost: m.appHost, amiUser: m.amiUser, amiSecret: m.amiSecret, appSsh: m.appSsh });
+      s.voipSetup({ appHost: m.appHost, amiUser: m.amiUser, amiSecret: m.amiSecret, appSsh: m.appSsh, mode: m.netMode });
     } else if (m.type === 'migrate-start') {
       s.migrate({ target: m.target, recordings: m.recordings });
     } else if (m.type === 'nginx-scan') {
