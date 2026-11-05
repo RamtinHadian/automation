@@ -43,10 +43,13 @@ export const STAMP_ANCHOR_LEFT = '30%';
  * page, away from the text. Above the cap the image simply reaches a little over its neighbours (it is centred in the area).
  * The editor, the preview and the PDF all use this one function, so they stay identical.
  */
-export const SIGNATURE_AREA_MAX_A5 = 100;
-export const SIGNATURE_AREA_MAX = 130;
-export const signatureAreaHeight = (isA5: boolean, signatureHeight: number, stampHeight: number): number =>
-  Math.min(isA5 ? SIGNATURE_AREA_MAX_A5 : SIGNATURE_AREA_MAX, Math.max(isA5 ? 60 : 85, signatureHeight, stampHeight));
+// The reserved height is a small fixed value that does NOT depend on the stamp or the signature size: the name stays right under
+// the text and never moves when a stamp or a signature is placed or resized. The images are centred on this strip and may reach
+// over their neighbours, like a real stamp on paper.
+export const SIGNATURE_AREA_A5 = 40;
+export const SIGNATURE_AREA = 55;
+export const signatureAreaHeight = (isA5: boolean, _signatureHeight?: number, _stampHeight?: number): number =>
+  isA5 ? SIGNATURE_AREA_A5 : SIGNATURE_AREA;
 
 /**
  * The editor wraps the saved text in a div that already carries the side padding and the sideways shift (so «ویرایش» can read
