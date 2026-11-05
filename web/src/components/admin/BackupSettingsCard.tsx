@@ -57,7 +57,7 @@ export const BackupSettingsCard: React.FC = () => {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
-    api.backups().then((r) => { setInfo(r); setFailed(false); }).catch(() => setFailed(true));
+    api.backups().then((r) => { setInfo({ ...r, items: Array.isArray(r?.items) ? r.items : [] }); setFailed(false); }).catch(() => setFailed(true));
   }, []);
   useEffect(() => {
     load();
