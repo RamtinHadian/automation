@@ -38,9 +38,15 @@ export const resolveSignatureHeight = (
 export const SIGNATURE_ANCHOR_LEFT = '62%';
 export const STAMP_ANCHOR_LEFT = '30%';
 
-/** Height reserved for the signature/stamp area so large images do not overlap the text below. */
+/**
+ * Height reserved for the signature/stamp area. It is capped: a big stamp or signature used to push the name far down the
+ * page, away from the text. Above the cap the image simply reaches a little over its neighbours (it is centred in the area).
+ * The editor, the preview and the PDF all use this one function, so they stay identical.
+ */
+export const SIGNATURE_AREA_MAX_A5 = 100;
+export const SIGNATURE_AREA_MAX = 130;
 export const signatureAreaHeight = (isA5: boolean, signatureHeight: number, stampHeight: number): number =>
-  Math.max(isA5 ? 60 : 85, signatureHeight, stampHeight);
+  Math.min(isA5 ? SIGNATURE_AREA_MAX_A5 : SIGNATURE_AREA_MAX, Math.max(isA5 ? 60 : 85, signatureHeight, stampHeight));
 
 /**
  * The editor wraps the saved text in a div that already carries the side padding and the sideways shift (so «ویرایش» can read
