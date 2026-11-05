@@ -242,12 +242,12 @@ export const BackupSettingsCard: React.FC = () => {
               <p className="text-[11px] text-[#8C6F66] leading-6 mt-0.5">از تمام اطلاعات سامانه (کاربران، نامه‌ها، فایل‌ها، وظایف، مشتریان و تنظیمات) یک نسخهٔ کامل گرفته می‌شود؛ ۳۰ روز اخیر روی سرور می‌ماند.</p>
             </div>
           </div>
-          <button type="button" onClick={make} disabled={waiting || info.pending || !info.enabled} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6E1B1B] hover:bg-[#D34A32] disabled:opacity-60 text-white text-xs font-black cursor-pointer">
+          <button type="button" onClick={make} disabled={waiting || info.pending || info.enabled === false} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6E1B1B] hover:bg-[#D34A32] disabled:opacity-60 text-white text-xs font-black cursor-pointer">
             {waiting || info.pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <HardDriveDownload className="w-4 h-4" />}
             {waiting || info.pending ? 'در حال تهیهٔ نسخه…' : 'تهیهٔ پشتیبان همین حالا'}
           </button>
         </div>
-        {!info.enabled ? (
+        {info.enabled === false ? (
           <div className="flex items-start gap-2 rounded-2xl bg-rose-50 border border-rose-200 p-3 text-[12px] text-rose-800 font-bold"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />سرویس پشتیبان‌گیری روی این سرور فعال نیست (پوشهٔ backups پیدا نشد). پس از به‌روزرسانی سرور فعال می‌شود.</div>
         ) : err ? (
           <div className="flex items-start gap-2 rounded-2xl bg-rose-50 border border-rose-200 p-3 text-[12px] text-rose-800 font-bold"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />آخرین تلاش ناموفق بود ({when(info.status!.at)}): {info.status!.text}</div>
@@ -356,7 +356,7 @@ export const BackupSettingsCard: React.FC = () => {
 
       <input ref={fileInput} type="file" accept=".dump" className="hidden" onChange={pickFile} />
       {/* list */}
-      {info.enabled && (
+      {info.enabled !== false && (
         <div className={card}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="font-black text-sm text-[#3A241F]">نسخه‌های ذخیره‌شده روی سرور</div>
