@@ -34,11 +34,14 @@ export const FunnelAiPage: React.FC<{ onClose: () => void; onOpenCustomer?: (id:
   const timer = useRef<number | undefined>(undefined);
   const jobId = useRef('');
 
+  // the page that opened this one passes a new onClose on every render; the polling timer must not be cancelled by that, so it lives in a ref
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current(); };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); window.clearTimeout(timer.current); };
-  }, [onClose]);
+  }, []);
 
   const poll = useCallback(async () => {
     try {
@@ -68,17 +71,19 @@ export const FunnelAiPage: React.FC<{ onClose: () => void; onOpenCustomer?: (id:
     }
   };
 
+  // whatever the server sends, a customer with a strange value is shown as «متوسط» instead of breaking the page
+  const norm = (x: Item): Item['priority'] => (x.priority === 'HIGH' || x.priority === 'LOW' ? x.priority : 'MED');
   const shown = useMemo(() => {
     const rank = { HIGH: 0, MED: 1, LOW: 2 } as const;
-    return items.filter((x) => filter === 'ALL' || x.priority === filter).slice().sort((a, b) => rank[a.priority] - rank[b.priority] || (b.idleDays || 0) - (a.idleDays || 0));
+    return items.filter((x) => filter === 'ALL' || norm(x) === filter).slice().sort((a, b) => rank[norm(a)] - rank[norm(b)] || (b.idleDays || 0) - (a.idleDays || 0));
   }, [items, filter]);
-  const count = (k: Item['priority']) => items.filter((x) => x.priority === k).length;
+  const count = (k: Item['priority']) => items.filter((x) => norm(x) === k).length;
   const copy = async (id: string, text: string) => {
     try { await navigator.clipboard.writeText(text); setCopied(id); window.setTimeout(() => setCopied(''), 1500); } catch { /* the text stays selectable on the page */ }
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-[#FAF5F1] flex flex-col" dir="rtl" data-funnel-ai>
+    <div className="fixed inset-0 z-[80] bg-[#FAF5F1] flex flex-col" dir="rtl" data-funnel-ai onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between gap-3 px-5 py-3 bg-white border-b border-[#EBDBCE] shrink-0">
         <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-700" />تحلیل هوش مصنوعی قیف فروش: مشکل هر مشتری و پیشنهاد گفتگو</h3>
         <button type="button" onClick={onClose} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-[#6E1B1B] bg-[#FAF5F1] hover:bg-[#EBDBCE] cursor-pointer"><X className="w-3.5 h-3.5" />بستن (Esc)</button>
@@ -126,12 +131,12 @@ export const FunnelAiPage: React.FC<{ onClose: () => void; onOpenCustomer?: (id:
                       <div className="flex flex-wrap items-center gap-2">
                         <button type="button" onClick={() => onOpenCustomer?.(x.id)} className={`font-black text-[15px] text-[#3A241F] ${onOpenCustomer ? 'hover:text-violet-700 cursor-pointer' : 'cursor-default'}`}>{x.name || 'بدون نام'}</button>
                         <span className="text-[10.5px] font-black rounded-full px-2.5 py-0.5 text-white" style={{ background: st.color }}>{st.label}</span>
-                        <span className={`text-[10.5px] font-black rounded-full px-2.5 py-0.5 border ${PRIO[x.priority].cls}`}>{PRIO[x.priority].label}</span>
+                        <span className={`text-[10.5px] font-black rounded-full px-2.5 py-0.5 border ${PRIO[norm(x)].cls}`}>{PRIO[norm(x)].label}</span>
                         <span className="text-[11px] font-bold text-[#8C6F66] mr-auto">
                           {x.idleDays >= 0 ? `${toPersianDigits(x.idleDays)} روز بی‌حرکت` : ''}{x.deals > 1 ? ` · ${toPersianDigits(x.deals)} فرصت` : ''}{typeof x.amount === 'number' && x.amount > 0 ? ` · ${compact(toDisplay(x.amount))} ${unitName()}` : ''}
                         </span>
                       </div>
-                      <div><div className="text-[11px] font-black text-rose-700 mb-0.5">مشکل چه بوده</div><p className="text-[13px] font-bold text-[#374151] leading-7">{x.problem}</p></div>
+                      <div><div className="text-[11px] font-black text-rose-700 mb-0.5">مشکل چه بوده</div><p className="text-[13px] font-bold text-[#374151] leading-7">{String(x.problem ?? '')}</p></div>
                       {Array.isArray(x.advice) && x.advice.length > 0 && (
                         <div><div className="text-[11px] font-black text-emerald-700 mb-0.5">کار پیشنهادی</div>
                           <ul className="space-y-1">{x.advice.map((a, i) => <li key={i} className="text-[13px] font-bold text-[#374151] leading-7 flex gap-2"><span className="text-emerald-600">●</span><span>{String(a)}</span></li>)}</ul></div>
