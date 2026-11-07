@@ -431,7 +431,7 @@ export const ProformaModal: React.FC<{
           )}
           <div className="space-y-2">
             {items.map((it, i) => (
-              <div key={i} className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 space-y-2">
+              <div key={i} className="rounded-2xl border border-[#EBDBCE] p-3 space-y-2" style={{ background: `color-mix(in srgb, var(--theme-badge-bg, #F6D9CD) ${items.length > 1 ? Math.round(85 - (i / (items.length - 1)) * 75) : 70}%, #fff)` }}>
                 <div className="flex gap-2">
                   <div className="relative flex-1 min-w-0">
                     <input

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   UserPlus,
   Search,
@@ -22,6 +22,7 @@ import {
   Users,
   MessageSquare,
   Warehouse,
+  Maximize2,
 } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { User, UserRole, Department } from '../../types';
@@ -82,6 +83,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   };
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [view, setView] = useState<'list' | 'matrix' | 'inactive'>('list');
+  const [bigMatrix, setBigMatrix] = useState(false);
+  useEffect(() => {
+    if (!bigMatrix) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setBigMatrix(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [bigMatrix]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -205,7 +213,28 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         </div>
       )}
 
-      {view === 'matrix' && <PermissionMatrix users={users} departments={departments} onUpdateUser={onUpdateUser} />}
+      {view === 'matrix' && (
+        <>
+          <div className="flex justify-end -mt-1">
+            <button type="button" onClick={() => setBigMatrix(true)} data-matrix-big className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:opacity-90 cursor-pointer">
+              <Maximize2 className="w-3.5 h-3.5" />صفحهٔ جدا و بزرگ
+            </button>
+          </div>
+          {!bigMatrix && <PermissionMatrix users={users} departments={departments} onUpdateUser={onUpdateUser} />}
+        </>
+      )}
+      {view === 'matrix' && bigMatrix && (
+        <div className="fixed inset-0 z-[70] bg-[#FAF5F1] flex flex-col" dir="rtl" data-matrix-full>
+          <style>{'[data-matrix-full] thead{top:0 !important} [data-matrix-full] .hidden.md\\:block{display:block !important}'}</style>
+          <div className="flex items-center justify-between gap-3 px-5 py-3 bg-white border-b border-[#EBDBCE] shrink-0">
+            <h3 className="font-black text-sm text-[#3A241F]">جدول مجوزها: همهٔ کارمندان و همهٔ بخش‌ها</h3>
+            <button type="button" onClick={() => setBigMatrix(false)} aria-label="بستن" className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-[#6E1B1B] bg-[#FAF5F1] hover:bg-[#EBDBCE] cursor-pointer"><X className="w-3.5 h-3.5" />بستن (Esc)</button>
+          </div>
+          <div className="flex-1 overflow-auto p-4" data-matrix-scroll>
+            <PermissionMatrix users={users} departments={departments} onUpdateUser={onUpdateUser} />
+          </div>
+        </div>
+      )}
 
       {view === 'list' && (<>
       {/* Filter Bar */}

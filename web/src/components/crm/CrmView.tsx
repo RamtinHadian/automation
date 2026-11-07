@@ -34,11 +34,15 @@ import {
   Gift,
   Sparkles,
   BookUser,
-  SlidersHorizontal, Link2, Landmark, Tags } from 'lucide-react';
+  SlidersHorizontal, Link2, Landmark, Tags, Maximize2, Megaphone, Boxes, BellPlus } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
+import { FunnelModal } from './FunnelModal';
+import { MarketingView } from './MarketingView';
+import { InventoryView } from './InventoryView';
+import { ProformaListView } from './ProformaListView';
 import { SocialButton, SocialDialog, CustomerSocialIcons } from './SocialNetworks';
 import { SendMessageDialog } from './MessageTemplates';
 import { bySeq, dealGroup, LinkedChip, MoneyTag } from './DealLinks';
@@ -146,7 +150,8 @@ export const CrmView: React.FC = () => {
   const me = currentUser.id;
   const isAdmin = currentUser.role === 'SUPER_ADMIN';
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar'>('customers');
+  const [funnelOpen, setFunnelOpen] = useState(false);
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar' | 'marketing' | 'inventory' | 'proformalist'>('customers');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -531,8 +536,11 @@ export const CrmView: React.FC = () => {
     ['overview', 'خلاصه', TrendingUp],
     ['customers', 'مشتریان', Users],
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
+    ['proformalist', 'پیش‌فاکتورها', FileText],
     ['followups', 'پیگیری‌ها', ListChecks],
     ['reports', 'گزارش‌ها', BarChart3],
+    ['marketing', 'بازاریابی', Megaphone],
+    ['inventory', 'موجودی', Boxes],
     ['club', 'باشگاه مشتریان', Gift],
     ['calendar', 'تقویم', CalendarDays],
     ['board', 'تیم', Trophy],
@@ -800,19 +808,19 @@ export const CrmView: React.FC = () => {
         </div>
       </div>
 
-      <div data-subtabs className="flex flex-wrap lg:flex-nowrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
+      <div data-subtabs className="flex flex-wrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
         {tabs.map(([id, text, Icon]) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
             title={text}
-            className={`flex-1 basis-[45%] sm:basis-auto lg:basis-0 min-h-[44px] lg:min-h-0 min-w-0 whitespace-nowrap flex items-center justify-center gap-1 lg:gap-1.5 px-3 lg:px-2 xl:px-3 py-2 rounded-xl text-xs lg:text-[11.5px] xl:text-xs font-black transition-all cursor-pointer ${
+            className={`flex-1 basis-[45%] sm:basis-auto lg:basis-auto lg:min-w-[92px] min-h-[44px] lg:min-h-0 min-w-0 whitespace-nowrap flex items-center justify-center gap-1 lg:gap-1.5 px-3 lg:px-2 xl:px-3 py-2 rounded-xl text-xs lg:text-[11.5px] xl:text-xs font-black transition-all cursor-pointer ${
               tab === id ? 'bg-white text-violet-700 shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
             }`}
           >
             <Icon className="w-4 h-4 lg:w-3.5 lg:h-3.5 xl:w-4 xl:h-4 shrink-0" />
-            <span className="truncate">{({ 'فرصت‌های فروش': 'فرصت‌ها', 'باشگاه مشتریان': 'باشگاه', 'پیامک گروهی': 'پیامک', 'پیش‌فاکتورهای ارسالی': 'پیش‌فاکتورها' } as Record<string, string>)[text] || text}</span>
+            <span>{({ 'فرصت‌های فروش': 'فرصت‌ها', 'باشگاه مشتریان': 'باشگاه', 'پیامک گروهی': 'پیامک', 'پیش‌فاکتورهای ارسالی': 'پیش‌فاکتورها' } as Record<string, string>)[text] || text}</span>
             {id === 'customers' && <span className="text-[10px] font-bold opacity-60 tabular-nums" data-customer-count>{toPersianDigits(customers.length)}</span>}
             {id === 'proformas' && pendingProformas.length > 0 && <span className="bg-amber-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(pendingProformas.length)}</span>}
             {id === 'followups' && overdueFollowups.length > 0 && <span className="bg-rose-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(overdueFollowups.length)}</span>}
@@ -865,8 +873,19 @@ export const CrmView: React.FC = () => {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {canSeeSalesTotals(currentUser) && <section className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-3">
-              <h3 className="font-black text-sm text-[#3A241F]">قیف فروش</h3>
+            {canSeeSalesTotals(currentUser) && <section
+              role="button"
+              tabIndex={0}
+              aria-label="قیف فروش؛ برای دیدن نمای بزرگ و نمودارها بزنید"
+              data-funnel-card
+              onClick={() => setFunnelOpen(true)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFunnelOpen(true); } }}
+              className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-3 cursor-pointer hover:border-violet-300 hover:shadow-md transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-black text-sm text-[#3A241F]">قیف فروش</h3>
+                <span className="flex items-center gap-1 text-[10px] font-black text-violet-700 bg-violet-50 rounded-lg px-2 py-1"><Maximize2 className="w-3 h-3" />نمای بزرگ و نمودارها</span>
+              </div>
               {STAGES.filter((s) => OPEN_STAGES.includes(s.id)).map((s) => {
                 const list = deals.filter((d) => d.stage === s.id);
                 const total = list.reduce((x, d) => x + d.amount, 0);
@@ -934,6 +953,14 @@ export const CrmView: React.FC = () => {
           </section>
         </div>
       )}
+
+      {funnelOpen && <FunnelModal customers={customers} deals={deals} activities={activities} onClose={() => setFunnelOpen(false)} />}
+
+      {tab === 'marketing' && <MarketingView customers={customers} allContacts={allContacts} deals={deals} staff={staffList} currentUserName={currentUser.fullName} showToast={showToast} onOpenCustomer={(id) => setOpenCustomer(id)} onOpenSms={() => setTab('sms')} canPhonebook={canSub(currentUser, 'crm.phonebook')} onOpenPhoneBook={() => setPhoneBook(true)} isAdmin={isAdmin} />}
+
+      {tab === 'inventory' && <InventoryView deals={deals} customers={allContacts} activities={activities} canMoney={canSeeSalesTotals(currentUser)} onOpenCustomer={(id) => setOpenCustomer(id)} />}
+
+      {tab === 'proformalist' && <ProformaListView deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={(d) => setProformaFor(d)} />}
 
       {/* ---------- customers ---------- */}
       {tab === 'customers' && (
@@ -1424,6 +1451,51 @@ export const CrmView: React.FC = () => {
 
 // ======================= deal form =======================
 
+
+/** Puts a reminder about this opportunity into the person's own list of reminders («یادآورها»): a day, an hour and a note. */
+const DealReminder: React.FC<{ deal: Deal; customerName: string }> = ({ deal, customerName }) => {
+  const { showToast } = useAppContext();
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState<string | undefined>(deal.expectedClose || todayIso());
+  const [time, setTime] = useState(() => { const t = new Date(Date.now() + 3600000); return `${String(t.getHours()).padStart(2, '0')}:00`; });
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const add = async () => {
+    if (!date) return showToast('تاریخ یادآور را انتخاب کنید.');
+    setBusy(true);
+    try {
+      const title = `فرصت فروش: ${deal.title || customerName}`.slice(0, 120);
+      await api.reminderCreate({ title, note: [customerName && `مشتری: ${customerName}`, note.trim()].filter(Boolean).join('\n'), date, time, repeat: 'none' });
+      showToast('یادآور در «یادآورها» گذاشته شد.');
+      setOpen(false);
+      setNote('');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'یادآور ثبت نشد.');
+    }
+    setBusy(false);
+  };
+  return (
+    <div data-deal-reminder>
+      <button type="button" onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 text-[11px] font-black text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-xl px-3 py-2 cursor-pointer">
+        <BellPlus className="w-3.5 h-3.5" />یادآور برای این فرصت
+      </button>
+      {open && (
+        <div className="mt-2 border border-violet-200 bg-violet-50/40 rounded-2xl p-3 space-y-2">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1 min-w-0"><div className="text-[11px] font-black text-[#8C6F66] mb-1">روز یادآوری</div><JalaliDateField value={date} onChange={setDate} /></div>
+            <label className="shrink-0 text-[11px] font-black text-[#8C6F66]">ساعت<input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="block mt-1 px-3 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold w-[110px] text-center" dir="ltr" /></label>
+          </div>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="توضیح (اختیاری)" className="w-full px-3 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F]" />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10.5px] font-bold text-[#8C6F66]">در همان روز و ساعت اعلان می‌گیرید و در «یادآورها» می‌ماند.</span>
+            <button type="button" disabled={busy} onClick={() => void add()} className="shrink-0 px-4 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">افزودن به یادآورها</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const DealForm: React.FC<{
   initial: Deal;
   isNew: boolean;
@@ -1756,6 +1828,7 @@ const DealForm: React.FC<{
           </div>
           {d.expectedClose && <div className="text-[10px] font-bold text-[#8C6F66] mt-1">ساعت را پیش‌فرض همان ساعت ساخت فرصت گذاشته‌ایم؛ در همین روز و ساعت برایتان اعلان یادآوری می‌آید.</div>}
         </div>
+        <DealReminder deal={d} customerName={customers.find((c) => c.id === d.customerId)?.name || d.customerName || ''} />
         <div>
           <label className={label}>توضیحات</label>
           <ParagraphNotes log={d.noteLog} text={d.notes} onChange={(noteLog, notes) => patch({ noteLog, notes })} />

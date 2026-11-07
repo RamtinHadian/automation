@@ -123,6 +123,41 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	  data JSONB NOT NULL
 	)`,
+	// the messages customers write to the company bots (Telegram, Bale) and the answers sent back from Hoormand: one inbox per customer
+	`CREATE TABLE IF NOT EXISTS inbox_messages (
+	  id TEXT PRIMARY KEY,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  channel TEXT NOT NULL,
+	  chat_id TEXT NOT NULL DEFAULT '',
+	  customer_id TEXT NOT NULL DEFAULT '',
+	  customer_name TEXT NOT NULL DEFAULT '',
+	  owner_id TEXT NOT NULL DEFAULT '',
+	  direction TEXT NOT NULL DEFAULT 'in',
+	  sender TEXT NOT NULL DEFAULT '',
+	  text TEXT NOT NULL DEFAULT '',
+	  read BOOLEAN NOT NULL DEFAULT false
+	)`,
+	`CREATE INDEX IF NOT EXISTS inbox_customer_idx ON inbox_messages (customer_id, created_at DESC)`,
+	// every message opened to a customer in a messenger (Bale, Eitaa, WhatsApp…): the sender, the exact time, the platform and the text
+	`CREATE TABLE IF NOT EXISTS social_log (
+	  id TEXT PRIMARY KEY,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  sent_by TEXT NOT NULL DEFAULT '',
+	  platform TEXT NOT NULL DEFAULT '',
+	  platform_name TEXT NOT NULL DEFAULT '',
+	  account TEXT NOT NULL DEFAULT '',
+	  text TEXT NOT NULL DEFAULT '',
+	  customer_id TEXT NOT NULL DEFAULT '',
+	  customer_name TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX IF NOT EXISTS social_log_created_idx ON social_log (created_at DESC)`,
+	// marketing campaigns («بازاریابی»): one document per campaign
+	`CREATE TABLE IF NOT EXISTS campaigns (
+	  id TEXT PRIMARY KEY,
+	  data JSONB NOT NULL,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
 	`CREATE TABLE IF NOT EXISTS warranties (
 	  id TEXT PRIMARY KEY,
 	  customer_id TEXT NOT NULL DEFAULT '',

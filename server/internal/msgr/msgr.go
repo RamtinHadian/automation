@@ -254,7 +254,11 @@ func poll(ctx context.Context, channel string) {
 		var ups []struct {
 			ID      int64 `json:"update_id"`
 			Message *struct {
-				Text string `json:"text"`
+				Text    string `json:"text"`
+				Caption string `json:"caption"`
+				Photo   []any  `json:"photo"`
+				Voice   any    `json:"voice"`
+				Doc     any    `json:"document"`
 				Chat struct {
 					ID int64 `json:"id"`
 				} `json:"chat"`
@@ -269,7 +273,21 @@ func poll(ctx context.Context, channel string) {
 				offset = u.ID + 1
 			}
 			if u.Message != nil && u.Message.Chat.ID != 0 {
-				handle(ctx, channel, fmt.Sprint(u.Message.Chat.ID), u.Message.Text, u.Message.From.FirstName)
+				text := u.Message.Text
+				if text == "" {
+					text = u.Message.Caption
+					switch {
+					case len(u.Message.Photo) > 0:
+						text = strings.TrimSpace("[تصویر] " + text)
+					case u.Message.Voice != nil:
+						text = "[پیام صوتی]"
+					case u.Message.Doc != nil:
+						text = strings.TrimSpace("[فایل] " + text)
+					case text == "":
+						text = "[پیام غیرمتنی]"
+					}
+				}
+				handle(ctx, channel, fmt.Sprint(u.Message.Chat.ID), text, u.Message.From.FirstName)
 			}
 		}
 		if len(ups) == 0 {
@@ -294,6 +312,9 @@ func handle(ctx context.Context, channel, chatID, text, first string) {
 			return
 		}
 	}
+	if saveInbound(ctx, channel, chatID, text, first) {
+		return
+	}
 	_ = SendText(ctx, channel, chatID, "سلام "+first+"؛ شناسهٔ گفتگوی شما: "+chatID+"\nاین عدد را به شرکت بدهید تا فایل‌ها را برایتان بفرستد.")
 }
 
@@ -308,4 +329,28 @@ func Link(c Config, channel, customerID string) string {
 		host = "ble.ir"
 	}
 	return "https://" + host + "/" + b.Username + "?start=cust_" + customerID
+}
+
+// saveInbound keeps a message that a linked customer wrote to the company bot, and tells the person who owns the customer. It returns
+// false when the chat belongs to nobody (then the bot answers with the chat number, as before).
+func saveInbound(ctx context.Context, channel, chatID, text, first string) bool {
+	var cid, name, owner string
+	err := store.Pool.QueryRow(ctx, `SELECT id, COALESCE(data->>'name', ''), COALESCE(owner_id, '') FROM crm_customers WHERE data->>$1 = $2 LIMIT 1`, chatField(channel), chatID).Scan(&cid, &name, &owner)
+	if err != nil {
+		return false
+	}
+	if len([]rune(text)) > 4000 {
+		text = string([]rune(text)[:4000])
+	}
+	id := fmt.Sprintf("im_%x", time.Now().UnixNano())
+	if _, err := store.Pool.Exec(ctx, `INSERT INTO inbox_messages (id, channel, chat_id, customer_id, customer_name, owner_id, direction, sender, text) VALUES ($1, $2, $3, $4, $5, $6, 'in', $7, $8)`,
+		id, channel, chatID, cid, name, owner, first, text); err != nil {
+		return false
+	}
+	if owner != "" {
+		label := map[string]string{"telegram": "تلگرام", "bale": "بله"}[channel]
+		notify.Notify(ctx, []string{owner}, notify.Note{Kind: "chat", Label: "پیام در " + label, Title: "پیام تازه از «" + name + "»", Body: text, From: name,
+			Ref: jsonx.M{"type": "customer", "id": cid}, Repeat: true}, "")
+	}
+	return true
 }

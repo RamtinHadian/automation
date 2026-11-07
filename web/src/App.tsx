@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from './lib/router';
 import { AppProvider } from './context/AppContext';
+import { FormConfigRuntime } from './components/common/FormConfigRuntime';
 import { useAppContext } from './context/AppContext';
 import UserPanel from './pages/UserPanel';
 import AdminPanel from './pages/AdminPanel';
@@ -35,6 +36,7 @@ function AppRoutes() {
     <>
     <DemoBanner />
     <CalculatorHost />
+    <FormConfigRuntime />
     {loggedInUser && <NotificationPopups />}
     <Routes>
       <Route

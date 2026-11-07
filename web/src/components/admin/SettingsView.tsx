@@ -7,6 +7,7 @@ import { LoginDesignCard } from './LoginDesignCard';
 import { LoginImagesCard } from './LoginImagesCard';
 import { DEFAULT_SIGNATURE_HEIGHT, MIN_SIGNATURE_HEIGHT, MAX_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
 import {
+  ListChecks,
   Save,
   Shield,
   FileCheck,
@@ -56,6 +57,7 @@ import { ProformaDesigner } from './ProformaDesigner';
 import { VoipStatusCard } from './VoipStatusCard';
 import { SmsSettingsCard } from './SmsSettingsCard';
 import { MessengerSettingsCard } from './MessengerSettingsCard';
+import { FormSettingsCard } from './FormSettingsCard';
 import { NotificationSettingsCard } from './NotificationSettingsCard';
 import { IconTab } from '../common/IconTab';
 import { BackupSettingsCard } from './BackupSettingsCard';
@@ -138,13 +140,14 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
-type SettingsSection = 'identity' | 'phone' | 'sms' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'ai' | 'backup' | 'license';
+type SettingsSection = 'forms' | 'identity' | 'phone' | 'sms' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'ai' | 'backup' | 'license';
 
 /** Each group of settings has its own tab under the page title. */
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'identity', label: 'نام و هویت سازمان', Icon: Building2 },
   { id: 'letters', label: 'نامه‌نگاری و شماره‌گذاری', Icon: Hash },
   { id: 'signature', label: 'مهر و امضا', Icon: Stamp },
+  { id: 'forms', label: 'فرم‌ها و کلید Enter', Icon: ListChecks },
   { id: 'proforma', label: 'پیش‌فاکتور', Icon: FileText },
   { id: 'minutes', label: 'صورتجلسه', Icon: ScrollText },
   { id: 'look', label: 'فونت و رنگ', Icon: Palette },
@@ -576,6 +579,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {section === 'sms' && <SmsSettingsCard />}
+
+      {section === 'forms' && <FormSettingsCard />}
 
       {section === 'msgr' && <MessengerSettingsCard />}
 

@@ -14,6 +14,7 @@ import { ParagraphNotes, noteEntries, canEditNote } from '../common/ParagraphNot
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { askConfirm } from '../../lib/confirmDialog';
+import { requiredOf } from '../../lib/formConfig';
 
 const STATUS_LABEL: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
 const COMPANY_TYPES = ['سهامی خاص', 'سهامی عام', 'مسئولیت محدود', 'تضامنی', 'نسبی', 'تعاونی', 'مؤسسه / انجمن', 'شخص حقیقی با کد اقتصادی', 'سایر'];
@@ -30,7 +31,8 @@ const isMobile = (p: string) => isMobileNumber(p);
 const cleanNumber = (v: string) => normPhone(v) || normText(v).replace(/[^0-9+]/g, '');
 
 /** Any number of phone numbers of one sort (mobile or landline). */
-const NumberList: React.FC<{ title: string; icon: React.ReactNode; items: string[]; placeholder: string; onChange: (items: string[]) => void; draft: string; setDraft: (v: string) => void; main?: string; onMain: (p: string) => void; fax?: string; onFax?: (p: string) => void }> = ({
+const NumberList: React.FC<{ fc?: string; title: string; icon: React.ReactNode; items: string[]; placeholder: string; onChange: (items: string[]) => void; draft: string; setDraft: (v: string) => void; main?: string; onMain: (p: string) => void; fax?: string; onFax?: (p: string) => void }> = ({
+  fc,
   title,
   icon,
   items,
@@ -49,8 +51,8 @@ const NumberList: React.FC<{ title: string; icon: React.ReactNode; items: string
     setDraft('');
   };
   return (
-    <div className="rounded-2xl border border-[#EBDBCE] bg-white p-3.5">
-      <div className="flex items-center gap-2 mb-2.5 text-xs font-black text-[#3A241F]">
+    <div className="rounded-2xl border border-[#EBDBCE] bg-white p-3.5" data-fc-field={fc}>
+      <div className="flex items-center gap-2 mb-2.5 text-xs font-black text-[#3A241F]" data-fc-title>
         {icon}
         {title}
         <span className="text-[10px] font-bold text-[#8C6F66]">({toPersianDigits(items.length)})</span>
@@ -138,7 +140,11 @@ export const CustomerForm: React.FC<{
   const [landlineDraft, setLandlineDraft] = useState('');
   const [tagDraft, setTagDraft] = useState('');
   const [mobileErr, setMobileErr] = useState(false);
-  const mobileMust = useAppContext().settings?.requireMobile !== false; // the console can make the mobile number optional
+  const appSettings = useAppContext().settings;
+  const formCfg = appSettings?.formConfig?.customer;
+  const mustHave = (name: string) => requiredOf(formCfg, 'customer').includes(name) && !(formCfg?.hidden || []).includes(name);
+  // the mobile number is required when the console says so (and the older switch «requireMobile» is not off)
+  const mobileMust = mustHave('موبایل‌ها') && appSettings?.requireMobile !== false;
   const patch = (u: Partial<Customer>) => setC((p) => ({ ...p, ...u }));
   const sepidarOn = useSepidarConnected();
   const isCompany = c.kind === 'COMPANY';
@@ -164,6 +170,7 @@ export const CustomerForm: React.FC<{
     setTagDraft('');
   };
 
+  const [sourceErr, setSourceErr] = useState(false);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName) return;
@@ -177,6 +184,12 @@ export const CustomerForm: React.FC<{
     if (isNew && mobileMust && !m.some((x) => isCompleteMobile(x))) {
       setMobileErr(true);
       document.querySelector('[data-mobile-required]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    // the way the customer got to know the company is required for every customer (marketing reports are worked out from it)
+    if (!contactKind && mustHave('منبع آشنایی') && !(c.source || '').trim()) {
+      setSourceErr(true);
+      document.querySelector('[data-source-required]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     const owner = staff.find((u) => u.id === c.ownerId);
@@ -197,6 +210,11 @@ export const CustomerForm: React.FC<{
       phones: ((all) => (mainPhone && all.includes(mainPhone) ? [mainPhone, ...all.filter((x) => x !== mainPhone)] : all))([...new Set([...m, ...l].filter(Boolean))]),
       faxNumber: c.faxNumber && l.includes(c.faxNumber) ? c.faxNumber : undefined,
       interest: (c.interest || '').trim() || undefined,
+      prefix: (c.prefix || '').trim() || undefined,
+      role: (c.role || '').trim() || undefined,
+      industry: (c.industry || '').trim() || undefined,
+      leadStatus: c.leadStatus || undefined,
+      noEmail: c.noEmail || undefined,
       ownerName: owner?.fullName || c.ownerName,
       ...(contactKind ? { contactType: contactKind } : {}),
     };
@@ -297,7 +315,7 @@ export const CustomerForm: React.FC<{
   const hint = (bad: boolean, text: string) => (bad ? <div className="text-[10px] font-bold text-rose-600 mt-1">{text}</div> : null);
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} data-form-id={contactKind ? undefined : 'customer'}>
       <Modal
         wide
         onTop={contactKind ? 'max' : true}
@@ -401,7 +419,7 @@ export const CustomerForm: React.FC<{
             <Section title="مشخصات فروشگاه">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
-                  <label className={label}>نام فروشگاه *</label>
+                  <label className={label}>نام فروشگاه</label>
                   <input className={field} value={c.company || ''} onChange={(e) => patch({ company: e.target.value })} autoFocus={isNew} placeholder="مثلاً لوازم یدکی نمونه" data-shop-name />
                 </div>
                 <div>
@@ -451,11 +469,11 @@ export const CustomerForm: React.FC<{
             {/* first the name; Enter walks on: name -> family name -> the mobile number */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={label}>نام *</label>
+                <label className={label}>نام</label>
                 <input className={field} value={c.firstName || ''} onChange={(e) => patch({ firstName: e.target.value })} autoFocus={isNew} data-person-first onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (document.querySelector('[data-person-last]') as HTMLInputElement | null)?.focus(); } }} />
               </div>
               <div>
-                <label className={label}>نام خانوادگی *</label>
+                <label className={label}>نام خانوادگی</label>
                 <input className={field} value={c.lastName || ''} onChange={(e) => patch({ lastName: e.target.value })} data-person-last onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (document.querySelector('[data-phone-draft="mobile"]') as HTMLInputElement | null)?.focus(); } }} />
               </div>
             </div>
@@ -464,7 +482,7 @@ export const CustomerForm: React.FC<{
           <Section title="مشخصات رسمی شرکت">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
-                <label className={label}>نام شرکت *</label>
+                <label className={label}>نام شرکت</label>
                 <input className={field} value={c.company || ''} onChange={(e) => patch({ company: e.target.value })} autoFocus={isNew} />
               </div>
               <div>
@@ -534,7 +552,8 @@ export const CustomerForm: React.FC<{
         <Section title="شماره‌های تماس (هر تعداد)">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-mobile-required>
             <NumberList
-              title={isNew ? 'موبایل‌ها *' : 'موبایل‌ها'}
+              fc="موبایل‌ها"
+              title="موبایل‌ها"
               icon={<Smartphone className="w-4 h-4 text-emerald-600" />}
               items={mobiles}
               placeholder="مثلاً 09121234567"
@@ -545,6 +564,7 @@ export const CustomerForm: React.FC<{
               onMain={setMainPhone}
             />
             <NumberList
+              fc="تلفن‌های ثابت"
               title="تلفن‌های ثابت"
               icon={<Phone className="w-4 h-4 text-sky-600" />}
               items={landlines}
@@ -647,15 +667,38 @@ export const CustomerForm: React.FC<{
 
         {!contactKind && <Section title="بازاریابی">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
+            <div data-source-required>
               <label className={label}>منبع آشنایی</label>
-              <input className={field} list="crm-sources" value={c.source || ''} onChange={(e) => patch({ source: e.target.value })} />
+              <input className={field + (sourceErr && !(c.source || '').trim() ? ' !border-rose-500 !ring-2 !ring-rose-200' : '')} list="crm-sources" value={c.source || ''} onChange={(e) => { patch({ source: e.target.value }); if (e.target.value.trim()) setSourceErr(false); }} aria-required="true" />
+              {sourceErr && !(c.source || '').trim() && <div className="mt-1 text-[11px] font-bold text-rose-700">منبع آشنایی را انتخاب یا بنویسید؛ گزارش‌های بازاریابی از آن ساخته می‌شود.</div>}
               <datalist id="crm-sources">
                 {SOURCES.map((s) => (
                   <option key={s} value={s} />
                 ))}
               </datalist>
             </div>
+            <div>
+              <label className={label}>وضعیت سرنخ</label>
+              <select className={field} value={c.leadStatus || ''} onChange={(e) => patch({ leadStatus: e.target.value || undefined })}>
+                <option value="">خودکار (از روی فرصت‌ها)</option>
+                {['تماس گرفته نشده', 'تلاش برای تماس', 'تماس گرفته شد', 'سرد', 'گرم', 'داغ', 'از دست رفته', 'بی‌ارزش'].map((x) => <option key={x}>{x}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={label}>صنعت</label>
+              <input className={field} list="crm-industries" value={c.industry || ''} onChange={(e) => patch({ industry: e.target.value })} />
+              <datalist id="crm-industries">{['کشاورزی', 'بانکداری', 'ساخت‌وساز', 'آموزش', 'انرژی', 'مالی', 'سلامت و درمان', 'فناوری اطلاعات', 'بیمه', 'تولید', 'رسانه', 'خرده‌فروشی', 'حمل‌ونقل', 'خدمات'].map((x) => <option key={x} value={x} />)}</datalist>
+            </div>
+            <div>
+              <label className={label}>پیشوند (عنوان)</label>
+              <input className={field} list="crm-prefixes" value={c.prefix || ''} onChange={(e) => patch({ prefix: e.target.value })} />
+              <datalist id="crm-prefixes">{['آقای', 'خانم', 'دکتر', 'مهندس', 'استاد', 'حاج‌آقا'].map((x) => <option key={x} value={x} />)}</datalist>
+            </div>
+            <div>
+              <label className={label}>نقش (سمت)</label>
+              <input className={field} value={c.role || ''} onChange={(e) => patch({ role: e.target.value })} placeholder="مثلاً مدیر خرید" />
+            </div>
+            <label className="flex items-center gap-2 text-xs font-bold text-[#3A241F] cursor-pointer sm:col-span-2 self-end pb-2"><input type="checkbox" className="accent-violet-600" checked={!!c.noEmail} onChange={(e) => patch({ noEmail: e.target.checked })} />عدم ارسال ایمیل به این مشتری</label>
             <div>
               <label className={label}>معرف</label>
               <select

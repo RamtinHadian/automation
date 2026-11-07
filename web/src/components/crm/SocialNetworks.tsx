@@ -5,6 +5,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { Modal } from './crmUi';
 import { SendMessageDialog } from './MessageTemplates';
 import { isMobileNumber, normPhone, normText } from '../../lib/customerImport';
+import { api } from '../../lib/api';
 
 export interface NetworkDef { id: string; name: string; hint: string; iran?: boolean; web?: boolean }
 
@@ -438,7 +439,9 @@ const encodeJob = (job: Record<string, unknown>) => {
  * Opens the chat with a customer's account on a network (the installed app first, then the web in its own tab) and returns the note to show.
  * With a `text` WhatsApp gets it already written in the message box; the other networks cannot be given a text from outside, so it is copied to be pasted (Ctrl+V).
  */
-export const openChat = (id: string, name: string, account: string, text = '', customerName = ''): string => {
+export const openChat = (id: string, name: string, account: string, text = '', customerName = '', customerId = ''): string => {
+  // the report «ارسال‌ها» of the marketing menu: who opened a message to whom, when, on which platform (the server stamps the time and the sender)
+  void api.socialLogAdd({ platform: id, platformName: name, account, text, customerId, customerName }).catch(() => undefined);
   const plain = normText(account).replace(/^@/, '');
   const isNumber = /^[0-9+\s-]+$/.test(plain);
   const url = socialLink(id, account, text);
@@ -522,7 +525,7 @@ export const CustomerSocialIcons: React.FC<{ customer: Customer; onPick: (networ
 export const SocialStrip: React.FC<{ customer: Customer }> = ({ customer }) => {
   const [note, setNote] = useState('');
   const [sendOpen, setSendOpen] = useState(false);
-  const open = (id: string, name: string, account: string) => setNote(openChat(id, name, account, '', customer.name));
+  const open = (id: string, name: string, account: string) => setNote(openChat(id, name, account, '', customer.name, customer.id));
   return (
     <section className="rounded-2xl bg-white/10 border border-white/20 overflow-hidden" data-social-strip>
       <div className="px-4 py-2.5 bg-white/10 text-xs font-black flex items-center justify-between">

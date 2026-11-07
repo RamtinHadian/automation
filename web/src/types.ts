@@ -188,6 +188,12 @@ export interface Customer {
   city?: string;
   postalCode?: string;
   website?: string;
+  /** marketing: title (آقا / خانم / دکتر…), role in the company, lead status, industry and «do not send e-mail» */
+  prefix?: string;
+  role?: string;
+  leadStatus?: string;
+  industry?: string;
+  noEmail?: boolean;
   /** Who introduced this customer (for marketing figures). */
   referrer?: { kind: 'CUSTOMER' | 'STAFF' | 'OTHER'; id?: string; name: string; phone?: string };
   /** Every mobile and landline number, unlimited (mobiles start with 09). The main number comes first. */
@@ -750,6 +756,8 @@ export interface SystemSettings {
   proformaValidDays?: number;
   /** The organisation's standard letter layout, set once by an admin in the letter editor. */
   letterTemplate?: OrgLetterTemplate;
+  /** Per form (data-form-id): fields switched off, required fields and where Enter goes (set in the management console). */
+  formConfig?: Record<string, import('./lib/formConfig').FormCfg>;
   /** Ready-made letter texts written by an admin; users pick one in the letter editor. */
   letterTextTemplates?: LetterTextTemplate[];
   /** Ready-made messages (text, link, file) the staff send to customers on the social networks. */
@@ -1212,4 +1220,65 @@ export interface LetterFx {
   signerBelow?: boolean;
   /** the date line above the number line (the two swap places) */
   dateFirst?: boolean;
+}
+
+
+/** A marketing campaign («بازاریابی ← کمپین‌ها»), with the fields the well-known CRMs keep for one. Money is in Toman. */
+export interface Campaign {
+  id: string;
+  name: string;
+  type: string;
+  status: 'PLANNING' | 'ACTIVE' | 'INACTIVE' | 'COMPLETE' | 'CANCELLED';
+  /** 'CAMPAIGN' (default) or 'SURVEY' */
+  kind?: 'CAMPAIGN' | 'SURVEY' | 'MESSAGE';
+  ownerName?: string;
+  startDate?: string;
+  endDate?: string;
+  /** expected closing day (required), the product, the expected cost and what was expected / really received */
+  expectedClose?: string;
+  product?: string;
+  expectedCost?: number;
+  expectedReceived?: number;
+  actualReceived?: number;
+  expectedRoi?: number;
+  /** surveys: the questions, how many answered and the average satisfaction (1-5) */
+  questions?: SurveyQuestion[];
+  /** message campaigns: which module it works on, when and how often it sends, who gets it (conditions) and what is sent (tasks) */
+  module?: 'CUSTOMERS' | 'LEADS';
+  skipHolidays?: boolean;
+  perDay?: number;
+  frequency?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  startHour?: string;
+  conditions?: { status?: string; source?: string; city?: string; tag?: string };
+  tasks?: { id: string; channel: 'SMS' | 'MESSENGER'; text: string }[];
+  welcomeText?: string;
+  thanksText?: string;
+  collectParticipant?: boolean;
+  responses?: number;
+  satisfaction?: number;
+  budget?: number;
+  actualCost?: number;
+  expectedRevenue?: number;
+  actualRevenue?: number;
+  expectedSales?: number;
+  actualSales?: number;
+  targetSize?: number;
+  sent?: number;
+  expectedResponse?: string;
+  audience?: string;
+  sponsor?: string;
+  goal?: string;
+  customerIds?: string[];
+  createdById?: string;
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** One question of a survey: free text, a scale (number), several answers allowed, or one answer. */
+export interface SurveyQuestion {
+  id: string;
+  type: 'TEXT' | 'SCALE' | 'MULTI' | 'SINGLE';
+  text: string;
+  options?: string[];
 }

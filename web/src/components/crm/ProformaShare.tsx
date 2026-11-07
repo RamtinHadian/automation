@@ -65,7 +65,7 @@ export const ProformaShareDialog: React.FC<{ deal: Deal; customer: Customer; set
   const bots = (['telegram', 'bale'] as const).filter((ch) => msgr?.[ch] && (ch === 'telegram' ? customer.telegramChatId : customer.baleChatId));
 
   const sendRow = (r: { key: string; id: string; name: string; account: string }) => {
-    setNote(openChat(r.id, r.name, r.account, text, customer.name));
+    setNote(openChat(r.id, r.name, r.account, text, customer.name, customer.id));
     countInteraction(customer.id, r.id);
     setDone((d) => (d.includes(r.key) ? d : [...d, r.key]));
   };
