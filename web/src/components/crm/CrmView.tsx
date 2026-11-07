@@ -808,19 +808,19 @@ export const CrmView: React.FC = () => {
         </div>
       </div>
 
-      <div data-subtabs className="flex flex-wrap gap-1 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
+      <div data-subtabs className="flex flex-nowrap overflow-x-auto gap-0.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-2xl p-1">
         {tabs.map(([id, text, Icon]) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
             title={text}
-            className={`flex-1 basis-[45%] sm:basis-auto lg:basis-auto lg:min-w-[92px] min-h-[44px] lg:min-h-0 min-w-0 whitespace-nowrap flex items-center justify-center gap-1 lg:gap-1.5 px-3 lg:px-2 xl:px-3 py-2 rounded-xl text-xs lg:text-[11.5px] xl:text-xs font-black transition-all cursor-pointer ${
+            className={`shrink-0 grow min-h-[44px] lg:min-h-0 whitespace-nowrap flex items-center justify-center gap-1 px-2 lg:px-1.5 xl:px-2.5 py-2 rounded-xl text-[11.5px] xl:text-xs font-black transition-all cursor-pointer ${
               tab === id ? 'bg-white text-violet-700 shadow-2xs' : 'text-[#8C6F66] hover:text-[#3A241F]'
             }`}
           >
             <Icon className="w-4 h-4 lg:w-3.5 lg:h-3.5 xl:w-4 xl:h-4 shrink-0" />
-            <span>{({ 'فرصت‌های فروش': 'فرصت‌ها', 'باشگاه مشتریان': 'باشگاه', 'پیامک گروهی': 'پیامک', 'پیش‌فاکتورهای ارسالی': 'پیش‌فاکتورها' } as Record<string, string>)[text] || text}</span>
+            <span>{({ 'فرصت‌های فروش': 'فرصت‌ها', 'باشگاه مشتریان': 'باشگاه', 'پیامک گروهی': 'پیامک', 'پیش‌فاکتورهای ارسالی': 'برای امضا' } as Record<string, string>)[text] || text}</span>
             {id === 'customers' && <span className="text-[10px] font-bold opacity-60 tabular-nums" data-customer-count>{toPersianDigits(customers.length)}</span>}
             {id === 'proformas' && pendingProformas.length > 0 && <span className="bg-amber-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(pendingProformas.length)}</span>}
             {id === 'followups' && overdueFollowups.length > 0 && <span className="bg-rose-500 text-white text-[10px] rounded-full px-1.5">{toPersianDigits(overdueFollowups.length)}</span>}
