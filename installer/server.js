@@ -291,11 +291,13 @@ class Session {
     const name = this.hostName;
     const cur = (await this.run('hostname', { quiet: true })).out.trim();
     if (cur === name) return { ok: true, note: 'نام سرور از قبل «' + name + '» است.' };
-    const r = await this.run(
-      'hostnamectl set-hostname ' + name + ' && { if grep -q "^127.0.1.1" /etc/hosts; then sed -i "s/^127.0.1.1.*/127.0.1.1 ' + name + '/" /etc/hosts; else echo "127.0.1.1 ' + name + '" >> /etc/hosts; fi; } && hostname',
-      { root: true });
+    // hostnamectl talks to systemd-hostnamed, which on some servers cannot start (D-Bus time-out). Then the name is written the
+    // old way (/etc/hostname + the kernel name); the machine works the same, so even a failure here does not stop the install.
+    const q = name.replace(/[^a-z0-9-]/g, '');
+    const hosts = '{ if grep -q "^127.0.1.1" /etc/hosts; then sed -i "s/^127.0.1.1.*/127.0.1.1 ' + q + '/" /etc/hosts; else echo "127.0.1.1 ' + q + '" >> /etc/hosts; fi; }';
+    await this.run('{ timeout 12 hostnamectl set-hostname ' + q + ' 2>/dev/null || { echo ' + q + ' > /etc/hostname && hostname ' + q + '; }; } && ' + hosts, { root: true });
     const now = (await this.run('hostname', { quiet: true })).out.trim();
-    if (r.code !== 0 || now !== name) return { ok: false, note: 'نام سرور عوض نشد.' };
+    if (now !== name) return { ok: true, note: 'نام سرور عوض نشد (سیستم‌عامل اجازه نداد) ولی نصب ادامه دارد؛ بعداً با دستور hostname دستی عوض کنید.' };
     return { ok: true, note: 'نام سرور از «' + cur + '» به «' + name + '» عوض شد.' };
   }
 
