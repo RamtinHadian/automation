@@ -873,7 +873,7 @@ export const CrmView: React.FC = () => {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {canSeeSalesTotals(currentUser) && <section
+            <section
               role="button"
               tabIndex={0}
               aria-label="قیف فروش؛ برای دیدن نمای بزرگ و نمودارها بزنید"
@@ -889,7 +889,8 @@ export const CrmView: React.FC = () => {
               {STAGES.filter((s) => OPEN_STAGES.includes(s.id)).map((s) => {
                 const list = deals.filter((d) => d.stage === s.id);
                 const total = list.reduce((x, d) => x + d.amount, 0);
-                const max = Math.max(1, ...STAGES.filter((x) => OPEN_STAGES.includes(x.id)).map((x) => deals.filter((d) => d.stage === x.id).reduce((a, d) => a + d.amount, 0)));
+                const money = canSeeSalesTotals(currentUser);
+                const max = Math.max(1, ...STAGES.filter((x) => OPEN_STAGES.includes(x.id)).map((x) => (money ? deals.filter((d) => d.stage === x.id).reduce((a, d) => a + d.amount, 0) : deals.filter((d) => d.stage === x.id).length)));
                 return (
                   <div key={s.id} className="space-y-1">
                     <div className="flex items-center justify-between text-[11px] font-bold">
@@ -897,15 +898,15 @@ export const CrmView: React.FC = () => {
                         <span className={`w-2 h-2 rounded-full ${s.dot}`} />
                         {s.label} ({toPersianDigits(list.length)})
                       </span>
-                      <span className="text-[#8C6F66]">{toman(total)} {unitName()}</span>
+                      <span className="text-[#8C6F66]">{canSeeSalesTotals(currentUser) ? `${toman(total)} ${unitName()}` : `${toPersianDigits(list.length)} فرصت`}</span>
                     </div>
                     <div className="h-2 rounded-full bg-[#FAF5F1] overflow-hidden">
-                      <div className={`h-full ${s.dot}`} style={{ width: `${(total / max) * 100}%` }} />
+                      <div className={`h-full ${s.dot}`} style={{ width: `${((money ? total : list.length) / max) * 100}%` }} />
                     </div>
                   </div>
                 );
               })}
-            </section>}
+            </section>
 
             <section className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-2.5">
               <h3 className="font-black text-sm text-[#3A241F]">پیگیری‌های امروز و عقب‌افتاده</h3>
@@ -954,7 +955,7 @@ export const CrmView: React.FC = () => {
         </div>
       )}
 
-      {funnelOpen && <FunnelModal customers={customers} deals={deals} activities={activities} onClose={() => setFunnelOpen(false)} />}
+      {funnelOpen && <FunnelModal customers={customers} deals={deals} activities={activities} canMoney={canSeeSalesTotals(currentUser)} canAi={canSub(currentUser, 'ai.funnel')} onOpenCustomer={(id) => setOpenCustomer(id)} onClose={() => setFunnelOpen(false)} />}
 
       {tab === 'marketing' && <MarketingView customers={customers} allContacts={allContacts} deals={deals} staff={staffList} currentUserName={currentUser.fullName} showToast={showToast} onOpenCustomer={(id) => setOpenCustomer(id)} onOpenSms={() => setTab('sms')} canPhonebook={canSub(currentUser, 'crm.phonebook')} onOpenPhoneBook={() => setPhoneBook(true)} isAdmin={isAdmin} />}
 

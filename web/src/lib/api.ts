@@ -653,6 +653,8 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   inboxList: (customerId = '') => request<{ messages: { id: string; at: string; channel: 'telegram' | 'bale'; customerId: string; customerName: string; direction: 'in' | 'out'; sender: string; text: string; read: boolean }[]; unread: number }>('GET', '/api/inbox' + (customerId ? '?customerId=' + encodeURIComponent(customerId) : '')),
   inboxReply: (b: { customerId: string; channel: string; text: string }) => request<{ ok: true }>('POST', '/api/inbox/reply', b),
   inboxRead: (customerId: string) => request<{ ok: true }>('POST', '/api/inbox/read', { customerId }),
+  aiFunnelStart: () => request<{ id: string; total: number }>('POST', '/api/crm/ai-funnel/start', {}),
+  aiFunnelGet: (id: string) => request<{ status: 'running' | 'done' | 'error'; total: number; done: number; error: string; items: Record<string, unknown>[] }>('GET', `/api/crm/ai-funnel/${encodeURIComponent(id)}`),
   campaignList: () => request<{ campaigns: import('../types').Campaign[] }>('GET', '/api/campaigns'),
   campaignSave: (c: import('../types').Campaign) => request<{ ok: true }>('PUT', `/api/campaigns/${encodeURIComponent(c.id)}`, c),
   campaignDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/campaigns/${encodeURIComponent(id)}`),

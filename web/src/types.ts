@@ -40,6 +40,8 @@ export interface User {
   canUseWarehouse?: boolean;
   /** Sees every customer, opportunity and follow-up of the team (otherwise only their own). Administrators always do. */
   canSeeTeamCrm?: boolean;
+  /** a senior manager ticked in the console: sees the money of opportunities and sales (the managing director always does) */
+  canSeeSalesMoney?: boolean;
   /** with «مشتریان همکاران»: only the customers of these colleagues are added to the person's own (empty = every colleague) */
   crmTeamIds?: string[];
   /** customers (ids) this person may work with in addition to his own, picked by an administrator */

@@ -1,5 +1,6 @@
 import React from 'react';
 import { toPersianDigits as fa } from '../../lib/jalali';
+export const STAGE_COLORS: Record<string, string> = { NEW: '#94a3b8', CONTACTED: '#0ea5e9', PROPOSAL: '#8b5cf6', NEGOTIATION: '#f59e0b', WON: '#10b981' };
 export interface FunnelRow { id: string; label: string; count: number; amount: string; reached: number; share: number; color: string }
 
 /**
@@ -33,7 +34,7 @@ const SIDE_ICON: React.ReactNode[] = [
 ];
 const ROW = 150, FW = 390;
 
-export const FunnelDark: React.FC<{ rows: FunnelRow[]; unit: string }> = ({ rows, unit }) => {
+export const FunnelDark: React.FC<{ rows: FunnelRow[]; unit: string; showMoney?: boolean }> = ({ rows, unit, showMoney = true }) => {
   const n = rows.length;
   const ACCENT = rows.map((r) => r.color); // each step keeps the colour it has in the bars of the same window
   // one smooth cone: every tier starts exactly as wide as the one above it ends (the sizes of the numbers are in the text beside it)
@@ -76,7 +77,7 @@ export const FunnelDark: React.FC<{ rows: FunnelRow[]; unit: string }> = ({ rows
               <div className="mt-0.5 text-[15px] font-black"><span style={{ color: ACCENT[i] }}>هدف:</span> <span className="text-[#111827]">{t?.goal}</span></div>
               <div className="mt-1 flex flex-wrap items-baseline gap-x-5 gap-y-0 text-[#111827]">
                 <span><b className="text-[34px] leading-none font-black">{fa(r.count)}</b> <span className="text-[14px] font-bold text-[#4b5563]">فرصت</span></span>
-                <span><b className="text-[34px] leading-none font-black">{r.amount}</b> <span className="text-[14px] font-bold text-[#4b5563]">{unit}</span></span>
+                {showMoney && <span><b className="text-[34px] leading-none font-black">{r.amount}</b> <span className="text-[14px] font-bold text-[#4b5563]">{unit}</span></span>}
                 <span><b className="text-[34px] leading-none font-black" style={{ color: ACCENT[i] }}>{fa(r.share)}٪</b></span>
               </div>
             </div>

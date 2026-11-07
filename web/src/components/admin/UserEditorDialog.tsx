@@ -22,6 +22,7 @@ export interface UserForm {
   canPostAnnouncements?: boolean;
   canUseWarranty?: boolean;
   canSendSms?: boolean;
+  canSeeSalesMoney?: boolean;
   canUseWarehouse?: boolean;
   sepidarPerms?: string[];
   /** the warehouse product groups this person may see (none = every group) */

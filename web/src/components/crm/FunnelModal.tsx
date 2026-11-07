@@ -1,11 +1,12 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { CalendarClock, CalendarCheck, Filter, History, Maximize2, TrendingUp, UserPlus, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { CalendarClock, CalendarCheck, Filter, History, Maximize2, Sparkles, TrendingUp, UserPlus, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { CrmActivity, Customer, Deal, DealStage } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, toDisplay, unitName } from '../../lib/money';
 import { formatTaskDate, isoToJalaliParts, JALALI_MONTHS, todayIso } from '../../lib/taskDates';
 import { shortDay } from '../../lib/adminStats';
 import { FunnelDark, FunnelRow } from './FunnelDark';
+import { FunnelAiPage } from './FunnelAiPage';
 import { C, ChartCard, Columns, compact, Donut, fa, HBars, SERIES, TrendChart } from '../admin/charts';
 
 /**
@@ -65,7 +66,7 @@ const bucketLabel = (key: string, grain: Grain) => {
  * Keeps a funnel inside the window: the drawing is measured and, when it is taller than the room left under the figures and the model chooser,
  * the whole drawing is scaled down evenly (its shape and the proportions of its texts are kept), so the funnel is seen at once without scrolling.
  */
-const FitBox: React.FC<{ children: React.ReactNode; design?: number; zoom?: number }> = ({ children, design, zoom = 1 }) => {
+export const FitBox: React.FC<{ children: React.ReactNode; design?: number; zoom?: number }> = ({ children, design, zoom = 1 }) => {
   const wrap = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ s: number; h: number }>({ s: 1, h: 0 });
@@ -111,7 +112,8 @@ const Pick: React.FC<{ value: string; options: { id: string; label: string }[]; 
   </div>
 );
 
-export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activities: CrmActivity[]; onClose: () => void }> = ({ customers, deals, activities, onClose }) => {
+export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activities: CrmActivity[]; onClose: () => void; canMoney?: boolean; canAi?: boolean; onOpenCustomer?: (id: string) => void }> = ({ customers, deals, activities, onClose, canMoney = true, canAi = false, onOpenCustomer }) => {
+  const [aiOpen, setAiOpen] = useState(false);
   // the stretch magnifier: the funnel is made smaller or bigger by dragging a bar to the left or to the right (remembered)
   const [zoom, setZoomState] = useState<number>(() => {
     try { const v = Number(localStorage.getItem('crm_funnel_zoom')); return v >= 0.4 && v <= 1.3 ? v : 1; } catch { return 1; }
@@ -225,15 +227,15 @@ export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activ
       const rowsF: FunnelRow[] = stageRows.map((st, i) => {
         const reachedN = stageRows.slice(i).reduce((sum, r) => sum + r.count, 0);
         const first = Math.max(1, stageRows.reduce((sum, r) => sum + r.count, 0));
-        return { id: st.id, label: st.label, count: st.count, amount: compact(toDisplay(st.amount)), reached: reachedN, share: Math.round((reachedN / first) * 100), color: st.color };
+        return { id: st.id, label: st.label, count: st.count, amount: canMoney ? compact(toDisplay(st.amount)) : '', reached: reachedN, share: Math.round((reachedN / first) * 100), color: st.color };
       });
-      return <FunnelDark rows={rowsF} unit={unitName()} />;
+      return <FunnelDark rows={rowsF} unit={unitName()} showMoney={canMoney} />;
     }
     if (kind === 'bars') {
       return (
         <HBars
-          rows={stageRows.map((s) => ({ label: `${s.label} (${toPersianDigits(s.count)})`, segments: [{ value: s.amount, color: s.color, name: s.label }], note: `${formatMoney(s.amount)} ${unitName()}` }))}
-          format={(v) => compact(v)}
+          rows={stageRows.map((s) => ({ label: `${s.label} (${toPersianDigits(s.count)})`, segments: [{ value: canMoney ? s.amount : s.count, color: s.color, name: s.label }], note: canMoney ? `${formatMoney(s.amount)} ${unitName()}` : undefined }))}
+          format={(v) => (canMoney ? compact(v) : toPersianDigits(v))}
         />
       );
     }
@@ -241,7 +243,7 @@ export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activ
       return (
         <div className="space-y-3">
           <Columns stacked labels={stageRows.map((s) => s.label)} series={stageRows.map((s, i) => ({ name: s.label, color: s.color, values: stageRows.map((_, j) => (j === i ? s.count : 0)) }))} />
-          <Columns stacked labels={stageRows.map((s) => s.label)} series={stageRows.map((s, i) => ({ name: s.label, color: s.color, values: stageRows.map((_, j) => (j === i ? toDisplay(s.amount) : 0)) }))} format={compact} />
+          {canMoney && <Columns stacked labels={stageRows.map((s) => s.label)} series={stageRows.map((s, i) => ({ name: s.label, color: s.color, values: stageRows.map((_, j) => (j === i ? toDisplay(s.amount) : 0)) }))} format={compact} />}
         </div>
       );
     }
@@ -292,7 +294,7 @@ export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activ
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5">
             {kpi(<UserPlus className="w-4 h-4" />, 'مشتری تازه (۳۰ روز)', toPersianDigits(summary.newCustomers))}
             {kpi(<Filter className="w-4 h-4" />, 'فرصت تازه (۳۰ روز)', toPersianDigits(summary.newDeals))}
-            {kpi(<TrendingUp className="w-4 h-4" />, `فروش موفق (${toPersianDigits(summary.wonCount)}) در ۳۰ روز`, `${formatMoney(summary.wonAmount)} ${unitName()}`)}
+            {kpi(<TrendingUp className="w-4 h-4" />, canMoney ? `فروش موفق (${toPersianDigits(summary.wonCount)}) در ۳۰ روز` : 'فروش موفق در ۳۰ روز', canMoney ? `${formatMoney(summary.wonAmount)} ${unitName()}` : toPersianDigits(summary.wonCount))}
             {kpi(<CalendarCheck className="w-4 h-4" />, 'تماس و جلسه (۳۰ روز)', toPersianDigits(summary.calls + summary.meetings))}
             {kpi(<History className="w-4 h-4" />, 'از دست رفته (۳۰ روز)', toPersianDigits(summary.lost))}
           </div>
@@ -309,6 +311,9 @@ export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activ
                   {KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
                 </select>
               </label>
+              {canAi && (
+                <button type="button" onClick={() => setAiOpen(true)} data-funnel-ai-btn className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 cursor-pointer"><Sparkles className="w-3.5 h-3.5" />تحلیل هوش مصنوعی</button>
+              )}
               {kind === 'funnel' && (
                 <div dir="ltr" className="flex items-center gap-2 text-[#8C6F66]" data-funnel-zoom>
                   <ZoomOut className="w-4 h-4" />
@@ -371,11 +376,12 @@ export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activ
               title="کل فروش بر اساس تاریخ"
               subtitle={`مبلغ فروش موفق در بازهٔ انتخاب‌شده: ${fa(salesTotal)} ${unitName()} · ${toPersianDigits(salesCount.reduce((s, v) => s + v, 0))} فروش`}
             >
-              <Columns labels={labels} series={[{ name: `فروش موفق (${unitName()})`, color: C.aqua, values: salesSeries }]} format={compact} />
+              <Columns labels={labels} series={[{ name: canMoney ? `فروش موفق (${unitName()})` : 'تعداد فروش موفق', color: C.aqua, values: canMoney ? salesSeries : salesCount }]} format={canMoney ? compact : undefined} />
             </ChartCard>
           </div>
         </div>
       </div>
+      {aiOpen && <FunnelAiPage onClose={() => setAiOpen(false)} onOpenCustomer={onOpenCustomer ? (id) => { setAiOpen(false); onClose(); onOpenCustomer(id); } : undefined} />}
     </div>
   );
 };

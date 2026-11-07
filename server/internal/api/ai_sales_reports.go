@@ -420,7 +420,10 @@ func reportAiScheduleGet(w http.ResponseWriter, r *http.Request) {
 }
 
 // the sold amounts are for the people who may see the company's sales money (the same people as on the reports page)
-func seesSalesMoney(me auth.User) bool { return jsonx.Bool(me.M, "canSignOfficialLetters") }
+// the managing director, and any senior manager an administrator ticked «مبلغ فروش‌ها» for
+func seesSalesMoney(me auth.User) bool {
+	return jsonx.Bool(me.M, "canSignOfficialLetters") || jsonx.Bool(me.M, "canSeeSalesMoney")
+}
 
 func nz(v, d int) int {
 	if v <= 0 {

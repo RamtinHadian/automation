@@ -93,6 +93,7 @@ var journalRules = []rule{
 	jr("PUT", `/api/sepidar/.*`, "SEPIDAR", "WARNING", "تغییر در بخش سپیدار"),
 	jr("PUT", `/api/reminders/[^/]+`, "REMINDER", "INFO", "ثبت یا ویرایش یادآور"),
 	jr("POST", `/api/reminders.*`, "REMINDER", "INFO", "ثبت یا تغییر یادآور"),
+	jr("POST", `/api/crm/ai-funnel/start`, "REPORT_AI", "INFO", "تحلیل هوش مصنوعی قیف فروش"),
 	jr("PUT", `/api/campaigns/[^/]+`, "CRM", "INFO", "ثبت یا ویرایش کمپین بازاریابی"),
 	jr("DELETE", `/api/campaigns/[^/]+`, "CRM", "WARNING", "حذف کمپین بازاریابی"),
 	jr("PUT", `/api/minutes/[^/]+`, "MINUTES", "INFO", "ثبت یا ویرایش صورتجلسه"),

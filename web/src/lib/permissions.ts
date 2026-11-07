@@ -43,7 +43,7 @@ export interface MenuDef {
  * The totals of money and the numbers of sales (sums over many sales, per customer or per period) are for the managing director only:
  * the one person with the right to sign official letters. Even the other administrators do not see them.
  */
-export const canSeeSalesTotals = (u?: Pick<User, 'canSignOfficialLetters'> | null): boolean => !!u?.canSignOfficialLetters;
+export const canSeeSalesTotals = (u?: Pick<User, 'canSignOfficialLetters' | 'canSeeSalesMoney'> | null): boolean => !!(u?.canSignOfficialLetters || u?.canSeeSalesMoney);
 
 const flag = (id: string, key: PermDef['key'], label: string, hint: string): PermDef => ({ id, kind: 'flag', key, label, hint });
 const listItem = (id: string, key: PermDef['key'], item: string, label: string, hint: string): PermDef => ({ id, kind: 'list', key, item, label, hint });
@@ -112,6 +112,7 @@ export const MENUS: MenuDef[] = [
       { id: 'crm.proforma', label: 'صدور پیش‌فاکتور', hint: 'دکمهٔ صدور سریع پیش‌فاکتور.' },
       { id: 'crm.callReport', label: 'دکمهٔ «گزارش مشتری» در پاپ‌آپ تماس', hint: 'در پاپ‌آپ تماس و در سابقهٔ تماس‌ها دکمهٔ «گزارش» را می‌بیند و گزارش کامل مشتری (خریدها، قیمت‌ها، پیگیری‌ها) را باز می‌کند، حتی اگر مشتری مال همکار دیگری باشد. مبلغ‌ها فقط برای کسانی دیده می‌شود که اجازهٔ دیدن مبلغ فروش را دارند.' },
       { id: 'crm.callWatch', label: 'دیدن همهٔ تماس‌های شرکت', hint: 'همهٔ تماس‌های ورودی شرکت را در پاپ‌آپ می‌بیند: چه کسی زنگ زده و به کدام همکار. (وضعیت مالی مشتری در پاپ، با تیک «وضعیت مالی در پاپ تماس» در منوی سپیدار.)', flag: flag('callWatch', 'canSeeAllCalls', 'دیدن همهٔ تماس‌های شرکت', 'همهٔ تماس‌های ورودی شرکت را در پاپ‌آپ می‌بیند: چه کسی زنگ زده و به کدام همکار. (وضعیت مالی مشتری در پاپ، با تیک «وضعیت مالی در پاپ تماس» در منوی سپیدار.)') },
+      { id: 'crm.salesMoney', label: 'مبلغ فروش‌ها (مدیر ارشد)', hint: 'مبلغ فرصت‌ها و فروش‌ها را در قیف، گزارش‌ها و تحلیل‌ها می‌بیند (مدیرعامل همیشه می‌بیند). بدون این تیک، قیف فروش را بدون مبلغ می‌بیند.', flag: flag('salesMoney', 'canSeeSalesMoney', 'مبلغ فروش‌ها', 'مبلغ فرصت‌ها و فروش‌ها را در قیف، گزارش‌ها و تحلیل‌ها می‌بیند.') },
       { id: 'crm.sms', label: 'ارسال پیامک', hint: 'برای مشتری‌های خودش پیامک تکی و گروهی می‌فرستد.', flag: flag('sms', 'canSendSms', 'ارسال پیامک', 'برای مشتری‌های خودش پیامک تکی و گروهی می‌فرستد.') },
     ],
   },
@@ -177,6 +178,7 @@ export const MENUS: MenuDef[] = [
       { id: 'ai.minutes', label: 'صورتجلسه', hint: 'نوشتن صورتجلسه از یادداشت یا ویس و خلاصه‌کردن شرح مذاکرات.' },
       { id: 'ai.calls', label: 'تبدیل مکالمه به متن', hint: 'تبدیل مکالمهٔ ضبط‌شده به متن (دیدن متنِ تبدیل‌شده با این تیک کاری ندارد).' },
       { id: 'ai.customer', label: 'تحلیل مشتری', hint: 'تحلیل سطح مشتری در پروندهٔ او.' },
+      { id: 'ai.funnel', label: 'تحلیل قیف فروش', hint: 'دکمهٔ «تحلیل هوش مصنوعی» در قیف فروش: خواندن فرصت‌ها و گفتن مشکل و پیشنهاد برای هر مشتری.' },
     ],
   },
 ];

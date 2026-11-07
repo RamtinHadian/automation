@@ -365,7 +365,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
     showToast(`همهٔ مجوزهای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
   };
   // «مشابه فلانی»: every right of the chosen employee is copied to this one (not his role, not the signature right, not the agent settings)
-  const COPY_KEYS = ['canSendOfficialLetters', 'canUseTasks', 'canUseCrm', 'canUseWarranty', 'canSendSms', 'canUseWarehouse', 'canSeeTeamCrm', 'canSeeAllCalls', 'canViewStats', 'canPostAnnouncements', 'sepidarPerms', 'hiddenSub', 'whGroups', 'whWarehouseIds', 'whProducts', 'crmTeamIds', 'crmCustomerIds'] as const;
+  const COPY_KEYS = ['canSendOfficialLetters', 'canUseTasks', 'canUseCrm', 'canUseWarranty', 'canSendSms', 'canSeeSalesMoney', 'canUseWarehouse', 'canSeeTeamCrm', 'canSeeAllCalls', 'canViewStats', 'canPostAnnouncements', 'sepidarPerms', 'hiddenSub', 'whGroups', 'whWarehouseIds', 'whProducts', 'crmTeamIds', 'crmCustomerIds'] as const;
   const copyFrom = async (u: User, refId: string) => {
     const ref = users.find((x) => x.id === refId);
     if (!ref || ref.id === u.id) return;
