@@ -286,11 +286,24 @@ class Session {
     this.running = false;
   }
 
+  /** Free space on / in megabytes (the install needs several gigabytes; with a full disk every step breaks in a confusing way). */
+  async freeMb() {
+    const r = await this.run("df -BM --output=avail / 2>/dev/null | tail -1 | tr -dc '0-9'", { quiet: true });
+    const n = Number(r.out.trim());
+    return Number.isFinite(n) && r.out.trim() !== '' ? n : null;
+  }
+
+  diskNote(mb) {
+    return 'دیسک این سرور پر است (فضای آزاد: ' + mb + ' مگابایت) و نصب ممکن است فایل‌های سیستم را خراب کند، پس هیچ تغییری نمی‌دهم. اول جا باز کنید (دست‌کم ۵ گیگابایت)؛ مثلاً: «sudo journalctl --vacuum-size=200M»، «sudo apt-get clean» و پاک‌کردن فایل‌های حجیم قدیمی («sudo du -xh / --max-depth=2 | sort -h | tail -20» نشان می‌دهد جا را چه چیزی گرفته)، بعد نصب را دوباره بزنید.';
+  }
+
   /** Gives the machine the name typed in the form (and keeps /etc/hosts in step, so that sudo does not complain). */
   async stepHostname() {
     const name = this.hostName;
     const cur = (await this.run('hostname', { quiet: true })).out.trim();
     if (cur === name) return { ok: true, note: 'نام سرور از قبل «' + name + '» است.' };
+    const free0 = await this.freeMb();
+    if (free0 !== null && free0 < 300) return { ok: false, note: this.diskNote(free0) };
     // hostnamectl talks to systemd-hostnamed, which on some servers cannot start (D-Bus time-out). Then the name is written the
     // old way (/etc/hostname + the kernel name); the machine works the same, so even a failure here does not stop the install.
     const q = name.replace(/[^a-z0-9-]/g, '');
@@ -309,6 +322,8 @@ class Session {
       if (s.code !== 0) return { ok: false, note: 'این کاربر دسترسی sudo ندارد یا رمز به sudo داده نشد. با کاربری وارد شوید که sudo دارد (یا root).' };
       this.log('دسترسی sudo تایید شد.', 'gray');
     }
+    const free = await this.freeMb();
+    if (free !== null && free < 3000) return { ok: false, note: this.diskNote(free) };
     const m = /رم: (\d+)/.exec(r.out);
     if (m && Number(m[1]) < 1500) return { ok: false, note: `رم سرور (${m[1]} مگابایت) برای ساخت برنامه کم است؛ دست‌کم ۲ گیگابایت لازم است.` };
     const apt = await this.run('command -v apt-get >/dev/null && echo apt', { quiet: true });
@@ -398,7 +413,11 @@ class Session {
     if (r.code === 0) return { ok: true, note: 'دانلود از Docker Hub مشکلی ندارد.' };
     this.log('دانلود از Docker Hub شکست خورد (معمولاً فیلتر یا ۴۰۳). آینه‌های Docker را تنظیم می‌کنم.', 'yellow');
     const json = JSON.stringify({ 'registry-mirrors': MIRRORS });
-    await this.run(`mkdir -p /etc/docker && [ -f /etc/docker/daemon.json ] && cp /etc/docker/daemon.json /etc/docker/daemon.json.bak-hoormand; printf '%s' ${sq(json)} > /etc/docker/daemon.json && systemctl restart docker`, { root: true, label: 'sudo (نوشتن آینه‌ها در /etc/docker/daemon.json و راه‌اندازی دوبارهٔ Docker)' });
+    const free1 = await this.freeMb();
+    if (free1 !== null && free1 < 500) return { ok: false, note: this.diskNote(free1) };
+    // the new file is written beside the old one and moved into place only when it is complete; if Docker does not come back,
+    // the old file is put back (a half-written daemon.json would keep Docker from starting at all)
+    await this.run(`mkdir -p /etc/docker && { [ ! -f /etc/docker/daemon.json ] || cp /etc/docker/daemon.json /etc/docker/daemon.json.bak-hoormand; } && printf '%s' ${sq(json)} > /etc/docker/daemon.json.new && mv /etc/docker/daemon.json.new /etc/docker/daemon.json && { systemctl restart docker || { if [ -f /etc/docker/daemon.json.bak-hoormand ]; then mv /etc/docker/daemon.json.bak-hoormand /etc/docker/daemon.json; else rm -f /etc/docker/daemon.json; fi; systemctl restart docker; false; }; }`, { root: true, label: 'sudo (نوشتن آینه‌ها در /etc/docker/daemon.json و راه‌اندازی دوبارهٔ Docker)' });
     await sleep(4000);
     r = await pull();
     if (r.code === 0) return { ok: true, note: 'با آینهٔ Docker دانلود جواب داد.' };
