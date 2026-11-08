@@ -654,6 +654,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   inboxReply: (b: { customerId: string; channel: string; text: string }) => request<{ ok: true }>('POST', '/api/inbox/reply', b),
   inboxRead: (customerId: string) => request<{ ok: true }>('POST', '/api/inbox/read', { customerId }),
   aiFunnelStart: () => request<{ id: string; total: number }>('POST', '/api/crm/ai-funnel/start', {}),
+  aiFunnelLast: () => request<{ items: Record<string, unknown>[]; at: string; by?: string; total?: number }>('GET', '/api/crm/ai-funnel-last'),
   aiFunnelGet: (id: string) => request<{ status: 'running' | 'done' | 'error'; total: number; done: number; error: string; items: Record<string, unknown>[] }>('GET', `/api/crm/ai-funnel/${encodeURIComponent(id)}`),
   campaignList: () => request<{ campaigns: import('../types').Campaign[] }>('GET', '/api/campaigns'),
   campaignSave: (c: import('../types').Campaign) => request<{ ok: true }>('PUT', `/api/campaigns/${encodeURIComponent(c.id)}`, c),

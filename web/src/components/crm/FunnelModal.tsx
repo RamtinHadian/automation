@@ -6,7 +6,7 @@ import { formatMoney, toDisplay, unitName } from '../../lib/money';
 import { formatTaskDate, isoToJalaliParts, JALALI_MONTHS, todayIso } from '../../lib/taskDates';
 import { shortDay } from '../../lib/adminStats';
 import { FunnelDark, FunnelRow } from './FunnelDark';
-import { FunnelAiPage } from './FunnelAiPage';
+import { FunnelAiButton, FunnelAiOrbit, FunnelAiResults, useFunnelAi } from './FunnelAi';
 import { C, ChartCard, Columns, compact, Donut, fa, HBars, SERIES, TrendChart } from '../admin/charts';
 
 /**
@@ -113,7 +113,7 @@ const Pick: React.FC<{ value: string; options: { id: string; label: string }[]; 
 );
 
 export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activities: CrmActivity[]; onClose: () => void; canMoney?: boolean; canAi?: boolean; onOpenCustomer?: (id: string) => void }> = ({ customers, deals, activities, onClose, canMoney = true, canAi = false, onOpenCustomer }) => {
-  const [aiOpen, setAiOpen] = useState(false);
+  const ai = useFunnelAi(canAi);
   // the stretch magnifier: the funnel is made smaller or bigger by dragging a bar to the left or to the right (remembered)
   const [zoom, setZoomState] = useState<number>(() => {
     try { const v = Number(localStorage.getItem('crm_funnel_zoom')); return v >= 0.4 && v <= 1.3 ? v : 1; } catch { return 1; }
@@ -311,9 +311,7 @@ export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activ
                   {KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
                 </select>
               </label>
-              {canAi && (
-                <button type="button" onClick={() => setAiOpen(true)} data-funnel-ai-btn className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 cursor-pointer"><Sparkles className="w-3.5 h-3.5" />تحلیل هوش مصنوعی</button>
-              )}
+              {canAi && <FunnelAiButton ai={ai} />}
               {kind === 'funnel' && (
                 <div dir="ltr" className="flex items-center gap-2 text-[#8C6F66]" data-funnel-zoom>
                   <ZoomOut className="w-4 h-4" />
@@ -323,7 +321,8 @@ export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activ
                 </div>
               )}
               </div>
-              {kind === 'bars' || kind === 'columns' || kind === 'donut' ? funnelChart() : <FitBox design={kind === 'funnel' ? 1030 : undefined} zoom={zoom}>{funnelChart()}</FitBox>}
+              <FunnelAiOrbit ai={ai}>{kind === 'bars' || kind === 'columns' || kind === 'donut' ? funnelChart() : <FitBox design={kind === 'funnel' ? 1030 : undefined} zoom={zoom}>{funnelChart()}</FitBox>}</FunnelAiOrbit>
+              {canAi && <FunnelAiResults ai={ai} onOpenCustomer={onOpenCustomer ? (id) => { onClose(); onOpenCustomer(id); } : undefined} />}
             </ChartCard>
 
             <ChartCard title="فعالیت‌های آینده" subtitle="پیگیری‌های بازِ پیش‌رو و روز بستن فرصت‌ها">
@@ -381,7 +380,6 @@ export const FunnelModal: React.FC<{ customers: Customer[]; deals: Deal[]; activ
           </div>
         </div>
       </div>
-      {aiOpen && <FunnelAiPage onClose={() => setAiOpen(false)} onOpenCustomer={onOpenCustomer ? (id) => { setAiOpen(false); onClose(); onOpenCustomer(id); } : undefined} />}
     </div>
   );
 };

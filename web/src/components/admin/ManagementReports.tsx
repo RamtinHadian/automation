@@ -13,7 +13,7 @@ import { useAppContext } from '../../context/AppContext';
 import { SalesAnalysis } from './SalesAnalysis';
 import { FunnelDark, FunnelRow, STAGE_COLORS } from '../crm/FunnelDark';
 import { FitBox } from '../crm/FunnelModal';
-import { FunnelAiPage } from '../crm/FunnelAiPage';
+import { FunnelAiButton, FunnelAiOrbit, FunnelAiResults, useFunnelAi } from '../crm/FunnelAi';
 import { Sparkles } from 'lucide-react';
 import { canSub } from '../../lib/permissions';
 import { AiDailyReport } from './AiDailyReport';
@@ -35,7 +35,7 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
   // sums of money and numbers of sales are the managing director's only
   const me = useAppContext().currentUser;
   const seesTotals = canSeeSalesTotals(me);
-  const [funnelAi, setFunnelAi] = useState(false);
+  const ai = useFunnelAi(canSub(me, 'ai.funnel'));
   // Always read the whole company's numbers from the server, so it works in the user panel too (not only for admins).
   const [data, setData] = useState<Awaited<ReturnType<typeof api.statsData>> | null>(null);
   const [failed, setFailed] = useState(false);
@@ -192,10 +192,8 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
         </ChartCard>
 
         <ChartCard title="قیف فروش" subtitle={seesTotals ? 'تعداد فرصت در هر مرحله؛ مبلغ کنار هر ردیف' : 'تعداد فرصت در هر مرحله؛ سهم از همهٔ فرصت‌ها کنار هر ردیف'}>
-          {canSub(me, 'ai.funnel') && (
-            <button type="button" onClick={() => setFunnelAi(true)} className="mb-3 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 cursor-pointer"><Sparkles className="w-3.5 h-3.5" />تحلیل هوش مصنوعی</button>
-          )}
-          <FitBox design={1030}>
+          {canSub(me, 'ai.funnel') && <div className="mb-3"><FunnelAiButton ai={ai} /></div>}
+          <FunnelAiOrbit ai={ai}><FitBox design={1030}>
             <FunnelDark
               unit={unitName()}
               showMoney={seesTotals}
@@ -204,8 +202,8 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
                 return { id: f.stage, label: f.label, count: f.count, amount: compactM(f.value), reached, share: Math.round((reached / Math.max(1, all)) * 100), color: STAGE_COLORS[f.stage] || '#94a3b8' } as FunnelRow;
               }))(s.funnel.reduce((sum, x) => sum + x.count, 0))}
             />
-          </FitBox>
-          {funnelAi && <FunnelAiPage onClose={() => setFunnelAi(false)} />}
+          </FitBox></FunnelAiOrbit>
+          {canSub(me, 'ai.funnel') && <FunnelAiResults ai={ai} />}
           <div className="mt-3 text-[11px] font-bold text-[#8C6F66] flex flex-wrap gap-x-4 gap-y-1" data-funnel-summary>
             <span>از دست رفته: {toPersianDigits(deals.filter((d) => d.stage === 'LOST').length)}</span>
             <span>

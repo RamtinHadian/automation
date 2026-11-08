@@ -32,15 +32,17 @@ const aiFunnelPrompt = `تو مشاور ارشد فروش یک شرکت ایرا
 برای هر مشتریِ ورودی دقیقاً یک مورد بنویس.`
 
 type aiFunnelJob struct {
-	ID      string
-	Owner   string
-	Started time.Time
-	Status  string // running | done | error
-	Total   int
-	Done    int
-	Error   string
-	Items   []jsonx.M
-	Meta    map[string]jsonx.M // the facts shown on the page (name, stage, days…), by customer id
+	ID        string
+	Owner     string
+	OwnerName string
+	Scope     string
+	Started   time.Time
+	Status    string // running | done | error
+	Total     int
+	Done      int
+	Error     string
+	Items     []jsonx.M
+	Meta      map[string]jsonx.M // the facts shown on the page (name, stage, days…), by customer id
 }
 
 var (
@@ -135,7 +137,9 @@ func aiFunnelStart(w http.ResponseWriter, r *http.Request) {
 		}
 		order = append(order, cs{cid, sum})
 	}
-	sort.Slice(order, func(i, j int) bool { return order[i].sum > order[j].sum || (order[i].sum == order[j].sum && order[i].id < order[j].id) })
+	sort.Slice(order, func(i, j int) bool {
+		return order[i].sum > order[j].sum || (order[i].sum == order[j].sum && order[i].id < order[j].id)
+	})
 	if len(order) > 60 {
 		order = order[:60]
 	}
@@ -166,7 +170,7 @@ func aiFunnelStart(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 
-	job := &aiFunnelJob{ID: "af-" + strconv.FormatInt(time.Now().UnixNano(), 36), Owner: me.ID(), Started: time.Now(), Status: "running", Total: len(order), Meta: map[string]jsonx.M{}}
+	job := &aiFunnelJob{ID: "af-" + strconv.FormatInt(time.Now().UnixNano(), 36), Owner: me.ID(), OwnerName: me.Name(), Scope: aiFunnelScope(me), Started: time.Now(), Status: "running", Total: len(order), Meta: map[string]jsonx.M{}}
 	facts := []jsonx.M{}
 	for _, o := range order {
 		ds := byCust[o.id]
@@ -266,7 +270,42 @@ func runAiFunnel(job *aiFunnelJob, facts []jsonx.M, key, model string) {
 	}
 	aiFunnelMu.Lock()
 	job.Status = "done"
+	saved := jsonx.M{"items": job.Items, "total": job.Total, "by": job.OwnerName, "byId": job.Owner, "at": time.Now().UTC().Format("2006-01-02T15:04:05.000Z")}
+	scope := job.Scope
 	aiFunnelMu.Unlock()
+	if _, err := store.Pool.Exec(context.Background(), `INSERT INTO ai_funnel_last (scope, data, created_at) VALUES ($1,$2::jsonb,now()) ON CONFLICT (scope) DO UPDATE SET data = EXCLUDED.data, created_at = now()`, scope, jsonx.Encode(saved)); err != nil {
+		_ = err // the reading is still shown from the job; only the «last reading» memory is lost
+	}
+}
+
+// who shares a stored reading: everyone who sees every deal shares one; the others each have their own
+func aiFunnelScope(me auth.User) string {
+	if crmSeesAll(me) {
+		return "all"
+	}
+	return "u:" + me.ID()
+}
+
+// GET /api/crm/ai-funnel-last
+func aiFunnelLast(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if !me.CanUseCrm() {
+		httpx.Forbidden(w)
+		return
+	}
+	if aiDenied(w, me, "ai.funnel") {
+		return
+	}
+	raws, err := store.RawList(r.Context(), `SELECT data FROM ai_funnel_last WHERE scope = $1`, aiFunnelScope(me))
+	if err != nil {
+		internalError(w)
+		return
+	}
+	if len(raws) == 0 {
+		httpx.JSON(w, http.StatusOK, map[string]any{"items": []any{}, "at": ""})
+		return
+	}
+	httpx.JSON(w, http.StatusOK, jsonx.Decode(raws[0]))
 }
 
 // GET /api/crm/ai-funnel/{id}
@@ -290,5 +329,6 @@ func aiFunnelGet(w http.ResponseWriter, r *http.Request) {
 
 func registerAiFunnel(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/crm/ai-funnel/start", auth.Require(aiFunnelStart))
+	mux.HandleFunc("GET /api/crm/ai-funnel-last", auth.Require(aiFunnelLast))
 	mux.HandleFunc("GET /api/crm/ai-funnel/{id}", auth.Require(aiFunnelGet))
 }

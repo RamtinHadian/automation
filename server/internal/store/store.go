@@ -158,6 +158,12 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
+	// the last AI reading of the sales funnel, kept so it stays under the funnel until someone runs it again (one per scope: «all» for those who see every deal, else one per person)
+	`CREATE TABLE IF NOT EXISTS ai_funnel_last (
+	  scope TEXT PRIMARY KEY,
+	  data JSONB NOT NULL,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
 	`CREATE TABLE IF NOT EXISTS warranties (
 	  id TEXT PRIMARY KEY,
 	  customer_id TEXT NOT NULL DEFAULT '',
