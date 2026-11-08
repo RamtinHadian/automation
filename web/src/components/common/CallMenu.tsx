@@ -43,6 +43,15 @@ export const CallMenu: React.FC = () => {
     };
   }, [currentUser.id, currentUser.extension]);
 
+  // the state of the connection to the phone system is asked again every half minute (and when the tab comes back), so a lost link turns the icon red without a reload
+  useEffect(() => {
+    const ask = () => api.voipStatus().then(setStatus).catch(() => {});
+    const t = window.setInterval(ask, 30000);
+    const vis = () => { if (document.visibilityState === 'visible') ask(); };
+    document.addEventListener('visibilitychange', vis);
+    return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', vis); };
+  }, []);
+
   const place = () => {
     const btn = box.current?.getBoundingClientRect();
     if (!btn) return;
@@ -101,10 +110,13 @@ export const CallMenu: React.FC = () => {
       <button
         type="button"
         onClick={() => (dialing ? setOpen((o) => !o) : setLogOpen(true))}
-        title={dialing ? 'تماس تلفنی' : 'سابقهٔ تماس‌ها'}
-        className="flex items-center justify-center w-9 h-9 rounded-2xl bg-white border border-[#EBDBCE] text-[#3A241F] hover:bg-emerald-50 transition-all cursor-pointer"
+        title={!dialing ? 'سابقهٔ تماس‌ها' : status.connected ? 'تماس تلفنی (تلفن سازمان وصل است)' : 'تماس تلفنی (اتصال به تلفن سازمان قطع است)'}
+        data-voip-state={!dialing ? 'off' : status.connected ? 'on' : 'down'}
+        className={`relative flex items-center justify-center w-9 h-9 rounded-2xl bg-white border text-[#3A241F] transition-all cursor-pointer ${dialing && !status.connected ? 'border-rose-300 hover:bg-rose-50' : 'border-[#EBDBCE] hover:bg-emerald-50'}`}
       >
-        <Phone className="w-4 h-4 text-emerald-700" />
+        {/* connected: the green phone blinks softly; lost: the phone is red; no phone system at all: the usual quiet green */}
+        {dialing && status.connected && <span className="absolute inset-0 rounded-2xl ring-2 ring-emerald-400/70 animate-ping pointer-events-none" aria-hidden />}
+        <Phone className={`w-4 h-4 ${!dialing ? 'text-emerald-700' : status.connected ? 'text-emerald-600 animate-pulse' : 'text-rose-600'}`} />
       </button>
 
       {open &&
