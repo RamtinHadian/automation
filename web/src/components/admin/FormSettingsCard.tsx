@@ -2,10 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { ListChecks } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { CustomerForm } from '../crm/CustomerForm';
-import { Customer } from '../../types';
+import { DealForm } from '../crm/CrmView';
+import { Customer, Deal } from '../../types';
 import { TUNABLE_FORMS } from '../../lib/formConfig';
 import { toPersianDigits } from '../../lib/jalali';
 import { askConfirm } from '../../lib/confirmDialog';
+
+const blankDeal = (): Deal => ({
+  id: 'design-sample-deal', title: '', customerId: '', customerName: '', amount: 0, stage: 'NEW', ownerId: '', ownerName: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+});
 
 const blankCustomer = (): Customer => ({
   id: 'design-sample', name: '', phones: [], status: 'LEAD', tags: [], ownerId: '', ownerName: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
@@ -53,8 +58,11 @@ export const FormSettingsCard: React.FC = () => {
             );
           })}
         </div>
-        <p className="text-[11px] font-bold text-[#8C6F66]">فعلاً فرم مشتری قابل تنظیم است. فرم‌های دیگر (فرصت فروش، پیش‌فاکتور، نامه…) را هر کدام بخواهید، به همین روش اضافه می‌کنم.</p>
+        <p className="text-[11px] font-bold text-[#8C6F66]">فعلاً فرم مشتری و فرم فرصت فروش قابل تنظیم‌اند. فرم‌های دیگر (پیش‌فاکتور، نامه…) را هر کدام بخواهید، به همین روش اضافه می‌کنم.</p>
       </section>
+      {open === 'deal' && (
+        <DealForm initial={blankDeal()} isNew customers={[]} staff={staffList} canDelete={false} onClose={() => setOpen(null)} onSave={() => showToast('این فرم نمونه است؛ فقط تیک‌ها ذخیره می‌شوند.')} onProforma={() => undefined} onDelete={() => undefined} onCreateCustomer={() => undefined} />
+      )}
       {open === 'customer' && (
         <CustomerForm initial={blankCustomer()} isNew staff={staffList} customers={[]} canDelete={false} onClose={() => setOpen(null)} onSave={() => showToast('این فرم نمونه است؛ فقط تیک‌ها ذخیره می‌شوند.')} onDelete={() => undefined} />
       )}

@@ -5,7 +5,7 @@ import { formatCurrentJalaliDateTime, toPersianDigits } from '../../lib/jalali';
 import { compact } from '../admin/charts';
 import { toDisplay, unitName } from '../../lib/money';
 
-export type FunnelAiItem = { id: string; name: string; stage: string; idleDays: number; deals: number; amount?: number; problem: string; advice: string[]; say: string; priority: 'HIGH' | 'MED' | 'LOW' };
+export type FunnelAiItem = { id: string; name: string; stage: string; idleDays: number; deals: number; amount?: number; problem: string; advice: string[]; say: string; priority: 'HIGH' | 'MED' | 'LOW'; /** not analysed: nothing changed for a long time, only the time is told */ stale?: boolean };
 type Phase = 'idle' | 'running' | 'done' | 'error';
 export type FunnelAiState = {
   phase: Phase; total: number; done: number; items: FunnelAiItem[]; err: string; at: string; by: string; start: () => void;
@@ -159,7 +159,9 @@ export const FunnelAiOrbit: React.FC<{ ai: FunnelAiState; children: React.ReactN
 export const FunnelAiResults: React.FC<{ ai: FunnelAiState; onOpenCustomer?: (id: string) => void }> = ({ ai, onOpenCustomer }) => {
   const [filter, setFilter] = useState<'ALL' | 'HIGH' | 'MED' | 'LOW'>('ALL');
   const [copied, setCopied] = useState('');
-  const { items, phase } = ai;
+  const { phase } = ai;
+  const items = useMemo(() => ai.items.filter((x) => !x.stale), [ai.items]);
+  const quiet = useMemo(() => ai.items.filter((x) => x.stale).sort((a, b) => (b.amount || 0) - (a.amount || 0) || (a.idleDays || 0) - (b.idleDays || 0)), [ai.items]);
   const shown = useMemo(() => {
     const rank = { HIGH: 0, MED: 1, LOW: 2 } as const;
     return items.filter((x) => filter === 'ALL' || norm(x) === filter).slice().sort((a, b) => rank[norm(a)] - rank[norm(b)] || (b.idleDays || 0) - (a.idleDays || 0));
@@ -176,7 +178,7 @@ export const FunnelAiResults: React.FC<{ ai: FunnelAiState; onOpenCustomer?: (id
       </div>
     );
   }
-  if (!items.length) return null;
+  if (!ai.items.length) return null;
   const when = ai.at ? formatCurrentJalaliDateTime(new Date(ai.at)) : '';
   return (
     <section className="mt-5 rounded-3xl overflow-hidden border border-violet-200 bg-white" data-funnel-ai-result>
@@ -186,7 +188,7 @@ export const FunnelAiResults: React.FC<{ ai: FunnelAiState; onOpenCustomer?: (id
           <div className="min-w-0">
             <h4 className="font-black text-[15px]">تحلیل هوش مصنوعی قیف فروش</h4>
             <div className="text-[11.5px] font-bold text-white/90 mt-0.5" data-funnel-ai-meta>
-              {phase === 'running' ? 'در حال نوشتن تحلیل؛ هر مشتری که آماده شد همین‌جا می‌آید…' : <>انجام‌شده در {when || '—'}{ai.by ? ` · توسط ${ai.by}` : ''} · {toPersianDigits(items.length)} مشتری</>}
+              {phase === 'running' ? 'در حال نوشتن تحلیل؛ هر مشتری که آماده شد همین‌جا می‌آید…' : <>انجام‌شده در {when || '—'}{ai.by ? ` · توسط ${ai.by}` : ''} · {toPersianDigits(items.length)} مشتری تحلیل شد{quiet.length > 0 ? ` · ${toPersianDigits(quiet.length)} مشتری راکد (فقط زمان)` : ''}</>}
             </div>
           </div>
           {phase !== 'running' && <button type="button" onClick={ai.start} className="mr-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black bg-white text-violet-700 hover:bg-violet-50 cursor-pointer"><Sparkles className="w-3.5 h-3.5" />تحلیل دوباره</button>}
@@ -230,6 +232,24 @@ export const FunnelAiResults: React.FC<{ ai: FunnelAiState; onOpenCustomer?: (id
             </article>
           );
         })}
+        {items.length === 0 && phase !== 'running' && <div className="text-xs font-bold text-[#8C6F66] text-center py-3">مشتری تازه‌ای برای تحلیل نبود؛ همهٔ فرصت‌ها مدت‌هاست تغییری نکرده‌اند.</div>}
+        {quiet.length > 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden" data-funnel-quiet>
+            <div className="px-4 py-2.5 bg-slate-100 text-[12px] font-black text-slate-700">راکد: فرصت‌هایشان بیش از {toPersianDigits(45)} روز تغییری نکرده (تحلیل نشدند؛ فقط زمان اعلام می‌شود)</div>
+            <div className="divide-y divide-slate-100">
+              {quiet.map((x) => {
+                const st = STAGE[x.stage] || { label: x.stage || '—', color: '#94a3b8' };
+                return (
+                  <div key={x.id} className="flex flex-wrap items-center gap-2 px-4 py-2" data-funnel-quiet-row>
+                    <button type="button" onClick={() => onOpenCustomer?.(x.id)} className={`font-black text-[13px] text-[#3A241F] ${onOpenCustomer ? 'hover:text-violet-700 cursor-pointer' : 'cursor-default'}`}>{x.name || 'بدون نام'}</button>
+                    <span className="text-[10px] font-black rounded-full px-2 py-0.5 text-white" style={{ background: st.color }}>{st.label}</span>
+                    <span className="text-[11px] font-bold text-slate-500 mr-auto">{toPersianDigits(x.idleDays)} روز بدون تغییر{x.deals > 1 ? ` · ${toPersianDigits(x.deals)} فرصت` : ''}{typeof x.amount === 'number' && x.amount > 0 ? ` · ${compact(toDisplay(x.amount))} ${unitName()}` : ''}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

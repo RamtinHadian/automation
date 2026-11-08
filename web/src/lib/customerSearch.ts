@@ -77,3 +77,25 @@ export function tokenHit(line: string, tok: string): boolean {
   }
   return re.test(line);
 }
+
+/**
+ * How well a customer answers a search, so the best answers come first: the owner / person's name counts most (for a shop it is the owner,
+ * the person who is looked for), then the shop or company name, then what the shop does (the line of business), then city and notes, then everything else.
+ */
+export function relevance(c: Customer, line: string | undefined, query: string): number {
+  const q = fold(query).trim();
+  if (!q) return 0;
+  const fields: [string, number][] = [
+    [fold(`${c.firstName || ''} ${c.lastName || ''} ${c.repName || ''}`), 100],
+    [fold(`${c.name || ''} ${c.company || ''}`), 70],
+    [fold(c.shopType || ''), 45],
+    [fold(`${c.city || ''} ${c.province || ''} ${c.notes || ''}`), 15],
+  ];
+  let total = 0;
+  for (const tok of q.split(/\s+/)) {
+    let best = line && tokenHit(line, tok) ? 5 : 0;
+    for (const [text, w] of fields) if (w > best && text && tokenHit(text, tok)) best = w;
+    total += best;
+  }
+  return total;
+}

@@ -20,4 +20,5 @@ export const requiredOf = (cfg: FormCfg | undefined, formId: string): string[] =
 /** The forms that can be tuned (each one carries data-form-id with this id). */
 export const TUNABLE_FORMS: { id: string; title: string; hint: string }[] = [
   { id: 'customer', title: 'مشتری جدید / ویرایش مشتری', hint: 'فیلدهای تعریف مشتری، اجباری‌ها و ترتیب Enter' },
+  { id: 'deal', title: 'فرصت فروش جدید / ویرایش فرصت', hint: 'فیلدهای فرصت (کد کالا، تعداد، قیمت‌ها، مسئول، یادداشت…)، اجباری‌ها و ترتیب Enter' },
 ];

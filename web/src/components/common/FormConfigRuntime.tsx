@@ -42,7 +42,8 @@ function scan(form: HTMLFormElement): Field[] {
   form.querySelectorAll<HTMLElement>('[data-fc-field]').forEach((box) => {
     const key = box.getAttribute('data-fc-field') || '';
     const controls = Array.from(box.querySelectorAll<HTMLElement>(CONTROLS)).filter((c) => !c.closest('[data-design-bar]') && (c as HTMLInputElement).type !== 'radio');
-    if (key && controls.length) out.push({ key, container: box, label: box, controls, list: true });
+    // data-fc-single: a box that holds ONE field (like the title of an opportunity, whose input sits outside any label), not a list of entries
+    if (key && controls.length) out.push({ key, container: box, label: box.querySelector<HTMLElement>('[data-fc-title]') || box, controls, list: !box.hasAttribute('data-fc-single') });
   });
   out.sort((a, b) => (a.container.compareDocumentPosition(b.container) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
   return out;

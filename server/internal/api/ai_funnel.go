@@ -43,6 +43,7 @@ type aiFunnelJob struct {
 	Error     string
 	Items     []jsonx.M
 	Meta      map[string]jsonx.M // the facts shown on the page (name, stage, days…), by customer id
+	Stale     []jsonx.M          // customers whose opportunities have not changed for a long time: not sent to the AI, only the time is reported
 }
 
 var (
@@ -57,6 +58,9 @@ func aiFunnelGC() {
 		}
 	}
 }
+
+// A customer none of whose opportunities changed for this many days is not analysed by the AI (it would only repeat «nothing happened»): the page just says how long it has been quiet.
+const aiFunnelStaleDays = 45
 
 var funnelOpen = map[string]bool{"NEW": true, "CONTACTED": true, "PROPOSAL": true, "NEGOTIATION": true}
 
@@ -124,27 +128,53 @@ func aiFunnelStart(w http.ResponseWriter, r *http.Request) {
 	}
 	// the customers with the most money in play first (and at most 60 per run, so one run stays quick and cheap)
 	type cs struct {
-		id  string
-		sum float64
+		id    string
+		sum   float64
+		idle  int // days since the most recent change of any opportunity of the customer
+		stage string
 	}
 	order := []cs{}
 	for cid, ds := range byCust {
 		sum := 0.0
+		idle, stage := -1, ""
 		for _, d := range ds {
 			if funnelOpen[jsonx.Str(d, "stage")] {
 				sum += jsonx.Num(d["amount"])
 			}
+			if since := daysSince(jsonx.Str(d, "updatedAt")); since >= 0 && (idle < 0 || since < idle) {
+				idle, stage = since, jsonx.Str(d, "stage")
+			}
 		}
-		order = append(order, cs{cid, sum})
+		if idle < 0 { // no readable date: treat the customer as current rather than hide it
+			idle = 0
+		}
+		order = append(order, cs{cid, sum, idle, stage})
 	}
 	sort.Slice(order, func(i, j int) bool {
 		return order[i].sum > order[j].sum || (order[i].sum == order[j].sum && order[i].id < order[j].id)
 	})
-	if len(order) > 60 {
-		order = order[:60]
-	}
-	ids := make([]string, 0, len(order))
+	fresh, quiet := []cs{}, []cs{}
 	for _, o := range order {
+		if o.idle > aiFunnelStaleDays {
+			quiet = append(quiet, o)
+		} else {
+			fresh = append(fresh, o)
+		}
+	}
+	if len(fresh) > 60 {
+		fresh = fresh[:60]
+	}
+	if len(quiet) > 100 {
+		quiet = quiet[:100]
+	}
+	order = fresh
+	ids := make([]string, 0, len(fresh)+len(quiet))
+	freshIDs := make([]string, 0, len(fresh))
+	for _, o := range fresh {
+		ids = append(ids, o.id)
+		freshIDs = append(freshIDs, o.id)
+	}
+	for _, o := range quiet {
 		ids = append(ids, o.id)
 	}
 	names := map[string]string{}
@@ -158,7 +188,7 @@ func aiFunnelStart(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 	acts := map[string][]jsonx.M{}
-	if rows, qerr := store.Pool.Query(ctx, `SELECT customer_id, data FROM crm_activities WHERE customer_id = ANY($1) AND COALESCE(data->>'type', '') <> 'MISSING' ORDER BY created_at DESC LIMIT 1500`, ids); qerr == nil {
+	if rows, qerr := store.Pool.Query(ctx, `SELECT customer_id, data FROM crm_activities WHERE customer_id = ANY($1) AND COALESCE(data->>'type', '') <> 'MISSING' ORDER BY created_at DESC LIMIT 1500`, freshIDs); qerr == nil {
 		for rows.Next() {
 			var cid string
 			var raw []byte
@@ -198,6 +228,15 @@ func aiFunnelStart(w http.ResponseWriter, r *http.Request) {
 		}
 		job.Meta[o.id] = meta
 		facts = append(facts, jsonx.M{"id": o.id, "name": names[o.id], "deals": dl, "recentActivities": acts[o.id]})
+	}
+	for _, o := range quiet { // not analysed: only how long it has been quiet
+		ds := byCust[o.id]
+		item := jsonx.M{"id": o.id, "name": names[o.id], "stage": o.stage, "idleDays": o.idle, "deals": len(ds), "stale": true, "priority": "LOW", "advice": []any{}, "say": "",
+			"problem": "فرصت‌های این مشتری " + strconv.Itoa(o.idle) + " روز است تغییری نکرده؛ برای همین تحلیل نشد."}
+		if money {
+			item["amount"] = o.sum
+		}
+		job.Stale = append(job.Stale, item)
 	}
 	aiFunnelMu.Lock()
 	aiFunnelGC()
@@ -269,6 +308,7 @@ func runAiFunnel(job *aiFunnelJob, facts []jsonx.M, key, model string) {
 		aiFunnelMu.Unlock()
 	}
 	aiFunnelMu.Lock()
+	job.Items = append(job.Items, job.Stale...)
 	job.Status = "done"
 	saved := jsonx.M{"items": job.Items, "total": job.Total, "by": job.OwnerName, "byId": job.Owner, "at": time.Now().UTC().Format("2006-01-02T15:04:05.000Z")}
 	scope := job.Scope

@@ -270,6 +270,10 @@ export interface Deal {
   quantity?: number;
   /** The price of one (in the same unit as amount). */
   unitPrice?: number;
+  /** The prices offered for one: the cash price and the prices for paying later (45 days, one month…). The one used for the amount is in unitPrice; priceChoice says which. */
+  priceOptions?: { id: string; /** '' = cash, otherwise the term («۴۵ روزه») */ term: string; unitPrice: number }[];
+  /** the id of the option whose price is in unitPrice (empty when the price was typed by hand) */
+  priceChoice?: string;
   /** Amount in Toman. */
   amount: number;
   stage: DealStage;

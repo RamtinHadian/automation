@@ -34,7 +34,7 @@ import {
   Gift,
   Sparkles,
   BookUser,
-  SlidersHorizontal, Link2, Landmark, Tags, Maximize2, Megaphone, Boxes, BellPlus } from 'lucide-react';
+  SlidersHorizontal, Link2, Landmark, Tags, Maximize2, Megaphone, Boxes, BellPlus, Store } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
@@ -85,7 +85,7 @@ import { dealCloseTime } from '../../lib/dealTime';
 import { dragStartCard, droppedCard, moveAllowed } from '../../lib/dragGuard';
 import { QuoteForm } from './QuoteForm';
 import { CustomerSummaryStrip } from './CustomerSummary';
-import { buildCustomerIndex, matchesQuery } from '../../lib/customerSearch';
+import { buildCustomerIndex, matchesQuery, relevance } from '../../lib/customerSearch';
 import { canSub, canSeeSalesTotals } from '../../lib/permissions';
 import { SEPIDAR_FIELDS, sepidarValueText } from '../../lib/sepidarCustomerFields';
 
@@ -312,6 +312,8 @@ export const CrmView: React.FC = () => {
   const boughtIds = useMemo(() => new Set(deals.filter((d) => d.stage === 'WON').map((d) => d.customerId)), [deals]);
   const filteredCustomers = useMemo(() => {
     const quietLimit = adv.quiet ? Date.now() - Number(adv.quiet) * 86400000 : 0;
+    const rank = new Map<string, number>(); // with a search text, the best answers (the owner's name first) come before the chosen order
+    if (search.trim()) for (const c of customers) rank.set(c.id, relevance(c, searchIndex.get(c.id), search));
     return customers
       .filter((c) => (statusFilter === 'ALL' ? true : c.status === statusFilter))
       .filter((c) => (mineOnly ? c.ownerId === me : true))
@@ -320,11 +322,12 @@ export const CrmView: React.FC = () => {
       .filter((c) => (adv.bought === 'yes' ? boughtIds.has(c.id) : adv.bought === 'no' ? !boughtIds.has(c.id) : true))
       .filter((c) => !quietLimit || new Date(lastActivity.get(c.id) || c.updatedAt).getTime() < quietLimit)
       .sort((a, b) =>
-        custSort === 'newest' ? (b.createdAt || '').localeCompare(a.createdAt || '')
+        (rank.get(b.id) || 0) - (rank.get(a.id) || 0) ||
+        (custSort === 'newest' ? (b.createdAt || '').localeCompare(a.createdAt || '')
         : custSort === 'oldest' ? (a.createdAt || '').localeCompare(b.createdAt || '')
         : custSort === 'az' ? (a.name || '').localeCompare(b.name || '', 'fa')
         : custSort === 'za' ? (b.name || '').localeCompare(a.name || '', 'fa')
-        : (lastActivity.get(b.id) || b.updatedAt).localeCompare(lastActivity.get(a.id) || a.updatedAt));
+        : (lastActivity.get(b.id) || b.updatedAt).localeCompare(lastActivity.get(a.id) || a.updatedAt)));
   }, [customers, statusFilter, mineOnly, search, me, lastActivity, searchIndex, adv, boughtIds, custSort]);
   // every filter of the list is lifted: a customer that was just made (here, or from the phone book / a call) must be seen in the list, not hidden behind the
   // search text, the status, «فقط مشتریان من» or the advanced filters that were left on
@@ -564,6 +567,8 @@ export const CrmView: React.FC = () => {
         <div className="flex-1 min-w-0">
           <div className="font-black text-[12.5px] text-[#3A241F] truncate">{c.name}</div>
           {c.company && c.company !== c.name && <div className="text-[10.5px] text-[#8C6F66] truncate">{c.company}</div>}
+          {c.kind === 'SHOP' && (c.firstName || c.lastName) && <div className="text-[11px] font-black text-[#3A241F] truncate" data-shop-owner>مالک: {`${c.firstName || ''} ${c.lastName || ''}`.trim()}</div>}
+          {c.kind === 'SHOP' && c.shopType && <div className="text-[10.5px] text-[#8C6F66] truncate" data-shop-type>{c.shopType}</div>}
         </div>
         <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}
         <div className="hidden sm:block w-32 text-[11px] font-bold text-[#3A241F]" dir="ltr">{toPersianDigits(c.phones?.[0] || '')}</div>
@@ -591,9 +596,15 @@ export const CrmView: React.FC = () => {
               </div>
             )}
             {c.kind === 'SHOP' && (c.firstName || c.lastName) && (
-              <div className="text-[11px] text-[#8C6F66] flex items-center gap-1 truncate">
-                <Users className="w-3 h-3 shrink-0" />
+              <div className="text-[12px] font-black text-[#3A241F] flex items-center gap-1 truncate" data-shop-owner>
+                <Users className="w-3 h-3 shrink-0 text-[#8C6F66]" />
                 مالک: {`${c.firstName || ''} ${c.lastName || ''}`.trim()}
+              </div>
+            )}
+            {c.kind === 'SHOP' && c.shopType && (
+              <div className="text-[11px] text-[#8C6F66] flex items-center gap-1 truncate" data-shop-type>
+                <Store className="w-3 h-3 shrink-0" />
+                {c.shopType}
               </div>
             )}
           </div>
@@ -1497,7 +1508,10 @@ const DealReminder: React.FC<{ deal: Deal; customerName: string }> = ({ deal, cu
   );
 };
 
-const DealForm: React.FC<{
+/** The common terms of a price for paying later; «سایر» lets the seller write his own. */
+const PRICE_TERMS = ['۱۵ روزه', '۳۰ روزه (یک‌ماهه)', '۴۵ روزه', '۶۰ روزه (دوماهه)', '۹۰ روزه (سه‌ماهه)', '۱۲۰ روزه', '۶ ماهه', 'یک‌ساله'];
+
+export const DealForm: React.FC<{
   initial: Deal;
   isNew: boolean;
   customers: Customer[];
@@ -1558,6 +1572,21 @@ const DealForm: React.FC<{
   const [unitNow, setUnitNow] = useState(initUnit);
   const [amountText, setAmountText] = useState(initUnit ? toman(initUnit) : '');
   const patch = (u: Partial<Deal>) => setD((p) => ({ ...p, ...u }));
+  // the cash price and the prices for paying later: each is a price of ONE; «استفاده» puts the chosen one in the unit price of the opportunity
+  const options = d.priceOptions || [];
+  const setOptions = (list: NonNullable<Deal['priceOptions']>) => patch({ priceOptions: list.length ? list : undefined });
+  const cashOption = options.find((o) => !o.term);
+  const useOption = (o: { id: string; unitPrice: number }) => {
+    setUnitNow(o.unitPrice);
+    setAmountText(o.unitPrice ? toman(o.unitPrice) : '');
+    patch({ unitPrice: o.unitPrice, amount: o.unitPrice * (d.quantity || 1), priceChoice: o.id });
+  };
+  const editOption = (id: string, u: Partial<{ term: string; unitPrice: number }>) => {
+    const list = options.map((o) => (o.id === id ? { ...o, ...u } : o));
+    setOptions(list);
+    const o = list.find((x) => x.id === id);
+    if (o && d.priceChoice === id && u.unitPrice !== undefined) { setUnitNow(o.unitPrice); setAmountText(o.unitPrice ? toman(o.unitPrice) : ''); patch({ priceOptions: list, unitPrice: o.unitPrice, amount: o.unitPrice * (d.quantity || 1) }); }
+  };
   const valid = d.title.trim() && d.customerId && (d.stage !== 'LOST' || !!d.lostReason);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1579,7 +1608,7 @@ const DealForm: React.FC<{
     }
   };
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} data-form-id="deal">
       <Modal
         title={isNew ? 'فرصت فروش جدید' : 'ویرایش فرصت فروش'}
         onClose={onClose}
@@ -1628,6 +1657,7 @@ const DealForm: React.FC<{
               <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center">۱</span>
               <label className="text-[11px] font-black text-[#3A241F]">عنوان فرصت *</label>
             </div>
+            <div data-fc-field="عنوان فرصت" data-fc-single>
             <ProductTitleInput
               className={field}
               value={d.title}
@@ -1640,6 +1670,7 @@ const DealForm: React.FC<{
               fid="main-title"
               extraAttrs={{ 'data-deal-title': true }}
             />
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-[1fr_0.55fr_1.7fr_1.7fr] gap-3">
               <div>
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
@@ -1667,7 +1698,7 @@ const DealForm: React.FC<{
                     inputMode="numeric"
                     dir="ltr"
                     value={amountText}
-                    onChange={(e) => { const n = parseNumber(e.target.value); const unit = fromDisplay(n); setAmountText(n ? formatNumber(n) : ''); setUnitNow(unit); patch({ unitPrice: unit, amount: unit * (d.quantity || 1) }); }}
+                    onChange={(e) => { const n = parseNumber(e.target.value); const unit = fromDisplay(n); setAmountText(n ? formatNumber(n) : ''); setUnitNow(unit); patch({ unitPrice: unit, amount: unit * (d.quantity || 1), priceChoice: undefined }); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'amount'); } }}
                     placeholder="۰"
                     data-deal-amount
@@ -1679,6 +1710,39 @@ const DealForm: React.FC<{
               <div>
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">جمع این ردیف</label>
                 <div className={`${field} bg-violet-50 border-violet-200 font-black text-violet-900`} data-deal-line-total>{toman(d.amount || 0)}</div>
+              </div>
+            </div>
+            <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50/40 p-2.5 space-y-2" data-deal-prices>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-black text-[#3A241F]">قیمت نقدی و قیمت مدت‌دار (هر واحد)</span>
+                <span className="text-[10px] font-bold text-[#8C6F66]">اگر مشتری نقد بخرد یک قیمت و اگر مدت‌دار بخواهد قیمت دیگر؛ هر کدام را بخواهید «استفاده» بزنید تا در قیمت واحد بنشیند.</span>
+              </div>
+              {options.map((o) => (
+                <div key={o.id} className="flex flex-wrap items-center gap-2" data-price-option>
+                  {o.term === '' ? (
+                    <span className="w-40 text-[11px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-2">قیمت نقدی</span>
+                  ) : (
+                    <div className="flex items-center gap-1.5 w-40">
+                      <select className={`${field} !py-1.5 !text-[11px]`} value={PRICE_TERMS.includes(o.term) ? o.term : 'سایر'} onChange={(e) => editOption(o.id, { term: e.target.value === 'سایر' ? 'مدت دلخواه' : e.target.value })} aria-label="مدت پرداخت">
+                        {PRICE_TERMS.map((t) => <option key={t} value={t}>مدت‌دار: {t}</option>)}
+                        <option value="سایر">مدت‌دار: سایر…</option>
+                      </select>
+                    </div>
+                  )}
+                  {o.term !== '' && !PRICE_TERMS.includes(o.term) && (
+                    <input className={`${field} !py-1.5 !text-[11px] w-32`} value={o.term} onChange={(e) => editOption(o.id, { term: e.target.value })} placeholder="مثلاً ۷۵ روزه" aria-label="مدت دلخواه" />
+                  )}
+                  <div className="relative w-44">
+                    <input className={`${field} pl-14 text-left !py-1.5`} inputMode="numeric" dir="ltr" value={o.unitPrice ? toman(o.unitPrice) : ''} onChange={(e) => editOption(o.id, { unitPrice: fromDisplay(parseNumber(e.target.value)) })} placeholder="قیمت یک واحد" aria-label="قیمت" />
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black rounded-md px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 pointer-events-none">{unitName()}</span>
+                  </div>
+                  <button type="button" onClick={() => useOption(o)} disabled={!o.unitPrice} className={`px-3 py-1.5 rounded-lg text-[11px] font-black border cursor-pointer disabled:opacity-40 ${d.priceChoice === o.id ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-violet-700 border-violet-200 hover:bg-violet-50'}`}>{d.priceChoice === o.id ? '✓ در حال استفاده' : 'استفاده'}</button>
+                  <button type="button" onClick={() => { setOptions(options.filter((x) => x.id !== o.id)); if (d.priceChoice === o.id) patch({ priceChoice: undefined }); }} className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer" aria-label="حذف این قیمت"><X className="w-4 h-4" /></button>
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-2">
+                {!cashOption && <button type="button" onClick={() => setOptions([{ id: uid('po'), term: '', unitPrice: 0 }, ...options])} className="px-3 py-1.5 rounded-lg text-[11px] font-black text-emerald-800 bg-white border border-emerald-200 hover:bg-emerald-50 cursor-pointer" data-add-cash>+ قیمت نقدی</button>}
+                <button type="button" onClick={() => setOptions([...options, { id: uid('po'), term: '۳۰ روزه (یک‌ماهه)', unitPrice: 0 }])} className="px-3 py-1.5 rounded-lg text-[11px] font-black text-violet-700 bg-white border border-violet-200 hover:bg-violet-50 cursor-pointer" data-add-term>+ قیمت مدت‌دار</button>
               </div>
             </div>
           </div>
