@@ -1587,7 +1587,9 @@ export const DealForm: React.FC<{
     const o = list.find((x) => x.id === id);
     if (o && d.priceChoice === id && u.unitPrice !== undefined) { setUnitNow(o.unitPrice); setAmountText(o.unitPrice ? toman(o.unitPrice) : ''); patch({ priceOptions: list, unitPrice: o.unitPrice, amount: o.unitPrice * (d.quantity || 1) }); }
   };
-  const valid = d.title.trim() && d.customerId && (d.stage !== 'LOST' || !!d.lostReason);
+  // the title is required only when the administrator ticked «اجباری» for it in the console (the form blocks saving then); otherwise an empty title is named after the product code or the customer
+  const named = (x: Deal): Deal => (x.title.trim() ? x : { ...x, title: x.productCode?.trim() || `فرصت ${customers.find((cu) => cu.id === x.customerId)?.name || x.customerName || ''}`.trim() });
+  const valid = d.customerId && (d.stage !== 'LOST' || !!d.lostReason);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid) return;
@@ -1595,7 +1597,7 @@ export const DealForm: React.FC<{
     const co = (d.coOwnerIds || []).filter((id) => id !== d.ownerId);
     const gid = filledMore.length ? d.groupId || uid('gr') : d.groupId;
     const base = d.groupSeq ?? 1;
-    const main = { ...d, groupId: gid, groupSeq: gid ? base : undefined, ownerName: owner?.fullName || d.ownerName, coOwnerIds: co, coOwnerNames: co.map((id) => staff.find((u) => u.id === id)?.fullName || '') };
+    const main = { ...named(d), groupId: gid, groupSeq: gid ? base : undefined, ownerName: owner?.fullName || d.ownerName, coOwnerIds: co, coOwnerNames: co.map((id) => staff.find((u) => u.id === id)?.fullName || '') };
     onSave(main);
     if (filledMore.length && onSaveMore) {
       const at = nowIso();
@@ -1627,7 +1629,7 @@ export const DealForm: React.FC<{
               {valid && (
                 <button type="button" onClick={async () => {
                   const owner = staff.find((u) => u.id === d.ownerId)?.fullName || d.ownerName;
-                  if (!filledMore.length) { onProforma({ ...d, ownerName: owner }); return; }
+                  if (!filledMore.length) { onProforma({ ...named(d), ownerName: owner }); return; }
                   // several lines written together: they all are opportunities of this customer; they become ONE opportunity with one proforma
                   const lines = [{ title: d.title.trim(), qty: d.quantity && d.quantity > 0 ? d.quantity : 1, unitPrice: unitNow, code: d.productCode }, ...filledMore.map((r) => ({ title: r.title.trim(), qty: r.qty || 1, unitPrice: unitOfMore(r), code: r.code.trim() || undefined }))];
                   const who = customers.find((c) => c.id === d.customerId)?.name || d.customerName || 'این مشتری';
@@ -1653,11 +1655,11 @@ export const DealForm: React.FC<{
         {/* every opportunity is a card; the cards stand one under another: the title on its own line, the code and the amount under it */}
         <div className="space-y-3" data-deal-cards>
           <div className="rounded-2xl border border-[#EBDBCE] bg-white p-3.5 space-y-3 shadow-2xs" data-deal-card-main>
+            <div data-fc-field="عنوان فرصت" data-fc-single className="space-y-3">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center">۱</span>
-              <label className="text-[11px] font-black text-[#3A241F]">عنوان فرصت *</label>
+              <label data-fc-title className="text-[11px] font-black text-[#3A241F]">عنوان فرصت</label>
             </div>
-            <div data-fc-field="عنوان فرصت" data-fc-single>
             <ProductTitleInput
               className={field}
               value={d.title}
@@ -1671,7 +1673,7 @@ export const DealForm: React.FC<{
               extraAttrs={{ 'data-deal-title': true }}
             />
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-[1fr_0.55fr_1.7fr_1.7fr] gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.55fr)_minmax(0,1.7fr)_minmax(0,1.7fr)] gap-3 [&>div]:min-w-0">
               <div>
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
                 <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
@@ -1766,7 +1768,7 @@ export const DealForm: React.FC<{
                 }}
                 placeholder="عنوان فرصت"
               />
-              <div className="grid grid-cols-2 sm:grid-cols-[1fr_0.55fr_1.7fr_1.7fr] gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.55fr)_minmax(0,1.7fr)_minmax(0,1.7fr)] gap-3 [&>div]:min-w-0">
                 <div>
                   <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
                   <input className={field} dir="ltr" value={r.code} onChange={(e) => patchMore(r.id, { code: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="مثلاً A-1024" data-fid={`${r.id}-code`} />

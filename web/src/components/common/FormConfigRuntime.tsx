@@ -103,6 +103,7 @@ export const FormConfigRuntime: React.FC = () => {
       const id = form.getAttribute('data-form-id') || '';
       const cfg = cfgRef.current[id] || {};
       const isDesign = designRef.current === id;
+      if (isDesign) form.setAttribute('data-fc-design', '1'); else form.removeAttribute('data-fc-design');
       const fields = scan(form);
       forms.current.set(form, fields);
       for (const f of fields) {
@@ -113,7 +114,7 @@ export const FormConfigRuntime: React.FC = () => {
         // the red star of a required field
         const starHost = f.list ? (f.container.querySelector<HTMLElement>('[data-fc-title]') || f.label) : f.label;
         const star = starHost.querySelector('[data-fc-star]');
-        if (required && !star) {
+        if (required && !star && !/\*/.test(starHost.textContent || '')) {
           const s = document.createElement('span');
           s.setAttribute('data-fc-star', '1');
           s.className = 'text-rose-600';

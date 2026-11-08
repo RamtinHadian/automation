@@ -471,3 +471,7 @@ html.night [data-error-popups] > div {
 
 /* a full-screen editor is open: the page under it stops its animations (they repaint every frame and make the sheet scroll jerkily); the notification cards keep theirs */
 html.heavy-modal *:not([data-keep-anim]):not([data-keep-anim] *) { animation-play-state: paused !important; }
+
+/* a form opened in design mode (console ← فرم‌ها): every row of fields becomes two columns, so the bars under the narrow fields do not overlap */
+form[data-fc-design] [data-deal-cards] .grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+form[data-fc-design] [data-design-bar] { flex-wrap: wrap; }
