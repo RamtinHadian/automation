@@ -38,7 +38,9 @@ export const FunnelDark: React.FC<{ rows: FunnelRow[]; unit: string; showMoney?:
   const n = rows.length;
   const ACCENT = rows.map((r) => r.color); // each step keeps the colour it has in the bars of the same window
   // one smooth cone: every tier starts exactly as wide as the one above it ends (the sizes of the numbers are in the text beside it)
-  const widthOf = (i: number) => (FW - 30) * Math.max(0.55, 1 - i * (0.4 / Math.max(1, rows.length)));
+  // the two sides are straight lines from the full width at the top to a narrow neck (26%) at the bottom; every tier is cut out of that one cone, so the edges line up across the small gaps
+  const TOP_W = FW - 30, NECK = 0.26, TOTAL = n * ROW;
+  const widthAt = (y: number) => TOP_W * (1 - (1 - NECK) * (y / TOTAL));
   const cx = FW / 2 + 6;
   return (
     <div dir="ltr" className="w-full max-w-[1030px] mx-auto rounded-3xl px-6 py-6 text-[#111827] border border-[#ece8e4]" style={{ background: BG }} data-dark-funnel>
@@ -50,8 +52,8 @@ export const FunnelDark: React.FC<{ rows: FunnelRow[]; unit: string; showMoney?:
             ))}
           </defs>
           {rows.map((r, i) => {
-            const wt = widthOf(i), wb = widthOf(i + 1);
             const y0 = i * ROW + 2, y1 = y0 + ROW - 8;
+            const wt = widthAt(y0), wb = widthAt(y1);
             const midY = y0 + (ROW - 8) / 2;
             return (
               <g key={r.id}>
@@ -61,8 +63,8 @@ export const FunnelDark: React.FC<{ rows: FunnelRow[]; unit: string; showMoney?:
                 <circle cx={Math.max(20, cx - wt / 2 + 4)} cy={y0 + 26} r="19" fill="#fff" stroke="#111827" strokeWidth="2.2" />
                 <text x={Math.max(20, cx - wt / 2 + 4)} y={y0 + 34} textAnchor="middle" fontSize="22" fontWeight="800" fill="#111827">{fa(i + 1)}</text>
                 <g transform={`translate(${cx - 13} ${y0 + 6}) scale(1.1)`} fill="none" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{TIER_ICON[i]}</g>
-                <text x={cx} y={y0 + 56} textAnchor="middle" fontSize="23" fontWeight="800" fill="#fff">{r.label}</text>
-                <text x={cx} y={y0 + 124} textAnchor="middle" fontWeight="800" fill="#fff"><tspan fontSize="64">{fa(r.count)}</tspan><tspan fontSize="18" dx="6">فرصت</tspan></text>
+                <text x={cx} y={y0 + 56} textAnchor="middle" fontSize={Math.max(14, Math.min(23, (widthAt(y0 + 56) - 34) / (Math.max(6, r.label.length) * 0.56)))} fontWeight="800" fill="#fff">{r.label}</text>
+                <text x={cx} y={y0 + 124} textAnchor="middle" fontWeight="800" fill="#fff"><tspan fontSize={Math.max(24, Math.min(64, (widthAt(y0 + 124) - 66) / (String(r.count).length * 0.62)))}>{fa(r.count)}</tspan><tspan fontSize="16" dx="5">فرصت</tspan></text>
               </g>
             );
           })}
