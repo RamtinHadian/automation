@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Boxes, Sparkles } from 'lucide-react';
 import { WhProduct } from '../../lib/api';
-import { matchesAll } from '../../lib/searchAll';
+import { fold, searchLine } from '../../lib/searchAll';
 import { toPersianDigits } from '../../lib/jalali';
 
 /**
@@ -26,7 +26,16 @@ export const ProductTitleInput: React.FC<{
   const text = value.trim();
   const hits = useMemo(() => {
     if (!text || products.length === 0) return [];
-    return products.filter((p) => matchesAll(p as unknown as Record<string, unknown>, text, [])).slice(0, 8);
+    // any number or letters typed are looked for ANYWHERE inside the product (its title first, then its code and every other field): «12» finds «لوله ۱۲ اینچ», «وله» finds «لوله»
+    const toks = fold(text).split(/\s+/).filter(Boolean);
+    const scored: { p: WhProduct; score: number }[] = [];
+    for (const p of products) {
+      const title = fold(p.title);
+      const all = searchLine(p);
+      if (!toks.every((t) => all.includes(t))) continue;
+      scored.push({ p, score: toks.every((t) => title.includes(t)) ? (title.startsWith(toks[0]) ? 0 : 1) : 2 });
+    }
+    return scored.sort((x, y) => x.score - y.score).slice(0, 12).map((x) => x.p);
   }, [products, text]);
   const exact = products.find((p) => p.title.trim() === text);
   React.useEffect(() => {

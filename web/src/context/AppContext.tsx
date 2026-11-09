@@ -1109,7 +1109,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const handleDeleteOwnLetter = useCallback(
     (id: string) => {
       const target = transfers.find((t) => t.id === id);
-      if (!target || !target.isOfficialLetter || target.sender.id !== currentUser.id) return;
+      // the author deletes his own unsigned letter; the person who has to sign it (the CEO) may delete an unsigned letter that was sent to him
+      const isSigner = !!currentUser.canSignOfficialLetters && target?.recipients?.some((r) => r.id === currentUser.id);
+      if (!target || !target.isOfficialLetter || (target.sender.id !== currentUser.id && !isSigner)) return;
       if (target.signatureStatus === 'SIGNED') {
         showToast('نامهٔ امضاشده قابل حذف نیست.');
         return;
@@ -1122,7 +1124,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         action: 'FILE_TRANSFER',
         severity: 'WARNING',
         ipAddress: '',
-        details: `حذف نامهٔ امضانشدهٔ "${target.fileName}" توسط تهیه‌کننده.`,
+        details: `حذف نامهٔ امضانشدهٔ "${target.fileName}" توسط ${target.sender.id === currentUser.id ? 'تهیه‌کننده' : 'امضاکننده'}.`,
       };
       setTransfers((prev) => prev.filter((t) => t.id !== id));
       setAuditLogs((prev) => [log, ...prev]);

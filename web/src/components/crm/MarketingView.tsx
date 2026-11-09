@@ -9,6 +9,7 @@ import { CONTACT_TYPES, contactTypeOf } from '../../lib/contactTypes';
 import { Campaign, Customer, Deal, SurveyQuestion, User } from '../../types';
 import { NETWORKS, SocialLogo } from './SocialNetworks';
 import { InboxPanel } from './InboxPanel';
+import { JalaliDateField } from '../tasks/TasksView';
 import { C, ChartCard, compact, Donut, HBars, SERIES } from '../admin/charts';
 
 /**
@@ -119,8 +120,8 @@ const CampaignForm: React.FC<{ value: Campaign; customers: Customer[]; staff: Us
             {!survey && <div><label className={label}>محصول</label><input className={field} value={c.product || ''} onChange={(e) => p({ product: e.target.value })} placeholder="نام یا کد کالا" /></div>}
             <div><label className={label}>جامعهٔ هدف تبلیغات</label><input className={field} value={c.audience || ''} onChange={(e) => p({ audience: e.target.value })} placeholder="مثلاً پیمانکاران شبکه" /></div>
             <div><label className={label}>وسعت بازار هدف (نفر)</label>{count('targetSize')}</div>
-            <div><label className={label}>تاریخ شروع (مثل 2026-11-07)</label><input className={field} dir="ltr" value={c.startDate || ''} onChange={(e) => p({ startDate: e.target.value })} placeholder="YYYY-MM-DD" /></div>
-            <div><label className={label}>تاریخ مورد انتظار بسته شدن <span className="text-rose-600">*</span></label><input className={field} dir="ltr" value={c.expectedClose || ''} onChange={(e) => p({ expectedClose: e.target.value })} placeholder="YYYY-MM-DD" /></div>
+            <div><label className={label}>تاریخ شروع</label><JalaliDateField value={c.startDate || undefined} onChange={(v) => p({ startDate: v || '' })} /></div>
+            <div><label className={label}>تاریخ مورد انتظار بسته شدن <span className="text-rose-600">*</span></label><JalaliDateField value={c.expectedClose || undefined} onChange={(v) => p({ expectedClose: v || '' })} /></div>
           </div>
           {survey ? (
             <div className="space-y-3">
@@ -267,7 +268,7 @@ const MessageWizard: React.FC<{ value: Campaign; customers: Customer[]; staff: U
               <div><label className={label}>تعداد ارسال در هر نوبت <span className="text-rose-600">*</span></label><input className={field} dir="ltr" inputMode="numeric" value={c.perDay ? String(c.perDay) : ''} onChange={(e) => p({ perDay: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })} /></div>
               <div><label className={label}>راس ساعت <span className="text-rose-600">*</span></label><input className={field} dir="ltr" value={c.startHour || ''} onChange={(e) => p({ startHour: e.target.value })} placeholder="09:00" /></div>
               <label className="flex items-center gap-2 text-xs font-bold text-[#3A241F] cursor-pointer self-end pb-2"><input type="checkbox" className="accent-violet-600" checked={!!c.skipHolidays} onChange={(e) => p({ skipHolidays: e.target.checked })} />در تعطیلات ارسال نکن</label>
-              <div><label className={label}>تاریخ شروع (مثل 2026-11-07)</label><input className={field} dir="ltr" value={c.startDate || ''} onChange={(e) => p({ startDate: e.target.value, expectedClose: c.expectedClose || e.target.value })} placeholder="YYYY-MM-DD" /></div>
+              <div><label className={label}>تاریخ شروع</label><JalaliDateField value={c.startDate || undefined} onChange={(v) => p({ startDate: v || '', expectedClose: c.expectedClose || v || '' })} /></div>
             </div>
           )}
           {step === 2 && (

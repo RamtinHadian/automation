@@ -1931,9 +1931,9 @@ export default function UserPanel() {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {t.sender.id === currentUser.id && t.signatureStatus !== 'SIGNED' && (
+                            {(t.sender.id === currentUser.id || (!!currentUser.canSignOfficialLetters && t.recipients.some((r) => r.id === currentUser.id))) && t.signatureStatus !== 'SIGNED' && (
                               <>
-                                <button
+                                {t.sender.id === currentUser.id && <button
                                   type="button"
                                   onClick={() => setEditingLetter(t)}
                                   className="flex items-center gap-1 px-3 py-2 bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
@@ -1941,7 +1941,7 @@ export default function UserPanel() {
                                 >
                                   <PenTool className="w-3.5 h-3.5" />
                                   <span>ویرایش</span>
-                                </button>
+                                </button>}
                                 <button
                                   type="button"
                                   onClick={async () => {

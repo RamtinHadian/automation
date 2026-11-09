@@ -1,4 +1,5 @@
 import { ProductTitleInput } from './ProductTitleInput';
+import { CommissionView } from './CommissionView';
 import { CustomerCalls } from './CustomerCalls';
 import { matchesAll } from '../../lib/searchAll';
 import { isCustomerRecord } from '../../lib/contactTypes';
@@ -34,7 +35,7 @@ import {
   Gift,
   Sparkles,
   BookUser,
-  SlidersHorizontal, Link2, Landmark, Tags, Maximize2, Megaphone, Boxes, BellPlus, Store } from 'lucide-react';
+  SlidersHorizontal, Link2, Landmark, Tags, Maximize2, Megaphone, Boxes, BellPlus, Store, BadgeDollarSign } from 'lucide-react';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../lib/api';
@@ -151,7 +152,7 @@ export const CrmView: React.FC = () => {
   const isAdmin = currentUser.role === 'SUPER_ADMIN';
 
   const [funnelOpen, setFunnelOpen] = useState(false);
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar' | 'marketing' | 'inventory' | 'proformalist'>('customers');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar' | 'marketing' | 'inventory' | 'proformalist' | 'commission'>('customers');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -542,6 +543,7 @@ export const CrmView: React.FC = () => {
     ['proformalist', 'پیش‌فاکتورها', FileText],
     ['followups', 'پیگیری‌ها', ListChecks],
     ['reports', 'گزارش‌ها', BarChart3],
+    ['commission', 'پورسانت', BadgeDollarSign],
     ['marketing', 'بازاریابی', Megaphone],
     ['inventory', 'موجودی', Boxes],
     ['club', 'باشگاه مشتریان', Gift],
@@ -968,6 +970,7 @@ export const CrmView: React.FC = () => {
 
       {funnelOpen && <FunnelModal customers={customers} deals={deals} activities={activities} canMoney={canSeeSalesTotals(currentUser)} canAi={canSub(currentUser, 'ai.funnel')} onOpenCustomer={(id) => setOpenCustomer(id)} onClose={() => setFunnelOpen(false)} />}
 
+      {tab === 'commission' && <CommissionView deals={deals} staff={staffList.filter((u) => u.isActive && (u.canUseCrm || u.role === 'SUPER_ADMIN'))} currentUser={currentUser} />}
       {tab === 'marketing' && <MarketingView customers={customers} allContacts={allContacts} deals={deals} staff={staffList} currentUserName={currentUser.fullName} showToast={showToast} onOpenCustomer={(id) => setOpenCustomer(id)} onOpenSms={() => setTab('sms')} canPhonebook={canSub(currentUser, 'crm.phonebook')} onOpenPhoneBook={() => setPhoneBook(true)} isAdmin={isAdmin} />}
 
       {tab === 'inventory' && <InventoryView deals={deals} customers={allContacts} activities={activities} canMoney={canSeeSalesTotals(currentUser)} onOpenCustomer={(id) => setOpenCustomer(id)} />}

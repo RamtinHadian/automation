@@ -62,6 +62,8 @@ export const TransferModal: React.FC<{ staff: User[]; customers: Customer[]; dea
   const [toId, setToId] = useState('');
   const [what, setWhat] = useState({ customers: true, deals: true, followups: true });
   const [busy, setBusy] = useState(false);
+  // which of the three lists is opened under the rows (the names of what would be handed over)
+  const [show, setShow] = useState<'customers' | 'deals' | 'followups' | null>(null);
   const counts = useMemo(
     () => ({
       customers: customers.filter((c) => c.ownerId === fromId).length,
@@ -93,7 +95,17 @@ export const TransferModal: React.FC<{ staff: User[]; customers: Customer[]; dea
         <input type="checkbox" checked={what[k]} onChange={(e) => setWhat({ ...what, [k]: e.target.checked })} />
         {text}
       </span>
-      <span className="text-violet-700">{fromId ? toPersianDigits(counts[k]) : '—'}</span>
+      <button
+        type="button"
+        disabled={!fromId || counts[k] === 0}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShow(show === k ? null : k); }}
+        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 border text-violet-700 transition-all ${show === k ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-200 hover:bg-violet-50'} disabled:opacity-40 disabled:cursor-default cursor-pointer`}
+        title="دیدن اسم‌ها"
+        data-transfer-list-btn={k}
+      >
+        <Eye className="w-3.5 h-3.5" />
+        {fromId ? toPersianDigits(counts[k]) : '—'}
+      </button>
     </label>
   );
   return (
@@ -111,7 +123,7 @@ export const TransferModal: React.FC<{ staff: User[]; customers: Customer[]; dea
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
           <label className={label}>از همکار</label>
-          <PersonPicker title="از همکار" items={staffItems(staff)} value={fromId} onChange={setFromId} emptyLabel="انتخاب همکار…" />
+          <PersonPicker title="از همکار" items={staffItems(staff)} value={fromId} onChange={(id) => { setFromId(id); setShow(null); }} emptyLabel="انتخاب همکار…" />
         </div>
         <div>
           <label className={label}>به همکار</label>
@@ -123,6 +135,25 @@ export const TransferModal: React.FC<{ staff: User[]; customers: Customer[]; dea
         {row('deals', 'فرصت‌های فروش باز')}
         {row('followups', 'پیگیری‌های انجام‌نشده')}
       </div>
+      {show && fromId && (
+        <div className="rounded-2xl border border-violet-200 bg-white overflow-hidden" data-transfer-list>
+          <div className="px-3.5 py-2 bg-violet-50 text-[11px] font-black text-violet-900 flex items-center justify-between">
+            <span>{show === 'customers' ? 'مشتری‌های' : show === 'deals' ? 'فرصت‌های باز' : 'پیگیری‌های انجام‌نشدهٔ'} {nameOf(fromId)} ({toPersianDigits(counts[show])})</span>
+            <button type="button" onClick={() => setShow(null)} className="text-violet-700 hover:underline cursor-pointer">بستن</button>
+          </div>
+          <ul className="max-h-64 overflow-y-auto divide-y divide-[#EBDBCE]/60">
+            {show === 'customers' && customers.filter((c) => c.ownerId === fromId).map((c) => (
+              <li key={c.id} className="px-3.5 py-2 text-xs font-bold text-[#3A241F] flex items-center justify-between gap-2"><span className="truncate">{c.name}</span><span className="shrink-0 text-[10.5px] text-[#8C6F66]" dir="ltr">{toPersianDigits(c.phones?.[0] || '')}</span></li>
+            ))}
+            {show === 'deals' && deals.filter((d) => d.ownerId === fromId && d.stage !== 'WON' && d.stage !== 'LOST').map((d) => (
+              <li key={d.id} className="px-3.5 py-2 text-xs font-bold text-[#3A241F]"><div className="truncate">{d.title}</div><div className="text-[10.5px] text-[#8C6F66] truncate">{d.customerName}</div></li>
+            ))}
+            {show === 'followups' && activities.filter((a) => a.type === 'FOLLOWUP' && !a.done && a.ownerId === fromId).map((a) => (
+              <li key={a.id} className="px-3.5 py-2 text-xs font-bold text-[#3A241F]"><div className="truncate">{a.text || 'پیگیری'}</div><div className="text-[10.5px] text-[#8C6F66] truncate">{customers.find((c) => c.id === a.customerId)?.name || ''}</div></li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="text-[10px] text-[#8C6F66] leading-5">فرصت‌های بسته‌شده (موفق یا ازدست‌رفته) پیش مسئول قبلی می‌ماند. همکار تازه از این انتقال با یک اعلان باخبر می‌شود.</p>
     </Modal>
   );

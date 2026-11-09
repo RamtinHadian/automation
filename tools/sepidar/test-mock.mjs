@@ -173,7 +173,7 @@ const [sPort, hPort] = [await listen(sepidarServer), await listen(hoormandServer
 
 // pure functions first
 const cb = customerBody(customers[0]);
-ok(cb.Name === ar('علی') && cb.LastName === ar('رضایی') && cb.PhoneNumber === '09121234567' && cb.CustomerType === 1 && cb.GUID === guidFrom('customer:c-1'), 'customer body: person, Latin digits, stable GUID (amount times the unit multiplier)');
+ok(cb.Name === ar('رضایی') && cb.LastName === ar('علی') /* Sepidar writes the title as LastName + Name: so «علی رضایی» in the title needs the first name in LastName */ && cb.PhoneNumber === '09121234567' && cb.CustomerType === 1 && cb.GUID === guidFrom('customer:c-1'), 'customer body: person, Latin digits, stable GUID (amount times the unit multiplier)');
 const cc = customerBody(customers[1]);
 ok(cc.CustomerType === 2 && cc.Name === ar('شرکت نمونه') && cc.LastName === '' && cc.NationalID === '10100000000' && cc.EconomicCode === '411111111111', 'customer body: company');
 {
@@ -416,7 +416,7 @@ ok(hoormandResults['sj-6']?.ok === true && sp.receipt.InvoiceID === 700 && sp.re
 hoormandJobs.push({ id: 'sj-7', kind: 'customer.send', data: { customerId: 'c-1' } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-7']?.ok === true && sp.put?.Version === 'v1' && sp.put.NationalID === '0012345678' && Array.isArray(sp.put.Addresses), 'customer.send updates a customer that is already in Sepidar (the whole customer with its Version and Addresses)' + String.fromCharCode(10) + JSON.stringify(hoormandResults['sj-7']) );
-ok(sp.put?.Name === ar('علی') && sp.put?.LastName === ar('رضایی'), 'customer.send also sends the name (the whole edit of Hoormand goes to Sepidar)');
+ok(sp.put?.Name === ar('رضایی') && sp.put?.LastName === ar('علی'), 'customer.send also sends the name (the whole edit of Hoormand goes to Sepidar)');
 ok(sp.put?.PhoneNumber === '09121234567' && /03132223333/.test(hoormandResults['sj-7']?.message || '') && /فقط یک شماره/.test(hoormandResults['sj-7']?.message || ''), 'customer.send sends the mobile only and the result names the landline that Sepidar has no room for');
 ok(sp.put?.Addresses?.[0]?.CityRef === 5 && sp.put.Addresses[0].IsMain === true && /نشانی/.test(hoormandResults['sj-7']?.message || ''), 'customer.send also puts the address (city number, main) into the Sepidar customer');
 // the same person already in Sepidar under another record (same mobile, never tied to this Hoormand customer): that record is UPDATED, no second person is made
@@ -429,7 +429,7 @@ ok(sp.put?.Addresses?.[0]?.CityRef === 5 && sp.put.Addresses[0].IsMain === true 
   r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
   const stM = JSON.parse(fs.readFileSync(state, 'utf8'));
   ok(hoormandResults['sj-7b']?.ok === true && hoormandResults['sj-7b'].sepidarId === 901 && sp.customers.length === countBefore && sp.put && stM.customers['c-9'] === 901, 'customer.send with the same mobile as a Sepidar customer (even as his second number) updates THAT customer and makes no second one' + String.fromCharCode(10) + JSON.stringify(hoormandResults['sj-7b']));
-  ok(/تازه‌ای ساخته نشد/.test(hoormandResults['sj-7b']?.message || '') && sp.put?.Name === 'حسن' && sp.put?.LastName === ar('احمدی'), 'the message says that no new customer was made, and the name is brought up to date');
+  ok(/تازه‌ای ساخته نشد/.test(hoormandResults['sj-7b']?.message || '') && sp.put?.Name === ar('احمدی') && sp.put?.LastName === 'حسن', 'the message says that no new customer was made, and the name is brought up to date');
 }
 hoormandJobs.push({ id: 'sj-8', kind: 'refresh', data: {} });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);

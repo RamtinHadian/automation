@@ -64,12 +64,17 @@ const toLatin = (s) => String(s ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵�
 // pumpJobs() between customers, pushes and quotations. The automatic mode (watch) puts the real function here; everywhere else it does nothing.
 let pumpJobs = async () => false;
 
+// Sepidar writes the «عنوان تفضیلی» of a real person as «family name, then name» (it joins its own LastName + Name fields in that order). To get «name, then family name»
+// in that title, the first name is sent in the LastName field and the family name in the Name field. config.json can switch this off: "sepidar": { "titleNameFirst": false }.
+let NAME_FIRST_TITLE = true;
+
 function loadConfig() {
   if (!fs.existsSync(cfgPath)) {
     console.error(`فایل تنظیمات پیدا نشد: ${cfgPath}\nفایل config.example.json را کپی کنید، اسمش را config.json بگذارید و پر کنید.`);
     process.exit(1);
   }
   const c = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+  NAME_FIRST_TITLE = c.sepidar?.titleNameFirst !== false;
   for (const [k, v] of [['hoormand.url', c.hoormand?.url], ['hoormand.apiKey', c.hoormand?.apiKey], ['sepidar.url', c.sepidar?.url], ['sepidar.serial', c.sepidar?.serial], ['sepidar.userName', c.sepidar?.userName], ['sepidar.password', c.sepidar?.password]]) {
     if (!v || /^\s*$/.test(v) || /[؀-ۿ]|example\.com|xxxx/i.test(v)) {
       console.error(`در config.json مقدار «${k}» را بنویسید.`);
@@ -232,7 +237,7 @@ export function customerBody(c, divs = []) {
   // a legal customer in Sepidar has no family name: the name of the company's representative is written after the company name, with a dash (the other way, it would not fit anywhere)
   const companyName = String(c.company || c.name || '').trim();
   const rep = String(c.repName || '').trim();
-  const person = company ? { Name: rep && !companyName.includes(rep) ? `${companyName} - ${rep}` : companyName, LastName: '' } : c.firstName || c.lastName ? { Name: c.firstName || '', LastName: c.lastName || '' } : splitName(c.name);
+  const person = company ? { Name: rep && !companyName.includes(rep) ? `${companyName} - ${rep}` : companyName, LastName: '' } : c.firstName || c.lastName ? (NAME_FIRST_TITLE && c.firstName && c.lastName ? { Name: c.lastName, LastName: c.firstName } : { Name: c.firstName || '', LastName: c.lastName || '' }) : NAME_FIRST_TITLE ? ((n) => (n.Name && n.LastName ? { Name: n.LastName, LastName: n.Name } : n))(splitName(c.name)) : splitName(c.name);
   const phone = (c.phones || []).map(toLatin).find((p) => /^(\+98|0098|98|0)?9\d{9}$/.test(p.replace(/[\s-]/g, ''))) || toLatin((c.phones || [])[0] || '');
   const body = {
     GUID: guidFrom('customer:' + c.id),
@@ -322,7 +327,7 @@ export function matchSepidarCustomer(body, list, takenIds = new Set(), extraPhon
   const nm = (v) => String(v || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[‌‏‎]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
   const mineName = nm(`${body.Name || ''} ${body.LastName || ''}`);
   if (mineName.length >= 6) {
-    const same = list.filter((c) => !takenIds.has(c.CustomerID) && (nm(c.Title) === mineName || nm(`${c.Name || ''} ${c.LastName || ''}`) === mineName));
+    const same = list.filter((c) => !takenIds.has(c.CustomerID) && (nm(c.Title) === mineName || nm(`${c.Name || ''} ${c.LastName || ''}`) === mineName || nm(`${c.LastName || ''} ${c.Name || ''}`) === mineName));
     if (same.length === 1) return same[0];
   }
   return null;

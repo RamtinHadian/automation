@@ -437,7 +437,7 @@ func putTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 }
 
 // A file or letter that was sent can never be deleted by its recipients, and a sent file not even by its sender.
-// Allowed: (1) the author of an official letter deletes it while it is not signed yet; (2) an admin removes a single
+// Allowed: (1) the author of an official letter deletes it while it is not signed yet (the signer who received it may too); (2) an admin removes a single
 // item from the admin panel's transfer monitoring. A signed official letter stays protected in every case.
 func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id string) {
 	var sender string
@@ -459,7 +459,17 @@ func removeTransfer(w http.ResponseWriter, r *http.Request, me auth.User, id str
 		return
 	}
 	authorOfUnsignedLetter := isLetter && sender == me.ID()
-	if !me.IsAdmin() && !authorOfUnsignedLetter {
+	// the person who has to sign (the CEO or anyone with the right to sign official letters) may also delete an unsigned letter that was sent to him
+	signerOfUnsignedLetter := false
+	if isLetter && jsonx.Bool(me.M, "canSignOfficialLetters") {
+		for _, rid := range rcpts {
+			if rid == me.ID() {
+				signerOfUnsignedLetter = true
+				break
+			}
+		}
+	}
+	if !me.IsAdmin() && !authorOfUnsignedLetter && !signerOfUnsignedLetter {
 		httpx.Forbidden(w)
 		return
 	}
