@@ -13,10 +13,11 @@ import (
 	"automation/server/internal/store"
 )
 
-// Administrative orders («دستور اداری»): the CEO (or the administrator) writes an order to one or more people, for example «pay this commission»; they receive
+// Administrative orders («دستور اداری»): the CEO writes an order to one or more people, for example «pay this commission»; they receive
 // it in their «امور اداری» (and a notice), read it on a page of its own and can print it. Only the managers write; everyone reads what was sent to him.
 
-func orderWriter(me auth.User) bool { return commissionManager(me) }
+// only the CEO (the one who may sign official letters) writes an order: nobody else, not even the administrator
+func orderWriter(me auth.User) bool { return jsonx.Bool(me.M, "canSignOfficialLetters") }
 
 // POST /api/orders {subject, body, recipientIds, kind, ref}
 func orderCreate(w http.ResponseWriter, r *http.Request) {
@@ -56,8 +57,38 @@ func orderCreate(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "گیرندهٔ دستور را انتخاب کنید.")
 		return
 	}
+	// «رونوشت»: the people who get a copy (the finance manager the CEO chose); they receive it like the others but are named as copies
+	copyIDs := []string{}
+	copyNames := []any{}
+	if arr, ok := body["copyIds"].([]any); ok {
+		for _, x := range arr {
+			id, _ := x.(string)
+			if id == "" || seen[id] || len(copyIDs) >= 20 {
+				continue
+			}
+			seen[id] = true
+			raws, err := store.RawList(r.Context(), `SELECT data FROM users WHERE id = $1`, id)
+			if err != nil || len(raws) == 0 {
+				continue
+			}
+			copyIDs = append(copyIDs, id)
+			copyNames = append(copyNames, jsonx.Str(jsonx.Decode(raws[0]), "fullName"))
+		}
+	}
 	var n int
 	_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM admin_orders`).Scan(&n)
+	// the number is the one from the system's letter numbering (the page asks for the next free one); without it the order gets its running number
+	number := strings.TrimSpace(clip(jsonx.Str(body, "number"), 60))
+	if number == "" {
+		number = strconv.Itoa(n + 1)
+	} else {
+		var dup int
+		_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM admin_orders WHERE data->>'number' = $1`, number).Scan(&dup)
+		if dup > 0 {
+			httpx.Error(w, http.StatusConflict, "این شمارهٔ نامه قبلاً برای یک دستور دیگر استفاده شده؛ پنجره را ببندید و دوباره باز کنید.")
+			return
+		}
+	}
 	main := settingDoc(r.Context(), "main")
 	title := jsonx.Str(main, "ceoTitle")
 	if title == "" {
@@ -65,16 +96,24 @@ func orderCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now().UTC()
 	id := "ord-" + strconv.FormatInt(now.UnixNano(), 36)
-	doc := jsonx.M{"id": id, "number": strconv.Itoa(n + 1), "subject": clip(subject, 200), "body": clip(text, 6000), "senderId": me.ID(), "senderName": me.Name(), "senderTitle": title,
-		"recipientIds": ids, "recipientNames": names, "createdAt": now.Format("2006-01-02T15:04:05.000Z"), "kind": clip(jsonx.Str(body, "kind"), 30), "readBy": map[string]any{}}
+	// the name on the order is the CEO of the system (the name in the settings), not whoever happens to be logged in
+	senderName := strings.TrimSpace(jsonx.Str(main, "ceoName"))
+	if senderName == "" {
+		senderName = me.Name()
+	}
+	doc := jsonx.M{"id": id, "number": number, "subject": clip(subject, 200), "body": clip(text, 6000), "senderId": me.ID(), "senderName": senderName, "senderTitle": title,
+		"recipientIds": ids, "recipientNames": names, "copyIds": copyIDs, "copyNames": copyNames, "createdAt": now.Format("2006-01-02T15:04:05.000Z"), "kind": clip(jsonx.Str(body, "kind"), 30), "readBy": map[string]any{}}
 	if ref, ok := body["ref"].(map[string]any); ok {
 		doc["ref"] = ref
 	}
-	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO admin_orders (id, sender_id, recipient_ids, data) VALUES ($1,$2,$3,$4::jsonb)`, id, me.ID(), ids, jsonx.Encode(doc)); err != nil {
+	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO admin_orders (id, sender_id, recipient_ids, data) VALUES ($1,$2,$3,$4::jsonb)`, id, me.ID(), append(append([]string{}, ids...), copyIDs...), jsonx.Encode(doc)); err != nil {
 		internalError(w)
 		return
 	}
-	notify.Notify(r.Context(), ids, notify.Note{Kind: "alert", Label: "دستور اداری", Title: subject, Body: "از طرف " + me.Name(), Repeat: true}, me.ID())
+	notify.Notify(r.Context(), ids, notify.Note{Kind: "alert", Label: "دستور اداری", Title: subject, Body: "از طرف " + senderName, Repeat: true}, me.ID())
+	if len(copyIDs) > 0 {
+		notify.Notify(r.Context(), copyIDs, notify.Note{Kind: "alert", Label: "رونوشت دستور اداری", Title: subject, Body: "از طرف " + senderName, Repeat: true}, me.ID())
+	}
 	auditLine(r, me, "INFO", "دستور اداری «"+clip(subject, 80)+"» برای "+strconv.Itoa(len(ids))+" نفر ارسال شد.")
 	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true, "id": id})
 }
@@ -103,6 +142,13 @@ func orderList(w http.ResponseWriter, r *http.Request) {
 			_, read = rb[me.ID()]
 		}
 		d["read"] = read
+		if cs, ok := d["copyIds"].([]any); ok {
+			for _, c := range cs {
+				if id, _ := c.(string); id == me.ID() {
+					d["copy"] = true
+				}
+			}
+		}
 		delete(d, "readBy")
 		out = append(out, d)
 	}

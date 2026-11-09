@@ -191,7 +191,7 @@ func commissionRulesPut(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	d := jsonx.M{"defaultRule": cleanRule(body["defaultRule"]), "perUser": per, "recipients": rec, "groups": cleanGroups(body["groups"])}
+	d := jsonx.M{"defaultRule": cleanRule(body["defaultRule"]), "perUser": per, "recipients": rec, "groups": cleanGroups(body["groups"]), "financeManagerId": clip(jsonx.Str(body, "financeManagerId"), 80)}
 	if err := saveSettingDoc(r.Context(), "commissionRules", d); err != nil {
 		internalError(w)
 		return

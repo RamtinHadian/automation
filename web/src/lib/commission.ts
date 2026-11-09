@@ -7,7 +7,7 @@ export interface CommissionRule { percent: number; tiers?: CommissionTier[] }
 /** `recipients`: the people who may receive commission at all (chosen by the managers); nobody else gets any, whatever he sold */
 /** A team: the commission is worked out from the sales of all its members together (with the team's own rule), then shared equally or by what each one sold. */
 export interface CommissionGroup { id: string; name: string; memberIds: string[]; rule: CommissionRule; split: 'equal' | 'sales' }
-export interface CommissionRules { defaultRule: CommissionRule; perUser: Record<string, CommissionRule>; recipients: string[]; groups: CommissionGroup[] }
+export interface CommissionRules { defaultRule: CommissionRule; perUser: Record<string, CommissionRule>; recipients: string[]; groups: CommissionGroup[]; /** the finance manager: gets a copy of every payment order */ financeManagerId?: string }
 export interface CommissionPayment { id: string; userId: string; userName: string; period: string; amount: number; note?: string; at: string; byName?: string }
 
 export const periodKey = (jy: number, jm: number) => `${jy}-${jm}`;

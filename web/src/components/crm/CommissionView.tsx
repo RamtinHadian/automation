@@ -12,7 +12,7 @@ import { OrderComposeModal } from '../orders/OrderComposeModal';
 import { Deal, User } from '../../types';
 
 const field = 'w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-violet-500 focus:outline-none';
-const EMPTY_RULES: CommissionRules = { defaultRule: { percent: 0, tiers: [] }, perUser: {}, recipients: [], groups: [] };
+const EMPTY_RULES: CommissionRules = { defaultRule: { percent: 0, tiers: [] }, perUser: {}, recipients: [], groups: [], financeManagerId: '' };
 
 /** A percent written with Persian digits and «٫»; the page keeps it as a plain number. */
 const PercentInput: React.FC<{ value: number; onChange: (n: number) => void; className?: string }> = ({ value, onChange, className }) => {
@@ -72,7 +72,9 @@ const RuleEditor: React.FC<{ rule: CommissionRule; onChange: (r: CommissionRule)
 };
 
 export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUser: User }> = ({ deals, staff, currentUser }) => {
-  const { showToast } = useAppContext();
+  const { showToast, staffList } = useAppContext();
+  // the finance manager and the people an order goes to can be anybody in the company, not only those who work in the CRM
+  const everyone = staffList.filter((u) => u.isActive);
   const [rules, setRules] = useState<CommissionRules>(EMPTY_RULES);
   const [payments, setPayments] = useState<CommissionPayment[]>([]);
   const [manager, setManager] = useState(false);
@@ -93,7 +95,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
   const load = useCallback(() => {
     api.commissionGet().then((r) => {
       const rr = r.rules as unknown as CommissionRules;
-      setRules({ defaultRule: rr.defaultRule || EMPTY_RULES.defaultRule, perUser: rr.perUser || {}, recipients: rr.recipients || [], groups: rr.groups || [] });
+      setRules({ defaultRule: rr.defaultRule || EMPTY_RULES.defaultRule, perUser: rr.perUser || {}, recipients: rr.recipients || [], groups: rr.groups || [], financeManagerId: rr.financeManagerId || '' });
       setEligible(r.eligible);
       setPayments(r.payments as unknown as CommissionPayment[]);
       setManager(r.manager);
@@ -173,7 +175,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
       <div className="mt-1.5 text-[19px] font-black leading-7">{value}</div>
     </div>
   );
-  const years = Array.from({ length: 6 }, (_, i) => today[0] - 4 + i);
+  const years = Array.from({ length: 15 }, (_, i) => today[0] - 4 + i); // four years back and ten years ahead
   const periodPays = payments.filter((p) => p.period === period).sort((a, b) => b.at.localeCompare(a.at));
 
   return (
@@ -197,7 +199,15 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
 
       {rulesOpen && manager && (
         <section className="rounded-3xl border border-violet-200 bg-white p-5 space-y-5" data-commission-rules>
-          <div className="space-y-2.5" data-commission-recipients>
+          <div className="space-y-2" data-commission-finance>
+            <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2"><Wallet className="w-4 h-4 text-violet-700" />مدیر مالی (رونوشت دستورها)</h3>
+            <p className="text-[11px] font-bold text-[#8C6F66] leading-6">از هر دستور پرداخت پورسانت یک رونوشت برای همین نفر می‌رود.</p>
+            <select className={`${field} max-w-sm`} value={draft.financeManagerId || ''} onChange={(e) => setDraft({ ...draft, financeManagerId: e.target.value })} data-commission-finance-select>
+              <option value="">— انتخاب نشده (رونوشت نمی‌رود) —</option>
+              {everyone.map((u) => <option key={u.id} value={u.id}>{u.fullName}{u.departmentName ? ` · ${u.departmentName}` : ''}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2.5 border-t border-[#EBDBCE] pt-4" data-commission-recipients>
             <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2"><Trophy className="w-4 h-4 text-violet-700" />چه کسانی پورسانت دریافت می‌کنند؟</h3>
             <p className="text-[11px] font-bold text-[#8C6F66] leading-6">فقط افرادی که اینجا تیک بخورند پورسانت می‌گیرند و فقط خودشان پورسانتشان را می‌بینند؛ برای بقیه، هر چه فروخته باشند پورسانتی حساب نمی‌شود.</p>
             <div className="flex flex-wrap gap-2">
@@ -317,7 +327,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
                   <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-[200px_1fr_auto] gap-2 items-end bg-emerald-50/40 border-t border-emerald-100 pt-3" data-commission-pay-form>
                     <div><div className="text-[10.5px] font-black text-[#8C6F66] mb-1">مبلغ پرداخت</div><MoneyInput unit className={field} value={payFor.amount} onChange={(d) => setPayFor({ ...payFor, amount: d })} /></div>
                     <div><div className="text-[10.5px] font-black text-[#8C6F66] mb-1">توضیح (اختیاری)</div><input className={field} value={payFor.note} onChange={(e) => setPayFor({ ...payFor, note: e.target.value })} placeholder="مثلاً واریز به حساب" /></div>
-                    <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => savePay(true)} className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] disabled:opacity-50 cursor-pointer" data-commission-pay-order>ثبت و ارسال دستور</button><button type="button" disabled={busy} onClick={() => savePay(false)} className="px-4 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">فقط ثبت</button><button type="button" onClick={() => setPayFor(null)} className="px-4 py-2.5 rounded-xl text-xs font-black bg-white border border-[#EBDBCE] cursor-pointer">انصراف</button></div>
+                    <div className="flex flex-wrap gap-2">{currentUser.canSignOfficialLetters && <button type="button" disabled={busy} onClick={() => savePay(true)} className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] disabled:opacity-50 cursor-pointer" data-commission-pay-order>ثبت و ارسال دستور</button>}<button type="button" disabled={busy} onClick={() => savePay(false)} className="px-4 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">فقط ثبت</button><button type="button" onClick={() => setPayFor(null)} className="px-4 py-2.5 rounded-xl text-xs font-black bg-white border border-[#EBDBCE] cursor-pointer">انصراف</button></div>
                   </div>
                 )}
                 {isOpen && (
@@ -354,7 +364,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
           })}
         </div>
       )}
-      {order && <OrderComposeModal subject={order.subject} body={order.body} recipientIds={[order.userId]} staff={staff} kind="commission" ref={{ period, userId: order.userId, amount: order.amount }} onClose={() => setOrder(null)} />}
+      {order && <OrderComposeModal subject={order.subject} body={order.body} recipientIds={[order.userId]} copyIds={rules.financeManagerId && rules.financeManagerId !== order.userId ? [rules.financeManagerId] : []} staff={everyone} kind="commission" ref={{ period, userId: order.userId, amount: order.amount }} onClose={() => setOrder(null)} />}
       {currentUser && !manager && <p className="text-[10.5px] font-bold text-[#8C6F66]">پورسانت از جمع فروش‌های موفق ماه و قانونی که مدیرعامل تعیین کرده حساب می‌شود. اگر ایرادی می‌بینید با مدیرعامل صحبت کنید.</p>}
     </div>
   );

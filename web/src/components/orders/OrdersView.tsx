@@ -8,7 +8,7 @@ import { OrderPaper, printOrder } from './OrderPaper';
 /** «دستورهای اداری» in the administrative affairs: the orders sent to me (and, for the CEO, the ones I sent), each opened on a page of its own with a print button. */
 export const OrdersView: React.FC<{ onUnread?: (n: number) => void }> = ({ onUnread }) => {
   const { currentUser, settings } = useAppContext();
-  const writer = currentUser.role === 'SUPER_ADMIN' || !!currentUser.canSignOfficialLetters;
+  const writer = !!currentUser.canSignOfficialLetters; // only the CEO writes orders
   const [box, setBox] = useState<'inbox' | 'sent'>('inbox');
   const [list, setList] = useState<AdminOrder[]>([]);
   const [open, setOpen] = useState<AdminOrder | null>(null);
@@ -47,6 +47,7 @@ export const OrdersView: React.FC<{ onUnread?: (n: number) => void }> = ({ onUnr
                   <div className="text-[13px] font-black text-[#3A241F] truncate">{o.subject}</div>
                   <div className="text-[11px] font-bold text-[#8C6F66] truncate">{box === 'inbox' ? `از ${o.senderName}` : `به ${o.recipientNames.join('، ')}`} · شمارهٔ {toPersianDigits(o.number)} · {formatCurrentJalaliDateTime(new Date(o.createdAt))}</div>
                 </div>
+                {box === 'inbox' && o.copy && <span className="text-[10px] font-black rounded-full px-2 py-0.5 bg-sky-50 text-sky-800 border border-sky-200">رونوشت</span>}
                 {box === 'inbox' && !o.read && <span className="text-[10px] font-black rounded-full px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-200">تازه</span>}
               </div>
             </button>
@@ -57,9 +58,9 @@ export const OrdersView: React.FC<{ onUnread?: (n: number) => void }> = ({ onUnr
         <div className="fixed inset-0 z-[90] bg-[#FAF5F1] overflow-y-auto" dir="rtl" data-order-detail onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
           <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-3 bg-white/95 backdrop-blur border-b border-[#EBDBCE]">
             <button type="button" onClick={() => setOpen(null)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] hover:bg-[#EBDBCE] cursor-pointer"><ArrowRight className="w-4 h-4" />بازگشت (Esc)</button>
-            <button type="button" onClick={() => printOrder({ number: open.number, subject: open.subject, body: open.body, to: open.recipientNames.join('، '), from: open.senderName, fromTitle: open.senderTitle, at: open.createdAt }, settings.companyName || '')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] cursor-pointer"><Printer className="w-4 h-4" />چاپ</button>
+            <button type="button" onClick={() => printOrder({ number: open.number, subject: open.subject, body: open.body, to: open.recipientNames.join('، '), from: open.senderName, fromTitle: open.senderTitle, at: open.createdAt, copy: (open.copyNames || []).join('، ') }, settings.companyName || '')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] cursor-pointer"><Printer className="w-4 h-4" />چاپ</button>
           </div>
-          <div className="max-w-3xl mx-auto p-4 sm:p-8"><OrderPaper number={open.number} subject={open.subject} body={open.body} to={open.recipientNames.join('، ')} from={open.senderName} fromTitle={open.senderTitle} at={open.createdAt} /></div>
+          <div className="max-w-3xl mx-auto p-4 sm:p-8"><OrderPaper number={open.number} subject={open.subject} body={open.body} to={open.recipientNames.join('، ')} from={open.senderName} fromTitle={open.senderTitle} at={open.createdAt} copy={(open.copyNames || []).join('، ')} /></div>
         </div>
       )}
     </div>

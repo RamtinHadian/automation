@@ -64,13 +64,18 @@ export function formatLetterNumber(settings?: LetterNumberingSettings): string {
  * (a letter still waiting for its signature has taken its number although the counter only moves when it is signed).
  */
 export function nextFreeLetterNumber(settings: LetterNumberingSettings | undefined, taken: (string | undefined)[]): string {
+  return nextFreeLetter(settings, taken).number;
+}
+
+/** The same, with the counter value (n) the number was made from, so a user of the number can move the counter on. */
+export function nextFreeLetter(settings: LetterNumberingSettings | undefined, taken: (string | undefined)[]): { number: string; n: number } {
   const cfg = { ...DEFAULT_LETTER_NUMBERING, ...(settings || {}) };
   const used = new Set(taken.filter(Boolean).map((n) => toPersianDigits(String(n).trim())));
   const step = Math.max(1, cfg.incrementStep || 1);
   let n = cfg.nextNumber || 1001;
   for (let i = 0; i < 5000; i++, n += step) {
     const candidate = formatLetterNumber({ ...cfg, nextNumber: n });
-    if (!used.has(candidate)) return candidate;
+    if (!used.has(candidate)) return { number: candidate, n };
   }
-  return formatLetterNumber(cfg);
+  return { number: formatLetterNumber(cfg), n: cfg.nextNumber || 1001 };
 }

@@ -107,9 +107,14 @@ export interface AdminOrder {
   senderTitle: string;
   recipientIds: string[];
   recipientNames: string[];
+  /** the people who got a copy («رونوشت») */
+  copyIds?: string[];
+  copyNames?: string[];
   createdAt: string;
   kind?: string;
   read?: boolean;
+  /** true when I got it as a copy */
+  copy?: boolean;
 }
 
 export interface LeaveRequest {
@@ -672,7 +677,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   aiFunnelStart: () => request<{ id: string; total: number }>('POST', '/api/crm/ai-funnel/start', {}),
   aiFunnelLast: () => request<{ items: Record<string, unknown>[]; at: string; by?: string; total?: number }>('GET', '/api/crm/ai-funnel-last'),
   aiFunnelGet: (id: string) => request<{ status: 'running' | 'done' | 'error'; total: number; done: number; error: string; items: Record<string, unknown>[] }>('GET', `/api/crm/ai-funnel/${encodeURIComponent(id)}`),
-  orderCreate: (b: { subject: string; body: string; recipientIds: string[]; kind?: string; ref?: Record<string, unknown> }) => request<{ ok: true; id: string }>('POST', '/api/orders', b),
+  orderCreate: (b: { subject: string; body: string; recipientIds: string[]; copyIds?: string[]; number?: string; kind?: string; ref?: Record<string, unknown> }) => request<{ ok: true; id: string }>('POST', '/api/orders', b),
   orderList: (box: 'inbox' | 'sent') => request<{ orders: AdminOrder[] }>('GET', '/api/orders?box=' + box),
   orderRead: (id: string) => request<{ ok: true }>('POST', `/api/orders/${encodeURIComponent(id)}/read`, {}),
   commissionGet: () => request<{ rules: Record<string, unknown>; payments: Record<string, unknown>[]; manager: boolean; eligible: boolean }>('GET', '/api/crm/commission'),

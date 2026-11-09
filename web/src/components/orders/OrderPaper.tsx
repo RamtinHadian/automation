@@ -3,7 +3,7 @@ import { formatCurrentJalaliDateTime, toPersianDigits } from '../../lib/jalali';
 import { useAppContext } from '../../context/AppContext';
 
 /** The sheet of an administrative order: company name, number and date, to whom, the subject, the text and the name and title of the one who ordered. Shown on the page and printed from it. */
-export const OrderPaper: React.FC<{ number: string; subject: string; body: string; to: string; from: string; fromTitle: string; at: string }> = ({ number, subject, body, to, from, fromTitle, at }) => {
+export const OrderPaper: React.FC<{ number: string; subject: string; body: string; to: string; from: string; fromTitle: string; at: string; copy?: string }> = ({ number, subject, body, to, from, fromTitle, at, copy }) => {
   const { settings } = useAppContext();
   return (
     <div className="bg-white border border-[#EBDBCE] rounded-2xl shadow-sm px-8 py-9 sm:px-12 text-right text-[#1f2937]" dir="rtl" data-order-paper>
@@ -27,6 +27,7 @@ export const OrderPaper: React.FC<{ number: string; subject: string; body: strin
           <div className="text-[12px] font-bold text-[#8C6F66]">{fromTitle}</div>
         </div>
       </div>
+      {copy ? <div className="mt-8 pt-3 border-t border-[#EBDBCE] text-[12px] font-bold text-[#3A241F]" data-order-copy>رونوشت: {copy}</div> : null}
     </div>
   );
 };
@@ -34,7 +35,7 @@ export const OrderPaper: React.FC<{ number: string; subject: string; body: strin
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** Opens the print window of one order. */
-export const printOrder = (o: { number: string; subject: string; body: string; to: string; from: string; fromTitle: string; at: string }, company: string) => {
+export const printOrder = (o: { number: string; subject: string; body: string; to: string; from: string; fromTitle: string; at: string; copy?: string }, company: string) => {
   const w = window.open('', '_blank', 'width=820,height=1000');
   if (!w) return;
   const css = '@page{size:A4;margin:18mm} body{font-family:Vazirmatn,Tahoma,Arial,sans-serif;color:#1f2937;line-height:2.1} .top{display:flex;justify-content:space-between;border-bottom:2px solid #3A241F;padding-bottom:8px;margin-top:6px} .c{text-align:center;font-weight:800;font-size:12px;color:#6b5048} h1{margin:0;font-size:18px} .m{font-size:12px;font-weight:700;text-align:left} .b{margin-top:20px;font-size:14px;white-space:pre-line;min-height:300px} .s{margin-top:50px;text-align:left}';
@@ -44,6 +45,7 @@ export const printOrder = (o: { number: string; subject: string; body: string; t
     '<div class="m"><div>شمارهٔ دستور: ' + esc(toPersianDigits(o.number)) + '</div><div>تاریخ: ' + esc(formatCurrentJalaliDateTime(new Date(o.at))) + '</div></div></div>',
     '<p><b>به:</b> ' + esc(o.to) + '</p><p><b>موضوع:</b> ' + esc(o.subject) + '</p><div class="b">' + esc(o.body) + '</div>',
     '<div class="s"><b>' + esc(o.from) + '</b><br>' + esc(o.fromTitle) + '</div>',
+    o.copy ? '<div style="margin-top:30px;border-top:1px solid #ccc;padding-top:8px;font-size:12px"><b>رونوشت:</b> ' + esc(o.copy) + '</div>' : '',
     '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print()},300)}</scr' + 'ipt></body></html>',
   ].join('');
   w.document.write(html);

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Send, X } from 'lucide-react';
-import { api } from '../../lib/api';
+import { AdminOrder, api } from '../../lib/api';
+import { DEFAULT_LETTER_NUMBERING, nextFreeLetter } from '../../lib/letterNumbering';
 import { useAppContext } from '../../context/AppContext';
 import { User } from '../../types';
 import { OrderPaper } from './OrderPaper';
@@ -14,23 +15,34 @@ export const OrderComposeModal: React.FC<{
   subject: string;
   body: string;
   recipientIds: string[];
+  /** the people who get a copy (the finance manager chosen by the CEO) */
+  copyIds?: string[];
   staff: User[];
   kind?: string;
   ref?: Record<string, unknown>;
   onClose: () => void;
   onSent?: () => void;
-}> = ({ subject: s0, body: b0, recipientIds: r0, staff, kind, ref, onClose, onSent }) => {
-  const { showToast, currentUser, settings } = useAppContext();
+}> = ({ subject: s0, body: b0, recipientIds: r0, copyIds: c0 = [], staff, kind, ref, onClose, onSent }) => {
+  const { showToast, currentUser, settings, setSettings, transfers } = useAppContext();
+  // the number is the next free number of the system's letter numbering (the same counter and format as the official letters); an order already sent keeps its own
+  const [sentOrders, setSentOrders] = useState<AdminOrder[]>([]);
+  useEffect(() => { api.orderList('sent').then((r) => setSentOrders(r.orders)).catch(() => {}); }, []);
+  const num = useMemo(() => nextFreeLetter(settings.letterNumbering, [...transfers.filter((t) => t.isOfficialLetter).map((t) => t.letterNumber), ...sentOrders.map((o) => o.number)]), [settings.letterNumbering, transfers, sentOrders]);
   const [subject, setSubject] = useState(s0);
   const [body, setBody] = useState(b0);
   const [to, setTo] = useState<string[]>(r0);
+  const [cc, setCc] = useState<string[]>(c0);
+  const nameOf = (id: string) => staff.find((u) => u.id === id)?.fullName || '';
   const [busy, setBusy] = useState(false);
   const names = to.map((id) => staff.find((u) => u.id === id)?.fullName || '').filter(Boolean).join('، ');
   const send = async () => {
     if (!subject.trim() || !body.trim() || to.length === 0) { showToast('موضوع، متن و گیرنده را کامل کنید.'); return; }
     setBusy(true);
     try {
-      await api.orderCreate({ subject, body, recipientIds: to, kind, ref });
+      await api.orderCreate({ subject, body, recipientIds: to, copyIds: cc, kind, ref, number: num.number });
+      // the counter moves on, like it does when a letter is signed
+      const step = settings.letterNumbering?.incrementStep || 1;
+      setSettings((prev) => ({ ...prev, letterNumbering: { ...DEFAULT_LETTER_NUMBERING, ...(prev.letterNumbering || {}), nextNumber: Math.max((prev.letterNumbering?.nextNumber || 1001), num.n + step) } }));
       showToast('دستور ارسال شد؛ گیرنده آن را در «امور اداری ← دستورهای اداری» می‌بیند.');
       onSent?.();
       onClose();
@@ -63,6 +75,22 @@ export const OrderComposeModal: React.FC<{
             </select>
           </div>
           <div>
+            <div className="text-[11px] font-black text-[#8C6F66] mb-1.5">رونوشت (مثلاً مدیر مالی)</div>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {cc.map((id) => (
+                <span key={id} className="flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-200 rounded-full pl-1.5 pr-3 py-1 text-[11px] font-black" data-order-cc>
+                  {nameOf(id) || id}
+                  <button type="button" onClick={() => setCc(cc.filter((x) => x !== id))} className="cursor-pointer" aria-label="حذف رونوشت"><X className="w-3 h-3" /></button>
+                </span>
+              ))}
+              {cc.length === 0 && <span className="text-[11px] font-bold text-[#8C6F66]">رونوشتی نیست.</span>}
+            </div>
+            <select className={field} value="" onChange={(e) => { if (e.target.value && !cc.includes(e.target.value)) setCc([...cc, e.target.value]); }}>
+              <option value="">+ افزودن رونوشت…</option>
+              {staff.filter((u) => u.isActive && !cc.includes(u.id) && !to.includes(u.id)).map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+            </select>
+          </div>
+          <div>
             <div className="text-[11px] font-black text-[#8C6F66] mb-1.5">موضوع</div>
             <input className={field} value={subject} onChange={(e) => setSubject(e.target.value)} data-order-subject />
           </div>
@@ -74,7 +102,7 @@ export const OrderComposeModal: React.FC<{
           <p className="text-[10.5px] font-bold text-[#8C6F66] leading-6 flex gap-1.5"><Check className="w-3.5 h-3.5 shrink-0 text-emerald-600 mt-0.5" />گیرنده دستور را در «امور اداری ← دستورهای اداری» می‌بیند، اعلان می‌گیرد و می‌تواند آن را چاپ کند.</p>
         </section>
         <section className="lg:col-span-3">
-          <OrderPaper number="—" subject={subject} body={body} to={names} from={currentUser.fullName} fromTitle={settings.ceoTitle || 'مدیریت'} at={new Date().toISOString()} />
+          <OrderPaper number={num.number} subject={subject} body={body} to={names} from={settings.ceoName || currentUser.fullName} fromTitle={settings.ceoTitle || 'مدیرعامل'} at={new Date().toISOString()} copy={cc.map(nameOf).filter(Boolean).join('، ')} />
         </section>
       </div>
     </div>
