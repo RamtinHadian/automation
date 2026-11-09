@@ -9,7 +9,8 @@ import { OrderPaper, printOrder } from './OrderPaper';
 export const OrdersView: React.FC<{ onUnread?: (n: number) => void }> = ({ onUnread }) => {
   const { currentUser, settings } = useAppContext();
   const writer = !!currentUser.canSignOfficialLetters; // only the CEO writes orders
-  const [box, setBox] = useState<'inbox' | 'sent'>('inbox');
+  // the CEO only sends orders (he never receives one): he sees only «دستورهای ارسالی من»; everybody else sees only what was sent to him
+  const [box, setBox] = useState<'inbox' | 'sent'>(writer ? 'sent' : 'inbox');
   const [list, setList] = useState<AdminOrder[]>([]);
   const [open, setOpen] = useState<AdminOrder | null>(null);
   const load = useCallback(() => {
@@ -26,8 +27,7 @@ export const OrdersView: React.FC<{ onUnread?: (n: number) => void }> = ({ onUnr
     setOpen(o);
     if (box === 'inbox' && !o.read) api.orderRead(o.id).then(load).catch(() => {});
   };
-  const boxes: [typeof box, string][] = [['inbox', 'دستورهای دریافتی']];
-  if (writer) boxes.push(['sent', 'دستورهای ارسالی من']);
+  const boxes: [typeof box, string][] = writer ? [['sent', 'دستورهای ارسالی من']] : [['inbox', 'دستورهای دریافتی']];
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4" data-orders-view>
       <div className="flex items-center gap-2">

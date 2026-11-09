@@ -34,6 +34,8 @@ export const OrderComposeModal: React.FC<{
   const [cc, setCc] = useState<string[]>(c0);
   const nameOf = (id: string) => staff.find((u) => u.id === id)?.fullName || '';
   const [busy, setBusy] = useState(false);
+  // the CEO never receives an order: he is not offered as a recipient or a copy
+  const others = staff.filter((u) => u.isActive && !u.canSignOfficialLetters);
   const names = to.map((id) => staff.find((u) => u.id === id)?.fullName || '').filter(Boolean).join('، ');
   const send = async () => {
     if (!subject.trim() || !body.trim() || to.length === 0) { showToast('موضوع، متن و گیرنده را کامل کنید.'); return; }
@@ -71,7 +73,7 @@ export const OrderComposeModal: React.FC<{
             </div>
             <select className={field} value="" onChange={(e) => { if (e.target.value && !to.includes(e.target.value)) setTo([...to, e.target.value]); }} data-order-add-recipient>
               <option value="">+ افزودن گیرندهٔ دیگر…</option>
-              {staff.filter((u) => u.isActive && !to.includes(u.id)).map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+              {others.filter((u) => !to.includes(u.id)).map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
             </select>
           </div>
           <div>
@@ -87,7 +89,7 @@ export const OrderComposeModal: React.FC<{
             </div>
             <select className={field} value="" onChange={(e) => { if (e.target.value && !cc.includes(e.target.value)) setCc([...cc, e.target.value]); }}>
               <option value="">+ افزودن رونوشت…</option>
-              {staff.filter((u) => u.isActive && !cc.includes(u.id) && !to.includes(u.id)).map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+              {others.filter((u) => !cc.includes(u.id) && !to.includes(u.id)).map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
             </select>
           </div>
           <div>

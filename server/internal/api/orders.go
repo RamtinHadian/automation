@@ -49,8 +49,12 @@ func orderCreate(w http.ResponseWriter, r *http.Request) {
 			if err != nil || len(raws) == 0 {
 				continue
 			}
+			u := jsonx.Decode(raws[0])
+			if jsonx.Bool(u, "canSignOfficialLetters") { // the CEO never receives an order
+				continue
+			}
 			ids = append(ids, id)
-			names = append(names, jsonx.Str(jsonx.Decode(raws[0]), "fullName"))
+			names = append(names, jsonx.Str(u, "fullName"))
 		}
 	}
 	if len(ids) == 0 {
@@ -71,8 +75,12 @@ func orderCreate(w http.ResponseWriter, r *http.Request) {
 			if err != nil || len(raws) == 0 {
 				continue
 			}
+			u := jsonx.Decode(raws[0])
+			if jsonx.Bool(u, "canSignOfficialLetters") {
+				continue
+			}
 			copyIDs = append(copyIDs, id)
-			copyNames = append(copyNames, jsonx.Str(jsonx.Decode(raws[0]), "fullName"))
+			copyNames = append(copyNames, jsonx.Str(u, "fullName"))
 		}
 	}
 	var n int
