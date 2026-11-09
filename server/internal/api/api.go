@@ -197,6 +197,7 @@ func Router(cfg config.Config) http.Handler {
 	registerInbox(mux)
 	registerAiFunnel(mux)
 	registerCommission(mux)
+	registerOrders(mux)
 
 	mux.HandleFunc("GET /api/config", auth.Require(iceConfig(cfg)))
 	mux.HandleFunc("GET /api/health", health)

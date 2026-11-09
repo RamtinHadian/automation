@@ -96,6 +96,22 @@ export interface Announcement {
   eventDate?: string;
 }
 
+/** An administrative order («دستور اداری») written by the CEO to one or more people. */
+export interface AdminOrder {
+  id: string;
+  number: string;
+  subject: string;
+  body: string;
+  senderId: string;
+  senderName: string;
+  senderTitle: string;
+  recipientIds: string[];
+  recipientNames: string[];
+  createdAt: string;
+  kind?: string;
+  read?: boolean;
+}
+
 export interface LeaveRequest {
   id: string;
   /** a leave (default) or an advance payment */
@@ -656,7 +672,10 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   aiFunnelStart: () => request<{ id: string; total: number }>('POST', '/api/crm/ai-funnel/start', {}),
   aiFunnelLast: () => request<{ items: Record<string, unknown>[]; at: string; by?: string; total?: number }>('GET', '/api/crm/ai-funnel-last'),
   aiFunnelGet: (id: string) => request<{ status: 'running' | 'done' | 'error'; total: number; done: number; error: string; items: Record<string, unknown>[] }>('GET', `/api/crm/ai-funnel/${encodeURIComponent(id)}`),
-  commissionGet: () => request<{ rules: Record<string, unknown>; payments: Record<string, unknown>[]; manager: boolean }>('GET', '/api/crm/commission'),
+  orderCreate: (b: { subject: string; body: string; recipientIds: string[]; kind?: string; ref?: Record<string, unknown> }) => request<{ ok: true; id: string }>('POST', '/api/orders', b),
+  orderList: (box: 'inbox' | 'sent') => request<{ orders: AdminOrder[] }>('GET', '/api/orders?box=' + box),
+  orderRead: (id: string) => request<{ ok: true }>('POST', `/api/orders/${encodeURIComponent(id)}/read`, {}),
+  commissionGet: () => request<{ rules: Record<string, unknown>; payments: Record<string, unknown>[]; manager: boolean; eligible: boolean }>('GET', '/api/crm/commission'),
   commissionSaveRules: (b: unknown) => request<{ ok: true }>('PUT', '/api/crm/commission/rules', b),
   commissionPay: (b: { userId: string; period: string; amount: number; note?: string }) => request<{ ok: true; item: Record<string, unknown> }>('POST', '/api/crm/commission/payments', b),
   commissionPayDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/crm/commission/payments/${encodeURIComponent(id)}`),

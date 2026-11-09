@@ -783,12 +783,13 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               className={`flex items-center justify-center gap-1.5 ${vertical ? 'h-11 w-full' : 'flex-1 min-w-0 px-2 h-11'} bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95`}
             >
               <Award className="w-4 h-4 shrink-0" />
-              {vertical ? <span>ثبت و قفل امضای نهایی</span> : <span className="truncate">ثبت و قفل</span>}
+              {vertical ? <span>{!showSig && !showStamp ? 'تأیید نهایی بدون امضا و مهر' : 'ثبت و قفل امضای نهایی'}</span> : <span className="truncate">{!showSig && !showStamp ? 'تأیید بدون امضا' : 'ثبت و قفل'}</span>}
             </button>
             <button type="button" onClick={() => setActionTab('NONE')} className={`${vertical ? 'h-9 w-full border border-emerald-200 bg-white' : 'px-2.5 h-11 shrink-0'} text-xs text-gray-600 hover:bg-white rounded-xl cursor-pointer`}>انصراف</button>
           </div>
         </div>
         <div className={`text-[10.5px] text-emerald-900/80 ${vertical ? 'space-y-1.5 leading-5' : 'mt-1 flex items-center justify-end gap-2'}`}>
+          {vertical && <span className="flex items-start gap-1.5 text-emerald-900" data-sign-optional><Check className="w-3 h-3 text-emerald-700 shrink-0 mt-1" />امضا و مهر اجباری نیست: اگر هیچ‌کدام را نزنید، نامه بدون امضا و مهر تأیید نهایی می‌شود و آمادهٔ چاپ است.</span>}
           {vertical && <span className="flex items-start gap-1.5"><Move className="w-3 h-3 text-emerald-700 shrink-0 mt-1" />هر کدام را بزنید روی نامه می‌نشیند؛ با کشیدن جابه‌جا و با نقطهٔ نارنجی گوشه‌اش بزرگ و کوچک کنید.</span>}
           <button type="button" onClick={resetPlace} className="text-emerald-800 hover:underline font-bold cursor-pointer">بازنشانی جایگاه</button>
         </div>
@@ -918,29 +919,14 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
 
   const haveSig = !!(letter.signatureImageUrl || settings?.ceoSignatureUrl);
   const haveStamp = !!(letter.companyStampImageUrl || settings?.companyStampUrl);
+  // the signature and the stamp are NOT required: with neither chosen the letter is still finalized and is ready to print, without signature and without stamp
   const requestSign = () => {
-    if (!showSig && !showStamp) {
-      showToast(
-        !haveSig && !haveStamp
-          ? 'امضا و مهر هیچ‌کدام ندارد؛ اول آن‌ها را در تنظیمات سیستم بارگذاری کنید.'
-          : !haveSig
-            ? 'امضا ندارد؛ فقط «مهر کردن» را می‌توانید بزنید.'
-            : !haveStamp
-              ? 'مهر ندارد؛ فقط «امضا کردن» را می‌توانید بزنید.'
-              : 'اول «امضا کردن» یا «مهر کردن» (یا هر دو) را بزنید تا روی نامه بنشیند.'
-      );
-      return;
-    }
     setConfirmSign(true);
   };
 
   const handleConfirmSign = () => {
     setConfirmSign(false);
     if (!onSign) return;
-    if (!showSig && !showStamp) {
-      showToast('اول «امضا کردن» یا «مهر کردن» (یا هر دو) را بزنید تا روی نامه بنشیند.');
-      return;
-    }
     setIsSubmitting(true);
     onSign(letter.id, signComment.trim() || 'تایید و امضا شد', {
       pageSize,
@@ -2339,8 +2325,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                 <Award className="w-6 h-6" />
               </span>
               <div>
-                <div className="font-black text-sm text-[#3A241F]">امضای نهایی نامه</div>
-                <div className="text-[11px] font-bold text-[#8C6F66] leading-5">با تأیید، نامه امضا و قفل می‌شود و دیگر تغییر نمی‌کند.</div>
+                <div className="font-black text-sm text-[#3A241F]">{!showSig && !showStamp ? 'تأیید نهایی نامه (بدون امضا و مهر)' : 'امضای نهایی نامه'}</div>
+                <div className="text-[11px] font-bold text-[#8C6F66] leading-5">{!showSig && !showStamp ? 'نامه بدون امضا و مهر تأیید و قفل می‌شود و آمادهٔ چاپ است؛ دیگر تغییر نمی‌کند.' : 'با تأیید، نامه امضا و قفل می‌شود و دیگر تغییر نمی‌کند.'}</div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[11px] font-black" data-sign-confirm-state>
@@ -2369,7 +2355,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
             <div className="flex gap-2">
               <button type="button" disabled={isSubmitting} onClick={handleConfirmSign} className="flex-1 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md cursor-pointer active:scale-95 flex items-center justify-center gap-1.5">
                 <Check className="w-4 h-4" />
-                تأیید و امضا
+                {!showSig && !showStamp ? 'تأیید نهایی' : 'تأیید و امضا'}
               </button>
               <button type="button" onClick={() => setConfirmSign(false)} className="px-5 h-11 rounded-xl border border-[#EBDBCE] bg-[#FAF5F1] text-[#3A241F] font-black text-sm cursor-pointer">
                 انصراف

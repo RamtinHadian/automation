@@ -164,6 +164,14 @@ var schema = []string{
 	  data JSONB NOT NULL,
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
+	// administrative orders («دستور اداری»): written by the CEO to one or more people, received in their «امور اداری»
+	`CREATE TABLE IF NOT EXISTS admin_orders (
+	  id TEXT PRIMARY KEY,
+	  sender_id TEXT NOT NULL DEFAULT '',
+	  recipient_ids TEXT[] NOT NULL DEFAULT '{}',
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  data JSONB NOT NULL
+	)`,
 	`CREATE TABLE IF NOT EXISTS warranties (
 	  id TEXT PRIMARY KEY,
 	  customer_id TEXT NOT NULL DEFAULT '',

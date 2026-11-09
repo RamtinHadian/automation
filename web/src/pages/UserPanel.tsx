@@ -13,6 +13,7 @@ import { ClockPref, useClockPref } from '../components/common/ClockPref';
 import { ChatView } from '../components/chat/ChatView';
 import { AgentLetter } from '../components/letters/AgentLetter';
 import { LeaveView } from '../components/leave/LeaveView';
+import { OrdersView } from '../components/orders/OrdersView';
 import { BoardView } from '../components/board/BoardView';
 import { BannerStrip } from '../components/board/BannerStrip';
 import { CrmView } from '../components/crm/CrmView';
@@ -142,7 +143,8 @@ export default function UserPanel() {
   } = useAppContext();
 
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
-  const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders' | 'minutes'>('files');
+  const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders' | 'minutes' | 'orders'>('files');
+  const [ordersUnread, setOrdersUnread] = useState(0);
   const [chatPeer, setChatPeer] = useState('');
   const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar' | 'calls'>('files');
 
@@ -1224,9 +1226,11 @@ export default function UserPanel() {
               className="mx-4 sm:mx-6 mb-2" /* no wrapper around it: a sticky bar cannot leave its parent, so it could not stay at the top while the page scrolls */
               value={filesSection}
               onChange={(k) => setFilesSection(k as typeof filesSection)}
-              tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'مرخصی و مساعده', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing], ['minutes', 'صورتجلسه', ScrollText]] as const).filter(([id]) => canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : 0 }))}
+              tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'مرخصی و مساعده', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing], ['minutes', 'صورتجلسه', ScrollText], ['orders', 'دستورهای اداری', FileText]] as const).filter(([id]) => id === 'orders' || canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : id === 'orders' ? ordersUnread : 0 }))}
             />
-            {filesSection === 'minutes' ? (
+            {filesSection === 'orders' ? (
+              <OrdersView onUnread={setOrdersUnread} />
+            ) : filesSection === 'minutes' ? (
               <MinutesView />
             ) : filesSection === 'reminders' ? (
               <RemindersView />
@@ -2192,6 +2196,17 @@ export default function UserPanel() {
                 >
                   <Award className="w-4 h-4" />
                   <span>تایید و امضای رسمی</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleSignLetter(signingTransfer.id, signatureComment || 'تایید شد (بدون امضا و مهر)', { showSignatureImage: false, showStampImage: false });
+                    setSigningTransfer(null);
+                  }}
+                  className="px-4 py-2 text-xs font-bold bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 rounded-xl transition-all cursor-pointer"
+                  title="نامه تأیید و نهایی می‌شود و آمادهٔ چاپ است، ولی امضا و مهر روی آن نمی‌نشیند"
+                  data-sign-without
+                >
+                  تایید بدون امضا و مهر
                 </button>
               </div>
             </div>

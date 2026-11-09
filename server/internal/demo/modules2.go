@@ -179,7 +179,7 @@ func addSepidar(ctx context.Context, now time.Time, by map[string]account) error
 		return err
 	}
 	// the commission rule: 2 percent of the month's sales, 3 percent from 600 million in a month (the amounts are in Toman)
-	if err := exec(ctx, `INSERT INTO settings (key, data) VALUES ('commissionRules', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data`, jsonx.Encode(jsonx.M{"defaultRule": jsonx.M{"percent": 2, "tiers": []jsonx.M{{"from": 600000000, "percent": 3}}}, "perUser": jsonx.M{}})); err != nil {
+	if err := exec(ctx, `INSERT INTO settings (key, data) VALUES ('commissionRules', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data`, jsonx.Encode(jsonx.M{"defaultRule": jsonx.M{"percent": 2, "tiers": []jsonx.M{{"from": 600000000, "percent": 3}}}, "perUser": jsonx.M{}, "recipients": []string{"demo-sales", "demo-sales2", "demo-sales3", "demo-sales4"}})); err != nil {
 		return err
 	}
 	if err := exec(ctx, `INSERT INTO settings (key, data) VALUES ('crmRules', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data`, jsonx.Encode(jsonx.M{"proposalNeedsProforma": false, "bigDealAdminOnly": 200000000, "kindDiscount": jsonx.M{"SHOP": 5}})); err != nil {

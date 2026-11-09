@@ -555,7 +555,7 @@ export const CrmView: React.FC = () => {
   const withSms = smsEnabled ? ([...baseTabs, smsTab] as const) : baseTabs;
   const allTabs = isAnyApprover(currentUser, settings) ? ([...withSms, ['proformas', 'پیش‌فاکتورهای ارسالی', FileText]] as const) : withSms;
   // the sub-menus the administrator switched off for this person are not drawn (sms and proformas have their own rights)
-  const tabs = allTabs.filter(([id]) => (id === 'board' ? seesTeamUI && canSeeSalesTotals(currentUser) : true) && (id === 'sms' || id === 'proformas' || canSub(currentUser, 'crm.' + id)));
+  const tabs = allTabs.filter(([id]) => (id === 'board' ? seesTeamUI && canSeeSalesTotals(currentUser) : true) && (id !== 'commission' || isAdmin || !!currentUser.canSignOfficialLetters) && (id === 'sms' || id === 'proformas' || canSub(currentUser, 'crm.' + id)));
   useEffect(() => {
     if (!tabs.some(([id]) => id === tab) && tabs[0]) setTab(tabs[0][0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps

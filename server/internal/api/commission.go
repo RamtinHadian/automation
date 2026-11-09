@@ -18,7 +18,8 @@ import (
 // may see, so everyone sees only what the CRM already shows him. What is protected here: the rules of other people and every payment are visible only to
 // the managers (the administrator and those who may sign official letters, i.e. the CEO); a salesperson gets the default rule, his own rule and his own payments.
 //
-//	rules:    {defaultRule: {percent, tiers: [{from, percent}]}, perUser: {userId: {percent, tiers}}}
+//	rules:    {defaultRule: {percent, tiers: [{from, percent}]}, perUser: {userId: {percent, tiers}}, recipients: [userId…]}
+//	«recipients» is who may receive commission at all: only the managers decide it, and until they choose, nobody does.
 //	payments: {items: [{id, userId, userName, period: "1405-8", amount, note, at, byName}]}
 
 func commissionManager(me auth.User) bool {
@@ -56,6 +57,38 @@ func cleanRule(v any) jsonx.M {
 	return jsonx.M{"percent": clubNum(m["percent"], 0, 100), "tiers": out}
 }
 
+// teams: the commission of a group of people is worked out from the sales of all of them together, then shared (equally, or by what each one sold)
+func cleanGroups(v any) []any {
+	out := []any{}
+	arr, _ := v.([]any)
+	for i, x := range arr {
+		g, ok := x.(map[string]any)
+		if !ok || i >= 30 {
+			continue
+		}
+		members := []any{}
+		seen := map[string]bool{}
+		if ms, ok := g["memberIds"].([]any); ok {
+			for _, m := range ms {
+				if id, _ := m.(string); id != "" && len(id) < 80 && !seen[id] && len(members) < 300 {
+					seen[id] = true
+					members = append(members, id)
+				}
+			}
+		}
+		id := strings.TrimSpace(jsonx.Str(g, "id"))
+		if id == "" || len(id) > 60 {
+			id = "tm-" + strconv.FormatInt(time.Now().UnixNano(), 36) + strconv.Itoa(i)
+		}
+		split := "equal"
+		if jsonx.Str(g, "split") == "sales" {
+			split = "sales"
+		}
+		out = append(out, jsonx.M{"id": id, "name": clip(jsonx.Str(g, "name"), 80), "memberIds": members, "rule": cleanRule(g["rule"]), "split": split})
+	}
+	return out
+}
+
 func commissionRules(r *http.Request) jsonx.M {
 	d := settingDoc(r.Context(), "commissionRules")
 	if d == nil {
@@ -66,6 +99,12 @@ func commissionRules(r *http.Request) jsonx.M {
 	}
 	if _, ok := d["perUser"].(map[string]any); !ok {
 		d["perUser"] = map[string]any{}
+	}
+	if _, ok := d["recipients"].([]any); !ok {
+		d["recipients"] = []any{}
+	}
+	if _, ok := d["groups"].([]any); !ok {
+		d["groups"] = []any{}
 	}
 	return d
 }
@@ -84,17 +123,34 @@ func commissionGet(w http.ResponseWriter, r *http.Request) {
 	if crmDenied(w, me) {
 		return
 	}
+	// the whole commission section belongs to the CEO (and the administrator): nobody else reads it, not even his own commission
+	if !commissionManager(me) {
+		httpx.Forbidden(w)
+		return
+	}
 	rules := commissionRules(r)
 	items := commissionItems(r)
-	manager := commissionManager(me)
+	manager := true
+	eligible := manager
 	if !manager {
+		if arr, ok := rules["recipients"].([]any); ok {
+			for _, x := range arr {
+				if id, _ := x.(string); id == me.ID() {
+					eligible = true
+				}
+			}
+		}
 		own := map[string]any{}
 		if per, ok := rules["perUser"].(map[string]any); ok {
 			if v, has := per[me.ID()]; has {
 				own[me.ID()] = v
 			}
 		}
-		rules = jsonx.M{"defaultRule": rules["defaultRule"], "perUser": own}
+		rec := []any{}
+		if eligible {
+			rec = append(rec, me.ID())
+		}
+		rules = jsonx.M{"defaultRule": rules["defaultRule"], "perUser": own, "recipients": rec}
 		mine := []any{}
 		for _, x := range items {
 			if m, ok := x.(map[string]any); ok && jsonx.Str(m, "userId") == me.ID() {
@@ -103,7 +159,7 @@ func commissionGet(w http.ResponseWriter, r *http.Request) {
 		}
 		items = mine
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"rules": rules, "payments": items, "manager": manager})
+	httpx.JSON(w, http.StatusOK, map[string]any{"rules": rules, "payments": items, "manager": manager, "eligible": eligible})
 }
 
 // PUT /api/crm/commission/rules {defaultRule, perUser}
@@ -125,7 +181,17 @@ func commissionRulesPut(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	d := jsonx.M{"defaultRule": cleanRule(body["defaultRule"]), "perUser": per}
+	rec := []any{}
+	seen := map[string]bool{}
+	if arr, ok := body["recipients"].([]any); ok {
+		for _, x := range arr {
+			if id, _ := x.(string); id != "" && len(id) < 80 && !seen[id] && len(rec) < 1000 {
+				seen[id] = true
+				rec = append(rec, id)
+			}
+		}
+	}
+	d := jsonx.M{"defaultRule": cleanRule(body["defaultRule"]), "perUser": per, "recipients": rec, "groups": cleanGroups(body["groups"])}
 	if err := saveSettingDoc(r.Context(), "commissionRules", d); err != nil {
 		internalError(w)
 		return

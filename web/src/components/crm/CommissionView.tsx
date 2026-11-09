@@ -1,17 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BadgeDollarSign, ChevronDown, ChevronLeft, ChevronRight, Coins, Percent, Plus, Settings2, Trash2, Trophy, Wallet, X } from 'lucide-react';
+import { BadgeDollarSign, ChevronDown, Users, ChevronLeft, ChevronRight, Coins, Percent, Plus, Settings2, Trash2, Trophy, Wallet, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { askConfirm } from '../../lib/confirmDialog';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { formatMoney, fromDisplay, toDisplay, unitName } from '../../lib/money';
 import { JALALI_MONTHS, isoToJalaliParts, todayIso, formatTaskDate } from '../../lib/taskDates';
-import { CommissionPayment, CommissionRule, CommissionRules, commissionOf, periodKey, percentFor, ruleOf } from '../../lib/commission';
+import { CommissionGroup, CommissionPayment, CommissionRule, CommissionRules, commissionOf, periodKey, percentFor, ruleOf } from '../../lib/commission';
 import { MoneyInput } from '../common/MoneyInput';
+import { OrderComposeModal } from '../orders/OrderComposeModal';
 import { Deal, User } from '../../types';
 
 const field = 'w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F] focus:border-violet-500 focus:outline-none';
-const EMPTY_RULES: CommissionRules = { defaultRule: { percent: 0, tiers: [] }, perUser: {} };
+const EMPTY_RULES: CommissionRules = { defaultRule: { percent: 0, tiers: [] }, perUser: {}, recipients: [], groups: [] };
 
 /** A percent written with Persian digits and «٫»; the page keeps it as a plain number. */
 const PercentInput: React.FC<{ value: number; onChange: (n: number) => void; className?: string }> = ({ value, onChange, className }) => {
@@ -75,6 +76,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
   const [rules, setRules] = useState<CommissionRules>(EMPTY_RULES);
   const [payments, setPayments] = useState<CommissionPayment[]>([]);
   const [manager, setManager] = useState(false);
+  const [eligible, setEligible] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const today = isoToJalaliParts(todayIso()) || [1405, 1, 1];
   const [jy, setJy] = useState(today[0]);
@@ -85,11 +87,14 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
   const [payFor, setPayFor] = useState<{ userId: string; amount: string; note: string } | null>(null);
   const [addUser, setAddUser] = useState('');
   const [busy, setBusy] = useState(false);
+  // the page of the administrative order that opens after a payment is recorded: the commission of that person is written in it, ready to send
+  const [order, setOrder] = useState<{ userId: string; subject: string; body: string; amount: number } | null>(null);
 
   const load = useCallback(() => {
     api.commissionGet().then((r) => {
       const rr = r.rules as unknown as CommissionRules;
-      setRules({ defaultRule: rr.defaultRule || EMPTY_RULES.defaultRule, perUser: rr.perUser || {} });
+      setRules({ defaultRule: rr.defaultRule || EMPTY_RULES.defaultRule, perUser: rr.perUser || {}, recipients: rr.recipients || [], groups: rr.groups || [] });
+      setEligible(r.eligible);
       setPayments(r.payments as unknown as CommissionPayment[]);
       setManager(r.manager);
       setLoaded(true);
@@ -126,14 +131,31 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
       showToast(e instanceof Error ? e.message : 'ذخیره نشد.');
     } finally { setBusy(false); }
   };
-  const savePay = async () => {
+  const savePay = async (withOrder = false) => {
     if (!payFor) return;
     const amount = fromDisplay(Number(payFor.amount) || 0);
     if (amount <= 0) { showToast('مبلغ پرداخت را بنویسید.'); return; }
     setBusy(true);
     try {
       await api.commissionPay({ userId: payFor.userId, period, amount, note: payFor.note });
-      showToast('پرداخت ثبت شد.');
+      showToast(withOrder ? 'پرداخت ثبت شد؛ دستور را بنویسید و بفرستید.' : 'پرداخت ثبت شد.');
+      const row = rows.find((r) => r.userId === payFor.userId);
+      if (withOrder && row) {
+        const who = nameOf(row.userId);
+        const monthName = `${JALALI_MONTHS[jm - 1]} ${toPersianDigits(jy)}`;
+        setOrder({
+          userId: row.userId,
+          amount,
+          subject: `دستور پرداخت پورسانت ${monthName}`,
+          body: [
+            `${who} گرامی`,
+            'سلام و احترام؛',
+            `پورسانت شما بابت فروش‌های موفق ${monthName} محاسبه شد: جمع فروش ${formatMoney(row.sales)} ${unitName()}، درصد پورسانت ${toPersianDigits(row.percent)}٪${row.groupName ? ` (تیم «${row.groupName}»)` : ''}، پورسانت ${formatMoney(row.commission)} ${unitName()}.`,
+            `دستور می‌شود مبلغ ${formatMoney(amount)} ${unitName()} از این پورسانت پرداخت شود.${payFor.note ? ' ' + payFor.note : ''}`,
+            'با تشکر',
+          ].join('\n'),
+        });
+      }
       setPayFor(null);
       load();
     } catch (e) {
@@ -175,8 +197,59 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
 
       {rulesOpen && manager && (
         <section className="rounded-3xl border border-violet-200 bg-white p-5 space-y-5" data-commission-rules>
-          <div>
-            <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2"><Percent className="w-4 h-4 text-violet-700" />قانون عمومی (برای همهٔ فروشنده‌ها)</h3>
+          <div className="space-y-2.5" data-commission-recipients>
+            <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2"><Trophy className="w-4 h-4 text-violet-700" />چه کسانی پورسانت دریافت می‌کنند؟</h3>
+            <p className="text-[11px] font-bold text-[#8C6F66] leading-6">فقط افرادی که اینجا تیک بخورند پورسانت می‌گیرند و فقط خودشان پورسانتشان را می‌بینند؛ برای بقیه، هر چه فروخته باشند پورسانتی حساب نمی‌شود.</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setDraft({ ...draft, recipients: staff.map((u) => u.id) })} className="px-3 py-1.5 rounded-lg text-[11px] font-black text-violet-700 bg-violet-50 border border-violet-200 cursor-pointer">همه</button>
+              <button type="button" onClick={() => setDraft({ ...draft, recipients: [] })} className="px-3 py-1.5 rounded-lg text-[11px] font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">هیچ‌کس</button>
+              <span className="text-[11px] font-black text-violet-800 self-center">{toPersianDigits(draft.recipients.length)} نفر انتخاب شده</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-56 overflow-y-auto">
+              {staff.map((u) => {
+                const on = draft.recipients.includes(u.id);
+                return (
+                  <label key={u.id} className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-black cursor-pointer ${on ? 'bg-violet-50 border-violet-300 text-violet-900' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`} data-commission-recipient>
+                    <input type="checkbox" className="accent-violet-600" checked={on} onChange={(e) => setDraft({ ...draft, recipients: e.target.checked ? [...draft.recipients, u.id] : draft.recipients.filter((x) => x !== u.id) })} />
+                    <span className="truncate">{u.fullName}</span>
+                    {u.departmentName ? <span className="text-[10px] font-bold text-[#8C6F66] truncate">{u.departmentName}</span> : null}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          <div className="border-t border-[#EBDBCE] pt-4 space-y-3" data-commission-teams>
+            <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2"><Users className="w-4 h-4 text-violet-700" />تیم‌ها (پورسانت جمعی)</h3>
+            <p className="text-[11px] font-bold text-[#8C6F66] leading-6">اگر پورسانت را برای «یک تیم» می‌خواهید، تیم بسازید: فروش همهٔ اعضا با هم جمع می‌شود، پورسانت کل تیم با قانون خود تیم حساب می‌شود و بعد مساوی یا به نسبت فروش هر نفر بین اعضا تقسیم می‌شود. اعضای تیم خودکار دریافت‌کننده‌اند و پورسانتشان فقط از تیم می‌آید. کسی که در هیچ تیمی نیست، پورسانت شخصی (قانون خودش یا قانون عمومی) می‌گیرد.</p>
+            {draft.groups.map((g, gi) => (
+              <div key={g.id} className="rounded-2xl border border-violet-200 bg-violet-50/30 p-3.5 space-y-3" data-commission-team>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input className={`${field} max-w-xs`} value={g.name} onChange={(e) => setDraft({ ...draft, groups: draft.groups.map((x, k) => (k === gi ? { ...x, name: e.target.value } : x)) })} placeholder="نام تیم (مثلاً تیم فروش)" />
+                  <select className={`${field} max-w-[220px]`} value={g.split} onChange={(e) => setDraft({ ...draft, groups: draft.groups.map((x, k) => (k === gi ? { ...x, split: e.target.value as CommissionGroup['split'] } : x)) })}>
+                    <option value="equal">تقسیم مساوی بین اعضا</option>
+                    <option value="sales">تقسیم به نسبت فروش هر نفر</option>
+                  </select>
+                  <button type="button" onClick={() => setDraft({ ...draft, groups: draft.groups.filter((_, k) => k !== gi) })} className="mr-auto text-[11px] font-black text-rose-600 hover:underline cursor-pointer">حذف تیم</button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-44 overflow-y-auto">
+                  {staff.map((u) => {
+                    const on = g.memberIds.includes(u.id);
+                    return (
+                      <label key={u.id} className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-black cursor-pointer ${on ? 'bg-white border-violet-400 text-violet-900' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`}>
+                        <input type="checkbox" className="accent-violet-600" checked={on} onChange={(e) => setDraft({ ...draft, groups: draft.groups.map((x, k) => (k === gi ? { ...x, memberIds: e.target.checked ? [...x.memberIds, u.id] : x.memberIds.filter((m) => m !== u.id) } : x)) })} />
+                        <span className="truncate">{u.fullName}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="text-[11px] font-black text-violet-900">قانون این تیم ({toPersianDigits(g.memberIds.length)} عضو)</div>
+                <RuleEditor rule={g.rule} onChange={(r) => setDraft({ ...draft, groups: draft.groups.map((x, k) => (k === gi ? { ...x, rule: r } : x)) })} />
+              </div>
+            ))}
+            <button type="button" onClick={() => setDraft({ ...draft, groups: [...draft.groups, { id: 'tm-' + Math.random().toString(36).slice(2, 9), name: '', memberIds: [], rule: { percent: draft.defaultRule.percent, tiers: [] }, split: 'equal' }] })} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black text-violet-700 bg-white border border-violet-200 hover:bg-violet-50 cursor-pointer" data-commission-add-team><Plus className="w-3.5 h-3.5" />تیم تازه</button>
+          </div>
+          <div className="border-t border-[#EBDBCE] pt-4">
+            <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2"><Percent className="w-4 h-4 text-violet-700" />قانون عمومی (برای دریافت‌کننده‌های بدون تیم)</h3>
             <p className="text-[11px] font-bold text-[#8C6F66] leading-6 mt-1">پورسانت هر ماه = درصد × جمع فروش‌های موفق همان ماه. اگر پله بگذارید، وقتی فروش ماه به مبلغ پله برسد کل ماه با درصد آن پله حساب می‌شود (نه فقط مازاد).</p>
           </div>
           <RuleEditor rule={draft.defaultRule} onChange={(r) => setDraft({ ...draft, defaultRule: r })} />
@@ -204,14 +277,18 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
         </section>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 ${loaded && !manager && !eligible ? 'hidden' : ''}`}>
         {tile(Trophy, 'فروش‌های موفق', toPersianDigits(totals.deals), 'bg-white border-[#EBDBCE] text-[#3A241F]')}
         {tile(BadgeDollarSign, 'جمع فروش', `${formatMoney(totals.sales)} ${unitName()}`, 'bg-white border-[#EBDBCE] text-[#3A241F]')}
         {tile(Coins, 'پورسانت این ماه', `${formatMoney(totals.commission)} ${unitName()}`, 'bg-violet-50 border-violet-200 text-violet-900')}
         {tile(Wallet, 'مانده (پرداخت‌نشده)', `${formatMoney(Math.max(0, totals.commission - totals.paid))} ${unitName()}`, totals.commission - totals.paid > 0 ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900')}
       </div>
 
-      {!loaded ? (
+      {loaded && !manager && !eligible ? (
+        <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-10 text-center text-xs font-bold text-[#8C6F66] leading-7" data-commission-not-eligible>شما در فهرست دریافت‌کنندگان پورسانت نیستید. اگر باید پورسانت بگیرید، با مدیرعامل صحبت کنید.</div>
+      ) : manager && loaded && rules.recipients.length === 0 && rules.groups.length === 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-xs font-bold text-amber-900 leading-7" data-commission-no-recipients>هنوز مشخص نشده کدام فروشنده‌ها پورسانت می‌گیرند. از دکمهٔ «قانون پورسانت» افراد را انتخاب کنید.</div>
+      ) : !loaded ? (
         <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-8 text-center text-xs font-bold text-[#8C6F66]">در حال خواندن…</div>
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-10 text-center text-xs font-bold text-[#8C6F66]" data-commission-empty>در این ماه فروش موفقی ثبت نشده است.</div>
@@ -227,6 +304,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 p-4">
                   <button type="button" onClick={() => setOpen(isOpen ? null : r.userId)} className="flex items-center gap-2 font-black text-[14px] text-[#3A241F] cursor-pointer"><ChevronDown className={`w-4 h-4 text-[#8C6F66] transition-transform ${isOpen ? 'rotate-180' : ''}`} />{nameOf(r.userId)}</button>
                   <span className="text-[11px] font-bold text-[#8C6F66]">{toPersianDigits(r.deals.length)} فروش · {formatMoney(r.sales)} {unitName()}</span>
+                  {r.groupName && <span className="text-[11px] font-black rounded-full px-2.5 py-0.5 bg-sky-50 text-sky-800 border border-sky-200" data-commission-team-chip>تیم «{r.groupName}»: فروش کل {formatMoney(r.groupSales || 0)}</span>}
                   <span className="text-[11px] font-black rounded-full px-2.5 py-0.5 bg-violet-50 text-violet-800 border border-violet-200">{toPersianDigits(r.percent)}٪{(rule.tiers || []).some((t) => r.sales >= t.from) ? ' (پله)' : ''}</span>
                   <span className="mr-auto flex items-center gap-4 text-[12px] font-black">
                     <span className="text-violet-800">پورسانت: {formatMoney(r.commission)} {unitName()}</span>
@@ -239,7 +317,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
                   <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-[200px_1fr_auto] gap-2 items-end bg-emerald-50/40 border-t border-emerald-100 pt-3" data-commission-pay-form>
                     <div><div className="text-[10.5px] font-black text-[#8C6F66] mb-1">مبلغ پرداخت</div><MoneyInput unit className={field} value={payFor.amount} onChange={(d) => setPayFor({ ...payFor, amount: d })} /></div>
                     <div><div className="text-[10.5px] font-black text-[#8C6F66] mb-1">توضیح (اختیاری)</div><input className={field} value={payFor.note} onChange={(e) => setPayFor({ ...payFor, note: e.target.value })} placeholder="مثلاً واریز به حساب" /></div>
-                    <div className="flex gap-2"><button type="button" disabled={busy} onClick={savePay} className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">ثبت</button><button type="button" onClick={() => setPayFor(null)} className="px-4 py-2.5 rounded-xl text-xs font-black bg-white border border-[#EBDBCE] cursor-pointer">انصراف</button></div>
+                    <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => savePay(true)} className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-[#6E1B1B] hover:bg-[#561414] disabled:opacity-50 cursor-pointer" data-commission-pay-order>ثبت و ارسال دستور</button><button type="button" disabled={busy} onClick={() => savePay(false)} className="px-4 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">فقط ثبت</button><button type="button" onClick={() => setPayFor(null)} className="px-4 py-2.5 rounded-xl text-xs font-black bg-white border border-[#EBDBCE] cursor-pointer">انصراف</button></div>
                   </div>
                 )}
                 {isOpen && (
@@ -276,6 +354,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
           })}
         </div>
       )}
+      {order && <OrderComposeModal subject={order.subject} body={order.body} recipientIds={[order.userId]} staff={staff} kind="commission" ref={{ period, userId: order.userId, amount: order.amount }} onClose={() => setOrder(null)} />}
       {currentUser && !manager && <p className="text-[10.5px] font-bold text-[#8C6F66]">پورسانت از جمع فروش‌های موفق ماه و قانونی که مدیرعامل تعیین کرده حساب می‌شود. اگر ایرادی می‌بینید با مدیرعامل صحبت کنید.</p>}
     </div>
   );
