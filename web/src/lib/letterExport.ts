@@ -6,8 +6,8 @@ import { generateOfficialLetterHtml, LetterPrintOverrides } from './pdfLetterGen
  * so they can be saved or shared from a phone with one tap. The picture libraries are loaded only when somebody asks for a file.
  */
 
-/** What one picture may hold at most (the phones' browsers refuse bigger canvases): the pages are drawn as sharp as this allows, up to 4 times their size. */
-const MAX_PIXELS = 13_000_000;
+/** What one picture may hold at most (the phones' browsers refuse bigger canvases): the pages are drawn as sharp as this allows, up to 5 times their size. */
+const MAX_PIXELS = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches ? 13_000_000 : 22_000_000;
 
 const MM: Record<string, [number, number]> = { A4: [210, 297], A5: [148, 210], Letter: [215.9, 279.4], Letterhead: [210, 297] };
 
@@ -115,6 +115,10 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
     await settleImages(doc);
     unmultiplyImages(doc);
     flattenFittedImages(doc);
+    // the name and the title of the signer are always drawn ABOVE the signature and the stamp pictures: the white box around a scanned picture must never hide them
+    doc.querySelectorAll<HTMLElement>('.ceo-signature-block > div').forEach((el) => {
+      if (el.querySelector('.ceo-name, .ceo-title')) { el.style.position = 'relative'; el.style.zIndex = '30'; }
+    });
     let pages = Array.from(doc.querySelectorAll<HTMLElement>('.pg-page'));
     if (pages.length === 0) pages = Array.from(doc.querySelectorAll<HTMLElement>('.letter-container'));
     if (pages.length === 0) throw new Error('صفحهٔ نامه ساخته نشد.');
@@ -123,7 +127,7 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
     for (const el of pages) {
       el.style.boxShadow = 'none';
       const r = el.getBoundingClientRect();
-      const scale = Math.max(2, Math.min(4, Math.sqrt(MAX_PIXELS / Math.max(1, r.width * r.height))));
+      const scale = Math.max(2, Math.min(5, Math.sqrt(MAX_PIXELS / Math.max(1, r.width * r.height))));
       out.push(await html2canvas(el, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: 980 }));
     }
     return out;
