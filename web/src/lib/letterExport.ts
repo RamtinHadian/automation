@@ -6,6 +6,9 @@ import { generateOfficialLetterHtml, LetterPrintOverrides } from './pdfLetterGen
  * so they can be saved or shared from a phone with one tap. The picture libraries are loaded only when somebody asks for a file.
  */
 
+/** What one picture may hold at most (the phones' browsers refuse bigger canvases): the pages are drawn as sharp as this allows, up to 4 times their size. */
+const MAX_PIXELS = 13_000_000;
+
 const MM: Record<string, [number, number]> = { A4: [210, 297], A5: [148, 210], Letter: [215.9, 279.4], Letterhead: [210, 297] };
 
 const baseName = (t: FileTransfer) => {
@@ -18,6 +21,48 @@ async function settleImages(doc: Document) {
   const imgs = Array.from(doc.images);
   await Promise.all(imgs.map((i) => (i.complete ? Promise.resolve() : new Promise<void>((r) => { i.onload = () => r(); i.onerror = () => r(); }))));
   await Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => undefined) : Promise.resolve())));
+}
+
+/**
+ * The signature and the stamp are laid on the letter with «mix-blend-mode: multiply» (their white background lets the text under them show). The picture maker does not know
+ * that mode, so the white box of the picture would hide the name of the signer under it. Each such picture is turned into a picture whose white is transparent (the colour it
+ * had over white stays the same), so it can be drawn normally.
+ */
+function unmultiplyImages(doc: Document) {
+  const win = doc.defaultView;
+  if (!win) return;
+  for (const img of Array.from(doc.querySelectorAll('img'))) {
+    if (win.getComputedStyle(img).mixBlendMode !== 'multiply') continue;
+    try {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) continue;
+      const k = Math.min(1, 1800 / Math.max(w, h));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(w * k));
+      c.height = Math.max(1, Math.round(h * k));
+      const g = c.getContext('2d');
+      if (!g) continue;
+      g.drawImage(img, 0, 0, c.width, c.height);
+      const data = g.getImageData(0, 0, c.width, c.height);
+      const px = data.data;
+      for (let i = 0; i < px.length; i += 4) {
+        const a0 = px[i + 3] / 255;
+        if (a0 === 0) continue;
+        const r = px[i] * a0 + 255 * (1 - a0), gr = px[i + 1] * a0 + 255 * (1 - a0), b = px[i + 2] * a0 + 255 * (1 - a0);
+        const alpha = 1 - Math.min(r, gr, b) / 255;
+        if (alpha < 0.004) { px[i + 3] = 0; continue; }
+        px[i] = Math.max(0, Math.min(255, (r - 255 * (1 - alpha)) / alpha));
+        px[i + 1] = Math.max(0, Math.min(255, (gr - 255 * (1 - alpha)) / alpha));
+        px[i + 2] = Math.max(0, Math.min(255, (b - 255 * (1 - alpha)) / alpha));
+        px[i + 3] = Math.round(alpha * 255);
+      }
+      g.putImageData(data, 0, 0);
+      img.src = c.toDataURL('image/png');
+      img.style.mixBlendMode = 'normal';
+    } catch {
+      /* a picture from another site cannot be read: it stays as it was */
+    }
+  }
 }
 
 /**
@@ -68,6 +113,7 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
     await new Promise((r) => setTimeout(r, 250));
     doc.querySelectorAll('.print-bar').forEach((e) => ((e as HTMLElement).style.display = 'none'));
     await settleImages(doc);
+    unmultiplyImages(doc);
     flattenFittedImages(doc);
     let pages = Array.from(doc.querySelectorAll<HTMLElement>('.pg-page'));
     if (pages.length === 0) pages = Array.from(doc.querySelectorAll<HTMLElement>('.letter-container'));
@@ -76,7 +122,9 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
     const out: HTMLCanvasElement[] = [];
     for (const el of pages) {
       el.style.boxShadow = 'none';
-      out.push(await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: 980 }));
+      const r = el.getBoundingClientRect();
+      const scale = Math.max(2, Math.min(4, Math.sqrt(MAX_PIXELS / Math.max(1, r.width * r.height))));
+      out.push(await html2canvas(el, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: 980 }));
     }
     return out;
   } finally {
@@ -84,7 +132,7 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
   }
 }
 
-const canvasBlob = (c: HTMLCanvasElement, q = 0.92) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('تصویر ساخته نشد.'))), 'image/jpeg', q));
+const canvasBlob = (c: HTMLCanvasElement, q = 0.95) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('تصویر ساخته نشد.'))), 'image/jpeg', q));
 
 /** The letter as one JPG picture (all pages one under another). */
 export async function letterAsJpg(t: FileTransfer, settings: SystemSettings, user?: User, overrides?: LetterPrintOverrides): Promise<{ blob: Blob; name: string }> {
@@ -92,14 +140,17 @@ export async function letterAsJpg(t: FileTransfer, settings: SystemSettings, use
   let canvas = pages[0];
   if (pages.length > 1) {
     const gap = 24;
+    const fullW = Math.max(...pages.map((p) => p.width));
+    const fullH = pages.reduce((s, p) => s + p.height, 0) + gap * (pages.length - 1);
+    const k = Math.min(1, Math.sqrt(16_000_000 / (fullW * fullH)));
     canvas = document.createElement('canvas');
-    canvas.width = Math.max(...pages.map((p) => p.width));
-    canvas.height = pages.reduce((s, p) => s + p.height, 0) + gap * (pages.length - 1);
+    canvas.width = Math.round(fullW * k);
+    canvas.height = Math.round(fullH * k);
     const g = canvas.getContext('2d')!;
     g.fillStyle = '#ffffff';
     g.fillRect(0, 0, canvas.width, canvas.height);
     let y = 0;
-    for (const p of pages) { g.drawImage(p, 0, y); y += p.height + gap; }
+    for (const p of pages) { g.drawImage(p, 0, y * k, p.width * k, p.height * k); y += p.height + gap; }
   }
   return { blob: await canvasBlob(canvas), name: baseName(t) + '.jpg' };
 }
@@ -112,7 +163,7 @@ export async function letterAsPdf(t: FileTransfer, settings: SystemSettings, use
   const pdf = new jsPDF({ unit: 'mm', format: [w, h], orientation: 'portrait', compress: true });
   for (let i = 0; i < pages.length; i++) {
     if (i > 0) pdf.addPage([w, h], 'portrait');
-    pdf.addImage(pages[i].toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, w, h, undefined, 'FAST');
+    pdf.addImage(pages[i].toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, w, h, undefined, 'FAST');
   }
   return { blob: pdf.output('blob'), name: baseName(t) + '.pdf' };
 }
