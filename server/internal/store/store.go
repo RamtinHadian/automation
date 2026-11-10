@@ -189,6 +189,8 @@ var schema = []string{
 	  data BYTEA
 	)`,
 	`CREATE INDEX IF NOT EXISTS oneshot_transfer_idx ON oneshot_links (transfer_id, created_at DESC)`,
+	`ALTER TABLE oneshot_links ADD COLUMN IF NOT EXISTS max_uses INT NOT NULL DEFAULT 1`,
+	`ALTER TABLE oneshot_links ADD COLUMN IF NOT EXISTS uses INT NOT NULL DEFAULT 0`,
 	`CREATE TABLE IF NOT EXISTS warranties (
 	  id TEXT PRIMARY KEY,
 	  customer_id TEXT NOT NULL DEFAULT '',

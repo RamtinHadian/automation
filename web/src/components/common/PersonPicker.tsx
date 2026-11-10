@@ -36,6 +36,17 @@ const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, on
   const [q, setQ] = useState('');
   const [draft, setDraft] = useState<string[]>(selected);
   const input = useRef<HTMLInputElement>(null);
+  // on a phone the keyboard covers the lower part of the screen: the box follows the part that is really visible (it sits at the top of it) so it never hides behind the keys or floats in the middle
+  const [vv, setVv] = useState<{ h: number; top: number } | null>(null);
+  useEffect(() => {
+    const v = window.visualViewport;
+    if (!v) return;
+    const sync = () => setVv({ h: v.height, top: v.offsetTop });
+    sync();
+    v.addEventListener('resize', sync);
+    v.addEventListener('scroll', sync);
+    return () => { v.removeEventListener('resize', sync); v.removeEventListener('scroll', sync); };
+  }, []);
   useEffect(() => {
     input.current?.focus();
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -59,8 +70,8 @@ const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, on
   // React events travel through portals to the windows underneath (that close on a press outside them): stop them here.
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return createPortal(
-    <div className="fixed inset-0 z-[2147483200] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={(e) => { stop(e); onClose(); }} onClick={stop} onSubmit={stop} data-person-picker>
-      <div dir="rtl" onMouseDown={stop} className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col border border-[#EBDBCE] text-right max-h-[85vh]">
+    <div className="fixed left-0 right-0 z-[2147483200] flex items-start sm:items-center justify-center bg-black/60 p-3" style={vv ? { top: vv.top, height: vv.h } : { top: 0, bottom: 0 }} onMouseDown={(e) => { stop(e); onClose(); }} onClick={stop} onSubmit={stop} data-person-picker>
+      <div dir="rtl" onMouseDown={stop} className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col border border-[#EBDBCE] text-right max-h-full sm:max-h-[85vh] opacity-100" style={{ backgroundColor: '#ffffff' }}>
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#EBDBCE]">
           <h3 className="font-black text-sm text-[#3A241F]">{title}</h3>
           <button type="button" onClick={onClose} className="p-1.5 text-[#8C6F66] hover:text-[#3A241F] rounded-xl cursor-pointer" aria-label="بستن">

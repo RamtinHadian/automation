@@ -160,6 +160,16 @@ const isWebKitOnly = () => {
   return ios || (/Safari/.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|Edg|Android/.test(ua));
 };
 
+/** How the file is drawn: «auto» (the browser's own drawing where it is known to work), «native» (always the browser's own drawing, exactly like the print) or «canvas» (the compatible way). A person can switch it in the download window. */
+export type ExportMode = 'auto' | 'native' | 'canvas';
+export const getExportMode = (): ExportMode => {
+  try {
+    const v = localStorage.getItem('letter_export_mode');
+    return v === 'native' || v === 'canvas' ? v : 'auto';
+  } catch { return 'auto'; }
+};
+export const setExportMode = (m: ExportMode) => { try { localStorage.setItem('letter_export_mode', m); } catch { /* storage unavailable */ } };
+
 const fontCache = new Map<string, string>();
 
 /** The @font-face rules of the sheet with every font file inlined as data: the browser's own drawing of the page cannot load files from the web. */
@@ -217,6 +227,8 @@ async function drawNative(pages: HTMLElement[], doc: Document): Promise<HTMLCanv
       const r = el.getBoundingClientRect();
       const pixelRatio = Math.max(2, Math.min(5, Math.sqrt(MAX_PIXELS / Math.max(1, r.width * r.height))));
       const opts = { pixelRatio, backgroundColor: '#ffffff', fontEmbedCSS, cacheBust: false, width: Math.round(r.width), height: Math.round(r.height), style: { margin: '0', boxShadow: 'none' } };
+      // Safari draws the pictures inside this kind of drawing only from the second or third try on: two warm-up passes first
+      if (isWebKitOnly()) { await toCanvas(el, { ...opts, pixelRatio: 1 }); await toCanvas(el, { ...opts, pixelRatio: 1 }); }
       let c = await toCanvas(el, opts);
       // some browsers (Safari) draw this kind of picture empty on the first try
       if (looksEmpty(c)) c = await toCanvas(el, opts);
@@ -251,7 +263,8 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
     let pages = Array.from(doc.querySelectorAll<HTMLElement>('.pg-page'));
     if (pages.length === 0) pages = Array.from(doc.querySelectorAll<HTMLElement>('.letter-container'));
     if (pages.length === 0) throw new Error('صفحهٔ نامه ساخته نشد.');
-    const native = isWebKitOnly() ? null : await drawNative(pages, doc);
+    const mode = getExportMode();
+    const native = mode === 'canvas' || (mode === 'auto' && isWebKitOnly()) ? null : await drawNative(pages, doc);
     (window as unknown as { __exportMode?: string }).__exportMode = native ? 'native' : 'canvas';
     if (native) return native;
     // the older way (a picture maker that does not know every style of the sheet): the pictures are prepared first
@@ -267,7 +280,55 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
       el.style.boxShadow = 'none';
       const r = el.getBoundingClientRect();
       const scale = Math.max(2, Math.min(5, Math.sqrt(MAX_PIXELS / Math.max(1, r.width * r.height))));
-      out.push(await html2canvas(el, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: 980 }));
+      // The ready-made letterheads draw their top and bottom bands as an SVG background; the picture maker squeezes and crops that. The bands are taken out of the page here and drawn
+      // by the browser itself underneath the page afterwards (the logo and the text stay on top of them, as on the print).
+      const bands: { x: number; y: number; w: number; h: number; url: string }[] = [];
+      for (const band of Array.from(el.querySelectorAll<HTMLElement>('.lh-band'))) {
+        const m = /url\(["']?(.*?)["']?\)/.exec(getComputedStyle(band).backgroundImage || '');
+        const b = band.getBoundingClientRect();
+        if (m && m[1] && b.width > 0 && b.height > 0) {
+          bands.push({ x: b.left - r.left, y: b.top - r.top, w: b.width, h: b.height, url: m[1] });
+          band.style.backgroundImage = 'none';
+        }
+      }
+      // a white page or white block would hide the bands that are drawn underneath afterwards
+      if (bands.length > 0) {
+        [el, ...Array.from(el.querySelectorAll<HTMLElement>('*'))].forEach((n) => {
+          const bg = getComputedStyle(n).backgroundColor;
+          if (bg === 'rgb(255, 255, 255)' || bg === '#ffffff') n.style.backgroundColor = 'transparent';
+        });
+      }
+      const top = await html2canvas(el, { scale, backgroundColor: null, useCORS: true, logging: false, windowWidth: 980 });
+      if (bands.length === 0) {
+        const flat = document.createElement('canvas');
+        flat.width = top.width;
+        flat.height = top.height;
+        const fg = flat.getContext('2d')!;
+        fg.fillStyle = '#ffffff';
+        fg.fillRect(0, 0, flat.width, flat.height);
+        fg.drawImage(top, 0, 0);
+        out.push(flat);
+        continue;
+      }
+      const page = document.createElement('canvas');
+      page.width = top.width;
+      page.height = top.height;
+      const g = page.getContext('2d')!;
+      g.fillStyle = '#ffffff';
+      g.fillRect(0, 0, page.width, page.height);
+      const k = top.width / Math.max(1, r.width);
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = 'high';
+      for (const b of bands) {
+        try {
+          const img = new Image();
+          img.src = b.url;
+          await img.decode();
+          g.drawImage(img, b.x * k, b.y * k, b.w * k, b.h * k);
+        } catch { /* a band that cannot be drawn is left out */ }
+      }
+      g.drawImage(top, 0, 0);
+      out.push(page);
     }
     return out;
   } finally {

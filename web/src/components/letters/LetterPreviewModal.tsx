@@ -1070,8 +1070,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
               <Stamp className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-black text-xs sm:text-sm text-white truncate">مشاهده و چاپ سند رسمی اداری</h2>
+              <div className="flex items-center gap-2 overflow-x-auto sm:overflow-visible sm:flex-wrap overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0" style={{ touchAction: 'pan-x' }} data-header-chips>
+                <h2 className="font-black text-xs sm:text-sm text-white whitespace-nowrap">مشاهده و چاپ سند رسمی اداری</h2>
                 <span className="bg-[#563D34] text-[#F6D9CD] border border-[#C98B6A]/50 text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                   📄 قطع: {pageSize === 'A5' ? 'A5' : pageSize === 'Letter' ? 'Letter' : 'A4'}
                 </span>
@@ -1106,7 +1106,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-[10px] sm:text-[11px] text-[#C98B6A] mt-0.5 truncate">
+              <p className="text-[10px] sm:text-[11px] text-[#C98B6A] mt-0.5 truncate sm:whitespace-normal">
                 {isSigned
                   ? 'این سند رسمی ممهور و امضا شده است و هرگونه تغییر در متن آن مسدود می‌باشد.'
                   : 'امکان تنظیم مشخصات سربرگ، قطع کاغذ و متن نامه قبل از امضای نهایی مدیریت'}
@@ -2270,7 +2270,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         </div>
 
         {/* Bottom Bar Outside Canvas */}
-        <div className="bg-white px-4 sm:px-6 py-2.5 border-t border-[#EBDBCE] flex items-center justify-between gap-2 shrink-0">
+        <div className="bg-white px-4 sm:px-6 py-2.5 border-t border-[#EBDBCE] flex items-center sm:justify-between gap-3 shrink-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0" style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch' }}>
           <div className="flex items-center gap-1.5 text-xs text-[#8C6F66] truncate max-w-[180px] sm:max-w-none">
             <span className="shrink-0">گیرندگان:</span>
             <span className="font-bold text-[#3A241F] truncate">{letter.recipients?.map((r) => r.fullName).join(', ') || '---'}</span>

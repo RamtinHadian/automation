@@ -506,13 +506,13 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   voipRecordingSetup: () => request<{ key: string; mountedDir: string; mountedFiles: number }>('GET', '/api/voip/recording-setup'),
   /** The recording of a call as a playable blob (the request carries the login, so a plain <audio src> cannot be used). */
   /** A one-time download link of a signed letter: the PDF (made on this device) is kept on the server and opens once for anybody, without logging in. */
-  oneshotCreate: async (transferId: string, name: string, pdf: Blob) => {
-    const res = await fetch(`/api/oneshot?transferId=${encodeURIComponent(transferId)}&name=${encodeURIComponent(name)}`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/pdf' }, body: pdf });
+  oneshotCreate: async (transferId: string, name: string, pdf: Blob, uses = 1) => {
+    const res = await fetch(`/api/oneshot?transferId=${encodeURIComponent(transferId)}&name=${encodeURIComponent(name)}&uses=${uses}`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/pdf' }, body: pdf });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(j.error || 'ساخت لینک انجام نشد.');
-    return j as { ok: true; id: string; url: string; expiresAt: string; name: string };
+    return j as { ok: true; id: string; url: string; expiresAt: string; name: string; maxUses: number };
   },
-  oneshotList: (transferId: string) => request<{ links: { id: string; by: string; createdAt: string; expiresAt: string; status: 'ACTIVE' | 'USED' | 'REVOKED' | 'EXPIRED'; usedAt?: string }[] }>('GET', `/api/oneshot?transferId=${encodeURIComponent(transferId)}`),
+  oneshotList: (transferId: string) => request<{ links: { id: string; by: string; createdAt: string; expiresAt: string; status: 'ACTIVE' | 'USED' | 'REVOKED' | 'EXPIRED'; usedAt?: string; maxUses?: number; uses?: number }[] }>('GET', `/api/oneshot?transferId=${encodeURIComponent(transferId)}`),
   oneshotRevoke: (id: string) => request<{ ok: true }>('DELETE', `/api/oneshot/${encodeURIComponent(id)}`),
   voipRecording: async (id: string): Promise<Blob> => {
     const res = await fetch('/api/voip/recording/' + encodeURIComponent(id), { headers: { Authorization: `Bearer ${getToken()}` } });

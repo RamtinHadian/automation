@@ -139,10 +139,17 @@ func oneshotCreate(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasSuffix(strings.ToLower(name), ".pdf") {
 		name += ".pdf"
 	}
+	maxUses, _ := strconv.Atoi(r.URL.Query().Get("uses"))
+	if maxUses < 1 {
+		maxUses = 1
+	}
+	if maxUses > 20 {
+		maxUses = 20
+	}
 	id := "os-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	exp := time.Now().Add(oneshotTTL)
-	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO oneshot_links (id, token_hash, transfer_id, file_name, size, created_by, created_by_name, expires_at, data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-		id, oneshotHash(secret), tid, name, len(data), me.ID(), me.Name(), exp, data); err != nil {
+	if _, err := store.Pool.Exec(r.Context(), `INSERT INTO oneshot_links (id, token_hash, transfer_id, file_name, size, created_by, created_by_name, expires_at, data, max_uses) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		id, oneshotHash(secret), tid, name, len(data), me.ID(), me.Name(), exp, data, maxUses); err != nil {
 		internalError(w)
 		return
 	}
@@ -154,14 +161,14 @@ func oneshotCreate(w http.ResponseWriter, r *http.Request) {
 		scheme = "http"
 	}
 	auditLine(r, me, "WARNING", "لینک دانلود یک‌بارمصرف برای «"+clip(name, 80)+"» ساخته شد.")
-	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true, "id": id, "url": scheme + "://" + r.Host + "/d/" + secret, "expiresAt": exp.UTC().Format(time.RFC3339), "name": name})
+	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true, "id": id, "url": scheme + "://" + r.Host + "/d/" + secret, "expiresAt": exp.UTC().Format(time.RFC3339), "name": name, "maxUses": maxUses})
 }
 
 // GET /api/oneshot?transferId=…  the links made for one letter (never the secret)
 func oneshotList(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
 	tid := strings.TrimSpace(r.URL.Query().Get("transferId"))
-	q := `SELECT id, created_by_name, created_at, expires_at, used_at, revoked FROM oneshot_links WHERE transfer_id = $1`
+	q := `SELECT id, created_by_name, created_at, expires_at, used_at, revoked, max_uses, uses FROM oneshot_links WHERE transfer_id = $1`
 	args := []any{tid}
 	if !me.IsAdmin() && !jsonx.Bool(me.M, "canSignOfficialLetters") {
 		q += ` AND created_by = $2`
@@ -179,7 +186,8 @@ func oneshotList(w http.ResponseWriter, r *http.Request) {
 		var created, expires time.Time
 		var used *time.Time
 		var revoked bool
-		if rows.Scan(&id, &by, &created, &expires, &used, &revoked) != nil {
+		var maxUses, uses int
+		if rows.Scan(&id, &by, &created, &expires, &used, &revoked, &maxUses, &uses) != nil {
 			continue
 		}
 		status := "ACTIVE"
@@ -191,7 +199,7 @@ func oneshotList(w http.ResponseWriter, r *http.Request) {
 		case time.Now().After(expires):
 			status = "EXPIRED"
 		}
-		item := jsonx.M{"id": id, "by": by, "createdAt": created.UTC().Format(time.RFC3339), "expiresAt": expires.UTC().Format(time.RFC3339), "status": status}
+		item := jsonx.M{"id": id, "by": by, "createdAt": created.UTC().Format(time.RFC3339), "expiresAt": expires.UTC().Format(time.RFC3339), "status": status, "maxUses": maxUses, "uses": uses}
 		if used != nil {
 			item["usedAt"] = used.UTC().Format(time.RFC3339)
 		}
@@ -266,7 +274,7 @@ func oneshotLanding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	nonce := oneshotNonce()
-	body := `<h1>دانلود نامهٔ رسمی</h1><p>` + html.EscapeString(name) + `</p><div class="w">این لینک فقط یک بار کار می‌کند؛ بعد از دانلود برای هیچ‌کس دیگر باز نمی‌شود.</div>` +
+	body := `<h1>دانلود نامهٔ رسمی</h1><p>` + html.EscapeString(name) + `</p><div class="w">این لینک فقط به تعداد دفعات تعیین‌شده کار می‌کند و بعد از آخرین دانلود برای هیچ‌کس دیگر باز نمی‌شود.</div>` +
 		`<form id="f" method="post" action="/d/` + url.PathEscape(secret) + `/file"><button type="submit">دانلود فایل PDF</button></form><p id="m" style="font-size:12px">دانلود خودکار شروع می‌شود…</p>`
 	// the download starts by itself in a browser; a link preview does not run scripts, so it cannot burn the link
 	oneshotPage(w, http.StatusOK, "دانلود نامه", body, `setTimeout(function(){document.getElementById('f').submit();document.getElementById('m').textContent='اگر دانلود شروع نشد، دکمهٔ بالا را بزنید.';},600);`, nonce)
@@ -283,7 +291,9 @@ func oneshotFile(w http.ResponseWriter, r *http.Request) {
 	// atomic: the row is taken and its file wiped in one statement, so two people at the same moment cannot both get it
 	err := store.Pool.QueryRow(r.Context(), `
 		WITH old AS (SELECT id, data, file_name FROM oneshot_links WHERE token_hash = $1 AND used_at IS NULL AND NOT revoked AND expires_at > now() AND data IS NOT NULL FOR UPDATE)
-		UPDATE oneshot_links l SET used_at = now(), used_ip = $2, data = NULL FROM old WHERE l.id = old.id RETURNING old.data, old.file_name`,
+		UPDATE oneshot_links l SET uses = l.uses + 1, used_ip = $2,
+		  used_at = CASE WHEN l.uses + 1 >= l.max_uses THEN now() ELSE NULL END,
+		  data = CASE WHEN l.uses + 1 >= l.max_uses THEN NULL ELSE l.data END FROM old WHERE l.id = old.id RETURNING old.data, old.file_name`,
 		oneshotHash(r.PathValue("secret")), clip(httpx.ClientIP(r), 60)).Scan(&data, &name)
 	if err != nil || len(data) == 0 {
 		oneshotPage(w, http.StatusGone, "لینک معتبر نیست", oneshotDead, "", "")
