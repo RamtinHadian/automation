@@ -13,6 +13,42 @@ const baseName = (t: FileTransfer) => {
   return n.slice(0, 80) || 'نامه';
 };
 
+/** Waits until every picture of the sheet (the logo, the signature, the stamp) has loaded. */
+async function settleImages(doc: Document) {
+  const imgs = Array.from(doc.images);
+  await Promise.all(imgs.map((i) => (i.complete ? Promise.resolve() : new Promise<void>((r) => { i.onload = () => r(); i.onerror = () => r(); }))));
+  await Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => undefined) : Promise.resolve())));
+}
+
+/**
+ * The picture maker (html2canvas) does not keep the proportions of a picture that is drawn with «object-fit: contain» in a box of another shape: a wide logo gets
+ * squeezed into the box (or drawn far too big). Each such picture is replaced by a box of the same measured size that shows it as a background, which the maker draws correctly.
+ */
+function flattenFittedImages(doc: Document) {
+  const win = doc.defaultView;
+  if (!win) return;
+  for (const img of Array.from(doc.querySelectorAll('img'))) {
+    const cs = win.getComputedStyle(img);
+    if (cs.objectFit === 'fill' || !img.currentSrc) continue;
+    const r = img.getBoundingClientRect();
+    if (!r.width || !r.height) continue;
+    const box = doc.createElement('div');
+    box.className = img.className;
+    box.setAttribute('style', img.getAttribute('style') || '');
+    box.style.width = r.width / (win.visualViewport?.scale || 1) + 'px';
+    box.style.height = r.height / (win.visualViewport?.scale || 1) + 'px';
+    box.style.maxWidth = 'none';
+    box.style.minWidth = '0';
+    box.style.flexShrink = '0';
+    box.style.display = cs.display === 'inline' ? 'inline-block' : cs.display;
+    box.style.backgroundImage = `url("${img.currentSrc}")`;
+    box.style.backgroundSize = cs.objectFit === 'cover' ? 'cover' : 'contain';
+    box.style.backgroundRepeat = 'no-repeat';
+    box.style.backgroundPosition = cs.objectPosition || 'center';
+    img.replaceWith(box);
+  }
+}
+
 /** The pages of the letter drawn as canvases (one per printed page), from a hidden copy of the printable sheet. */
 async function renderPages(t: FileTransfer, settings: SystemSettings, user: User | undefined, overrides?: LetterPrintOverrides): Promise<HTMLCanvasElement[]> {
   const html = generateOfficialLetterHtml(t, settings, user, overrides);
@@ -31,6 +67,8 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
     try { await (doc as Document & { fonts?: { ready: Promise<unknown> } }).fonts?.ready; } catch { /* fonts API not available */ }
     await new Promise((r) => setTimeout(r, 250));
     doc.querySelectorAll('.print-bar').forEach((e) => ((e as HTMLElement).style.display = 'none'));
+    await settleImages(doc);
+    flattenFittedImages(doc);
     let pages = Array.from(doc.querySelectorAll<HTMLElement>('.pg-page'));
     if (pages.length === 0) pages = Array.from(doc.querySelectorAll<HTMLElement>('.letter-container'));
     if (pages.length === 0) throw new Error('صفحهٔ نامه ساخته نشد.');
