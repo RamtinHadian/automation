@@ -52,6 +52,25 @@ function shrinkSharp(src: HTMLImageElement, tw: number, th: number): HTMLCanvasE
   return cur;
 }
 
+/** A small picture made bigger gently (at most twice per step, with the smoothest filter the browser has): the plain one-step enlargement of a small logo shows square blocks. */
+function growSmooth(src: HTMLImageElement, tw: number, th: number): HTMLCanvasElement {
+  let cur = document.createElement('canvas');
+  cur.width = src.naturalWidth;
+  cur.height = src.naturalHeight;
+  cur.getContext('2d')!.drawImage(src, 0, 0);
+  while (cur.width < tw || cur.height < th) {
+    const nx = document.createElement('canvas');
+    nx.width = Math.min(tw, Math.max(cur.width + 1, Math.round(cur.width * 1.6)));
+    nx.height = Math.min(th, Math.max(cur.height + 1, Math.round(cur.height * 1.6)));
+    const g = nx.getContext('2d')!;
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(cur, 0, 0, nx.width, nx.height);
+    cur = nx;
+  }
+  return cur;
+}
+
 /**
  * Prepares the pictures of the sheet (logo, signature, stamp) before they are drawn:
  *  - a big scan is shrunk step by step to the size it will really have in the file (about 5 times its size on the page), so thin lines stay sharp;
@@ -71,10 +90,13 @@ async function prepareImages(doc: Document) {
       const r = img.getBoundingClientRect();
       // the size the picture really has on the page (it is fitted inside its box), times 5, never bigger than the picture itself
       const fit = Math.min(r.width / nw, r.height / nh) || 1;
-      const k = Math.min(1, fit * 5);
+      const want = fit * 5; // how much bigger than itself the picture will be drawn in the file
+      const k = Math.min(1, want);
       const tw = Math.max(1, Math.round(nw * k)), th = Math.max(1, Math.round(nh * k));
-      if (k >= 0.999 && !multiply) continue; // already as small as it will be drawn
-      const c = k >= 0.999 ? (() => { const x = document.createElement('canvas'); x.width = nw; x.height = nh; x.getContext('2d')!.drawImage(img, 0, 0); return x; })() : shrinkSharp(img, tw, th);
+      // a picture smaller than it will be drawn is enlarged gently by us (at most 4 times, and not past what the file needs); a bigger one is shrunk in steps
+      const grow = want > 1.15 ? Math.min(want, 4) : 1;
+      const c = k < 0.999 ? shrinkSharp(img, tw, th) : grow > 1.15 ? growSmooth(img, Math.round(nw * grow), Math.round(nh * grow)) : (() => { const x = document.createElement('canvas'); x.width = nw; x.height = nh; x.getContext('2d')!.drawImage(img, 0, 0); return x; })();
+      if (!multiply && c.width === nw && c.height === nh) continue; // nothing changed
       if (multiply) {
         const g = c.getContext('2d')!;
         const data = g.getImageData(0, 0, c.width, c.height);
@@ -130,6 +152,75 @@ function flattenFittedImages(doc: Document) {
   }
 }
 
+const fontCache = new Map<string, string>();
+
+/** The @font-face rules of the sheet with every font file inlined as data: the browser's own drawing of the page cannot load files from the web. */
+async function inlineFontCss(doc: Document): Promise<string> {
+  const out: string[] = [];
+  for (const sheet of Array.from(doc.styleSheets)) {
+    let rules: CSSRuleList;
+    try { rules = sheet.cssRules; } catch { continue; }
+    for (const rule of Array.from(rules)) {
+      if (rule.type !== CSSRule.FONT_FACE_RULE) continue;
+      let css = rule.cssText;
+      for (const m of Array.from(css.matchAll(/url\(\s*(?:'([^']+)'|"([^"]+)"|([^)'"\s]+))\s*\)/g))) {
+        const url = m[1] || m[2] || m[3];
+        if (url.startsWith('data:')) continue;
+        let data = fontCache.get(url);
+        if (!data) {
+          try {
+            const res = await fetch(url);
+            if (!res.ok) continue;
+            const blob = await res.blob();
+            data = await new Promise<string>((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result)); fr.onerror = () => no(fr.error); fr.readAsDataURL(blob); });
+            fontCache.set(url, data);
+          } catch { continue; }
+        }
+        css = css.split(m[0]).join(`url("${data}")`);
+      }
+      out.push(css);
+    }
+  }
+  return out.join(String.fromCharCode(10));
+}
+
+const looksEmpty = (c: HTMLCanvasElement) => {
+  try {
+    const g = c.getContext('2d')!;
+    const w = Math.min(c.width, 60), h = Math.min(c.height, 60);
+    const d = g.getImageData(0, 0, c.width, c.height);
+    const step = Math.max(4, Math.floor(d.data.length / 4 / 4000)) * 4;
+    for (let i = 0; i < d.data.length; i += step) if (d.data[i] < 250 || d.data[i + 1] < 250 || d.data[i + 2] < 250) return false;
+    void w; void h;
+    return true;
+  } catch { return false; }
+};
+
+/**
+ * The best way: the browser draws the page itself (the same engine that prints it), so the logo, the blend of the signature and the stamp, the fonts and every thin line are exactly
+ * as in the print. Returns nothing when this browser cannot do it (then the older way below is used).
+ */
+async function drawNative(pages: HTMLElement[], doc: Document): Promise<HTMLCanvasElement[] | null> {
+  try {
+    const { toCanvas } = await import('html-to-image');
+    const fontEmbedCSS = await inlineFontCss(doc);
+    const out: HTMLCanvasElement[] = [];
+    for (const el of pages) {
+      const r = el.getBoundingClientRect();
+      const pixelRatio = Math.max(2, Math.min(5, Math.sqrt(MAX_PIXELS / Math.max(1, r.width * r.height))));
+      const opts = { pixelRatio, backgroundColor: '#ffffff', fontEmbedCSS, cacheBust: false, width: Math.round(r.width), height: Math.round(r.height), style: { margin: '0', boxShadow: 'none' } };
+      let c = await toCanvas(el, opts);
+      // some browsers (Safari) draw this kind of picture empty on the first try
+      if (looksEmpty(c)) c = await toCanvas(el, opts);
+      if (looksEmpty(c)) return null;
+      out.push(c);
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 /** The pages of the letter drawn as canvases (one per printed page), from a hidden copy of the printable sheet. */
 async function renderPages(t: FileTransfer, settings: SystemSettings, user: User | undefined, overrides?: LetterPrintOverrides): Promise<HTMLCanvasElement[]> {
   const html = generateOfficialLetterHtml(t, settings, user, overrides);
@@ -149,15 +240,19 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
     await new Promise((r) => setTimeout(r, 250));
     doc.querySelectorAll('.print-bar').forEach((e) => ((e as HTMLElement).style.display = 'none'));
     await settleImages(doc);
+    let pages = Array.from(doc.querySelectorAll<HTMLElement>('.pg-page'));
+    if (pages.length === 0) pages = Array.from(doc.querySelectorAll<HTMLElement>('.letter-container'));
+    if (pages.length === 0) throw new Error('صفحهٔ نامه ساخته نشد.');
+    const native = await drawNative(pages, doc);
+    (window as unknown as { __exportMode?: string }).__exportMode = native ? 'native' : 'canvas';
+    if (native) return native;
+    // the older way (a picture maker that does not know every style of the sheet): the pictures are prepared first
     await prepareImages(doc);
     flattenFittedImages(doc);
     // the name and the title of the signer are always drawn ABOVE the signature and the stamp pictures: the white box around a scanned picture must never hide them
     doc.querySelectorAll<HTMLElement>('.ceo-signature-block > div').forEach((el) => {
       if (el.querySelector('.ceo-name, .ceo-title')) { el.style.position = 'relative'; el.style.zIndex = '30'; }
     });
-    let pages = Array.from(doc.querySelectorAll<HTMLElement>('.pg-page'));
-    if (pages.length === 0) pages = Array.from(doc.querySelectorAll<HTMLElement>('.letter-container'));
-    if (pages.length === 0) throw new Error('صفحهٔ نامه ساخته نشد.');
     const { default: html2canvas } = await import('html2canvas');
     const out: HTMLCanvasElement[] = [];
     for (const el of pages) {
