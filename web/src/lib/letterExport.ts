@@ -152,6 +152,14 @@ function flattenFittedImages(doc: Document) {
   }
 }
 
+/** Safari (iPhone, iPad and the Mac one) draws pictures inside the browser's own page-to-image drawing empty: there the older way is used from the start. */
+const isWebKitOnly = () => {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+  return ios || (/Safari/.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|Edg|Android/.test(ua));
+};
+
 const fontCache = new Map<string, string>();
 
 /** The @font-face rules of the sheet with every font file inlined as data: the browser's own drawing of the page cannot load files from the web. */
@@ -243,7 +251,7 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
     let pages = Array.from(doc.querySelectorAll<HTMLElement>('.pg-page'));
     if (pages.length === 0) pages = Array.from(doc.querySelectorAll<HTMLElement>('.letter-container'));
     if (pages.length === 0) throw new Error('صفحهٔ نامه ساخته نشد.');
-    const native = await drawNative(pages, doc);
+    const native = isWebKitOnly() ? null : await drawNative(pages, doc);
     (window as unknown as { __exportMode?: string }).__exportMode = native ? 'native' : 'canvas';
     if (native) return native;
     // the older way (a picture maker that does not know every style of the sheet): the pictures are prepared first
