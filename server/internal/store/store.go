@@ -172,6 +172,23 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	  data JSONB NOT NULL
 	)`,
+	// one-time download links of a signed letter's PDF: only the hash of the secret is kept; the file is wiped from the row the moment it is downloaded (and never served after it expires)
+	`CREATE TABLE IF NOT EXISTS oneshot_links (
+	  id TEXT PRIMARY KEY,
+	  token_hash TEXT NOT NULL UNIQUE,
+	  transfer_id TEXT NOT NULL DEFAULT '',
+	  file_name TEXT NOT NULL DEFAULT '',
+	  size INT NOT NULL DEFAULT 0,
+	  created_by TEXT NOT NULL DEFAULT '',
+	  created_by_name TEXT NOT NULL DEFAULT '',
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  expires_at TIMESTAMPTZ NOT NULL,
+	  used_at TIMESTAMPTZ,
+	  used_ip TEXT NOT NULL DEFAULT '',
+	  revoked BOOLEAN NOT NULL DEFAULT false,
+	  data BYTEA
+	)`,
+	`CREATE INDEX IF NOT EXISTS oneshot_transfer_idx ON oneshot_links (transfer_id, created_at DESC)`,
 	`CREATE TABLE IF NOT EXISTS warranties (
 	  id TEXT PRIMARY KEY,
 	  customer_id TEXT NOT NULL DEFAULT '',

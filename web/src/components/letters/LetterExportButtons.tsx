@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, ExternalLink, FileDown, Image as ImageIcon, Loader2, Share2, X } from 'lucide-react';
+import { Copy, Download, ExternalLink, FileDown, Image as ImageIcon, Link2, Loader2, Share2, X } from 'lucide-react';
+import { api } from '../../lib/api';
+import { formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { FileTransfer } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { LetterPrintOverrides } from '../../lib/pdfLetterGenerator';
@@ -16,11 +18,34 @@ const isTouch = () => typeof window !== 'undefined' && !!window.matchMedia?.('(p
 export const LetterDownloadMenu: React.FC<{ transfer: FileTransfer; overrides?: () => LetterPrintOverrides | undefined; compact?: boolean; className?: string }> = ({ transfer, overrides, compact, className }) => {
   const { settings, currentUser, showToast } = useAppContext();
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState<'pdf' | 'jpg' | null>(null);
+  const [busy, setBusy] = useState<'pdf' | 'jpg' | 'link' | null>(null);
   const [ready, setReady] = useState<{ blob: Blob; name: string; url: string; kind: 'pdf' | 'jpg' } | null>(null);
   useEffect(() => () => { if (ready) URL.revokeObjectURL(ready.url); }, [ready]);
+  // the one-time link just made (shown once: only its hash is kept on the server) and the earlier links of this letter
+  const [link, setLink] = useState<{ url: string; expiresAt: string } | null>(null);
+  const [past, setPast] = useState<{ id: string; by: string; createdAt: string; expiresAt: string; status: string; usedAt?: string }[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    api.oneshotList(transfer.id).then((r) => setPast(r.links)).catch(() => setPast([]));
+  }, [open, link, transfer.id]);
   if (!transfer.isOfficialLetter || transfer.signatureStatus !== 'SIGNED') return null;
-  const close = () => { setOpen(false); setReady(null); };
+  const close = () => { setOpen(false); setReady(null); setLink(null); };
+  const makeLink = async () => {
+    setBusy('link');
+    try {
+      const f = await letterAsPdf(transfer, settings, currentUser, overrides?.());
+      const r = await api.oneshotCreate(transfer.id, f.name, f.blob);
+      setLink({ url: r.url, expiresAt: r.expiresAt });
+    } catch (e) {
+      showToast(e instanceof Error && e.message ? e.message : 'ساخت لینک انجام نشد.');
+    } finally {
+      setBusy(null);
+    }
+  };
+  const copyLink = async () => {
+    if (!link) return;
+    try { await navigator.clipboard.writeText(link.url); showToast('لینک کپی شد.'); } catch { showToast('کپی نشد؛ لینک را انتخاب و کپی کنید.'); }
+  };
   const run = async (kind: 'pdf' | 'jpg') => {
     setBusy(kind);
     try {
@@ -64,13 +89,36 @@ export const LetterDownloadMenu: React.FC<{ transfer: FileTransfer; overrides?: 
         <div className="fixed inset-0 z-[2147483200] flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-xs sm:p-4" onMouseDown={() => !busy && close()} data-keep-anim data-letter-download-dialog>
           <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-sm max-h-[92dvh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-[#EBDBCE] p-5 space-y-3 text-right">
             <div className="flex items-center justify-between">
-              <h3 className="font-black text-sm text-[#3A241F]">{ready ? 'فایل آماده است' : 'دانلود نامه با چه قالبی؟'}</h3>
+              <h3 className="font-black text-sm text-[#3A241F]">{link ? 'لینک دانلود یک‌بارمصرف' : ready ? 'فایل آماده است' : 'دانلود نامه با چه قالبی؟'}</h3>
               <button type="button" disabled={!!busy} onClick={close} className="p-1.5 text-[#8C6F66] rounded-xl cursor-pointer" aria-label="بستن"><X className="w-4 h-4" /></button>
             </div>
-            {!ready ? (
+            {link ? (
+              <div className="space-y-3" data-oneshot-result>
+                <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] font-bold text-amber-900 leading-6">این لینک <b>فقط یک بار</b> کار می‌کند: هر کس اول روی آن بزند فایل PDF را می‌گیرد (بدون ورود به سامانه) و بعد از آن برای هیچ‌کس باز نمی‌شود. تا {formatCurrentJalaliDateTime(new Date(link.expiresAt))} اعتبار دارد و فقط همین یک بار نشان داده می‌شود.</div>
+                <input readOnly dir="ltr" value={link.url} onFocus={(e) => e.currentTarget.select()} className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-[11px] font-bold text-[#3A241F]" data-oneshot-url />
+                <button type="button" onClick={copyLink} className={`${btn} bg-[#6E1B1B] hover:bg-[#561414] text-white`}><Copy className="w-4 h-4" />کپی لینک</button>
+                {typeof navigator !== 'undefined' && 'share' in navigator && <button type="button" onClick={() => navigator.share({ url: link.url, title: 'نامهٔ رسمی' }).catch(() => undefined)} className={`${btn} bg-[#FAF5F1] text-[#6E1B1B] border border-[#EBDBCE]`}><Share2 className="w-4 h-4" />ارسال لینک</button>}
+              </div>
+            ) : !ready ? (
               <>
                 {choice('pdf', FileDown, 'فایل PDF', 'برای چاپ و ارسال رسمی؛ روی کاغذ همان نامه', 'bg-rose-50 hover:bg-rose-100 text-rose-900 border-rose-200')}
                 {choice('jpg', ImageIcon, 'عکس JPG', 'برای فرستادن سریع در پیام‌رسان و دیدن در گالری', 'bg-sky-50 hover:bg-sky-100 text-sky-900 border-sky-200')}
+                <button type="button" disabled={!!busy} onClick={makeLink} className="w-full flex items-center gap-3 p-3.5 rounded-2xl border text-right cursor-pointer transition-all disabled:opacity-60 disabled:cursor-wait bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-200" data-export-choice="link">
+                  <span className="w-11 h-11 rounded-xl bg-white/80 flex items-center justify-center shrink-0">{busy === 'link' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Link2 className="w-5 h-5" />}</span>
+                  <span className="min-w-0"><span className="block text-sm font-black">لینک دانلود یک‌بارمصرف</span><span className="block text-[11px] font-bold opacity-75 leading-5">{busy === 'link' ? 'در حال ساخت و ذخیره روی سرور…' : 'برای فرستادن به هر کس؛ بدون ورود به سامانه و فقط یک بار قابل دانلود'}</span></span>
+                </button>
+                {past.length > 0 && (
+                  <div className="rounded-xl border border-[#EBDBCE] p-3 space-y-1.5" data-oneshot-past>
+                    <div className="text-[11px] font-black text-[#3A241F]">لینک‌های ساخته‌شده برای این نامه</div>
+                    {past.slice(0, 6).map((l) => (
+                      <div key={l.id} className="flex items-center gap-2 text-[10.5px] font-bold text-[#6b5048]">
+                        <span className={`px-2 py-0.5 rounded-full border ${l.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : l.status === 'USED' ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>{l.status === 'ACTIVE' ? 'منتظر دانلود' : l.status === 'USED' ? 'دانلود شد' : l.status === 'REVOKED' ? 'باطل شد' : 'منقضی شد'}</span>
+                        <span className="flex-1 min-w-0 truncate">{l.status === 'USED' && l.usedAt ? formatCurrentJalaliDateTime(new Date(l.usedAt)) : formatCurrentJalaliDateTime(new Date(l.createdAt))}</span>
+                        {l.status === 'ACTIVE' && <button type="button" onClick={() => api.oneshotRevoke(l.id).then(() => api.oneshotList(transfer.id)).then((r) => setPast(r.links)).catch(() => undefined)} className="text-rose-600 hover:underline cursor-pointer">باطل کن</button>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <div className="space-y-3" data-export-ready>
