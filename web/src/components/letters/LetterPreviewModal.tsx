@@ -515,6 +515,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   // phones: the signing options and the bottom tools sit behind a small arrow and fold away after one choice, so the letter stays visible
   const [signOpen, setSignOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [trayOpen, setTrayOpen] = useState(false);
   useEffect(() => { if (actionTab === 'SIGN') setSignOpen(true); }, [actionTab]);
   const [signComment, setSignComment] = useState('تایید و امضا شد');
   // pressing «ثبت و قفل» does not sign at once: a pop-up asks first (and carries the paraph, so the bar stays slim)
@@ -1076,8 +1077,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const handleDownloadCustomPdf = () => openAndDownloadPdfLetter(letter, settings, currentUser, printOverrides());
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-1.5 sm:p-4 overflow-y-auto animate-in fade-in select-none font-sans">
-      <div className="bg-[#EFE8E1] rounded-2xl sm:rounded-[28px] shadow-2xl w-full max-w-5xl border border-[#C98B6A]/40 flex flex-col h-[96vh] sm:h-[94vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-1.5 sm:p-4 pt-[max(env(safe-area-inset-top,0px),0.5rem)] sm:pt-4 pb-[max(env(safe-area-inset-bottom,0px),0.375rem)] sm:pb-4 overflow-y-auto animate-in fade-in select-none font-sans">
+      <div className="bg-[#EFE8E1] rounded-2xl sm:rounded-[28px] shadow-2xl w-full max-w-5xl border border-[#C98B6A]/40 flex flex-col h-full max-h-[100dvh] sm:h-[94vh] overflow-hidden">
         
         {/* Top Modal Header */}
         <div className="bg-[#3A241F] text-white px-4 sm:px-6 py-3 flex items-center justify-between shrink-0 border-b border-[#563D34]">
@@ -1152,8 +1153,12 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           </div>
         </div>
 
-        {/* Action Tray for CEO / Recipient */}
-        <div onWheel={hwheel} className="bg-[#FAF5F1] px-3 sm:px-6 py-2 border-b border-[#EBDBCE] flex items-center gap-2 shrink-0 text-xs hscroll whitespace-nowrap">
+        {/* Action Tray for CEO / Recipient: on a phone it opens and closes with a small arrow */}
+        <button type="button" onClick={() => setTrayOpen((v) => !v)} className="sm:hidden w-full flex items-center justify-center gap-1.5 bg-[#FAF5F1] border-b border-[#EBDBCE] py-1.5 text-[11px] font-black text-[#3A241F] cursor-pointer shrink-0" aria-expanded={trayOpen} data-tray-fold>
+          {trayOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          <span>{trayOpen ? 'بستن منوی نامه' : 'امضا، ارجاع، رد و ویرایش'}</span>
+        </button>
+        <div onWheel={hwheel} onClick={() => setTrayOpen(false)} className={`bg-[#FAF5F1] px-3 sm:px-6 py-2 border-b border-[#EBDBCE] ${trayOpen ? 'flex' : 'hidden sm:flex'} items-center gap-2 shrink-0 text-xs hscroll whitespace-nowrap`}>
           <div className="flex items-center gap-2 shrink-0">
             {/* CEO Sign Button */}
             {canSign && isPending && (
