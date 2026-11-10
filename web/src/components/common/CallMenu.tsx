@@ -114,9 +114,14 @@ export const CallMenu: React.FC = () => {
         data-voip-state={!dialing ? 'off' : status.connected ? 'on' : 'down'}
         className={`relative flex items-center justify-center w-9 h-9 rounded-2xl bg-white border text-[#3A241F] transition-all cursor-pointer ${dialing && !status.connected ? 'border-rose-300 hover:bg-rose-50' : 'border-[#EBDBCE] hover:bg-emerald-50'}`}
       >
-        {/* connected: the green phone blinks softly; lost: the phone is red; no phone system at all: the usual quiet green */}
-        {dialing && status.connected && <span className="absolute inset-0 rounded-2xl ring-2 ring-emerald-400/70 animate-ping pointer-events-none" aria-hidden />}
-        <Phone className={`w-4 h-4 ${!dialing ? 'text-emerald-700' : status.connected ? 'text-emerald-600 animate-pulse' : 'text-rose-600'}`} />
+        {/* the link to the phone system as a small dot on the corner of the phone: green (breathing softly) while it is up, red when it is lost; none when there is no phone system */}
+        <Phone className={`w-4 h-4 ${!dialing ? 'text-emerald-700' : status.connected ? 'text-emerald-700' : 'text-rose-600'}`} />
+        {dialing && (
+          <span className="absolute -top-0.5 -right-0.5 flex w-2.5 h-2.5" aria-hidden data-voip-dot>
+            {status.connected && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />}
+            <span className={`relative inline-flex w-2.5 h-2.5 rounded-full ring-2 ring-white ${status.connected ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+          </span>
+        )}
       </button>
 
       {open &&

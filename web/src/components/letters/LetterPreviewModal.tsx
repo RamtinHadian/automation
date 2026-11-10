@@ -75,6 +75,7 @@ import { toPersianDigits,
 import { DEFAULT_FONTS } from '../../lib/fonts';
 import { MoveBox } from './MoveBox';
 import { openAndDownloadPdfLetter, generateOfficialLetterHtml } from '../../lib/pdfLetterGenerator';
+import { LetterDownloadMenu } from './LetterExportButtons';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { PageGuides } from './PageGuides';
 import { usePrintBreaks } from './usePrintBreaks';
@@ -1114,6 +1115,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {isSigned && <LetterDownloadMenu transfer={letter} overrides={printOverrides} compact />}
             <button
               type="button"
               onClick={handleDownloadCustomPdf}
@@ -2276,6 +2278,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
           <ZoomBar inline zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={fitZ.reset} />
 
           <div className="flex items-center gap-2 shrink-0">
+            {isSigned && <LetterDownloadMenu transfer={letter} overrides={printOverrides} />}
             <button
               type="button"
               onClick={handleDownloadCustomPdf}

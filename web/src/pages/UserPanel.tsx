@@ -13,6 +13,7 @@ import { ClockPref, useClockPref } from '../components/common/ClockPref';
 import { ChatView } from '../components/chat/ChatView';
 import { AgentLetter } from '../components/letters/AgentLetter';
 import { LeaveView } from '../components/leave/LeaveView';
+import { LetterDownloadMenu } from '../components/letters/LetterExportButtons';
 import { OrdersView } from '../components/orders/OrdersView';
 import { BoardView } from '../components/board/BoardView';
 import { BannerStrip } from '../components/board/BannerStrip';
@@ -1510,7 +1511,9 @@ export default function UserPanel() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                              <LetterDownloadMenu transfer={t} compact />
                               <button
+                                style={t.isOfficialLetter && t.signatureStatus === 'SIGNED' ? { display: 'none' } : undefined}
                                 onClick={() => handleDownload(t)}
                                 disabled={!!t.fileDeletedAt && !t.isOfficialLetter}
                                 className="flex items-center gap-1.5 px-4 py-2 bg-[#6E1B1B] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D34A32] text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer"
@@ -1590,7 +1593,9 @@ export default function UserPanel() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                              <LetterDownloadMenu transfer={t} compact />
                               <button
+                                style={t.isOfficialLetter && t.signatureStatus === 'SIGNED' ? { display: 'none' } : undefined}
                                 onClick={() => handleDownload(t)}
                                 disabled={!!t.fileDeletedAt && !t.isOfficialLetter}
                                 className="flex items-center gap-1.5 px-3.5 py-2 disabled:opacity-40 disabled:cursor-not-allowed bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border border-[#EBDBCE] font-bold text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
@@ -1908,29 +1913,30 @@ export default function UserPanel() {
                           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto">
                             <button
                               onClick={() => setPreviewingLetter(t)}
-                              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FAF5F1] hover:bg-[#6E1B1B] text-[#3A241F] hover:text-white border border-[#EBDBCE] hover:border-[#6E1B1B] font-black text-xs rounded-xl shadow-2xs transition-all active:scale-95 cursor-pointer"
+                              className="flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[#FAF5F1] hover:bg-[#6E1B1B] text-[#3A241F] hover:text-white border border-[#EBDBCE] hover:border-[#6E1B1B] font-black text-[11px] sm:text-xs rounded-xl shadow-2xs transition-all active:scale-95 cursor-pointer"
                               title="مشاهده پیش‌نمایش، متن، پیوست و بررسی نامه"
                             >
                               <Eye className="w-3.5 h-3.5 text-[#C98B6A]" />
-                              <span>مشاهده و بررسی نامه</span>
+                              <span><span className="sm:hidden">مشاهده</span><span className="hidden sm:inline">مشاهده و بررسی نامه</span></span>
                             </button>
 
                             <button
                               onClick={() => setReferringTransfer(t)}
-                              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FAF5F1] hover:bg-amber-100 text-[#3A241F] border border-amber-300 font-bold text-xs rounded-xl shadow-2xs transition-all active:scale-95 cursor-pointer"
+                              className="flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[#FAF5F1] hover:bg-amber-100 text-[#3A241F] border border-amber-300 font-bold text-[11px] sm:text-xs rounded-xl shadow-2xs transition-all active:scale-95 cursor-pointer"
                               title="ارجاع نامه به سایر پرسنل / واحدها"
                             >
                               <Forward className="w-3.5 h-3.5 text-amber-700" />
                               <span>ارجاع</span>
                             </button>
 
+                            {t.signatureStatus === 'SIGNED' && <LetterDownloadMenu transfer={t} compact />}
                             <button
                               onClick={() => handleDownload(t)}
-                              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                              className="flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] sm:text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
                               title="دریافت نسخه PDF و چاپ سند با امضا و مهر رسمی"
                             >
                               <Printer className="w-3.5 h-3.5" />
-                              <span>چاپ / PDF</span>
+                              <span><span className="sm:hidden">چاپ</span><span className="hidden sm:inline">چاپ / PDF</span></span>
                             </button>
                           </div>
 
