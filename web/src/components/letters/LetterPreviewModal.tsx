@@ -67,7 +67,9 @@ import {
   PenTool,
   Check,
   Menu,
-  Settings2
+  Settings2,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { FileTransfer, SystemSettings, User } from '../../types';
 import { toPersianDigits,
@@ -510,6 +512,10 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
   const attachment = useAttachment(isOpen ? letter : null, currentUser?.id);
 
   const [actionTab, setActionTab] = useState<'NONE' | 'SIGN' | 'REFER' | 'REJECT'>('NONE');
+  // phones: the signing options and the bottom tools sit behind a small arrow and fold away after one choice, so the letter stays visible
+  const [signOpen, setSignOpen] = useState(true);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  useEffect(() => { if (actionTab === 'SIGN') setSignOpen(true); }, [actionTab]);
   const [signComment, setSignComment] = useState('تایید و امضا شد');
   // pressing «ثبت و قفل» does not sign at once: a pop-up asks first (and carries the paraph, so the bar stays slim)
   const [confirmSign, setConfirmSign] = useState(false);
@@ -742,6 +748,15 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
       setStampHeightOverride(null);
       setSignatureHeight(defaultSignatureHeight(pageSize === 'A5', settings?.ceoSignatureHeight));
     };
+    const fold = () => { if (!vertical) setSignOpen(false); };
+    const foldTiles = tiles.map((t) => ({ ...t, toggle: () => { t.toggle(); fold(); } }));
+    if (!vertical && !signOpen) {
+      return (
+        <button type="button" onClick={() => setSignOpen(true)} className="lg:hidden w-full flex items-center justify-center gap-1.5 bg-emerald-50/90 border-b border-emerald-200 py-1.5 text-[11px] font-black text-emerald-900 cursor-pointer shrink-0" data-sign-fold>
+          <ChevronDown className="w-4 h-4" />امضا و مهر و تأیید
+        </button>
+      );
+    }
     return (
       <div
         className={vertical
@@ -752,7 +767,7 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         {vertical && <div className="text-center font-black text-sm text-emerald-950">امضا و مهر مدیرعامل</div>}
         <div className={vertical ? 'flex flex-col gap-3' : 'flex flex-wrap items-center gap-2 sm:gap-3'}>
           <div className={vertical ? 'flex flex-col gap-3' : 'order-1 flex items-center gap-2 shrink-0'} data-sign-choice>
-            {tiles.map((t) => (
+            {foldTiles.map((t) => (
               <button
                 key={t.key}
                 type="button"
@@ -792,7 +807,8 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         <div className={`text-[10.5px] text-emerald-900/80 ${vertical ? 'space-y-1.5 leading-5' : 'mt-1 flex items-center justify-end gap-2'}`}>
           {vertical && <span className="flex items-start gap-1.5 text-emerald-900" data-sign-optional><Check className="w-3 h-3 text-emerald-700 shrink-0 mt-1" />امضا و مهر اجباری نیست: اگر هیچ‌کدام را نزنید، نامه بدون امضا و مهر تأیید نهایی می‌شود و آمادهٔ چاپ است.</span>}
           {vertical && <span className="flex items-start gap-1.5"><Move className="w-3 h-3 text-emerald-700 shrink-0 mt-1" />هر کدام را بزنید روی نامه می‌نشیند؛ با کشیدن جابه‌جا و با نقطهٔ نارنجی گوشه‌اش بزرگ و کوچک کنید.</span>}
-          <button type="button" onClick={resetPlace} className="text-emerald-800 hover:underline font-bold cursor-pointer">بازنشانی جایگاه</button>
+          <button type="button" onClick={() => { resetPlace(); fold(); }} className="text-emerald-800 hover:underline font-bold cursor-pointer">بازنشانی جایگاه</button>
+          {!vertical && <button type="button" onClick={fold} className="text-emerald-800 font-bold cursor-pointer flex items-center gap-0.5" aria-label="بستن"><ChevronUp className="w-4 h-4" /></button>}
         </div>
       </div>
     );
@@ -2269,8 +2285,34 @@ export const LetterPreviewModal: React.FC<LetterPreviewModalProps> = ({
         {actionTab === 'SIGN' && canSign && signPanel(true)}
         </div>
 
+        {/* Bottom tools on a phone: one small arrow; the menu opens upwards with everything and folds away after a choice */}
+        <div className="sm:hidden relative shrink-0 bg-white border-t border-[#EBDBCE]" data-tools-fold>
+          <button type="button" onClick={() => setToolsOpen((v) => !v)} className="w-full h-9 flex items-center justify-center gap-1.5 text-[11px] font-black text-[#3A241F] cursor-pointer" aria-expanded={toolsOpen} aria-label="ابزارهای نامه">
+            {toolsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            <span>بزرگ‌نمایی، دانلود و چاپ</span>
+          </button>
+          {toolsOpen && (
+            <>
+              <div className="fixed inset-0 z-[60]" onClick={() => setToolsOpen(false)} />
+              <div className="absolute bottom-full inset-x-0 z-[61] bg-white border-t border-x border-[#EBDBCE] rounded-t-2xl shadow-2xl p-3 space-y-3" data-tools-panel>
+                <div className="flex items-center gap-1.5 text-xs text-[#8C6F66]">
+                  <span className="shrink-0">گیرندگان:</span>
+                  <span className="font-bold text-[#3A241F] truncate">{letter.recipients?.map((r) => r.fullName).join(', ') || '---'}</span>
+                </div>
+                <div className="flex justify-center"><ZoomBar inline zoom={zoom} onIn={fitZ.zoomIn} onOut={fitZ.zoomOut} onFit={() => { fitZ.reset(); setToolsOpen(false); }} /></div>
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  {isSigned && <LetterDownloadMenu transfer={letter} overrides={printOverrides} />}
+                  <button type="button" onClick={() => { setToolsOpen(false); handleDownloadCustomPdf(); }} className="px-3.5 py-2 bg-[#6E1B1B] text-white text-xs font-bold rounded-xl cursor-pointer flex items-center gap-1.5">
+                    <Printer className="w-3.5 h-3.5" /><span>چاپ / PDF</span>
+                  </button>
+                  <button type="button" onClick={onClose} className="px-3.5 py-2 bg-gray-100 text-[#3A241F] text-xs font-bold rounded-xl cursor-pointer">بستن</button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
         {/* Bottom Bar Outside Canvas */}
-        <div className="bg-white px-4 sm:px-6 py-2.5 border-t border-[#EBDBCE] flex items-center sm:justify-between gap-3 shrink-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0" style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch' }}>
+        <div className="bg-white px-4 sm:px-6 py-2.5 border-t border-[#EBDBCE] hidden sm:flex items-center sm:justify-between gap-3 shrink-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0" style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch' }}>
           <div className="flex items-center gap-1.5 text-xs text-[#8C6F66] truncate max-w-[180px] sm:max-w-none">
             <span className="shrink-0">گیرندگان:</span>
             <span className="font-bold text-[#3A241F] truncate">{letter.recipients?.map((r) => r.fullName).join(', ') || '---'}</span>
