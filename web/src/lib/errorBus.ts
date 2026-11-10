@@ -13,8 +13,11 @@ export const showError = (msg: string) => {
 };
 
 /** A toast text that tells the user something went wrong (not a success note). */
-export const looksLikeError = (msg: string) =>
-  !/با موفقیت|موفق\b|انجام شد|ذخیره شد|ارسال شد\b/.test(msg) && /خطا|نیست|نشد|بیش از سقف|اول |فقط |ممکن نیست|نادرست|ناموفق|نامعتبر|مجاز نیست|نمی‌توان|نمی‌تواند|الزامی|لطفاً|باید |قطع|مسدود|تکراری|failed|error/i.test(msg);
+const isErrorText = (msg: string) =>
+  !/با موفقیت|موفق\b|انجام شد|ذخیره شد|ارسال شد\b|گردید|منتقل شد|بازگردانده شد|حذف شد|دریافت شد/.test(msg) && /خطا|نیست|نشد|بیش از سقف|اول |فقط |ممکن نیست|نادرست|ناموفق|نامعتبر|مجاز نیست|نمی‌توان|نمی‌تواند|الزامی|لطفاً|باید |قطع|مسدود|تکراری|failed|error/i.test(msg);
+
+/** A toast text that tells the user something went wrong. A file name or a quoted title inside the text does not decide (the name «…خطاب به…» once made a success note look like an error). */
+export const looksLikeError = (msg: string) => isErrorText(msg.replace(/"[^"]*"|«[^»]*»/g, ' '));
 
 let installed = false;
 /** Alerts, unhandled failures and script errors all become the same red pop-up. */

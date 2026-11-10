@@ -33,6 +33,9 @@ import { openAndDownloadPdfLetter } from '../lib/pdfLetterGenerator';
 import { DEFAULT_FONTS, injectCustomFontsCss } from '../lib/fonts';
 import { formatLetterNumber, DEFAULT_LETTER_NUMBERING } from '../lib/letterNumbering';
 
+/** «نامه_درخواست_صدور_A5.html» → «درخواست صدور»: the file name of a letter as a person would say it. */
+const niceLetterName = (name?: string) => (name || '').replace(/\.[^/.]+$/, '').replace(/^نامه_/, '').replace(/_(A4|A5|Letter|Letterhead)$/i, '').replace(/_+/g, ' ').trim();
+
 interface AppContextType {
   // Auth
   loggedInUser: User | null;
@@ -1180,7 +1183,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         details: `بایگانی نامه رسمی "${target?.fileName || ''}".`,
       };
       setAuditLogs((prev) => [newLog, ...prev]);
-      showToast(`نامه "${target?.fileName || ''}" به بخش بایگانی اسناد منتقل گردید.`);
+      showToast(`نامه «${niceLetterName(target?.fileName)}» به بخش بایگانی اسناد منتقل گردید.`);
     },
     [transfers, currentUser, showToast]
   );
@@ -1191,7 +1194,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         prev.map((t) => (t.id === id ? { ...t, isArchived: false } : t))
       );
       const target = transfers.find((t) => t.id === id);
-      showToast(`نامه "${target?.fileName || ''}" از بایگانی به کارتابل جاری بازگردانده شد.`);
+      showToast(`نامه «${niceLetterName(target?.fileName)}» از بایگانی به کارتابل جاری بازگردانده شد.`);
     },
     [transfers, showToast]
   );
@@ -1335,7 +1338,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         details: `امضای الکترونیک نامه رسمی "${target?.fileName || ''}" توسط مدیر (${currentUser.fullName}).`,
       };
       setAuditLogs((prev) => [newLog, ...prev]);
-      showToast(`نامه رسمی "${target?.fileName || ''}" با موفقیت توسط ${currentUser.fullName} امضا گردید.`);
+      showToast(`نامه رسمی «${niceLetterName(target?.fileName)}» با موفقیت توسط ${currentUser.fullName} امضا گردید.`);
     },
     [currentUser, settings, transfers, showToast, setSettings]
   );

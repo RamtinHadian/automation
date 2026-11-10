@@ -650,9 +650,9 @@ export default function AdminPanel() {
 
       {/* Floating Toast */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 bg-gray-900 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 border border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed bottom-6 left-6 z-50 max-w-[min(32rem,calc(100vw-3rem))] bg-gray-900 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 border border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-200">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toastMessage}</span>
+          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{toastMessage}</span>
         </div>
       )}
     </div>

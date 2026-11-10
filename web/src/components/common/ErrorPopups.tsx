@@ -20,9 +20,9 @@ export const ErrorPopups: React.FC = () => {
   return (
     <div className="fixed top-3 inset-x-0 z-[9999] flex flex-col items-center gap-2 px-3 pointer-events-none" dir="rtl" role="alert" data-error-popups>
       {items.map((i) => (
-        <div key={i.id} className="pointer-events-auto w-full max-w-lg flex items-start gap-3 bg-red-600 text-white rounded-2xl shadow-2xl border-2 border-red-300 px-4 py-3 text-sm font-black leading-7">
+        <div key={i.id} className="pointer-events-auto w-full max-w-lg overflow-hidden flex items-start gap-3 bg-red-600 text-white rounded-2xl shadow-2xl border-2 border-red-300 px-4 py-3 text-sm font-black leading-7">
           <AlertTriangle className="w-5 h-5 shrink-0 mt-1" />
-          <span className="flex-1 break-words">{i.msg}</span>
+          <span className="flex-1 min-w-0 break-words [overflow-wrap:anywhere]">{i.msg}</span>
           <button type="button" aria-label="بستن" onClick={() => setItems((p) => p.filter((x) => x.id !== i.id))} className="p-1 rounded-lg hover:bg-red-700 cursor-pointer">
             <X className="w-4 h-4" />
           </button>
