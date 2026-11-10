@@ -23,42 +23,78 @@ async function settleImages(doc: Document) {
   await Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => undefined) : Promise.resolve())));
 }
 
+/** A picture made smaller step by step (half, half, …): a big scan shrunk in one go loses its thin lines and looks soft; this keeps them sharp. */
+function shrinkSharp(src: HTMLImageElement, tw: number, th: number): HTMLCanvasElement {
+  let cur = document.createElement('canvas');
+  cur.width = src.naturalWidth;
+  cur.height = src.naturalHeight;
+  cur.getContext('2d')!.drawImage(src, 0, 0);
+  while (cur.width / 2 >= tw && cur.height / 2 >= th) {
+    const nx = document.createElement('canvas');
+    nx.width = Math.max(1, Math.round(cur.width / 2));
+    nx.height = Math.max(1, Math.round(cur.height / 2));
+    const g = nx.getContext('2d')!;
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(cur, 0, 0, nx.width, nx.height);
+    cur = nx;
+  }
+  if (cur.width !== tw || cur.height !== th) {
+    const nx = document.createElement('canvas');
+    nx.width = Math.max(1, tw);
+    nx.height = Math.max(1, th);
+    const g = nx.getContext('2d')!;
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(cur, 0, 0, nx.width, nx.height);
+    cur = nx;
+  }
+  return cur;
+}
+
 /**
- * The signature and the stamp are laid on the letter with «mix-blend-mode: multiply» (their white background lets the text under them show). The picture maker does not know
- * that mode, so the white box of the picture would hide the name of the signer under it. Each such picture is turned into a picture whose white is transparent (the colour it
- * had over white stays the same), so it can be drawn normally.
+ * Prepares the pictures of the sheet (logo, signature, stamp) before they are drawn:
+ *  - a big scan is shrunk step by step to the size it will really have in the file (about 5 times its size on the page), so thin lines stay sharp;
+ *  - the signature and the stamp are laid on the letter with «mix-blend-mode: multiply» (their white lets the text under them show). The picture maker does not know that mode,
+ *    so the white box of the picture would hide the name of the signer under it: the white is made transparent (the colour it had over white stays the same).
  */
-function unmultiplyImages(doc: Document) {
+async function prepareImages(doc: Document) {
   const win = doc.defaultView;
   if (!win) return;
   for (const img of Array.from(doc.querySelectorAll('img'))) {
-    if (win.getComputedStyle(img).mixBlendMode !== 'multiply') continue;
     try {
-      const w = img.naturalWidth, h = img.naturalHeight;
-      if (!w || !h) continue;
-      const k = Math.min(1, 1800 / Math.max(w, h));
-      const c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(w * k));
-      c.height = Math.max(1, Math.round(h * k));
-      const g = c.getContext('2d');
-      if (!g) continue;
-      g.drawImage(img, 0, 0, c.width, c.height);
-      const data = g.getImageData(0, 0, c.width, c.height);
-      const px = data.data;
-      for (let i = 0; i < px.length; i += 4) {
-        const a0 = px[i + 3] / 255;
-        if (a0 === 0) continue;
-        const r = px[i] * a0 + 255 * (1 - a0), gr = px[i + 1] * a0 + 255 * (1 - a0), b = px[i + 2] * a0 + 255 * (1 - a0);
-        const alpha = 1 - Math.min(r, gr, b) / 255;
-        if (alpha < 0.004) { px[i + 3] = 0; continue; }
-        px[i] = Math.max(0, Math.min(255, (r - 255 * (1 - alpha)) / alpha));
-        px[i + 1] = Math.max(0, Math.min(255, (gr - 255 * (1 - alpha)) / alpha));
-        px[i + 2] = Math.max(0, Math.min(255, (b - 255 * (1 - alpha)) / alpha));
-        px[i + 3] = Math.round(alpha * 255);
+      const nw = img.naturalWidth, nh = img.naturalHeight;
+      if (!nw || !nh) continue;
+      const multiply = win.getComputedStyle(img).mixBlendMode === 'multiply';
+      const vector = /^data:image\/svg|\.svg(\?|$)/i.test(img.currentSrc);
+      if (vector && !multiply) continue;
+      const r = img.getBoundingClientRect();
+      // the size the picture really has on the page (it is fitted inside its box), times 5, never bigger than the picture itself
+      const fit = Math.min(r.width / nw, r.height / nh) || 1;
+      const k = Math.min(1, fit * 5);
+      const tw = Math.max(1, Math.round(nw * k)), th = Math.max(1, Math.round(nh * k));
+      if (k >= 0.999 && !multiply) continue; // already as small as it will be drawn
+      const c = k >= 0.999 ? (() => { const x = document.createElement('canvas'); x.width = nw; x.height = nh; x.getContext('2d')!.drawImage(img, 0, 0); return x; })() : shrinkSharp(img, tw, th);
+      if (multiply) {
+        const g = c.getContext('2d')!;
+        const data = g.getImageData(0, 0, c.width, c.height);
+        const px = data.data;
+        for (let i = 0; i < px.length; i += 4) {
+          const a0 = px[i + 3] / 255;
+          if (a0 === 0) continue;
+          const rr = px[i] * a0 + 255 * (1 - a0), gr = px[i + 1] * a0 + 255 * (1 - a0), bb = px[i + 2] * a0 + 255 * (1 - a0);
+          const alpha = 1 - Math.min(rr, gr, bb) / 255;
+          if (alpha < 0.004) { px[i + 3] = 0; continue; }
+          px[i] = Math.max(0, Math.min(255, (rr - 255 * (1 - alpha)) / alpha));
+          px[i + 1] = Math.max(0, Math.min(255, (gr - 255 * (1 - alpha)) / alpha));
+          px[i + 2] = Math.max(0, Math.min(255, (bb - 255 * (1 - alpha)) / alpha));
+          px[i + 3] = Math.round(alpha * 255);
+        }
+        g.putImageData(data, 0, 0);
+        img.style.mixBlendMode = 'normal';
       }
-      g.putImageData(data, 0, 0);
       img.src = c.toDataURL('image/png');
-      img.style.mixBlendMode = 'normal';
+      try { await img.decode(); } catch { /* it loads anyway */ }
     } catch {
       /* a picture from another site cannot be read: it stays as it was */
     }
@@ -113,7 +149,7 @@ async function renderPages(t: FileTransfer, settings: SystemSettings, user: User
     await new Promise((r) => setTimeout(r, 250));
     doc.querySelectorAll('.print-bar').forEach((e) => ((e as HTMLElement).style.display = 'none'));
     await settleImages(doc);
-    unmultiplyImages(doc);
+    await prepareImages(doc);
     flattenFittedImages(doc);
     // the name and the title of the signer are always drawn ABOVE the signature and the stamp pictures: the white box around a scanned picture must never hide them
     doc.querySelectorAll<HTMLElement>('.ceo-signature-block > div').forEach((el) => {
