@@ -896,7 +896,21 @@ class Session {
           return { ok: false, note: 'به سرور برنامه وصل نشدم: ' + e.message + ' (آدرس، پورت، نام کاربری و رمز SSH سرور برنامه را بررسی کنید.)' };
         }
         const lan = (await this.run(LAN_CMD, { quiet: true })).out.trim();
-        const dirs = (await this.run(`docker ps --filter label=com.docker.compose.service=app -q | xargs -r docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`, { root: true, quiet: true })).out
+        // the public address of the PROGRAM's server must be read while we are connected to it (not to the phone system); several services are tried, then an address of its own network card
+        let pubIp = '';
+        if (mode === 'remote' && !appHost) {
+          const urls = ['https://api.ipify.org', 'https://ifconfig.me/ip', 'https://icanhazip.com', 'https://checkip.amazonaws.com', 'https://ipinfo.io/ip', 'https://api.ip.sb/ip', 'http://ip.42.pl/raw'];
+          for (const u of urls) {
+            const t = (await this.run('curl -s -m 6 ' + u, { quiet: true })).out.trim();
+            if (ip4.test(t)) { pubIp = t; break; }
+          }
+          if (!pubIp) {
+            const own = (await this.run("hostname -I 2>/dev/null | tr ' ' '\\n' | grep -E '^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$' | grep -vE '^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|127\\.|169\\.254\\.)' | head -1", { quiet: true })).out.trim();
+            if (ip4.test(own)) pubIp = own;
+          }
+          if (!pubIp && ip4.test(String(app.host || ''))) pubIp = String(app.host); // the address used to reach the program's server over SSH (usually its public one)
+        }
+        const dirs =(await this.run(`docker ps --filter label=com.docker.compose.service=app -q | xargs -r docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`, { root: true, quiet: true })).out
           .split(/\r?\n/).map((x) => x.trim()).filter((x) => x.startsWith('/'));
         const portOut = (await this.run(`docker ps --filter label=com.docker.compose.service=app --format '{{.Ports}}' | head -1`, { root: true, quiet: true })).out;
         const pm = /:(\d{2,5})->/.exec(portOut);
@@ -909,8 +923,7 @@ class Session {
         try { await this.connect(pbxLogin); } catch (e) { return { ok: false, note: 'برگشتن به ایزابل نشد: ' + e.message }; }
         if (!dir) return { ok: false, note: 'برنامهٔ هورمند روی سرور برنامه پیدا نشد (Docker یا پوشهٔ /opt/automation). اول نصب برنامه را کامل کنید.' };
         if (mode === 'remote' && !appHost) {
-          const pubIp = (await this.run('curl -s -m 8 https://api.ipify.org || curl -s -m 8 https://ifconfig.me', { quiet: true })).out.trim();
-          if (!ip4.test(pubIp)) return { ok: false, note: 'آدرس عمومی سرور برنامه را نخواندم (اینترنت سرور برنامه را ببینید)؛ آن را در بخش پیشرفته بنویسید.' };
+          if (!ip4.test(pubIp)) return { ok: false, note: 'آدرس عمومی سرور برنامه را نخواندم؛ آن را در بخش پیشرفته (آدرس سرور برنامه) خودتان بنویسید.' };
           appHost = pubIp;
           this.log('شبکه‌ها جدا هستند: ایزابل باید آدرس عمومی سرور برنامه (' + pubIp + ') را بپذیرد.', 'gray');
         }
