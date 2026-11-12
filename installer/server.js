@@ -865,7 +865,9 @@ class Session {
     const mode = o.mode === 'remote' ? 'remote' : 'local';
     // the address this machine uses to reach the LAN/internet: the source address of the route to a public address
     const LAN_CMD = `ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1`;
-    const pbxLogin = { host: this.host, port: this.sshPort, username: this.user, password: this.password };
+    // the phone system's login is the one typed on the first screen; after a failed run this.host points at the program's server, so it is kept apart
+    const pbxLogin = this.loginInfo ? { ...this.loginInfo } : { host: this.host, port: this.sshPort, username: this.user, password: this.password };
+    if (this.loginInfo) { this.host = pbxLogin.host; this.sshPort = pbxLogin.port; this.user = pbxLogin.username; this.password = pbxLogin.password; }
     let appPort = '8080'; // the port the program listens on (read from its container below)
     const recKey = require('crypto').randomBytes(24).toString('hex'); // lets the phone system hand recordings over to the program
     const user = String(o.amiUser || 'hoormand').replace(/[^A-Za-z0-9_-]/g, '') || 'hoormand';
@@ -1304,6 +1306,7 @@ wss.on('connection', (ws) => {
       s.log(`در حال اتصال به ${m.username}@${m.host}:${m.port || 22} ...`, 'gray');
       try {
         await s.connect(m);
+        s.loginInfo = { host: m.host, port: Number(m.port) || 22, username: m.username, password: m.password };
         s.log('اتصال برقرار شد.', 'green');
         s.send({ type: 'connected', mode: m.mode || 'install' });
       } catch (e) {
