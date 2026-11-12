@@ -504,7 +504,7 @@ echo dns-done
       const got = Number((await this.run('stat -c %s /tmp/hoormand-src.tgz 2>/dev/null || echo 0', { quiet: true })).out.trim());
       if (!sent || got !== fs.statSync(BUNDLE).size) return { ok: false, note: 'ارسال کد به سرور کامل نشد (' + got + ' از ' + fs.statSync(BUNDLE).size + ' بایت رسید؛ ارتباط SSH یا فضای /tmp).' };
       r = await this.runJob(
-        'mkdir -p /opt/automation && tar xzf /tmp/hoormand-src.tgz -C /opt/automation && cd /opt/automation && export ' + env + ' AUTO_UPDATE=0 && bash ./install.sh',
+        'mkdir -p /opt/automation && rm -rf /opt/automation/server /opt/automation/web && tar xzf /tmp/hoormand-src.tgz -C /opt/automation && cd /opt/automation && export ' + env + ' AUTO_UPDATE=0 && bash ./install.sh',
         { label: 'باز کردن کد و ساخت برنامه روی خود سرور' }
       );
     } else r = await this.runJob(`export ${env} AUTO_UPDATE=0; curl -fsSL -m 60 ${REPO_RAW} | bash`, { label: 'نصب‌کنندهٔ برنامه از GitHub (روی خود سرور اجرا می‌شود)' });

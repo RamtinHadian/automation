@@ -52,6 +52,9 @@ main() {
   fi
   echo "$(date -Is) updating to $(git rev-parse --short "origin/$BRANCH")"
   git checkout -q -B "$BRANCH" "origin/$BRANCH"   # (not `git pull`: it fails with "Cannot fast-forward to multiple branches" in clones that have several branches)
+  # code left over from an older copy (files that no longer exist in the new version) breaks the build; only the two code folders are cleaned,
+  # .env, the database, backups and uploaded files are never touched
+  git clean -fdq -- server web 2>/dev/null || true
   docker compose up -d --build
   echo "$want" > "$DIR/.built-commit"
   docker image prune -f >/dev/null 2>&1 || true
