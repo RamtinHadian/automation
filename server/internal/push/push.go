@@ -4,8 +4,11 @@ package push
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/jackc/pgx/v5"
@@ -85,11 +88,22 @@ func Send(userID string, n jsonx.M) {
 			TTL:             86400,
 			Urgency:         webpush.UrgencyHigh,
 		})
+		host := s.endpoint
+		if u, perr := url.Parse(s.endpoint); perr == nil {
+			host = u.Host
+		}
 		if err != nil {
-			log.Printf("push failed: %v", err)
+			// the usual cause on a server inside Iran: the push service (fcm.googleapis.com, web.push.apple.com) cannot be reached
+			log.Printf("push failed (%s): %v", host, err)
 			continue
 		}
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 300))
 		resp.Body.Close()
+		if resp.StatusCode >= 300 {
+			log.Printf("push rejected (%s): HTTP %d %s", host, resp.StatusCode, strings.TrimSpace(string(body)))
+		} else {
+			log.Printf("push sent (%s): HTTP %d", host, resp.StatusCode)
+		}
 		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
 			_, _ = store.Pool.Exec(ctx, `DELETE FROM push_subscriptions WHERE endpoint = $1`, s.endpoint)
 		}
