@@ -100,6 +100,7 @@ class Session {
             reject(e);
           } else this.log(`\nارتباط SSH قطع شد: ${e.message}`, 'red');
         })
+        .on('keyboard-interactive', (name, instr, lang, prompts, finish) => finish(prompts.map(() => password)))
         .on('close', () => {
           this.conn = null;
         })
@@ -108,7 +109,9 @@ class Session {
           port: Number(port) || 22,
           username,
           password,
-          readyTimeout: 20000,
+          // a slow server (name lookups, PAM) can take longer than 20 s to finish the login; PuTTY simply waits, so do we
+          readyTimeout: 90000,
+          tryKeyboard: true,
           keepaliveInterval: 10000,
           keepaliveCountMax: 30,
           hostVerifier: (key) => {
