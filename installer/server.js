@@ -47,6 +47,24 @@ const wss = new WebSocketServer({
 const BUNDLE = path.join(__dirname, 'bundle', 'hoormand-src.tgz');
 const MIRRORS = ['https://docker.arvancloud.ir', 'https://registry.docker.ir', 'https://mirror.gcr.io'];
 const REPO_RAW = 'https://raw.githubusercontent.com/RamtinHadian/automation/frontend/install.sh';
+// The code sent to a server that cannot reach GitHub (bundle/hoormand-src.tgz) must never be old: when the panel starts and the project
+// (the folder above this one) has a newer commit than the bundle, the bundle is packed again (a few seconds, about 4 MB).
+function refreshBundle() {
+  try {
+    const { execFileSync } = require('child_process');
+    const root = path.resolve(__dirname, '..');
+    const head = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, timeout: 10000 }).toString().trim();
+    const verFile = path.join(__dirname, 'bundle', 'VERSION.txt');
+    const have = fs.existsSync(verFile) ? fs.readFileSync(verFile, 'utf8').trim() : '';
+    if (head && (head !== have || !fs.existsSync(BUNDLE))) {
+      execFileSync(process.execPath, [path.join(__dirname, 'make-bundle.js')], { cwd: __dirname, timeout: 120000, stdio: 'ignore' });
+      console.log('کد برنامه برای ارسال به سرورهای بدون GitHub به‌روز شد (' + head + ').');
+    }
+  } catch (e) {
+    console.log('به‌روزکردن خودکار فایل کد انجام نشد (' + String(e.message).split('\n')[0] + '); فایل قبلی می‌ماند.');
+  }
+}
+refreshBundle();
 const sq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -363,9 +381,47 @@ class Session {
     });
   }
 
+  async githubOk() {
+    const g = await this.run(`curl -sS -m 20 -o /dev/null -w "github: %{http_code}\n" https://github.com; curl -sS -m 20 -o /dev/null -w "raw: %{http_code}\n" ${REPO_RAW}`, { quiet: true });
+    this.log(g.out.trim().replace(/\n/g, ' | '), 'gray');
+    return /github: 200/.test(g.out) && /raw: 200/.test(g.out);
+  }
+
+  /**
+   * Some providers answer a poisoned address (10.x…) for github.com although the real site is reachable. When GitHub answers on its
+   * real address, public DNS servers are put in front of the server's own (now, and in the netplan file so that a reboot keeps them).
+   */
+  async repairDns() {
+    const probe = await this.run('getent ahostsv4 github.com | head -1; curl -sS -m 12 -o /dev/null -w "direct: %{http_code}\n" --resolve github.com:443:140.82.121.4 https://github.com', { quiet: true });
+    const seen = (/^(\d+\.\d+\.\d+\.\d+)/m.exec(probe.out) || [])[1] || '';
+    this.log('آدرسی که DNS سرور برای github.com می‌دهد: ' + (seen || 'هیچ'), 'gray');
+    if (!/direct: 200/.test(probe.out)) return false;
+    this.log('GitHub روی آدرس واقعی‌اش باز است ولی DNS این سرور آدرس غلط می‌دهد؛ DNS عمومی (8.8.8.8 و 1.1.1.1) را جلوی DNS سرور می‌گذارم.', 'yellow');
+    const script = String.raw`
+iface=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
+if [ -n "$iface" ] && command -v resolvectl >/dev/null 2>&1; then resolvectl dns "$iface" 8.8.8.8 1.1.1.1 && echo dns-live; fi
+for f in /etc/netplan/*.yaml; do
+  [ -f "$f" ] || continue
+  grep -q 'nameservers:' "$f" || continue
+  grep -q '8\.8\.8\.8' "$f" && continue
+  b="/root/$(basename "$f").hoormand-bak"
+  cp "$f" "$b"
+  awk '{ if (ns && $0 ~ /addresses: *\[/) { sub(/\[/, "[8.8.8.8, 1.1.1.1, "); ns=0 } if ($0 ~ /nameservers:/) ns=1; print }' "$f" > /tmp/hoormand-np.yaml && cat /tmp/hoormand-np.yaml > "$f"
+  if netplan generate 2>/dev/null; then echo "netplan-edited $f"; netplan apply 2>/dev/null; else cp "$b" "$f"; echo "netplan-restored $f"; fi
+done
+sleep 2
+echo dns-done
+`;
+    const r = await this.run(script, { root: true, quiet: true });
+    if (/netplan-edited/.test(r.out)) this.log('DNS در فایل شبکه هم ثبت شد (نسخهٔ قبلی در /root با پسوند .hoormand-bak است).', 'gray');
+    else if (/dns-live/.test(r.out)) this.log('DNS فقط موقت عوض شد (فایل شبکهٔ netplan بخش nameservers نداشت)؛ بعد از ریبوت سرور ممکن است برگردد.', 'yellow');
+    return /dns-live|netplan-edited/.test(r.out);
+  }
+
   async stepNetwork() {
-    const g = await this.run(`curl -sS -m 20 -o /dev/null -w "github: %{http_code}\\n" https://github.com; curl -sS -m 20 -o /dev/null -w "raw: %{http_code}\\n" ${REPO_RAW}`);
-    if (!/github: 200/.test(g.out) || !/raw: 200/.test(g.out)) {
+    let ok = await this.githubOk();
+    if (!ok && (await this.repairDns())) ok = await this.githubOk();
+    if (!ok) {
       if (fs.existsSync(BUNDLE)) {
         this.offline = true;
         this.log('GitHub از این سرور باز نمی‌شود؛ کد برنامه را از همین کامپیوتر (فایل ' + path.basename(BUNDLE) + ') روی سرور می‌فرستم. به‌روزرسانی خودکار از GitHub در این حالت کار نمی‌کند.', 'yellow');
@@ -373,7 +429,7 @@ class Session {
       }
       return { ok: false, note: 'سرور به GitHub دسترسی ندارد؛ کد برنامه از آن‌جا دانلود می‌شود. اینترنت، DNS یا فیلترینگ سرور را بررسی کنید.' };
     }
-    return { ok: true, note: 'GitHub در دسترس است.' };
+    return { ok: true, note: 'GitHub در دسترس است؛ به‌روزرسانی خودکار بعد از نصب روشن می‌شود.' };
   }
 
   async stepDocker() {
