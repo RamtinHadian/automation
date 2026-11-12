@@ -84,6 +84,7 @@ class Session {
     return new Promise((resolve, reject) => {
       const conn = new Client();
       let finished = false;
+      const trace = []; // the last steps of the SSH talk: shown when the login fails, so we can see where it stopped
       conn
         .on('ready', () => {
           finished = true;
@@ -97,6 +98,7 @@ class Session {
         .on('error', (e) => {
           if (!finished) {
             finished = true;
+            if (trace.length) this.log(['مراحل آخر گفت‌وگوی SSH (برای عیب‌یابی):', ...trace.slice(-14)].join(String.fromCharCode(10)), 'gray');
             reject(e);
           } else this.log(`\nارتباط SSH قطع شد: ${e.message}`, 'red');
         })
@@ -112,6 +114,7 @@ class Session {
           // a slow server (name lookups, PAM) can take longer than 20 s to finish the login; PuTTY simply waits, so do we
           readyTimeout: 90000,
           tryKeyboard: true,
+          debug: (m) => { trace.push(String(m).replace(/password.*/i, 'password …').slice(0, 160)); if (trace.length > 60) trace.shift(); },
           keepaliveInterval: 10000,
           keepaliveCountMax: 30,
           hostVerifier: (key) => {
