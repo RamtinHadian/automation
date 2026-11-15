@@ -17,7 +17,7 @@ const isoLocal = (iso: string) => {
 export function internalAsTransfer(l: InternalLetter, _settings: SystemSettings, letterhead: LetterheadChoice | null | undefined): FileTransfer {
   const lines = (l.body || '').split(/\r?\n/);
   // a letter written in the rich editor keeps its formatting and tables; an older plain one is made into paragraphs
-  const html = l.bodyHtml ? sanitizeHtml(l.bodyHtml) : `<p><b>به: ${esc(l.toName)}</b></p>` + lines.map((x) => `<p>${x.trim() ? esc(x) : '<br>'}</p>`).join('');
+  const html = l.bodyHtml ? `<p><b>به: ${esc(l.toName)}</b></p>` + sanitizeHtml(l.bodyHtml) : `<p><b>به: ${esc(l.toName)}</b></p>` + lines.map((x) => `<p>${x.trim() ? esc(x) : '<br>'}</p>`).join('');
   const lay = { ...(l.layout || {}) } as Record<string, unknown>;
   for (const k of ['title', 'contentHtml', 'letterNumber', 'recipientId', 'note', 'customSignerName', 'customSignerTitle', 'copyTo', 'letterhead', 'attachmentFileName', 'attachmentFileSize', 'attachmentFileDataUrl']) delete lay[k];
   const sender = { id: l.senderId, fullName: l.senderName, email: '', avatarUrl: '', avatarInitials: '', role: 'STAFF', departmentId: '', departmentName: l.senderDept || '', storageQuotaGB: 0, storageUsedGB: 0, isActive: true, lastLogin: '' } as User;
