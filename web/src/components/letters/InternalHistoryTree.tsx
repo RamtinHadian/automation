@@ -19,6 +19,7 @@ interface TreeNode {
   name: string;
   via: string;
   note?: string;
+  paraph?: string;
   at: string;
   marks: InternalLetterEvent[];
   kids: TreeNode[];
@@ -42,7 +43,7 @@ export function buildTree(history: InternalLetterEvent[]): TreeNode | null {
     }
     if (e.toId && WAY[e.action]) {
       const parent = last.get(e.byId) || root;
-      const child: TreeNode = { key: k++, personId: e.toId, name: e.toName || '', via: e.action, note: e.note, at: e.at, marks: [], kids: [] };
+      const child: TreeNode = { key: k++, personId: e.toId, name: e.toName || '', via: e.action, note: e.note, paraph: e.paraph, at: e.at, marks: [], kids: [] };
       parent.kids.push(child);
       last.set(e.toId, child);
     } else {
@@ -65,6 +66,7 @@ const Branch: React.FC<{ n: TreeNode }> = ({ n }) => {
           {n.via === 'DELIVERED' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
         </div>
         {n.note && <div className="mt-1 text-[11px] leading-6 text-[#6B4F47] bg-[#FAF5F1] rounded-xl px-2 py-1 whitespace-pre-wrap">{n.note}</div>}
+        {n.paraph && <img src={n.paraph} alt="پاراف" className="mt-1 max-h-16 max-w-full object-contain mix-blend-multiply" />}
         <div className="text-[10px] font-bold text-[#A8928B] mt-0.5">{formatCurrentJalaliDateTime(new Date(n.at))}</div>
         {n.marks.length > 0 && (
           <ul className="mt-1.5 space-y-1 border-t border-dashed border-[#EBDBCE] pt-1.5">

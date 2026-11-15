@@ -212,7 +212,13 @@ func icLoad(ctx context.Context, id string) (jsonx.M, bool) {
 
 // who may see a letter: everyone who wrote, held, was addressed or passed it on, and the managing director / administrators (audit)
 func icMaySee(me auth.User, doc jsonx.M) bool {
-	return me.IsAdmin() || jsonx.Bool(me.M, "canSignOfficialLetters") || jsonx.Contains(jsonx.Strings(doc, "people"), me.ID())
+	return icAuditor(me) || jsonx.Contains(jsonx.Strings(doc, "people"), me.ID())
+}
+
+// icAuditor: only the top administrator of the system and the managing director may see every internal letter (nobody else, not even other
+// administrators; and it is not a right that can be given in the permission table). Everybody else sees only the letters they are part of.
+func icAuditor(me auth.User) bool {
+	return me.Role() == "SUPER_ADMIN" || jsonx.Bool(me.M, "canSignOfficialLetters")
 }
 
 func icPublic(me auth.User, doc jsonx.M) jsonx.M {
@@ -398,7 +404,7 @@ func icCreate(w http.ResponseWriter, r *http.Request) {
 		label = "نامهٔ داخلی رسید"
 	}
 	icNotify(r, me, []string{jsonx.Str(doc, "holderId")}, label, subject)
-	auditLine(r, me, "INFO", "مکاتبهٔ داخلی «"+clip(subject, 80)+"» به "+toP.name+" نوشته شد و نزد "+jsonx.Str(doc, "holderName")+" رفت.")
+	auditLine(r, me, "INFO", "مکاتبهٔ داخلی شمارهٔ "+number+" به "+toP.name+" نوشته شد و نزد "+jsonx.Str(doc, "holderName")+" رفت.")
 	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true, "id": id})
 }
 
@@ -473,7 +479,7 @@ func icForward(w http.ResponseWriter, r *http.Request) {
 	}
 	icNotify(r, me, []string{to}, "مکاتبهٔ داخلی", jsonx.Str(doc, "subject"))
 	icNotify(r, me, []string{jsonx.Str(doc, "senderId")}, "نامهٔ شما بالا رفت", jsonx.Str(doc, "subject"))
-	auditLine(r, me, "INFO", "مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» از "+me.Name()+" به "+tp.name+" فرستاده شد.")
+	auditLine(r, me, "INFO", "مکاتبهٔ داخلی شمارهٔ "+jsonx.Str(doc, "number")+" از "+me.Name()+" به "+tp.name+" فرستاده شد.")
 	httpx.OK(w)
 }
 
@@ -507,7 +513,7 @@ func icReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	icNotify(r, me, []string{sid}, "نامهٔ شما برگشت خورد", jsonx.Str(doc, "subject"))
-	auditLine(r, me, "WARNING", "مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» توسط "+me.Name()+" به "+jsonx.Str(doc, "senderName")+" برگردانده شد.")
+	auditLine(r, me, "WARNING", "مکاتبهٔ داخلی شمارهٔ "+jsonx.Str(doc, "number")+" توسط "+me.Name()+" به "+jsonx.Str(doc, "senderName")+" برگردانده شد.")
 	httpx.OK(w)
 }
 
@@ -557,7 +563,7 @@ func icResend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	icNotify(r, me, []string{jsonx.Str(doc, "holderId")}, "مکاتبهٔ داخلی", subject)
-	auditLine(r, me, "INFO", "مکاتبهٔ داخلی «"+clip(subject, 80)+"» دوباره فرستاده شد.")
+	auditLine(r, me, "INFO", "مکاتبهٔ داخلی شمارهٔ "+jsonx.Str(doc, "number")+" دوباره فرستاده شد.")
 	httpx.OK(w)
 }
 
@@ -589,7 +595,7 @@ func icNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	icNotify(r, me, jsonx.Strings(doc, "people"), "پاسخ به مکاتبهٔ داخلی", jsonx.Str(doc, "subject"))
-	auditLine(r, me, "INFO", "یادداشت تازه در مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» از "+me.Name()+".")
+	auditLine(r, me, "INFO", "یادداشت تازه در مکاتبهٔ داخلی شمارهٔ "+jsonx.Str(doc, "number")+" از "+me.Name()+".")
 	httpx.OK(w)
 }
 
@@ -602,6 +608,12 @@ func icRead(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "پیدا نشد.")
 		return
 	}
+	if !jsonx.Contains(jsonx.Strings(doc, "people"), me.ID()) && icAuditor(me) {
+		// the managing director / top administrator opening a letter he is not part of leaves a trace in the activity journal only
+		auditLine(r, me, "WARNING", "مکاتبهٔ داخلی شمارهٔ "+jsonx.Str(doc, "number")+" را "+me.Name()+" به‌عنوان نظارت باز کرد (او در این نامه نیست).")
+		httpx.OK(w)
+		return
+	}
 	rb, _ := doc["readBy"].(map[string]any)
 	if rb == nil {
 		rb = map[string]any{}
@@ -611,7 +623,7 @@ func icRead(w http.ResponseWriter, r *http.Request) {
 		doc["readBy"] = rb
 		icAppend(doc, icEvent(me, "READ", "", "", ""))
 		if icSave(ctx, doc) == nil {
-			auditLine(r, me, "INFO", "مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» را "+me.Name()+" خواند.")
+			auditLine(r, me, "INFO", "مکاتبهٔ داخلی شمارهٔ "+jsonx.Str(doc, "number")+" را "+me.Name()+" خواند.")
 		}
 	}
 	httpx.OK(w)
@@ -637,17 +649,15 @@ func icArchive(w http.ResponseWriter, r *http.Request) {
 	on, _ := body["on"].(bool)
 	if on {
 		ab[me.ID()] = icNowStr()
-		icAppend(doc, icEvent(me, "ARCHIVED", "", "", ""))
 	} else {
 		delete(ab, me.ID())
-		icAppend(doc, icEvent(me, "UNARCHIVED", "", "", ""))
 	}
 	doc["archivedBy"] = ab
 	if err := icSave(ctx, doc); err != nil {
 		internalError(w)
 		return
 	}
-	auditLine(r, me, "INFO", "مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» توسط "+me.Name()+(map[bool]string{true: " بایگانی شد.", false: " از بایگانی درآمد."})[on])
+	auditLine(r, me, "INFO", "مکاتبهٔ داخلی شمارهٔ "+jsonx.Str(doc, "number")+" توسط "+me.Name()+(map[bool]string{true: " بایگانی شد.", false: " از بایگانی درآمد."})[on])
 	httpx.OK(w)
 }
 
@@ -666,7 +676,7 @@ func icList(w http.ResponseWriter, r *http.Request) {
 	case "archive":
 		q = `SELECT data FROM internal_letters WHERE $1 = ANY(people) AND COALESCE(data->'archivedBy','{}'::jsonb) ? $1 ORDER BY updated_at DESC LIMIT 500`
 	case "all":
-		if !me.IsAdmin() && !jsonx.Bool(me.M, "canSignOfficialLetters") {
+		if !icAuditor(me) {
 			httpx.Forbidden(w)
 			return
 		}
@@ -785,6 +795,16 @@ func icRefer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	note := strings.TrimSpace(jsonx.Str(body, "note"))
+	// the paraph («پاراف») is compulsory: what the person wrote on the letter when referring it, by hand (a small picture) and / or as text
+	paraph := jsonx.Str(body, "paraph")
+	if paraph != "" && (!strings.HasPrefix(paraph, "data:image/") || len(paraph) > 300*1024) {
+		httpx.Error(w, http.StatusBadRequest, "پاراف باید یک تصویر کوچک باشد.")
+		return
+	}
+	if paraph == "" && note == "" {
+		httpx.Error(w, http.StatusBadRequest, "پاراف واجب است: دستور را با قلم بنویسید یا از قالب‌های پاراف / متن استفاده کنید.")
+		return
+	}
 	refs, _ := doc["referrals"].([]any)
 	pp, _ := icUser(ctx, me.ID())
 	allowedRef := icReferTargets(ctx, icDepts(ctx), pp)
@@ -815,9 +835,13 @@ func icRefer(w http.ResponseWriter, r *http.Request) {
 			continue // inactive people and the isolated sales representatives never receive an internal letter
 		}
 		name := jsonx.Str(u, "fullName")
-		refs = append(refs, map[string]any{"id": "rf-" + strconv.FormatInt(time.Now().UnixNano(), 36) + strconv.Itoa(len(refs)), "byId": me.ID(), "byName": me.Name(), "toId": t, "toName": name, "note": clip(note, 2000), "at": icNowStr(), "status": "PENDING"})
+		refs = append(refs, map[string]any{"id": "rf-" + strconv.FormatInt(time.Now().UnixNano(), 36) + strconv.Itoa(len(refs)), "byId": me.ID(), "byName": me.Name(), "toId": t, "toName": name, "note": clip(note, 2000), "at": icNowStr(), "status": "PENDING", "paraph": paraph})
 		icAddPerson(doc, t)
-		icAppend(doc, icEvent(me, "REFERRED", t, name, note))
+		ev := icEvent(me, "REFERRED", t, name, note)
+		if paraph != "" {
+			ev["paraph"] = paraph
+		}
+		icAppend(doc, ev)
 		done = append(done, t)
 	}
 	if len(done) == 0 {
@@ -830,7 +854,7 @@ func icRefer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	icNotify(r, me, done, "ارجاع نامهٔ داخلی", jsonx.Str(doc, "subject"))
-	auditLine(r, me, "INFO", "مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» توسط "+me.Name()+" به "+strconv.Itoa(len(done))+" نفر ارجاع شد.")
+	auditLine(r, me, "INFO", "مکاتبهٔ داخلی شمارهٔ "+jsonx.Str(doc, "number")+" توسط "+me.Name()+" به "+strconv.Itoa(len(done))+" نفر ارجاع شد.")
 	httpx.OK(w)
 }
 
@@ -869,8 +893,53 @@ func icActed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	icNotify(r, me, askers, "اقدام روی ارجاع شما انجام شد", jsonx.Str(doc, "subject"))
-	auditLine(r, me, "INFO", "ارجاع مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» را "+me.Name()+" انجام‌شده اعلام کرد.")
+	auditLine(r, me, "INFO", "ارجاع مکاتبهٔ داخلی شمارهٔ "+jsonx.Str(doc, "number")+" را "+me.Name()+" انجام‌شده اعلام کرد.")
 	httpx.OK(w)
+}
+
+const icParaphPrompt = `تو دبیر یک مدیر در شرکتی ایرانی هستی. مدیر می‌خواهد روی نامه‌ای که به او رسیده «پاراف» بنویسد، یعنی یک دستور کوتاه اداری هنگام ارجاع.
+فقط از محتوای نامه استفاده کن؛ نام، عدد، تاریخ یا تعهدی از خودت نساز. چهار پاراف متفاوت و کوتاه (هر کدام حداکثر دوازده کلمه، لحن رسمی و قاطع) پیشنهاد بده؛ برای یکی دو مورد کار مشخصی که از متن نامه برمی‌آید بخواه (مثلاً بررسی، گزارش، پیگیری با مشتری، هماهنگی).
+خروجی فقط یک JSON معتبر باشد، بدون متن اضافه: {"paraphs":["...","...","...","..."]}`
+
+// POST /api/icorr/{id}/ai-paraph: the AI suggests short paraphs for the letter (only for somebody who may refer it); it only returns text
+func icAiParaph(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	ctx := r.Context()
+	doc, found := icLoad(ctx, r.PathValue("id"))
+	if !found || !jsonx.Contains(jsonx.Strings(doc, "people"), me.ID()) || !icCanRefer(me, doc) {
+		httpx.Error(w, http.StatusForbidden, "برای این نامه پاراف پیشنهاد داده نمی‌شود.")
+		return
+	}
+	if aiDenied(w, me, "ai.paraph") {
+		return
+	}
+	s := supportSettings(ctx)
+	key, model := jsonx.Str(s, "aiKey"), jsonx.Str(s, "aiModel")
+	if key == "" || model == "" {
+		httpx.Error(w, http.StatusBadRequest, "هوش مصنوعی هنوز راه‌اندازی نشده است. مدیر سیستم کلید API و نام مدل را در پنل ادمین، تنظیمات پشتیبانی، بخش «پاسخ هوشمند» ذخیره می‌کند.")
+		return
+	}
+	text := "موضوع نامه: " + clean(jsonx.Str(doc, "subject"), 200) + "\nاز: " + jsonx.Str(doc, "senderName") + "\nمتن نامه:\n" + clean(jsonx.Str(doc, "body"), 4000)
+	cctx, cancel := context.WithTimeout(ctx, 70*time.Second)
+	defer cancel()
+	out, err := aiChatOpts(cctx, key, model, []aiMsg{{Role: "system", Content: icParaphPrompt}, {Role: "user", Content: text}}, 600, 60*time.Second)
+	if err != nil {
+		httpx.Error(w, http.StatusBadGateway, "پیشنهاد پاراف انجام نشد: "+err.Error())
+		return
+	}
+	d := parseLooseJSON(out)
+	arr, _ := d["paraphs"].([]any)
+	list := []string{}
+	for _, x := range arr {
+		if t, _ := x.(string); strings.TrimSpace(t) != "" && len(list) < 6 {
+			list = append(list, clip(strings.TrimSpace(t), 200))
+		}
+	}
+	if len(list) == 0 {
+		httpx.Error(w, http.StatusBadGateway, "پاسخ هوش مصنوعی قابل خواندن نبود؛ دوباره امتحان کنید.")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"paraphs": list})
 }
 
 func registerInternalLetters(mux *http.ServeMux) {
@@ -881,6 +950,7 @@ func registerInternalLetters(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/icorr/{id}/return", auth.Require(icReturn))
 	mux.HandleFunc("POST /api/icorr/{id}/resend", auth.Require(icResend))
 	mux.HandleFunc("POST /api/icorr/{id}/archive", auth.Require(icArchive))
+	mux.HandleFunc("POST /api/icorr/{id}/ai-paraph", auth.Require(icAiParaph))
 	mux.HandleFunc("POST /api/icorr/{id}/refer", auth.Require(icRefer))
 	mux.HandleFunc("POST /api/icorr/{id}/acted", auth.Require(icActed))
 	mux.HandleFunc("POST /api/icorr/{id}/note", auth.Require(icNote))

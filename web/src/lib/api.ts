@@ -105,6 +105,7 @@ export interface InternalLetterEvent {
   toId?: string;
   toName?: string;
   note?: string;
+  paraph?: string;
 }
 
 /** A referral («ارجاع») of an internal letter to one person, with the instruction and, later, what was done. */
@@ -119,6 +120,8 @@ export interface InternalLetterReferral {
   status: 'PENDING' | 'DONE';
   doneAt?: string;
   doneNote?: string;
+  /** the handwritten paraph (a small picture) put on the letter when it was referred */
+  paraph?: string;
 }
 
 /** An internal letter («مکاتبهٔ داخلی»): climbs the organisation chart, every step is kept in the history. */
@@ -751,8 +754,9 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   icReturn: (id: string, b: { note: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/return`, b),
   icResend: (id: string, b: { subject: string; body: string; toId?: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/resend`, b),
   icNote: (id: string, b: { note: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/note`, b),
-  icRefer: (id: string, b: { toIds: string[]; note?: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/refer`, b),
+  icRefer: (id: string, b: { toIds: string[]; note?: string; paraph?: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/refer`, b),
   icActed: (id: string, b: { note?: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/acted`, b),
+  icAiParaph: (id: string) => request<{ paraphs: string[] }>('POST', `/api/icorr/${encodeURIComponent(id)}/ai-paraph`, {}),
   icArchive: (id: string, on: boolean) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/archive`, { on }),
   icRead: (id: string) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/read`, {}),
   orderRead: (id: string) => request<{ ok: true }>('POST', `/api/orders/${encodeURIComponent(id)}/read`, {}),

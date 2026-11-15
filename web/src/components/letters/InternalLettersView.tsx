@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Archive, ArchiveRestore, FileDown, Printer, ArrowRight, CheckCircle2, Share2, UserCheck, CornerUpLeft, Eye, FilePlus2, History, Inbox, Network, Reply, Send, Undo2, X } from 'lucide-react';
 import { api, ChainPerson, InternalLetter, InternalLetterEvent } from '../../lib/api';
 import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
+import { SignaturePadDialog } from '../common/SignaturePad';
+import { DEFAULT_PARAPH_TEMPLATES } from '../../lib/paraph';
+import { canSub } from '../../lib/permissions';
+import { Sparkles } from 'lucide-react';
 import { defaultInternalNumbering, nextFreeLetter } from '../../lib/letterNumbering';
 import { generateOfficialLetterHtml, openAndDownloadPdfLetter } from '../../lib/pdfLetterGenerator';
 import { letterAsPdf, saveFile } from '../../lib/letterExport';
@@ -40,7 +44,7 @@ const when = (iso: string) => formatCurrentJalaliDateTime(new Date(iso));
 /** «مکاتبات داخلی»: letters between the people of the company that climb the organisation chart (employee → unit manager → peer manager / managing director), each with its full history. */
 export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> = ({ onUnread }) => {
   const { currentUser } = useAppContext();
-  const auditor = !!currentUser.canSignOfficialLetters || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
+  const auditor = !!currentUser.canSignOfficialLetters || currentUser.role === 'SUPER_ADMIN'; // only the top administrator and the managing director see every letter
   const [box, setBox] = useState<'inbox' | 'sent' | 'referred' | 'archive' | 'involved' | 'all'>('inbox');
   const [referredCount, setReferredCount] = useState(0);
   const [list, setList] = useState<InternalLetter[]>([]);
@@ -130,13 +134,29 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
 };
 
 const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged: () => void; onEdit: () => void }> = ({ letter, onClose, onChanged, onEdit }) => {
-  const { currentUser } = useAppContext();
+  const { currentUser, settings } = useAppContext();
   const holder = letter.holderId === currentUser.id;
   const [fwd, setFwd] = useState<ChainPerson[]>([]);
   const [to, setTo] = useState('');
   const [note, setNote] = useState('');
   const [mode, setMode] = useState<'forward' | 'return' | 'note' | 'refer' | 'acted' | null>(null);
   const [referTo, setReferTo] = useState<string[]>([]);
+  const [paraph, setParaph] = useState('');
+  const [paraphOpen, setParaphOpen] = useState(false);
+  const [aiList, setAiList] = useState<string[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const templates = (settings.paraphTemplates && settings.paraphTemplates.length ? settings.paraphTemplates : DEFAULT_PARAPH_TEMPLATES).filter(Boolean);
+  const askAi = async () => {
+    setAiBusy(true);
+    setErr('');
+    try {
+      setAiList((await api.icAiParaph(letter.id)).paraphs);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'پیشنهاد هوشمند انجام نشد.');
+    } finally {
+      setAiBusy(false);
+    }
+  };
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const canAct = holder && letter.status === 'IN_CHAIN';
@@ -144,7 +164,6 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
   const involved = letter.people.includes(currentUser.id);
   const myPending = (letter.referrals || []).some((x) => x.toId === currentUser.id && x.status === 'PENDING');
   const canRefer = (holder && letter.status === 'DELIVERED') || (letter.referrals || []).some((x) => x.toId === currentUser.id);
-  const { settings } = useAppContext();
   const [referList, setReferList] = useState<ChainPerson[]>([]);
   const [withHead, setWithHead] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -183,6 +202,8 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
       setNote('');
       setTo('');
       setReferTo([]);
+      setParaph('');
+      setAiList([]);
       onChanged();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'انجام نشد.');
@@ -243,6 +264,7 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
                 <div key={x.id} className="rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-2.5 text-[11.5px] leading-6">
                   <div className="font-black text-[#3A241F]">{x.byName} ← {x.toName} <span className={`mr-1 text-[10px] rounded-full px-2 py-0.5 border ${x.status === 'DONE' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>{x.status === 'DONE' ? 'اقدام شد' : 'منتظر اقدام'}</span></div>
                   {x.note && <div className="text-[#6B4F47] whitespace-pre-wrap">دستور: {x.note}</div>}
+                  {x.paraph && <img src={x.paraph} alt="پاراف" className="mt-1 max-h-16 max-w-full object-contain mix-blend-multiply" />}
                   {x.doneNote && <div className="text-emerald-800 whitespace-pre-wrap">نتیجه: {x.doneNote}</div>}
                   <div className="text-[10px] font-bold text-[#A8928B]">{when(x.at)}{x.doneAt ? ` · انجام: ${when(x.doneAt)}` : ''}</div>
                 </div>
@@ -255,7 +277,7 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
               <div className="flex flex-wrap gap-2">
                 {canAct && <button type="button" onClick={() => setMode('forward')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'forward' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-amber-800 border-amber-300'}`} data-ic-forward><CornerUpLeft className="w-3.5 h-3.5" />ارسال به بالا</button>}
                 {canReturn && <button type="button" onClick={() => setMode('return')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'return' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-rose-700 border-rose-300'}`}><Undo2 className="w-3.5 h-3.5" />برگرداندن با دلیل</button>}
-                {canRefer && <button type="button" onClick={() => setMode('refer')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'refer' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-violet-800 border-violet-300'}`} data-ic-refer><Share2 className="w-3.5 h-3.5" />ارجاع</button>}
+                {canRefer && <button type="button" onClick={() => { setMode('refer'); setParaphOpen(true); }} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'refer' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-violet-800 border-violet-300'}`} data-ic-refer><Share2 className="w-3.5 h-3.5" />ارجاع</button>}
                 {myPending && <button type="button" onClick={() => setMode('acted')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'acted' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-800 border-emerald-300'}`}><UserCheck className="w-3.5 h-3.5" />اقدام شد</button>}
                 {involved && <button type="button" onClick={() => setMode('note')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'note' ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-sky-800 border-sky-300'}`}><Reply className="w-3.5 h-3.5" />{letter.toId === currentUser.id ? 'پاسخ' : 'یادداشت'}</button>}
               </div>
@@ -268,11 +290,43 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
               )}
               {mode === 'refer' && (
                 <div className="space-y-2">
+                  <div className="rounded-2xl border border-dashed border-violet-300 bg-violet-50/40 p-2.5 space-y-2" data-ic-paraph>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-black text-violet-900">پاراف <b className="text-rose-600">(واجب)</b> — دست‌نوشته یا متن</span>
+                      <button type="button" onClick={() => setParaphOpen(true)} className="text-[11px] font-black text-violet-700 hover:underline cursor-pointer">{paraph ? 'نوشتن دوباره' : 'پاراف با قلم'}</button>
+                    </div>
+                    {paraph ? (
+                      <div className="flex items-center gap-2">
+                        <img src={paraph} alt="پاراف" className="max-h-20 max-w-[70%] object-contain bg-white rounded-xl border border-[#EBDBCE] p-1" />
+                        <button type="button" onClick={() => setParaph('')} className="text-[11px] font-black text-rose-600 cursor-pointer">حذف پاراف</button>
+                      </div>
+                    ) : (
+                      <div className="text-[10.5px] font-medium text-[#8C6F66]">با قلم، انگشت یا ماوس دستور یا حرف اول نامتان را بنویسید تا همراه ارجاع برای گیرنده برود.</div>
+                    )}
+                  </div>
                   <PersonPickerMulti title="ارجاع به…" items={referList.map((p) => ({ id: p.id, name: p.name, sub: p.sub }))} values={referTo} onChange={setReferTo} placeholder={referList.length ? 'یک یا چند نفر را طبق چارت سازمانی انتخاب کنید…' : 'کسی برای ارجاع در دسترس نیست'} />
-                  <textarea className={`${field} min-h-[70px]`} placeholder="دستور یا توضیح ارجاع (مثلاً: لطفاً بررسی و گزارش دهید)" value={note} onChange={(e) => setNote(e.target.value)} />
-                  <button type="button" disabled={busy || referTo.length === 0} onClick={() => run(() => api.icRefer(letter.id, { toIds: referTo, note }))} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><Share2 className="w-4 h-4" />ارجاع به {toPersianDigits(referTo.length)} نفر</button>
+                  <div className="flex flex-wrap gap-1.5" data-ic-paraph-templates>
+                    {templates.map((t) => (
+                      <button key={t} type="button" onClick={() => setNote(t)} className={`px-2.5 py-1 rounded-full border text-[10.5px] font-black cursor-pointer ${note === t ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-violet-800 border-violet-200 hover:bg-violet-50'}`}>{t}</button>
+                    ))}
+                  </div>
+                  {canSub(currentUser, 'ai.paraph') && (
+                    <div className="space-y-1.5">
+                      <button type="button" disabled={aiBusy} onClick={askAi} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-300 bg-violet-50 text-violet-800 text-[11px] font-black disabled:opacity-60 cursor-pointer" data-ic-ai-paraph><Sparkles className="w-3.5 h-3.5" />{aiBusy ? 'در حال نوشتن…' : 'پیشنهاد هوشمند پاراف'}</button>
+                      {aiList.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {aiList.map((t) => (
+                            <button key={t} type="button" onClick={() => setNote(t)} className={`px-2.5 py-1 rounded-xl border text-[10.5px] font-bold text-right cursor-pointer ${note === t ? 'bg-fuchsia-600 text-white border-fuchsia-600' : 'bg-white text-fuchsia-900 border-fuchsia-200 hover:bg-fuchsia-50'}`}>{t}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <textarea className={`${field} min-h-[70px]`} placeholder="متن پاراف (از قالب‌ها یا پیشنهاد هوشمند انتخاب کنید یا خودتان بنویسید)" value={note} onChange={(e) => setNote(e.target.value)} />
+                  <button type="button" disabled={busy || referTo.length === 0 || (!paraph && !note.trim())} onClick={() => run(() => api.icRefer(letter.id, { toIds: referTo, note, ...(paraph ? { paraph } : {}) }))} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><Share2 className="w-4 h-4" />ارجاع به {toPersianDigits(referTo.length)} نفر</button>
                 </div>
               )}
+              {paraphOpen && <SignaturePadDialog title="پاراف ارجاع" onClose={() => setParaphOpen(false)} onSave={(u) => { setParaph(u); setParaphOpen(false); }} />}
               {mode === 'acted' && (
                 <div className="space-y-2">
                   <textarea className={`${field} min-h-[70px]`} placeholder="نتیجهٔ اقدام (اختیاری)" value={note} onChange={(e) => setNote(e.target.value)} />

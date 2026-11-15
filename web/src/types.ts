@@ -803,6 +803,8 @@ export interface SystemSettings {
   letterNumbering?: LetterNumberingSettings;
   /** the numbering of internal letters («مکاتبات داخلی»), defined in the console like the official letters' one */
   internalNumbering?: LetterNumberingSettings;
+  /** ready-made paraphs offered when an internal letter is referred (empty / missing = the built-in list) */
+  paraphTemplates?: string[];
   /** the letterhead of internal letters (null / missing = no letterhead) */
   internalLetterhead?: import('./lib/letterheads').LetterheadChoice | null;
   customFonts?: CustomFont[];

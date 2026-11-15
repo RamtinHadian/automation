@@ -18,6 +18,7 @@ const PERIODS = [7, 14, 30, 60, 90, 180, 365];
  * `right` is the sub-right of the permission table that opens it for a person (the «ai» group of lib/permissions.ts).
  */
 const AI_PLACES: { where: string; what: string; right?: string }[] = [
+  { where: 'مکاتبات داخلی', what: 'هنگام ارجاع نامه، دکمهٔ «پیشنهاد هوشمند» چند پاراف کوتاه از روی متن نامه می‌نویسد؛ مدیر انتخاب یا ویرایش می‌کند.', right: 'ai.paraph' },
   { where: 'نامه‌نگاری', what: 'دکمهٔ «با هوش مصنوعی» در ویرایشگر نامه متن را از روی خواسته می‌نویسد یا متن نیمه‌تمام را کامل می‌کند.', right: 'ai.letters' },
   { where: 'صورتجلسه', what: 'نوشتن صورتجلسه از یادداشت یا از صدای جلسه (ضبط با میکروفون یا فایل صوتی؛ تبدیل به متن و نوشتن دستور جلسه، شرح مذاکرات و مصوبات) و خلاصهٔ شرح مذاکرات.', right: 'ai.minutes' },
   { where: 'تماس‌ها', what: 'تبدیل مکالمهٔ ضبط‌شده به متن، با تأیید کاربر؛ متن در گزارش تماس و پروندهٔ مشتری هم می‌آید.', right: 'ai.calls' },
