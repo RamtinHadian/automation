@@ -223,6 +223,10 @@ func icPublic(me auth.User, doc jsonx.M) jsonx.M {
 	}
 	delete(out, "readBy")
 	out["read"] = read
+	if ab, ok := doc["archivedBy"].(map[string]any); ok {
+		_, out["archived"] = ab[me.ID()]
+	}
+	delete(out, "archivedBy")
 	return out
 }
 
@@ -287,7 +291,21 @@ func icOptions(w http.ResponseWriter, r *http.Request) {
 			}
 			fwd = icPeople(ctx, ids)
 		}
-		httpx.JSON(w, http.StatusOK, map[string]any{"forward": fwd})
+		refer := []jsonx.M{}
+		if icCanRefer(me, doc) {
+			for _, id := range icReferTargets(ctx, depts, p) {
+				if u, ok := icUser(ctx, id); ok {
+					sub := ""
+					if dn := depts[u.dept]; dn.manager == id {
+						sub = "مدیر واحد"
+					}
+					var dname string
+					_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'name','') FROM departments WHERE id = $1`, u.dept).Scan(&dname)
+					refer = append(refer, jsonx.M{"id": id, "name": u.name, "sub": strings.TrimSpace(sub + " " + dname)})
+				}
+			}
+		}
+		httpx.JSON(w, http.StatusOK, map[string]any{"forward": fwd, "refer": refer})
 		return
 	}
 	route := []string{}
@@ -599,17 +617,54 @@ func icRead(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w)
 }
 
+// POST /api/icorr/{id}/archive {on}: puts the letter in the person's own archive (or takes it out); the letter itself and the others' lists are untouched
+func icArchive(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	ctx := r.Context()
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	doc, found := icLoad(ctx, r.PathValue("id"))
+	if !found || !jsonx.Contains(jsonx.Strings(doc, "people"), me.ID()) {
+		httpx.Error(w, http.StatusNotFound, "پیدا نشد.")
+		return
+	}
+	ab, _ := doc["archivedBy"].(map[string]any)
+	if ab == nil {
+		ab = map[string]any{}
+	}
+	on, _ := body["on"].(bool)
+	if on {
+		ab[me.ID()] = icNowStr()
+		icAppend(doc, icEvent(me, "ARCHIVED", "", "", ""))
+	} else {
+		delete(ab, me.ID())
+		icAppend(doc, icEvent(me, "UNARCHIVED", "", "", ""))
+	}
+	doc["archivedBy"] = ab
+	if err := icSave(ctx, doc); err != nil {
+		internalError(w)
+		return
+	}
+	auditLine(r, me, "INFO", "مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» توسط "+me.Name()+(map[bool]string{true: " بایگانی شد.", false: " از بایگانی درآمد."})[on])
+	httpx.OK(w)
+}
+
 // GET /api/icorr?box=inbox|sent|involved|all
 func icList(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	q := `SELECT data FROM internal_letters WHERE holder_id = $1 ORDER BY updated_at DESC LIMIT 300`
+	const notArchived = ` AND NOT (COALESCE(data->'archivedBy','{}'::jsonb) ? $1)`
+	q := `SELECT data FROM internal_letters WHERE holder_id = $1` + notArchived + ` ORDER BY updated_at DESC LIMIT 300`
 	switch r.URL.Query().Get("box") {
 	case "sent":
-		q = `SELECT data FROM internal_letters WHERE sender_id = $1 ORDER BY updated_at DESC LIMIT 300`
+		q = `SELECT data FROM internal_letters WHERE sender_id = $1` + notArchived + ` ORDER BY updated_at DESC LIMIT 300`
 	case "referred": // letters referred to me that I have not acted on yet
-		q = `SELECT data FROM internal_letters WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(data->'referrals','[]'::jsonb)) r WHERE r->>'toId' = $1 AND r->>'status' = 'PENDING') ORDER BY updated_at DESC LIMIT 300`
+		q = `SELECT data FROM internal_letters WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(data->'referrals','[]'::jsonb)) r WHERE r->>'toId' = $1 AND r->>'status' = 'PENDING')` + notArchived + ` ORDER BY updated_at DESC LIMIT 300`
 	case "involved":
-		q = `SELECT data FROM internal_letters WHERE $1 = ANY(people) AND holder_id <> $1 AND sender_id <> $1 ORDER BY updated_at DESC LIMIT 300`
+		q = `SELECT data FROM internal_letters WHERE $1 = ANY(people) AND holder_id <> $1 AND sender_id <> $1` + notArchived + ` ORDER BY updated_at DESC LIMIT 300`
+	case "archive":
+		q = `SELECT data FROM internal_letters WHERE $1 = ANY(people) AND COALESCE(data->'archivedBy','{}'::jsonb) ? $1 ORDER BY updated_at DESC LIMIT 500`
 	case "all":
 		if !me.IsAdmin() && !jsonx.Bool(me.M, "canSignOfficialLetters") {
 			httpx.Forbidden(w)
@@ -627,6 +682,75 @@ func icList(w http.ResponseWriter, r *http.Request) {
 		out = append(out, icPublic(me, jsonx.Decode(raw)))
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"letters": out})
+}
+
+// icReferTargets: whom a person may refer a letter to, by the organisation chart: the managing director refers to anybody; a manager to the people
+// of his unit and of the units below it, and to the managers above or beside him; an employee to his unit manager and his colleagues.
+func icReferTargets(ctx context.Context, depts map[string]icDept, p icPerson) []string {
+	type row struct {
+		id, dept string
+		skip     bool
+	}
+	var all []row
+	rows, err := store.Pool.Query(ctx, `SELECT id, COALESCE(data->>'departmentId',''), COALESCE(data->>'isActive','true') = 'false' OR COALESCE(data->>'isAgent','') = 'true' OR COALESCE(data->>'agentOwnerId','') <> '' FROM users ORDER BY created_at`)
+	if err != nil {
+		return nil
+	}
+	for rows.Next() {
+		var x row
+		if rows.Scan(&x.id, &x.dept, &x.skip) == nil && !x.skip && x.id != p.id {
+			all = append(all, x)
+		}
+	}
+	rows.Close()
+	out := []string{}
+	seen := map[string]bool{p.id: true}
+	add := func(id string) {
+		if id != "" && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	if p.ceo {
+		for _, x := range all {
+			add(x.id)
+		}
+		return out
+	}
+	// the units this person manages and everything below them
+	below := map[string]bool{}
+	for id, d := range depts {
+		if d.manager == p.id {
+			below[id] = true
+		}
+	}
+	for changed, n := true, 0; changed && n < 20; n++ {
+		changed = false
+		for id, d := range depts {
+			if !below[id] && d.parent != "" && below[d.parent] {
+				below[id] = true
+				changed = true
+			}
+		}
+	}
+	allowed := map[string]bool{}
+	for _, x := range all {
+		allowed[x.id] = true
+	}
+	if m := icUnitManager(depts, ctx, p); m != "" && allowed[m] {
+		add(m)
+	}
+	for _, x := range all {
+		if x.dept == p.dept || below[x.dept] {
+			add(x.id)
+		}
+	}
+	for _, id := range icUpward(ctx, depts, p) {
+		if allowed[id] {
+			add(id)
+		}
+	}
+	return out
 }
 
 // who may refer a letter on: the person it was delivered to, and everybody it was referred to (a referral can be passed on again, to anyone)
@@ -662,16 +786,18 @@ func icRefer(w http.ResponseWriter, r *http.Request) {
 	}
 	note := strings.TrimSpace(jsonx.Str(body, "note"))
 	refs, _ := doc["referrals"].([]any)
+	pp, _ := icUser(ctx, me.ID())
+	allowedRef := icReferTargets(ctx, icDepts(ctx), pp)
 	targets := []string{}
 	if arr, ok := body["toIds"].([]any); ok {
 		for _, x := range arr {
-			if id, _ := x.(string); id != "" && id != me.ID() && !jsonx.Contains(targets, id) && len(targets) < 10 {
+			if id, _ := x.(string); id != "" && id != me.ID() && jsonx.Contains(allowedRef, id) && !jsonx.Contains(targets, id) && len(targets) < 10 {
 				targets = append(targets, id)
 			}
 		}
 	}
 	if len(targets) == 0 {
-		httpx.Error(w, http.StatusBadRequest, "کسی را برای ارجاع انتخاب کنید.")
+		httpx.Error(w, http.StatusBadRequest, "کسی را برای ارجاع انتخاب کنید (ارجاع طبق چارت سازمانی است).")
 		return
 	}
 	if len(refs)+len(targets) > 60 {
@@ -754,6 +880,7 @@ func registerInternalLetters(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/icorr/{id}/forward", auth.Require(icForward))
 	mux.HandleFunc("POST /api/icorr/{id}/return", auth.Require(icReturn))
 	mux.HandleFunc("POST /api/icorr/{id}/resend", auth.Require(icResend))
+	mux.HandleFunc("POST /api/icorr/{id}/archive", auth.Require(icArchive))
 	mux.HandleFunc("POST /api/icorr/{id}/refer", auth.Require(icRefer))
 	mux.HandleFunc("POST /api/icorr/{id}/acted", auth.Require(icActed))
 	mux.HandleFunc("POST /api/icorr/{id}/note", auth.Require(icNote))

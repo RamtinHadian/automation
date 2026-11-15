@@ -1,8 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, Share2, UserCheck, CornerUpLeft, Eye, FilePlus2, History, Inbox, Network, Reply, Send, Undo2, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Archive, ArchiveRestore, FileDown, Printer, ArrowRight, CheckCircle2, Share2, UserCheck, CornerUpLeft, Eye, FilePlus2, History, Inbox, Network, Reply, Send, Undo2, X } from 'lucide-react';
 import { api, ChainPerson, InternalLetter, InternalLetterEvent } from '../../lib/api';
 import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import { defaultInternalNumbering, nextFreeLetter } from '../../lib/letterNumbering';
+import { generateOfficialLetterHtml, openAndDownloadPdfLetter } from '../../lib/pdfLetterGenerator';
+import { letterAsPdf, saveFile } from '../../lib/letterExport';
+import { internalAsTransfer } from '../../lib/internalLetterExport';
+import { InternalHistoryTree } from './InternalHistoryTree';
 import { useAppContext } from '../../context/AppContext';
 import { formatCurrentJalaliDateTime, toPersianDigits } from '../../lib/jalali';
 import { PersonPicker } from '../common/PersonPicker';
@@ -26,6 +30,8 @@ const ACTION: Record<InternalLetterEvent['action'], { t: string; c: string }> = 
   REPLY: { t: 'پاسخ داد', c: '#059669' },
   READ: { t: 'خواند', c: '#8C6F66' },
   REFERRED: { t: 'ارجاع داد به', c: '#7C3AED' },
+  ARCHIVED: { t: 'بایگانی کرد', c: '#8C6F66' },
+  UNARCHIVED: { t: 'از بایگانی درآورد', c: '#8C6F66' },
   ACTED: { t: 'اقدام را انجام‌شده اعلام کرد', c: '#059669' },
 };
 
@@ -35,7 +41,7 @@ const when = (iso: string) => formatCurrentJalaliDateTime(new Date(iso));
 export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> = ({ onUnread }) => {
   const { currentUser } = useAppContext();
   const auditor = !!currentUser.canSignOfficialLetters || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
-  const [box, setBox] = useState<'inbox' | 'sent' | 'referred' | 'involved' | 'all'>('inbox');
+  const [box, setBox] = useState<'inbox' | 'sent' | 'referred' | 'archive' | 'involved' | 'all'>('inbox');
   const [referredCount, setReferredCount] = useState(0);
   const [list, setList] = useState<InternalLetter[]>([]);
   const [open, setOpen] = useState<InternalLetter | null>(null);
@@ -66,7 +72,7 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
     if (!l.read && l.people.includes(currentUser.id)) api.icRead(l.id).then(load).catch(() => {});
   };
 
-  const boxes: [typeof box, string][] = [['inbox', 'دریافتی (نزد من)'], ['referred', referredCount > 0 ? `ارجاع‌شده به من (${toPersianDigits(referredCount)})` : 'ارجاع‌شده به من'], ['sent', 'نوشته‌های من'], ['involved', 'از دست من گذشته'], ...(auditor ? ([['all', 'همهٔ مکاتبات']] as [typeof box, string][]) : [])];
+  const boxes: [typeof box, string][] = [['inbox', 'دریافتی (نزد من)'], ['referred', referredCount > 0 ? `ارجاع‌شده به من (${toPersianDigits(referredCount)})` : 'ارجاع‌شده به من'], ['sent', 'نوشته‌های من'], ['archive', 'بایگانی'], ['involved', 'از دست من گذشته'], ...(auditor ? ([['all', 'همهٔ مکاتبات']] as [typeof box, string][]) : [])];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4" dir="rtl" data-internal-letters>
@@ -96,7 +102,7 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
       {list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-10 text-center text-xs font-bold text-[#8C6F66]" data-ic-empty>
           <Inbox className="w-8 h-8 mx-auto mb-2 text-[#C9B8AE]" />
-          {box === 'inbox' ? 'نامهٔ داخلی‌ای نزد شما نیست.' : box === 'referred' ? 'ارجاع بازی برای شما نیست.' : box === 'sent' ? 'هنوز نامهٔ داخلی ننوشته‌اید.' : 'موردی نیست.'}
+          {box === 'inbox' ? 'نامهٔ داخلی‌ای نزد شما نیست.' : box === 'referred' ? 'ارجاع بازی برای شما نیست.' : box === 'archive' ? 'بایگانی شما خالی است.' : box === 'sent' ? 'هنوز نامهٔ داخلی ننوشته‌اید.' : 'موردی نیست.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -131,7 +137,6 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
   const [note, setNote] = useState('');
   const [mode, setMode] = useState<'forward' | 'return' | 'note' | 'refer' | 'acted' | null>(null);
   const [referTo, setReferTo] = useState<string[]>([]);
-  const { staffList } = useAppContext();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const canAct = holder && letter.status === 'IN_CHAIN';
@@ -139,10 +144,29 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
   const involved = letter.people.includes(currentUser.id);
   const myPending = (letter.referrals || []).some((x) => x.toId === currentUser.id && x.status === 'PENDING');
   const canRefer = (holder && letter.status === 'DELIVERED') || (letter.referrals || []).some((x) => x.toId === currentUser.id);
-  const referPeople = staffList.filter((u) => u.id !== currentUser.id && u.isActive !== false && !u.isAgent && !u.agentOwnerId);
+  const { settings } = useAppContext();
+  const [referList, setReferList] = useState<ChainPerson[]>([]);
+  const [withHead, setWithHead] = useState(true);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [frameH, setFrameH] = useState(1100);
+  const head = settings.internalLetterhead || null;
+  const transfer = useMemo(() => internalAsTransfer(letter, settings, withHead ? head : null), [letter, settings, withHead, head]);
+  const sheet = useMemo(() => generateOfficialLetterHtml(transfer, settings), [transfer, settings]);
+  const toggleArchive = () => run(() => api.icArchive(letter.id, !letter.archived));
+  const exportPdf = async () => {
+    setPdfBusy(true);
+    try {
+      const f = await letterAsPdf(transfer, settings);
+      await saveFile(f.blob, f.name);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'ساخت PDF انجام نشد؛ از «چاپ» و ذخیره به‌صورت PDF استفاده کنید.');
+    } finally {
+      setPdfBusy(false);
+    }
+  };
   useEffect(() => {
-    if (canAct) api.icOptions(letter.id).then((r) => setFwd(r.forward || [])).catch(() => setFwd([]));
-  }, [letter.id, canAct]);
+    if (canAct || canRefer) api.icOptions(letter.id).then((r) => { setFwd(r.forward || []); setReferList(r.refer || []); }).catch(() => { setFwd([]); setReferList([]); });
+  }, [letter.id, canAct, canRefer, letter.referrals?.length]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', k);
@@ -175,22 +199,38 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
       </div>
       <div className="max-w-5xl mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-5 gap-5">
         <section className="lg:col-span-3 space-y-4">
-          <article className="bg-white rounded-3xl border border-[#EBDBCE] p-5 sm:p-7 shadow-sm space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-[#8C6F66]">
-              <span>شمارهٔ {toPersianDigits(letter.number)}</span>
-              <span>{when(letter.createdAt)}</span>
-            </div>
-            <h2 className="text-base font-black text-[#3A241F]">{letter.subject}</h2>
-            <div className="text-[12px] font-bold text-[#6B4F47]">از: {letter.senderName}{letter.senderDept ? ` (${letter.senderDept})` : ''}<br />به: {letter.toName}</div>
-            <div className="border-t border-[#EBDBCE] pt-3 text-[13px] leading-8 text-[#3A241F] whitespace-pre-wrap">{letter.body}</div>
-            <div className="pt-4 flex justify-start" data-ic-signature>
-              <div className="min-w-[160px] text-center">
-                {letter.senderSignature && <img src={letter.senderSignature} alt={`امضای ${letter.senderName}`} className="mx-auto max-h-24 max-w-[220px] object-contain mix-blend-multiply" />}
-                <div className="border-t border-[#C9B8AE] mt-1 pt-1 text-[12px] font-black text-[#3A241F]">{letter.senderName}</div>
-                {letter.senderDept && <div className="text-[10.5px] font-bold text-[#8C6F66]">{letter.senderDept}</div>}
-              </div>
-            </div>
-          </article>
+          <div className="flex flex-wrap items-center gap-2" data-ic-toolbar>
+            <button type="button" onClick={() => openAndDownloadPdfLetter(transfer, settings)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-white border border-[#EBDBCE] text-[#3A241F] hover:border-[#C98B6A] cursor-pointer" data-ic-print><Printer className="w-3.5 h-3.5" />چاپ نامه</button>
+            <button type="button" disabled={pdfBusy} onClick={exportPdf} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-white border border-[#EBDBCE] text-[#3A241F] hover:border-[#C98B6A] disabled:opacity-60 cursor-pointer" data-ic-pdf><FileDown className="w-3.5 h-3.5" />{pdfBusy ? 'در حال ساخت…' : 'خروجی PDF'}</button>
+            {head && (
+              <label className="flex items-center gap-1.5 text-[11px] font-black text-[#3A241F] cursor-pointer mr-auto">
+                <input type="checkbox" className="w-4 h-4 accent-[#6E1B1B] cursor-pointer" checked={withHead} onChange={(e) => setWithHead(e.target.checked)} />
+                با سربرگ
+              </label>
+            )}
+            {involved && (
+              <button type="button" onClick={toggleArchive} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${head ? '' : 'mr-auto'} ${letter.archived ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300'}`} data-ic-archive>
+                {letter.archived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+                {letter.archived ? 'خروج از بایگانی' : 'بایگانی'}
+              </button>
+            )}
+          </div>
+          <div className="bg-white rounded-3xl border border-[#EBDBCE] shadow-sm overflow-hidden" data-ic-sheet>
+            <iframe
+              title={`نامه ${letter.number}`}
+              srcDoc={sheet}
+              className="w-full block border-0"
+              style={{ height: frameH }}
+              onLoad={(e) => {
+                try {
+                  const d = e.currentTarget.contentDocument;
+                  if (d) setFrameH(Math.max(700, Math.min(6000, d.documentElement.scrollHeight + 8)));
+                } catch {
+                  /* the sheet keeps its default height */
+                }
+              }}
+            />
+          </div>
 
           {letter.status === 'RETURNED' && letter.senderId === currentUser.id && (
             <button type="button" onClick={onEdit} className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#6E1B1B] hover:bg-[#561414] text-white text-sm font-black cursor-pointer" data-ic-resend><Undo2 className="w-4 h-4" />اصلاح و ارسال دوباره</button>
@@ -228,7 +268,7 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
               )}
               {mode === 'refer' && (
                 <div className="space-y-2">
-                  <PersonPickerMulti title="ارجاع به…" items={staffItems(referPeople)} values={referTo} onChange={setReferTo} placeholder="یک یا چند نفر از سراسر سازمان را انتخاب کنید…" />
+                  <PersonPickerMulti title="ارجاع به…" items={referList.map((p) => ({ id: p.id, name: p.name, sub: p.sub }))} values={referTo} onChange={setReferTo} placeholder={referList.length ? 'یک یا چند نفر را طبق چارت سازمانی انتخاب کنید…' : 'کسی برای ارجاع در دسترس نیست'} />
                   <textarea className={`${field} min-h-[70px]`} placeholder="دستور یا توضیح ارجاع (مثلاً: لطفاً بررسی و گزارش دهید)" value={note} onChange={(e) => setNote(e.target.value)} />
                   <button type="button" disabled={busy || referTo.length === 0} onClick={() => run(() => api.icRefer(letter.id, { toIds: referTo, note }))} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><Share2 className="w-4 h-4" />ارجاع به {toPersianDigits(referTo.length)} نفر</button>
                 </div>
@@ -258,20 +298,8 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
 
         <aside className="lg:col-span-2">
           <div className="bg-white rounded-3xl border border-[#EBDBCE] p-4 sm:p-5" data-ic-history>
-            <h3 className="flex items-center gap-1.5 text-[12px] font-black text-[#6E1B1B] mb-3"><History className="w-4 h-4" />تاریخچهٔ نامه</h3>
-            <ol className="relative border-r-2 border-[#EBDBCE] pr-4 space-y-3.5">
-              {history.map((h, i) => (
-                <li key={i} className="relative">
-                  <span className="absolute -right-[23px] top-1 w-3 h-3 rounded-full border-2 border-white" style={{ background: ACTION[h.action]?.c || '#8C6F66' }} />
-                  <div className="text-[11.5px] font-black text-[#3A241F] leading-5">
-                    {h.action === 'READ' ? <Eye className="inline w-3 h-3 ml-1 text-[#8C6F66]" /> : h.action === 'DELIVERED' ? <CheckCircle2 className="inline w-3 h-3 ml-1 text-emerald-600" /> : null}
-                    {h.byName} {ACTION[h.action]?.t || h.action}{h.toName ? ` ${h.toName}` : ''}
-                  </div>
-                  {h.note && <div className="mt-1 text-[11px] leading-6 text-[#6B4F47] bg-[#FAF5F1] rounded-xl px-2.5 py-1.5 whitespace-pre-wrap">{h.note}</div>}
-                  <div className="text-[10px] font-bold text-[#A8928B] mt-0.5">{when(h.at)}</div>
-                </li>
-              ))}
-            </ol>
+            <h3 className="flex items-center gap-1.5 text-[12px] font-black text-[#6E1B1B] mb-3"><History className="w-4 h-4" />تاریخچهٔ نامه (درختواره)</h3>
+            <InternalHistoryTree history={history} />
           </div>
         </aside>
       </div>

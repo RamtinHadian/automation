@@ -101,7 +101,7 @@ export interface InternalLetterEvent {
   at: string;
   byId: string;
   byName: string;
-  action: 'CREATED' | 'SENT' | 'FORWARDED' | 'DELIVERED' | 'RETURNED' | 'EDITED' | 'NOTE' | 'REPLY' | 'READ' | 'REFERRED' | 'ACTED';
+  action: 'CREATED' | 'SENT' | 'FORWARDED' | 'DELIVERED' | 'RETURNED' | 'EDITED' | 'NOTE' | 'REPLY' | 'READ' | 'REFERRED' | 'ACTED' | 'ARCHIVED' | 'UNARCHIVED';
   toId?: string;
   toName?: string;
   note?: string;
@@ -142,6 +142,8 @@ export interface InternalLetter {
   history: InternalLetterEvent[];
   referrals?: InternalLetterReferral[];
   read?: boolean;
+  /** in my own archive */
+  archived?: boolean;
 }
 
 export interface ChainPerson {
@@ -742,8 +744,8 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   aiFunnelGet: (id: string) => request<{ status: 'running' | 'done' | 'error'; total: number; done: number; error: string; items: Record<string, unknown>[] }>('GET', `/api/crm/ai-funnel/${encodeURIComponent(id)}`),
   orderCreate: (b: { subject: string; body: string; recipientIds: string[]; copyIds?: string[]; number?: string; kind?: string; ref?: Record<string, unknown> }) => request<{ ok: true; id: string }>('POST', '/api/orders', b),
   orderList: (box: 'inbox' | 'sent') => request<{ orders: AdminOrder[] }>('GET', '/api/orders?box=' + box),
-  icList: (box: 'inbox' | 'sent' | 'referred' | 'involved' | 'all') => request<{ letters: InternalLetter[] }>('GET', '/api/icorr?box=' + box),
-  icOptions: (id?: string) => request<{ targets?: ChainPerson[]; firstHop?: string[]; isCeo?: boolean; forward?: ChainPerson[]; numbers?: string[] }>('GET', '/api/icorr/options' + (id ? '?id=' + encodeURIComponent(id) : '')),
+  icList: (box: 'inbox' | 'sent' | 'referred' | 'archive' | 'involved' | 'all') => request<{ letters: InternalLetter[] }>('GET', '/api/icorr?box=' + box),
+  icOptions: (id?: string) => request<{ targets?: ChainPerson[]; firstHop?: string[]; isCeo?: boolean; forward?: ChainPerson[]; refer?: ChainPerson[]; numbers?: string[] }>('GET', '/api/icorr/options' + (id ? '?id=' + encodeURIComponent(id) : '')),
   icCreate: (b: { subject: string; body: string; toId: string; number?: string; counter?: number }) => request<{ ok: true; id: string }>('POST', '/api/icorr', b),
   icForward: (id: string, b: { toId: string; note?: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/forward`, b),
   icReturn: (id: string, b: { note: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/return`, b),
@@ -751,6 +753,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   icNote: (id: string, b: { note: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/note`, b),
   icRefer: (id: string, b: { toIds: string[]; note?: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/refer`, b),
   icActed: (id: string, b: { note?: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/acted`, b),
+  icArchive: (id: string, on: boolean) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/archive`, { on }),
   icRead: (id: string) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/read`, {}),
   orderRead: (id: string) => request<{ ok: true }>('POST', `/api/orders/${encodeURIComponent(id)}/read`, {}),
   commissionGet: () => request<{ rules: Record<string, unknown>; payments: Record<string, unknown>[]; manager: boolean; eligible: boolean }>('GET', '/api/crm/commission'),

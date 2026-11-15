@@ -5,6 +5,7 @@ import { ProformaIssuersCard } from './ProformaIssuersCard';
 import { askConfirm } from '../../lib/confirmDialog';
 import { SignatureField } from '../common/SignaturePad';
 import { InternalNumberingCard } from './InternalNumberingCard';
+import { InternalLetterheadCard } from './InternalLetterheadCard';
 import { LoginDesignCard } from './LoginDesignCard';
 import { LoginImagesCard } from './LoginImagesCard';
 import { DEFAULT_SIGNATURE_HEIGHT, MIN_SIGNATURE_HEIGHT, MAX_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
@@ -642,6 +643,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {section === 'letters' && (
       <>
       <InternalNumberingCard value={settings.internalNumbering} onChange={(v) => setSettings((prev) => ({ ...prev, internalNumbering: v }))} />
+      <InternalLetterheadCard value={settings.internalLetterhead} onChange={(v) => setSettings((prev) => ({ ...prev, internalLetterhead: v }))} defaults={{ address: settings.companyAddress || '', phone: settings.companyPhone || '', website: settings.companyWebsite || '' }} />
       {/* ========================================================================= */}
       {/* SECTION 2: LETTER NUMBERING & STEP INCREMENT (تنظیمات شماره‌گذاری پلکانی نامه‌ها) */}
       {/* ========================================================================= */}

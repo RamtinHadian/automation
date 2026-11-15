@@ -803,6 +803,8 @@ export interface SystemSettings {
   letterNumbering?: LetterNumberingSettings;
   /** the numbering of internal letters («مکاتبات داخلی»), defined in the console like the official letters' one */
   internalNumbering?: LetterNumberingSettings;
+  /** the letterhead of internal letters (null / missing = no letterhead) */
+  internalLetterhead?: import('./lib/letterheads').LetterheadChoice | null;
   customFonts?: CustomFont[];
   defaultLetterFontId?: string;
   companyLogoWidth?: number;
