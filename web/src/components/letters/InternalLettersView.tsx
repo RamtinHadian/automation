@@ -12,6 +12,7 @@ import { generateOfficialLetterHtml, openAndDownloadPdfLetter } from '../../lib/
 import { letterAsPdf, saveFile } from '../../lib/letterExport';
 import { internalAsTransfer } from '../../lib/internalLetterExport';
 import { InternalHistoryTree } from './InternalHistoryTree';
+import { LetterEditorModal } from './LetterEditorModal';
 import { useAppContext } from '../../context/AppContext';
 import { formatCurrentJalaliDateTime, toPersianDigits } from '../../lib/jalali';
 import { PersonPicker } from '../common/PersonPicker';
@@ -129,7 +130,7 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
       )}
 
       {open && <Detail letter={open} onClose={() => setOpen(null)} onChanged={load} onEdit={() => { setCompose(open); }} onArchived={(to) => { setOpen(null); setBox(to ? 'archive' : 'inbox'); if (box === (to ? 'archive' : 'inbox')) load(); }} />}
-      {compose && <Compose resend={compose === 'new' ? undefined : compose} onClose={() => setCompose(null)} onDone={() => { setCompose(null); setOpen(null); setBox(compose === 'new' ? 'sent' : box); load(); }} />}
+      {compose && <RichCompose resend={compose === 'new' ? undefined : compose} onClose={() => setCompose(null)} onDone={() => { setCompose(null); setOpen(null); setBox(compose === 'new' ? 'sent' : box); load(); }} />}
     </div>
   );
 };
@@ -170,7 +171,7 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
   const [pdfBusy, setPdfBusy] = useState(false);
   const [frameH, setFrameH] = useState(1100);
   const head = settings.internalLetterhead || null;
-  const transfer = useMemo(() => internalAsTransfer(letter, settings, withHead ? head : null), [letter, settings, withHead, head]);
+  const transfer = useMemo(() => internalAsTransfer(letter, settings, withHead ? head || undefined : null), [letter, settings, withHead, head]);
   const sheet = useMemo(() => generateOfficialLetterHtml(transfer, settings), [transfer, settings]);
   // archiving asks first, then the letter leaves the lists at once and the person lands in the archive tab (only for this person)
   const toggleArchive = async () => {
@@ -377,66 +378,40 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
   );
 };
 
-const Compose: React.FC<{ resend?: InternalLetter; onClose: () => void; onDone: () => void }> = ({ resend, onClose, onDone }) => {
-  const [targets, setTargets] = useState<ChainPerson[]>([]);
-  const [first, setFirst] = useState<string[]>([]);
-  const [toId, setToId] = useState(resend?.toId || '');
-  const [subject, setSubject] = useState(resend?.subject || '');
-  const [body, setBody] = useState(resend?.body || '');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const { settings } = useAppContext();
-  const [num, setNum] = useState<{ number: string; n: number } | null>(null);
+/** Writing (or correcting and resending) an internal letter in the same Word-like editor as the official letters: fonts, sizes, tables, ready-made texts, paper size, letterhead. */
+const RichCompose: React.FC<{ resend?: InternalLetter; onClose: () => void; onDone: () => void }> = ({ resend, onClose, onDone }) => {
+  const { settings, currentUser, staffList, showToast } = useAppContext();
+  const [opt, setOpt] = useState<{ targets: ChainPerson[]; first: string[]; numbers: string[] } | null>(null);
   useEffect(() => {
-    api.icOptions().then((r) => {
-      setTargets(r.targets || []);
-      setFirst(r.firstHop || []);
-      // the next free number of the numbering the console defined (its own counter, prefix, year and pattern)
-      setNum(nextFreeLetter({ ...defaultInternalNumbering(), ...(settings.internalNumbering || {}) }, r.numbers || []));
-    }).catch(() => {});
-  }, [settings.internalNumbering]);
-  const send = async () => {
-    setErr('');
-    if (!toId) return setErr('گیرندهٔ نامه را انتخاب کنید.');
-    if (!subject.trim() || !body.trim()) return setErr('موضوع و متن نامه را بنویسید.');
-    setBusy(true);
+    api.icOptions().then((r) => setOpt({ targets: r.targets || [], first: r.firstHop || [], numbers: r.numbers || [] })).catch(() => onClose());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const num = useMemo(() => (opt && !resend ? nextFreeLetter({ ...defaultInternalNumbering(), ...(settings.internalNumbering || {}) }, opt.numbers) : null), [opt, resend, settings.internalNumbering]);
+  if (!opt) return <div className="fixed inset-0 z-[95] bg-black/40 flex items-center justify-center text-white text-sm font-black" dir="rtl">در حال آماده‌سازی ویرایشگر…</div>;
+  const send = async (d: Record<string, unknown>) => {
+    const { title, contentHtml, recipientId, note: _note, letterNumber: _ln, attachmentFileName: _a, attachmentFileSize: _b, attachmentFileDataUrl: _c, customFooterNote: _d, ...layout } = d as Record<string, any>;
+    // an own uploaded letterhead picture is too big to travel with every letter; the ready-made designs are only a number
+    const lh = layout.letterhead as { id?: number; image?: string } | undefined;
+    if (lh && (lh.image || !lh.id)) delete layout.letterhead;
     try {
-      if (resend) await api.icResend(resend.id, { subject, body, toId });
-      else await api.icCreate({ subject, body, toId, ...(num ? { number: num.number, counter: num.n } : {}) });
+      if (resend) await api.icResend(resend.id, { subject: String(title), html: String(contentHtml), layout, toId: String(recipientId) });
+      else await api.icCreate({ subject: String(title), html: String(contentHtml), layout, toId: String(recipientId), ...(num ? { number: num.number, counter: num.n } : {}) });
+      showToast(resend ? 'نامه دوباره فرستاده شد.' : 'نامهٔ داخلی فرستاده شد.');
       onDone();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'ارسال نشد.');
-    } finally {
-      setBusy(false);
+      showToast('ارسال نشد: ' + (e instanceof Error ? e.message : 'خطا'));
     }
   };
   return (
-    <div className="fixed inset-0 z-[95] bg-black/55 flex items-center justify-center p-3 sm:p-6" dir="rtl" data-ic-compose>
-      <div className="bg-white rounded-3xl border border-[#EBDBCE] shadow-2xl w-full max-w-2xl max-h-[94dvh] flex flex-col overflow-hidden">
-        <div className="flex items-center gap-2 px-5 py-3.5 bg-gradient-to-l from-amber-600 to-amber-500 text-white">
-          <FilePlus2 className="w-5 h-5" />
-          <h3 className="font-black text-sm flex-1">{resend ? 'اصلاح و ارسال دوبارهٔ نامه' : 'نامهٔ داخلی جدید'}</h3>
-          <button type="button" onClick={onClose} className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center cursor-pointer" aria-label="بستن"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="p-4 sm:p-5 space-y-3 overflow-y-auto">
-          <div>
-            <div className="text-[11px] font-black text-[#3A241F] mb-1.5">نامه برای چه کسی است؟</div>
-            <PersonPicker title="گیرندهٔ نامه" items={targets.map((p) => ({ id: p.id, name: p.name, sub: p.sub }))} value={toId} onChange={setToId} placeholder="انتخاب گیرنده…" />
-            {first.length > 0 && <p className="text-[10.5px] font-bold text-[#8C6F66] mt-1.5 leading-5">طبق چارت سازمانی نامه اول نزد «{first[0]}» می‌رود و او آن را بالا می‌فرستد.</p>}
-          </div>
-          {!resend && num && <div className="text-[11px] font-black text-[#6E1B1B]" data-ic-number>شمارهٔ نامه: {toPersianDigits(num.number)}</div>}
-          <div>
-            <div className="text-[11px] font-black text-[#3A241F] mb-1.5">موضوع</div>
-            <input className={field} value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} />
-          </div>
-          <div>
-            <div className="text-[11px] font-black text-[#3A241F] mb-1.5">متن نامه</div>
-            <textarea className={`${field} leading-8 min-h-[220px]`} value={body} onChange={(e) => setBody(e.target.value)} />
-          </div>
-          {err && <div className="text-[11px] font-bold text-rose-600">{err}</div>}
-          <button type="button" disabled={busy} onClick={send} className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-black disabled:opacity-60 cursor-pointer" data-ic-send><Send className="w-4 h-4" />{resend ? 'ارسال دوباره' : 'ارسال نامه'}</button>
-        </div>
-      </div>
-    </div>
+    <LetterEditorModal
+      isOpen
+      internal={{ targets: opt.targets, number: resend ? resend.number : num?.number || '', toId: resend?.toId, signerName: currentUser.fullName, signerTitle: currentUser.departmentName || 'کارمند', firstHop: opt.first[0], onSend: send }}
+      editTransfer={resend ? internalAsTransfer(resend, settings, null) : undefined}
+      onClose={onClose}
+      staffList={staffList}
+      currentUser={currentUser}
+      letterNumbering={settings.letterNumbering}
+      onSendLetter={() => undefined}
+    />
   );
 };

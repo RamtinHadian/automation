@@ -60,7 +60,20 @@ import { countPages } from '../../lib/pageCount';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { RichExtras, TableTools, useLetterBodyEditing } from './tableEditor';
 
+/** Internal correspondence («مکاتبات داخلی») uses this editor too: the recipients are the people of the organisation chart, the number comes from the console's numbering, and the finished letter goes to onSend instead of being sent for signature. */
+export interface InternalEditorMode {
+  targets: { id: string; name: string; sub?: string }[];
+  number: string;
+  toId?: string;
+  signerName: string;
+  signerTitle: string;
+  /** the first stop of the letter, named under the recipient */
+  firstHop?: string;
+  onSend: (d: any) => void | Promise<void>;
+}
+
 interface LetterEditorModalProps {
+  internal?: InternalEditorMode;
   /** Edit mode: the author's own unsigned letter to change. */
   editTransfer?: FileTransfer | null;
   isOpen: boolean;
@@ -143,6 +156,30 @@ interface LetterTemplate {
 }
 
 const TEMPLATES: LetterTemplate[] = [
+  {
+    id: 'contract-table',
+    title: 'جدول قرارداد / اقلام و مبالغ',
+    description: 'متن قرارداد یا پیش‌فاکتور با جدول ردیف، شرح، تعداد، قیمت و جمع کل',
+    defaultSubject: 'جدول اقلام و مبالغ قرارداد',
+    content: `<p><b>[نام گیرنده]</b></p>
+<p>با سلام و احترام،</p>
+<p>اقلام و مبالغ قرارداد شماره [شماره قرارداد] به شرح جدول زیر است:</p>
+<table style="width:100%;border-collapse:collapse" border="1"><tr><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">ردیف</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">شرح کالا / خدمات</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">تعداد</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">واحد</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">قیمت واحد (ریال)</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">مبلغ کل (ریال)</th></tr><tr><td style="border:1px solid #444;padding:6px;text-align:center">1</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr><tr><td style="border:1px solid #444;padding:6px;text-align:center">2</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr><tr><td style="border:1px solid #444;padding:6px;text-align:center">3</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr><tr><td style="border:1px solid #444;padding:6px;text-align:center">4</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr><tr><td colspan="5" style="border:1px solid #444;padding:6px;text-align:left;font-weight:bold">جمع کل</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr></table>
+<p><b>شرایط پرداخت:</b> [درصد پیش‌پرداخت و زمان‌بندی پرداخت‌ها]</p>
+<p><b>مدت قرارداد:</b> [تاریخ شروع] تا [تاریخ پایان]</p>
+<p>خواهشمند است دستور اقدام مقتضی صادر فرمایید.</p>`,
+  },
+  {
+    id: 'purchase-table',
+    title: 'درخواست خرید با جدول',
+    description: 'فهرست اقلام درخواستی در جدول، برای تأیید مدیر',
+    defaultSubject: 'درخواست خرید',
+    content: `<p><b>مدیریت محترم [نام مدیر]</b></p>
+<p>با سلام و احترام،</p>
+<p>خواهشمند است نسبت به تأمین اقلام زیر دستور فرمایید:</p>
+<table style="width:100%;border-collapse:collapse" border="1"><tr><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">ردیف</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">شرح کالا / خدمات</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">تعداد</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">واحد</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">قیمت واحد (ریال)</th><th style="border:1px solid #444;padding:6px;text-align:center;background:#eee;font-weight:bold">مبلغ کل (ریال)</th></tr><tr><td style="border:1px solid #444;padding:6px;text-align:center">1</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr><tr><td style="border:1px solid #444;padding:6px;text-align:center">2</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr><tr><td style="border:1px solid #444;padding:6px;text-align:center">3</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr><tr><td style="border:1px solid #444;padding:6px;text-align:center">4</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr><tr><td colspan="5" style="border:1px solid #444;padding:6px;text-align:left;font-weight:bold">جمع کل</td><td style="border:1px solid #444;padding:6px;text-align:center">&nbsp;</td></tr></table>
+<p>با تشکر</p>`,
+  },
   {
     id: 'general',
     title: 'نامه اداری عمومی',
@@ -252,6 +289,7 @@ function parseLetterForEdit(t: FileTransfer) {
 }
 
 export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
+  internal,
   editTransfer,
   isOpen,
   onClose,
@@ -284,8 +322,8 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [metaFontFamily, setMetaFontFamily] = useState<string>(() => fontPref(prefs.metaFontFamily));
   const [signerFontFamily, setSignerFontFamily] = useState<string>(() => fontPref(prefs.signerFontFamily));
   const [signerFontSize, setSignerFontSize] = useState<number>(() => numPref(prefs.signerFontSize, 18));
-  const [signerName, setSignerName] = useState<string>(() => editInit?.signerName || settings.ceoName || 'مدیریت سازمان');
-  const [signerTitle, setSignerTitle] = useState<string>(() => editInit?.signerTitle || settings.ceoTitle || 'مدیرعامل');
+  const [signerName, setSignerName] = useState<string>(() => internal?.signerName || editInit?.signerName || settings.ceoName || 'مدیریت سازمان');
+  const [signerTitle, setSignerTitle] = useState<string>(() => internal?.signerTitle || editInit?.signerTitle || settings.ceoTitle || 'مدیرعامل');
   const [selectedFontSize, setSelectedFontSize] = useState<string>(() => (typeof prefs.selectedFontSize === 'string' ? prefs.selectedFontSize : '13px'));
   const [headerCenterTitle, setHeaderCenterTitle] = useState<string>(() => (typeof prefs.headerCenterTitle === 'string' ? prefs.headerCenterTitle : '« به نام خدا »'));
   const [bodyPaddingX, setBodyPaddingX] = useState<number>(() => numPref(prefs.bodyPaddingX, 32));
@@ -326,14 +364,15 @@ export const LetterEditorModal: React.FC<LetterEditorModalProps> = ({
   const [subject, setSubject] = useState(() => editInit?.subject || 'درخواست بررسی و تایید رسمی');
   const [customDate, setCustomDate] = useState(() => formatCurrentJalaliDateTime().split(' - ')[0]);
   const [letterNumber, setLetterNumber] = useState(() => {
+    if (internal) return internal.number;
     if (editTransfer?.letterNumber) return editTransfer.letterNumber;
     // never the number of a letter that already exists (signed or still waiting for its signature)
     return nextFreeLetterNumber(settings.letterNumbering || letterNumbering, transfers.filter((t) => t.isOfficialLetter).map((t) => t.letterNumber));
   });
   const [attachment, setAttachment] = useState('ندارد');
   // Official letters can only be sent for signature to the CEO / authorised signatories.
-  const signers = staffList.filter((u) => u.canSignOfficialLetters && u.isActive !== false);
-  const [recipientId, setRecipientId] = useState(editTransfer?.recipients[0]?.id || signers[0]?.id || '');
+  const signers = internal ? (internal.targets.map((p) => ({ id: p.id, fullName: p.name, departmentName: p.sub || '', isActive: true })) as unknown as User[]) : staffList.filter((u) => u.canSignOfficialLetters && u.isActive !== false);
+  const [recipientId, setRecipientId] = useState(internal ? internal.toId || '' : editTransfer?.recipients[0]?.id || signers[0]?.id || '');
   const [extraNote, setExtraNote] = useState('');
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: string; dataUrl: string } | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -824,6 +863,11 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
     const rawHtml = editorRef.current?.innerHTML || '';
     if (!rawHtml.trim() || !subject.trim()) {
       alert('لطفاً عنوان و متن نامه را تکمیل کنید.');
+      return;
+    }
+    if (internal) {
+      void Promise.resolve(internal.onSend(buildLetterData(rawHtml)));
+      onClose();
       return;
     }
     onSendLetter(buildLetterData(rawHtml));
@@ -1830,7 +1874,7 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
                 {showNote ? 'بستن توضیح' : '+ توضیح'}
               </button>
               {signers.length === 0 && (
-                <span className="text-[11px] font-bold text-rose-600">صاحب امضایی تعریف نشده است.</span>
+                <span className="text-[11px] font-bold text-rose-600">{internal ? 'گیرنده‌ای طبق چارت سازمانی برای شما تعریف نشده است.' : 'صاحب امضایی تعریف نشده است.'}</span>
               )}
             </div>
 
@@ -1857,8 +1901,8 @@ const editing = useLetterBodyEditing(editorRef); // Persian digits while typing,
               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black sm:font-bold rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
             >
               <Stamp className="w-4 h-4" />
-              <span className="sm:hidden">{isEditing ? 'ذخیرهٔ ویرایش' : 'ثبت و ارسال جهت امضا'}</span>
-              <span className="hidden sm:inline">{isEditing ? 'ذخیرهٔ ویرایش نامه (قبل از امضا)' : 'ثبت و ارسال نامه رسمی جهت امضای مدیر'}</span>
+              <span className="sm:hidden">{internal ? 'ارسال نامهٔ داخلی' : isEditing ? 'ذخیرهٔ ویرایش' : 'ثبت و ارسال جهت امضا'}</span>
+              <span className="hidden sm:inline">{internal ? (internal.firstHop ? `ارسال نامهٔ داخلی (اول نزد ${internal.firstHop})` : 'ارسال نامهٔ داخلی') : isEditing ? 'ذخیرهٔ ویرایش نامه (قبل از امضا)' : 'ثبت و ارسال نامه رسمی جهت امضای مدیر'}</span>
             </button>
           </div>
         </form>

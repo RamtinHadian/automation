@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -165,6 +166,30 @@ func icSignature(ctx context.Context, p icPerson) string {
 	return sig
 }
 
+var icTagRe = regexp.MustCompile(`<[^>]*>`)
+
+// icReadBody reads the text of a letter: the rich editor sends «html» (a formatted body with tables, fonts…) and «layout» (the sheet's settings:
+// paper size, fonts, positions); the older plain form sends «body». The plain text is always kept too (for notices and the AI).
+func icReadBody(w http.ResponseWriter, body jsonx.M) (text, html string, layout jsonx.M, ok bool) {
+	html = strings.TrimSpace(jsonx.Str(body, "html"))
+	if html != "" {
+		if len(html) > 150000 {
+			httpx.Error(w, http.StatusBadRequest, "متن نامه از حد مجاز بزرگ‌تر است.")
+			return
+		}
+		t := icTagRe.ReplaceAllString(html, " ")
+		t = strings.NewReplacer("&nbsp;", " ", "&amp;", "&", "&lt;", "<", "&gt;", ">").Replace(t)
+		text = strings.Join(strings.Fields(t), " ")
+		if l, isMap := body["layout"].(map[string]any); isMap && len(jsonx.Encode(l)) <= 40000 {
+			layout = l
+		}
+	} else {
+		text = strings.TrimSpace(jsonx.Str(body, "body"))
+	}
+	ok = true
+	return
+}
+
 func icNowStr() string { return time.Now().UTC().Format("2006-01-02T15:04:05.000Z") }
 
 func icEvent(by auth.User, action, toID, toName, note string) jsonx.M {
@@ -185,7 +210,8 @@ func icAppend(doc jsonx.M, e jsonx.M) {
 
 func icSave(ctx context.Context, doc jsonx.M) error {
 	people := jsonx.Strings(doc, "people")
-	_, err := store.Pool.Exec(ctx, `UPDATE internal_letters SET holder_id = $2, status = $3, people = $4, data = $5::jsonb, updated_at = now() WHERE id = $1`,
+	// whoever saves the letter (a move, a note, a read…) never touches the archive marks: they belong to each person and change only in icArchive
+	_, err := store.Pool.Exec(ctx, `UPDATE internal_letters SET holder_id = $2, status = $3, people = $4, data = ($5::jsonb - 'archivedBy') || jsonb_build_object('archivedBy', COALESCE(data->'archivedBy', '{}'::jsonb)), updated_at = now() WHERE id = $1`,
 		jsonx.Str(doc, "id"), jsonx.Str(doc, "holderId"), jsonx.Str(doc, "status"), people, jsonx.Encode(doc))
 	return err
 }
@@ -347,7 +373,11 @@ func icCreate(w http.ResponseWriter, r *http.Request) {
 		httpx.Forbidden(w)
 		return
 	}
-	subject, text := strings.TrimSpace(jsonx.Str(body, "subject")), strings.TrimSpace(jsonx.Str(body, "body"))
+	subject := strings.TrimSpace(jsonx.Str(body, "subject"))
+	text, htmlBody, layout, okBody := icReadBody(w, body)
+	if !okBody {
+		return
+	}
 	if subject == "" || text == "" {
 		httpx.Error(w, http.StatusBadRequest, "موضوع و متن نامه را بنویسید.")
 		return
@@ -379,6 +409,12 @@ func icCreate(w http.ResponseWriter, r *http.Request) {
 	var dn string
 	_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'name','') FROM departments WHERE id = $1`, p.dept).Scan(&dn)
 	doc["senderDept"] = dn
+	if htmlBody != "" {
+		doc["bodyHtml"] = htmlBody
+		if layout != nil {
+			doc["layout"] = layout
+		}
+	}
 	if sig := icSignature(ctx, p); sig != "" {
 		doc["senderSignature"] = sig
 	}
@@ -540,15 +576,28 @@ func icResend(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "طبق چارت سازمانی نمی‌توانید به این شخص نامه بزنید.")
 		return
 	}
-	subject, text := strings.TrimSpace(jsonx.Str(body, "subject")), strings.TrimSpace(jsonx.Str(body, "body"))
+	subject := strings.TrimSpace(jsonx.Str(body, "subject"))
+	text, htmlBody, layout, okBody := icReadBody(w, body)
+	if !okBody {
+		return
+	}
 	if subject == "" || text == "" {
 		httpx.Error(w, http.StatusBadRequest, "موضوع و متن نامه را بنویسید.")
 		return
 	}
-	if subject != jsonx.Str(doc, "subject") || text != jsonx.Str(doc, "body") {
+	if subject != jsonx.Str(doc, "subject") || text != jsonx.Str(doc, "body") || htmlBody != jsonx.Str(doc, "bodyHtml") {
 		icAppend(doc, icEvent(me, "EDITED", "", "", "موضوع یا متن نامه پیش از ارسال دوباره اصلاح شد."))
 	}
 	doc["subject"], doc["body"] = clip(subject, 200), clip(text, 8000)
+	if htmlBody != "" {
+		doc["bodyHtml"] = htmlBody
+		if layout != nil {
+			doc["layout"] = layout
+		}
+	} else {
+		delete(doc, "bodyHtml")
+		delete(doc, "layout")
+	}
 	if sig := icSignature(ctx, p); sig != "" {
 		doc["senderSignature"] = sig
 	} else {
@@ -642,18 +691,15 @@ func icArchive(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "پیدا نشد.")
 		return
 	}
-	ab, _ := doc["archivedBy"].(map[string]any)
-	if ab == nil {
-		ab = map[string]any{}
-	}
 	on, _ := body["on"].(bool)
+	id := jsonx.Str(doc, "id")
+	var err error
 	if on {
-		ab[me.ID()] = icNowStr()
+		_, err = store.Pool.Exec(ctx, `UPDATE internal_letters SET data = jsonb_set(data, '{archivedBy}', COALESCE(data->'archivedBy', '{}'::jsonb) || jsonb_build_object($2::text, $3::text), true) WHERE id = $1`, id, me.ID(), icNowStr())
 	} else {
-		delete(ab, me.ID())
+		_, err = store.Pool.Exec(ctx, `UPDATE internal_letters SET data = jsonb_set(data, '{archivedBy}', COALESCE(data->'archivedBy', '{}'::jsonb) - $2::text, true) WHERE id = $1`, id, me.ID())
 	}
-	doc["archivedBy"] = ab
-	if err := icSave(ctx, doc); err != nil {
+	if err != nil {
 		internalError(w)
 		return
 	}
@@ -664,7 +710,7 @@ func icArchive(w http.ResponseWriter, r *http.Request) {
 // GET /api/icorr?box=inbox|sent|involved|all
 func icList(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
-	const notArchived = ` AND NOT (COALESCE(data->'archivedBy','{}'::jsonb) ? $1)`
+	const notArchived = ` AND NOT (jsonb_exists(COALESCE(data->'archivedBy','{}'::jsonb), $1))`
 	q := `SELECT data FROM internal_letters WHERE holder_id = $1` + notArchived + ` ORDER BY updated_at DESC LIMIT 300`
 	switch r.URL.Query().Get("box") {
 	case "sent":
@@ -674,7 +720,7 @@ func icList(w http.ResponseWriter, r *http.Request) {
 	case "involved":
 		q = `SELECT data FROM internal_letters WHERE $1 = ANY(people) AND holder_id <> $1 AND sender_id <> $1` + notArchived + ` ORDER BY updated_at DESC LIMIT 300`
 	case "archive":
-		q = `SELECT data FROM internal_letters WHERE $1 = ANY(people) AND COALESCE(data->'archivedBy','{}'::jsonb) ? $1 ORDER BY updated_at DESC LIMIT 500`
+		q = `SELECT data FROM internal_letters WHERE $1 = ANY(people) AND jsonb_exists(COALESCE(data->'archivedBy','{}'::jsonb), $1) ORDER BY updated_at DESC LIMIT 500`
 	case "all":
 		if !icAuditor(me) {
 			httpx.Forbidden(w)
