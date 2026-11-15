@@ -172,6 +172,18 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	  data JSONB NOT NULL
 	)`,
+	// internal correspondence («مکاتبات داخلی»): letters that climb the organisation chart; every step is in data.history
+	`CREATE SEQUENCE IF NOT EXISTS internal_letters_seq`,
+	`CREATE TABLE IF NOT EXISTS internal_letters (
+	  id TEXT PRIMARY KEY,
+	  sender_id TEXT NOT NULL DEFAULT '',
+	  holder_id TEXT NOT NULL DEFAULT '',
+	  status TEXT NOT NULL DEFAULT 'IN_CHAIN',
+	  people TEXT[] NOT NULL DEFAULT '{}',
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  data JSONB NOT NULL
+	)`,
 	// one-time download links of a signed letter's PDF: only the hash of the secret is kept; the file is wiped from the row the moment it is downloaded (and never served after it expires)
 	`CREATE TABLE IF NOT EXISTS oneshot_links (
 	  id TEXT PRIMARY KEY,

@@ -15,6 +15,7 @@ import { AgentLetter } from '../components/letters/AgentLetter';
 import { LeaveView } from '../components/leave/LeaveView';
 import { LetterDownloadMenu } from '../components/letters/LetterExportButtons';
 import { OrdersView } from '../components/orders/OrdersView';
+import { InternalLettersView } from '../components/letters/InternalLettersView';
 import { BoardView } from '../components/board/BoardView';
 import { BannerStrip } from '../components/board/BannerStrip';
 import { CrmView } from '../components/crm/CrmView';
@@ -92,6 +93,7 @@ import {
   ScrollText,
   Phone,
   ChevronUp,
+  Network,
 } from 'lucide-react';
 import { CrmActivity, Customer, Deal, FileCategory, FileTransfer, LetterFx, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
@@ -146,6 +148,8 @@ export default function UserPanel() {
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
   const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders' | 'minutes' | 'orders'>('files');
   const [ordersUnread, setOrdersUnread] = useState(0);
+  const [letterSub, setLetterSub] = useState<'official' | 'internal'>('official');
+  const [icUnread, setIcUnread] = useState(0);
   const [chatPeer, setChatPeer] = useState('');
   const [mainMenuTab, setMainMenuTab] = useState<'files' | 'letters' | 'tasks' | 'crm' | 'stats' | 'warranty' | 'support' | 'warehouse' | 'sepidar' | 'calls'>('files');
 
@@ -237,7 +241,11 @@ export default function UserPanel() {
   const canSendOfficial = Boolean(currentUser.canSendOfficialLetters === true || canSignOfficial || currentUser.role === 'SUPER_ADMIN');
   const hid = (menu: string) => adminMenuHidden(currentUser, menu); // a menu the permission table switched off for this administrator
   const isAgent = !!currentUser.isAgent; // a sales representative: his only correspondence is an internal letter to the managing director
-  const canAccessLettersMenu = isAgent || ((canSendOfficial || canSignOfficial) && !hid('letters'));
+  // internal correspondence («مکاتبات داخلی») is open to every employee (not to a sales representative) unless the permission table switched it off
+  const canInternalLetters = !isAgent && canSub(currentUser, 'letters.internal') && !hid('letters');
+  const canAccessLettersMenu = isAgent || ((canSendOfficial || canSignOfficial) && !hid('letters')) || canInternalLetters;
+  const showOfficialLetters = canSendOfficial || canSignOfficial;
+  const letterTab: 'official' | 'internal' = !canInternalLetters ? 'official' : !showOfficialLetters ? 'internal' : letterSub;
   const canAccessTasksMenu = Boolean(
     (currentUser.canUseTasks === true || currentUser.role === 'SUPER_ADMIN') && !hid('tasks')
   );
@@ -259,7 +267,7 @@ export default function UserPanel() {
     if (t === 'support') return 'support';
     if (t === 'customer' || t === 'deal') return 'crm';
     if (t === 'task' || t === 'report') return 'tasks';
-    if (t === 'letter') return 'letters';
+    if (t === 'letter' || t === 'icorr') return 'letters';
     if (t === 'file' || t === 'chat' || t === 'leave' || t === 'announcement' || t === 'minutes') return 'files';
     if (n.kind === 'file' || n.kind === 'chat') return 'files';
     if (n.kind === 'letter') return 'letters';
@@ -375,6 +383,9 @@ export default function UserPanel() {
       }
       window.dispatchEvent(new Event('open-task-item'));
       setMainMenuTab('tasks');
+    } else if (type === 'icorr' && canAccessLettersMenu) {
+      setMainMenuTab('letters');
+      setLetterSub('internal');
     } else if (type === 'letter' && canAccessLettersMenu) {
       setMainMenuTab('letters');
       const letter = transfers.find((t) => t.id === n.ref?.id);
@@ -1653,7 +1664,17 @@ export default function UserPanel() {
         )}
 
         {mainMenuTab === 'letters' && isAgent && <AgentLetter />}
-        {mainMenuTab === 'letters' && !isAgent && (
+        {mainMenuTab === 'letters' && !isAgent && canInternalLetters && showOfficialLetters && (
+          <SubTabs
+            tone="maroon"
+            className="mx-4 sm:mx-6 mt-3 mb-1"
+            value={letterTab}
+            onChange={(k) => setLetterSub(k as typeof letterSub)}
+            tabs={[{ id: 'official', label: 'نامهٔ رسمی', Icon: Stamp, badge: 0 }, { id: 'internal', label: 'مکاتبات داخلی', Icon: Network, badge: icUnread }]}
+          />
+        )}
+        {mainMenuTab === 'letters' && !isAgent && letterTab === 'internal' && <InternalLettersView onUnread={setIcUnread} />}
+        {mainMenuTab === 'letters' && !isAgent && letterTab === 'official' && showOfficialLetters && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-[#EBDBCE]/60">
 
             {/* Submit / Type Official Letter Panel */}

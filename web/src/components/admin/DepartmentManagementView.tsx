@@ -93,6 +93,7 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
             color: editingDept.color,
             defaultQuotaGB: editingDept.defaultQuotaGB,
             managerId: editingDept.managerId || '',
+            parentId: editingDept.parentId || '',
         });
         setEditingDept(null);
     };
@@ -403,6 +404,25 @@ export const DepartmentManagementView: React.FC<DepartmentManagementViewProps> =
                                     onChange={(e) => setEditingDept({ ...editingDept, name: e.target.value })}
                                     className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20 focus:border-[#D34A32] focus:outline-none"
                                 />
+                            </div>
+
+                            {/* The unit above (organisation chart) */}
+                            <div>
+                                <label className="block text-[11px] font-bold text-[#3A241F] uppercase mb-1.5">
+                                    واحد بالادستی (چارت سازمانی)
+                                </label>
+                                <select
+                                    value={editingDept.parentId || ''}
+                                    onChange={(e) => setEditingDept({ ...editingDept, parentId: e.target.value || undefined })}
+                                    className="w-full p-2.5 bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-[#3A241F] focus:ring-2 focus:ring-[#D34A32]/20"
+                                    data-dept-parent-select
+                                >
+                                    <option value="">بدون واحد بالادستی (مستقیم زیر مدیرعامل)</option>
+                                    {departments.filter((d) => d.id !== editingDept.id).map((d) => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                                <p className="text-[10px] text-[#8C6F66] mt-1 leading-5">نامه‌های داخلی از مدیر این واحد به مدیر واحد بالادستی، مدیران هم‌رده یا مدیرعامل می‌روند.</p>
                             </div>
 
                             {/* Manager of the unit */}

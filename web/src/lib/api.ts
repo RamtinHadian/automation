@@ -96,6 +96,43 @@ export interface Announcement {
   eventDate?: string;
 }
 
+/** One step in the life of an internal letter (who did what, to whom, when). */
+export interface InternalLetterEvent {
+  at: string;
+  byId: string;
+  byName: string;
+  action: 'CREATED' | 'SENT' | 'FORWARDED' | 'DELIVERED' | 'RETURNED' | 'EDITED' | 'NOTE' | 'REPLY' | 'READ';
+  toId?: string;
+  toName?: string;
+  note?: string;
+}
+
+/** An internal letter («مکاتبهٔ داخلی»): climbs the organisation chart, every step is kept in the history. */
+export interface InternalLetter {
+  id: string;
+  number: string;
+  subject: string;
+  body: string;
+  senderId: string;
+  senderName: string;
+  senderDept?: string;
+  toId: string;
+  toName: string;
+  holderId: string;
+  holderName: string;
+  status: 'IN_CHAIN' | 'DELIVERED' | 'RETURNED';
+  createdAt: string;
+  people: string[];
+  history: InternalLetterEvent[];
+  read?: boolean;
+}
+
+export interface ChainPerson {
+  id: string;
+  name: string;
+  sub?: string;
+}
+
 /** An administrative order («دستور اداری») written by the CEO to one or more people. */
 export interface AdminOrder {
   id: string;
@@ -688,6 +725,14 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   aiFunnelGet: (id: string) => request<{ status: 'running' | 'done' | 'error'; total: number; done: number; error: string; items: Record<string, unknown>[] }>('GET', `/api/crm/ai-funnel/${encodeURIComponent(id)}`),
   orderCreate: (b: { subject: string; body: string; recipientIds: string[]; copyIds?: string[]; number?: string; kind?: string; ref?: Record<string, unknown> }) => request<{ ok: true; id: string }>('POST', '/api/orders', b),
   orderList: (box: 'inbox' | 'sent') => request<{ orders: AdminOrder[] }>('GET', '/api/orders?box=' + box),
+  icList: (box: 'inbox' | 'sent' | 'involved' | 'all') => request<{ letters: InternalLetter[] }>('GET', '/api/icorr?box=' + box),
+  icOptions: (id?: string) => request<{ targets?: ChainPerson[]; firstHop?: string[]; isCeo?: boolean; forward?: ChainPerson[] }>('GET', '/api/icorr/options' + (id ? '?id=' + encodeURIComponent(id) : '')),
+  icCreate: (b: { subject: string; body: string; toId: string }) => request<{ ok: true; id: string }>('POST', '/api/icorr', b),
+  icForward: (id: string, b: { toId: string; note?: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/forward`, b),
+  icReturn: (id: string, b: { note: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/return`, b),
+  icResend: (id: string, b: { subject: string; body: string; toId?: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/resend`, b),
+  icNote: (id: string, b: { note: string }) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/note`, b),
+  icRead: (id: string) => request<{ ok: true }>('POST', `/api/icorr/${encodeURIComponent(id)}/read`, {}),
   orderRead: (id: string) => request<{ ok: true }>('POST', `/api/orders/${encodeURIComponent(id)}/read`, {}),
   commissionGet: () => request<{ rules: Record<string, unknown>; payments: Record<string, unknown>[]; manager: boolean; eligible: boolean }>('GET', '/api/crm/commission'),
   commissionSaveRules: (b: unknown) => request<{ ok: true }>('PUT', '/api/crm/commission/rules', b),

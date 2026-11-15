@@ -259,6 +259,22 @@ func putDepartment(w http.ResponseWriter, r *http.Request, me auth.User, id stri
 			return
 		}
 	}
+	// the unit above (the organisation chart): an existing unit, never itself or one of its own sub-units
+	if pid := jsonx.Str(doc, "parentId"); pid != "" {
+		depts := icDepts(r.Context())
+		_, ok := depts[pid]
+		for cur, hops := pid, 0; ok && cur != "" && hops < 30; hops++ {
+			if cur == id {
+				ok = false
+				break
+			}
+			cur = depts[cur].parent
+		}
+		if !ok {
+			httpx.Error(w, http.StatusBadRequest, "واحد بالادستی درست نیست (نمی‌تواند خود واحد یا زیرمجموعهٔ آن باشد).")
+			return
+		}
+	}
 	if _, err := store.Pool.Exec(r.Context(),
 		`INSERT INTO departments (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO UPDATE SET data = $2::jsonb`,
 		id, jsonx.Encode(doc)); err != nil {

@@ -8,6 +8,8 @@ export interface Department {
   defaultQuotaGB: number;
   /** The manager of the unit: what the unit's people do in the automation comes to this person. */
   managerId?: string;
+  /** the unit above this one in the organisation chart (internal letters climb from unit to unit) */
+  parentId?: string;
 }
 
 export interface User {
