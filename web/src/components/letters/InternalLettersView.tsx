@@ -3,6 +3,7 @@ import { Archive, ArchiveRestore, FileDown, Printer, ArrowRight, CheckCircle2, S
 import { api, ChainPerson, InternalLetter, InternalLetterEvent } from '../../lib/api';
 import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import { SignaturePadDialog } from '../common/SignaturePad';
+import { askConfirm } from '../../lib/confirmDialog';
 import { DEFAULT_PARAPH_TEMPLATES } from '../../lib/paraph';
 import { canSub } from '../../lib/permissions';
 import { Sparkles } from 'lucide-react';
@@ -127,13 +128,13 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
         </div>
       )}
 
-      {open && <Detail letter={open} onClose={() => setOpen(null)} onChanged={load} onEdit={() => { setCompose(open); }} />}
+      {open && <Detail letter={open} onClose={() => setOpen(null)} onChanged={load} onEdit={() => { setCompose(open); }} onArchived={(to) => { setOpen(null); setBox(to ? 'archive' : 'inbox'); if (box === (to ? 'archive' : 'inbox')) load(); }} />}
       {compose && <Compose resend={compose === 'new' ? undefined : compose} onClose={() => setCompose(null)} onDone={() => { setCompose(null); setOpen(null); setBox(compose === 'new' ? 'sent' : box); load(); }} />}
     </div>
   );
 };
 
-const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged: () => void; onEdit: () => void }> = ({ letter, onClose, onChanged, onEdit }) => {
+const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged: () => void; onEdit: () => void; onArchived: (nowArchived: boolean) => void }> = ({ letter, onClose, onChanged, onEdit, onArchived }) => {
   const { currentUser, settings } = useAppContext();
   const holder = letter.holderId === currentUser.id;
   const [fwd, setFwd] = useState<ChainPerson[]>([]);
@@ -171,7 +172,22 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
   const head = settings.internalLetterhead || null;
   const transfer = useMemo(() => internalAsTransfer(letter, settings, withHead ? head : null), [letter, settings, withHead, head]);
   const sheet = useMemo(() => generateOfficialLetterHtml(transfer, settings), [transfer, settings]);
-  const toggleArchive = () => run(() => api.icArchive(letter.id, !letter.archived));
+  // archiving asks first, then the letter leaves the lists at once and the person lands in the archive tab (only for this person)
+  const toggleArchive = async () => {
+    const to = !letter.archived;
+    const ok = await askConfirm(to ? 'این نامه به بایگانی شخصی شما برود؟ برای فرستنده و بقیه چیزی تغییر نمی‌کند و هر وقت خواستید از بایگانی درمی‌آید.' : 'نامه از بایگانی بیرون بیاید؟', { confirmText: to ? 'بله، بایگانی شود' : 'بله، بیرون بیاید' });
+    if (!ok) return;
+    setBusy(true);
+    setErr('');
+    try {
+      await api.icArchive(letter.id, to);
+      onArchived(to);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'بایگانی انجام نشد.');
+    } finally {
+      setBusy(false);
+    }
+  };
   const exportPdf = async () => {
     setPdfBusy(true);
     try {
@@ -230,7 +246,7 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
               </label>
             )}
             {involved && (
-              <button type="button" onClick={toggleArchive} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${head ? '' : 'mr-auto'} ${letter.archived ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300'}`} data-ic-archive>
+              <button type="button" disabled={busy} onClick={toggleArchive} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${head ? '' : 'mr-auto'} ${letter.archived ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300'}`} data-ic-archive>
                 {letter.archived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
                 {letter.archived ? 'خروج از بایگانی' : 'بایگانی'}
               </button>
