@@ -116,6 +116,8 @@ export interface InternalLetter {
   senderId: string;
   senderName: string;
   senderDept?: string;
+  /** the writer's sample signature, copied into the letter when it was sent */
+  senderSignature?: string;
   toId: string;
   toName: string;
   holderId: string;

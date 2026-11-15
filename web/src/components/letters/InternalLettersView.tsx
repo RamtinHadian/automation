@@ -169,6 +169,13 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
             <h2 className="text-base font-black text-[#3A241F]">{letter.subject}</h2>
             <div className="text-[12px] font-bold text-[#6B4F47]">از: {letter.senderName}{letter.senderDept ? ` (${letter.senderDept})` : ''}<br />به: {letter.toName}</div>
             <div className="border-t border-[#EBDBCE] pt-3 text-[13px] leading-8 text-[#3A241F] whitespace-pre-wrap">{letter.body}</div>
+            <div className="pt-4 flex justify-start" data-ic-signature>
+              <div className="min-w-[160px] text-center">
+                {letter.senderSignature && <img src={letter.senderSignature} alt={`امضای ${letter.senderName}`} className="mx-auto max-h-24 max-w-[220px] object-contain mix-blend-multiply" />}
+                <div className="border-t border-[#C9B8AE] mt-1 pt-1 text-[12px] font-black text-[#3A241F]">{letter.senderName}</div>
+                {letter.senderDept && <div className="text-[10.5px] font-bold text-[#8C6F66]">{letter.senderDept}</div>}
+              </div>
+            </div>
           </article>
 
           {letter.status === 'RETURNED' && letter.senderId === currentUser.id && (

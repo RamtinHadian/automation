@@ -151,6 +151,20 @@ func icFinalTargets(ctx context.Context, depts map[string]icDept, p icPerson) []
 	return out
 }
 
+// icSignature: the sample signature of the writer (his own, or for the managing director the one in the settings), copied into the
+// letter when it is written so the letter keeps the signature it was sent with.
+func icSignature(ctx context.Context, p icPerson) string {
+	var sig string
+	_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'signatureUrl','') FROM users WHERE id = $1`, p.id).Scan(&sig)
+	if sig == "" && p.ceo {
+		sig = jsonx.Str(settingDoc(ctx, "main"), "ceoSignatureUrl")
+	}
+	if !strings.HasPrefix(sig, "data:image/") || len(sig) > 400*1024 {
+		return ""
+	}
+	return sig
+}
+
 func icNowStr() string { return time.Now().UTC().Format("2006-01-02T15:04:05.000Z") }
 
 func icEvent(by auth.User, action, toID, toName, note string) jsonx.M {
@@ -318,6 +332,9 @@ func icCreate(w http.ResponseWriter, r *http.Request) {
 	var dn string
 	_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'name','') FROM departments WHERE id = $1`, p.dept).Scan(&dn)
 	doc["senderDept"] = dn
+	if sig := icSignature(ctx, p); sig != "" {
+		doc["senderSignature"] = sig
+	}
 	icAddPerson(doc, me.ID())
 	icAddPerson(doc, to)
 	icAppend(doc, icEvent(me, "CREATED", "", "", ""))
@@ -477,6 +494,11 @@ func icResend(w http.ResponseWriter, r *http.Request) {
 		icAppend(doc, icEvent(me, "EDITED", "", "", "موضوع یا متن نامه پیش از ارسال دوباره اصلاح شد."))
 	}
 	doc["subject"], doc["body"] = clip(subject, 200), clip(text, 8000)
+	if sig := icSignature(ctx, p); sig != "" {
+		doc["senderSignature"] = sig
+	} else {
+		delete(doc, "senderSignature")
+	}
 	toP, _ := icUser(ctx, to)
 	doc["toId"], doc["toName"] = to, toP.name
 	icAddPerson(doc, to)
