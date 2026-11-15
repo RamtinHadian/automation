@@ -191,6 +191,7 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
           <HBars rows={s.taskLoad.map((t) => ({ label: t.name, segments: [{ value: t.open - t.overdue, color: C.blue, name: 'در جریان' }, { value: t.overdue, color: C.red, name: 'معوق' }] }))} empty="وظیفهٔ بازی نیست." />
         </ChartCard>
 
+        {canSub(me, 'crm.funnel') && (
         <ChartCard title="قیف فروش" subtitle={seesTotals ? 'تعداد فرصت در هر مرحله؛ مبلغ کنار هر ردیف' : 'تعداد فرصت در هر مرحله؛ سهم از همهٔ فرصت‌ها کنار هر ردیف'}>
           {canSub(me, 'ai.funnel') && <div className="mb-3"><FunnelAiButton ai={ai} /></div>}
           <FunnelAiOrbit ai={ai}><FitBox design={1030}>
@@ -213,6 +214,7 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
             <span>کل فرصت‌ها: {toPersianDigits(deals.length)}</span>
           </div>
         </ChartCard>
+        )}
 
         {seesTotals && (<ChartCard title="فروش موفق هر ماه" subtitle={`مجموع مبلغ فروش (${unitName()})`}>
           <Columns labels={s.wonByMonth.map((m) => m.label)} series={[{ name: 'فروش', color: C.green, values: s.wonByMonth.map((m) => m.value) }]} format={(v) => compactM(v)} />

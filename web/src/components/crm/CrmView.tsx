@@ -886,6 +886,7 @@ export const CrmView: React.FC = () => {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {canSub(currentUser, 'crm.funnel') && (
             <section
               role="button"
               tabIndex={0}
@@ -920,6 +921,7 @@ export const CrmView: React.FC = () => {
                 );
               })}
             </section>
+            )}
 
             <section className="bg-white border border-[#EBDBCE] rounded-3xl p-4 space-y-2.5">
               <h3 className="font-black text-sm text-[#3A241F]">پیگیری‌های امروز و عقب‌افتاده</h3>
