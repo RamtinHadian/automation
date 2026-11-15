@@ -296,7 +296,18 @@ func icOptions(w http.ResponseWriter, r *http.Request) {
 			route = append(route, mp.name)
 		}
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"targets": icPeople(ctx, icFinalTargets(ctx, depts, p)), "firstHop": route, "isCeo": p.ceo})
+	// the numbers already used, so the page offers the next free one from the numbering the console defined
+	numbers := []string{}
+	if rows, err := store.Pool.Query(ctx, `SELECT COALESCE(data->>'number','') FROM internal_letters ORDER BY created_at DESC LIMIT 1500`); err == nil {
+		for rows.Next() {
+			var n string
+			if rows.Scan(&n) == nil && n != "" {
+				numbers = append(numbers, n)
+			}
+		}
+		rows.Close()
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"targets": icPeople(ctx, icFinalTargets(ctx, depts, p)), "firstHop": route, "isCeo": p.ceo, "numbers": numbers})
 }
 
 // POST /api/icorr {subject, body, toId}
@@ -323,11 +334,23 @@ func icCreate(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "طبق چارت سازمانی نمی‌توانید به این شخص نامه بزنید؛ نامه از مدیر واحد خودتان به بالا می‌رود.")
 		return
 	}
-	var n int64
-	_ = store.Pool.QueryRow(ctx, `SELECT nextval('internal_letters_seq')`).Scan(&n)
+	// the number comes from the numbering defined in the console (the page makes it from the counter); without one the letter gets «م-<running number>»
+	number := strings.TrimSpace(clip(jsonx.Str(body, "number"), 60))
+	if number == "" {
+		var n int64
+		_ = store.Pool.QueryRow(ctx, `SELECT nextval('internal_letters_seq')`).Scan(&n)
+		number = "م-" + strconv.FormatInt(n, 10)
+	} else {
+		var dup int
+		_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM internal_letters WHERE data->>'number' = $1`, number).Scan(&dup)
+		if dup > 0 {
+			httpx.Error(w, http.StatusConflict, "این شمارهٔ نامه قبلاً استفاده شده؛ پنجره را ببندید و دوباره باز کنید.")
+			return
+		}
+	}
 	id := "ic-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	toP, _ := icUser(ctx, to)
-	doc := jsonx.M{"id": id, "number": "م-" + strconv.FormatInt(n, 10), "subject": clip(subject, 200), "body": clip(text, 8000), "senderId": me.ID(), "senderName": me.Name(),
+	doc := jsonx.M{"id": id, "number": number, "subject": clip(subject, 200), "body": clip(text, 8000), "senderId": me.ID(), "senderName": me.Name(),
 		"toId": to, "toName": toP.name, "createdAt": icNowStr(), "history": []any{}, "readBy": map[string]any{}}
 	var dn string
 	_ = store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'name','') FROM departments WHERE id = $1`, p.dept).Scan(&dn)
@@ -343,6 +366,14 @@ func icCreate(w http.ResponseWriter, r *http.Request) {
 		id, me.ID(), jsonx.Str(doc, "holderId"), jsonx.Str(doc, "status"), jsonx.Strings(doc, "people"), jsonx.Encode(doc)); err != nil {
 		internalError(w)
 		return
+	}
+	// the counter of the console's numbering moves on past the number just used
+	if c, ok := body["counter"].(float64); ok && c >= 1 && c < 1e9 && jsonx.Str(body, "number") != "" {
+		step := 1
+		if st, ok := jsonx.Sub(settingDoc(ctx, "main"), "internalNumbering")["incrementStep"].(float64); ok && st >= 1 && st <= 1000 {
+			step = int(st)
+		}
+		_, _ = store.Pool.Exec(ctx, `UPDATE settings SET data = jsonb_set(data, '{internalNumbering}', COALESCE(data->'internalNumbering','{}'::jsonb) || jsonb_build_object('nextNumber', GREATEST(COALESCE((data->'internalNumbering'->>'nextNumber')::bigint, 0), $1::bigint))) WHERE key = 'main'`, int64(c)+int64(step))
 	}
 	label := "مکاتبهٔ داخلی"
 	if jsonx.Str(doc, "status") == "DELIVERED" {
@@ -575,6 +606,8 @@ func icList(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Query().Get("box") {
 	case "sent":
 		q = `SELECT data FROM internal_letters WHERE sender_id = $1 ORDER BY updated_at DESC LIMIT 300`
+	case "referred": // letters referred to me that I have not acted on yet
+		q = `SELECT data FROM internal_letters WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(data->'referrals','[]'::jsonb)) r WHERE r->>'toId' = $1 AND r->>'status' = 'PENDING') ORDER BY updated_at DESC LIMIT 300`
 	case "involved":
 		q = `SELECT data FROM internal_letters WHERE $1 = ANY(people) AND holder_id <> $1 AND sender_id <> $1 ORDER BY updated_at DESC LIMIT 300`
 	case "all":
@@ -596,6 +629,124 @@ func icList(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"letters": out})
 }
 
+// who may refer a letter on: the person it was delivered to, and everybody it was referred to (a referral can be passed on again, to anyone)
+func icCanRefer(me auth.User, doc jsonx.M) bool {
+	if jsonx.Str(doc, "holderId") == me.ID() && jsonx.Str(doc, "status") == "DELIVERED" {
+		return true
+	}
+	rs, _ := doc["referrals"].([]any)
+	for _, x := range rs {
+		if m, ok := x.(map[string]any); ok && jsonx.Str(m, "toId") == me.ID() {
+			return true
+		}
+	}
+	return false
+}
+
+// POST /api/icorr/{id}/refer {toIds[], note}: ارجاع - the letter goes on to one or more people anywhere in the company, with an instruction
+func icRefer(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	ctx := r.Context()
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	doc, found := icLoad(ctx, r.PathValue("id"))
+	if !found || !icMaySee(me, doc) {
+		httpx.Error(w, http.StatusNotFound, "پیدا نشد.")
+		return
+	}
+	if me.Isolated() || !icCanRefer(me, doc) {
+		httpx.Error(w, http.StatusForbidden, "شما نمی‌توانید این نامه را ارجاع بدهید.")
+		return
+	}
+	note := strings.TrimSpace(jsonx.Str(body, "note"))
+	refs, _ := doc["referrals"].([]any)
+	targets := []string{}
+	if arr, ok := body["toIds"].([]any); ok {
+		for _, x := range arr {
+			if id, _ := x.(string); id != "" && id != me.ID() && !jsonx.Contains(targets, id) && len(targets) < 10 {
+				targets = append(targets, id)
+			}
+		}
+	}
+	if len(targets) == 0 {
+		httpx.Error(w, http.StatusBadRequest, "کسی را برای ارجاع انتخاب کنید.")
+		return
+	}
+	if len(refs)+len(targets) > 60 {
+		httpx.Error(w, http.StatusBadRequest, "تعداد ارجاع‌های این نامه به سقف رسیده است.")
+		return
+	}
+	done := []string{}
+	for _, t := range targets {
+		var d []byte
+		if store.Pool.QueryRow(ctx, `SELECT data FROM users WHERE id = $1`, t).Scan(&d) != nil {
+			continue
+		}
+		u := jsonx.Decode(d)
+		if jsonx.Str(u, "isActive") == "false" || jsonx.Bool(u, "isAgent") || jsonx.Str(u, "agentOwnerId") != "" {
+			continue // inactive people and the isolated sales representatives never receive an internal letter
+		}
+		name := jsonx.Str(u, "fullName")
+		refs = append(refs, map[string]any{"id": "rf-" + strconv.FormatInt(time.Now().UnixNano(), 36) + strconv.Itoa(len(refs)), "byId": me.ID(), "byName": me.Name(), "toId": t, "toName": name, "note": clip(note, 2000), "at": icNowStr(), "status": "PENDING"})
+		icAddPerson(doc, t)
+		icAppend(doc, icEvent(me, "REFERRED", t, name, note))
+		done = append(done, t)
+	}
+	if len(done) == 0 {
+		httpx.Error(w, http.StatusBadRequest, "ارجاع به این افراد ممکن نیست.")
+		return
+	}
+	doc["referrals"] = refs
+	if err := icSave(ctx, doc); err != nil {
+		internalError(w)
+		return
+	}
+	icNotify(r, me, done, "ارجاع نامهٔ داخلی", jsonx.Str(doc, "subject"))
+	auditLine(r, me, "INFO", "مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» توسط "+me.Name()+" به "+strconv.Itoa(len(done))+" نفر ارجاع شد.")
+	httpx.OK(w)
+}
+
+// POST /api/icorr/{id}/acted {note}: the person it was referred to reports that the work asked of him is done
+func icActed(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	ctx := r.Context()
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	doc, found := icLoad(ctx, r.PathValue("id"))
+	if !found || !jsonx.Contains(jsonx.Strings(doc, "people"), me.ID()) {
+		httpx.Error(w, http.StatusNotFound, "پیدا نشد.")
+		return
+	}
+	note := strings.TrimSpace(jsonx.Str(body, "note"))
+	refs, _ := doc["referrals"].([]any)
+	askers := []string{}
+	changed := false
+	for _, x := range refs {
+		m, ok := x.(map[string]any)
+		if ok && jsonx.Str(m, "toId") == me.ID() && jsonx.Str(m, "status") == "PENDING" {
+			m["status"], m["doneAt"], m["doneNote"] = "DONE", icNowStr(), clip(note, 2000)
+			askers = append(askers, jsonx.Str(m, "byId"))
+			changed = true
+		}
+	}
+	if !changed {
+		httpx.Error(w, http.StatusBadRequest, "ارجاع بازی برای شما در این نامه نیست.")
+		return
+	}
+	icAppend(doc, icEvent(me, "ACTED", "", "", note))
+	if err := icSave(ctx, doc); err != nil {
+		internalError(w)
+		return
+	}
+	icNotify(r, me, askers, "اقدام روی ارجاع شما انجام شد", jsonx.Str(doc, "subject"))
+	auditLine(r, me, "INFO", "ارجاع مکاتبهٔ داخلی «"+clip(jsonx.Str(doc, "subject"), 80)+"» را "+me.Name()+" انجام‌شده اعلام کرد.")
+	httpx.OK(w)
+}
+
 func registerInternalLetters(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/icorr", auth.Require(icList))
 	mux.HandleFunc("GET /api/icorr/options", auth.Require(icOptions))
@@ -603,6 +754,8 @@ func registerInternalLetters(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/icorr/{id}/forward", auth.Require(icForward))
 	mux.HandleFunc("POST /api/icorr/{id}/return", auth.Require(icReturn))
 	mux.HandleFunc("POST /api/icorr/{id}/resend", auth.Require(icResend))
+	mux.HandleFunc("POST /api/icorr/{id}/refer", auth.Require(icRefer))
+	mux.HandleFunc("POST /api/icorr/{id}/acted", auth.Require(icActed))
 	mux.HandleFunc("POST /api/icorr/{id}/note", auth.Require(icNote))
 	mux.HandleFunc("POST /api/icorr/{id}/read", auth.Require(icRead))
 }

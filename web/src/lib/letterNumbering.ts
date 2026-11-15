@@ -11,6 +11,13 @@ export const DEFAULT_LETTER_NUMBERING: LetterNumberingSettings = {
   showFooterNote: true,
 };
 
+/** internal letters start with their own counter (prefix «د», current Jalali year) until the console defines another */
+export const defaultInternalNumbering = (): LetterNumberingSettings => {
+  const d = new Date();
+  const [jy] = gregorianToJalali(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  return { prefix: 'د', nextNumber: 1, incrementStep: 1, year: String(jy), formatPattern: 'P_Y_N' };
+};
+
 type Tok = 'P' | 'Y' | 'M' | 'N' | 'N6' | 'PY' | 'YM';
 const TOKEN_NAME: Record<Tok, string> = { P: 'پیشوند', Y: 'سال', M: 'ماه', N: 'شماره', N6: 'شماره شش‌رقمی', PY: 'پیشوندسال چسبیده', YM: 'سال‌ماه چسبیده' };
 

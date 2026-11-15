@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, CornerUpLeft, Eye, FilePlus2, History, Inbox, Network, Reply, Send, Undo2, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Share2, UserCheck, CornerUpLeft, Eye, FilePlus2, History, Inbox, Network, Reply, Send, Undo2, X } from 'lucide-react';
 import { api, ChainPerson, InternalLetter, InternalLetterEvent } from '../../lib/api';
+import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
+import { defaultInternalNumbering, nextFreeLetter } from '../../lib/letterNumbering';
 import { useAppContext } from '../../context/AppContext';
 import { formatCurrentJalaliDateTime, toPersianDigits } from '../../lib/jalali';
 import { PersonPicker } from '../common/PersonPicker';
@@ -23,6 +25,8 @@ const ACTION: Record<InternalLetterEvent['action'], { t: string; c: string }> = 
   NOTE: { t: 'یادداشت گذاشت', c: '#0284C7' },
   REPLY: { t: 'پاسخ داد', c: '#059669' },
   READ: { t: 'خواند', c: '#8C6F66' },
+  REFERRED: { t: 'ارجاع داد به', c: '#7C3AED' },
+  ACTED: { t: 'اقدام را انجام‌شده اعلام کرد', c: '#059669' },
 };
 
 const when = (iso: string) => formatCurrentJalaliDateTime(new Date(iso));
@@ -31,7 +35,8 @@ const when = (iso: string) => formatCurrentJalaliDateTime(new Date(iso));
 export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> = ({ onUnread }) => {
   const { currentUser } = useAppContext();
   const auditor = !!currentUser.canSignOfficialLetters || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'DEPT_ADMIN';
-  const [box, setBox] = useState<'inbox' | 'sent' | 'involved' | 'all'>('inbox');
+  const [box, setBox] = useState<'inbox' | 'sent' | 'referred' | 'involved' | 'all'>('inbox');
+  const [referredCount, setReferredCount] = useState(0);
   const [list, setList] = useState<InternalLetter[]>([]);
   const [open, setOpen] = useState<InternalLetter | null>(null);
   const [compose, setCompose] = useState<InternalLetter | 'new' | null>(null);
@@ -41,6 +46,7 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
     api.icList(box).then((r) => {
       setList(r.letters);
       if (box === 'inbox') onUnread?.(r.letters.filter((l) => !l.read).length);
+      if (box === 'referred') setReferredCount(r.letters.length);
       setOpen((cur) => (cur ? r.letters.find((l) => l.id === cur.id) || cur : cur));
     }).catch(() => setList([]));
   }, [box, onUnread]);
@@ -52,6 +58,7 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
   }, [load]);
   useEffect(() => {
     api.icOptions().then((r) => setRoute(r.firstHop || [])).catch(() => setRoute([]));
+    api.icList('referred').then((r) => setReferredCount(r.letters.length)).catch(() => {});
   }, []);
 
   const show = (l: InternalLetter) => {
@@ -59,7 +66,7 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
     if (!l.read && l.people.includes(currentUser.id)) api.icRead(l.id).then(load).catch(() => {});
   };
 
-  const boxes: [typeof box, string][] = [['inbox', 'دریافتی (نزد من)'], ['sent', 'نوشته‌های من'], ['involved', 'از دست من گذشته'], ...(auditor ? ([['all', 'همهٔ مکاتبات']] as [typeof box, string][]) : [])];
+  const boxes: [typeof box, string][] = [['inbox', 'دریافتی (نزد من)'], ['referred', referredCount > 0 ? `ارجاع‌شده به من (${toPersianDigits(referredCount)})` : 'ارجاع‌شده به من'], ['sent', 'نوشته‌های من'], ['involved', 'از دست من گذشته'], ...(auditor ? ([['all', 'همهٔ مکاتبات']] as [typeof box, string][]) : [])];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4" dir="rtl" data-internal-letters>
@@ -89,7 +96,7 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
       {list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-10 text-center text-xs font-bold text-[#8C6F66]" data-ic-empty>
           <Inbox className="w-8 h-8 mx-auto mb-2 text-[#C9B8AE]" />
-          {box === 'inbox' ? 'نامهٔ داخلی‌ای نزد شما نیست.' : box === 'sent' ? 'هنوز نامهٔ داخلی ننوشته‌اید.' : 'موردی نیست.'}
+          {box === 'inbox' ? 'نامهٔ داخلی‌ای نزد شما نیست.' : box === 'referred' ? 'ارجاع بازی برای شما نیست.' : box === 'sent' ? 'هنوز نامهٔ داخلی ننوشته‌اید.' : 'موردی نیست.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -100,6 +107,7 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
                   <div className="text-[13px] font-black text-[#3A241F] truncate">{l.subject}</div>
                   <div className="text-[11px] font-bold text-[#8C6F66] mt-0.5">از {l.senderName}{l.senderDept ? ` (${l.senderDept})` : ''} ← به {l.toName}</div>
                   <div className="text-[10.5px] font-bold text-[#A8928B] mt-0.5">شمارهٔ {toPersianDigits(l.number)} · {when(l.createdAt)}</div>
+                  {(l.referrals || []).some((x) => x.toId === currentUser.id && x.status === 'PENDING') && <div className="text-[10.5px] font-black text-violet-700 mt-1">به شما ارجاع شده، منتظر اقدام</div>}
                   {l.status !== 'DELIVERED' && <div className="text-[10.5px] font-black text-[#6E1B1B] mt-1">الان نزد: {l.holderName}</div>}
                 </div>
                 <span className={`text-[10px] font-black rounded-full px-2 py-0.5 border shrink-0 ${STATUS[l.status].c}`}>{STATUS[l.status].t}</span>
@@ -121,12 +129,17 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
   const [fwd, setFwd] = useState<ChainPerson[]>([]);
   const [to, setTo] = useState('');
   const [note, setNote] = useState('');
-  const [mode, setMode] = useState<'forward' | 'return' | 'note' | null>(null);
+  const [mode, setMode] = useState<'forward' | 'return' | 'note' | 'refer' | 'acted' | null>(null);
+  const [referTo, setReferTo] = useState<string[]>([]);
+  const { staffList } = useAppContext();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const canAct = holder && letter.status === 'IN_CHAIN';
   const canReturn = holder && letter.senderId !== currentUser.id && letter.status !== 'RETURNED';
   const involved = letter.people.includes(currentUser.id);
+  const myPending = (letter.referrals || []).some((x) => x.toId === currentUser.id && x.status === 'PENDING');
+  const canRefer = (holder && letter.status === 'DELIVERED') || (letter.referrals || []).some((x) => x.toId === currentUser.id);
+  const referPeople = staffList.filter((u) => u.id !== currentUser.id && u.isActive !== false && !u.isAgent && !u.agentOwnerId);
   useEffect(() => {
     if (canAct) api.icOptions(letter.id).then((r) => setFwd(r.forward || [])).catch(() => setFwd([]));
   }, [letter.id, canAct]);
@@ -145,6 +158,7 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
       setMode(null);
       setNote('');
       setTo('');
+      setReferTo([]);
       onChanged();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'انجام نشد.');
@@ -182,11 +196,27 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
             <button type="button" onClick={onEdit} className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#6E1B1B] hover:bg-[#561414] text-white text-sm font-black cursor-pointer" data-ic-resend><Undo2 className="w-4 h-4" />اصلاح و ارسال دوباره</button>
           )}
 
+          {(letter.referrals || []).length > 0 && (
+            <div className="bg-white rounded-3xl border border-violet-200 p-4 space-y-2" data-ic-referrals>
+              <h3 className="flex items-center gap-1.5 text-[12px] font-black text-violet-800"><Share2 className="w-4 h-4" />ارجاع‌ها</h3>
+              {(letter.referrals || []).map((x) => (
+                <div key={x.id} className="rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] p-2.5 text-[11.5px] leading-6">
+                  <div className="font-black text-[#3A241F]">{x.byName} ← {x.toName} <span className={`mr-1 text-[10px] rounded-full px-2 py-0.5 border ${x.status === 'DONE' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>{x.status === 'DONE' ? 'اقدام شد' : 'منتظر اقدام'}</span></div>
+                  {x.note && <div className="text-[#6B4F47] whitespace-pre-wrap">دستور: {x.note}</div>}
+                  {x.doneNote && <div className="text-emerald-800 whitespace-pre-wrap">نتیجه: {x.doneNote}</div>}
+                  <div className="text-[10px] font-bold text-[#A8928B]">{when(x.at)}{x.doneAt ? ` · انجام: ${when(x.doneAt)}` : ''}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {(canAct || canReturn || involved) && (
             <div className="bg-white rounded-3xl border border-[#EBDBCE] p-4 space-y-3">
               <div className="flex flex-wrap gap-2">
                 {canAct && <button type="button" onClick={() => setMode('forward')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'forward' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-amber-800 border-amber-300'}`} data-ic-forward><CornerUpLeft className="w-3.5 h-3.5" />ارسال به بالا</button>}
                 {canReturn && <button type="button" onClick={() => setMode('return')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'return' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-rose-700 border-rose-300'}`}><Undo2 className="w-3.5 h-3.5" />برگرداندن با دلیل</button>}
+                {canRefer && <button type="button" onClick={() => setMode('refer')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'refer' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-violet-800 border-violet-300'}`} data-ic-refer><Share2 className="w-3.5 h-3.5" />ارجاع</button>}
+                {myPending && <button type="button" onClick={() => setMode('acted')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'acted' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-800 border-emerald-300'}`}><UserCheck className="w-3.5 h-3.5" />اقدام شد</button>}
                 {involved && <button type="button" onClick={() => setMode('note')} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${mode === 'note' ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-sky-800 border-sky-300'}`}><Reply className="w-3.5 h-3.5" />{letter.toId === currentUser.id ? 'پاسخ' : 'یادداشت'}</button>}
               </div>
               {mode === 'forward' && (
@@ -194,6 +224,19 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
                   <PersonPicker title="ارسال برای…" items={fwd.map((p) => ({ id: p.id, name: p.name, sub: p.sub }))} value={to} onChange={setTo} placeholder={fwd.length ? 'مقصد بعدی را انتخاب کنید…' : 'مقصدی در دسترس نیست'} />
                   <textarea className={`${field} min-h-[70px]`} placeholder="توضیح شما برای مقصد بعدی (اختیاری)" value={note} onChange={(e) => setNote(e.target.value)} />
                   <button type="button" disabled={busy || !to} onClick={() => run(() => api.icForward(letter.id, { toId: to, note }))} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><Send className="w-4 h-4" />ارسال</button>
+                </div>
+              )}
+              {mode === 'refer' && (
+                <div className="space-y-2">
+                  <PersonPickerMulti title="ارجاع به…" items={staffItems(referPeople)} values={referTo} onChange={setReferTo} placeholder="یک یا چند نفر از سراسر سازمان را انتخاب کنید…" />
+                  <textarea className={`${field} min-h-[70px]`} placeholder="دستور یا توضیح ارجاع (مثلاً: لطفاً بررسی و گزارش دهید)" value={note} onChange={(e) => setNote(e.target.value)} />
+                  <button type="button" disabled={busy || referTo.length === 0} onClick={() => run(() => api.icRefer(letter.id, { toIds: referTo, note }))} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><Share2 className="w-4 h-4" />ارجاع به {toPersianDigits(referTo.length)} نفر</button>
+                </div>
+              )}
+              {mode === 'acted' && (
+                <div className="space-y-2">
+                  <textarea className={`${field} min-h-[70px]`} placeholder="نتیجهٔ اقدام (اختیاری)" value={note} onChange={(e) => setNote(e.target.value)} />
+                  <button type="button" disabled={busy} onClick={() => run(() => api.icActed(letter.id, { note }))} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><UserCheck className="w-4 h-4" />اقدام انجام شد</button>
                 </div>
               )}
               {mode === 'return' && (
@@ -244,9 +287,16 @@ const Compose: React.FC<{ resend?: InternalLetter; onClose: () => void; onDone: 
   const [body, setBody] = useState(resend?.body || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const { settings } = useAppContext();
+  const [num, setNum] = useState<{ number: string; n: number } | null>(null);
   useEffect(() => {
-    api.icOptions().then((r) => { setTargets(r.targets || []); setFirst(r.firstHop || []); }).catch(() => {});
-  }, []);
+    api.icOptions().then((r) => {
+      setTargets(r.targets || []);
+      setFirst(r.firstHop || []);
+      // the next free number of the numbering the console defined (its own counter, prefix, year and pattern)
+      setNum(nextFreeLetter({ ...defaultInternalNumbering(), ...(settings.internalNumbering || {}) }, r.numbers || []));
+    }).catch(() => {});
+  }, [settings.internalNumbering]);
   const send = async () => {
     setErr('');
     if (!toId) return setErr('گیرندهٔ نامه را انتخاب کنید.');
@@ -254,7 +304,7 @@ const Compose: React.FC<{ resend?: InternalLetter; onClose: () => void; onDone: 
     setBusy(true);
     try {
       if (resend) await api.icResend(resend.id, { subject, body, toId });
-      else await api.icCreate({ subject, body, toId });
+      else await api.icCreate({ subject, body, toId, ...(num ? { number: num.number, counter: num.n } : {}) });
       onDone();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'ارسال نشد.');
@@ -276,6 +326,7 @@ const Compose: React.FC<{ resend?: InternalLetter; onClose: () => void; onDone: 
             <PersonPicker title="گیرندهٔ نامه" items={targets.map((p) => ({ id: p.id, name: p.name, sub: p.sub }))} value={toId} onChange={setToId} placeholder="انتخاب گیرنده…" />
             {first.length > 0 && <p className="text-[10.5px] font-bold text-[#8C6F66] mt-1.5 leading-5">طبق چارت سازمانی نامه اول نزد «{first[0]}» می‌رود و او آن را بالا می‌فرستد.</p>}
           </div>
+          {!resend && num && <div className="text-[11px] font-black text-[#6E1B1B]" data-ic-number>شمارهٔ نامه: {toPersianDigits(num.number)}</div>}
           <div>
             <div className="text-[11px] font-black text-[#3A241F] mb-1.5">موضوع</div>
             <input className={field} value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} />
