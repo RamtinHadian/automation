@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, ArchiveRestore, FileDown, Printer, ArrowRight, CheckCircle2, Share2, UserCheck, CornerUpLeft, Eye, FilePlus2, History, Inbox, Network, Reply, Send, Undo2, X } from 'lucide-react';
+import { Search, Archive, ArchiveRestore, FileDown, Printer, ArrowRight, CheckCircle2, Share2, UserCheck, CornerUpLeft, Eye, FilePlus2, History, Inbox, Network, Reply, Send, Undo2, X } from 'lucide-react';
 import { api, ChainPerson, InternalLetter, InternalLetterEvent } from '../../lib/api';
 import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import { SignaturePadDialog } from '../common/SignaturePad';
@@ -42,13 +42,69 @@ const ACTION: Record<InternalLetterEvent['action'], { t: string; c: string }> = 
   ACTED: { t: 'اقدام را انجام‌شده اعلام کرد', c: '#059669' },
 };
 
+// Persian / Arabic letters and digits are the same for the search; the half-space and extra spaces are ignored
+const norm = (t: string) =>
+  (t || '')
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[\u200c\u200f\u200e]/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .trim();
+
+const escRe = (c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** a pattern that finds the word whatever Persian / Arabic form of the letters and digits the text was written in */
+const wordRe = (w: string) =>
+  new RegExp(
+    Array.from(w)
+      .map((c) => {
+        if ('یيى'.includes(c)) return '[یيى]';
+        if ('کك'.includes(c)) return '[کك]';
+        const d = '0123456789'.indexOf(c);
+        if (d >= 0) return `[${d}${'۰۱۲۳۴۵۶۷۸۹'[d]}${'٠١٢٣٤٥٦٧٨٩'[d]}]`;
+        return escRe(c);
+      })
+      .join('[\\u200c]?'),
+    'i'
+  );
+
+const Marked: React.FC<{ text: string; words: string[] }> = ({ text, words }) => {
+  if (!words.length) return <>{text}</>;
+  const re = new RegExp('(' + words.map((w) => wordRe(w).source).join('|') + ')', 'ig');
+  const parts = text.split(re);
+  return (
+    <>
+      {parts.map((p, i) => (i % 2 === 1 ? <mark key={i} className="bg-amber-200 text-[#3A241F] rounded px-0.5">{p}</mark> : <React.Fragment key={i}>{p}</React.Fragment>))}
+    </>
+  );
+};
+
+/** a short piece of the letter's text around the first word found */
+const snippet = (body: string, words: string[]): string => {
+  const flat = (body || '').replace(/\s+/g, ' ');
+  for (const w of words) {
+    const m = wordRe(w).exec(flat);
+    if (m) {
+      const a = Math.max(0, m.index - 40);
+      return (a > 0 ? '… ' : '') + flat.slice(a, m.index + w.length + 90) + (m.index + w.length + 90 < flat.length ? ' …' : '');
+    }
+  }
+  return '';
+};
+
 const when = (iso: string) => formatCurrentJalaliDateTime(new Date(iso));
 
 /** «مکاتبات داخلی»: letters between the people of the company that climb the organisation chart (employee → unit manager → peer manager / managing director), each with its full history. */
 export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> = ({ onUnread }) => {
   const { currentUser } = useAppContext();
   const auditor = !!currentUser.canSignOfficialLetters || currentUser.role === 'SUPER_ADMIN'; // only the top administrator and the managing director see every letter
-  const [box, setBox] = useState<'inbox' | 'sent' | 'referred' | 'archive' | 'involved' | 'all'>('inbox');
+  const [box, setBox] = useState<'mine' | 'inbox' | 'sent' | 'referred' | 'archive' | 'involved' | 'all'>('mine');
+  const [q, setQ] = useState('');
+  const [mineAll, setMineAll] = useState<InternalLetter[]>([]);
+  const qRef = useRef('');
+  qRef.current = q;
   const [referredCount, setReferredCount] = useState(0);
   const [list, setList] = useState<InternalLetter[]>([]);
   const [open, setOpen] = useState<InternalLetter | null>(null);
@@ -60,9 +116,15 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
       setList(r.letters);
       if (box === 'inbox') onUnread?.(r.letters.filter((l) => !l.read).length);
       if (box === 'referred') setReferredCount(r.letters.length);
+      if (box === 'mine') setMineAll(r.letters);
       setOpen((cur) => (cur ? r.letters.find((l) => l.id === cur.id) || cur : cur));
     }).catch(() => setList([]));
+    // the search looks in every letter of the person, whichever tab is open
+    if (qRef.current.trim() && box !== 'mine') api.icList('mine').then((r) => setMineAll(r.letters)).catch(() => {});
   }, [box, onUnread]);
+  useEffect(() => {
+    if (q.trim()) api.icList('mine').then((r) => setMineAll(r.letters)).catch(() => {});
+  }, [q]);
   useEffect(() => { load(); }, [load]);
   // letters move while somebody else works on them
   useEffect(() => {
@@ -72,6 +134,7 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
   useEffect(() => {
     api.icOptions().then((r) => setRoute(r.firstHop || [])).catch(() => setRoute([]));
     api.icList('referred').then((r) => setReferredCount(r.letters.length)).catch(() => {});
+    api.icList('inbox').then((r) => onUnread?.(r.letters.filter((l) => !l.read).length)).catch(() => {});
   }, []);
 
   const show = (l: InternalLetter) => {
@@ -79,7 +142,23 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
     if (!l.read && l.people.includes(currentUser.id)) api.icRead(l.id).then(load).catch(() => {});
   };
 
-  const boxes: [typeof box, string][] = [['inbox', 'دریافتی (نزد من)'], ['referred', referredCount > 0 ? `ارجاع‌شده به من (${toPersianDigits(referredCount)})` : 'ارجاع‌شده به من'], ['sent', 'نوشته‌های من'], ['archive', 'بایگانی'], ['involved', 'از دست من گذشته'], ...(auditor ? ([['all', 'همهٔ مکاتبات']] as [typeof box, string][]) : [])];
+  // after acting, referring or archiving, the letter goes back to the page of all letters
+  const leave = () => {
+    setOpen(null);
+    if (box === 'mine') load();
+    else setBox('mine');
+  };
+  const words = useMemo(() => norm(q).split(' ').filter(Boolean), [q]);
+  const found = useMemo(() => {
+    if (!words.length) return [];
+    return mineAll.filter((l) => {
+      const hay = norm([l.number, l.subject, l.body, l.senderName, l.toName].join(' '));
+      return words.every((w) => hay.includes(w));
+    });
+  }, [words, mineAll]);
+  const searching = words.length > 0;
+  const shown = searching ? found : list;
+  const boxes: [typeof box, string][] = [['mine', 'همهٔ نامه‌ها'], ['inbox', 'دریافتی (نزد من)'], ['referred', referredCount > 0 ? `ارجاع‌شده به من (${toPersianDigits(referredCount)})` : 'ارجاع‌شده به من'], ['sent', 'نوشته‌های من'], ['archive', 'بایگانی'], ['involved', 'از دست من گذشته'], ...(auditor ? ([['all', 'همهٔ مکاتبات']] as [typeof box, string][]) : [])];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4" dir="rtl" data-internal-letters>
@@ -95,6 +174,22 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
         </button>
       </div>
 
+      <div className="relative" data-ic-search>
+        <Search className="w-4 h-4 text-[#8C6F66] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="جستجو در شمارهٔ نامه، عنوان و متن نامه‌ها (نام نویسنده و گیرنده هم)…"
+          className="w-full pr-10 pl-10 py-3 bg-white border border-[#EBDBCE] rounded-2xl text-xs font-bold text-[#3A241F] focus:ring-2 focus:ring-amber-300/50 focus:border-amber-500 focus:outline-none"
+          aria-label="جستجوی نامه"
+        />
+        {q && (
+          <button type="button" onClick={() => setQ('')} className="absolute left-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg hover:bg-[#FAF5F1] flex items-center justify-center cursor-pointer" aria-label="پاک کردن جستجو"><X className="w-4 h-4 text-[#8C6F66]" /></button>
+        )}
+      </div>
+      {searching && <div className="text-[11px] font-black text-[#6E1B1B]" data-ic-search-count>{found.length ? `${toPersianDigits(found.length)} نامه پیدا شد` : 'نامه‌ای با این مشخصات پیدا نشد'} <span className="font-medium text-[#8C6F66]">(در همهٔ نامه‌های شما، بایگانی‌شده‌ها هم)</span></div>}
+
       <div className="rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3 text-[11px] leading-6 font-bold text-[#6B4F47] flex items-start gap-2" data-ic-chain>
         <Network className="w-4 h-4 text-[#6E1B1B] shrink-0 mt-1" />
         <div>
@@ -106,20 +201,22 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
         </div>
       </div>
 
-      {list.length === 0 ? (
+      {shown.length === 0 && !searching ? (
         <div className="rounded-2xl border border-dashed border-[#EBDBCE] p-10 text-center text-xs font-bold text-[#8C6F66]" data-ic-empty>
           <Inbox className="w-8 h-8 mx-auto mb-2 text-[#C9B8AE]" />
-          {box === 'inbox' ? 'نامهٔ داخلی‌ای نزد شما نیست.' : box === 'referred' ? 'ارجاع بازی برای شما نیست.' : box === 'archive' ? 'بایگانی شما خالی است.' : box === 'sent' ? 'هنوز نامهٔ داخلی ننوشته‌اید.' : 'موردی نیست.'}
+          {box === 'mine' ? 'هنوز نامهٔ داخلی‌ای ندارید.' : box === 'inbox' ? 'نامهٔ داخلی‌ای نزد شما نیست.' : box === 'referred' ? 'ارجاع بازی برای شما نیست.' : box === 'archive' ? 'بایگانی شما خالی است.' : box === 'sent' ? 'هنوز نامهٔ داخلی ننوشته‌اید.' : 'موردی نیست.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          {list.map((l) => (
+          {shown.map((l) => (
             <button key={l.id} type="button" onClick={() => show(l)} className={`text-right rounded-2xl border p-4 bg-white hover:shadow-md hover:border-[#C98B6A] transition-all cursor-pointer ${!l.read && l.people.includes(currentUser.id) ? 'border-amber-300 bg-amber-50/40' : 'border-[#EBDBCE]'}`} data-ic-card>
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-black text-[#3A241F] truncate">{l.subject}</div>
+                  <div className="text-[13px] font-black text-[#3A241F] truncate"><Marked text={l.subject} words={searching ? words : []} /></div>
                   <div className="text-[11px] font-bold text-[#8C6F66] mt-0.5">از {l.senderName}{l.senderDept ? ` (${l.senderDept})` : ''} ← به {l.toName}</div>
-                  <div className="text-[10.5px] font-bold text-[#A8928B] mt-0.5">شمارهٔ {toPersianDigits(l.number)} · {when(l.createdAt)}</div>
+                  <div className="text-[10.5px] font-bold text-[#A8928B] mt-0.5">شمارهٔ <Marked text={toPersianDigits(l.number)} words={searching ? words : []} /> · {when(l.createdAt)}</div>
+                  {searching && snippet(l.body, words) && <div className="text-[11px] font-medium text-[#6B4F47] mt-1 leading-6"><Marked text={snippet(l.body, words)} words={words} /></div>}
+                  {l.archived && <div className="inline-block text-[10px] font-black text-slate-700 bg-slate-100 border border-slate-300 rounded-full px-2 py-0.5 mt-1">بایگانی شده</div>}
                   {(l.referrals || []).some((x) => x.toId === currentUser.id && x.status === 'PENDING') && <div className="text-[10.5px] font-black text-violet-700 mt-1">به شما ارجاع شده، منتظر اقدام</div>}
                   {l.status !== 'DELIVERED' && <div className="text-[10.5px] font-black text-[#6E1B1B] mt-1">الان نزد: {l.holderName}</div>}
                 </div>
@@ -130,13 +227,13 @@ export const InternalLettersView: React.FC<{ onUnread?: (n: number) => void }> =
         </div>
       )}
 
-      {open && <Detail letter={open} onClose={() => setOpen(null)} onChanged={load} onEdit={() => { setCompose(open); }} onArchived={(to) => { setOpen(null); setBox(to ? 'archive' : 'inbox'); if (box === (to ? 'archive' : 'inbox')) load(); }} />}
+      {open && <Detail letter={open} onClose={() => setOpen(null)} onChanged={load} onEdit={() => { setCompose(open); }} onLeave={leave} />}
       {compose && <Compose resend={compose === 'new' ? undefined : compose} onClose={() => setCompose(null)} onDone={() => { setCompose(null); setOpen(null); setBox(compose === 'new' ? 'sent' : box); load(); }} />}
     </div>
   );
 };
 
-const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged: () => void; onEdit: () => void; onArchived: (nowArchived: boolean) => void }> = ({ letter, onClose, onChanged, onEdit, onArchived }) => {
+const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged: () => void; onEdit: () => void; onLeave: () => void }> = ({ letter, onClose, onChanged, onEdit, onLeave }) => {
   const { currentUser, settings } = useAppContext();
   const holder = letter.holderId === currentUser.id;
   const [fwd, setFwd] = useState<ChainPerson[]>([]);
@@ -183,7 +280,7 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
     setErr('');
     try {
       await api.icArchive(letter.id, to);
-      onArchived(to);
+      onLeave();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'بایگانی انجام نشد.');
     } finally {
@@ -211,7 +308,7 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
   }, [onClose]);
   const history = letter.history || [];
 
-  const run = async (fn: () => Promise<unknown>) => {
+  const run = async (fn: () => Promise<unknown>, leaves = false) => {
     setBusy(true);
     setErr('');
     try {
@@ -222,7 +319,8 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
       setReferTo([]);
       setParaph('');
       setAiList([]);
-      onChanged();
+      if (leaves) onLeave();
+      else onChanged();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'انجام نشد.');
     } finally {
@@ -341,14 +439,14 @@ const Detail: React.FC<{ letter: InternalLetter; onClose: () => void; onChanged:
                     </div>
                   )}
                   <textarea className={`${field} min-h-[70px]`} placeholder="متن پاراف (از قالب‌ها یا پیشنهاد هوشمند انتخاب کنید یا خودتان بنویسید)" value={note} onChange={(e) => setNote(e.target.value)} />
-                  <button type="button" disabled={busy || referTo.length === 0 || (!paraph && !note.trim())} onClick={() => run(() => api.icRefer(letter.id, { toIds: referTo, note, ...(paraph ? { paraph } : {}) }))} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><Share2 className="w-4 h-4" />ارجاع به {toPersianDigits(referTo.length)} نفر</button>
+                  <button type="button" disabled={busy || referTo.length === 0 || (!paraph && !note.trim())} onClick={() => run(() => api.icRefer(letter.id, { toIds: referTo, note, ...(paraph ? { paraph } : {}) }), true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><Share2 className="w-4 h-4" />ارجاع به {toPersianDigits(referTo.length)} نفر</button>
                 </div>
               )}
               {paraphOpen && <SignaturePadDialog title="پاراف ارجاع" onClose={() => setParaphOpen(false)} onSave={(u) => { setParaph(u); setParaphOpen(false); }} />}
               {mode === 'acted' && (
                 <div className="space-y-2">
                   <textarea className={`${field} min-h-[70px]`} placeholder="نتیجهٔ اقدام (اختیاری)" value={note} onChange={(e) => setNote(e.target.value)} />
-                  <button type="button" disabled={busy} onClick={() => run(() => api.icActed(letter.id, { note }))} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><UserCheck className="w-4 h-4" />اقدام انجام شد</button>
+                  <button type="button" disabled={busy} onClick={() => run(() => api.icActed(letter.id, { note }), true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black disabled:opacity-50 cursor-pointer"><UserCheck className="w-4 h-4" />اقدام انجام شد</button>
                 </div>
               )}
               {mode === 'return' && (

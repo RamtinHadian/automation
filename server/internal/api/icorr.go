@@ -715,6 +715,8 @@ func icList(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Query().Get("box") {
 	case "sent":
 		q = `SELECT data FROM internal_letters WHERE sender_id = $1` + notArchived + ` ORDER BY updated_at DESC LIMIT 300`
+	case "mine": // every letter I am part of, archived ones too (the page of all letters and the search)
+		q = `SELECT data FROM internal_letters WHERE $1 = ANY(people) ORDER BY updated_at DESC LIMIT 1000`
 	case "referred": // letters referred to me that I have not acted on yet
 		q = `SELECT data FROM internal_letters WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(data->'referrals','[]'::jsonb)) r WHERE r->>'toId' = $1 AND r->>'status' = 'PENDING')` + notArchived + ` ORDER BY updated_at DESC LIMIT 300`
 	case "involved":
