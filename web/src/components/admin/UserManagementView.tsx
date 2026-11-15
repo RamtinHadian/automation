@@ -144,8 +144,15 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       canUseWarehouse: newForm.canUseWarehouse,
       extension: (newForm.extension || '').trim(),
       extensions: (newForm.extensions || []).map((x) => x.trim()).filter(Boolean),
-      ...(newForm.agentOwnerId ? { extra: { agentOwnerId: newForm.agentOwnerId } } : {}),
-      ...(newForm.isAgent ? { extra: { isAgent: true, agentContactIds: newForm.agentContactIds || [], hiddenSub: newForm.hiddenSub || [], canSeeTeamCrm: false } } : {}),
+      ...(newForm.agentOwnerId || newForm.isAgent || newForm.signatureUrl
+        ? {
+            extra: {
+              ...(newForm.agentOwnerId ? { agentOwnerId: newForm.agentOwnerId } : {}),
+              ...(newForm.isAgent ? { isAgent: true, agentContactIds: newForm.agentContactIds || [], hiddenSub: newForm.hiddenSub || [], canSeeTeamCrm: false } : {}),
+              ...(newForm.signatureUrl ? { signatureUrl: newForm.signatureUrl } : {}),
+            },
+          }
+        : {}),
     });
 
     if (newForm.canSignOfficialLetters) afterCeoChange();

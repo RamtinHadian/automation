@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { PersonPickerMulti, staffItems } from '../common/PersonPicker';
 import { api } from '../../lib/api';
-import { Award, BarChart3, Megaphone, ClipboardList, FileCheck, HardDrive, KeyRound, Lock, Phone, MessageSquare, Warehouse, ShieldCheck, Smartphone, UserPlus, Users, X } from 'lucide-react';
+import { SignatureField } from '../common/SignaturePad';
+import { PenTool, Award, BarChart3, Megaphone, ClipboardList, FileCheck, HardDrive, KeyRound, Lock, Phone, MessageSquare, Warehouse, ShieldCheck, Smartphone, UserPlus, Users, X } from 'lucide-react';
 import { Department, UserRole } from '../../types';
 import { toPersianDigits } from '../../lib/jalali';
 
@@ -31,6 +32,8 @@ export interface UserForm {
   taskArchiveDays?: number;
   canSignOfficialLetters?: boolean;
   canSendOfficialLetters?: boolean;
+  /** the person's sample signature (a small transparent PNG), drawn with a pen or uploaded */
+  signatureUrl?: string;
   extension?: string;
   /** more extensions of the same person, besides the main one */
   extensions?: string[];
@@ -249,6 +252,14 @@ export const UserEditorDialog: React.FC<Props> = ({ mode, form, set, departments
                 <span className="text-[#6E1B1B]">{toPersianDigits(form.storageQuotaGB)} گیگابایت</span>
               </div>
               <input type="range" min={10} max={quotaMax} step={mode === 'add' ? 5 : 10} value={form.storageQuotaGB} onChange={(e) => set({ storageQuotaGB: parseInt(e.target.value) })} className="w-full accent-[#6E1B1B] cursor-pointer" />
+            </div>
+            <div className="rounded-2xl bg-[#FAF5F1] border border-dashed border-[#C98B6A] p-3 space-y-2" data-user-signature>
+              <div className="flex items-center gap-1.5 text-[11px] font-black text-[#3A241F]">
+                <PenTool className="w-3.5 h-3.5 text-[#6E1B1B]" />
+                نمونه امضای این فرد
+              </div>
+              <p className="text-[10px] text-[#8C6F66] leading-4">همین‌جا با قلم دیجیتال یا انگشت امضا بگیرید، یا تصویر اسکن امضا را بارگذاری کنید. با «ثبت» در پایین پنجره ذخیره می‌شود.</p>
+              <SignatureField value={form.signatureUrl} onChange={(v) => set({ signatureUrl: v })} who={form.fullName || 'این فرد'} compact />
             </div>
           </section>
 

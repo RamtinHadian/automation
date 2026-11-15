@@ -26,6 +26,9 @@ export interface User {
   lastLogin: string;
   canSendOfficialLetters?: boolean;
   canSignOfficialLetters?: boolean;
+  /** the person's sample signature (small transparent PNG); only administrators and the person receive the image, the others get hasSignature */
+  signatureUrl?: string;
+  hasSignature?: boolean;
   /** Access to the task-management menu (super/department admins always have it). */
   canUseTasks?: boolean;
   /** after how many days a finished task made by this person goes to the archive by itself (empty = the company's number, 0 = never) */

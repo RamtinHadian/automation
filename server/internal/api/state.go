@@ -10,6 +10,23 @@ import (
 	"automation/server/internal/store"
 )
 
+// hideSignatures keeps the sample signatures of the staff out of what every employee receives: only administrators and the
+// person themself get the image; everybody else just learns that one exists (hasSignature).
+func hideSignatures(me auth.User, staff []jsonx.M) {
+	if me.IsAdmin() {
+		return
+	}
+	for _, u := range staff {
+		if jsonx.Str(u, "signatureUrl") == "" {
+			continue
+		}
+		if jsonx.Str(u, "id") != me.ID() {
+			delete(u, "signatureUrl")
+			u["hasSignature"] = true
+		}
+	}
+}
+
 // state returns everything the signed-in user may see in one request. Regular users only get their own
 // transfers, tasks and reports; admins get all of them.
 func state(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +58,7 @@ func state(w http.ResponseWriter, r *http.Request) {
 		staff = append(staff, auth.FromRow(uid, email, data))
 	}
 	urows.Close()
+	hideSignatures(me, staff)
 	if me.Isolated() { // a representative or his employee sees himself, the people named for him and the managing director only
 		staff = agentVisibleStaff(me, staff)
 	}
@@ -184,6 +202,7 @@ func statsData(w http.ResponseWriter, r *http.Request) {
 		staff = append(staff, auth.FromRow(uid, email, data))
 	}
 	urows.Close()
+	hideSignatures(auth.Current(r), staff)
 	out := map[string]any{"staff": staff}
 	for key, q := range map[string]string{
 		"transfers": `SELECT data FROM transfers ORDER BY created_at DESC`,

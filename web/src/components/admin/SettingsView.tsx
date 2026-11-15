@@ -3,6 +3,7 @@ import { ClockFace, CLOCK_COUNT, designName } from '../common/AnalogClock';
 import React, { useState, useRef, useEffect } from 'react';
 import { ProformaIssuersCard } from './ProformaIssuersCard';
 import { askConfirm } from '../../lib/confirmDialog';
+import { SignatureField } from '../common/SignaturePad';
 import { LoginDesignCard } from './LoginDesignCard';
 import { LoginImagesCard } from './LoginImagesCard';
 import { DEFAULT_SIGNATURE_HEIGHT, MIN_SIGNATURE_HEIGHT, MAX_SIGNATURE_HEIGHT } from '../../lib/letterDefaults';
@@ -245,7 +246,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showFontModal, setShowFontModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
 
-  const sigInputRef = useRef<HTMLInputElement>(null);
   const stampInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -291,16 +291,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const applyImage = (key: 'ceoSignatureUrl' | 'companyStampUrl', value: string | undefined) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
     onSaveSettings({ ...initialSettings, [key]: value });
-  };
-
-  const handleSignatureUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        applyImage('ceoSignatureUrl', e.target?.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleStampUpload = (file: File) => {
@@ -909,53 +899,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2 border-t border-[#EBDBCE]/60">
           {/* 1. CEO Signature Box */}
           <div className="space-y-3 bg-[#FAF5F1] p-4 rounded-2xl border border-dashed border-[#C98B6A] flex flex-col items-center justify-between text-center">
-            <input
-              type="file"
-              ref={sigInputRef}
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) handleSignatureUpload(e.target.files[0]);
-              }}
-            />
             <div className="space-y-1">
-              <span className="font-black text-xs text-[#3A241F] block">تصویر اسکن امضای مدیرعامل (PNG شفاف)</span>
-              <p className="text-[10px] text-[#8C6F66]">
-                برای جلوه طبیعی، تصویر امضا با زمینه شفاف (Transparent PNG) بارگذاری شود
-              </p>
+              <span className="font-black text-xs text-[#3A241F] block">امضای مدیرعامل</span>
+              <p className="text-[10px] text-[#8C6F66]">همین‌جا با قلم دیجیتال یا انگشت امضا بگیرید، یا تصویر اسکن امضا را بارگذاری کنید (زمینهٔ سفید خودکار شفاف می‌شود). با انتخاب، بی‌درنگ ذخیره می‌شود.</p>
             </div>
-
-            <div className="h-28 w-full bg-white rounded-xl border border-[#EBDBCE] flex items-center justify-center p-2 relative overflow-hidden shadow-2xs">
-              {settings.ceoSignatureUrl ? (
-                <img
-                  src={settings.ceoSignatureUrl}
-                  alt="امضای مدیرعامل"
-                  className="max-h-full max-w-full object-contain mix-blend-multiply"
-                />
-              ) : (
-                <span className="text-[11px] text-gray-400 font-bold">هنوز امضایی بارگذاری نشده است</span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 w-full justify-center">
-              <button
-                type="button"
-                onClick={() => sigInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#6E1B1B] hover:bg-[#D34A32] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>{settings.ceoSignatureUrl ? 'تغییر اسکن امضا' : 'بارگذاری اسکن امضا'}</span>
-              </button>
-              {settings.ceoSignatureUrl && (
-                <button
-                  type="button"
-                  onClick={async () => (await askConfirm('امضای اسکن‌شدهٔ مدیرعامل حذف شود؟ نامه‌های بعدی بدون امضا صادر می‌شوند.', { confirmText: 'بله، امضا حذف شود' })) && applyImage('ceoSignatureUrl', undefined)}
-                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                  title="حذف امضا"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
+            <div className="w-full">
+              <SignatureField value={settings.ceoSignatureUrl} onChange={(v) => applyImage('ceoSignatureUrl', v)} who="مدیرعامل" />
             </div>
           </div>
 
