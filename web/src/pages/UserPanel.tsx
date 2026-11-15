@@ -16,6 +16,9 @@ import { LeaveView } from '../components/leave/LeaveView';
 import { LetterDownloadMenu } from '../components/letters/LetterExportButtons';
 import { OrdersView } from '../components/orders/OrdersView';
 import { InternalLettersView } from '../components/letters/InternalLettersView';
+import { SideMenu, TopMenu } from '../components/common/SideMenu';
+import { MENU_TONES, MENU_TONE_KEY, MENU_SOUND_KEY, loadMenuTone, menuToneVars } from '../lib/menuTone';
+import { menuSoundOn, playMenuPop } from '../lib/menuSound';
 import { BoardView } from '../components/board/BoardView';
 import { BannerStrip } from '../components/board/BannerStrip';
 import { CrmView } from '../components/crm/CrmView';
@@ -94,6 +97,7 @@ import {
   Phone,
   ChevronUp,
   Network,
+  PanelRight,
 } from 'lucide-react';
 import { CrmActivity, Customer, Deal, FileCategory, FileTransfer, LetterFx, LetterReferral } from '../types';
 import { formatBytes, getFileCategory } from '../lib/utils';
@@ -148,6 +152,45 @@ export default function UserPanel() {
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
   const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders' | 'minutes' | 'orders'>('files');
   const [ordersUnread, setOrdersUnread] = useState(0);
+  // the vertical menu layout is off until a person switches it on (kept in this browser)
+  const [sideMenu, setSideMenu] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('menu_layout') === 'side';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('menu_layout', sideMenu ? 'side' : 'top');
+    } catch {
+      /* storage unavailable */
+    }
+  }, [sideMenu]);
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine)');
+    const on = () => setWide(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  const sideOn = sideMenu && wide;
+  const [menuTone, setMenuTone] = useState(loadMenuTone);
+  const [menuSound, setMenuSound] = useState(menuSoundOn);
+  useEffect(() => {
+    try {
+      localStorage.setItem(MENU_SOUND_KEY, menuSound ? 'on' : 'off');
+    } catch {
+      /* storage unavailable */
+    }
+  }, [menuSound]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(MENU_TONE_KEY, menuTone);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [menuTone]);
   const [letterSub, setLetterSub] = useState<'official' | 'internal'>('official');
   const [icUnread, setIcUnread] = useState(0);
   const [chatPeer, setChatPeer] = useState('');
@@ -869,7 +912,8 @@ export default function UserPanel() {
       dir="rtl"
     >
       <ReminderPopup />
-      <div className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 h-full">
+      <div data-menu-side={sideOn ? 'on' : 'off'} data-menu-tone={menuTone} style={wide ? menuToneVars(menuTone) : undefined} className="w-full max-w-none bg-white rounded-none sm:rounded-2xl shadow-2xl overflow-hidden border border-[#C98B6A]/30 flex flex-col min-h-0 h-full">
+      {sideOn && <SideMenu onLogout={logout} />}
       {/* The window never scrolls: only this area does. On a computer the header and the main menu stay pinned at its top (the sub-menus of every
           page pin themselves right under them, see data-subtabs in index.css); on a phone the main menu is the bottom bar and the header scrolls away. */}
       {/* phone: a solid strip as tall as the status bar / notch, so the content that scrolls under it is not shown through iOS's blurred status bar (the dark haze at the top) */}
@@ -878,7 +922,7 @@ export default function UserPanel() {
 
         {/* Top Header */}
         <div className="max-sm:hidden"><BannerStrip /></div>
-        <div ref={shellPinRef} className="sm:sticky sm:top-0 sm:z-30 bg-[#FAF5F1] shrink-0">
+        <div ref={shellPinRef} data-shell-pin className="sm:sticky sm:top-0 sm:z-30 bg-[#FAF5F1] shrink-0">
         <header className="px-4 sm:px-8 py-3.5 sm:py-4 max-sm:pt-[calc(1.25rem+env(safe-area-inset-top,0px))] bg-[#FAF5F1] border-b border-[#EBDBCE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
 {clockPref.enabled && <div className="max-sm:hidden"><AnalogClock design={clockPref.design ?? 0} size={62} /></div>}
@@ -926,6 +970,17 @@ export default function UserPanel() {
               <span className="hidden sm:inline">رنگبندی</span>
             </button>
             <ClockPref />
+            <button
+              type="button"
+              onClick={() => setSideMenu((v) => !v)}
+              title={sideMenu ? 'برگشتن به منوی افقی بالای صفحه' : 'منوی عمودی در سمت راست (منوی اصلی و زیرمنوها)'}
+              aria-pressed={sideMenu}
+              data-side-toggle
+              className={`p-2 sm:p-2.5 border rounded-2xl shadow-2xs transition-all cursor-pointer items-center gap-1.5 text-xs font-bold ${sideMenu ? 'bg-[#6E1B1B] text-white border-[#6E1B1B]' : 'bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border-[#EBDBCE]'}`}
+            >
+              <PanelRight className="w-4 h-4" />
+              <span className="hidden sm:inline">منوی عمودی</span>
+            </button>
 
             {(currentUser.role === 'SUPER_ADMIN') && (
               <button
@@ -977,8 +1032,9 @@ export default function UserPanel() {
         </header>
 
         {/* PRIMARY MENU NAVIGATION: 'ارسال فایل' vs 'نامه' */}
-        <div className="bg-[#FAF5F1] px-4 sm:px-8 py-2.5 sm:py-3 border-b border-[#EBDBCE] flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1 sm:mx-0 sm:px-0">
+        {wide && !sideOn && <TopMenu />}
+        <div data-main-menu-bar className="bg-[#FAF5F1] px-4 sm:px-8 py-2.5 sm:py-3 border-b border-[#EBDBCE] flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+          <div data-main-menu className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1 sm:mx-0 sm:px-0">
 
             {/* Menu 1: ارسال فایل */}
             <button
@@ -2322,7 +2378,42 @@ export default function UserPanel() {
               </button>
             </div>
 
-            <ThemeSelector onPicked={() => setShowThemeModal(false)} />
+            <div className="max-lg:hidden rounded-2xl border border-[#EBDBCE] bg-[#FDFAF7] p-3.5 space-y-2.5" data-menu-tone-picker>
+              <div className="text-[12px] font-black text-[#3A241F]">رنگ منوی عمودی <span className="font-medium text-[#8C6F66]">(زیرمنوها کمی تیره‌تر از ستون منو هستند؛ با انتخاب یک رنگ از پالت سایت در پایین، منو هم‌رنگ آن می‌شود)</span></div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                {MENU_TONES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setMenuTone(t.id)}
+                    aria-pressed={menuTone === t.id}
+                    className={`rounded-2xl border p-2 flex flex-col items-center gap-1.5 cursor-pointer transition-all ${menuTone === t.id ? 'border-[#6E1B1B] ring-2 ring-[#6E1B1B]/20 bg-white' : 'border-[#EBDBCE] bg-white hover:border-[#C98B6A]'}`}
+                  >
+                    <span className="flex h-9 w-full overflow-hidden rounded-lg border border-black/5" dir="rtl">
+                      <span className="w-1/3" style={{ background: t.main }} />
+                      <span className="w-2/3" style={{ background: t.deep }} />
+                    </span>
+                    <span className="text-[11px] font-black text-[#3A241F] text-center leading-4">{t.name}</span>
+                  </button>
+                ))}
+              </div>
+              <label className="flex items-center gap-2.5 rounded-xl border border-[#EBDBCE] bg-white px-3 py-2.5 cursor-pointer" data-menu-sound-switch>
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 accent-[#6E1B1B] cursor-pointer"
+                  checked={menuSound}
+                  onChange={(e) => {
+                    setMenuSound(e.target.checked);
+                    if (e.target.checked) window.setTimeout(playMenuPop, 30);
+                  }}
+                />
+                <span className="text-[11.5px] font-black text-[#3A241F]">صدای پاپ ریز هنگام رفتن به هر زیرمنو</span>
+                <span className="text-[10.5px] font-medium text-[#8C6F66]">(خاموش و روشن)</span>
+              </label>
+              <div className="text-[10.5px] font-medium text-[#8C6F66]">فقط وقتی «منوی عمودی» روشن است، روی کامپیوتر دیده می‌شود.</div>
+            </div>
+
+            <ThemeSelector onPicked={() => { setMenuTone('theme'); setShowThemeModal(false); }} />
           </div>
         </div>
       )}

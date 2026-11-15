@@ -475,3 +475,326 @@ html.heavy-modal *:not([data-keep-anim]):not([data-keep-anim] *) { animation-pla
 /* a form opened in design mode (console ← فرم‌ها): every row of fields becomes two columns, so the bars under the narrow fields do not overlap */
 form[data-fc-design] [data-deal-cards] .grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 form[data-fc-design] [data-design-bar] { flex-wrap: wrap; }
+
+
+/* =========================================================
+   VERTICAL MENU LAYOUT (optional, chosen per person in the header; see components/common/SideMenu.tsx)
+   Only on a computer (wide screen with a mouse): a phone or a tablet never gets it.
+   Main menus in a slim rail on the right edge, the open menu's sub-menus in a panel on its left, the open sub-menu a light tab melting into the page.
+   The colours follow the site's palette (the theme chosen in «رنگبندی»).
+   ========================================================= */
+.side-menu { display: none; }
+[data-side-toggle] { display: none !important; }
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  [data-side-toggle] { display: flex !important; }
+  [data-menu-side='on'] {
+    --side-rail: 56px;
+    --side-panel: 178px;
+    /* the menu colours (grey by default; the other choices are set by data-menu-tone below) */
+    --side-main: #6B7280;
+    --side-deep: #4B5563;
+    --side-fg: #fff;
+    --side-fg-soft: rgba(255, 255, 255, 0.9);
+    --side-hov: rgba(255, 255, 255, 0.14);
+    --side-act-bg: rgba(255, 255, 255, 0.24);
+    --side-ind: #fff;
+    --side-active-fg: #374151;
+    --side-bg: var(--theme-light-bg, #FAF5F1);
+    --side-accent: var(--theme-secondary, #D34A32);
+    position: relative;
+    border-radius: 22px !important;
+  }
+  [data-menu-side='on'] [data-main-menu-bar] { display: none !important; }
+  [data-menu-side='on'] [data-side-moved] { display: none !important; }
+  [data-menu-side='on'] [data-app-scroll] {
+    padding-right: calc(var(--side-rail) + var(--side-panel));
+    background: var(--side-bg);
+  }
+  /* the header stays solid (the page scrolls under it), in the page's own colour */
+  [data-menu-side='on'] [data-shell-pin],
+  [data-menu-side='on'] [data-shell-pin] header { background-color: var(--side-bg) !important; }
+  [data-menu-side='on'] .side-menu {
+    display: flex;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: calc(var(--side-rail) + var(--side-panel));
+    z-index: 45;
+  }
+  .side-rail {
+    width: var(--side-rail);
+    background: var(--side-main);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 18px 0 14px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .side-rail::-webkit-scrollbar { display: none; }
+  .side-rail-item {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    color: var(--side-fg);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .side-rail-item:hover { background: var(--side-hov); }
+  .side-rail-item.is-active { background: var(--side-act-bg); }
+  .side-rail-icon { display: flex; }
+  .side-rail-icon svg { width: 19px; height: 19px; color: var(--side-fg); }
+  .side-rail-label { display: none; }
+  .side-rail-badge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 8px;
+    background: #f43f5e;
+    color: #fff;
+    font-size: 8.5px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--side-main);
+    box-sizing: content-box;
+    transform: translate(-30%, -30%);
+  }
+  .side-rail-out { margin-top: auto; opacity: 0.85; }
+  .side-panel {
+    width: var(--side-panel);
+    background: var(--side-deep);
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .side-panel::-webkit-scrollbar { display: none; }
+  .side-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 22px 18px 18px;
+    color: var(--side-fg);
+    flex-shrink: 0;
+    opacity: 0.95;
+  }
+  .side-panel-icon svg { width: 16px; height: 16px; color: var(--side-fg); opacity: 0.85; }
+  .side-panel-title { font-size: 12.5px; font-weight: 800; letter-spacing: 0; }
+  .side-panel-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  /* the motion: when another main menu is opened its sub-menus slide out from under the rail, one after the other; the open tab grows in */
+  .side-panel-head { animation: side-head-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .side-panel-list > li { animation: side-slide-in 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 38ms + 60ms); }
+  .side-item.is-active { animation: side-tab-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: right center; }
+  .side-rail-item { transition: background 0.15s, transform 0.12s; }
+  .side-rail-item:active { transform: scale(0.92); }
+  @keyframes side-slide-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+  @keyframes side-head-in { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+  @keyframes side-tab-in { from { transform: scaleX(0.82); opacity: 0.4; } to { transform: none; opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+    .side-panel-head, .side-panel-list > li, .side-item.is-active { animation: none !important; }
+  }
+  .side-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: calc(100% - 10px);
+    margin-right: 10px;
+    height: 40px;
+    padding: 0 12px 0 8px;
+    border: 0;
+    background: transparent;
+    color: var(--side-fg-soft);
+    font-size: 12px;
+    font-weight: 800;
+    border-radius: 0 19px 19px 0;
+    cursor: pointer;
+    text-align: right;
+    transition: color 0.15s, background 0.15s;
+  }
+  .side-item:hover { color: var(--side-fg); background: var(--side-hov); }
+  .side-item-icon { display: flex; }
+  .side-item-icon svg { width: 16px; height: 16px; }
+  .side-item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-item-count { font-size: 9.5px; opacity: 0.7; font-weight: 700; }
+  .side-item-badge { background: var(--side-accent); color: #fff; font-size: 9.5px; font-weight: 900; border-radius: 8px; padding: 0 5px; }
+  .side-item.is-active { background: var(--side-bg); color: var(--side-active-fg); }
+  .side-item.is-active:hover { background: var(--side-bg); }
+  .side-item.is-active .side-item-badge { background: var(--side-accent); }
+  .side-item.is-active::before,
+  .side-item.is-active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+  }
+  .side-item.is-active::before { top: -18px; background: radial-gradient(circle at 100% 0, transparent 18px, var(--side-bg) 18.5px); }
+  .side-item.is-active::after { bottom: -18px; background: radial-gradient(circle at 100% 100%, transparent 18px, var(--side-bg) 18.5px); }
+  .side-panel-empty { color: var(--side-fg-soft); font-size: 11px; font-weight: 700; padding: 6px 16px; }
+}
+
+/* A slim header on a computer, with the horizontal menu as well as with the vertical one: one row, no description line, a smaller logo, the buttons
+   as icons (their names stay as tooltips) and a tighter main-menu bar. */
+@media (min-width: 640px) {
+  [data-shell-pin] header { padding-top: 8px !important; padding-bottom: 8px !important; gap: 10px !important; }
+  [data-shell-pin] header p.sm\:block { display: none !important; }
+  [data-shell-pin] header h1 > * { height: 22px !important; }
+  [data-shell-pin] header button:not([aria-label='پنل مدیریت']) .sm\:inline { display: none !important; }
+  [data-shell-pin] header [data-company-name] { margin-top: 0 !important; font-size: 12px !important; }
+  [data-shell-pin] [data-main-menu-bar] { padding-top: 6px !important; padding-bottom: 6px !important; }
+}
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  [data-menu-side='on'] [data-shell-pin] header { padding-right: 20px !important; padding-left: 20px !important; }
+}
+
+/* =========================================================
+   THE HORIZONTAL MENU in the same look (a computer only, when the vertical menu is off; see TopMenu in components/common/SideMenu.tsx):
+   the main menus in a bar, the sub-menus of the open one in a darker bar under it, the open sub-menu a light tab melting into the page.
+   ========================================================= */
+.top-menu { display: none; }
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  [data-menu-side='off'] {
+    --side-main: #6B7280;
+    --side-deep: #4B5563;
+    --side-fg: #fff;
+    --side-fg-soft: rgba(255, 255, 255, 0.9);
+    --side-hov: rgba(255, 255, 255, 0.14);
+    --side-act-bg: rgba(255, 255, 255, 0.24);
+    --side-active-fg: #374151;
+    --side-accent: var(--theme-secondary, #D34A32);
+    --side-bg: var(--theme-light-bg, #FAF5F1);
+  }
+  [data-menu-side='off'] [data-main-menu-bar] { display: none !important; }
+  [data-menu-side='off'] [data-side-moved] { display: none !important; }
+  [data-menu-side='off'] .top-menu { display: block; }
+  .top-menu::after { content: ''; display: block; height: 10px; background: var(--side-bg); }
+  /* ONE size for all the buttons: the width comes from the window only (never from the names or from how many buttons a menu has), so every menu
+     looks the same and nothing jumps when another menu opens. The window is divided for the longest bar (11 main menus, 13 sub-menus); a long name
+     is cut with «…» (the full name is the tooltip); never a scroll bar and never a second row. */
+  .top-menu {
+    --tw: clamp(64px, calc((100vw - 60px) / 13 - 10px), 128px);
+    --tw-main: var(--tw);
+    --tw-sub: var(--tw);
+  }
+  .top-main-wrap { background: var(--side-main); padding: 9px 20px; box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.05); overflow: hidden; }
+  .top-main, .top-sub { display: flex; flex-wrap: nowrap; justify-content: flex-start; }
+  .top-main { gap: 8px; }
+  .top-main-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 0 0 var(--tw-main);
+    width: var(--tw-main);
+    min-width: 0;
+    height: 36px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--side-fg);
+    font-size: clamp(10.5px, 0.55vw + 5px, 12.5px);
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.12s;
+  }
+  .top-main-item:hover { background: var(--side-hov); }
+  .top-main-item:active { transform: scale(0.97); }
+  .top-main-item.is-active { background: var(--side-act-bg); }
+  .top-main-icon { display: flex; flex-shrink: 0; }
+  .top-main-icon svg { width: 16px; height: 16px; color: var(--side-fg); }
+  .top-main-label { overflow: hidden; text-overflow: ellipsis; }
+  .top-main-badge {
+    flex-shrink: 0;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: var(--side-accent);
+    color: #fff;
+    font-size: 9.5px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .top-sub-wrap { background: var(--side-deep); padding: 10px 20px 0; overflow: hidden; }
+  /* on a narrower window the sub-menu icons go first, to give the names room */
+  @media (max-width: 1700px) { .top-sub .top-item-icon { display: none; } }
+  /* a narrower window: the small numbers after the names go, and the buttons are tighter */
+  @media (max-width: 1350px) {
+    .top-item-count { display: none; }
+    .top-item { padding: 0 3px; gap: 4px; }
+  }
+  /* a narrow window: the main bar has few buttons, so they get more room and lose their icons */
+  @media (max-width: 1250px) {
+    .top-menu { --tw-main: clamp(86px, calc((100vw - 60px) / 10.5 - 8px), 120px); }
+    .top-main-icon { display: none; }
+  }
+  .top-sub { gap: 10px; }
+  .top-sub:empty { display: none; }
+  .top-sub-wrap:has(.top-sub:empty) { display: none; }
+  .top-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 0 0 var(--tw-sub);
+    width: var(--tw-sub);
+    min-width: 0;
+    height: 38px;
+    gap: 6px;
+    padding: 0 6px;
+    border: 0;
+    background: transparent;
+    color: var(--side-fg-soft);
+    font-size: clamp(10.5px, 0.55vw + 5px, 12.5px);
+    font-weight: 800;
+    white-space: nowrap;
+    border-radius: 12px 12px 0 0;
+    cursor: pointer;
+    animation: top-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: calc(var(--i, 0) * 35ms);
+  }
+  .top-item:hover { color: var(--side-fg); background: var(--side-hov); }
+  .top-item-label { overflow: hidden; text-overflow: ellipsis; }
+  .top-item-icon { display: flex; flex-shrink: 0; }
+  .top-item-icon svg { width: 15px; height: 15px; }
+  .top-item-count { flex-shrink: 0; font-size: 9.5px; opacity: 0.7; font-weight: 700; }
+  /* the number badge floats at the corner of the button, so it takes no room from the name */
+  .top-item-badge { position: absolute; top: 2px; left: 3px; background: var(--side-accent); color: #fff; font-size: 9px; line-height: 14px; font-weight: 900; border-radius: 7px; padding: 0 4px; min-width: 14px; text-align: center; }
+  .top-item.is-active { background: var(--side-bg); color: var(--side-active-fg); }
+  .top-item.is-active:hover { background: var(--side-bg); }
+  .top-item.is-active::before,
+  .top-item.is-active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+  }
+  .top-item.is-active::before { right: -12px; background: radial-gradient(circle at 100% 0, transparent 12px, var(--side-bg) 12.5px); }
+  .top-item.is-active::after { left: -12px; background: radial-gradient(circle at 0 0, transparent 12px, var(--side-bg) 12.5px); }
+  @keyframes top-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .top-item { animation: none !important; } }
+}

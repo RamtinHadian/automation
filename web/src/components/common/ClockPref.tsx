@@ -58,7 +58,6 @@ export const ClockPref: React.FC = () => {
     <div className="relative max-sm:hidden" ref={box} data-clock-pref>
       <button type="button" onClick={() => setOpen((v) => !v)} title="ساعت آنالوگ بالای صفحه: روشن، خاموش و انتخاب طرح" className={`p-2 sm:p-2.5 border rounded-2xl transition-all shadow-2xs hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold ${pref.enabled ? 'bg-[#F6D9CD] border-[#D9A38F] text-[#6E1B1B]' : 'bg-[#FAF5F1] hover:bg-[#F6D9CD] text-[#6E1B1B] border-[#EBDBCE]'}`}>
         <Clock className="w-4 h-4" />
-        <span className="hidden lg:inline">ساعت</span>
       </button>
       {open && (
         <div role="dialog" className="absolute left-0 top-full mt-2 z-[70] w-[min(92vw,420px)] rounded-2xl border border-[#EBDBCE] bg-white p-3.5 shadow-xl text-right" data-clock-pref-panel>
