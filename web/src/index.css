@@ -722,19 +722,21 @@ form[data-fc-design] [data-design-bar] { flex-wrap: wrap; }
   .top-main-icon { display: flex; flex-shrink: 0; }
   .top-main-icon svg { width: 16px; height: 16px; color: var(--side-fg); }
   .top-main-label { overflow: hidden; text-overflow: ellipsis; }
+  /* the number badge floats at the corner of the button, so it never takes room from the name (the name «مشتریان» was cut to «مشت…» by it) */
   .top-main-badge {
-    flex-shrink: 0;
-    min-width: 16px;
-    height: 16px;
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    min-width: 15px;
+    height: 15px;
     padding: 0 4px;
     border-radius: 8px;
     background: var(--side-accent);
     color: #fff;
-    font-size: 9.5px;
+    font-size: 9px;
     font-weight: 900;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    line-height: 15px;
+    text-align: center;
   }
   .top-sub-wrap { background: var(--side-deep); padding: 10px 20px 0; overflow: hidden; }
   /* on a narrower window the sub-menu icons go first, to give the names room */
