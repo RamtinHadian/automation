@@ -596,10 +596,10 @@ form[data-fc-design] [data-design-bar] { flex-wrap: wrap; }
   .side-panel-title { font-size: 12.5px; font-weight: 800; letter-spacing: 0; }
   .side-panel-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
   /* the motion: when another main menu is opened its sub-menus slide out from under the rail, one after the other; the open tab grows in */
-  .side-panel-head { animation: side-head-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-  .side-panel-list > li { animation: side-slide-in 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 38ms + 60ms); }
-  .side-item.is-active { animation: side-tab-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: right center; }
-  .side-rail-item { transition: background 0.15s, transform 0.12s; }
+  .side-panel-head { animation: side-head-in 0.2s ease-out both; }
+  .side-panel-list > li { animation: side-slide-in 0.2s ease-out both; animation-delay: calc(var(--i, 0) * 14ms); }
+  .side-item.is-active { animation: side-tab-in 0.16s ease-out both; transform-origin: right center; }
+  .side-rail-item { transition: background 0.08s, transform 0.08s; }
   .side-rail-item:active { transform: scale(0.92); }
   @keyframes side-slide-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
   @keyframes side-head-in { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
@@ -714,7 +714,7 @@ form[data-fc-design] [data-design-bar] { flex-wrap: wrap; }
     font-weight: 800;
     white-space: nowrap;
     cursor: pointer;
-    transition: background 0.15s, transform 0.12s;
+    transition: background 0.08s, transform 0.08s;
   }
   .top-main-item:hover { background: var(--side-hov); }
   .top-main-item:active { transform: scale(0.97); }
@@ -774,8 +774,7 @@ form[data-fc-design] [data-design-bar] { flex-wrap: wrap; }
     white-space: nowrap;
     border-radius: 12px 12px 0 0;
     cursor: pointer;
-    animation: top-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-    animation-delay: calc(var(--i, 0) * 35ms);
+    animation: top-in 0.14s ease-out both;
   }
   .top-item:hover { color: var(--side-fg); background: var(--side-hov); }
   .top-item-label { overflow: hidden; text-overflow: ellipsis; }
@@ -797,6 +796,6 @@ form[data-fc-design] [data-design-bar] { flex-wrap: wrap; }
   }
   .top-item.is-active::before { right: -12px; background: radial-gradient(circle at 100% 0, transparent 12px, var(--side-bg) 12.5px); }
   .top-item.is-active::after { left: -12px; background: radial-gradient(circle at 0 0, transparent 12px, var(--side-bg) 12.5px); }
-  @keyframes top-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @keyframes top-in { from { opacity: 0.35; } to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .top-item { animation: none !important; } }
 }
