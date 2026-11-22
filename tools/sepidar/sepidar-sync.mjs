@@ -1138,6 +1138,32 @@ export async function pushCaches(cfg, sp, state) {
     }
     return { ...pick(x, ['CustomerID', 'Title', 'CreditRemainder', 'QuantityCreditRemainder', 'RemainderWithoutCheque']), Remainder: r ? r.value : null, RemainderField: r ? r.field : '' };
   });
+  // Sepidar sends the balance fields empty for every customer: look, once in a while, at other addresses that could carry the balance (read-only requests)
+  state.probeAt ||= 0;
+  if (remFound === 0 && Date.now() - state.probeAt > 6 * 3600 * 1000) {
+    state.probeAt = Date.now();
+    saveState(state);
+    try {
+      const one = (await sp.get('/api/Customers'))[0];
+      const id = one && one.CustomerID;
+      const tries = [`/api/Customers/${id}`, '/api/Receipts', '/api/Receipt', '/api/CustomerRemainders', '/api/CustomerAccounts', '/api/Customers/Remainders', '/api/Debtors', '/api/Settlements'];
+      for (const path of tries) {
+        try {
+          const r = await sp.get(path);
+          const row = Array.isArray(r) ? r[0] : r;
+          log(`  آزمایش مانده: ${path} ← باز شد (${Array.isArray(r) ? r.length + ' ردیف' : 'یک مورد'}) | فیلدها: ${row && typeof row === 'object' ? Object.keys(row).join(',') : String(row).slice(0, 60)}`);
+          if (row && typeof row === 'object') {
+            const bal = Object.entries(row).filter(([k]) => /remain|balance|debt|credit/i.test(k)).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(' ');
+            if (bal) log(`    مقدارهای شبیه مانده: ${bal}`);
+          }
+        } catch (e) {
+          log(`  آزمایش مانده: ${path} ← ${String(e.message).slice(0, 70)}`);
+        }
+      }
+    } catch (e) {
+      log(`  آزمایش مانده انجام نشد: ${String(e.message).slice(0, 80)}`);
+    }
+  }
   if (remMissing) log(`  مانده مشتری‌ها: برای ${remMissing} مشتری سپیدار مانده‌ای نداد (در هورمند «مانده نامشخص» نوشته می‌شود، نه «تسویه‌شده»). فیلدهایی که سپیدار برای مشتری می‌دهد: ${sampleKeys}`);
   if (remFound) log(`  مانده مشتری‌ها: برای ${remFound} مشتری مانده خوانده شد.`);
   try {
