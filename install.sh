@@ -68,6 +68,13 @@ fi
 echo "==> Building and starting"
 docker compose up -d --build
 
+# technical (support) access: the installer's own authenticator secret, printed ONCE here (nothing is shown in any web page). Nothing happens if it already exists.
+echo "==> Support access (secret for YOUR Google Authenticator)"
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  docker compose exec -T app /server support-enroll 2>/dev/null && break
+  sleep 3
+done
+
 # Auto-update: check GitHub every 30 seconds and redeploy when the branch changed
 # (auto-update.sh installs its own systemd service on its first run). Disable with AUTO_UPDATE=0.
 if [ "${AUTO_UPDATE:-1}" = 1 ] && [ -d .git ]; then

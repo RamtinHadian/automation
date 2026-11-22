@@ -48,6 +48,22 @@ var schema = []string{
 	  recovery TEXT[] NOT NULL DEFAULT '{}',
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
+	// the technical (support) access of the company that installed the program: one row (the vendor's authenticator secret, kept encrypted) and its log
+	`CREATE TABLE IF NOT EXISTS support_access (
+	  id INT PRIMARY KEY DEFAULT 1,
+	  secret TEXT NOT NULL,
+	  enabled BOOLEAN NOT NULL DEFAULT true,
+	  last_step BIGINT NOT NULL DEFAULT 0,
+	  enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
+	`CREATE TABLE IF NOT EXISTS support_access_log (
+	  id BIGSERIAL PRIMARY KEY,
+	  at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  user_id TEXT NOT NULL DEFAULT '',
+	  ip TEXT NOT NULL DEFAULT '',
+	  event TEXT NOT NULL,
+	  detail TEXT NOT NULL DEFAULT ''
+	)`,
 	`CREATE TABLE IF NOT EXISTS departments (
 	  id TEXT PRIMARY KEY,
 	  data JSONB NOT NULL
