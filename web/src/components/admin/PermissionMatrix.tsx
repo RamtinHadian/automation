@@ -512,16 +512,16 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                   {/* the column titles stay at the top while the employees scroll under them */}
                   <thead className="sticky top-0 z-20">
                     <tr className="bg-[#FAF5F1]">
-                      <th className="px-4 py-3 text-[11px] font-black text-[#8C6F66] w-[clamp(120px,14vw,200px)] sticky right-0 top-0 bg-[#FAF5F1] z-30 border-b border-[#EBDBCE]">کارمند</th>
+                      <th className="px-4 py-3 text-[11px] font-black text-[#8C6F66] w-[clamp(110px,10vw,170px)] sticky right-0 top-0 bg-[#FAF5F1] z-30 border-b border-[#EBDBCE]">کارمند</th>
                       {cols.map((c) => (
-                        <th key={c.id} className="px-0.5 py-2 text-center align-bottom bg-[#FAF5F1] overflow-hidden border-b border-[#EBDBCE]" style={c.isMain ? { backgroundImage: `linear-gradient(${m.tone}14, ${m.tone}14)` } : undefined}>
-                          <button type="button" title={c.hint} onClick={() => colAll(c)} className="block mx-auto text-[clamp(9px,0.75vw,11px)] font-black leading-4 hover:underline cursor-pointer [overflow-wrap:anywhere] max-w-full" style={{ color: m.tone }}>
+                        <th key={c.id} className="px-px py-2 text-center align-bottom bg-[#FAF5F1] border-b border-[#EBDBCE]" style={c.isMain ? { backgroundImage: `linear-gradient(${m.tone}14, ${m.tone}14)` } : undefined}>
+                          <button type="button" title={c.hint} onClick={() => colAll(c)} className="block mx-auto text-[clamp(8.5px,0.6vw,10.5px)] font-black leading-[1.35] hover:underline cursor-pointer [overflow-wrap:normal] [word-break:keep-all] max-w-full" style={{ color: m.tone }}>
                             {c.isMain ? 'ورود به منو' : c.label}
                           </button>
                           <div className="mt-1 mx-auto w-fit rounded-md bg-[#F3E8DF] px-1.5 text-[10px] font-black text-[#8C6F66] leading-[18px]" title="چند نفر دارند">{toPersianDigits(people.filter((u) => colOn(u, c)).length)}</div>
                         </th>
                       ))}
-                      <th className="w-[clamp(84px,8vw,120px)] px-1 py-3 text-[11px] font-black text-[#8C6F66] bg-[#FAF5F1] border-b border-[#EBDBCE]">این بخش</th>
+                      <th className="w-[clamp(72px,5.5vw,96px)] px-1 py-3 text-[11px] font-black text-[#8C6F66] bg-[#FAF5F1] border-b border-[#EBDBCE]">این بخش</th>
                     </tr>
                   </thead>
                   <tbody>
