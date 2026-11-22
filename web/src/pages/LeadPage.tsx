@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import { FieldForm, FieldValues } from '../components/crm/FieldForm';
+import { FullRegForm, SelfField } from '../components/crm/FullRegForm';
 import { PaperShell } from '../components/common/PaperShell';
 
 // The short form for the company's web site (/lead?k=KEY, shown in an iframe). Whoever fills it becomes a customer of the marketer who owns the key.
 
-interface Info { company: string; hidden: string[]; required: string[] }
+interface Info { company: string; hidden: string[]; required: string[]; fields: SelfField[] }
 
 export const LeadPage: React.FC = () => {
   const key = new URLSearchParams(window.location.search).get('k') || '';
@@ -19,9 +19,9 @@ export const LeadPage: React.FC = () => {
       .catch(() => setBad(true));
   }, [key]);
 
-  const submit = async (v: FieldValues) => {
+  const submit = async (fields: Record<string, string>, trap: string) => {
     try {
-      const r = await fetch(`/api/public/lead/${encodeURIComponent(key)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) });
+      const r = await fetch(`/api/public/lead/${encodeURIComponent(key)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ form: 'quick', fields, trap }) });
       if (r.ok) { setSent(true); return null; }
       return (await r.json().catch(() => ({}))).error || 'ارسال نشد.';
     } catch {
@@ -40,7 +40,7 @@ export const LeadPage: React.FC = () => {
           <p className="text-[13px] font-bold text-[#55645c]">همکاران {info.company} به‌زودی با شما تماس می‌گیرند.</p>
         </div>
       ) : (
-        <FieldForm cfg={{ hidden: [...(info.hidden || []), 'نمایشگاه / محل ثبت'], required: info.required }} onSubmit={submit} trap submitText="ارسال اطلاعات" keepEvent={false} />
+        <FullRegForm spec={info.fields} cfg={{ hidden: info.hidden, required: info.required }} onSubmit={submit} submitText="ارسال اطلاعات" />
       )}
     </PaperShell>
   );

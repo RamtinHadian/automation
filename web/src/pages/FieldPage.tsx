@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Eye, EyeOff, LogOut, ShieldAlert } from 'lucide-react';
-import { FieldForm, FieldValues } from '../components/crm/FieldForm';
+import { FullRegForm, SelfField } from '../components/crm/FullRegForm';
 import { PaperShell } from '../components/common/PaperShell';
 import { PAPER_BUTTON, PAPER_INPUT, PAPER_LABEL } from '../components/common/paperStyles';
 import { PaperNotice } from '../components/common/PaperNotice';
@@ -11,7 +11,7 @@ import { PaperNotice } from '../components/common/PaperNotice';
 const TOKEN = 'field_token_v1';
 const NEED_CODE = 'کد ورود دو مرحله‌ای را وارد کنید.';
 
-interface Info { allowed: boolean; name: string; company: string; hidden: string[]; required: string[]; need2fa: boolean }
+interface Info { allowed: boolean; name: string; company: string; hidden: string[]; required: string[]; need2fa: boolean; fields: SelfField[] }
 
 const getToken = () => { try { return localStorage.getItem(TOKEN) || ''; } catch { return ''; } };
 const setTok = (t: string) => { try { if (t) localStorage.setItem(TOKEN, t); else localStorage.removeItem(TOKEN); } catch { /* storage blocked */ } };
@@ -79,9 +79,9 @@ export const FieldPage: React.FC = () => {
     }
   };
 
-  const submit = async (v: FieldValues) => {
+  const submit = async (fields: Record<string, string>) => {
     try {
-      const r = await call<{ ok?: boolean }>('POST', '/api/field/customers', v);
+      const r = await call<{ ok?: boolean }>('POST', '/api/field/customers', { fields });
       if (r.status === 401) { setTok(''); setState('login'); return 'نشست شما تمام شده؛ دوباره وارد شوید.'; }
       return r.ok ? null : r.data.error || 'ثبت نشد.';
     } catch {
@@ -127,7 +127,7 @@ export const FieldPage: React.FC = () => {
       ) : info?.need2fa ? (
         <div className="text-center space-y-2 py-4"><ShieldAlert className="w-8 h-8 mx-auto text-amber-600" /><p className="text-[14px] font-black text-[#1f2a24] leading-7">مدیر خواسته برای این صفحه، احراز هویت دو مرحله‌ای (برنامهٔ Google Authenticator) روشن باشد. آن را در سامانه، بخش «حساب من»، روشن کنید و دوباره وارد شوید.</p></div>
       ) : (
-        <FieldForm cfg={{ hidden: info.hidden, required: info.required }} onSubmit={submit} />
+        <FullRegForm spec={info.fields} cfg={{ hidden: info.hidden, required: info.required }} onSubmit={submit} submitText="ثبت مشتری" again />
       )}
       <button type="button" onClick={logout} className="mt-4 mx-auto flex items-center gap-1.5 text-[12px] font-black text-[#55645c]"><LogOut className="w-4 h-4" />خروج</button>
     </PaperShell>

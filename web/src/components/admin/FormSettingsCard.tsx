@@ -3,7 +3,6 @@ import { ListChecks } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { CustomerForm } from '../crm/CustomerForm';
 import { DealForm } from '../crm/CrmView';
-import { FieldForm } from '../crm/FieldForm';
 import { FullRegForm, SelfField } from '../crm/FullRegForm';
 import { api } from '../../lib/api';
 import { Customer, Deal } from '../../types';
@@ -29,10 +28,12 @@ export const FormSettingsCard: React.FC = () => {
   const [selfSpec, setSelfSpec] = useState<SelfField[]>([]);
   // the long registration form: its fields come from the server; until the administrator chooses, some of them are hidden (his choice starts from that)
   useEffect(() => {
-    if (open !== 'selfreg') return;
+    if (open !== 'selfreg' && open !== 'field') return;
+    const id = open;
     api.fieldSelfFields().then((r) => {
       setSelfSpec(r.fields as SelfField[]);
-      setSettings((prev) => (prev.formConfig?.selfreg?.hidden !== undefined ? prev : { ...prev, formConfig: { ...(prev.formConfig || {}), selfreg: { ...((prev.formConfig || {}).selfreg || {}), hidden: r.defaultHidden } } }));
+      const start = id === 'field' ? r.quickDefaultHidden : r.defaultHidden;
+      setSettings((prev) => (prev.formConfig?.[id]?.hidden !== undefined ? prev : { ...prev, formConfig: { ...(prev.formConfig || {}), [id]: { ...((prev.formConfig || {})[id] || {}), hidden: start } } }));
     }).catch(() => showToast('فهرست فیلدها خوانده نشد.'));
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -76,21 +77,12 @@ export const FormSettingsCard: React.FC = () => {
       {open === 'deal' && (
         <DealForm initial={blankDeal()} isNew customers={[]} staff={staffList} canDelete={false} onClose={() => setOpen(null)} onSave={() => showToast('این فرم نمونه است؛ فقط تیک‌ها ذخیره می‌شوند.')} onProforma={() => undefined} onDelete={() => undefined} onCreateCustomer={() => undefined} />
       )}
-      {open === 'selfreg' && (
+      {(open === 'selfreg' || open === 'field') && (
         <div className="fixed inset-0 z-[80] bg-[#FAF5F1] overflow-y-auto" dir="rtl">
           <div className="max-w-lg mx-auto p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2"><div className="font-black text-sm text-[#3A241F]">فرم ثبت مشخصات شرکت (نمونه)</div><button type="button" onClick={() => setOpen(null)} className="px-4 py-2 rounded-xl bg-[#6E1B1B] text-white text-xs font-black cursor-pointer">بستن</button></div>
+            <div className="flex items-center justify-between gap-2"><div className="font-black text-sm text-[#3A241F]">{open === 'field' ? 'ثبت سریع مشتری (نمونه)' : 'فرم کامل ثبت مشخصات (نمونه)'}</div><button type="button" onClick={() => setOpen(null)} className="px-4 py-2 rounded-xl bg-[#6E1B1B] text-white text-xs font-black cursor-pointer">بستن</button></div>
             <p className="text-[11px] font-bold text-[#8C6F66] leading-6">زیر هر فیلد تنظیم می‌آید: نمایش، اجباری بودن و ترتیب Enter. نام شرکت و موبایل همیشه هستند.</p>
-            <div className="bg-white rounded-3xl border border-[#EBDBCE] p-5">{selfSpec.length ? <FullRegForm spec={selfSpec} onSubmit={async () => null} /> : <div className="text-xs font-bold text-[#8C6F66]">در حال خواندن…</div>}</div>
-          </div>
-        </div>
-      )}
-      {open === 'field' && (
-        <div className="fixed inset-0 z-[80] bg-[#FAF5F1] overflow-y-auto" dir="rtl">
-          <div className="max-w-md mx-auto p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2"><div className="font-black text-sm text-[#3A241F]">ثبت سریع مشتری (نمونه)</div><button type="button" onClick={() => setOpen(null)} className="px-4 py-2 rounded-xl bg-[#6E1B1B] text-white text-xs font-black cursor-pointer">بستن</button></div>
-            <p className="text-[11px] font-bold text-[#8C6F66] leading-6">زیر هر فیلد تنظیم می‌آید: نمایش، اجباری بودن و ترتیب Enter. نام و موبایل همیشه هستند.</p>
-            <div className="bg-white rounded-3xl border border-[#EBDBCE] p-5"><FieldForm onSubmit={async () => null} /></div>
+            <div className="bg-white rounded-3xl border border-[#EBDBCE] p-5">{selfSpec.length ? <FullRegForm spec={selfSpec} formId={open || 'selfreg'} onSubmit={async () => null} /> : <div className="text-xs font-bold text-[#8C6F66]">در حال خواندن…</div>}</div>
           </div>
         </div>
       )}

@@ -549,7 +549,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'صدا ساخته نشد.');
     return res.blob();
   },
-  fieldSelfFields: () => request<{ fields: unknown[]; defaultHidden: string[]; defaultRequired: string[] }>('GET', '/api/field/self-fields'),
+  fieldSelfFields: () => request<{ fields: unknown[]; defaultHidden: string[]; defaultRequired: string[]; quickDefaultHidden: string[]; quickDefaultRequired: string[] }>('GET', '/api/field/self-fields'),
   // registering customers in the field (/field) and from the web site (/lead)
   fieldSettings: () => request<{ require2fa: boolean; smsWelcome: boolean; smsEnabled: boolean; keys: { key: string; userId: string; userName: string; createdAt: string }[]; isAdmin: boolean; allowed: boolean; slug: string; allowedUsers: string[]; onlyUsers: string[] }>('GET', '/api/field/settings'),
   fieldSaveSettings: (b: { require2fa?: boolean; slug?: string; allowedUsers?: string[]; onlyUsers?: string[] }) => request<{ require2fa: boolean }>('PUT', '/api/field/settings', b),

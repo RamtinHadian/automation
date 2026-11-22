@@ -10,12 +10,10 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"automation/server/internal/auth"
 	"automation/server/internal/httpx"
 	"automation/server/internal/jsonx"
-	"automation/server/internal/notify"
 	"automation/server/internal/sms"
 	"automation/server/internal/store"
 )
@@ -30,20 +28,6 @@ import (
 //
 // Which fields the form has, and which are required, is decided in the management console («فرم‌ها»: form id «field»).
 
-// the labels are also the keys of the console's form tuning (fields are named by their label)
-var fieldLabels = map[string]string{
-	"نام و نام خانوادگی":   "name",
-	"موبایل":               "phone",
-	"شرکت / فروشگاه":       "company",
-	"شهر":                  "city",
-	"نمایشگاه / محل ثبت":   "event",
-	"توضیحات و علاقه‌مندی": "note",
-}
-
-type leadIn struct {
-	Name, Phone, Company, City, Event, Note string
-}
-
 type leadErr struct {
 	Status int
 	Msg    string
@@ -55,27 +39,6 @@ func fieldSettings(ctx context.Context) jsonx.M {
 		return jsonx.M{}
 	}
 	return jsonx.Decode(raw)
-}
-
-// the form tuning of the console for the form «field»: hidden and required labels
-func fieldFormCfg(ctx context.Context) (hidden, required []string) {
-	return formCfg(ctx, "field", []string{"نام و نام خانوادگی", "موبایل"})
-}
-
-// formCfg: what the console decided about one form (hidden and required labels); defReq is what is required until he chooses
-func formCfg(ctx context.Context, id string, defReq []string) (hidden, required []string) {
-	var raw []byte
-	if store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw) != nil {
-		return nil, defReq
-	}
-	cfg := jsonx.Sub(jsonx.Sub(jsonx.Decode(raw), "formConfig"), id)
-	hidden = jsonx.Strings(cfg, "hidden")
-	if _, set := cfg["required"]; set {
-		required = jsonx.Strings(cfg, "required")
-	} else {
-		required = defReq
-	}
-	return
 }
 
 func labelOn(list []string, label string) bool { return jsonx.Contains(list, label) }
@@ -119,75 +82,6 @@ func dupMessage(name, owner string) string {
 		m += " (مسئول: " + owner + ")"
 	}
 	return m + "؛ شمارهٔ تکراری ثبت نمی‌شود."
-}
-
-// createLeadCustomer registers one customer for a marketer, with every rule of the program.
-func createLeadCustomer(ctx context.Context, owner auth.User, in leadIn, source string) (jsonx.M, *leadErr) {
-	hidden, required := fieldFormCfg(ctx)
-	clean := func(s string, max int) string {
-		s = strings.TrimSpace(s)
-		if utf8.RuneCountInString(s) > max {
-			s = string([]rune(s)[:max])
-		}
-		return s
-	}
-	in.Name, in.Company, in.City, in.Event, in.Note = clean(in.Name, 120), clean(in.Company, 120), clean(in.City, 60), clean(in.Event, 80), clean(in.Note, 1000)
-	// a field the administrator switched off is not accepted (a robot or an old page cannot fill it)
-	if labelOn(hidden, "شرکت / فروشگاه") {
-		in.Company = ""
-	}
-	if labelOn(hidden, "شهر") {
-		in.City = ""
-	}
-	if labelOn(hidden, "نمایشگاه / محل ثبت") {
-		in.Event = ""
-	}
-	if labelOn(hidden, "توضیحات و علاقه‌مندی") {
-		in.Note = ""
-	}
-	if utf8.RuneCountInString(in.Name) < 2 {
-		return nil, &leadErr{http.StatusBadRequest, "نام را وارد کنید."}
-	}
-	mobile, ok := sms.Mobile(in.Phone)
-	if !ok {
-		return nil, &leadErr{http.StatusBadRequest, "شمارهٔ موبایل درست نیست (۱۱ رقم، مثل ۰۹۱۲۳۴۵۶۷۸۹)."}
-	}
-	for label, key := range fieldLabels {
-		if !labelOn(required, label) || key == "name" || key == "phone" {
-			continue
-		}
-		val := map[string]string{"company": in.Company, "city": in.City, "event": in.Event, "note": in.Note}[key]
-		if val == "" && !labelOn(hidden, label) {
-			return nil, &leadErr{http.StatusBadRequest, "«" + label + "» را وارد کنید."}
-		}
-	}
-	if n, o, dup := phoneOwner(ctx, mobile, ""); dup {
-		return nil, &leadErr{http.StatusConflict, dupMessage(n, o)}
-	}
-	t := now()
-	doc := jsonx.M{
-		"id": "cu-" + randHex(8), "name": in.Name, "company": in.Company, "city": in.City, "phones": []string{mobile}, "email": "", "address": "",
-		"status": "LEAD", "source": source, "tags": []string{}, "ownerId": owner.ID(), "ownerName": owner.Name(), "notes": "", "createdAt": t, "updatedAt": t,
-	}
-	var lines []string
-	if in.Event != "" {
-		lines = append(lines, "ثبت‌شده در: "+in.Event)
-	}
-	if in.Note != "" {
-		lines = append(lines, in.Note)
-	}
-	if len(lines) > 0 {
-		text := strings.Join(lines, "\n")
-		doc["notes"] = text
-		doc["noteLog"] = []jsonx.M{{"text": text, "at": t, "byId": owner.ID(), "byName": source}}
-	}
-	if _, err := store.Pool.Exec(ctx, `INSERT INTO crm_customers (id, owner_id, data) VALUES ($1, $2, $3::jsonb)`, jsonx.Str(doc, "id"), owner.ID(), jsonx.Encode(doc)); err != nil {
-		return nil, &leadErr{http.StatusInternalServerError, "ثبت نشد؛ دوباره امتحان کنید."}
-	}
-	queueSepidarCustomerNew(ctx, owner, jsonx.Str(doc, "id"), in.Name, doc)
-	smsAutoCustomer("customer_new", doc, nil) // the welcome message (when the administrator switched it on)
-	notify.Notify(ctx, []string{owner.ID()}, notify.Note{Kind: "customer", Label: "مشتری جدید", Title: "مشتری «" + in.Name + "» از " + source + " ثبت شد", Ref: ref("customer", jsonx.Str(doc, "id"))}, "")
-	return doc, nil
 }
 
 func userDoc(ctx context.Context, id string) (auth.User, bool) {
@@ -241,16 +135,11 @@ func fieldSlugMatch(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]bool{"match": p != "" && p == fieldSlug(r.Context())})
 }
 
-func formInfo(ctx context.Context) jsonx.M {
-	hidden, required := fieldFormCfg(ctx)
-	return jsonx.M{"hidden": hidden, "required": required, "company": companyName(ctx)}
-}
-
 // GET /api/field/info: for the signed-in marketer: may he use the page, what the form looks like, and whether a second step is still missing.
 func fieldInfo(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
 	ctx := r.Context()
-	out := formInfo(ctx)
+	out := selfSpec(ctx, "field")
 	out["allowed"] = fieldAllowed(ctx, me)
 	out["name"] = me.Name()
 	need2 := jsonx.Bool(fieldSettings(ctx), "require2fa")
@@ -258,7 +147,7 @@ func fieldInfo(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, out)
 }
 
-// POST /api/field/customers {name, phone, company, city, event, note}
+// POST /api/field/customers {fields: {...}}: the marketer registers a customer (the same fields as the «new customer» form; the console chooses which)
 func fieldCreate(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
 	ctx := r.Context()
@@ -274,7 +163,7 @@ func fieldCreate(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	doc, e := createLeadCustomer(ctx, me, leadIn{jsonx.Str(body, "name"), jsonx.Str(body, "phone"), jsonx.Str(body, "company"), jsonx.Str(body, "city"), jsonx.Str(body, "event"), jsonx.Str(body, "note")}, "بازاریابی میدانی")
+	doc, e := createSelfCustomer(ctx, me, collectFields(body), selfOpt{Form: "field", Source: "بازاریابی میدانی", By: "بازاریابی میدانی", Loud: true})
 	if e != nil {
 		httpx.Error(w, e.Status, e.Msg)
 		return
@@ -453,13 +342,15 @@ func leadInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("form") == "full" {
-		httpx.JSON(w, http.StatusOK, selfSpec(r.Context()))
+		httpx.JSON(w, http.StatusOK, selfSpec(r.Context(), "selfreg"))
 		return
 	}
-	httpx.JSON(w, http.StatusOK, formInfo(r.Context()))
+	out := selfSpec(r.Context(), "field")
+	out["hidden"] = append(append([]string{}, jsonx.Strings(out, "hidden")...), "نمایشگاه / محل ثبت") // the web-site form has no «exhibition» box
+	httpx.JSON(w, http.StatusOK, out)
 }
 
-// POST /api/public/lead/{key} {name, phone, company, city, note, website}
+// POST /api/public/lead/{key} {form: "quick" | "full", fields: {...}, trap}
 func leadSubmit(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	key := r.PathValue("key")
@@ -472,30 +363,11 @@ func leadSubmit(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if jsonx.Str(body, "form") == "full" { // the company's own full registration form
-		leadSubmitFull(w, r, owner, key, body)
+	if jsonx.Str(body, "form") == "full" { // the customer's own full registration form
+		leadSubmitForm(w, r, owner, key, body, selfOpt{Form: "selfreg", Source: "ثبت‌نام اینترنتی (فرم کامل)", By: "فرم ثبت مشخصات"})
 		return
 	}
-	// a robot fills every box, also the one a person never sees: it is told «done» and nothing is saved
-	if jsonx.Str(body, "website") != "" {
-		httpx.OK(w)
-		return
-	}
-	if leadLimited(httpx.ClientIP(r), key) {
-		httpx.Error(w, http.StatusTooManyRequests, "درخواست‌ها زیاد است؛ کمی بعد دوباره امتحان کنید.")
-		return
-	}
-	_, e := createLeadCustomer(ctx, owner, leadIn{Name: jsonx.Str(body, "name"), Phone: jsonx.Str(body, "phone"), Company: jsonx.Str(body, "company"), City: jsonx.Str(body, "city"), Note: jsonx.Str(body, "note")}, "سایت")
-	if e != nil {
-		if e.Status == http.StatusConflict {
-			// the visitor is not told whose customer that number is; the number is already known to the company
-			httpx.OK(w)
-			return
-		}
-		httpx.Error(w, e.Status, e.Msg)
-		return
-	}
-	httpx.OK(w)
+	leadSubmitForm(w, r, owner, key, body, selfOpt{Form: "field", Source: "سایت", By: "فرم سایت", Force: []string{"نمایشگاه / محل ثبت"}})
 }
 
 // GET /api/public/logo: the company's logo («نام و هویت سازمان») for the public pages; 404 when there is none.

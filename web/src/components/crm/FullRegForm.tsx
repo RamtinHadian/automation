@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { PAPER_AREA, PAPER_BUTTON, PAPER_INPUT, PAPER_LABEL } from '../common/paperStyles';
 import { PaperNotice } from '../common/PaperNotice';
@@ -30,11 +30,17 @@ export const FullRegForm: React.FC<{
   cfg?: { hidden?: string[]; required?: string[] };
   onSubmit: (fields: Record<string, string>, trap: string) => Promise<string | null>;
   submitText?: string;
-}> = ({ spec, cfg, onSubmit, submitText = 'ثبت مشخصات' }) => {
+  /** the id of the console's tuning of this form (the design mode draws its bars under this id) */
+  formId?: string;
+  /** after a good save: a small notice, the form is emptied (the type and the place stay) and the cursor goes back to the first box — for registering customer after customer */
+  again?: boolean;
+}> = ({ spec, cfg, onSubmit, submitText = 'ثبت مشخصات', formId = 'selfreg', again }) => {
   const [v, setV] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [trap, setTrap] = useState('');
+  const [done, setDone] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
   const hidden = cfg?.hidden || [];
   const required = cfg?.required || [];
   const kindField = spec.find((f) => f.key === 'kind');
@@ -52,12 +58,18 @@ export const FullRegForm: React.FC<{
     setBusy(true);
     const failure = await onSubmit({ ...v, kind: v.kind || kindField?.options?.[0] || '' }, trap);
     setBusy(false);
-    if (failure) setErr(failure);
+    if (failure) { setErr(failure); return; }
+    if (again) {
+      const nm = [v.company, v.shopName, `${v.firstName || ''} ${v.lastName || ''}`.trim()].find((x) => (x || '').trim()) || 'مشتری';
+      setDone(`«${nm.trim()}» ثبت شد`);
+      setV((p) => ({ kind: p.kind || '', event: p.event || '' }));
+      setTimeout(() => formRef.current?.querySelector<HTMLElement>('input:not([type=checkbox]),textarea')?.focus(), 30);
+    }
   };
 
   let lastGroup = '';
   return (
-    <form onSubmit={submit} data-form-id={cfg ? undefined : 'selfreg'} className="space-y-3" noValidate>
+    <form ref={formRef} onSubmit={submit} data-form-id={cfg ? undefined : formId} className="space-y-3" noValidate>
       {spec.filter(shown).map((f) => {
         const head = f.group !== lastGroup && f.group !== 'نوع' ? f.group : '';
         lastGroup = f.group;
@@ -101,6 +113,7 @@ export const FullRegForm: React.FC<{
       })}
       {cfg && <input type="text" tabIndex={-1} autoComplete="off" value={trap} onChange={(e) => setTrap(e.target.value)} className="absolute left-0 top-0 w-0 h-0 opacity-0 overflow-hidden pointer-events-none" aria-hidden="true" />}
       {err && <PaperNotice kind="err" text={err} onClose={() => setErr('')} />}
+      {done && <PaperNotice kind="ok" text={done} onClose={() => setDone('')} />}
       <div className="sticky bottom-0 -mx-1 px-1 pt-2 pb-[max(0.25rem,env(safe-area-inset-bottom))] bg-transparent">
         <button type="submit" disabled={busy} className={PAPER_BUTTON}>
           {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : null}

@@ -92,6 +92,7 @@ var selfFields = []selfField{
 	{Key: "noEmail", Label: "نمی‌خواهم ایمیل تبلیغاتی بگیرم", Type: "check", DefHide: true, Group: "سایر"},
 	{Key: "referrerName", Label: "نام معرف", Type: "text", DefHide: true, Group: "سایر"},
 	{Key: "referrerPhone", Label: "شمارهٔ تماس معرف", Type: "tel", DefHide: true, Group: "سایر"},
+	{Key: "event", Label: "نمایشگاه / محل ثبت", Type: "text", Hint: "مثلاً نمایشگاه ماشین‌آلات راهسازی", DefHide: true, Group: "سایر"},
 	{Key: "note", Label: "توضیحات", Type: "area", Group: "سایر"},
 }
 
@@ -180,20 +181,42 @@ func jalaliToGregorian(jy, jm, jd int) (int, int, int) {
 	return gy, gm, gd
 }
 
+// the quick form (the marketer's page and the web-site form) starts with these fields only; the administrator adds the others in the console
+var quickShown = []string{"نوع مشتری", "نام", "نام خانوادگی", "نام شرکت", "نام فروشگاه", "موبایل", "شهر", "نمایشگاه / محل ثبت", "توضیحات"}
+var quickRequired = []string{"نام", "نام خانوادگی", "نام شرکت", "نام فروشگاه", "موبایل"}
+
+func quickDefaultHidden() []string {
+	out := []string{}
+	for _, f := range selfFields {
+		if !jsonx.Contains(quickShown, f.Label) {
+			out = append(out, f.Label)
+		}
+	}
+	return out
+}
+
+// formDefaults: what a form has until the administrator chooses his own list («selfreg»: the full registration form; «field»: the quick form)
+func formDefaults(formID string) (hidden, required []string) {
+	if formID == "field" {
+		return quickDefaultHidden(), quickRequired
+	}
+	return selfDefaultHidden(), selfDefaultRequired
+}
+
 // the list as the page and the console need it
-func selfSpec(ctx context.Context) jsonx.M {
-	hidden, required := selfCfg(ctx)
+func selfSpec(ctx context.Context, formID string) jsonx.M {
+	hidden, required := selfCfgFor(ctx, formID)
 	return jsonx.M{"hidden": hidden, "required": required, "company": companyName(ctx), "fields": selfFields}
 }
 
-// selfCfg: what the console decided; until he chooses, the defaults of the list
-func selfCfg(ctx context.Context) (hidden, required []string) {
+// selfCfgFor: what the console decided about one form; until he chooses, the defaults
+func selfCfgFor(ctx context.Context, formID string) (hidden, required []string) {
+	hidden, required = formDefaults(formID)
 	var raw []byte
 	if store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw) != nil {
-		return selfDefaultHidden(), selfDefaultRequired
+		return
 	}
-	cfg := jsonx.Sub(jsonx.Sub(jsonx.Decode(raw), "formConfig"), "selfreg")
-	hidden, required = selfDefaultHidden(), selfDefaultRequired
+	cfg := jsonx.Sub(jsonx.Sub(jsonx.Decode(raw), "formConfig"), formID)
 	if _, set := cfg["hidden"]; set {
 		hidden = jsonx.Strings(cfg, "hidden")
 	}
@@ -205,13 +228,22 @@ func selfCfg(ctx context.Context) (hidden, required []string) {
 
 // GET /api/field/self-fields: the same description for the console (the sample form of «فرم‌ها»)
 func selfFieldsList(w http.ResponseWriter, r *http.Request) {
-	httpx.JSON(w, http.StatusOK, map[string]any{"fields": selfFields, "defaultHidden": selfDefaultHidden(), "defaultRequired": selfDefaultRequired})
+	httpx.JSON(w, http.StatusOK, map[string]any{"fields": selfFields, "defaultHidden": selfDefaultHidden(), "defaultRequired": selfDefaultRequired, "quickDefaultHidden": quickDefaultHidden(), "quickDefaultRequired": quickRequired})
 }
 
 // createSelfCustomer registers a customer from its own form. A mobile number or a national id that is already in the system creates nothing (the
 // owner of the key is told); the visitor is told nothing about whose customer that is.
-func createSelfCustomer(ctx context.Context, owner auth.User, in map[string]string) (jsonx.M, *leadErr) {
-	hidden, required := selfCfg(ctx)
+// selfOpt says which form's tuning applies, what is written as the source and who wrote the first note, and whether a number that already exists is
+// refused out loud (the marketer's own page: the message names the owner) or quietly (a public page).
+type selfOpt struct {
+	Form, Source, By string
+	Loud             bool
+	Force            []string // labels hidden whatever the console says
+}
+
+func createSelfCustomer(ctx context.Context, owner auth.User, in map[string]string, opt selfOpt) (jsonx.M, *leadErr) {
+	hidden, required := selfCfgFor(ctx, opt.Form)
+	hidden = append(append([]string{}, hidden...), opt.Force...)
 	kind := "COMPANY"
 	if !labelOn(hidden, "نوع مشتری") {
 		kind = selfKindOf(in["kind"])
@@ -304,6 +336,9 @@ func createSelfCustomer(ctx context.Context, owner auth.User, in map[string]stri
 	}
 	// already known: nothing is created
 	if n, o, dup := phoneOwner(ctx, mobile, ""); dup {
+		if opt.Loud {
+			return nil, &leadErr{http.StatusConflict, dupMessage(n, o)}
+		}
 		notify.Notify(ctx, []string{owner.ID()}, notify.Note{Kind: "customer", Label: "ثبت‌نام تکراری", Title: "«" + name + "» فرم ثبت مشخصات را پر کرد؛ این شماره از قبل برای «" + n + "» (مسئول: " + o + ") هست"}, "")
 		return nil, &leadErr{http.StatusConflict, ""}
 	}
@@ -311,6 +346,9 @@ func createSelfCustomer(ctx context.Context, owner auth.User, in map[string]stri
 	if natID != "" {
 		var n string
 		if store.Pool.QueryRow(ctx, `SELECT COALESCE(data->>'name', '') FROM crm_customers WHERE data->>'nationalId' = $1 LIMIT 1`, natID).Scan(&n) == nil {
+			if opt.Loud {
+				return nil, &leadErr{http.StatusConflict, "این شناسهٔ ملی الان متعلق به «" + n + "» است؛ مشتری تکراری ثبت نمی‌شود."}
+			}
 			notify.Notify(ctx, []string{owner.ID()}, notify.Note{Kind: "customer", Label: "ثبت‌نام تکراری", Title: "«" + name + "» فرم ثبت مشخصات را پر کرد؛ این شناسهٔ ملی از قبل برای «" + n + "» هست"}, "")
 			return nil, &leadErr{http.StatusConflict, ""}
 		}
@@ -319,7 +357,7 @@ func createSelfCustomer(ctx context.Context, owner auth.User, in map[string]stri
 	doc := jsonx.M{
 		"id": "cu-" + randHex(8), "kind": kind, "name": name, "phones": phones, "email": val["email"], "website": val["website"], "province": val["province"], "city": val["city"],
 		"postalCode": val["postalCode"], "address": val["address"], "industry": val["industry"], "role": val["role"], "prefix": val["prefix"], "interest": val["interest"],
-		"status": "LEAD", "source": "ثبت‌نام اینترنتی (فرم کامل)", "tags": []string{}, "ownerId": owner.ID(), "ownerName": owner.Name(), "notes": "", "createdAt": t, "updatedAt": t,
+		"status": "LEAD", "source": opt.Source, "tags": []string{}, "ownerId": owner.ID(), "ownerName": owner.Name(), "notes": "", "createdAt": t, "updatedAt": t,
 	}
 	if in["isSupplier"] == "1" && !labelOn(hidden, "تأمین‌کنندهٔ کالا هم هستم") {
 		doc["isSupplier"] = true
@@ -366,29 +404,29 @@ func createSelfCustomer(ctx context.Context, owner auth.User, in map[string]stri
 			doc["reps"] = reps
 		}
 	}
+	var lines []string
+	if val["event"] != "" {
+		lines = append(lines, "ثبت‌شده در: "+val["event"])
+	}
 	if val["note"] != "" {
-		doc["notes"] = val["note"]
-		doc["noteLog"] = []jsonx.M{{"text": val["note"], "at": t, "byId": owner.ID(), "byName": "فرم ثبت مشخصات"}}
+		lines = append(lines, val["note"])
+	}
+	if len(lines) > 0 {
+		text := strings.Join(lines, "\n")
+		doc["notes"] = text
+		doc["noteLog"] = []jsonx.M{{"text": text, "at": t, "byId": owner.ID(), "byName": opt.By}}
 	}
 	if _, err := store.Pool.Exec(ctx, `INSERT INTO crm_customers (id, owner_id, data) VALUES ($1, $2, $3::jsonb)`, jsonx.Str(doc, "id"), owner.ID(), jsonx.Encode(doc)); err != nil {
 		return nil, &leadErr{http.StatusInternalServerError, "ثبت نشد؛ دوباره امتحان کنید."}
 	}
 	queueSepidarCustomerNew(ctx, owner, jsonx.Str(doc, "id"), name, doc)
 	smsAutoCustomer("customer_new", doc, nil)
-	notify.Notify(ctx, []string{owner.ID()}, notify.Note{Kind: "customer", Label: "مشتری جدید", Title: "«" + name + "» مشخصات خود را ثبت کرد", Ref: ref("customer", jsonx.Str(doc, "id"))}, "")
+	notify.Notify(ctx, []string{owner.ID()}, notify.Note{Kind: "customer", Label: "مشتری جدید", Title: "«" + name + "» ثبت شد (" + opt.By + ")", Ref: ref("customer", jsonx.Str(doc, "id"))}, "")
 	return doc, nil
 }
 
-// leadSubmitFull: the POST of the full form {form: "full", fields: {...}, trap}
-func leadSubmitFull(w http.ResponseWriter, r *http.Request, owner auth.User, key string, body jsonx.M) {
-	if jsonx.Str(body, "trap") != "" {
-		httpx.OK(w)
-		return
-	}
-	if leadLimited(httpx.ClientIP(r), key) {
-		httpx.Error(w, http.StatusTooManyRequests, "درخواست‌ها زیاد است؛ کمی بعد دوباره امتحان کنید.")
-		return
-	}
+// collectFields reads {fields: {...}} of a request: text and ticks
+func collectFields(body jsonx.M) map[string]string {
 	in := map[string]string{}
 	for k, v := range jsonx.Sub(body, "fields") {
 		switch t := v.(type) {
@@ -400,9 +438,22 @@ func leadSubmitFull(w http.ResponseWriter, r *http.Request, owner auth.User, key
 			}
 		}
 	}
-	if _, e := createSelfCustomer(r.Context(), owner, in); e != nil {
+	return in
+}
+
+// leadSubmitForm: the POST of a public form {form, fields: {...}, trap}: a robot is told «done» and nothing is saved; a number that exists is not told to the visitor
+func leadSubmitForm(w http.ResponseWriter, r *http.Request, owner auth.User, key string, body jsonx.M, opt selfOpt) {
+	if jsonx.Str(body, "trap") != "" {
+		httpx.OK(w)
+		return
+	}
+	if leadLimited(httpx.ClientIP(r), key) {
+		httpx.Error(w, http.StatusTooManyRequests, "درخواست‌ها زیاد است؛ کمی بعد دوباره امتحان کنید.")
+		return
+	}
+	if _, e := createSelfCustomer(r.Context(), owner, collectFields(body), opt); e != nil {
 		if e.Status == http.StatusConflict {
-			httpx.OK(w) // the visitor is not told whose customer that is
+			httpx.OK(w)
 			return
 		}
 		httpx.Error(w, e.Status, e.Msg)
