@@ -31,11 +31,11 @@ import (
 
 // the labels are also the keys of the console's form tuning (fields are named by their label)
 var fieldLabels = map[string]string{
-	"نام و نام خانوادگی":  "name",
-	"موبایل":              "phone",
-	"شرکت / فروشگاه":      "company",
-	"شهر":                 "city",
-	"نمایشگاه / محل ثبت":  "event",
+	"نام و نام خانوادگی":   "name",
+	"موبایل":               "phone",
+	"شرکت / فروشگاه":       "company",
+	"شهر":                  "city",
+	"نمایشگاه / محل ثبت":   "event",
 	"توضیحات و علاقه‌مندی": "note",
 }
 
@@ -58,16 +58,21 @@ func fieldSettings(ctx context.Context) jsonx.M {
 
 // the form tuning of the console for the form «field»: hidden and required labels
 func fieldFormCfg(ctx context.Context) (hidden, required []string) {
+	return formCfg(ctx, "field", []string{"نام و نام خانوادگی", "موبایل"})
+}
+
+// formCfg: what the console decided about one form (hidden and required labels); defReq is what is required until he chooses
+func formCfg(ctx context.Context, id string, defReq []string) (hidden, required []string) {
 	var raw []byte
 	if store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw) != nil {
-		return nil, []string{"نام و نام خانوادگی", "موبایل"}
+		return nil, defReq
 	}
-	cfg := jsonx.Sub(jsonx.Sub(jsonx.Decode(raw), "formConfig"), "field")
+	cfg := jsonx.Sub(jsonx.Sub(jsonx.Decode(raw), "formConfig"), id)
 	hidden = jsonx.Strings(cfg, "hidden")
 	if _, set := cfg["required"]; set {
 		required = jsonx.Strings(cfg, "required")
 	} else {
-		required = []string{"نام و نام خانوادگی", "موبایل"}
+		required = defReq
 	}
 	return
 }
@@ -446,6 +451,10 @@ func leadInfo(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "این فرم فعال نیست.")
 		return
 	}
+	if r.URL.Query().Get("form") == "full" {
+		httpx.JSON(w, http.StatusOK, selfInfo(r.Context()))
+		return
+	}
 	httpx.JSON(w, http.StatusOK, formInfo(r.Context()))
 }
 
@@ -460,6 +469,10 @@ func leadSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	body, ok := httpx.ReadBody(w, r)
 	if !ok {
+		return
+	}
+	if jsonx.Str(body, "form") == "full" { // the company's own full registration form
+		leadSubmitFull(w, r, owner, key, body)
 		return
 	}
 	// a robot fills every box, also the one a person never sees: it is told «done» and nothing is saved

@@ -8,6 +8,7 @@ import AdminPanel from './pages/AdminPanel';
 import { LoginPage } from './pages/LoginPage';
 import { PortalPage } from './pages/PortalPage';
 const FieldPage = React.lazy(() => import('./pages/FieldPage').then((m) => ({ default: m.FieldPage })));
+const RegisterPage = React.lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const LeadPage = React.lazy(() => import('./pages/LeadPage').then((m) => ({ default: m.LeadPage })));
 import { useCompanyName } from './lib/useCompanyName';
 import { NotificationPopups } from './components/common/NotificationPopups';
@@ -80,6 +81,7 @@ function AppRoutes() {
       />
       <Route path="/admin" element={<AdminPanel />} />
       <Route path="/support" element={<PortalPage />} />
+      <Route path="/register" element={<React.Suspense fallback={null}><RegisterPage /></React.Suspense>} />
       <Route path="/lead" element={<React.Suspense fallback={null}><LeadPage /></React.Suspense>} />
       <Route path="*" element={<SlugGate />} />
     </Routes>

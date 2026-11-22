@@ -1,12 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { FIELD_FORM } from '../../lib/formConfig';
+import { PAPER_AREA, PAPER_BUTTON, PAPER_INPUT, PAPER_LABEL } from '../common/paperStyles';
+import { PaperNotice } from '../common/PaperNotice';
 
 export type FieldValues = { name: string; phone: string; company: string; city: string; event: string; note: string };
 export const emptyField = (event = ''): FieldValues => ({ name: '', phone: '', company: '', city: '', event, note: '' });
 
-const input = 'w-full px-4 py-3.5 bg-white border border-[#E2D3C7] rounded-2xl text-[16px] font-bold text-[#3A241F] outline-hidden focus:ring-2 focus:ring-[#6E1B1B]/25 focus:border-[#6E1B1B] placeholder:text-[#B9A79C] placeholder:font-medium';
-const lab = 'block text-[13px] font-black text-[#6B4F46] mb-1.5';
+const input = PAPER_INPUT;
+const lab = PAPER_LABEL;
 
 /**
  * The very short registration form: name, mobile and a few optional fields. Which of the optional ones exist and which are required is decided in
@@ -33,12 +35,6 @@ export const FieldForm: React.FC<{
   const req = (label: string) => !cfg ? false : required.includes(label);
   const set = (k: keyof FieldValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV((p) => ({ ...p, [k]: e.target.value }));
 
-  useEffect(() => {
-    if (!done) return;
-    const t = setTimeout(() => setDone(''), 3500);
-    return () => clearTimeout(t);
-  }, [done]);
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
@@ -58,7 +54,7 @@ export const FieldForm: React.FC<{
   const star = (label: string) => (req(label) ? <span className="text-rose-600"> *</span> : null);
 
   return (
-    <form onSubmit={submit} data-form-id={cfg ? undefined : 'field'} className="space-y-3.5" noValidate>
+    <form onSubmit={submit} data-form-id={cfg ? undefined : 'field'} className="space-y-3" noValidate>
       <div>
         <label className={lab}>{FIELD_FORM.name}{star(FIELD_FORM.name)}</label>
         <input ref={nameRef} className={input} value={v.name} onChange={set('name')} autoComplete="off" autoFocus enterKeyHint="next" placeholder="مثلاً علی رضایی" />
@@ -88,15 +84,15 @@ export const FieldForm: React.FC<{
       {on(FIELD_FORM.note) && (
         <div>
           <label className={lab}>{FIELD_FORM.note}{star(FIELD_FORM.note)}</label>
-          <textarea className={`${input} min-h-[84px]`} rows={3} value={v.note} onChange={set('note')} placeholder="به چه چیزی علاقه دارد؟" />
+          <textarea className={PAPER_AREA} rows={3} value={v.note} onChange={set('note')} placeholder="به چه چیزی علاقه دارد؟" />
         </div>
       )}
-      {trap && <input type="text" name="website" tabIndex={-1} autoComplete="off" value={bot} onChange={(e) => setBot(e.target.value)} className="absolute -left-[9999px] w-px h-px opacity-0" aria-hidden="true" />}
-      {err && <div role="alert" className="rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-[14px] font-black px-4 py-3 leading-7">{err}</div>}
-      {done && <div role="status" className="rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[14px] font-black px-4 py-3 flex items-center gap-2"><Check className="w-5 h-5 shrink-0" />{done}</div>}
+      {trap && <input type="text" name="website" tabIndex={-1} autoComplete="off" value={bot} onChange={(e) => setBot(e.target.value)} className="absolute left-0 top-0 w-0 h-0 opacity-0 overflow-hidden pointer-events-none" aria-hidden="true" />}
+      {err && <PaperNotice kind="err" text={err} onClose={() => setErr('')} />}
+      {done && <PaperNotice kind="ok" text={done} onClose={() => setDone('')} />}
       {/* the button stays at the bottom of the screen: no scrolling to reach it on a phone */}
-      <div className="sticky bottom-0 -mx-1 px-1 pt-2 pb-[max(0.25rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-white via-white to-white/0">
-        <button type="submit" disabled={busy} className="w-full min-h-[54px] rounded-2xl bg-[#6E1B1B] active:bg-[#561414] text-white text-[17px] font-black flex items-center justify-center gap-2 disabled:opacity-70 touch-manipulation">
+      <div className="sticky bottom-0 -mx-1 px-1 pt-2 pb-[max(0.25rem,env(safe-area-inset-bottom))] bg-transparent">
+        <button type="submit" disabled={busy} className={PAPER_BUTTON}>
           {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
           {busy ? 'در حال ثبت…' : submitText}
         </button>

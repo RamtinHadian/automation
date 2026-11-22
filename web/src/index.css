@@ -323,6 +323,11 @@ html.night [data-error-popups] > div {
    Every pop-up window of the application is an overlay (.fixed.inset-0.flex) with a white card as its child. On a phone the card is
    a sheet that rises from the bottom edge and uses the whole width (no floating card with margins), as tall as the screen allows
    (dvh follows the browser bar) and clear of the home indicator. The centred question window and the reminder window keep their look. */
+@keyframes paperPop { from { opacity: 0; transform: translateY(10px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes paperFade { from { opacity: 0; } to { opacity: 1; } }
+.paper-pop { animation: paperPop .22s cubic-bezier(.2,.8,.2,1) both; }
+.paper-fade { animation: paperFade .18s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .paper-pop, .paper-fade { animation: none; } }
 @keyframes sheetUp {
   from { transform: translateY(40px); opacity: 0.4; }
   to { transform: none; opacity: 1; }

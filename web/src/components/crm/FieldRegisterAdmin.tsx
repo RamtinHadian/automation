@@ -116,6 +116,15 @@ export const FieldRegisterAdmin: React.FC<{ staff: User[]; isAdmin: boolean; sho
                   <button type="button" onClick={async () => { if (!(await askConfirm('این کلید حذف شود؟ فرمی که در سایت گذاشته‌اید دیگر کار نمی‌کند.', { title: 'حذف کلید فرم سایت؟', confirmText: 'بله، حذف شود' }))) return; api.fieldDeleteKey(k.key).then(() => { showToast('کلید حذف شد.'); load(); }).catch(() => showToast('حذف نشد.')); }} className="px-2.5 py-1 rounded-lg text-rose-700 bg-rose-50 border border-rose-200 text-[11px] font-black flex items-center gap-1 cursor-pointer"><Trash2 className="w-3 h-3" />حذف</button>
                 </div>
                 <textarea readOnly rows={2} dir="ltr" value={embed(k.key)} onFocus={(e) => e.currentTarget.select()} className="w-full p-2 bg-white border border-[#EBDBCE] rounded-xl text-[11px] font-mono" />
+                <div className="rounded-xl bg-white border border-[#EBDBCE] p-2 space-y-1.5" data-self-reg>
+                  <div className="text-[11px] font-black text-[#3A241F]">فرم کامل ثبت مشخصات شرکت (خود شرکت پر می‌کند)</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code className="px-2 py-1 rounded-lg bg-[#FAF5F1] border border-[#EBDBCE] text-[10.5px] font-bold break-all" dir="ltr">{`${origin}/register?k=${k.key}`}</code>
+                    <button type="button" onClick={() => void copy(`${origin}/register?k=${k.key}`, 'لینک فرم کامل کپی شد.')} className="px-3 py-1.5 rounded-lg border border-[#EBDBCE] text-[11px] font-black flex items-center gap-1 cursor-pointer"><Copy className="w-3 h-3" />کپی لینک</button>
+                    <a href={`${origin}/register?k=${k.key}`} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg border border-[#EBDBCE] text-[11px] font-black flex items-center gap-1"><ExternalLink className="w-3 h-3" />دیدن</a>
+                  </div>
+                  <p className="text-[10px] font-bold text-[#8C6F66] leading-5">این لینک را برای شرکت بفرستید (پیامک، واتساپ، ایمیل) یا در سایت بگذارید. فیلدها و اجباری‌بودنشان از «تنظیمات سیستم ← فرم‌ها ← فرم کامل ثبت مشخصات شرکت» تعیین می‌شود. شرکت ثبت‌شده به نام همین بازاریاب می‌نشیند.</p>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={() => void copy(embed(k.key), 'کد فرم کپی شد.')} className="px-3 py-1.5 rounded-lg border border-[#EBDBCE] text-[11px] font-black flex items-center gap-1 cursor-pointer"><Copy className="w-3 h-3" />کپی کد فرم</button>
                   <a href={`${origin}/lead?k=${k.key}`} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg border border-[#EBDBCE] text-[11px] font-black flex items-center gap-1"><ExternalLink className="w-3 h-3" />دیدن فرم</a>

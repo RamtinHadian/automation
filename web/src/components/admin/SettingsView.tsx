@@ -45,6 +45,7 @@ import {
   KeyRound,
   ScrollText,
   Phone,
+  Smartphone,
 } from 'lucide-react';
 import { SystemSettings, LetterNumberingSettings } from '../../types';
 import { FontManagementModal } from './FontManagementModal';
@@ -60,6 +61,7 @@ import { MinutesSettingsCard } from './MinutesSettingsCard';
 import { ProformaDesigner } from './ProformaDesigner';
 import { VoipStatusCard } from './VoipStatusCard';
 import { SmsSettingsCard } from './SmsSettingsCard';
+import { FieldRegisterAdmin } from '../crm/FieldRegisterAdmin';
 import { MessengerSettingsCard } from './MessengerSettingsCard';
 import { FormSettingsCard } from './FormSettingsCard';
 import { NotificationSettingsCard } from './NotificationSettingsCard';
@@ -144,7 +146,7 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
-type SettingsSection = 'forms' | 'identity' | 'phone' | 'sms' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'ai' | 'backup' | 'license';
+type SettingsSection = 'forms' | 'identity' | 'phone' | 'sms' | 'field' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'ai' | 'backup' | 'license';
 
 /** Each group of settings has its own tab under the page title. */
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -159,6 +161,7 @@ const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.Compo
   { id: 'notify', label: 'ناتیفیکیشن و صدا', Icon: Bell },
   { id: 'phone', label: 'تلفن شرکت (ویپ)', Icon: PhoneCall },
   { id: 'sms', label: 'پیامک', Icon: MessageSquare },
+  { id: 'field', label: 'ورود مشتریان (بازاریاب میدانی)', Icon: Smartphone },
   { id: 'msgr', label: 'تلگرام و بله', Icon: Send },
   { id: 'api', label: 'اتصال برنامه‌ها (API)', Icon: Plug },
   { id: 'ai', label: 'هوش مصنوعی', Icon: Sparkles },
@@ -572,6 +575,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {section === 'sms' && <SmsSettingsCard />}
+      {section === 'field' && <FieldRegisterAdmin staff={staffList} isAdmin showToast={showToast} />}
 
       {section === 'forms' && <FormSettingsCard />}
 

@@ -1,0 +1,6 @@
+// The shapes of the fields and buttons of the public pages (the PaperShell look): thin outlined pills and a dark-green pill button.
+export const PAPER_INPUT = 'w-full h-[48px] px-5 bg-white/80 border border-[#b9c4be] rounded-full text-[15px] font-bold text-[#1f2a24] outline-hidden focus:!outline-none focus-visible:!outline-none focus:ring-2 focus:ring-[#3e574b]/30 focus:border-[#3e574b] placeholder:text-[#9aa8a1] placeholder:font-medium';
+export const PAPER_AREA = 'w-full px-5 py-3 min-h-[88px] bg-white/80 border border-[#b9c4be] rounded-[24px] text-[15px] font-bold text-[#1f2a24] outline-hidden focus:!outline-none focus-visible:!outline-none focus:ring-2 focus:ring-[#3e574b]/30 focus:border-[#3e574b] placeholder:text-[#9aa8a1] placeholder:font-medium';
+export const PAPER_LABEL = 'block text-[12px] font-black text-[#3a4a41] mb-1.5 mr-3';
+export const PAPER_BUTTON = 'w-full min-h-[50px] rounded-full bg-[#3e574b] active:bg-[#2f453b] hover:bg-[#35503f] text-white text-[16px] font-black flex items-center justify-center gap-2 disabled:opacity-70 touch-manipulation shadow-[0_8px_20px_rgba(46,72,58,0.28)]';
+export const PAPER_ERROR = 'rounded-[22px] bg-rose-50/90 border border-rose-200 text-rose-800 text-[13px] font-black px-4 py-3 leading-7';
