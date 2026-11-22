@@ -761,8 +761,14 @@ func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 	for _, b := range balances {
 		if id, _ := whNum(b, "CustomerID"); int64(id) == sid {
 			out["title"] = jsonx.Str(b, "Title")
-			if v, ok := whNum(b, "Remainder"); ok && seeBalance {
-				out["remainder"] = v
+			// the balance: «Remainder»; a copy of the sync tool that could not find it wrote 0 for everybody (every debtor looked «settled»), so a 0 next to a real
+			// «remainder without cheques» is read as that figure, and a missing / null balance stays unknown (the page says «مانده نامشخص»)
+			rem, okRem := whNum(b, "Remainder")
+			if alt, okAlt := whNum(b, "RemainderWithoutCheque"); okAlt && alt != 0 && (!okRem || rem == 0) {
+				rem, okRem = alt, true
+			}
+			if okRem && seeBalance {
+				out["remainder"] = rem
 			}
 			if v, ok := whNum(b, "CreditRemainder"); ok && seeCredit {
 				out["creditRemainder"] = v

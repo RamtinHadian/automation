@@ -1096,7 +1096,29 @@ export async function pushCaches(cfg, sp, state) {
   await tryPush('currencies', '/api/Currencies', (x) => pick(x, ['CurrencyID', 'Title', 'IsMain']));
   await tryPush('customerGroups', '/api/CustomerGroupings', (x) => pick(x, ['CustomerGroupingID', 'Title']));
   await tryPush('sepidarCustomers', '/api/Customers', (x) => ({ id: x.CustomerID, code: x.Code ?? x.CustomerCode ?? '', name: x.Title || `${x.Name || ''} ${x.LastName || ''}`.trim(), phones: [x.PhoneNumber, x.MobileNumber, x.Phone].filter(Boolean), nationalId: x.NationalID || '' }));
-  await tryPush('balances', '/api/Customers', (x) => ({ ...pick(x, ['CustomerID', 'Title', 'CreditRemainder', 'QuantityCreditRemainder', 'RemainderWithoutCheque']), Remainder: x.Remainder ?? x.AccountingRemainder ?? 0 }));
+  // The customer's balance (what he owes: positive = debtor). When Sepidar's answer has NO balance field the figure is left UNKNOWN (null) and never turned into 0:
+  // a 0 would make every debtor look «settled» in Hoormand.
+  const remOf = (x) => {
+    for (const k of ['Remainder', 'AccountingRemainder', 'CustomerRemainder', 'RemainderWithoutCheque']) {
+      const v = x[k];
+      if (v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v))) return { value: Number(v), field: k };
+    }
+    return null;
+  };
+  let remFound = 0;
+  let remMissing = 0;
+  let sampleKeys = '';
+  await tryPush('balances', '/api/Customers', (x) => {
+    const r = remOf(x);
+    if (r) remFound++;
+    else {
+      remMissing++;
+      if (!sampleKeys) sampleKeys = Object.keys(x).join(', ');
+    }
+    return { ...pick(x, ['CustomerID', 'Title', 'CreditRemainder', 'QuantityCreditRemainder', 'RemainderWithoutCheque']), Remainder: r ? r.value : null, RemainderField: r ? r.field : '' };
+  });
+  if (remMissing) log(`  مانده مشتری‌ها: برای ${remMissing} مشتری سپیدار مانده‌ای نداد (در هورمند «مانده نامشخص» نوشته می‌شود، نه «تسویه‌شده»). فیلدهایی که سپیدار برای مشتری می‌دهد: ${sampleKeys}`);
+  if (remFound) log(`  مانده مشتری‌ها: برای ${remFound} مشتری مانده خوانده شد.`);
   try {
     const [notes, items] = await Promise.all([sp.get('/api/PriceNoteItems'), sp.get('/api/Items')]);
     const byId = new Map(items.map((i) => [i.ItemID, i]));
