@@ -51,7 +51,7 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
 
   const hasCredit = typeof data.creditRemainder === 'number';
   const hasInvoices = !!data.invoices && data.invoices.length > 0;
-  if (!hasBalance && !hasCredit && !hasInvoices && data.invoiceCount === undefined) return null; // nothing this person may see
+  if (!hasBalance && !hasCredit && !hasInvoices && data.invoiceCount === undefined) return null; // nothing this person may see (e.g. no right to the money)
 
   if (compact) {
     return (
@@ -80,15 +80,14 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
         وضعیت مالی در سپیدار{data.title ? ` · ${data.title}` : ''}
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {hasBalance && (
-          <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
+        <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2 col-span-2 sm:col-span-1">
           <div className="text-[10px] font-bold text-[#8C6F66]">مانده حساب</div>
-          <div className={`text-sm font-black ${tone}`}>
+          <div className={`text-sm font-black ${hasBalance ? tone : 'text-slate-600'}`}>
             {word}
             {hasBalance && rem !== 0 ? ` ${fmt(rem)}` : ''}
           </div>
+          {!hasBalance && <div className="mt-1 text-[10px] font-bold text-[#8C6F66] leading-5">سپیدار برای این مشتری مانده‌ای نفرستاده است؛ بدهی یا تسویه‌بودنش را از همین‌جا نمی‌شود فهمید.</div>}
         </div>
-        )}
         {hasCredit && (
           <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
           <div className="text-[10px] font-bold text-[#8C6F66]">مانده اعتبار</div>
