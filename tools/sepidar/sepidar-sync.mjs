@@ -1125,11 +1125,43 @@ export async function pushCaches(cfg, sp, state) {
     return null;
   };
   let rawShown = 0;
+  // This Sepidar leaves the balance empty in the LIST of customers, but gives it when ONE customer is opened (/api/Customers/<id>).
+  // So the customers Hoormand cares about (linked to a Hoormand customer, or with an invoice) are opened one by one; a figure is
+  // remembered for 20 minutes so that every round does not open them all again.
+  const perCust = new Map();
+  try {
+    state.balCache ||= {};
+    const want = new Set(Object.values(state.customers || {}).map(Number));
+    try { for (const inv of await sp.get('/api/Invoices')) if (inv.CustomerRef != null) want.add(Number(inv.CustomerRef)); } catch { /* the invoices are optional here */ }
+    const now = Date.now();
+    const todo = [...want].filter((id) => Number.isFinite(id) && !(state.balCache[id] && now - state.balCache[id].at < 20 * 60 * 1000));
+    let next = 0;
+    let opened = 0;
+    let failed = 0;
+    const worker = async () => {
+      while (next < todo.length) {
+        const id = todo[next++];
+        try {
+          const one = await sp.get(`/api/Customers/${id}`);
+          state.balCache[id] = { at: Date.now(), row: pick(one || {}, ['AccountingRemainder', 'RemainderWithoutCheque', 'CreditRemainder', 'QuantityCreditRemainder', 'Remainder']) };
+          opened++;
+        } catch {
+          failed++;
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: 5 }, worker));
+    for (const id of want) if (state.balCache[id]) perCust.set(id, state.balCache[id].row);
+    saveState(state);
+    log(`  مانده تک‌تک مشتری‌ها: ${perCust.size} مشتری (از ${want.size}) خوانده شد${opened ? `، ${opened} تازه از سپیدار` : ''}${failed ? `، ${failed} خطا` : ''}.`);
+  } catch (e) {
+    log(`  مانده تک‌تک مشتری‌ها خوانده نشد (${String(e.message).slice(0, 80)})`);
+  }
   let remFound = 0;
   let remMissing = 0;
   let sampleKeys = '';
   await tryPush('balances', '/api/Customers', (x) => {
-    const r = remOf(x);
+    const r = remOf(x) || remOf(perCust.get(Number(x.CustomerID)) || {});
     if (rawShown < 3) { rawShown++; log(`  نمونهٔ خام مانده (مشتری ${x.CustomerID}): AccountingRemainder=${JSON.stringify(x.AccountingRemainder)} RemainderWithoutCheque=${JSON.stringify(x.RemainderWithoutCheque)} CreditRemainder=${JSON.stringify(x.CreditRemainder)} QuantityCreditRemainder=${JSON.stringify(x.QuantityCreditRemainder)}`); }
     if (r) remFound++;
     else {
