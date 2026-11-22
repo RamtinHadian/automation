@@ -295,6 +295,9 @@ export interface SmsSettings {
   keyTail: string;
 }
 
+/** One ready-made SMS text: the registered original and the administrator's edit (empty = not edited). */
+export interface SmsKV { key: string; name: string; text: string; override: string; viaTemplate?: boolean; auto: boolean; staff: boolean }
+
 export interface SmsLogRow {
   at: string;
   by: string;
@@ -651,6 +654,8 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   smsBulkProgress: (id: string) => request<{ id: string; total: number; sent: number; failed: number; skipped: number; done: boolean; error: string }>('GET', `/api/sms/bulk/${encodeURIComponent(id)}`),
   smsTemplates: () => request<{ templates: { key: string; title: string; when: string; sample: string }[] }>('GET', '/api/sms/templates'),
   smsSettings: () => request<SmsSettings>('GET', '/api/sms/settings'),
+  smsKV: () => request<{ templates: SmsKV[] }>('GET', '/api/sms/kv'),
+  smsOverride: (key: string, text: string, viaTemplate?: boolean) => request<{ templates: SmsKV[] }>('PUT', '/api/sms/override', { key, text, viaTemplate }),
   smsSave: (b: { footer: string; auto: string[]; library: string[] | null; custom: { id: string; title: string; text: string }[]; sender: string; enabled: boolean; labels: string[]; apiKey: string }) => request<SmsSettings>('PUT', '/api/sms/settings', b),
   smsBalance: () => request<{ balance: string }>('GET', '/api/sms/balance'),
   smsLog: () => request<{ log: SmsLogRow[] }>('GET', '/api/sms/log'),

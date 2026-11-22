@@ -129,6 +129,8 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/sms/bulk/{id}", auth.Require(smsBulkProgress))
 	mux.HandleFunc("GET /api/sms/settings", auth.Require(smsGetSettings))
 	mux.HandleFunc("PUT /api/sms/settings", auth.Require(smsPutSettings))
+	mux.HandleFunc("GET /api/sms/kv", auth.Require(smsKV))
+	mux.HandleFunc("PUT /api/sms/override", auth.Require(smsPutOverride))
 	mux.HandleFunc("GET /api/sms/balance", auth.Require(smsBalance))
 	mux.HandleFunc("GET /api/sms/log", auth.Require(smsLog))
 	mux.HandleFunc("POST /api/sms/test", auth.Require(smsTest))

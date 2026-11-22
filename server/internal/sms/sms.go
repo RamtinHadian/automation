@@ -32,15 +32,20 @@ type Custom struct {
 
 // Config is what an admin sets up in the panel.
 type Config struct {
-	Provider string   `json:"provider"` // always "kavenegar" (older settings of other panels are dropped when loaded)
-	APIKey   string   `json:"apiKey"`
-	Sender   string   `json:"sender"`  // line number
-	Auto     []string `json:"auto"`    // kinds of automatic messages to customers that are switched on (see Templates)
-	Library  []string `json:"library"` // ready-made texts shown as buttons in the send window (nil = the four originals)
-	Custom   []Custom `json:"custom"`  // the company's own texts
-	Footer   string   `json:"footer"`  // the line every message ends with (website or company name); empty = the company name
-	Enabled  bool     `json:"enabled"`
-	Labels   []string `json:"labels"` // notification labels that are also sent as SMS to people who have a mobile number
+	// Overrides are texts the administrator wrote in place of a ready-made one (template key -> text with {name} {company}…). A text that was edited is
+	// sent as a free text (no template has to be registered in the panel); the others go through the panel's registered templates.
+	Overrides map[string]string `json:"overrides,omitempty"`
+	// ViaTemplate: the administrator also changed (and got approved) the template in the panel, so the edited text goes through the template again.
+	ViaTemplate map[string]bool `json:"viaTemplate,omitempty"`
+	Provider    string          `json:"provider"` // always "kavenegar" (older settings of other panels are dropped when loaded)
+	APIKey      string          `json:"apiKey"`
+	Sender      string          `json:"sender"`  // line number
+	Auto        []string        `json:"auto"`    // kinds of automatic messages to customers that are switched on (see Templates)
+	Library     []string        `json:"library"` // ready-made texts shown as buttons in the send window (nil = the four originals)
+	Custom      []Custom        `json:"custom"`  // the company's own texts
+	Footer      string          `json:"footer"`  // the line every message ends with (website or company name); empty = the company name
+	Enabled     bool            `json:"enabled"`
+	Labels      []string        `json:"labels"` // notification labels that are also sent as SMS to people who have a mobile number
 }
 
 // Base URLs (variables so tests can point them at a fake server).

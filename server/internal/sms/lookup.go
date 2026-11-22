@@ -39,8 +39,11 @@ func KVFind(key string) (KVTemplate, bool) {
 }
 
 // RenderKV is the text as the customer reads it (digits in Persian); it is what the logs and the customer's history show.
-func RenderKV(t KVTemplate, vars map[string]string) string {
-	out := t.Text
+func RenderKV(t KVTemplate, vars map[string]string) string { return RenderText(t.Text, vars) }
+
+// RenderText fills the {name} {company} {number} {end} {product} {subject} of any text.
+func RenderText(text string, vars map[string]string) string {
+	out := text
 	for k := range slot {
 		out = strings.ReplaceAll(out, "{"+k+"}", ToFa(strings.TrimSpace(vars[k])))
 	}
@@ -80,11 +83,25 @@ func SendTemplate(ctx context.Context, c Config, mobile, key string, vars map[st
 		vars = copyVars(vars)
 		vars["name"] = "مشتری"
 	}
+	// a text the administrator edited is sent as a free text: it needs no template in the panel
+	over := strings.TrimSpace(c.Overrides[key])
+	if over != "" && !c.ViaTemplate[key] {
+		text := RenderText(over, vars)
+		if _, err := Send(ctx, c, []string{m}, text); err != nil {
+			return "", err
+		}
+		return text, nil
+	}
+	// with the edited text confirmed in the panel (ViaTemplate) the template is used as before, but its parameters follow the edited text
+	body := t.Text
+	if over != "" {
+		body = over
+	}
 	var last error
 	for _, joiner := range joiners {
 		q := url.Values{"receptor": {m}, "template": {t.Name}}
 		for k, p := range slot {
-			if !strings.Contains(t.Text, "{"+k+"}") {
+			if !strings.Contains(body, "{"+k+"}") {
 				continue
 			}
 			v := tokenValue(p, vars[k], joiner)
@@ -105,7 +122,7 @@ func SendTemplate(ctx context.Context, c Config, mobile, key string, vars map[st
 		}
 		_ = json.Unmarshal(b, &r)
 		if r.Return.Status == 200 {
-			return RenderKV(t, vars), nil
+			return RenderText(body, vars), nil
 		}
 		switch r.Return.Status {
 		case 424:
@@ -148,7 +165,9 @@ func SendTemplateAndLog(ctx context.Context, by, mobile, key string, vars map[st
 	st, detail := "ok", ""
 	if err != nil {
 		st, detail = "failed", err.Error()
-		if t, ok := KVFind(key); ok {
+		if o := strings.TrimSpace(c.Overrides[key]); o != "" {
+			text = RenderText(o, vars)
+		} else if t, ok := KVFind(key); ok {
 			text = RenderKV(t, vars)
 		}
 	}

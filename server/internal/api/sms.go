@@ -46,15 +46,17 @@ func smsPutSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := sms.Config{
-		Provider: "kavenegar",
-		APIKey:   strings.TrimSpace(jsonx.Str(body, "apiKey")),
-		Sender:   strings.TrimSpace(jsonx.Str(body, "sender")),
-		Enabled:  jsonx.Bool(body, "enabled"),
-		Labels:   jsonx.Strings(body, "labels"),
-		Footer:   strings.TrimSpace(jsonx.Str(body, "footer")),
-		Auto:     validAuto(jsonx.Strings(body, "auto")),
-		Library:  validLibrary(body["library"]),
-		Custom:   []sms.Custom{},
+		Provider:    "kavenegar",
+		APIKey:      strings.TrimSpace(jsonx.Str(body, "apiKey")),
+		Sender:      strings.TrimSpace(jsonx.Str(body, "sender")),
+		Enabled:     jsonx.Bool(body, "enabled"),
+		Labels:      jsonx.Strings(body, "labels"),
+		Footer:      strings.TrimSpace(jsonx.Str(body, "footer")),
+		Auto:        validAuto(jsonx.Strings(body, "auto")),
+		Library:     validLibrary(body["library"]),
+		Custom:      []sms.Custom{},
+		Overrides:   sms.Load(r.Context()).Overrides, // the edited texts are kept when the other settings are saved
+		ViaTemplate: sms.Load(r.Context()).ViaTemplate,
 	}
 	if len([]rune(c.Footer)) > 100 {
 		httpx.Error(w, http.StatusBadRequest, "متن پایان پیامک باید کوتاه باشد (حداکثر ۱۰۰ نویسه).")

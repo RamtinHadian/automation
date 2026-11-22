@@ -158,6 +158,29 @@ func TestSendTemplateNotApproved(t *testing.T) {
 	}
 }
 
+func TestSendTemplateEditedTextGoesAsFreeText(t *testing.T) {
+	var path, text string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		_ = r.ParseForm()
+		text = r.Form.Get("message")
+		w.Write([]byte(`{"return":{"status":200},"entries":[{"messageid":7}]}`))
+	}))
+	defer srv.Close()
+	kavenegarBase = srv.URL + "/v1"
+	c := Config{Provider: "kavenegar", APIKey: "K", Overrides: map[string]string{"customer_new": "سلام {name}، از {company} خوش آمدید"}}
+	got, err := SendTemplate(context.Background(), c, "09121234567", "customer_new", map[string]string{"name": "علی", "company": "شرکت"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(path, "lookup") || !strings.Contains(path, "send") {
+		t.Fatalf("an edited text must go as a free text, not through the template: %s", path)
+	}
+	if !strings.Contains(got, "سلام علی") || strings.Contains(got, "{") || !strings.Contains(text, "سلام علی") {
+		t.Fatalf("bad text: %q / %q", got, text)
+	}
+}
+
 func TestEveryTemplateIsConsistent(t *testing.T) {
 	seen := map[string]bool{}
 	for _, k := range KVTemplates {
