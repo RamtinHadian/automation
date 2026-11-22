@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BadgeDollarSign, BookOpen, ClipboardList, Contact, MessageCircle, Megaphone, MessagesSquare, Pencil, Plus, Search, Target, Trash2, TrendingUp, X } from 'lucide-react';
+import { BadgeDollarSign, BookOpen, ClipboardList, Contact, MessageCircle, Megaphone, MessagesSquare, Pencil, Plus, Search, Smartphone, Target, Trash2, TrendingUp, X } from 'lucide-react';
+import { FieldRegisterAdmin } from './FieldRegisterAdmin';
 import { api } from '../../lib/api';
 import { askConfirm } from '../../lib/confirmDialog';
 import { toPersianDigits } from '../../lib/jalali';
@@ -36,7 +37,7 @@ const RATINGS = ['تازه‌به‌دست‌آمده', 'فعال', 'بازار 
 const RESPONSES = ['عالی', 'خوب', 'متوسط', 'ضعیف'];
 const INDUSTRIES = ['کشاورزی', 'بانکداری', 'ساخت‌وساز', 'آموزش', 'انرژی', 'مالی', 'سلامت و درمان', 'فناوری اطلاعات', 'بیمه', 'تولید', 'رسانه', 'خرده‌فروشی', 'حمل‌ونقل', 'خدمات', 'دیگر'];
 
-type Section = 'overview' | 'campaigns' | 'leads' | 'surveys' | 'messages' | 'messengers' | 'contacts' | 'standards';
+type Section = 'overview' | 'campaigns' | 'leads' | 'surveys' | 'messages' | 'messengers' | 'contacts' | 'standards' | 'field';
 const SECTIONS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'نمای کلی', icon: <TrendingUp className="w-3.5 h-3.5" /> },
   { id: 'campaigns', label: 'کمپین‌های تبلیغاتی', icon: <Megaphone className="w-3.5 h-3.5" /> },
@@ -46,6 +47,7 @@ const SECTIONS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: 'messengers', label: 'پیام‌رسان‌ها', icon: <MessageCircle className="w-3.5 h-3.5" /> },
   { id: 'contacts', label: 'مخاطبین', icon: <Contact className="w-3.5 h-3.5" /> },
   { id: 'standards', label: 'استانداردها', icon: <BookOpen className="w-3.5 h-3.5" /> },
+  { id: 'field', label: 'صفحه ورود مشتریان (بازاریاب میدانی)', icon: <Smartphone className="w-3.5 h-3.5" /> },
 ];
 
 const QUESTION_TYPES: { id: SurveyQuestion['type']; label: string }[] = [
@@ -639,6 +641,7 @@ export const MarketingView: React.FC<{ customers: Customer[]; allContacts: Custo
         <div className="text-center text-[11px] font-bold text-gray-400 py-10 border border-dashed border-[#EBDBCE] rounded-2xl bg-white">دسترسی شما به «دفتر تلفن» بسته است؛ از مدیر بخواهید در جدول مجوزها باز کند.</div>
       ))}
 
+      {sec === 'field' && <FieldRegisterAdmin staff={staff} isAdmin={isAdmin} showToast={showToast} />}
       {sec === 'standards' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[

@@ -48,6 +48,13 @@ var schema = []string{
 	  recovery TEXT[] NOT NULL DEFAULT '{}',
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
+	// the keys of the web-site form (/lead): one secret per marketer, revocable
+	`CREATE TABLE IF NOT EXISTS site_lead_keys (
+	  key TEXT PRIMARY KEY,
+	  user_id TEXT NOT NULL,
+	  active BOOLEAN NOT NULL DEFAULT true,
+	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
 	`CREATE TABLE IF NOT EXISTS departments (
 	  id TEXT PRIMARY KEY,
 	  data JSONB NOT NULL

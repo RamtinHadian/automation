@@ -592,7 +592,7 @@ export const CrmView: React.FC = () => {
         <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}<span className="hidden lg:inline-flex shrink-0"><FinanceChip customerId={c.id} small /></span>
         <div className="hidden sm:block w-32 text-[11px] font-bold text-[#3A241F]" dir="ltr">{toPersianDigits(c.phones?.[0] || '')}</div>
         <div className="hidden md:block w-28 text-[11px] text-[#8C6F66] truncate">{c.ownerName || ''}</div>
-        <div className="hidden md:block w-24 text-[10.5px] text-[#8C6F66]">{c.createdAt ? formatTaskDate(c.createdAt.slice(0, 10)) : ''}</div>
+        <div className="hidden md:block w-40 text-[10.5px] text-[#8C6F66]" title="زمان ثبت مشتری">{c.createdAt ? formatDateTime(c.createdAt) : ''}</div>
         <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${st.cls || 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>{st.label}</span>
       </div>
     );

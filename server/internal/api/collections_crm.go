@@ -69,6 +69,37 @@ func putCustomer(w http.ResponseWriter, r *http.Request, me auth.User, id string
 		httpx.Error(w, http.StatusBadRequest, "برای ثبت مشتری یا هر شخص، شمارهٔ موبایل لازم است (۱۱ رقم، مثل ۰۹۱۲۳۴۵۶۷۸۹).")
 		return
 	}
+	// a mobile number that already belongs to another customer is refused (for an old record only the numbers that are NEW are checked)
+	{
+		known := map[string]bool{}
+		if exists {
+			for _, p := range jsonx.Strings(jsonx.Decode(raw), "phones") {
+				if d := digitsOnly(p); len(d) >= 10 {
+					known[d[len(d)-10:]] = true
+				}
+			}
+		}
+		seen := map[string]bool{}
+		for _, p := range jsonx.Strings(data, "phones") {
+			d := digitsOnly(p)
+			if len(d) < 10 {
+				continue
+			}
+			k := d[len(d)-10:]
+			if known[k] {
+				continue
+			}
+			if seen[k] {
+				httpx.Error(w, http.StatusConflict, "یک شماره دو بار نوشته شده است.")
+				return
+			}
+			seen[k] = true
+			if n, o, dup := phoneOwner(r.Context(), p, id); dup {
+				httpx.Error(w, http.StatusConflict, dupMessage(n, o))
+				return
+			}
+		}
+	}
 	doc := jsonx.Copy(data)
 	doc["id"] = id
 	if exists && !me.IsAdmin() && !noteLogKept(jsonx.Decode(raw), doc, me.ID()) {

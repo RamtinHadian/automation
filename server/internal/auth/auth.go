@@ -174,6 +174,10 @@ func Require(next http.HandlerFunc) http.HandlerFunc {
 			httpx.Error(w, http.StatusUnauthorized, "unauthenticated")
 			return
 		}
+		if FieldOnly(r.Context(), u.ID()) && !strings.HasPrefix(r.URL.Path, "/api/field/") && !strings.HasPrefix(r.URL.Path, "/api/auth/") {
+			httpx.Error(w, http.StatusForbidden, "این حساب فقط برای صفحهٔ ثبت سریع مشتری است.")
+			return
+		}
 		r = r.WithContext(context.WithValue(r.Context(), ctxKey{}, u))
 		if OnRequest == nil {
 			next(w, r)
@@ -362,6 +366,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 			OnLogin(r, identifier, nil, false, "حساب غیرفعال است")
 		}
 		httpx.Error(w, http.StatusForbidden, "حساب کاربری شما غیرفعال شده است.")
+		return
+	}
+	// an account limited to the quick-registration page signs in only from that page
+	if FieldOnly(r.Context(), id) && !jsonx.Bool(body, "field") {
+		if OnLogin != nil {
+			OnLogin(r, identifier, nil, false, "حساب فقط برای صفحهٔ ثبت سریع است")
+		}
+		httpx.Error(w, http.StatusForbidden, "این حساب فقط برای صفحهٔ «ثبت سریع مشتری» است؛ از لینکی که مدیر به شما داده وارد شوید.")
 		return
 	}
 	if adminOnly && !user.IsAdmin() {

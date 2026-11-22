@@ -546,6 +546,11 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'صدا ساخته نشد.');
     return res.blob();
   },
+  // registering customers in the field (/field) and from the web site (/lead)
+  fieldSettings: () => request<{ require2fa: boolean; smsWelcome: boolean; smsEnabled: boolean; keys: { key: string; userId: string; userName: string; createdAt: string }[]; isAdmin: boolean; allowed: boolean; slug: string; allowedUsers: string[]; onlyUsers: string[] }>('GET', '/api/field/settings'),
+  fieldSaveSettings: (b: { require2fa?: boolean; slug?: string; allowedUsers?: string[]; onlyUsers?: string[] }) => request<{ require2fa: boolean }>('PUT', '/api/field/settings', b),
+  fieldNewKey: (userId?: string) => request<{ key: string }>('POST', '/api/field/site-keys', { userId }),
+  fieldDeleteKey: (key: string) => request<{ ok: true }>('DELETE', `/api/field/site-keys/${encodeURIComponent(key)}`),
   supportAiTest: () => request<{ reply: string }>('POST', '/api/support/ai-test', {}),
   ticketAssign: (id: string, handlerId: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/assign`, { handlerId }),
   reportAiSales: (rangeLabel: string, data: unknown) => request<StoredReport>('POST', '/api/reports/ai-sales', { rangeLabel, data }),

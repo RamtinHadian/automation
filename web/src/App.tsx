@@ -7,6 +7,8 @@ import UserPanel from './pages/UserPanel';
 import AdminPanel from './pages/AdminPanel';
 import { LoginPage } from './pages/LoginPage';
 import { PortalPage } from './pages/PortalPage';
+const FieldPage = React.lazy(() => import('./pages/FieldPage').then((m) => ({ default: m.FieldPage })));
+const LeadPage = React.lazy(() => import('./pages/LeadPage').then((m) => ({ default: m.LeadPage })));
 import { useCompanyName } from './lib/useCompanyName';
 import { NotificationPopups } from './components/common/NotificationPopups';
 import { DemoBanner } from './components/common/DemoBanner';
@@ -16,6 +18,22 @@ import { LicenseGate } from './components/common/LicenseGate';
 import { ConfirmHost } from './lib/confirmDialog';
 import { CallFromHost } from './lib/callFrom';
 import { CalculatorHost } from './components/common/Calculator';
+
+/** An address the program does not know: it may be the (renamed) address of the marketer's quick-registration page; otherwise back to the start. */
+function SlugGate() {
+  const seg = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  const [state, setState] = React.useState<'wait' | 'field' | 'no'>(/^[a-z0-9-]{3,30}$/.test(seg) ? 'wait' : 'no');
+  React.useEffect(() => {
+    if (state !== 'wait') return;
+    fetch(`/api/public/field-slug?p=${encodeURIComponent(seg)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => setState(j.match ? 'field' : 'no'))
+      .catch(() => setState('no'));
+  }, [seg, state]);
+  if (state === 'wait') return null;
+  if (state === 'field') return <React.Suspense fallback={null}><FieldPage /></React.Suspense>;
+  return <Navigate to="/" replace />;
+}
 
 function AppRoutes() {
   const companyName = useCompanyName();
@@ -62,7 +80,8 @@ function AppRoutes() {
       />
       <Route path="/admin" element={<AdminPanel />} />
       <Route path="/support" element={<PortalPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/lead" element={<React.Suspense fallback={null}><LeadPage /></React.Suspense>} />
+      <Route path="*" element={<SlugGate />} />
     </Routes>
     </>
   );
