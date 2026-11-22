@@ -94,6 +94,13 @@ const Backdrop: React.FC = () => (
  * The page. On a computer: the white sheet on the left holds the form, the paper-cut opening with the leaves is on the right. On a phone: the picture
  * is a band on top and the form sits in a frosted-glass card over it. The content is drawn ONCE (only the classes change with the screen).
  */
+/** The company's logo («نام و هویت سازمان»), on a computer only; nothing is drawn when the company has none. */
+const Logo: React.FC = () => {
+  const [ok, setOk] = React.useState(true);
+  if (!ok) return null;
+  return <img src="/api/public/logo" alt="" onError={() => setOk(false)} className="hidden md:block max-h-[72px] max-w-[200px] w-auto object-contain mb-4 self-start" data-paper-logo />;
+};
+
 export const PaperShell: React.FC<{ title: string; subtitle?: string; brand?: string; children: React.ReactNode; wide?: boolean }> = ({ title, subtitle, brand, children, wide }) => (
   <div className="relative min-h-[100dvh] px-3 py-4 sm:px-6 sm:py-8 flex items-start md:items-center justify-center" data-paper-shell>
     <Backdrop />
@@ -106,6 +113,7 @@ export const PaperShell: React.FC<{ title: string; subtitle?: string; brand?: st
         <Waves uid="d" className="absolute inset-0 w-full h-full hidden md:block" />
       </div>
       <div className="relative z-10 mt-[96px] mx-3 rounded-[30px] border border-white/70 bg-white/60 backdrop-blur-xl shadow-[0_20px_50px_rgba(25,45,35,0.22)] px-5 pt-6 pb-5 md:mt-0 md:mx-0 md:w-[50%] md:min-h-[560px] md:rounded-none md:border-0 md:bg-transparent md:backdrop-blur-none md:shadow-none md:flex md:flex-col md:justify-center md:px-[7%] md:py-12" dir="rtl">
+        <Logo />
         {brand && <div className="text-[12px] md:text-[13px] font-bold text-[#55645c] mb-1">{brand}</div>}
         <h1 className="text-[22px] md:text-[26px] font-black text-[#1f2a24] mb-1">{title}</h1>
         {subtitle && <p className="text-[12.5px] md:text-[13px] font-bold text-[#55645c] leading-6 mb-4">{subtitle}</p>}

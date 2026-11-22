@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"net/http"
 	"regexp"
@@ -452,7 +453,7 @@ func leadInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("form") == "full" {
-		httpx.JSON(w, http.StatusOK, selfInfo(r.Context()))
+		httpx.JSON(w, http.StatusOK, selfSpec(r.Context()))
 		return
 	}
 	httpx.JSON(w, http.StatusOK, formInfo(r.Context()))
@@ -495,4 +496,36 @@ func leadSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.OK(w)
+}
+
+// GET /api/public/logo: the company's logo («نام و هویت سازمان») for the public pages; 404 when there is none.
+func publicLogo(w http.ResponseWriter, r *http.Request) {
+	var raw []byte
+	_ = store.Pool.QueryRow(r.Context(), `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
+	u := strings.TrimSpace(jsonx.Str(jsonx.Decode(raw), "companyLogoUrl"))
+	const marker = ";base64,"
+	if strings.HasPrefix(u, "data:image/") {
+		i := strings.Index(u, marker)
+		if i < 0 {
+			http.NotFound(w, r)
+			return
+		}
+		data, err := base64.StdEncoding.DecodeString(u[i+len(marker):])
+		if err != nil || len(data) == 0 || len(data) > 8<<20 {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", u[len("data:"):i])
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "public, max-age=300")
+		_, _ = w.Write(data)
+		return
+	}
+	// an address inside the program (an uploaded file) is passed on; anything else is not followed
+	if strings.HasPrefix(u, "/") && !strings.HasPrefix(u, "//") {
+		http.Redirect(w, r, u, http.StatusFound)
+		return
+	}
+	http.NotFound(w, r)
 }

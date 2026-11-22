@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import { FullRegForm } from '../components/crm/FullRegForm';
+import { FullRegForm, SelfField } from '../components/crm/FullRegForm';
 import { PaperShell } from '../components/common/PaperShell';
 
 // The company's own registration page (/register?k=KEY): the full details of the company, typed by the company itself. It becomes a customer of the
 // marketer who owns the key.
 
-interface Info { company: string; hidden: string[]; required: string[] }
+interface Info { company: string; hidden: string[]; required: string[]; fields: SelfField[] }
 
 export const RegisterPage: React.FC = () => {
   const key = new URLSearchParams(window.location.search).get('k') || '';
@@ -42,7 +42,7 @@ export const RegisterPage: React.FC = () => {
           <p className="text-[13px] font-bold text-[#55645c] leading-7">همکاران {info.company} به‌زودی با شما تماس می‌گیرند. سپاس از وقتی که گذاشتید.</p>
         </div>
       ) : (
-        <FullRegForm cfg={{ hidden: info.hidden, required: info.required }} onSubmit={submit} />
+        <FullRegForm spec={info.fields} cfg={{ hidden: info.hidden, required: info.required }} onSubmit={submit} />
       )}
     </PaperShell>
   );

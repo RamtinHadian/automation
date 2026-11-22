@@ -4,7 +4,8 @@ import { useAppContext } from '../../context/AppContext';
 import { CustomerForm } from '../crm/CustomerForm';
 import { DealForm } from '../crm/CrmView';
 import { FieldForm } from '../crm/FieldForm';
-import { FullRegForm } from '../crm/FullRegForm';
+import { FullRegForm, SelfField } from '../crm/FullRegForm';
+import { api } from '../../lib/api';
 import { Customer, Deal } from '../../types';
 import { TUNABLE_FORMS } from '../../lib/formConfig';
 import { toPersianDigits } from '../../lib/jalali';
@@ -25,6 +26,16 @@ const blankCustomer = (): Customer => ({
 export const FormSettingsCard: React.FC = () => {
   const { settings, setSettings, staffList, showToast } = useAppContext();
   const [open, setOpen] = useState<string | null>(null);
+  const [selfSpec, setSelfSpec] = useState<SelfField[]>([]);
+  // the long registration form: its fields come from the server; until the administrator chooses, some of them are hidden (his choice starts from that)
+  useEffect(() => {
+    if (open !== 'selfreg') return;
+    api.fieldSelfFields().then((r) => {
+      setSelfSpec(r.fields as SelfField[]);
+      setSettings((prev) => (prev.formConfig?.selfreg?.hidden !== undefined ? prev : { ...prev, formConfig: { ...(prev.formConfig || {}), selfreg: { ...((prev.formConfig || {}).selfreg || {}), hidden: r.defaultHidden } } }));
+    }).catch(() => showToast('فهرست فیلدها خوانده نشد.'));
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const cfgOf = (id: string) => (settings.formConfig || {})[id] || {};
 
   useEffect(() => {
@@ -70,7 +81,7 @@ export const FormSettingsCard: React.FC = () => {
           <div className="max-w-lg mx-auto p-4 space-y-3">
             <div className="flex items-center justify-between gap-2"><div className="font-black text-sm text-[#3A241F]">فرم ثبت مشخصات شرکت (نمونه)</div><button type="button" onClick={() => setOpen(null)} className="px-4 py-2 rounded-xl bg-[#6E1B1B] text-white text-xs font-black cursor-pointer">بستن</button></div>
             <p className="text-[11px] font-bold text-[#8C6F66] leading-6">زیر هر فیلد تنظیم می‌آید: نمایش، اجباری بودن و ترتیب Enter. نام شرکت و موبایل همیشه هستند.</p>
-            <div className="bg-white rounded-3xl border border-[#EBDBCE] p-5"><FullRegForm onSubmit={async () => null} /></div>
+            <div className="bg-white rounded-3xl border border-[#EBDBCE] p-5">{selfSpec.length ? <FullRegForm spec={selfSpec} onSubmit={async () => null} /> : <div className="text-xs font-bold text-[#8C6F66]">در حال خواندن…</div>}</div>
           </div>
         </div>
       )}
