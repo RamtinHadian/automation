@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { MoneyInput } from '../common/MoneyInput';
 import { BadgeDollarSign, BookOpen, ClipboardList, Contact, MessageCircle, Megaphone, MessagesSquare, Pencil, Plus, Search, Target, Trash2, TrendingUp, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -87,18 +88,39 @@ const Kpi: React.FC<{ icon: React.ReactNode; label: string; value: string; sub?:
 
 const blank = (owner: string, kind: 'CAMPAIGN' | 'SURVEY' | 'MESSAGE' = 'CAMPAIGN'): Campaign => ({ id: newId(), kind, module: kind === 'MESSAGE' ? 'CUSTOMERS' : undefined, frequency: kind === 'MESSAGE' ? 'DAILY' : undefined, perDay: kind === 'MESSAGE' ? 4 : undefined, startHour: kind === 'MESSAGE' ? '09:00' : undefined, name: '', type: kind === 'SURVEY' ? 'نظرسنجی' : kind === 'MESSAGE' ? 'پیام' : CAMPAIGN_TYPES[0], status: 'PLANNING', ownerName: owner, startDate: todayIso(), expectedResponse: RESPONSES[1], questions: kind === 'SURVEY' ? [] : undefined });
 
+/** A number with decimals («12.5»): Persian digits and the Persian decimal mark are accepted; the text is kept as typed until the box is left. */
+const DecimalInput: React.FC<{ value: number; onChange: (n: number) => void; className?: string }> = ({ value, onChange, className }) => {
+  const [text, setText] = useState(value ? String(value) : '');
+  useEffect(() => { setText((t) => (Number(t) === value ? t : value ? String(value) : '')); }, [value]);
+  return (
+    <input
+      className={className}
+      inputMode="decimal"
+      dir="ltr"
+      value={text}
+      onChange={(e) => {
+        const t = e.target.value.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٫,،]/g, '.').replace(/[^0-9.-]/g, '').replace(/(\..*)\./g, '$1');
+        setText(t);
+        onChange(Number(t) || 0);
+      }}
+    />
+  );
+};
+
 const CampaignForm: React.FC<{ value: Campaign; customers: Customer[]; staff: User[]; onSave: (c: Campaign) => void; onClose: () => void }> = ({ value, customers, staff, onSave, onClose }) => {
   const survey = value.kind === 'SURVEY';
   const [preview, setPreview] = useState(false);
   const [c, setC] = useState<Campaign>(value);
   const [q, setQ] = useState('');
   const p = (patch: Partial<Campaign>) => setC((x) => ({ ...x, ...patch }));
+  // amounts and counts are grouped by three digits while typing (the money unit stays inside the box); the percentage may have decimals
   const money = (k: keyof Campaign) => (
-    <input className={field} inputMode="numeric" dir="ltr" value={c[k] ? String(toDisplay(num(c[k]))) : ''} onChange={(e) => p({ [k]: fromDisplay(Number(e.target.value.replace(/[^0-9]/g, '')) || 0) } as Partial<Campaign>)} />
+    <MoneyInput className={field} value={c[k] ? String(toDisplay(num(c[k]))) : ''} onChange={(d) => p({ [k]: fromDisplay(Number(d) || 0) } as Partial<Campaign>)} />
   );
   const count = (k: keyof Campaign) => (
-    <input className={field} inputMode="numeric" dir="ltr" value={c[k] ? String(c[k]) : ''} onChange={(e) => p({ [k]: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 } as Partial<Campaign>)} />
+    <MoneyInput className={field} unit={false} value={c[k] ? String(c[k]) : ''} onChange={(d) => p({ [k]: Number(d) || 0 } as Partial<Campaign>)} />
   );
+  const decimal = (k: keyof Campaign) => <DecimalInput className={field} value={num(c[k])} onChange={(n) => p({ [k]: n } as Partial<Campaign>)} />;
   const chosen = new Set(c.customerIds || []);
   const list = customers.filter((x) => !q || x.name.includes(q) || (x.company || '').includes(q)).slice(0, 40);
   return (
@@ -176,7 +198,7 @@ const CampaignForm: React.FC<{ value: Campaign; customers: Customer[]; staff: Us
                 <div><label className={label}>تعداد فروش واقعی</label>{count('actualSales')}</div>
                 <div><label className={label}>مقدار دریافتی مورد انتظار ({unitName()})</label>{money('expectedReceived')}</div>
                 <div><label className={label}>مقدار دریافتی واقعی ({unitName()})</label>{money('actualReceived')}</div>
-                <div><label className={label}>نرخ بازگشت سرمایهٔ مورد انتظار (٪)</label>{count('expectedRoi')}</div>
+                <div><label className={label}>نرخ بازگشت سرمایهٔ مورد انتظار (٪)</label>{decimal('expectedRoi')}</div>
                 <div><label className={label}>درآمد واقعی ({unitName()})</label>{money('actualRevenue')}</div>
                 <div className="sm:col-span-2 flex items-end text-[11px] font-bold text-[#8C6F66]">نرخ بازگشت سرمایهٔ واقعی خودکار حساب می‌شود: (درآمد واقعی − بهای واقعی) ÷ بهای واقعی.</div>
               </div>
@@ -380,7 +402,7 @@ export const MarketingView: React.FC<{ customers: Customer[]; allContacts: Custo
   const camp = useMemo(() => {
     const cost = campaigns.reduce((s, c) => s + num(c.actualCost), 0);
     const rev = campaigns.reduce((s, c) => s + num(c.actualRevenue), 0);
-    return { active: campaigns.filter((c) => c.status === 'ACTIVE').length, cost, rev, roi: cost > 0 ? Math.round(((rev - cost) / cost) * 100) : null };
+    return { active: campaigns.filter((c) => c.status === 'ACTIVE').length, cost, rev, roi: cost > 0 ? Math.round(((rev - cost) / cost) * 1000) / 10 : null };
   }, [campaigns]);
 
   const wonCustomers = real.filter((c) => wonBy.has(c.id)).length;
@@ -446,7 +468,7 @@ export const MarketingView: React.FC<{ customers: Customer[]; allContacts: Custo
               {campaigns.map((c) => {
                 const st = CAMPAIGN_STATUS[c.status] || CAMPAIGN_STATUS.PLANNING;
                 const cost = num(c.actualCost), rev = num(c.actualRevenue);
-                const roi = cost > 0 ? Math.round(((rev - cost) / cost) * 100) : null;
+                const roi = cost > 0 ? Math.round(((rev - cost) / cost) * 1000) / 10 : null;
                 return (
                   <div key={c.id} className="bg-white border border-[#EBDBCE] rounded-2xl p-4 space-y-2.5">
                     <div className="flex items-start justify-between gap-2">

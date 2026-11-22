@@ -92,6 +92,7 @@ var selfFields = []selfField{
 	{Key: "noEmail", Label: "نمی‌خواهم ایمیل تبلیغاتی بگیرم", Type: "check", DefHide: true, Group: "سایر"},
 	{Key: "referrerName", Label: "نام معرف", Type: "text", DefHide: true, Group: "سایر"},
 	{Key: "referrerPhone", Label: "شمارهٔ تماس معرف", Type: "tel", DefHide: true, Group: "سایر"},
+	{Key: "campaign", Label: "کمپین", Type: "select", DefHide: true, Group: "سایر"},
 	{Key: "source", Label: "منبع آشنایی", Type: "text", Hint: "مثلاً اینستاگرام، معرفی دوستان، نمایشگاه", Group: "سایر"},
 	{Key: "event", Label: "نمایشگاه / محل ثبت", Type: "text", Hint: "مثلاً نمایشگاه ماشین‌آلات راهسازی", DefHide: true, Group: "سایر"},
 	{Key: "note", Label: "توضیحات", Type: "area", Group: "سایر"},
@@ -183,7 +184,7 @@ func jalaliToGregorian(jy, jm, jd int) (int, int, int) {
 }
 
 // the quick form (the marketer's page and the web-site form) starts with these fields only; the administrator adds the others in the console
-var quickShown = []string{"نوع مشتری", "نام", "نام خانوادگی", "نام شرکت", "نام فروشگاه", "موبایل", "شهر", "منبع آشنایی", "نمایشگاه / محل ثبت", "توضیحات"}
+var quickShown = []string{"نوع مشتری", "نام", "نام خانوادگی", "نام شرکت", "نام فروشگاه", "موبایل", "شهر", "کمپین", "منبع آشنایی", "نمایشگاه / محل ثبت", "توضیحات"}
 var quickRequired = []string{"نام", "نام خانوادگی", "نام شرکت", "نام فروشگاه", "موبایل"}
 
 func quickDefaultHidden() []string {
@@ -207,7 +208,42 @@ func formDefaults(formID string) (hidden, required []string) {
 // the list as the page and the console need it
 func selfSpec(ctx context.Context, formID string) jsonx.M {
 	hidden, required := selfCfgFor(ctx, formID)
-	return jsonx.M{"hidden": hidden, "required": required, "company": companyName(ctx), "fields": selfFields}
+	return jsonx.M{"hidden": hidden, "required": required, "company": companyName(ctx), "fields": selfFieldsWithCampaigns(ctx, false)}
+}
+
+// openCampaigns: the campaigns a customer can be put into (not finished, not cancelled; surveys and message campaigns are not campaigns here): id -> name, newest first
+func openCampaigns(ctx context.Context) (ids, names []string) {
+	rows, err := store.Pool.Query(ctx, `SELECT id, COALESCE(data->>'name', '') FROM campaigns
+		WHERE COALESCE(data->>'kind', 'CAMPAIGN') = 'CAMPAIGN' AND COALESCE(data->>'status', 'PLANNING') IN ('ACTIVE', 'PLANNING') AND COALESCE(data->>'name', '') <> ''
+		ORDER BY COALESCE(data->>'startDate', '') DESC, created_at DESC LIMIT 100`)
+	if err != nil {
+		return nil, nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, name string
+		if rows.Scan(&id, &name) == nil {
+			ids, names = append(ids, id), append(names, name)
+		}
+	}
+	return
+}
+
+// selfFieldsWithCampaigns: the list with the open campaigns as the options of «کمپین»; a public page gets no «کمپین» box while there is none to choose
+// (the console's sample keeps it, so that it can be tuned)
+func selfFieldsWithCampaigns(ctx context.Context, forConsole bool) []selfField {
+	_, names := openCampaigns(ctx)
+	out := make([]selfField, 0, len(selfFields))
+	for _, f := range selfFields {
+		if f.Key == "campaign" {
+			if len(names) == 0 && !forConsole {
+				continue
+			}
+			f.Options = names
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 // selfCfgFor: what the console decided about one form; until he chooses, the defaults
@@ -229,7 +265,7 @@ func selfCfgFor(ctx context.Context, formID string) (hidden, required []string) 
 
 // GET /api/field/self-fields: the same description for the console (the sample form of «فرم‌ها»)
 func selfFieldsList(w http.ResponseWriter, r *http.Request) {
-	httpx.JSON(w, http.StatusOK, map[string]any{"fields": selfFields, "defaultHidden": selfDefaultHidden(), "defaultRequired": selfDefaultRequired, "quickDefaultHidden": quickDefaultHidden(), "quickDefaultRequired": quickRequired})
+	httpx.JSON(w, http.StatusOK, map[string]any{"fields": selfFieldsWithCampaigns(r.Context(), true), "defaultHidden": selfDefaultHidden(), "defaultRequired": selfDefaultRequired, "quickDefaultHidden": quickDefaultHidden(), "quickDefaultRequired": quickRequired})
 }
 
 // createSelfCustomer registers a customer from its own form. A mobile number or a national id that is already in the system creates nothing (the
@@ -422,6 +458,17 @@ func createSelfCustomer(ctx context.Context, owner auth.User, in map[string]stri
 	}
 	if _, err := store.Pool.Exec(ctx, `INSERT INTO crm_customers (id, owner_id, data) VALUES ($1, $2, $3::jsonb)`, jsonx.Str(doc, "id"), owner.ID(), jsonx.Encode(doc)); err != nil {
 		return nil, &leadErr{http.StatusInternalServerError, "ثبت نشد؛ دوباره امتحان کنید."}
+	}
+	// the chosen campaign: the customer is added to it at once, so it shows in the campaign's numbers (the customers of the campaign)
+	if val["campaign"] != "" {
+		ids, names := openCampaigns(ctx)
+		for i, n := range names {
+			if n == val["campaign"] {
+				_, _ = store.Pool.Exec(ctx, `UPDATE campaigns SET data = jsonb_set(data, '{customerIds}', COALESCE(data->'customerIds', '[]'::jsonb) || to_jsonb($2::text)), updated_at = now()
+					WHERE id = $1 AND NOT jsonb_exists(COALESCE(data->'customerIds', '[]'::jsonb), $2)`, ids[i], jsonx.Str(doc, "id"))
+				break
+			}
+		}
 	}
 	queueSepidarCustomerNew(ctx, owner, jsonx.Str(doc, "id"), name, doc)
 	smsAutoCustomer("customer_new", doc, nil)
