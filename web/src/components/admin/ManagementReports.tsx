@@ -12,6 +12,9 @@ import { todayIso } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
 import { SalesAnalysis } from './SalesAnalysis';
 import { SalesDrillDown } from './SalesDrillDown';
+import { ReportDetail } from './ReportDetail';
+import { FunnelReport } from './FunnelReport';
+import { buildDetail, DetailId } from './reportSpecs';
 import { FunnelDark, FunnelRow, STAGE_COLORS } from '../crm/FunnelDark';
 import { FitBox } from '../crm/FunnelModal';
 import { FunnelAiButton, FunnelAiOrbit, FunnelAiResults, useFunnelAi } from '../crm/FunnelAi';
@@ -23,6 +26,14 @@ import { LeaveReport } from './LeaveReport';
 import { canSeeSalesTotals } from '../../lib/permissions';
 
 const compactM = (n: number) => compact(toDisplay(n));
+
+/** Makes a card or a number open its detail page when it is pressed. */
+const Open: React.FC<{ on: () => void; className?: string; hint?: boolean; children: React.ReactNode }> = ({ on, className = '', hint = true, children }) => (
+  <div role="button" tabIndex={0} onClick={on} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); on(); } }} className={`relative cursor-pointer rounded-3xl hover:shadow-md transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C98B6A] ${className}`} data-report-open>
+    {children}
+    {hint && <span className="absolute top-4 left-4 text-[10px] font-black text-[#6E1B1B] bg-[#FAF5F1] border border-[#EBDBCE] rounded-full px-2.5 py-1 pointer-events-none">جزئیات ←</span>}
+  </div>
+);
 
 const RANGES = [
   { days: 7, label: '۷ روز' },
@@ -43,6 +54,8 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
   const [range, setRange] = useState(30);
   // the sales chart opens into the full sales page (who bought how much)
   const [salesOpen, setSalesOpen] = useState<null | 'customer' | 'owner'>(null);
+  // the detail page of a number or a chart (any card of this page)
+  const [detail, setDetail] = useState<DetailId | 'funnel' | null>(null);
   const [calls, setCalls] = useState<VoipStatRow[]>([]);
   useEffect(() => {
     const load = () => {
@@ -167,14 +180,14 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi accent={C.violet} icon={<FileSignature className="w-5 h-5" />} label={`نامهٔ امضاشده (${rangeLabel})`} value={fa(k.lettersSigned)} sub={`${toPersianDigits(k.lettersPending)} در انتظار امضا`} tone={k.lettersPending ? 'bad' : 'good'} />
-        <Kpi accent={C.blue} icon={<Send className="w-5 h-5" />} label={`فایل تبادل‌شده (${rangeLabel})`} value={fa(k.filesSent)} sub={k.avgSignHours !== null ? `میانگین امضا: ${toPersianDigits(Math.round(k.avgSignHours))} ساعت` : undefined} />
-        <Kpi accent={C.aqua} icon={<ClipboardCheck className="w-5 h-5" />} label={`وظیفهٔ انجام‌شده (${rangeLabel})`} value={fa(k.tasksDone)} sub={k.completionRate !== null ? `${toPersianDigits(k.completionRate)}٪ نسبت به وظایف تازه` : `از ${toPersianDigits(k.tasksCreated)} وظیفهٔ تازه`} tone="good" />
-        <Kpi accent={C.red} icon={<CalendarCheck className="w-5 h-5" />} label="وظایف معوق (الان)" value={fa(k.tasksOverdue)} sub={`${toPersianDigits(k.tasksOpen)} وظیفهٔ باز`} tone={k.tasksOverdue ? 'bad' : 'good'} />
-        {seesTotals && <Kpi accent={C.orange} icon={<Banknote className="w-5 h-5" />} label={`ارزش فرصت‌های باز (${unitName()})`} value={compactM(k.pipelineValue)} sub={`${toPersianDigits(k.openDeals)} فرصت در جریان`} />}
-        {seesTotals && <Kpi accent={C.green} icon={<TrendingUp className="w-5 h-5" />} label={`فروش موفق (${rangeLabel})`} value={compactM(k.wonValue)} sub={k.winRate !== null ? `نرخ موفقیت ${toPersianDigits(k.winRate)}٪ · ${toPersianDigits(k.wonCount)} فروش` : `${toPersianDigits(k.wonCount)} فروش`} tone="good" />}
-        <Kpi accent={C.magenta} icon={<UserPlus className="w-5 h-5" />} label={`مشتری جدید (${rangeLabel})`} value={fa(k.newCustomers)} sub={`${toPersianDigits(k.proformas)} پیش‌فاکتور · ${compactM(k.proformaValue)}`} />
-        <Kpi accent={C.yellow} icon={<Phone className="w-5 h-5" />} label="تماس بی‌پاسخ (۷ روز)" value={fa(missedCalls)} sub={callDays.length ? `از ${toPersianDigits(callDays.reduce((a, d) => a + d.total, 0))} تماس` : 'هنوز تماسی ثبت نشده'} tone={missedCalls ? 'bad' : 'good'} />
+        <Open on={() => setDetail('letters')} hint={false}><Kpi accent={C.violet} icon={<FileSignature className="w-5 h-5" />} label={`نامهٔ امضاشده (${rangeLabel})`} value={fa(k.lettersSigned)} sub={`${toPersianDigits(k.lettersPending)} در انتظار امضا`} tone={k.lettersPending ? 'bad' : 'good'} /></Open>
+        <Open on={() => setDetail('files')} hint={false}><Kpi accent={C.blue} icon={<Send className="w-5 h-5" />} label={`فایل تبادل‌شده (${rangeLabel})`} value={fa(k.filesSent)} sub={k.avgSignHours !== null ? `میانگین امضا: ${toPersianDigits(Math.round(k.avgSignHours))} ساعت` : undefined} /></Open>
+        <Open on={() => setDetail('tasksDone')} hint={false}><Kpi accent={C.aqua} icon={<ClipboardCheck className="w-5 h-5" />} label={`وظیفهٔ انجام‌شده (${rangeLabel})`} value={fa(k.tasksDone)} sub={k.completionRate !== null ? `${toPersianDigits(k.completionRate)}٪ نسبت به وظایف تازه` : `از ${toPersianDigits(k.tasksCreated)} وظیفهٔ تازه`} tone="good" /></Open>
+        <Open on={() => setDetail('overdue')} hint={false}><Kpi accent={C.red} icon={<CalendarCheck className="w-5 h-5" />} label="وظایف معوق (الان)" value={fa(k.tasksOverdue)} sub={`${toPersianDigits(k.tasksOpen)} وظیفهٔ باز`} tone={k.tasksOverdue ? 'bad' : 'good'} /></Open>
+        {seesTotals && <Open on={() => setDetail('pipeline')} hint={false}><Kpi accent={C.orange} icon={<Banknote className="w-5 h-5" />} label={`ارزش فرصت‌های باز (${unitName()})`} value={compactM(k.pipelineValue)} sub={`${toPersianDigits(k.openDeals)} فرصت در جریان`} /></Open>}
+        {seesTotals && <Open on={() => setSalesOpen('customer')} hint={false}><Kpi accent={C.green} icon={<TrendingUp className="w-5 h-5" />} label={`فروش موفق (${rangeLabel})`} value={compactM(k.wonValue)} sub={k.winRate !== null ? `نرخ موفقیت ${toPersianDigits(k.winRate)}٪ · ${toPersianDigits(k.wonCount)} فروش` : `${toPersianDigits(k.wonCount)} فروش`} tone="good" /></Open>}
+        <Open on={() => setDetail('newCustomers')} hint={false}><Kpi accent={C.magenta} icon={<UserPlus className="w-5 h-5" />} label={`مشتری جدید (${rangeLabel})`} value={fa(k.newCustomers)} sub={`${toPersianDigits(k.proformas)} پیش‌فاکتور · ${compactM(k.proformaValue)}`} /></Open>
+        <Open on={() => setDetail('missedCalls')} hint={false}><Kpi accent={C.yellow} icon={<Phone className="w-5 h-5" />} label="تماس بی‌پاسخ (۷ روز)" value={fa(missedCalls)} sub={callDays.length ? `از ${toPersianDigits(callDays.reduce((a, d) => a + d.total, 0))} تماس` : 'هنوز تماسی ثبت نشده'} tone={missedCalls ? 'bad' : 'good'} /></Open>
       </div>
 
       <LeaveReport range={range} rangeLabel={rangeLabel} />
@@ -182,21 +195,21 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
       <SocialStatsReport customers={customers} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <ChartCard title="فایل و نامه در طول زمان" subtitle={`تعداد ارسال در هر روز (${rangeLabel} اخیر)`} legend={[{ label: 'فایل', color: C.blue }, { label: 'نامهٔ رسمی', color: C.orange }]} className="xl:col-span-2">
+        <Open on={() => setDetail('trend')} className="xl:col-span-2"><ChartCard title="فایل و نامه در طول زمان" subtitle={`تعداد ارسال در هر روز (${rangeLabel} اخیر)`} legend={[{ label: 'فایل', color: C.blue }, { label: 'نامهٔ رسمی', color: C.orange }]}>
           <TrendChart labels={labels} series={[{ name: 'فایل', color: C.blue, values: s.transfersPerDay.files }, { name: 'نامهٔ رسمی', color: C.orange, values: s.transfersPerDay.letters }]} />
-        </ChartCard>
+        </ChartCard></Open>
 
-        <ChartCard title="وضعیت وظایف" subtitle="همهٔ وظایف ثبت‌شده">
+        <Open on={() => setDetail('taskStatus')}><ChartCard title="وضعیت وظایف" subtitle="همهٔ وظایف ثبت‌شده">
           <Donut centerLabel="وظیفه" data={s.taskStatus.map((t, i) => ({ label: t.label, value: t.value, color: [C.yellow, C.blue, C.violet, C.aqua][i] }))} />
-        </ChartCard>
+        </ChartCard></Open>
 
-        <ChartCard title="بار کاری همکاران" subtitle="وظایف بازِ هر نفر؛ قرمز = معوق" legend={[{ label: 'در جریان', color: C.blue }, { label: 'معوق', color: C.red }]}>
+        <Open on={() => setDetail('workload')}><ChartCard title="بار کاری همکاران" subtitle="وظایف بازِ هر نفر؛ قرمز = معوق" legend={[{ label: 'در جریان', color: C.blue }, { label: 'معوق', color: C.red }]}>
           <HBars rows={s.taskLoad.map((t) => ({ label: t.name, segments: [{ value: t.open - t.overdue, color: C.blue, name: 'در جریان' }, { value: t.overdue, color: C.red, name: 'معوق' }] }))} empty="وظیفهٔ بازی نیست." />
-        </ChartCard>
+        </ChartCard></Open>
 
         {canSub(me, 'crm.funnel') && (
-        <ChartCard title="قیف فروش" subtitle={seesTotals ? 'تعداد فرصت در هر مرحله؛ مبلغ کنار هر ردیف' : 'تعداد فرصت در هر مرحله؛ سهم از همهٔ فرصت‌ها کنار هر ردیف'}>
-          {canSub(me, 'ai.funnel') && <div className="mb-3"><FunnelAiButton ai={ai} /></div>}
+        <Open on={() => setDetail('funnel')}><ChartCard title="قیف فروش" subtitle={seesTotals ? 'تعداد فرصت در هر مرحله؛ مبلغ کنار هر ردیف' : 'تعداد فرصت در هر مرحله؛ سهم از همهٔ فرصت‌ها کنار هر ردیف'}>
+          {canSub(me, 'ai.funnel') && <div className="mb-3" onClick={(e) => e.stopPropagation()}><FunnelAiButton ai={ai} /></div>}
           <FunnelAiOrbit ai={ai}><FitBox design={1030}>
             <FunnelDark
               unit={unitName()}
@@ -207,7 +220,7 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
               }))(s.funnel.reduce((sum, x) => sum + x.count, 0))}
             />
           </FitBox></FunnelAiOrbit>
-          {canSub(me, 'ai.funnel') && <FunnelAiResults ai={ai} />}
+          {canSub(me, 'ai.funnel') && <div onClick={(e) => e.stopPropagation()}><FunnelAiResults ai={ai} /></div>}
           <div className="mt-3 text-[11px] font-bold text-[#8C6F66] flex flex-wrap gap-x-4 gap-y-1" data-funnel-summary>
             <span>از دست رفته: {toPersianDigits(deals.filter((d) => d.stage === 'LOST').length)}</span>
             <span>
@@ -216,7 +229,7 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
             </span>
             <span>کل فرصت‌ها: {toPersianDigits(deals.length)}</span>
           </div>
-        </ChartCard>
+        </ChartCard></Open>
         )}
 
         {seesTotals && (
@@ -237,15 +250,15 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
           </div>
         )}
 
-        <ChartCard title="مشتریان از کجا آمده‌اند؟" subtitle="منبع آشنایی مشتریان">
+        <Open on={() => setDetail('sources')}><ChartCard title="مشتریان از کجا آمده‌اند؟" subtitle="منبع آشنایی مشتریان">
           <Donut centerLabel="مشتری" data={s.sources.map((x, i) => ({ label: x.label, value: x.value, color: [C.blue, C.orange, C.aqua, C.violet, C.magenta, C.yellow][i] }))} />
-        </ChartCard>
+        </ChartCard></Open>
 
-        <ChartCard title="وضعیت نامه‌های رسمی" subtitle="همهٔ نامه‌ها">
+        <Open on={() => setDetail('letterStatus')}><ChartCard title="وضعیت نامه‌های رسمی" subtitle="همهٔ نامه‌ها">
           <Donut centerLabel="نامه" data={[{ ...s.letterStatus[0], color: C.aqua }, { ...s.letterStatus[1], color: C.yellow }, { ...s.letterStatus[2], color: C.red }]} />
-        </ChartCard>
+        </ChartCard></Open>
 
-        <ChartCard title="تماس‌های تلفنی" subtitle="۷ روز اخیر" legend={[{ label: 'پاسخ داده شد', color: C.aqua }, { label: 'بی‌پاسخ', color: C.red }]}>
+        <Open on={() => setDetail('calls')}><ChartCard title="تماس‌های تلفنی" subtitle="۷ روز اخیر" legend={[{ label: 'پاسخ داده شد', color: C.aqua }, { label: 'بی‌پاسخ', color: C.red }]}>
           {callDays.length === 0 ? (
             <div className="py-10 text-center text-xs font-bold text-gray-400">هنوز تماسی ثبت نشده است (اتصال تلفن شرکت را در تنظیمات بررسی کنید).</div>
           ) : (
@@ -258,7 +271,7 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
               ]}
             />
           )}
-        </ChartCard>
+        </ChartCard></Open>
 
         <ChartCard title="گزارش روزانهٔ همکاران" subtitle="چند نفر از افرادی که باید گزارش بدهند، در هر روز گزارش داده‌اند" legend={[{ label: 'گزارش‌دهندگان', color: C.violet }]}>
           <Columns labels={s.reportRate.map((r) => shortDay(r.day))} series={[{ name: 'گزارش داده‌اند', color: C.violet, values: s.reportRate.map((r) => r.submitted) }]} height={190} />
@@ -357,6 +370,11 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
         </div>
       </section>
 
+      {detail === 'funnel' && <FunnelReport deals={deals} seesMoney={seesTotals} onClose={() => setDetail(null)} />}
+      {detail && detail !== 'funnel' && (() => {
+        const spec = buildDetail(detail, { staff: staffList, transfers, tasks, customers, deals, s, range, rangeLabel, callDays, seesTotals });
+        return spec ? <ReportDetail spec={spec} ranges={RANGES} range={range} onRange={setRange} onClose={() => setDetail(null)} /> : null;
+      })()}
       {salesOpen && seesTotals && <SalesDrillDown deals={deals} initialDays={range} initialBy={salesOpen} onClose={() => setSalesOpen(null)} />}
       <p className="text-[10px] text-[#8C6F66] text-center">همهٔ عددها از اطلاعات ثبت‌شده در سامانه حساب می‌شود و با هر ورود تازه به‌روز است. «{STAGE_LABEL.WON}» یعنی فرصت‌هایی که در مرحلهٔ فروش موفق بسته شده‌اند.</p>
     </div>

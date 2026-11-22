@@ -91,8 +91,14 @@ export const FitBox: React.FC<{ children: React.ReactNode; design?: number; zoom
     return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
   }, [children, design, zoom]);
   return (
-    <div ref={wrap} style={{ height: box.h ? box.h * box.s : undefined }} data-funnel-fit>
-      <div ref={inner} style={{ transform: `scale(${box.s})`, transformOrigin: 'top center', width: design ? design : '100%', margin: design ? '0 auto' : undefined }}>{children}</div>
+    <div ref={wrap} style={{ height: box.h ? box.h * box.s : undefined, position: design ? 'relative' : undefined, overflow: design ? 'hidden' : undefined }} data-funnel-fit>
+      {/* in «grow» mode the drawing is centred by its middle (left: 50% and translateX(-50%)), so it stays in its box in a right-to-left page and when it is wider than the box */}
+      <div
+        ref={inner}
+        style={design
+          ? { position: 'absolute', top: 0, left: '50%', width: design, transform: `translateX(-50%) scale(${box.s})`, transformOrigin: 'top center' }
+          : { transform: `scale(${box.s})`, transformOrigin: 'top center', width: '100%' }}
+      >{children}</div>
     </div>
   );
 };
