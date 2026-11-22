@@ -11,6 +11,7 @@ import { CLAIM_STATUS, daysBetween, isOpenClaim, warrantyState } from '../../lib
 import { todayIso } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
 import { SalesAnalysis } from './SalesAnalysis';
+import { SalesDrillDown } from './SalesDrillDown';
 import { FunnelDark, FunnelRow, STAGE_COLORS } from '../crm/FunnelDark';
 import { FitBox } from '../crm/FunnelModal';
 import { FunnelAiButton, FunnelAiOrbit, FunnelAiResults, useFunnelAi } from '../crm/FunnelAi';
@@ -40,6 +41,8 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
   const [data, setData] = useState<Awaited<ReturnType<typeof api.statsData>> | null>(null);
   const [failed, setFailed] = useState(false);
   const [range, setRange] = useState(30);
+  // the sales chart opens into the full sales page (who bought how much)
+  const [salesOpen, setSalesOpen] = useState<null | 'customer' | 'owner'>(null);
   const [calls, setCalls] = useState<VoipStatRow[]>([]);
   useEffect(() => {
     const load = () => {
@@ -216,13 +219,23 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
         </ChartCard>
         )}
 
-        {seesTotals && (<ChartCard title="فروش موفق هر ماه" subtitle={`مجموع مبلغ فروش (${unitName()})`}>
-          <Columns labels={s.wonByMonth.map((m) => m.label)} series={[{ name: 'فروش', color: C.green, values: s.wonByMonth.map((m) => m.value) }]} format={(v) => compactM(v)} />
-        </ChartCard>)}
+        {seesTotals && (
+          <div role="button" tabIndex={0} onClick={() => setSalesOpen('customer')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSalesOpen('customer'); } }} className="relative cursor-pointer rounded-3xl hover:shadow-md transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300" data-sales-chart>
+            <ChartCard title="فروش موفق هر ماه" subtitle={`مجموع مبلغ فروش (${unitName()})`}>
+              <Columns labels={s.wonByMonth.map((m) => m.label)} series={[{ name: 'فروش', color: C.green, values: s.wonByMonth.map((m) => m.value) }]} format={(v) => compactM(v)} />
+            </ChartCard>
+            <span className="absolute top-4 left-4 text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1 pointer-events-none">دیدن فروش به تفکیک مشتری ←</span>
+          </div>
+        )}
 
-        {seesTotals && (<ChartCard title="فروش هر کارشناس" subtitle={`مبلغ فروش موفق در ${rangeLabel} اخیر`}>
-          <HBars format={(v) => compactM(v)} rows={s.salesByOwner.map((o) => ({ label: o.name, segments: [{ value: o.won, color: C.green }], note: `${toPersianDigits(o.count)} فروش` }))} empty="در این دوره فروش موفقی ثبت نشده." />
-        </ChartCard>)}
+        {seesTotals && (
+          <div role="button" tabIndex={0} onClick={() => setSalesOpen('owner')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSalesOpen('owner'); } }} className="relative cursor-pointer rounded-3xl hover:shadow-md transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
+            <ChartCard title="فروش هر کارشناس" subtitle={`مبلغ فروش موفق در ${rangeLabel} اخیر`}>
+              <HBars format={(v) => compactM(v)} rows={s.salesByOwner.map((o) => ({ label: o.name, segments: [{ value: o.won, color: C.green }], note: `${toPersianDigits(o.count)} فروش` }))} empty="در این دوره فروش موفقی ثبت نشده." />
+            </ChartCard>
+            <span className="absolute top-4 left-4 text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1 pointer-events-none">جزئیات ←</span>
+          </div>
+        )}
 
         <ChartCard title="مشتریان از کجا آمده‌اند؟" subtitle="منبع آشنایی مشتریان">
           <Donut centerLabel="مشتری" data={s.sources.map((x, i) => ({ label: x.label, value: x.value, color: [C.blue, C.orange, C.aqua, C.violet, C.magenta, C.yellow][i] }))} />
@@ -344,6 +357,7 @@ export const ManagementReports: React.FC<{ remote?: boolean }> = () => {
         </div>
       </section>
 
+      {salesOpen && seesTotals && <SalesDrillDown deals={deals} initialDays={range} initialBy={salesOpen} onClose={() => setSalesOpen(null)} />}
       <p className="text-[10px] text-[#8C6F66] text-center">همهٔ عددها از اطلاعات ثبت‌شده در سامانه حساب می‌شود و با هر ورود تازه به‌روز است. «{STAGE_LABEL.WON}» یعنی فرصت‌هایی که در مرحلهٔ فروش موفق بسته شده‌اند.</p>
     </div>
   );
