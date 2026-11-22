@@ -417,7 +417,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
 
       {/* wide screens: the sections as cards; pressing one opens it in a page of its own (its table has only its own columns, written flat), and below them the employees */}
       <div className="hidden md:block space-y-5">
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" data-perm-sections>
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 auto-rows-fr" data-perm-sections>
           {menuCols.map(({ m, cols }) => {
             const mainCol = cols.find((c) => c.isMain) || cols[0];
             const withMain = people.filter((u) => colOn(u, mainCol)).length;
@@ -425,23 +425,19 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
             const filled = people.reduce((n, u) => n + cols.filter((c) => colOn(u, c)).length, 0);
             const pctFilled = cells ? Math.round((filled / cells) * 100) : 0;
             return (
-              <button key={m.id} type="button" onClick={() => { setSec(m.id); setSecQ(''); }} className="text-right bg-white rounded-2xl border border-[#EBDBCE] shadow-xs overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer" data-perm-section={m.id}>
+              <button key={m.id} type="button" onClick={() => { setSec(m.id); setSecQ(''); }} className="text-right h-full flex flex-col bg-white rounded-2xl border border-[#EBDBCE] shadow-xs overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer" data-perm-section={m.id}>
                 <div className="px-4 py-3 text-white flex items-center justify-between gap-2" style={{ background: `linear-gradient(135deg, ${m.tone}, color-mix(in srgb, ${m.tone} 70%, #000))` }}>
                   <span className="font-black text-[13px] leading-5">{m.title}</span>
                   <span className="text-[10px] font-black bg-white/20 rounded-full px-2 py-0.5 shrink-0">{toPersianDigits(cols.length)} مجوز</span>
                 </div>
-                <div className="px-4 py-3 space-y-2">
+                <div className="px-4 py-3 space-y-2 flex-1 flex flex-col">
                   <div className="flex items-center justify-between text-[11px] font-bold text-[#3A241F]">
                     <span>{cols.length > 1 ? 'ورود به منو' : 'دارند'}</span>
                     <span className="font-black" style={{ color: m.tone }}>{toPersianDigits(withMain)} از {toPersianDigits(people.length)} نفر</span>
                   </div>
-                  {cols.length > 1 && (
-                    <>
-                      <div className="h-2 rounded-full bg-[#F1EAE3] overflow-hidden"><div className="h-full rounded-full" style={{ width: `${Math.max(3, pctFilled)}%`, background: m.tone }} /></div>
-                      <div className="text-[10px] font-bold text-[#8C6F66]">{toPersianDigits(pctFilled)}٪ از مجوزهای این بخش داده شده</div>
-                    </>
-                  )}
-                  <div className="text-[11px] font-black text-[#6E1B1B]">باز کردن و تنظیم ←</div>
+                  <div className="h-2 rounded-full bg-[#F1EAE3] overflow-hidden"><div className="h-full rounded-full" style={{ width: `${Math.max(3, cols.length > 1 ? pctFilled : people.length ? Math.round((withMain / people.length) * 100) : 0)}%`, background: m.tone }} /></div>
+                  <div className="text-[10px] font-bold text-[#8C6F66]">{cols.length > 1 ? `${toPersianDigits(pctFilled)}٪ از مجوزهای این بخش داده شده` : 'یک مجوز؛ بدون زیرمنو'}</div>
+                  <div className="text-[11px] font-black text-[#6E1B1B] mt-auto pt-1">باز کردن و تنظیم ←</div>
                 </div>
               </button>
             );
