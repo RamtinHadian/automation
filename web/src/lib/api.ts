@@ -540,6 +540,12 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   ticketNote: (id: string, text: string, pub = false) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/note`, { text, public: pub }),
   supportGetSettings: () => request<SupportSettings>('GET', '/api/support/settings'),
   supportSaveSettings: (b: Record<string, unknown>) => request<SupportSettings>('PUT', '/api/support/settings', b),
+  /** The text read aloud by the AI service (mp3), for the test button of the AI settings. */
+  aiSpeech: async (text: string, model?: string, voice?: string): Promise<Blob> => {
+    const res = await fetch('/api/ai/speech', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ text, model, voice }) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'صدا ساخته نشد.');
+    return res.blob();
+  },
   supportAiTest: () => request<{ reply: string }>('POST', '/api/support/ai-test', {}),
   ticketAssign: (id: string, handlerId: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/assign`, { handlerId }),
   reportAiSales: (rangeLabel: string, data: unknown) => request<StoredReport>('POST', '/api/reports/ai-sales', { rangeLabel, data }),

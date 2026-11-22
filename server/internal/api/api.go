@@ -147,6 +147,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/support", auth.Require(supportList))
 	mux.HandleFunc("GET /api/support/settings", auth.Require(supportGetSettings))
 	mux.HandleFunc("PUT /api/support/settings", auth.Require(supportSaveSettings))
+	mux.HandleFunc("POST /api/ai/speech", auth.Require(aiSpeech))
 	mux.HandleFunc("POST /api/support/ai-test", auth.Require(supportAiTest))
 	mux.HandleFunc("GET /api/portal/info", portalInfo)
 	mux.HandleFunc("GET /api/login/style", loginStyle)

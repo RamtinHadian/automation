@@ -1059,6 +1059,10 @@ export interface SupportSettings {
   aiEnabled: boolean;
   aiModel: string;
   aiSttModel: string;
+  /** text to voice: the model and the voice of the AI service, and whether it is on */
+  aiTtsModel?: string;
+  aiTtsVoice?: string;
+  aiTtsEnabled?: boolean;
   /** why the AI service failed the last time (nothing when it works) */
   aiLastError?: { kind: string; message: string; at: string } | null;
   aiPrompt: string;

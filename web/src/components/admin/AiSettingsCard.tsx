@@ -47,6 +47,10 @@ export const AiSettingsCard: React.FC = () => {
   const [aiKey, setAiKey] = useState('');
   const [aiModel, setAiModel] = useState('');
   const [aiStt, setAiStt] = useState('');
+  const [ttsModel, setTtsModel] = useState('');
+  const [ttsVoice, setTtsVoice] = useState('');
+  const [ttsOn, setTtsOn] = useState(false);
+  const [ttsBusy, setTtsBusy] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiOn, setAiOn] = useState(false);
   const [aiTest, setAiTest] = useState('');
@@ -58,6 +62,9 @@ export const AiSettingsCard: React.FC = () => {
       setSset(r);
       setAiModel(r.aiModel);
       setAiStt(r.aiSttModel);
+      setTtsModel(r.aiTtsModel || '');
+      setTtsVoice(r.aiTtsVoice || 'alloy');
+      setTtsOn(!!r.aiTtsEnabled);
       setAiPrompt(r.aiPrompt);
       setAiOn(r.aiEnabled);
     }).catch(() => showToast('تنظیمات هوش مصنوعی خوانده نشد.'));
@@ -67,7 +74,7 @@ export const AiSettingsCard: React.FC = () => {
 
   const save = async (extra: Record<string, unknown> = {}) => {
     try {
-      setSset(await api.supportSaveSettings({ aiEnabled: aiOn, aiModel: aiModel.trim(), aiSttModel: aiStt.trim(), aiPrompt, aiKey: aiKey.trim(), ...extra }));
+      setSset(await api.supportSaveSettings({ aiEnabled: aiOn, aiModel: aiModel.trim(), aiSttModel: aiStt.trim(), aiTtsModel: ttsModel.trim(), aiTtsVoice: ttsVoice.trim(), aiTtsEnabled: ttsOn, aiPrompt, aiKey: aiKey.trim(), ...extra }));
       setAiKey('');
       showToast('تنظیمات هوش مصنوعی ذخیره شد.');
     } catch (e) {
@@ -125,6 +132,49 @@ export const AiSettingsCard: React.FC = () => {
         <div>
           <label className={label}>نام مدل تبدیل صدا به متن (مکالمه‌های ضبط‌شده و ویس جلسه)</label>
           <input className={field} dir="ltr" value={aiStt} onChange={(e) => setAiStt(e.target.value)} placeholder="google/gemini-3.7-flash" />
+        </div>
+        <div className="rounded-2xl border border-[#EBDBCE] bg-[#FAF5F1] p-3 space-y-2" data-ai-tts>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs font-black text-[#3A241F]">تبدیل نوشته به صدا (خواندن متن با صدا)</div>
+            <label className="flex items-center gap-1.5 text-[11px] font-black text-[#3A241F] cursor-pointer">
+              <input type="checkbox" checked={ttsOn} onChange={(e) => setTtsOn(e.target.checked)} data-ai-tts-on />
+              روشن
+            </label>
+          </div>
+          <p className="text-[11px] font-bold text-[#8C6F66] leading-6">همین سرویس (togpt) متن را به صدا تبدیل می‌کند. نام مدل صدا و نام گوینده را از togpt بگیرید و بعد «شنیدن نمونه» را بزنید تا مطمئن شوید کار می‌کند.</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className={label}>نام مدل صدا</label>
+              <input className={field} dir="ltr" value={ttsModel} onChange={(e) => setTtsModel(e.target.value)} placeholder="مثلاً tts-1" data-ai-tts-model />
+            </div>
+            <div>
+              <label className={label}>گوینده (صدا)</label>
+              <input className={field} dir="ltr" value={ttsVoice} onChange={(e) => setTtsVoice(e.target.value)} placeholder="alloy" data-ai-tts-voice />
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={ttsBusy || !sset?.aiKeySet || !ttsModel.trim()}
+            onClick={async () => {
+              setTtsBusy(true);
+              try {
+                const blob = await api.aiSpeech('سلام. این یک نمونهٔ صدای سامانهٔ هورمند است.', ttsModel.trim(), ttsVoice.trim());
+                const url = URL.createObjectURL(blob);
+                const a = new Audio(url);
+                a.onended = () => URL.revokeObjectURL(url);
+                await a.play();
+              } catch (e) {
+                showToast(e instanceof Error ? e.message : 'صدا ساخته نشد.');
+              } finally {
+                setTtsBusy(false);
+              }
+            }}
+            className="px-4 py-2 min-h-[44px] sm:min-h-0 rounded-xl border border-violet-300 bg-white text-violet-800 text-xs font-black cursor-pointer disabled:opacity-50"
+            data-ai-tts-test
+          >
+            {ttsBusy ? 'در حال ساخت صدا…' : 'شنیدن نمونه'}
+          </button>
+          <p className="text-[10px] font-bold text-[#8C6F66]">برای ذخیرهٔ نهایی (از جمله روشن‌بودن) «ذخیرهٔ تنظیمات» را بزنید.</p>
         </div>
         {aiTest && <div className="text-[11px] font-bold bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 leading-6">{aiTest}</div>}
         <div className="flex flex-wrap gap-2">

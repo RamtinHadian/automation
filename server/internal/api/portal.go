@@ -139,7 +139,7 @@ func supportGetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	s := supportSettings(r.Context())
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"portalEnabled": s["portalEnabled"], "portalSmsLogin": jsonx.Bool(s, "portalSmsLogin"), "aiEnabled": jsonx.Bool(s, "aiEnabled"), "aiModel": jsonx.Str(s, "aiModel"), "aiSttModel": sttModel(s),
+		"portalEnabled": s["portalEnabled"], "portalSmsLogin": jsonx.Bool(s, "portalSmsLogin"), "aiEnabled": jsonx.Bool(s, "aiEnabled"), "aiModel": jsonx.Str(s, "aiModel"), "aiSttModel": sttModel(s), "aiTtsModel": jsonx.Str(s, "aiTtsModel"), "aiTtsVoice": ttsVoice(s), "aiTtsEnabled": jsonx.Bool(s, "aiTtsEnabled"),
 		"aiLastError": s["aiLastError"], "aiPrompt": jsonx.Str(s, "aiPrompt"), "aiKeySet": jsonx.Str(s, "aiKey") != "", "aiBaseUrl": aiBaseURL,
 	})
 }
@@ -168,6 +168,20 @@ func supportSaveSettings(w http.ResponseWriter, r *http.Request) {
 	s["aiPrompt"] = clean(jsonx.Str(body, "aiPrompt"), 3000)
 	if m := clean(jsonx.Str(body, "aiSttModel"), 80); m != "" {
 		s["aiSttModel"] = m
+	}
+	// text to voice: the model and the voice the AI service uses to read a text aloud (an empty model means the service is off for it)
+	if _, has := body["aiTtsModel"]; has {
+		s["aiTtsModel"] = clean(jsonx.Str(body, "aiTtsModel"), 80)
+	}
+	if v := clean(jsonx.Str(body, "aiTtsVoice"), 40); v != "" {
+		s["aiTtsVoice"] = v
+	}
+	if v, ok := body["aiTtsEnabled"].(bool); ok {
+		s["aiTtsEnabled"] = v
+	}
+	if jsonx.Bool(s, "aiTtsEnabled") && jsonx.Str(s, "aiTtsModel") == "" {
+		httpx.Error(w, http.StatusBadRequest, "برای روشن‌کردن تبدیل نوشته به صدا، نام مدل صدا را وارد کنید.")
+		return
 	}
 	if k := strings.TrimSpace(jsonx.Str(body, "aiKey")); k != "" {
 		if len(k) > 300 || strings.ContainsAny(k, " \r\n\t") {
