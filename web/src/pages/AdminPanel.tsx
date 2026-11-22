@@ -34,7 +34,6 @@ import { UserManagementView } from '../components/admin/UserManagementView';
 import { AnalyticsView } from '../components/admin/AnalyticsView';
 import { NetWatchCard } from '../components/admin/NetWatchCard';
 import { SupportAdmin } from '../components/admin/SupportAdmin';
-import { SupportAccessPanel } from '../components/admin/SupportAccessPanel';
 import { useCompanyName } from '../lib/useCompanyName';
 import { LoginBackdrop } from '../components/common/LoginBackdrop';
 import { CalculatorButton } from '../components/common/Calculator';
@@ -138,7 +137,7 @@ export default function AdminPanel() {
     }
   }, [isAdminAuthenticated, staffList, currentUser.id, setCurrentUser]);
 
-  const [activeTab, setActiveTab] =useState<'users' | 'departments' | 'letters' | 'transfers' | 'audit' | 'analytics' | 'stats' | 'support' | 'leaves' | 'settings' | 'techaccess'>('users');
+  const [activeTab, setActiveTab] =useState<'users' | 'departments' | 'letters' | 'transfers' | 'audit' | 'analytics' | 'stats' | 'support' | 'leaves' | 'settings'>('users');
   const [transfersSearch, setTransfersSearch] = useState('');
   // which files still exist on the server (and how big): read when the monitoring page is open
   const [fileSizes, setFileSizes] = useState<Record<string, number> | null>(null);
@@ -517,7 +516,6 @@ export default function AdminPanel() {
             <IconTab active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} label="گزارشات آماری مدیریتی" icon={<BarChart3 className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} label="آمار و مصرف حافظه" icon={<PieChartIcon className="w-[18px] h-[18px]" />} />
             <IconTab active={activeTab === 'support'} onClick={() => setActiveTab('support')} label="تنظیمات پشتیبانی" icon={<Headset className="w-[18px] h-[18px]" />} />
-            {currentUser.role === 'SUPER_ADMIN' && <IconTab active={activeTab === 'techaccess'} onClick={() => setActiveTab('techaccess')} label="دسترسی فنی" icon={<Shield className="w-[18px] h-[18px]" />} />}
             <IconTab active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} label="تنظیمات سیستم" icon={<Settings className="w-[18px] h-[18px]" />} />
           </nav>
 
@@ -599,7 +597,6 @@ export default function AdminPanel() {
 {activeTab === 'stats' && <ManagementReports />}
           {activeTab === 'leaves' && <LeaveAdminView />}
           {activeTab === 'support' && <SupportAdmin toast={showToast} />}
-          {activeTab === 'techaccess' && currentUser.role === 'SUPER_ADMIN' && <SupportAccessPanel toast={showToast} />}
 
           {activeTab === 'analytics' && (
             <div className="space-y-4">

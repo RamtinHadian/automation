@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 	"mime"
 	"net/http"
 
@@ -44,13 +43,6 @@ func main() {
 	ctx := context.Background()
 	if err := store.Init(ctx, cfg); err != nil {
 		log.Fatalf("database: %v", err)
-	}
-	// `/server support-enroll [--rotate]`: the installer makes the vendor's authenticator secret for the support access (printed once, on this terminal)
-	if len(os.Args) > 1 && os.Args[1] == "support-enroll" {
-		if err := auth.SupportEnrollCLI(ctx, len(os.Args) > 2 && os.Args[2] == "--rotate"); err != nil {
-			log.Fatalf("support-enroll: %v", err)
-		}
-		return
 	}
 	store.BackfillDealCreators(ctx)
 	if err := license.Init(ctx, cfg.Demo); err != nil {

@@ -546,12 +546,6 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'صدا ساخته نشد.');
     return res.blob();
   },
-  // technical (support) access of the company that installed the program
-  supportAccessStatus: () => request<{ enrolled: boolean; enabled: boolean; fullName?: string; log: { at: string; userId: string; ip: string; event: string; detail: string }[]; commands: { usage: string; help: string }[] }>('GET', '/api/support-access'),
-  supportAccessUnlock: (password: string, code: string) => request<{ token: string; expiresInSeconds: number }>('POST', '/api/support-access/unlock', { password, code }),
-  supportAccessLock: (token: string) => request<{ ok: true }>('POST', '/api/support-access/lock', { token }),
-  supportAccessRun: (token: string, command: string) => request<{ output: string }>('POST', '/api/support-access/run', { token, command }),
-  supportAccessEnable: (enabled: boolean, password: string) => request<{ ok: true }>('PUT', '/api/support-access/enabled', { enabled, password }),
   supportAiTest: () => request<{ reply: string }>('POST', '/api/support/ai-test', {}),
   ticketAssign: (id: string, handlerId: string) => request<SupportTicket>('POST', `/api/support/tickets/${encodeURIComponent(id)}/assign`, { handlerId }),
   reportAiSales: (rangeLabel: string, data: unknown) => request<StoredReport>('POST', '/api/reports/ai-sales', { rangeLabel, data }),
