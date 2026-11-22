@@ -494,8 +494,8 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
         const needle = secQ.trim();
         const list = rows.filter((u) => !needle || u.fullName.includes(needle));
         return (
-          <div className="fixed inset-0 z-[70] bg-[#F4F1EC] overflow-y-auto report-detail-in" dir="rtl" data-perm-section-page>
-            <div className="text-white" style={{ background: `linear-gradient(135deg, ${m.tone}, color-mix(in srgb, ${m.tone} 68%, #000))` }}>
+          <div className="fixed inset-0 z-[70] bg-[#F4F1EC] flex flex-col report-detail-in" dir="rtl" data-perm-section-page>
+            <div className="text-white shrink-0" style={{ background: `linear-gradient(135deg, ${m.tone}, color-mix(in srgb, ${m.tone} 68%, #000))` }}>
               <div className="w-full max-w-[1760px] mx-auto px-[clamp(14px,3.2vw,64px)] py-4 flex items-center gap-3 flex-wrap">
                 <button type="button" onClick={() => setSec(null)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-white/15 hover:bg-white/25 cursor-pointer">بازگشت ←</button>
                 <h2 className="font-black text-lg flex-1">{m.title}</h2>
@@ -505,29 +505,30 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                 </div>
               </div>
             </div>
-            <div className="w-full max-w-[1760px] mx-auto px-[clamp(14px,3.2vw,64px)] py-5 space-y-3">
-              <p className="text-[11px] font-bold text-[#8C6F66]">روی نام هر ستون بزنید تا برای همهٔ کارمندان عادی تیک زده یا برداشته شود؛ عدد زیر نام ستون یعنی چند نفر آن را دارند.</p>
-              <div className="bg-white rounded-2xl border border-[#EBDBCE] shadow-xs overflow-x-auto">
-                <table className="w-full text-right text-xs border-collapse">
-                  <thead>
+            <div className="w-full max-w-[1760px] mx-auto px-[clamp(14px,3.2vw,64px)] pt-4 pb-4 flex-1 min-h-0 flex flex-col gap-3">
+              <p className="text-[11px] font-bold text-[#8C6F66] shrink-0">روی نام هر ستون بزنید تا برای همهٔ کارمندان عادی تیک زده یا برداشته شود؛ عدد زیر نام ستون یعنی چند نفر آن را دارند.</p>
+              <div className="bg-white rounded-2xl border border-[#EBDBCE] shadow-xs overflow-y-auto overflow-x-hidden flex-1 min-h-0" data-perm-scroll>
+                <table className="w-full table-fixed text-right text-xs border-separate border-spacing-0">
+                  {/* the column titles stay at the top while the employees scroll under them */}
+                  <thead className="sticky top-0 z-20">
                     <tr className="bg-[#FAF5F1]">
-                      <th className="px-4 py-3 text-[11px] font-black text-[#8C6F66] min-w-[190px] sticky right-0 bg-[#FAF5F1] z-10">کارمند</th>
+                      <th className="px-4 py-3 text-[11px] font-black text-[#8C6F66] w-[clamp(120px,14vw,200px)] sticky right-0 top-0 bg-[#FAF5F1] z-30 border-b border-[#EBDBCE]">کارمند</th>
                       {cols.map((c) => (
-                        <th key={c.id} className="px-2 py-2 text-center align-bottom min-w-[96px] max-w-[150px]" style={{ background: c.isMain ? `${m.tone}14` : undefined }}>
-                          <button type="button" title={c.hint} onClick={() => colAll(c)} className="block mx-auto text-[11px] font-black leading-5 hover:underline cursor-pointer" style={{ color: m.tone }}>
+                        <th key={c.id} className="px-0.5 py-2 text-center align-bottom bg-[#FAF5F1] overflow-hidden border-b border-[#EBDBCE]" style={c.isMain ? { backgroundImage: `linear-gradient(${m.tone}14, ${m.tone}14)` } : undefined}>
+                          <button type="button" title={c.hint} onClick={() => colAll(c)} className="block mx-auto text-[clamp(9px,0.75vw,11px)] font-black leading-4 hover:underline cursor-pointer [overflow-wrap:anywhere] max-w-full" style={{ color: m.tone }}>
                             {c.isMain ? 'ورود به منو' : c.label}
                           </button>
                           <div className="mt-1 mx-auto w-fit rounded-md bg-[#F3E8DF] px-1.5 text-[10px] font-black text-[#8C6F66] leading-[18px]" title="چند نفر دارند">{toPersianDigits(people.filter((u) => colOn(u, c)).length)}</div>
                         </th>
                       ))}
-                      <th className="px-3 py-3 text-[11px] font-black text-[#8C6F66]">این بخش</th>
+                      <th className="w-[clamp(84px,8vw,120px)] px-1 py-3 text-[11px] font-black text-[#8C6F66] bg-[#FAF5F1] border-b border-[#EBDBCE]">این بخش</th>
                     </tr>
                   </thead>
                   <tbody>
                     {list.map((u) => {
                       const admin = isAdminUser(u);
                       return (
-                        <tr key={u.id} className="border-t border-[#F3E8DF] hover:bg-[#FDFAF7]">
+                        <tr key={u.id} className="hover:bg-[#FDFAF7] [&>td]:border-b [&>td]:border-[#F3E8DF]">
                           <td className="px-4 py-2.5 sticky right-0 bg-white z-10">
                             <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
                             <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</span>
@@ -561,11 +562,11 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                               </td>
                             );
                           })}
-                          <td className="px-3 py-2 text-center whitespace-nowrap">
+                          <td className="px-1 py-2 text-center">
                             {admin ? <ShieldCheck className="w-4 h-4 text-[#6E1B1B] inline" /> : (
-                              <span className="inline-flex gap-1">
-                                <button type="button" onClick={() => { onUpdateUser(u.id, colPatchMany(u, cols, true)); showToast(`همهٔ مجوزهای «${m.title}» برای ${u.fullName} داده شد.`); }} className="px-2 py-1 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
-                                <button type="button" onClick={() => { onUpdateUser(u.id, colPatchMany(u, cols, false)); showToast(`مجوزهای «${m.title}» از ${u.fullName} گرفته شد.`); }} className="px-2 py-1 rounded-md text-[10px] font-black bg-white text-[#8C6F66] border border-[#EBDBCE] cursor-pointer">هیچ</button>
+                              <span className="inline-flex gap-0.5 flex-wrap justify-center">
+                                <button type="button" onClick={() => { onUpdateUser(u.id, colPatchMany(u, cols, true)); showToast(`همهٔ مجوزهای «${m.title}» برای ${u.fullName} داده شد.`); }} className="px-1.5 py-1 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
+                                <button type="button" onClick={() => { onUpdateUser(u.id, colPatchMany(u, cols, false)); showToast(`مجوزهای «${m.title}» از ${u.fullName} گرفته شد.`); }} className="px-1.5 py-1 rounded-md text-[10px] font-black bg-white text-[#8C6F66] border border-[#EBDBCE] cursor-pointer">هیچ</button>
                               </span>
                             )}
                           </td>
