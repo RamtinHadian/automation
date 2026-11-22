@@ -1098,18 +1098,30 @@ export async function pushCaches(cfg, sp, state) {
   await tryPush('sepidarCustomers', '/api/Customers', (x) => ({ id: x.CustomerID, code: x.Code ?? x.CustomerCode ?? '', name: x.Title || `${x.Name || ''} ${x.LastName || ''}`.trim(), phones: [x.PhoneNumber, x.MobileNumber, x.Phone].filter(Boolean), nationalId: x.NationalID || '' }));
   // The customer's balance (what he owes: positive = debtor). When Sepidar's answer has NO balance field the figure is left UNKNOWN (null) and never turned into 0:
   // a 0 would make every debtor look «settled» in Hoormand.
+  // a number may arrive as text («1,250,000», Persian digits, a minus in brackets): read it leniently, but only real numbers count
+  const asNum = (v) => {
+    if (v === null || v === undefined || v === '') return null;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    let t = String(v).trim().replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[,٬\s]/g, '');
+    const neg = /^\(.*\)$/.test(t);
+    t = t.replace(/[()]/g, '');
+    if (!/^-?\d+(\.\d+)?$/.test(t)) return null;
+    return neg ? -Number(t) : Number(t);
+  };
   const remOf = (x) => {
     for (const k of ['Remainder', 'AccountingRemainder', 'CustomerRemainder', 'RemainderWithoutCheque']) {
-      const v = x[k];
-      if (v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v))) return { value: Number(v), field: k };
+      const v = asNum(x[k]);
+      if (v !== null) return { value: v, field: k };
     }
     return null;
   };
+  let rawShown = 0;
   let remFound = 0;
   let remMissing = 0;
   let sampleKeys = '';
   await tryPush('balances', '/api/Customers', (x) => {
     const r = remOf(x);
+    if (rawShown < 3) { rawShown++; log(`  نمونهٔ خام مانده (مشتری ${x.CustomerID}): AccountingRemainder=${JSON.stringify(x.AccountingRemainder)} RemainderWithoutCheque=${JSON.stringify(x.RemainderWithoutCheque)} CreditRemainder=${JSON.stringify(x.CreditRemainder)} QuantityCreditRemainder=${JSON.stringify(x.QuantityCreditRemainder)}`); }
     if (r) remFound++;
     else {
       remMissing++;
