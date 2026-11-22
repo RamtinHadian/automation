@@ -82,7 +82,7 @@ export const FunnelReport: React.FC<{ deals: Deal[]; seesMoney: boolean; onClose
     <div className="fixed inset-0 z-[85] bg-[#F4F1EC] overflow-y-auto report-detail-in" dir="rtl" data-funnel-report onClick={(e) => e.stopPropagation()}>
       <div className="relative text-white" style={{ background: 'linear-gradient(135deg, #5B3FD0 0%, #2A1F7A 100%)' }}>
         <div className="absolute inset-0 opacity-[0.14] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10% 15%, #fff 0, transparent 36%), radial-gradient(circle at 90% 85%, #8be0ff 0, transparent 32%)' }} />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-7 space-y-5">
+        <div className="relative w-full max-w-[1760px] mx-auto px-[clamp(14px,3.2vw,64px)] pt-3 pb-[clamp(14px,2.4vh,26px)] space-y-[clamp(10px,2vh,20px)]">
           <div className="flex items-center gap-3">
             <button type="button" onClick={onClose} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-white/15 hover:bg-white/25 backdrop-blur cursor-pointer"><ArrowRight className="w-4 h-4" />بازگشت به گزارشات</button>
             <span className="flex-1" />
@@ -110,7 +110,7 @@ export const FunnelReport: React.FC<{ deals: Deal[]; seesMoney: boolean; onClose
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-5 pb-10 space-y-4">
+      <div className="w-full max-w-[1760px] mx-auto px-[clamp(14px,3.2vw,64px)] mt-[clamp(10px,2vh,22px)] pb-8 space-y-[clamp(10px,1.8vh,18px)]">
         {insights.length > 0 && (
           <div className="rounded-3xl border border-amber-200 bg-white shadow-sm p-4 space-y-1.5">
             <div className="flex items-center gap-2 font-black text-[12px] text-amber-900"><Lightbulb className="w-4 h-4" />تحلیل سریع</div>

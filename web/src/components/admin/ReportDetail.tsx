@@ -27,7 +27,8 @@ export interface DetailSpec {
   big: string;
   bigLabel: string;
   chips?: { label: string; value: string }[];
-  chart?: React.ReactNode;
+  /** the chart, or a function that draws it for a given height (so it fills the room the window has) */
+  chart?: React.ReactNode | ((height: number) => React.ReactNode);
   chartTitle?: string;
   chartSub?: string;
   people?: DetailPerson[];
@@ -51,6 +52,8 @@ const darker = (hex: string) => `color-mix(in srgb, ${hex} 72%, #0b1020)`;
  * The detail page of a number or a chart of the management reports: a page over everything, with the figure large on a coloured head, the chart in
  * full size, the same numbers per employee (who did how much; pressing a person shows his own items) and the list of the items behind the number.
  */
+const SIDE = 'w-full max-w-[1760px] mx-auto px-[clamp(14px,3.2vw,64px)]';
+
 export const ReportDetail: React.FC<{
   spec: DetailSpec;
   ranges?: { days: number; label: string }[];
@@ -63,6 +66,14 @@ export const ReportDetail: React.FC<{
   const [tab, setTab] = useState<'overview' | 'people' | 'records'>('overview');
   const [person, setPerson] = useState('');
   const [q, setQ] = useState('');
+  const [vh, setVh] = useState(() => (typeof window === 'undefined' ? 900 : window.innerHeight));
+  useEffect(() => {
+    const on = () => setVh(window.innerHeight);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  // the chart takes the room the window has: tall enough to read, never so tall that the page needs scrolling just for it
+  const chartH = Math.round(Math.max(210, Math.min(460, vh * 0.36)));
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -87,7 +98,7 @@ export const ReportDetail: React.FC<{
     <div className="fixed inset-0 z-[85] bg-[#F4F1EC] overflow-y-auto report-detail-in" dir="rtl" data-report-detail onClick={(e) => e.stopPropagation()}>
       <div className="relative text-white" style={{ background: `linear-gradient(135deg, ${spec.accent} 0%, ${darker(spec.accent)} 100%)` }}>
         <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 12% 20%, #fff 0, transparent 38%), radial-gradient(circle at 88% 80%, #fff 0, transparent 34%)' }} />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-6 space-y-5">
+        <div className={`relative ${SIDE} pt-3 pb-[clamp(14px,2.4vh,26px)] space-y-[clamp(10px,2vh,20px)]`}>
           <div className="flex items-center gap-3 flex-wrap">
             <button type="button" onClick={onClose} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-white/15 hover:bg-white/25 backdrop-blur cursor-pointer"><ArrowRight className="w-4 h-4" />بازگشت به گزارشات</button>
             <span className="flex-1" />
@@ -124,7 +135,7 @@ export const ReportDetail: React.FC<{
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-5 pb-10 space-y-4">
+      <div className={`${SIDE} mt-[clamp(10px,2vh,22px)] pb-8 space-y-[clamp(10px,1.8vh,18px)]`}>
         <div className="flex items-center gap-1.5 bg-white rounded-2xl border border-[#EBDBCE] shadow-sm p-1.5 w-fit max-w-full overflow-x-auto">
           {tabs.filter((t) => t[3]).map(([id, label, icon]) => (
             <button key={id} type="button" onClick={() => setTab(id)} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-black whitespace-nowrap cursor-pointer transition-colors ${tab === id ? 'text-white shadow' : 'text-[#6B4F47] hover:bg-[#FAF5F1]'}`} style={tab === id ? { background: spec.accent } : undefined}>
@@ -152,7 +163,7 @@ export const ReportDetail: React.FC<{
                     {spec.chartSub && <p className="text-[11px] text-[#8C6F66] mt-0.5">{spec.chartSub}</p>}
                   </div>
                 )}
-                {spec.chart}
+                {typeof spec.chart === 'function' ? spec.chart(chartH) : spec.chart}
               </section>
             )}
             {hasPeople && (
@@ -222,17 +233,20 @@ export const ReportDetail: React.FC<{
 };
 
 const PeopleBars: React.FC<{ people: DetailPerson[]; max: number; total: number; accent: string; onPick: (n: string) => void }> = ({ people, max, total, accent, onPick }) => (
-  <div className="space-y-2.5">
+  <div className="space-y-[clamp(6px,1.3vh,12px)]">
     {people.map((p) => (
       <button key={p.name} type="button" onClick={() => onPick(p.name)} className="w-full text-right group cursor-pointer">
         <div className="flex items-center justify-between gap-2 text-[12px]">
           <span className="font-black text-[#3A241F] truncate group-hover:underline">{p.name}</span>
-          <span className="font-black shrink-0" style={{ color: accent }}>{toPersianDigits(p.count)}{p.valueText ? <span className="text-[#8C6F66] font-bold"> · {p.valueText}</span> : ''}</span>
+          <span className="font-black shrink-0" style={{ color: accent }}>
+            {toPersianDigits(p.count)}
+            {p.valueText ? <span className="text-[#8C6F66] font-bold"> · {p.valueText}</span> : null}
+            <span className="text-[10px] font-bold text-[#A8928B]"> ({toPersianDigits(total ? Math.round((p.count / total) * 100) : 0)}٪)</span>
+          </span>
         </div>
-        <div className="h-2.5 rounded-full bg-[#F1EAE3] overflow-hidden mt-1">
+        <div className="h-2 rounded-full bg-[#F1EAE3] overflow-hidden mt-1">
           <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(4, (p.count / max) * 100)}%`, background: `linear-gradient(90deg, ${accent}, color-mix(in srgb, ${accent} 70%, #fff))` }} />
         </div>
-        <div className="text-[10px] font-bold text-[#A8928B] mt-0.5">{toPersianDigits(total ? Math.round((p.count / total) * 100) : 0)}٪ از کل</div>
       </button>
     ))}
   </div>

@@ -59,7 +59,7 @@ export function buildDetail(id: DetailId, c: SpecContext): DetailSpec | null {
         title: 'نامه‌های امضاشده', subtitle: `نامه‌های رسمی که در ${c.rangeLabel} اخیر امضا شد و نامه‌های منتظر امضا`, accent: '#6D28D9', icon: <FileSignature />,
         big: fa(k.lettersSigned), bigLabel: `امضاشده (${c.rangeLabel})`,
         chips: [{ label: 'در انتظار امضا', value: fa(k.lettersPending) }, { label: 'ردشده', value: fa(k.lettersRejected) }, ...(k.avgSignHours !== null ? [{ label: 'میانگین زمان امضا', value: `${fa(Math.round(k.avgSignHours))} ساعت` }] : [])],
-        chart: <TrendChart labels={labels} series={[{ name: 'نامهٔ رسمی', color: C.orange, values: s.transfersPerDay.letters }]} height={260} />, chartTitle: 'نامه در طول زمان', chartSub: `تعداد ارسال در هر روز (${c.rangeLabel} اخیر)`,
+        chart: (h: number) => <TrendChart labels={labels} series={[{ name: 'نامهٔ رسمی', color: C.orange, values: s.transfersPerDay.letters }]} height={h} />, chartTitle: 'نامه در طول زمان', chartSub: `تعداد ارسال در هر روز (${c.rangeLabel} اخیر)`,
         people: people(by), peopleTitle: 'هر کارمند چند نامهٔ امضاشده داشته', countLabel: 'نامه', records: recs, recordsTitle: 'نامه‌ها',
       };
     }
@@ -70,7 +70,7 @@ export function buildDetail(id: DetailId, c: SpecContext): DetailSpec | null {
       return {
         title: 'فایل‌های تبادل‌شده', subtitle: `فایل‌هایی که در ${c.rangeLabel} اخیر بین همکاران رد و بدل شد`, accent: '#2563EB', icon: <Send />,
         big: fa(k.filesSent), bigLabel: `فایل (${c.rangeLabel})`,
-        chart: <TrendChart labels={labels} series={[{ name: 'فایل', color: C.blue, values: s.transfersPerDay.files }]} height={260} />, chartTitle: 'فایل در طول زمان', chartSub: 'تعداد ارسال در هر روز',
+        chart: (h: number) => <TrendChart labels={labels} series={[{ name: 'فایل', color: C.blue, values: s.transfersPerDay.files }]} height={h} />, chartTitle: 'فایل در طول زمان', chartSub: 'تعداد ارسال در هر روز',
         people: people(by), peopleTitle: 'هر کارمند چند فایل فرستاده', countLabel: 'فایل',
         records: list.map((t) => ({ id: t.id, title: t.fileName, sub: `برای ${t.recipients.map((r) => r.fullName).join('، ') || '—'}${t.fileSize ? ' · ' + t.fileSize : ''}`, person: t.sender.fullName, date: dayFa(t.sentAt) })), recordsTitle: 'فایل‌ها',
       };
@@ -146,7 +146,7 @@ export function buildDetail(id: DetailId, c: SpecContext): DetailSpec | null {
       return {
         title: id === 'calls' ? 'تماس‌های تلفنی' : 'تماس‌های بی‌پاسخ', subtitle: '۷ روز اخیر، از تلفن شرکت', accent: '#CA8A04', icon: <Phone />,
         big: fa(missed), bigLabel: 'بی‌پاسخ', chips: [{ label: 'کل تماس', value: fa(total) }, { label: 'پاسخ داده شد', value: fa(total - missed) }, { label: 'درصد پاسخ', value: `${fa(total ? Math.round(((total - missed) / total) * 100) : 0)}٪` }],
-        chart: rows.length ? <Columns stacked labels={[...rows].reverse().map((d) => shortDay(d.key))} series={[{ name: 'پاسخ داده شد', color: C.aqua, values: [...rows].reverse().map((d) => d.answered) }, { name: 'بی‌پاسخ', color: C.red, values: [...rows].reverse().map((d) => Math.max(0, d.total - d.answered)) }]} height={260} /> : <div className="py-10 text-center text-xs font-bold text-gray-400">هنوز تماسی ثبت نشده است.</div>, chartTitle: 'تماس‌ها در هر روز',
+        chart: (h: number) => rows.length ? <Columns stacked labels={[...rows].reverse().map((d) => shortDay(d.key))} series={[{ name: 'پاسخ داده شد', color: C.aqua, values: [...rows].reverse().map((d) => d.answered) }, { name: 'بی‌پاسخ', color: C.red, values: [...rows].reverse().map((d) => Math.max(0, d.total - d.answered)) }]} height={h} /> : <div className="py-10 text-center text-xs font-bold text-gray-400">هنوز تماسی ثبت نشده است.</div>, chartTitle: 'تماس‌ها در هر روز',
         records: rows.map((d) => ({ id: d.key, title: shortDay(d.key), sub: `${toPersianDigits(d.total)} تماس · ${toPersianDigits(d.answered)} پاسخ داده شد`, tag: `${toPersianDigits(Math.max(0, d.total - d.answered))} بی‌پاسخ`, tone: d.total - d.answered > 0 ? ('bad' as const) : ('good' as const) })), recordsTitle: 'روزها',
       };
     }
@@ -201,7 +201,7 @@ export function buildDetail(id: DetailId, c: SpecContext): DetailSpec | null {
       return {
         title: 'فایل و نامه در طول زمان', subtitle: `تعداد ارسال در هر روز (${c.rangeLabel} اخیر)`, accent: '#EA580C', icon: <Users />,
         big: fa(list.length), bigLabel: `ارسال (${c.rangeLabel})`, chips: [{ label: 'فایل', value: fa(k.filesSent) }, { label: 'نامه', value: fa(list.filter((t) => t.isOfficialLetter).length) }],
-        chart: <TrendChart labels={labels} series={[{ name: 'فایل', color: C.blue, values: s.transfersPerDay.files }, { name: 'نامهٔ رسمی', color: C.orange, values: s.transfersPerDay.letters }]} height={280} />, chartTitle: 'ارسال در هر روز',
+        chart: (h: number) => <TrendChart labels={labels} series={[{ name: 'فایل', color: C.blue, values: s.transfersPerDay.files }, { name: 'نامهٔ رسمی', color: C.orange, values: s.transfersPerDay.letters }]} height={h} />, chartTitle: 'ارسال در هر روز',
         people: people(by), peopleTitle: 'هر کارمند چند ارسال داشته', countLabel: 'ارسال',
         records: list.map((t) => ({ id: t.id, title: t.isOfficialLetter ? `${num(t)} · ${fileTitle(t)}` : t.fileName, person: t.sender.fullName, date: dayFa(t.sentAt), tag: t.isOfficialLetter ? 'نامه' : 'فایل', tone: t.isOfficialLetter ? ('warn' as const) : ('info' as const) })), recordsTitle: 'ارسال‌ها',
       };
