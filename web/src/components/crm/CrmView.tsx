@@ -86,6 +86,7 @@ import { LOST_REASONS } from '../../lib/lostReasons';
 import { dealCloseTime } from '../../lib/dealTime';
 import { dragStartCard, droppedCard, moveAllowed } from '../../lib/dragGuard';
 import { QuoteForm } from './QuoteForm';
+import { FinanceChip } from '../sepidar/CustomerFinance';
 import { CustomerSummaryStrip } from './CustomerSummary';
 import { buildCustomerIndex, matchesQuery, relevance } from '../../lib/customerSearch';
 import { canSub, canSeeSalesTotals } from '../../lib/permissions';
@@ -570,12 +571,12 @@ export const CrmView: React.FC = () => {
     return (
       <div key={c.id} onClick={() => setOpenCustomer(c.id)} className="flex items-center gap-3 bg-white border border-[#EBDBCE] rounded-xl px-3 py-2 hover:bg-[#FAF5F1] cursor-pointer text-right" data-customer-row>
         <div className="flex-1 min-w-0">
-          <div className="font-black text-[12.5px] text-[#3A241F] truncate">{c.name}</div>
+          <div className="font-black text-[12.5px] text-[#3A241F] leading-snug [overflow-wrap:anywhere] line-clamp-2" title={c.name}>{c.name}</div>
           {c.company && c.company !== c.name && <div className="text-[10.5px] text-[#8C6F66] truncate">{c.company}</div>}
           {c.kind === 'SHOP' && (c.firstName || c.lastName) && <div className="text-[11px] font-black text-[#3A241F] truncate" data-shop-owner>مالک: {`${c.firstName || ''} ${c.lastName || ''}`.trim()}</div>}
           {c.kind === 'SHOP' && c.shopType && <div className="text-[10.5px] text-[#8C6F66] truncate" data-shop-type>{c.shopType}</div>}
         </div>
-        <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}
+        <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}<span className="hidden lg:inline-flex shrink-0"><FinanceChip customerId={c.id} small /></span>
         <div className="hidden sm:block w-32 text-[11px] font-bold text-[#3A241F]" dir="ltr">{toPersianDigits(c.phones?.[0] || '')}</div>
         <div className="hidden md:block w-28 text-[11px] text-[#8C6F66] truncate">{c.ownerName || ''}</div>
         <div className="hidden md:block w-24 text-[10.5px] text-[#8C6F66]">{c.createdAt ? formatTaskDate(c.createdAt.slice(0, 10)) : ''}</div>
@@ -592,10 +593,11 @@ export const CrmView: React.FC = () => {
       <div key={c.id} onClick={() => setOpenCustomer(c.id)} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 space-y-2 hover:shadow-md transition-all cursor-pointer text-right">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="font-black text-[13px] text-[#3A241F] truncate">{c.name}</div>
+            <div className="font-black text-[13px] text-[#3A241F] leading-snug [overflow-wrap:anywhere] line-clamp-3" title={c.name}>{c.name}</div>
             <span className={`inline-block text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}
+            <div className="mt-0.5"><FinanceChip customerId={c.id} small /></div>
             {c.company && c.company !== c.name && (
-              <div className="text-[11px] text-[#8C6F66] flex items-center gap-1 truncate">
+              <div className="text-[11px] text-[#8C6F66] flex items-start gap-1 [overflow-wrap:anywhere]">
                 <Building2 className="w-3 h-3 shrink-0" />
                 {c.company}
               </div>

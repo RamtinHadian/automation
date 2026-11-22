@@ -6,6 +6,7 @@ import { formatTaskDate } from '../../lib/taskDates';
 
 type Finance = Awaited<ReturnType<typeof api.sepidarFinance>>;
 
+const unitOf = (t?: string) => (t ? ` ${t}` : '');
 const fmt = (n: number) => toPersianDigits(Math.abs(Number(n || 0)).toLocaleString('en-US', { maximumFractionDigits: 2 }));
 const timeOf = (iso?: string) => (iso ? `${formatTaskDate(iso)} ${toPersianDigits(new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))}` : '');
 
@@ -62,11 +63,13 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
           {hasBalance ? (
             <span className={`font-black ${tone}`}>
               {word}
-              {rem !== 0 ? ` ${fmt(rem)}` : ''}
+              {rem !== 0 ? ` ${fmt(rem)}${unitOf(data.currencyTitle)}` : ''}
             </span>
           ) : hasCredit ? (
-            <span className="font-black text-[#3A241F]">اعتبار {fmt(data.creditRemainder!)}</span>
-          ) : null}
+            <span className="font-black text-[#3A241F]">اعتبار {fmt(data.creditRemainder!)}{unitOf(data.currencyTitle)}</span>
+          ) : (
+            <span className="font-black text-slate-600">مانده نامشخص</span>
+          )}
         </span>
         {data.invoices && data.invoices[0] && <span className="shrink-0 text-[10px] text-[#8C6F66]">آخرین فاکتور {toPersianDigits(data.invoices[0].number)}</span>}
       </div>
@@ -84,14 +87,14 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
           <div className="text-[10px] font-bold text-[#8C6F66]">مانده حساب</div>
           <div className={`text-sm font-black ${hasBalance ? tone : 'text-slate-600'}`}>
             {word}
-            {hasBalance && rem !== 0 ? ` ${fmt(rem)}` : ''}
+            {hasBalance && rem !== 0 ? ` ${fmt(rem)}${unitOf(data.currencyTitle)}` : ''}
           </div>
           {!hasBalance && <div className="mt-1 text-[10px] font-bold text-[#8C6F66] leading-5">سپیدار برای این مشتری مانده‌ای نفرستاده است؛ بدهی یا تسویه‌بودنش را از همین‌جا نمی‌شود فهمید.</div>}
         </div>
         {hasCredit && (
           <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
           <div className="text-[10px] font-bold text-[#8C6F66]">مانده اعتبار</div>
-          <div className="text-sm font-black text-[#3A241F]">{typeof data.creditRemainder === 'number' ? fmt(data.creditRemainder) : '—'}</div>
+          <div className="text-sm font-black text-[#3A241F]">{typeof data.creditRemainder === 'number' ? `${fmt(data.creditRemainder)}${unitOf(data.currencyTitle)}` : '—'}</div>
         </div>
         )}
         {data.invoiceCount !== undefined && (
@@ -103,7 +106,7 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
         {data.invoiceCount !== undefined && (
           <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">
           <div className="text-[10px] font-bold text-[#8C6F66]">جمع فاکتورها</div>
-          <div className="text-sm font-black text-[#3A241F]">{fmt(data.invoiceTotal ?? 0)}</div>
+          <div className="text-sm font-black text-[#3A241F]">{fmt(data.invoiceTotal ?? 0)}{unitOf(data.currencyTitle)}</div>
         </div>
         )}
       </div>
@@ -114,14 +117,70 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
             <div key={i.number} className="flex items-center justify-between gap-2 text-[11px] font-bold text-[#3A241F] bg-white rounded-lg border border-[#EBDBCE] px-3 py-1.5">
               <span>فاکتور {toPersianDigits(i.number)}</span>
               <span className="text-[#8C6F66]">{i.date ? formatTaskDate(i.date) : ''}</span>
-              <span className="font-black">{fmt(i.net)}</span>
+              <span className="font-black">{fmt(i.net)}{unitOf(data.currencyTitle)}</span>
             </div>
           ))}
         </div>
       )}
       <div className={`text-[10px] font-bold ${stale ? 'text-amber-700' : 'text-[#8C6F66]'}`}>
-        {data.balanceAt ? `آخرین بروزرسانی از سپیدار: ${timeOf(data.balanceAt)}${stale ? ' (قدیمی است؛ «بروزرسانی اطلاعات سپیدار» را بزنید)' : ''}` : 'اطلاعات مانده هنوز از سپیدار نیامده است.'} · ارقام به همان واحد پولی سپیدار است.
+        {data.balanceAt ? `آخرین بروزرسانی از سپیدار: ${timeOf(data.balanceAt)}${stale ? ' (قدیمی است؛ «بروزرسانی اطلاعات سپیدار» را بزنید)' : ''}` : 'اطلاعات مانده هنوز از سپیدار نیامده است.'} · ارقام به واحد پولی سپیدار است{data.currencyTitle ? ` (${data.currencyTitle})` : ''}.
       </div>
     </div>
+  );
+};
+
+
+// ---- the short word on a customer card: «بدهکار …» / «تسویه‌شده» / «بستانکار …» (one request for all the cards of a page) ----
+type Brief = { rem?: number; unit?: string };
+const briefCache = new Map<string, Brief | null>();
+const briefWaiting = new Set<string>();
+const briefListeners = new Set<() => void>();
+let briefTimer: ReturnType<typeof setTimeout> | undefined;
+let briefOff = false; // the person has no right to the balance (or Sepidar is off): stop asking
+
+const askBriefs = () => {
+  briefTimer = undefined;
+  const ids = [...briefWaiting].slice(0, 120);
+  ids.forEach((i) => briefWaiting.delete(i));
+  if (!ids.length) return;
+  api
+    .sepidarFinanceBrief(ids)
+    .then((r) => {
+      for (const id of ids) briefCache.set(id, id in r.items ? { rem: Number(r.items[id]), unit: r.currencyTitle } : null);
+    })
+    .catch(() => {
+      briefOff = true;
+      for (const id of ids) briefCache.set(id, null);
+    })
+    .finally(() => {
+      briefListeners.forEach((f) => f());
+      if (briefWaiting.size) briefTimer = setTimeout(askBriefs, 30);
+    });
+};
+
+export const FinanceChip: React.FC<{ customerId: string; small?: boolean }> = ({ customerId, small }) => {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const f = () => tick((n) => n + 1);
+    briefListeners.add(f);
+    if (!briefOff && !briefCache.has(customerId)) {
+      briefWaiting.add(customerId);
+      if (!briefTimer) briefTimer = setTimeout(askBriefs, 40);
+    }
+    return () => {
+      briefListeners.delete(f);
+    };
+  }, [customerId]);
+  const b = briefCache.get(customerId);
+  if (!b || typeof b.rem !== 'number') return null;
+  const rem = b.rem;
+  const cls = rem > 0 ? 'bg-rose-50 text-rose-800 border-rose-200' : rem < 0 ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+  const word = rem > 0 ? 'بدهکار' : rem < 0 ? 'بستانکار' : 'تسویه‌شده';
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border font-black ${small ? 'text-[9.5px] px-1.5 py-px' : 'text-[10px] px-2 py-0.5'} ${cls}`} title="وضعیت مالی در سپیدار" data-finance-chip>
+      <Landmark className="w-3 h-3 shrink-0" />
+      {word}
+      {rem !== 0 ? ` ${fmt(rem)}${unitOf(b.unit)}` : ''}
+    </span>
   );
 };

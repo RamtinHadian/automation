@@ -715,7 +715,10 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
       invoiceCount?: number;
       invoiceTotal?: number;
       invoicesAt?: string;
+      currencyTitle?: string;
     }>('GET', `/api/sepidar/finance/${encodeURIComponent(customerId)}${forCall ? '?for=call' : ''}`),
+  /** Balances (positive = debtor) of the customers on a page of cards: {customerId: balance} for the ones tied to Sepidar. */
+  sepidarFinanceBrief: (ids: string[]) => request<{ items: Record<string, number>; currencyTitle?: string }>('POST', '/api/sepidar/finance-brief', { ids }),
   /** The files of the Sepidar program as a zip (managers), to copy onto the accounting computer by hand. */
   sepidarToolFiles: async (): Promise<Blob> => {
     const res = await fetch('/api/sepidar/tool-files', { headers: { Authorization: `Bearer ${getToken()}` } });
