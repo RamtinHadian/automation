@@ -92,6 +92,7 @@ var selfFields = []selfField{
 	{Key: "noEmail", Label: "نمی‌خواهم ایمیل تبلیغاتی بگیرم", Type: "check", DefHide: true, Group: "سایر"},
 	{Key: "referrerName", Label: "نام معرف", Type: "text", DefHide: true, Group: "سایر"},
 	{Key: "referrerPhone", Label: "شمارهٔ تماس معرف", Type: "tel", DefHide: true, Group: "سایر"},
+	{Key: "source", Label: "منبع آشنایی", Type: "text", Hint: "مثلاً اینستاگرام، معرفی دوستان، نمایشگاه", Group: "سایر"},
 	{Key: "event", Label: "نمایشگاه / محل ثبت", Type: "text", Hint: "مثلاً نمایشگاه ماشین‌آلات راهسازی", DefHide: true, Group: "سایر"},
 	{Key: "note", Label: "توضیحات", Type: "area", Group: "سایر"},
 }
@@ -182,7 +183,7 @@ func jalaliToGregorian(jy, jm, jd int) (int, int, int) {
 }
 
 // the quick form (the marketer's page and the web-site form) starts with these fields only; the administrator adds the others in the console
-var quickShown = []string{"نوع مشتری", "نام", "نام خانوادگی", "نام شرکت", "نام فروشگاه", "موبایل", "شهر", "نمایشگاه / محل ثبت", "توضیحات"}
+var quickShown = []string{"نوع مشتری", "نام", "نام خانوادگی", "نام شرکت", "نام فروشگاه", "موبایل", "شهر", "منبع آشنایی", "نمایشگاه / محل ثبت", "توضیحات"}
 var quickRequired = []string{"نام", "نام خانوادگی", "نام شرکت", "نام فروشگاه", "موبایل"}
 
 func quickDefaultHidden() []string {
@@ -358,6 +359,9 @@ func createSelfCustomer(ctx context.Context, owner auth.User, in map[string]stri
 		"id": "cu-" + randHex(8), "kind": kind, "name": name, "phones": phones, "email": val["email"], "website": val["website"], "province": val["province"], "city": val["city"],
 		"postalCode": val["postalCode"], "address": val["address"], "industry": val["industry"], "role": val["role"], "prefix": val["prefix"], "interest": val["interest"],
 		"status": "LEAD", "source": opt.Source, "tags": []string{}, "ownerId": owner.ID(), "ownerName": owner.Name(), "notes": "", "createdAt": t, "updatedAt": t,
+	}
+	if val["source"] != "" { // the customer's (or the marketer's) own answer to «how did you get to know us» replaces the default
+		doc["source"] = val["source"]
 	}
 	if in["isSupplier"] == "1" && !labelOn(hidden, "تأمین‌کنندهٔ کالا هم هستم") {
 		doc["isSupplier"] = true

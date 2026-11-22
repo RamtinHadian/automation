@@ -44,8 +44,9 @@ export const FullRegForm: React.FC<{
   const hidden = cfg?.hidden || [];
   const required = cfg?.required || [];
   const kindField = spec.find((f) => f.key === 'kind');
-  const kind = !cfg || (kindField && hidden.includes(kindField.label)) ? 'COMPANY' : kindOf(v.kind || kindField?.options?.[0] || '');
-  const shown = (f: SelfField) => !cfg || (!hidden.includes(f.label) && (!f.kinds || f.kinds.includes(kind)));
+  // the chosen type decides which fields are drawn: on the public pages and in the console's sample alike (the sample shows every field of the chosen type, also the hidden ones, to be tuned)
+  const kind = cfg && kindField && hidden.includes(kindField.label) ? 'COMPANY' : kindOf(v.kind || kindField?.options?.[0] || '');
+  const shown = (f: SelfField) => (!f.kinds || f.kinds.includes(kind)) && (!cfg || !hidden.includes(f.label));
   const req = (f: SelfField) => !!cfg && required.includes(f.label);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setV((p) => ({ ...p, [k]: e.target.value }));
 
