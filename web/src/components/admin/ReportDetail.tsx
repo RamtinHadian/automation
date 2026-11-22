@@ -60,7 +60,9 @@ export const ReportDetail: React.FC<{
   range?: number;
   onRange?: (d: number) => void;
   onClose: () => void;
-}> = ({ spec, ranges, range, onRange, onClose }) => {
+  /** the words of the back button (default: back to the reports) */
+  backLabel?: string;
+}> = ({ spec, ranges, range, onRange, onClose, backLabel = 'بازگشت به گزارشات' }) => {
   const hasPeople = !!spec.people && spec.people.length > 0;
   const hasRecords = !!spec.records;
   const [tab, setTab] = useState<'overview' | 'people' | 'records'>('overview');
@@ -100,7 +102,7 @@ export const ReportDetail: React.FC<{
         <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 12% 20%, #fff 0, transparent 38%), radial-gradient(circle at 88% 80%, #fff 0, transparent 34%)' }} />
         <div className={`relative ${SIDE} pt-3 pb-[clamp(14px,2.4vh,26px)] space-y-[clamp(10px,2vh,20px)]`}>
           <div className="flex items-center gap-3 flex-wrap">
-            <button type="button" onClick={onClose} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-white/15 hover:bg-white/25 backdrop-blur cursor-pointer"><ArrowRight className="w-4 h-4" />بازگشت به گزارشات</button>
+            <button type="button" onClick={onClose} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-white/15 hover:bg-white/25 backdrop-blur cursor-pointer"><ArrowRight className="w-4 h-4" />{backLabel}</button>
             <span className="flex-1" />
             {ranges && onRange && (
               <div className="flex items-center gap-1 bg-white/15 backdrop-blur rounded-xl p-1">

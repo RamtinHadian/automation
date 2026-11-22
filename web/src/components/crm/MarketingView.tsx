@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MoneyInput } from '../common/MoneyInput';
+import { ReportDetail } from '../admin/ReportDetail';
+import { campaignSpec } from './campaignDetail';
 import { BadgeDollarSign, BookOpen, ClipboardList, Contact, MessageCircle, Megaphone, MessagesSquare, Pencil, Plus, Search, Target, Trash2, TrendingUp, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { askConfirm } from '../../lib/confirmDialog';
@@ -361,6 +363,7 @@ export const MarketingView: React.FC<{ customers: Customer[]; allContacts: Custo
   }, [isAdmin]);
   const [loaded, setLoaded] = useState(false);
   const [edit, setEdit] = useState<Campaign | null>(null);
+  const [viewCamp, setViewCamp] = useState<Campaign | null>(null); // the page of one campaign (charts and the people it brought)
   const [leadFilter, setLeadFilter] = useState<string>('ALL');
 
   const load = useCallback(async () => {
@@ -470,7 +473,7 @@ export const MarketingView: React.FC<{ customers: Customer[]; allContacts: Custo
                 const cost = num(c.actualCost), rev = num(c.actualRevenue);
                 const roi = cost > 0 ? Math.round(((rev - cost) / cost) * 1000) / 10 : null;
                 return (
-                  <div key={c.id} className="bg-white border border-[#EBDBCE] rounded-2xl p-4 space-y-2.5">
+                  <div key={c.id} role="button" tabIndex={0} onClick={() => setViewCamp(c)} onKeyDown={(e) => { if (e.key === 'Enter') setViewCamp(c); }} title="باز کردن آمار کمپین" data-campaign-card className="bg-white border border-[#EBDBCE] rounded-2xl p-4 space-y-2.5 cursor-pointer hover:shadow-md hover:border-violet-300 transition-shadow">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="font-black text-sm text-[#3A241F] truncate">{c.name}</div>
@@ -486,7 +489,7 @@ export const MarketingView: React.FC<{ customers: Customer[]; allContacts: Custo
                     </div>
                     <div className="flex items-center justify-between gap-2 text-[11px] font-bold text-[#8C6F66]">
                       <span>{c.startDate ? formatTaskDate(c.startDate) : '—'}{c.endDate ? ` تا ${formatTaskDate(c.endDate)}` : ''} · {toPersianDigits((c.customerIds || []).length)} مشتری</span>
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <button type="button" aria-label="ویرایش" onClick={() => setEdit(c)} className="p-1.5 rounded-lg hover:bg-[#FAF5F1] cursor-pointer"><Pencil className="w-3.5 h-3.5" /></button>
                         <button type="button" aria-label="حذف" onClick={() => void remove(c)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
                       </span>
@@ -680,6 +683,7 @@ export const MarketingView: React.FC<{ customers: Customer[]; allContacts: Custo
         </div>
       )}
 
+      {viewCamp && <ReportDetail backLabel="بازگشت به کمپین‌ها" spec={campaignSpec(campaigns.find((x) => x.id === viewCamp.id) || viewCamp, customers)} onClose={() => setViewCamp(null)} />}
       {edit && edit.kind === 'MESSAGE' && <MessageWizard value={edit} customers={real} staff={staff} onSave={(c) => void save(c)} onClose={() => setEdit(null)} />}
       {edit && edit.kind !== 'MESSAGE' && <CampaignForm value={edit} customers={real} staff={staff} onSave={(c) => void save(c)} onClose={() => setEdit(null)} />}
     </div>
