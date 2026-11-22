@@ -5,7 +5,7 @@ import { downloadBlob, renderProformaJpeg, renderProformaPdf } from '../../lib/p
 import { formatTaskDate } from '../../lib/taskDates';
 import { useAppContext } from '../../context/AppContext';
 import { approvalRequired, canApproveProforma, dealChain, proformaReleased } from '../../lib/proformaApproval';
-import { issuersOf, MAIN_ISSUER_ID, officialProblems, titleFor } from '../../lib/proformaIssuer';
+import { defaultTaxPercent, issuersOf, MAIN_ISSUER_ID, officialProblems, titleFor } from '../../lib/proformaIssuer';
 import { toPersianDigits } from '../../lib/jalali';
 import { addDaysIso, DEFAULT_PROFORMA_TERMS, nextProformaNumber, openProformaPdf, proformaTotals } from '../../lib/proformaPdf';
 import { normalizeTemplate } from '../../lib/proformaTemplates';
@@ -86,7 +86,7 @@ export const ProformaModal: React.FC<{
     }
     return null;
   };
-  const [taxPercent, setTaxPercent] = useState(deal.taxPercent ?? settings.proformaTaxPercent ?? 10);
+  const [taxPercent, setTaxPercent] = useState(deal.taxPercent ?? defaultTaxPercent(settings));
   const [date, setDate] = useState(deal.proformaAt || todayIso());
   const [valid, setValid] = useState(deal.validUntil || addDaysIso(deal.proformaAt || todayIso(), settings.proformaValidDays || 7));
   const [terms, setTerms] = useState(deal.terms ?? settings.proformaTerms ?? DEFAULT_PROFORMA_TERMS);

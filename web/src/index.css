@@ -799,3 +799,25 @@ form[data-fc-design] [data-design-bar] { flex-wrap: wrap; }
   @keyframes top-in { from { opacity: 0.35; } to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .top-item { animation: none !important; } }
 }
+
+/* the title and the customer line of an opportunity card: always inside the card (even a long product code without spaces breaks), a calmer weight,
+   and a line that wraps is justified like the text of a letter */
+.deal-title {
+  min-width: 0;
+  max-width: 100%;
+  font-weight: 700;
+  font-size: 12.5px;
+  line-height: 2;
+  color: #3A241F;
+  overflow-wrap: anywhere;
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: manual;
+}
+.deal-sub {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: justify;
+  text-justify: inter-word;
+  line-height: 1.9;
+}

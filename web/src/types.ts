@@ -764,6 +764,8 @@ export interface SystemSettings {
   proformaTerms?: string;
   proformaBankInfo?: string;
   proformaTaxPercent?: number;
+  /** value-added tax is put on every new proforma by itself (default: yes); a person can still change the percent on the proforma */
+  proformaVatByDefault?: boolean;
   proformaValidDays?: number;
   /** The organisation's standard letter layout, set once by an admin in the letter editor. */
   letterTemplate?: OrgLetterTemplate;

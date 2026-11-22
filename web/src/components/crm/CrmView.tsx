@@ -44,6 +44,7 @@ import { FunnelModal } from './FunnelModal';
 import { MarketingView } from './MarketingView';
 import { InventoryView } from './InventoryView';
 import { ProformaListView } from './ProformaListView';
+import { ProformaViewer } from './ProformaViewer';
 import { SocialButton, SocialDialog, CustomerSocialIcons } from './SocialNetworks';
 import { SendMessageDialog } from './MessageTemplates';
 import { bySeq, dealGroup, LinkedChip, MoneyTag } from './DealLinks';
@@ -190,6 +191,8 @@ export const CrmView: React.FC = () => {
   const [editingDeal, setEditingDeal] = useState<{ deal: Deal; isNew: boolean } | null>(null);
   const [voip, setVoip] = useState<{ enabled: boolean; connected: boolean; extension: string } | null>(null);
   const [proformaFor, setProformaFor] = useState<Deal | null>(null);
+  // an issued proforma opened from the list is seen as the invoice itself; the editing form opens from its «ویرایش» button
+  const [viewProforma, setViewProforma] = useState<Deal | null>(null);
   const [quickProforma, setQuickProforma] = useState(false);
   // a customer made from inside another window (new opportunity / proforma) is handed back to it when saved
   const [customerCb, setCustomerCb] = useState<((c: Customer) => void) | null>(null);
@@ -679,7 +682,7 @@ export const CrmView: React.FC = () => {
         onDragEnd={() => setDragId(null)}
         onClick={() => setEditingDeal({ deal: d, isNew: false })}
         style={grp ? { borderRightWidth: 5, borderRightColor: grp.color.bar } : undefined}
-        className={`bg-white rounded-2xl border p-3.5 space-y-2 text-right shadow-2xs hover:shadow-md transition-all cursor-pointer ${dragId === d.id ? 'opacity-40' : ''} ${overdue ? 'border-rose-300' : 'border-[#EBDBCE]'}`}
+        className={`bg-white rounded-2xl border p-3.5 space-y-2 text-right shadow-2xs hover:shadow-md transition-all cursor-pointer min-w-0 overflow-hidden ${dragId === d.id ? 'opacity-40' : ''} ${overdue ? 'border-rose-300' : 'border-[#EBDBCE]'}`}
       >
         {grp && <LinkedChip group={grp} />}
         {d.mergedInto && (
@@ -687,7 +690,7 @@ export const CrmView: React.FC = () => {
             در پیش‌فاکتور «{deals.find((x) => x.id === d.mergedInto)?.title || 'فرصت دیگر'}»{d.mergedAmount ? ` · ${toman(d.mergedAmount)} ${unitName()}` : ''}
           </div>
         )}
-        <div className="font-black text-[13px] text-[#3A241F] leading-6">{d.title}</div>
+        <div className="deal-title" title={d.title}>{d.title}</div>
         {d.productCode && <div className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 w-fit" dir="ltr">{toPersianDigits(d.productCode)}</div>}
         {approvalRequired(settings, d.proformaIssuerId) && d.proformaApproval && (
           <div
@@ -702,9 +705,9 @@ export const CrmView: React.FC = () => {
             پیش‌فاکتور: {d.proformaApproval.status === 'APPROVED' ? 'تایید شد' : d.proformaApproval.status === 'REJECTED' ? 'رد شد' : (approvalProgress(d, (id) => userById.get(id)?.fullName || 'تأییدکننده') || 'منتظر تایید مدیرعامل')}
           </div>
         )}
-        <div className="text-[11px] text-[#8C6F66] flex items-center gap-1">
-          <Building2 className="w-3 h-3" />
-          {d.customerName}
+        <div className="text-[11px] text-[#8C6F66] flex items-start gap-1 min-w-0">
+          <Building2 className="w-3 h-3 mt-1.5 shrink-0" />
+          <span className="deal-sub">{d.customerName}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="font-black text-xs text-violet-700">{toman(d.amount)} {unitName()}</span>
@@ -977,7 +980,7 @@ export const CrmView: React.FC = () => {
 
       {tab === 'inventory' && <InventoryView deals={deals} customers={allContacts} activities={activities} canMoney={canSeeSalesTotals(currentUser)} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 
-      {tab === 'proformalist' && <ProformaListView deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={(d) => setProformaFor(d)} />}
+      {tab === 'proformalist' && <ProformaListView deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={(d) => (d.proformaNumber || (d.items && d.items.length) ? setViewProforma(d) : setProformaFor(d))} />}
 
       {/* ---------- customers ---------- */}
       {tab === 'customers' && (
@@ -1140,7 +1143,7 @@ export const CrmView: React.FC = () => {
                     if (id && moveAllowed(id)) moveDeal(id, s.id);
                     setDragId(null);
                   }}
-                  className={`${s.id === mobileStage ? '' : 'hidden'} md:block rounded-3xl p-2.5 space-y-2.5 border bg-[#FAF5F1]/70 border-[#EBDBCE]/70 min-h-[110px]`}
+                  className={`${s.id === mobileStage ? '' : 'hidden'} md:block min-w-0 rounded-3xl p-2.5 space-y-2.5 border bg-[#FAF5F1]/70 border-[#EBDBCE]/70 min-h-[110px]`}
                 >
                   <div className="flex items-center justify-between px-1">
                     <div className={`flex items-center gap-1.5 font-black text-[11px] ${s.head}`}>
@@ -1384,6 +1387,22 @@ export const CrmView: React.FC = () => {
             stageLabel={(st) => stageOf(st as DealStage).label}
             onClose={() => setMoveAsk(null)}
             onConfirm={(ids, merge) => { const st = moveAsk.stage; setMoveAsk(null); void doGroupMove([dragged.id, ...ids.filter((i) => i !== dragged.id)].filter((i) => ids.includes(i)), st, merge); }}
+          />
+        );
+      })()}
+      {viewProforma && (() => {
+        const live = deals.find((x) => x.id === viewProforma.id) || viewProforma;
+        return (
+          <ProformaViewer
+            deal={live}
+            customer={customerById.get(live.customerId)}
+            settings={settings}
+            issuerName={currentUser.fullName}
+            onClose={() => setViewProforma(null)}
+            onEdit={() => {
+              setViewProforma(null);
+              setProformaFor(live);
+            }}
           />
         );
       })()}

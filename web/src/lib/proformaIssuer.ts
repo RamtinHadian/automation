@@ -20,13 +20,16 @@ export const mainIssuer = (s: SystemSettings): ProformaIssuer => ({
   county: s.companyCounty,
   city: s.companyCity,
   bankInfo: s.proformaBankInfo,
-  taxPercent: s.proformaTaxPercent,
+  taxPercent: defaultTaxPercent(s),
   logoUrl: s.companyLogoUrl,
   stampUrl: s.companyStampUrl,
   signatureUrl: s.ceoSignatureUrl,
   ceoName: s.ceoName,
   ceoTitle: s.ceoTitle,
 });
+
+/** The value-added tax a NEW proforma starts with: the company's percent (10 until set), or none when the console switched the default off. */
+export const defaultTaxPercent = (s: Pick<SystemSettings, 'proformaVatByDefault' | 'proformaTaxPercent'>): number => (s.proformaVatByDefault === false ? 0 : s.proformaTaxPercent ?? 10);
 
 /** The unofficial business as long as nothing has been saved for it yet. */
 export const DEFAULT_OTHER_ISSUER: ProformaIssuer = { id: 'personal', label: 'کسب‌وکار غیررسمی', kind: 'UNOFFICIAL', name: '', taxPercent: 0, numberPrefix: 'N-' };

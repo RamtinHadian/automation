@@ -140,6 +140,13 @@ export const ProformaIssuersCard: React.FC<{ staff: { id: string; name: string }
             <label className={lab}>مالیات بر ارزش افزوده (٪)</label>
             <input type="number" min={0} max={100} className={input2} value={settings.proformaTaxPercent ?? 10} onChange={(e) => setSettings({ ...settings, proformaTaxPercent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} />
           </div>
+          <label className="sm:col-span-2 flex items-start gap-2.5 rounded-xl border border-[#EBDBCE] bg-[#FDFAF7] px-3 py-2.5 cursor-pointer" data-vat-default>
+            <input type="checkbox" className="mt-0.5 w-5 h-5 shrink-0 accent-[#6E1B1B] cursor-pointer" checked={settings.proformaVatByDefault !== false} onChange={(e) => setSettings({ ...settings, proformaVatByDefault: e.target.checked })} />
+            <span className="text-[12px] font-black text-[#3A241F]">
+              ارزش افزوده خودکار روی هر پیش‌فاکتور تازه اعمال شود
+              <span className="block text-[10.5px] font-medium text-[#8C6F66] leading-5">با روشن بودن (پیش‌فرض)، هر پیش‌فاکتور تازه با همین درصد شروع می‌شود و جمع نهایی با ارزش افزوده است. خاموش باشد، پیش‌فاکتور بدون ارزش افزوده شروع می‌شود؛ در هر حال فروشنده روی خود پیش‌فاکتور درصد را می‌تواند عوض کند.</span>
+            </span>
+          </label>
           <div className="sm:col-span-2">
             <label className={lab}>اطلاعات پرداخت (شماره حساب / شبا)</label>
             <input className={input2} value={settings.proformaBankInfo || ''} onChange={(e) => setSettings({ ...settings, proformaBankInfo: e.target.value })} />
