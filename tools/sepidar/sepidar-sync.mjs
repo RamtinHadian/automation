@@ -626,7 +626,7 @@ async function cmdSync(cfg) {
   state.quotations ||= {};
   const sp = client(cfg, state);
   const sync = cfg.sync;
-  const report = { customersNew: 0, customersFail: 0, customersNoPhone: 0, quotationsNew: 0, quotationsSkip: 0, quotationsFail: 0 };
+  const report = { customersNew: 0, customersFail: 0, customersNoPhone: 0, quotationsNew: 0, quotationsSkip: 0, quotationsFail: 0, noPhoneNames: [], skipReasons: {} };
   log(apply ? '--- ثبت واقعی در سپیدار ---' : '--- فقط نمایش (چیزی ثبت نمی‌شود؛ برای ثبت --apply را اضافه کنید) ---');
 
   const hoormandCustomers = await hoormandAll(cfg, '/customers', 'customers');
@@ -681,6 +681,7 @@ async function cmdSync(cfg) {
     if (!body.PhoneNumber) {
       // Sepidar refuses a customer without a phone number (400): one note at the end instead of one error for each of them
       report.customersNoPhone++;
+      if (report.noPhoneNames.length < 15) report.noPhoneNames.push([body.Name, body.LastName].filter(Boolean).join(' '));
       continue;
     }
     // a customer that Sepidar refused (400) is not sent again every few minutes with the very same data: that was what made every round long
@@ -737,12 +738,14 @@ async function cmdSync(cfg) {
       const customerRef = refOf.get(d.customerId);
       if (!customerRef) {
         report.quotationsSkip++;
+        (report.skipReasons['مشتری آن در سپیدار نیست (معمولاً چون شمارهٔ تلفن ندارد)'] ||= []).push(d.proformaNumber);
         log(`  رد شد: ${label}، مشتری آن هنوز در سپیدار نیست`);
         continue;
       }
       const q = quotationBody(d, customerRef, itemsByCode, sync);
       if (q.skip) {
         report.quotationsSkip++;
+        (report.skipReasons[q.skip] ||= []).push(d.proformaNumber);
         log(`  رد شد: ${label}، ${q.skip}`);
         continue;
       }
@@ -773,6 +776,12 @@ async function cmdSync(cfg) {
   saveState(state);
   if (resetCount > 0) log(`  ${resetCount} مشتری در سپیدار پاک شده بودند؛ ${apply ? 'دوباره ثبت شدند یا دوباره به مشابهشان وصل شدند' : 'در ثبت واقعی دوباره ثبت می‌شوند'}.`);
   if (report.customersNoPhone > 0) log(`  ${report.customersNoPhone} مشتری شمارهٔ تلفن ندارند و در سپیدار ثبت نشدند (سپیدار شمارهٔ تلفن را الزامی می‌داند؛ در هورمند برایشان شماره بنویسید).`);
+  if (report.noPhoneNames.length) log(`    نمونهٔ مشتریان بدون شماره (تا ${report.noPhoneNames.length} نفر): ${report.noPhoneNames.join('، ')}`);
+  const reasons = Object.entries(report.skipReasons);
+  if (reasons.length) {
+    log('  پیش‌فاکتورهای ردشده، به‌تفکیک دلیل (هر دلیل یک بار، با شمارهٔ پیش‌فاکتورها):');
+    for (const [why, nums] of reasons.sort((a, b) => b[1].length - a[1].length)) log(`    ${nums.length} مورد: ${why}  ← ${nums.slice(0, 12).join('، ')}${nums.length > 12 ? ' ...' : ''}`);
+  }
   log(`خلاصه: مشتری تازه ${report.customersNew}، پیش‌فاکتور تازه ${report.quotationsNew}، ردشده ${report.quotationsSkip}، خطا ${report.customersFail + report.quotationsFail}`);
   return report;
 }
