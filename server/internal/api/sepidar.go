@@ -845,6 +845,74 @@ func sepidarMoneyUnit(ctx context.Context) string {
 	return title
 }
 
+
+// sepidarRemainders: Sepidar's customer id → balance (positive = debtor), for the customers whose balance is known.
+func sepidarRemainders(ctx context.Context) map[int64]float64 {
+	balances, _ := cacheItems(ctx, "balances")
+	out := map[int64]float64{}
+	for _, b := range balances {
+		id, ok := whNum(b, "CustomerID")
+		if !ok {
+			continue
+		}
+		rem, okRem := whNum(b, "Remainder")
+		if alt, okAlt := whNum(b, "RemainderWithoutCheque"); okAlt && alt != 0 && (!okRem || rem == 0) {
+			rem, okRem = alt, true
+		}
+		if okRem {
+			out[int64(id)] = rem
+		}
+	}
+	return out
+}
+
+// GET /api/sepidar/debtors: every customer of this person that owes money in Sepidar, {customerId: amount} (the list of «بدهکاران» and its total).
+// Same rights as the balance on the customer page: «نمایش مانده حساب», and only the customers this person may work with.
+func sepidarDebtors(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if !sepidarEnabled(r.Context()) || !sepidarCan(me, "viewBalance") {
+		httpx.Forbidden(w)
+		return
+	}
+	ctx := r.Context()
+	remOf := sepidarRemainders(ctx)
+	debt := map[string]float64{}
+	if rows, err := store.Pool.Query(ctx, `SELECT ref, sepidar_id FROM sepidar_links WHERE kind = 'customer'`); err == nil {
+		for rows.Next() {
+			var ref string
+			var sid int64
+			if rows.Scan(&ref, &sid) == nil {
+				if rem, ok := remOf[sid]; ok && rem > 0 {
+					debt[ref] = rem
+				}
+			}
+		}
+		rows.Close()
+	}
+	if !crmGate(r, me) && len(debt) > 0 {
+		ids := make([]string, 0, len(debt))
+		for id := range debt {
+			ids = append(ids, id)
+		}
+		mine := map[string]bool{}
+		if rows, err := store.Pool.Query(ctx, `SELECT m.id FROM `+crmMyCustomerIDs+` m WHERE m.id = ANY($3::text[])`, me.ID(), crmPeople(ctx, me), ids); err == nil {
+			for rows.Next() {
+				var id string
+				if rows.Scan(&id) == nil {
+					mine[id] = true
+				}
+			}
+			rows.Close()
+		}
+		for id := range debt {
+			if !mine[id] {
+				delete(debt, id)
+			}
+		}
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": debt, "currencyTitle": sepidarMoneyUnit(ctx)})
+}
+
 // POST /api/sepidar/finance-brief {ids: [customerId...]}: for the customer cards, one short word for each customer that is tied to Sepidar and that the
 // person may work with: the balance (positive = debtor). Same rights as the full page: «نمایش مانده حساب» and the customer must be his.
 func sepidarFinanceBrief(w http.ResponseWriter, r *http.Request) {
@@ -875,21 +943,7 @@ func sepidarFinanceBrief(w http.ResponseWriter, r *http.Request) {
 		}
 		rows.Close()
 	}
-	balances, _ := cacheItems(ctx, "balances")
-	remOf := map[int64]float64{}
-	for _, b := range balances {
-		id, ok := whNum(b, "CustomerID")
-		if !ok {
-			continue
-		}
-		rem, okRem := whNum(b, "Remainder")
-		if alt, okAlt := whNum(b, "RemainderWithoutCheque"); okAlt && alt != 0 && (!okRem || rem == 0) {
-			rem, okRem = alt, true
-		}
-		if okRem {
-			remOf[int64(id)] = rem
-		}
-	}
+	remOf := sepidarRemainders(ctx)
 	items := map[string]any{}
 	for _, cid := range body.IDs {
 		sid, ok := links[cid]
@@ -1181,6 +1235,7 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/sepidar/code-check", auth.Require(sepidarCodeCheck))
 	mux.HandleFunc("GET /api/sepidar/finance/{customerId}", auth.Require(sepidarFinance))
 	mux.HandleFunc("POST /api/sepidar/finance-brief", auth.Require(sepidarFinanceBrief))
+	mux.HandleFunc("GET /api/sepidar/debtors", auth.Require(sepidarDebtors))
 	mux.HandleFunc("GET /api/sepidar/connected", auth.Require(sepidarConnected))
 	mux.HandleFunc("GET /api/server-time", auth.Require(serverTime))
 	mux.HandleFunc("GET /api/voip/export", auth.Require(voipExport))

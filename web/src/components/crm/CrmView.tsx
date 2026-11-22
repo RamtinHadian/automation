@@ -159,13 +159,21 @@ export const CrmView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
   // how the customer list is ordered and drawn (remembered in this browser)
-  type CustSort = 'activity' | 'newest' | 'oldest' | 'az' | 'za';
+  type CustSort = 'activity' | 'newest' | 'oldest' | 'az' | 'za' | 'debt';
   type CustView = 'cards' | 'compact' | 'list';
   const readPref = <T extends string>(k: string, ok: T[], d: T): T => { try { const v = localStorage.getItem(k) as T | null; return v && ok.includes(v) ? v : d; } catch { return d; } };
-  const [custSort, setCustSortState] = useState<CustSort>(() => readPref('crm_cust_sort', ['activity', 'newest', 'oldest', 'az', 'za'], 'activity'));
+  const [custSort, setCustSortState] = useState<CustSort>(() => readPref('crm_cust_sort', ['activity', 'newest', 'oldest', 'az', 'za', 'debt'], 'activity'));
   const [custView, setCustViewState] = useState<CustView>(() => readPref('crm_cust_view', ['cards', 'compact', 'list'], 'cards'));
   const setCustSort = (v: CustSort) => { setCustSortState(v); try { localStorage.setItem('crm_cust_sort', v); } catch { /* not kept */ } };
   const setCustView = (v: CustView) => { setCustViewState(v); try { localStorage.setItem('crm_cust_view', v); } catch { /* not kept */ } };
+  // who owes money in Sepidar (only when Sepidar is connected and this person may see balances): the sort «بیشترین بدهی», the filter «فقط بدهکاران» and their total
+  const [debtors, setDebtors] = useState<{ items: Record<string, number>; unit?: string } | null>(null);
+  const [debtOnly, setDebtOnly] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    api.sepidarDebtors().then((r) => alive && setDebtors({ items: r.items || {}, unit: r.currencyTitle })).catch(() => alive && setDebtors(null));
+    return () => { alive = false; };
+  }, []);
   const [openCustomer, setOpenCustomer] = useState<string | null>(null);
   // a message was sent from Hoormand on a network of a customer: one more interaction on that network's counter
   useEffect(() => {
@@ -326,14 +334,19 @@ export const CrmView: React.FC = () => {
       .filter((c) => (!adv.province || c.province === adv.province) && (!adv.city || c.city === adv.city) && (!adv.source || c.source === adv.source) && (!adv.tag || c.tags.includes(adv.tag)) && (!adv.owner || c.ownerId === adv.owner) && (!adv.kind || (adv.kind === 'SUPPLIER' ? !!c.isSupplier : (c.kind || 'PERSON') === adv.kind)))
       .filter((c) => (adv.bought === 'yes' ? boughtIds.has(c.id) : adv.bought === 'no' ? !boughtIds.has(c.id) : true))
       .filter((c) => !quietLimit || new Date(lastActivity.get(c.id) || c.updatedAt).getTime() < quietLimit)
+      .filter((c) => !debtOnly || (debtors?.items[c.id] || 0) > 0)
       .sort((a, b) =>
         (rank.get(b.id) || 0) - (rank.get(a.id) || 0) ||
-        (custSort === 'newest' ? (b.createdAt || '').localeCompare(a.createdAt || '')
+        (custSort === 'debt' && debtors ? (debtors.items[b.id] || 0) - (debtors.items[a.id] || 0) || (lastActivity.get(b.id) || b.updatedAt).localeCompare(lastActivity.get(a.id) || a.updatedAt)
+        : custSort === 'newest' ? (b.createdAt || '').localeCompare(a.createdAt || '')
         : custSort === 'oldest' ? (a.createdAt || '').localeCompare(b.createdAt || '')
         : custSort === 'az' ? (a.name || '').localeCompare(b.name || '', 'fa')
         : custSort === 'za' ? (b.name || '').localeCompare(a.name || '', 'fa')
         : (lastActivity.get(b.id) || b.updatedAt).localeCompare(lastActivity.get(a.id) || a.updatedAt)));
-  }, [customers, statusFilter, mineOnly, search, me, lastActivity, searchIndex, adv, boughtIds, custSort]);
+  }, [customers, statusFilter, mineOnly, search, me, lastActivity, searchIndex, adv, boughtIds, custSort, debtors, debtOnly]);
+  // the sum of what the customers of the list owe (shown only to those who may see the money totals)
+  const debtTotal = useMemo(() => (debtors ? filteredCustomers.reduce((a, c) => a + (debtors.items[c.id] || 0), 0) : 0), [filteredCustomers, debtors]);
+  const debtCount = useMemo(() => (debtors ? filteredCustomers.filter((c) => (debtors.items[c.id] || 0) > 0).length : 0), [filteredCustomers, debtors]);
   // every filter of the list is lifted: a customer that was just made (here, or from the phone book / a call) must be seen in the list, not hidden behind the
   // search text, the status, «فقط مشتریان من» or the advanced filters that were left on
   const showAllCustomers = () => {
@@ -1061,7 +1074,15 @@ export const CrmView: React.FC = () => {
             </div>
           )}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-[11px] font-bold text-[#8C6F66]">{toPersianDigits(filteredCustomers.length)} مشتری از {toPersianDigits(customers.length)}</div>
+            <div className="text-[11px] font-bold text-[#8C6F66] flex flex-wrap items-center gap-2">
+              <span>{toPersianDigits(filteredCustomers.length)} مشتری از {toPersianDigits(customers.length)}</span>
+              {debtors && canSeeSalesTotals(currentUser) && debtCount > 0 && (
+                <span className="rounded-full bg-rose-50 border border-rose-200 text-rose-800 font-black px-2.5 py-0.5" data-debtor-total>
+                  مجموع بدهکاران: {formatNumber(debtTotal)}{debtors.unit ? ` ${debtors.unit}` : ''} · {toPersianDigits(debtCount)} مشتری
+                </span>
+              )}
+              {debtors && !canSeeSalesTotals(currentUser) && debtCount > 0 && <span className="text-rose-800 font-black">{toPersianDigits(debtCount)} بدهکار در این فهرست</span>}
+            </div>
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-black" data-customer-order>
               <label className="flex items-center gap-1.5 bg-white border border-[#EBDBCE] rounded-xl px-2.5 py-1.5 text-[#3A241F]">
                 مرتب‌سازی:
@@ -1071,8 +1092,15 @@ export const CrmView: React.FC = () => {
                   <option value="oldest">قدیمی‌ترین ثبت</option>
                   <option value="az">الفبایی (الف تا ی)</option>
                   <option value="za">الفبایی (ی تا الف)</option>
+                  {debtors && <option value="debt">بیشترین بدهی (سپیدار)</option>}
                 </select>
               </label>
+              {debtors && (
+                <label className={`flex items-center gap-1.5 border rounded-xl px-2.5 py-1.5 cursor-pointer ${debtOnly ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`} data-debtor-filter>
+                  <input type="checkbox" checked={debtOnly} onChange={(e) => setDebtOnly(e.target.checked)} />
+                  فقط بدهکاران
+                </label>
+              )}
               <label className="flex items-center gap-1.5 bg-white border border-[#EBDBCE] rounded-xl px-2.5 py-1.5 text-[#3A241F]">
                 نوع مشتری:
                 <select value={adv.kind} onChange={(e) => setAdv((v) => ({ ...v, kind: e.target.value }))} className="bg-transparent focus:outline-none cursor-pointer" data-customer-kind-filter>
