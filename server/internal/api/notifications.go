@@ -97,6 +97,10 @@ func pushSubscribe(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/push/test: sends a test notification to the devices of this user and says what each push service answered
 func pushTest(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).IsAdmin() { // the test shows technical details of the push services: the top administrator only
+		httpx.Forbidden(w)
+		return
+	}
 	push.SetHost(r.Context(), r.Host)
 	httpx.JSON(w, http.StatusOK, map[string]any{"devices": push.Test(auth.Current(r).ID())})
 }

@@ -54,13 +54,20 @@ const BellNumberRow: React.FC<{ number: string }> = ({ number }) => {
 };
 
 export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotification) => void }> = ({ onOpenNotification }) => {
-  const { customers, staffList, notifications, unreadCount, markNotificationsRead, clearNotifications, soundEnabled, setSoundEnabled, setNotificationHandler } = useAppContext();
+  const { currentUser, customers, staffList, notifications, unreadCount, markNotificationsRead, clearNotifications, soundEnabled, setSoundEnabled, setNotificationHandler } = useAppContext();
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (!open) setPushTestMsg(null); }, [open]);
   const [perm, setPerm] = useState(osPermission());
   const [audioReady, setAudioReady] = useState(isAudioReady());
   const [pushState, setPushState] = useState<'checking' | 'unsupported' | 'off' | 'on' | 'denied'>('checking');
   const [pushBusy, setPushBusy] = useState(false);
   const [pushTestMsg, setPushTestMsg] = useState<{ ok: boolean; lines: string[] } | null>(null);
+  // the answer of the test is only for a moment: it goes away by itself (a good answer quickly) and when the panel is closed
+  useEffect(() => {
+    if (!pushTestMsg) return;
+    const t = setTimeout(() => setPushTestMsg(null), pushTestMsg.ok ? 9000 : 20000);
+    return () => clearTimeout(t);
+  }, [pushTestMsg]);
   // «آزمایش اعلان موبایل»: a test notification is sent to this person's devices and what each push service answered is explained in plain words
   const testPush = async () => {
     setPushBusy(true);
@@ -71,13 +78,14 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
         setPushTestMsg({ ok: false, lines: ['این گوشی (یا هیچ دستگاهی) برای شما در سرور ثبت نشده است. دکمهٔ «فعال‌سازی» را بزنید و اجازهٔ اعلان بدهید.'] });
         return;
       }
-      const lines = devices.map((d) => {
+      const okHosts = devices.filter((d) => d.ok).map((d) => (/apple/.test(d.host) ? 'اپل' : /googleapis|google/.test(d.host) ? 'گوگل' : /windows/.test(d.host) ? 'ویندوز' : d.host));
+      const lines = devices.filter((d) => !d.ok).map((d) => {
         if (d.removed) return `دستگاه ${d.host}: دیگر معتبر نبود و حذف شد؛ «فعال‌سازی» را دوباره بزنید.`;
-        if (d.ok) return `اعلان آزمایشی به ${d.host} رسید (جواب ${d.status}). اگر روی گوشی دیده نشد: حالت «مزاحم نشوید»، صرفه‌جویی باتری یا اجازهٔ اعلان مرورگر در تنظیمات گوشی را بررسی کنید؛ در آیفون برنامه باید از «افزودن به صفحهٔ اصلی» باز شده باشد.`;
         if (d.status === 0) return `سرور هورمند به سرویس اعلان (${d.host}) نرسید: ${d.error}. وقتی سرور داخل ایران است، سرویس‌های اعلان گوگل و اپل معمولاً از آنجا در دسترس نیستند؛ باید سرور یا مسیر اینترنتش عوض شود، نه گوشی.`;
         if (d.status === 401 || d.status === 403) return `سرویس اعلان (${d.host}) کلید سرور را نپذیرفت (جواب ${d.status}${d.error ? `: ${d.error}` : ''}). این مشکل از سرور است، نه از گوشی.`;
         return `سرویس اعلان (${d.host}) جواب ${d.status} داد: ${d.error || 'بدون توضیح'}.`;
       });
+      if (okHosts.length) lines.unshift(`اعلان آزمایشی به ${toPersianDigits(okHosts.length)} دستگاه رسید (${[...new Set(okHosts)].join('، ')}). اگر روی گوشی دیده نشد: «مزاحم نشوید»، صرفه‌جویی باتری یا اجازهٔ اعلان مرورگر را بررسی کنید؛ در آیفون برنامه باید با «افزودن به صفحهٔ اصلی» باز شده باشد.`);
       setPushTestMsg({ ok: devices.every((d) => d.ok), lines });
     } catch (e) {
       setPushTestMsg({ ok: false, lines: [e instanceof Error ? e.message : 'آزمایش انجام نشد.'] });
@@ -279,14 +287,15 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
                   {pushState === 'on' ? 'غیرفعال' : 'فعال‌سازی'}
                 </button>
               )}
-              {pushState === 'on' && (
+              {pushState === 'on' && currentUser.role === 'SUPER_ADMIN' && (
                 <button type="button" disabled={pushBusy} onClick={() => void testPush()} className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black cursor-pointer disabled:opacity-60 bg-emerald-700 text-white" data-push-test>آزمایش</button>
               )}
             </div>
           )}
           {pushTestMsg && (
-            <div className={`px-4 py-2.5 border-b text-[10.5px] font-bold leading-5 space-y-1 ${pushTestMsg.ok ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-rose-50 border-rose-100 text-rose-900'}`} data-push-test-result>
-              {pushTestMsg.lines.map((l, i) => <div key={i}>{l}</div>)}
+            <div className={`px-4 py-2.5 border-b text-[10.5px] font-bold leading-5 flex items-start gap-2 ${pushTestMsg.ok ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-rose-50 border-rose-100 text-rose-900'}`} data-push-test-result>
+              <div className="flex-1 space-y-1">{pushTestMsg.lines.map((l, i) => <div key={i}>{l}</div>)}</div>
+              <button type="button" onClick={() => setPushTestMsg(null)} aria-label="بستن" className="shrink-0 w-6 h-6 rounded-full hover:bg-black/10 cursor-pointer text-[13px] leading-none">×</button>
             </div>
           )}
 
