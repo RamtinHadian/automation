@@ -81,6 +81,54 @@ export async function disablePush() {
   }
 }
 
+/** What this device knows about notifications: for the «تشخیص این گوشی» button. */
+export async function deviceReport() {
+  const lines: { ok: boolean; text: string }[] = [];
+  const ua = navigator.userAgent;
+  const iosVer = /OS (\d+)[_.](\d+)/.exec(ua);
+  lines.push({ ok: true, text: `دستگاه: ${isIos() ? 'آیفون/آیپد' : /Android/i.test(ua) ? 'اندروید' : /Windows/i.test(ua) ? 'ویندوز' : /Mac/i.test(ua) ? 'مک' : 'نامشخص'}${iosVer ? ` · iOS ${iosVer[1]}.${iosVer[2]}` : ''} · ${isStandalone() ? 'از آیکن صفحهٔ اصلی باز شده' : 'در مرورگر (نه از آیکن صفحهٔ اصلی)'}` });
+  if (isIos() && !isStandalone()) lines.push({ ok: false, text: 'در آیفون اعلان فقط برای برنامه‌ای کار می‌کند که با «افزودن به صفحهٔ اصلی» ساخته شده و از همان آیکن باز می‌شود.' });
+  if (isIos() && iosVer && Number(iosVer[1]) < 16) lines.push({ ok: false, text: 'نسخهٔ iOS باید ۱۶٫۴ یا بالاتر باشد.' });
+  if (!pushSupported()) { lines.push({ ok: false, text: 'این مرورگر یا این حالت از اعلان وب پشتیبانی نمی‌کند.' }); return { lines, endpoint: '' }; }
+  const perm = Notification.permission;
+  lines.push({ ok: perm === 'granted', text: `اجازهٔ اعلان در همین برنامه: ${perm === 'granted' ? 'داده شده' : perm === 'denied' ? 'بسته است (از تنظیمات گوشی باز کنید)' : 'هنوز پرسیده نشده'}` });
+  const reg = await navigator.serviceWorker.getRegistration();
+  lines.push({ ok: !!reg?.active, text: `سرویس‌ورکر: ${reg?.active ? 'فعال' : 'فعال نیست'}` });
+  const sub = reg ? await reg.pushManager.getSubscription() : null;
+  let host = '';
+  if (sub) { try { host = new URL(sub.endpoint).host; } catch { host = ''; } }
+  lines.push({ ok: !!sub, text: `اشتراک اعلان این دستگاه: ${sub ? `دارد (${host})` : 'ندارد'}` });
+  if (sub) {
+    try {
+      const r = await api.pushKnown(sub.endpoint);
+      lines.push({ ok: r.known, text: `سرور این اشتراک را ${r.known ? 'می‌شناسد' : 'نمی‌شناسد (دکمهٔ «ثبت دوباره» را بزنید)'}` });
+    } catch {
+      lines.push({ ok: false, text: 'ارتباط با سرور برای بررسی اشتراک برقرار نشد.' });
+    }
+  }
+  try {
+    const c = await caches.open('hoormand-push-log');
+    const r = await c.match('/push-log.json');
+    const j = r ? ((await r.json()) as { at: number; title: string; shown: boolean; error: string }) : null;
+    const ago = j ? Math.max(0, Math.round((Date.now() - j.at) / 60000)) : 0;
+    lines.push(j ? { ok: j.shown, text: `آخرین اعلانی که به همین دستگاه رسید: ${ago < 1 ? 'همین حالا' : `${ago} دقیقه پیش`} — ${j.shown ? 'نشان داده شد' : `نشان داده نشد${j.error ? ` (${j.error})` : ''}`}` } : { ok: false, text: 'هنوز هیچ اعلانی به همین دستگاه نرسیده است (یعنی اپل یا اینترنت گوشی آن را به دستگاه نرسانده).' });
+  } catch {
+    /* the note is optional */
+  }
+  return { lines, endpoint: sub?.endpoint || '' };
+}
+
+/** Forget this device's subscription and make a new one (a stale subscription is the usual reason a phone gets nothing). */
+export async function resubscribe(): Promise<'ok' | 'denied' | 'unsupported'> {
+  if (!pushSupported()) return 'unsupported';
+  const sub = await currentSubscription();
+  if (sub) {
+    await api.pushUnsubscribe(sub.endpoint).catch(() => {});
+    await sub.unsubscribe().catch(() => {});
+  }
+  return enablePush();
+}
+
 // ---------- automatic opt-in ----------
 // Browsers only show the permission question after a tap or key press, so the first interaction after login asks for it
 // once (and registers push when the browser supports it). Someone who switched notifications off in the bell is not asked again.

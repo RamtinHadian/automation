@@ -105,6 +105,17 @@ func pushSubscribe(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w)
 }
 
+// POST /api/push/known {endpoint}: does the server know this device's subscription (the person's own)?
+func pushKnown(w http.ResponseWriter, r *http.Request) {
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	var n int
+	_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2`, jsonx.Str(body, "endpoint"), auth.Current(r).ID()).Scan(&n)
+	httpx.JSON(w, http.StatusOK, map[string]bool{"known": n > 0})
+}
+
 // POST /api/push/test: sends a test notification to the devices of this user and says what each push service answered
 func pushTest(w http.ResponseWriter, r *http.Request) {
 	if !auth.Current(r).IsAdmin() { // the test shows technical details of the push services: the top administrator only

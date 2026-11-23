@@ -7,7 +7,7 @@ import { useAppContext } from '../../context/AppContext';
 import { AppNotification, isAudioReady, osPermission, playChime, requestOsPermission } from '../../lib/notifications';
 import { toPersianDigits } from '../../lib/jalali';
 import { api } from '../../lib/api';
-import { currentSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported, setNotifyOptOut } from '../../lib/push';
+import { currentSubscription, deviceReport, disablePush, enablePush, resubscribe, isIos, isStandalone, pushSupported, setNotifyOptOut } from '../../lib/push';
 
 const KIND_ICON = {
   file: Send,
@@ -56,11 +56,20 @@ const BellNumberRow: React.FC<{ number: string }> = ({ number }) => {
 export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotification) => void }> = ({ onOpenNotification }) => {
   const { currentUser, customers, staffList, notifications, unreadCount, markNotificationsRead, clearNotifications, soundEnabled, setSoundEnabled, setNotificationHandler } = useAppContext();
   const [open, setOpen] = useState(false);
-  useEffect(() => { if (!open) setPushTestMsg(null); }, [open]);
+  useEffect(() => { if (!open) { setPushTestMsg(null); setDiag(null); } }, [open]);
   const [perm, setPerm] = useState(osPermission());
   const [audioReady, setAudioReady] = useState(isAudioReady());
   const [pushState, setPushState] = useState<'checking' | 'unsupported' | 'off' | 'on' | 'denied'>('checking');
   const [pushBusy, setPushBusy] = useState(false);
+  const [diag, setDiag] = useState<{ lines: { ok: boolean; text: string }[] } | null>(null);
+  const runDiag = async () => {
+    setPushBusy(true);
+    try {
+      setDiag({ lines: (await deviceReport()).lines });
+    } finally {
+      setPushBusy(false);
+    }
+  };
   const [pushTestMsg, setPushTestMsg] = useState<{ ok: boolean; lines: string[] } | null>(null);
   // the answer of the test is only for a moment: it goes away by itself (a good answer quickly) and when the panel is closed
   useEffect(() => {
@@ -289,9 +298,21 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
                   {pushState === 'on' ? 'غیرفعال' : 'فعال‌سازی'}
                 </button>
               )}
+              {currentUser.role === 'SUPER_ADMIN' && (pushState === 'on' || pushState === 'off') && (
+                <button type="button" disabled={pushBusy} onClick={() => void runDiag()} className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black cursor-pointer disabled:opacity-60 bg-white text-[#3A241F] border border-[#EBDBCE]" data-push-diag>تشخیص این گوشی</button>
+              )}
               {pushState === 'on' && currentUser.role === 'SUPER_ADMIN' && (
                 <button type="button" disabled={pushBusy} onClick={() => void testPush()} className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black cursor-pointer disabled:opacity-60 bg-emerald-700 text-white" data-push-test>آزمایش</button>
               )}
+            </div>
+          )}
+          {diag && (
+            <div className="px-4 py-2.5 border-b border-sky-100 bg-sky-50 text-[10.5px] font-bold leading-5 text-sky-950 flex items-start gap-2" data-push-diag-result>
+              <div className="flex-1 space-y-1">
+                {diag.lines.map((l, i) => <div key={i}>{l.ok ? '✓' : '✗'} {l.text}</div>)}
+                <button type="button" disabled={pushBusy} onClick={async () => { setPushBusy(true); try { await resubscribe(); setPushState((await currentSubscription()) && Notification.permission === 'granted' ? 'on' : 'off'); setDiag({ lines: (await deviceReport()).lines }); } finally { setPushBusy(false); } }} className="mt-1 px-3 py-1 rounded-lg bg-sky-700 text-white text-[10px] font-black cursor-pointer disabled:opacity-60">ثبت دوباره این گوشی</button>
+              </div>
+              <button type="button" onClick={() => setDiag(null)} aria-label="بستن" className="shrink-0 w-6 h-6 rounded-full hover:bg-black/10 cursor-pointer text-[13px] leading-none">×</button>
             </div>
           )}
           {pushTestMsg && (

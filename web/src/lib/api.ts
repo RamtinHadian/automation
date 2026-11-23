@@ -508,6 +508,7 @@ export const api = {
     request<{ ok: true }>('PUT', `/api/${collection}/${encodeURIComponent(id)}`, { data }),
   pushKey: () => request<{ publicKey: string }>('GET', '/api/push/key'),
   pushSubscribe: (subscription: unknown) => request<{ ok: true }>('POST', '/api/push/subscribe', { subscription }),
+  pushKnown: (endpoint: string) => request<{ known: boolean }>('POST', '/api/push/known', { endpoint }),
   pushTest: () => request<{ devices: { device: string; registered: string; host: string; ok: boolean; status: number; error: string; removed: boolean }[] }>('POST', '/api/push/test', {}),
   pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('POST', '/api/push/unsubscribe', { endpoint }),
   voipStatus: () => request<{ enabled: boolean; connected: boolean; extension: string; areaCode?: string }>('GET', '/api/voip/status'),
