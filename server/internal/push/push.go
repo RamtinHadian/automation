@@ -149,11 +149,47 @@ func Send(userID string, n jsonx.M) {
 
 // Result is what happened to one device of a test notification.
 type Result struct {
-	Host    string `json:"host"`    // the push service of that device (fcm.googleapis.com, web.push.apple.com, …)
-	OK      bool   `json:"ok"`      // the push service accepted it
-	Status  int    `json:"status"`  // its HTTP answer (0 = it could not be reached)
-	Error   string `json:"error"`   // the reason when it could not be reached
-	Removed bool   `json:"removed"` // the device was gone (404/410) and has been forgotten
+	Device     string `json:"device"`     // what the device is («آیفون (Safari)», «ویندوز (Edge)»…), from the browser's own description when it registered
+	Registered string `json:"registered"` // when it registered (RFC 3339)
+	Host       string `json:"host"`       // the push service of that device (fcm.googleapis.com, web.push.apple.com, …)
+	OK         bool   `json:"ok"`         // the push service accepted it
+	Status     int    `json:"status"`     // its HTTP answer (0 = it could not be reached)
+	Error      string `json:"error"`      // the reason when it could not be reached
+	Removed    bool   `json:"removed"`    // the device was gone (404/410) and has been forgotten
+}
+
+// DeviceLabel turns the browser's description into a few words: which device and which browser.
+func DeviceLabel(ua string) string {
+	dev := "دستگاه ناشناس"
+	switch {
+	case strings.Contains(ua, "iPhone"):
+		dev = "آیفون"
+	case strings.Contains(ua, "iPad"):
+		dev = "آیپد"
+	case strings.Contains(ua, "Android"):
+		dev = "اندروید"
+	case strings.Contains(ua, "Windows"):
+		dev = "ویندوز"
+	case strings.Contains(ua, "Macintosh"):
+		dev = "مک"
+	case strings.Contains(ua, "Linux"):
+		dev = "لینوکس"
+	}
+	br := ""
+	switch {
+	case strings.Contains(ua, "Edg/") || strings.Contains(ua, "EdgA/") || strings.Contains(ua, "EdgiOS/"):
+		br = "Edge"
+	case strings.Contains(ua, "CriOS/") || strings.Contains(ua, "Chrome/"):
+		br = "Chrome"
+	case strings.Contains(ua, "Firefox/") || strings.Contains(ua, "FxiOS/"):
+		br = "Firefox"
+	case strings.Contains(ua, "Safari/"):
+		br = "Safari"
+	}
+	if br != "" {
+		return dev + " (" + br + ")"
+	}
+	return dev
 }
 
 // Test sends a test notification to every device of the user and says what each push service answered: this is what the «آزمایش اعلان موبایل» button shows.
@@ -183,7 +219,8 @@ func Test(userID string) []Result {
 		if u, perr := url.Parse(s.endpoint); perr == nil {
 			host = u.Host
 		}
-		r := Result{Host: host}
+		d := jsonx.Decode(s.data)
+		r := Result{Host: host, Device: DeviceLabel(jsonx.Str(d, "ua")), Registered: jsonx.Str(d, "at")}
 		resp, err := webpush.SendNotification(payload, &webpush.Subscription{
 			Endpoint: s.endpoint,
 			Keys:     webpush.Keys{Auth: jsonx.Str(keys, "auth"), P256dh: jsonx.Str(keys, "p256dh")},

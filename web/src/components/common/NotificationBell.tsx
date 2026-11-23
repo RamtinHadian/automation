@@ -78,14 +78,16 @@ export const NotificationBell: React.FC<{ onOpenNotification: (n: AppNotificatio
         setPushTestMsg({ ok: false, lines: ['این گوشی (یا هیچ دستگاهی) برای شما در سرور ثبت نشده است. دکمهٔ «فعال‌سازی» را بزنید و اجازهٔ اعلان بدهید.'] });
         return;
       }
-      const okHosts = devices.filter((d) => d.ok).map((d) => (/apple/.test(d.host) ? 'اپل' : /googleapis|google/.test(d.host) ? 'گوگل' : /windows/.test(d.host) ? 'ویندوز' : d.host));
-      const lines = devices.filter((d) => !d.ok).map((d) => {
-        if (d.removed) return `دستگاه ${d.host}: دیگر معتبر نبود و حذف شد؛ «فعال‌سازی» را دوباره بزنید.`;
-        if (d.status === 0) return `سرور هورمند به سرویس اعلان (${d.host}) نرسید: ${d.error}. وقتی سرور داخل ایران است، سرویس‌های اعلان گوگل و اپل معمولاً از آنجا در دسترس نیستند؛ باید سرور یا مسیر اینترنتش عوض شود، نه گوشی.`;
-        if (d.status === 401 || d.status === 403) return `سرویس اعلان (${d.host}) کلید سرور را نپذیرفت (جواب ${d.status}${d.error ? `: ${d.error}` : ''}). این مشکل از سرور است، نه از گوشی.`;
-        return `سرویس اعلان (${d.host}) جواب ${d.status} داد: ${d.error || 'بدون توضیح'}.`;
+      // one short line for each registered device: which device it is, when it registered and what the push service answered
+      const lines = devices.map((d) => {
+        const name = `${d.device || d.host}${d.registered ? ` (ثبت: ${timeAgo(d.registered)})` : ''}`;
+        if (d.removed) return `✗ ${name}: دیگر معتبر نبود و حذف شد؛ روی آن دستگاه «فعال‌سازی» را دوباره بزنید.`;
+        if (d.ok) return `✓ ${name}: اعلان به سرویس ${/apple/.test(d.host) ? 'اپل' : /googleapis/.test(d.host) ? 'گوگل' : /windows/.test(d.host) ? 'ویندوز' : d.host} رسید.`;
+        if (d.status === 0) return `✗ ${name}: سرور هورمند به سرویس اعلان (${d.host}) نرسید: ${d.error}. وقتی سرور داخل ایران است، سرویس‌های اعلان گوگل و اپل معمولاً از آنجا در دسترس نیستند؛ باید سرور یا مسیر اینترنتش عوض شود.`;
+        if (d.status === 401 || d.status === 403) return `✗ ${name}: سرویس اعلان کلید سرور را نپذیرفت (جواب ${d.status}${d.error ? `: ${d.error}` : ''}). این مشکل از سرور است، نه از گوشی.`;
+        return `✗ ${name}: سرویس اعلان جواب ${d.status} داد: ${d.error || 'بدون توضیح'}.`;
       });
-      if (okHosts.length) lines.unshift(`اعلان آزمایشی به ${toPersianDigits(okHosts.length)} دستگاه رسید (${[...new Set(okHosts)].join('، ')}). اگر روی گوشی دیده نشد: «مزاحم نشوید»، صرفه‌جویی باتری یا اجازهٔ اعلان مرورگر را بررسی کنید؛ در آیفون برنامه باید با «افزودن به صفحهٔ اصلی» باز شده باشد.`);
+      if (devices.some((d) => d.ok)) lines.push('اگر روی گوشی دیده نشد، مشکل در خود گوشی است: تنظیمات ← اعلان‌ها ← (همین برنامه) باید روشن باشد؛ «تمرکز / مزاحم نشوید» خاموش باشد؛ در آیفون اعلان باید از داخل برنامه‌ای که با «افزودن به صفحهٔ اصلی» ساخته‌اید فعال شده باشد (هر سامانهٔ هورمند، برنامهٔ جدا و اجازهٔ جدا دارد).');
       setPushTestMsg({ ok: devices.every((d) => d.ok), lines });
     } catch (e) {
       setPushTestMsg({ ok: false, lines: [e instanceof Error ? e.message : 'آزمایش انجام نشد.'] });

@@ -20,17 +20,22 @@ self.addEventListener('push', (event) => {
       } catch (e) {
         /* the badge is optional */
       }
-      await self.registration.showNotification(d.title || 'اعلان جدید', {
-        body: d.body || '',
-        tag: d.id,
-        lang: 'fa',
-        dir: 'rtl',
-        icon: '/images/icon-192.png?v=6',
-        badge: '/images/icon-192.png?v=6',
-        vibrate: [140, 70, 140],
-        renotify: true,
-        data: d,
-      });
+      try {
+        await self.registration.showNotification(d.title || 'اعلان جدید', {
+          body: d.body || '',
+          tag: d.id,
+          lang: 'fa',
+          dir: 'rtl',
+          icon: '/images/icon-192.png?v=6',
+          badge: '/images/icon-192.png?v=6',
+          vibrate: [140, 70, 140],
+          renotify: true,
+          data: d,
+        });
+      } catch (e) {
+        // never stay silent (iPhone takes the permission away from a worker that receives a push and shows nothing)
+        await self.registration.showNotification(d.title || 'اعلان جدید', { body: d.body || '' });
+      }
     })()
   );
 });

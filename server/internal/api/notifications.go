@@ -73,6 +73,16 @@ func pushKey(w http.ResponseWriter, _ *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]string{"publicKey": push.PublicKey()})
 }
 
+// stamped adds what the device says about itself and when it registered (shown by the test of the push notifications)
+func stamped(sub jsonx.M, ua string) jsonx.M {
+	out := jsonx.Copy(sub)
+	if len(ua) > 300 {
+		ua = ua[:300]
+	}
+	out["ua"], out["at"] = ua, time.Now().UTC().Format(time.RFC3339)
+	return out
+}
+
 func pushSubscribe(w http.ResponseWriter, r *http.Request) {
 	push.SetHost(r.Context(), r.Host)
 	body, ok := httpx.ReadBody(w, r)
@@ -88,7 +98,7 @@ func pushSubscribe(w http.ResponseWriter, r *http.Request) {
 	if _, err := store.Pool.Exec(r.Context(),
 		`INSERT INTO push_subscriptions (endpoint, user_id, data) VALUES ($1, $2, $3::jsonb)
 		 ON CONFLICT (endpoint) DO UPDATE SET user_id = $2, data = $3::jsonb`,
-		endpoint, auth.Current(r).ID(), jsonx.Encode(sub)); err != nil {
+		endpoint, auth.Current(r).ID(), jsonx.Encode(stamped(sub, r.UserAgent()))); err != nil {
 		internalError(w)
 		return
 	}
