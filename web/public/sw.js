@@ -13,7 +13,11 @@ self.addEventListener('push', (event) => {
     (async () => {
       // When the app is open and in front, it already plays its own sound and toast.
       const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      if (!d.test && wins.some((c) => c.visibilityState === 'visible' && c.focused)) return; // a test notification is always shown
+      // Safari (iPhone, iPad, Mac) takes the permission away from a worker that receives pushes and shows nothing, so there a notification is ALWAYS shown, even with the app in
+      // front. Elsewhere, with the app open and in front it already plays its own sound and card, so nothing more is shown (a test notification is always shown).
+      const ua = (self.navigator && self.navigator.userAgent) || '';
+      const safari = /iPhone|iPad|iPod/.test(ua) || (/Safari\//.test(ua) && !/Chrome\/|Chromium\/|Edg\/|CriOS|FxiOS|Android/.test(ua));
+      if (!d.test && !safari && wins.some((c) => c.visibilityState === 'visible' && c.focused)) return;
       // Unread count on the app icon (the server sends it with the push).
       try {
         if (typeof d.unread === 'number' && self.navigator && 'setAppBadge' in self.navigator) await self.navigator.setAppBadge(d.unread);
