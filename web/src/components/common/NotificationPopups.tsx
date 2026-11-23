@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BarChart3, MessageCircle, Phone, AlertTriangle, ClipboardList, FileText, Send, Stamp, UserPlus, VolumeX, X } from 'lucide-react';
+import { BadgeCheck, BarChart3, MessageCircle, MoreVertical, Phone, AlertTriangle, ClipboardList, FileText, Send, Stamp, UserPlus, VolumeX } from 'lucide-react';
 import { formatMoney, unitName } from '../../lib/money';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatDateTime } from '../../lib/taskDates';
@@ -23,10 +23,16 @@ const KIND = {
   alert: { icon: AlertTriangle, bar: 'bg-rose-500', badge: 'bg-rose-100 text-rose-700', ring: 'border-rose-300', fallback: 'هشدار' },
 } as const;
 
+/** The colour of each kind: the icon tile, the glossy mark on the corner and the paper layers that peek out under the card (they stand for the waiting ones). */
+const HEX: Record<string, string> = { file: '#6E1B1B', letter: '#D97706', task: '#2563EB', call: '#059669', chat: '#059669', alert: '#E11D48' };
+
 const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => void; waiting?: number }> = ({ n, onOpen, onClose, waiting }) => {
   const k = KIND[n.kind] || KIND.file;
+  const hex = HEX[n.kind] || HEX.file;
+  const layers = Math.min(2, waiting || 0);
   const Icon = k.icon || FileText;
   const [paused, setPaused] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [muted, setMuted] = useState(() => !isAudioReady() && isSoundEnabled());
   const { deals, customers, activities, currentUser } = useAppContext();
   const isCall = n.kind === 'call';
@@ -88,22 +94,28 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   }, [paused, onClose]);
 
   return (
+    <div dir="rtl" className="relative" style={{ paddingBottom: layers ? 10 + layers * 9 : 0, animation: 'np-in 380ms cubic-bezier(.2,.9,.3,1.15) both' }} data-notice>
+      {/* the paper layers under the card: one for each waiting notification (two at most) */}
+      {layers >= 2 && <span aria-hidden="true" className="absolute inset-x-[34px] bottom-0 h-12 rounded-[26px]" style={{ background: `color-mix(in srgb, ${hex} 70%, white)`, boxShadow: '0 8px 18px rgba(20,30,70,.18)' }} />}
+      {layers >= 1 && <span aria-hidden="true" className="absolute inset-x-[18px] h-12 rounded-[26px]" style={{ bottom: layers >= 2 ? 9 : 0, background: `color-mix(in srgb, ${hex} 32%, white)`, boxShadow: '0 8px 18px rgba(20,30,70,.16)' }} />}
     <div
-      dir="rtl"
       role="alert"
       onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      style={{ animation: 'np-in 380ms cubic-bezier(.2,.9,.3,1.15) both' }}
-      className={`relative overflow-hidden w-full bg-white rounded-2xl border ${k.ring} shadow-[0_14px_40px_rgba(58,36,31,0.28)] text-right`}
+      onMouseLeave={() => { setPaused(false); setMenu(false); }}
+      className="relative overflow-hidden w-full bg-white rounded-[28px] shadow-[0_16px_44px_rgba(25,35,80,0.28)] text-right"
     >
-      <button type="button" onClick={onOpen} className="w-full flex items-start gap-3 p-3.5 pr-3.5 text-right cursor-pointer hover:bg-[#FAF5F1]/70 transition-colors">
-        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${k.badge}`}>
-          <Icon className="w-5 h-5" />
+      <button type="button" onClick={onOpen} className="w-full flex items-start gap-3.5 px-4 pt-4 pb-3.5 text-right cursor-pointer hover:bg-black/[0.02] transition-colors">
+        <span className="relative w-[52px] h-[52px] rounded-[17px] flex items-center justify-center shrink-0 text-white shadow-[0_6px_14px_rgba(20,30,70,.22)]" style={{ background: `linear-gradient(145deg, color-mix(in srgb, ${hex} 78%, white), ${hex})` }}>
+          <Icon className="w-6 h-6" />
+          <span aria-hidden="true" className="absolute -top-1 -left-1 w-3 h-3 rounded-full bg-white/70 blur-[1px]" />
         </span>
-        <span className="flex-1 min-w-0">
-          <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full mb-1 ${k.badge}`}>{n.label || k.fallback}</span>
-          <span className="block text-[13px] font-black text-[#3A241F] leading-5">{callTitle(n, savedContact, staffMatch)}</span>
-          {n.body && <span className="block text-[11px] text-[#8C6F66] leading-5 mt-0.5 line-clamp-2">{n.body}</span>}
+        <span className="flex-1 min-w-0 pl-6">
+          <span className="flex items-center gap-1.5 text-[15px] font-black text-[#14172b] leading-6">
+            <span className="truncate">{n.label || k.fallback}</span>
+            <BadgeCheck className="w-[17px] h-[17px] shrink-0" style={{ color: hex }} fill="currentColor" stroke="white" />
+          </span>
+          <span className="block text-[13.5px] font-black text-[#14172b] leading-6 mt-0.5">{callTitle(n, savedContact, staffMatch)}</span>
+          {n.body && <span className="block text-[12.5px] font-bold text-[#5a607a] leading-5 mt-0.5 line-clamp-2">{n.body}</span>}
         </span>
       </button>
 
@@ -194,26 +206,28 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         </button>
       )}
 
-      <button
-        type="button"
-        onClick={onClose}
-        title="بستن"
-        className="absolute top-2 left-2 p-1 rounded-lg text-[#8C6F66] hover:bg-[#EBDBCE]/60 cursor-pointer"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
+      <div className="absolute top-3.5 left-3.5">
+        <button type="button" onClick={() => setMenu((m) => !m)} title="گزینه‌ها" aria-label="گزینه‌ها" aria-haspopup="menu" aria-expanded={menu} className="w-8 h-8 rounded-full flex items-center justify-center text-[#4a5070] hover:bg-black/[0.06] cursor-pointer"><MoreVertical className="w-[18px] h-[18px]" /></button>
+        {menu && (
+          <div role="menu" className="absolute top-9 left-0 min-w-[130px] rounded-2xl bg-white border border-black/10 shadow-[0_14px_34px_rgba(20,30,70,.22)] py-1.5 z-10">
+            <button type="button" role="menuitem" onClick={() => { setMenu(false); onOpen(); }} className="w-full text-right px-4 py-2 text-[12.5px] font-black text-[#14172b] hover:bg-black/[0.04] cursor-pointer">باز کردن</button>
+            <button type="button" role="menuitem" onClick={onClose} className="w-full text-right px-4 py-2 text-[12.5px] font-black text-[#14172b] hover:bg-black/[0.04] cursor-pointer">بستن</button>
+          </div>
+        )}
+      </div>
 
       {(waiting !== undefined || noLimit || incoming) && (
-        <div className="flex items-center justify-between px-3.5 pb-2.5 pt-0.5 text-[10px] font-black text-[#8C6F66]" data-popup-queue>
+        <div className="flex items-center justify-between px-4 pb-3 pt-0.5 text-[10.5px] font-bold text-[#7a8099]" data-popup-queue>
           <span>{waiting === undefined ? '' : waiting > 0 ? `${toPersianDigits(waiting)} مورد دیگر در صف` : 'آخرین مورد'}</span>
           <span>{incoming ? (noLimit ? 'تا پایان تماس می‌ماند' : `تا پایان تماس (حداکثر ${toPersianDigits(secs)} ثانیهٔ دیگر)`) : noLimit ? 'ثابت؛ تا بسته نکنید می‌ماند' : `بسته می‌شود تا ${toPersianDigits(secs)} ثانیهٔ دیگر`}</span>
         </div>
       )}
 
       {!noLimit && <span
-        className={`absolute bottom-0 right-0 h-1 w-full origin-right ${k.bar}`}
-        style={{ animation: `np-bar ${total.current}ms linear both`, animationPlayState: paused ? 'paused' : 'running' }}
+        className="absolute bottom-0 right-0 h-[3px] w-full origin-right"
+        style={{ animation: `np-bar ${total.current}ms linear both`, animationPlayState: paused ? 'paused' : 'running', background: hex }}
       />}
+    </div>
     </div>
   );
 };
