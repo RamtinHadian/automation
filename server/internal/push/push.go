@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -22,7 +23,38 @@ var (
 	publicKey  string
 	privateKey string
 	subject    string
+	// pushHost is the public address of this installation (office.example.com), learnt from the browsers that ask to be notified. Apple's push service refuses a
+	// notification whose «sub» (the contact of the sender) is not a believable address (403 BadJwtToken), and a made-up mailto: like admin@company.internal is not:
+	// so, unless the administrator set VAPID_SUBJECT himself, the sender is introduced with the address of the installation itself («https://office.example.com»).
+	pushHost    string
+	subjectEnv  bool
+	defaultSubj = "mailto:admin@company.internal"
 )
+
+// senderSubject is the contact written in every notification.
+func senderSubject() string {
+	if !subjectEnv && pushHost != "" {
+		return "https://" + pushHost
+	}
+	return subject
+}
+
+// SetHost remembers the public address of this installation (from the Host header of a browser that is registering for notifications). Only a real domain
+// name is taken (not an IP address, localhost or an internal name).
+func SetHost(ctx context.Context, host string) {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if i := strings.Index(host, ":"); i >= 0 {
+		host = host[:i]
+	}
+	if host == "" || host == pushHost || !strings.Contains(host, ".") || strings.HasSuffix(host, ".internal") || strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".localhost") {
+		return
+	}
+	if net.ParseIP(host) != nil {
+		return
+	}
+	pushHost = host
+	_, _ = store.Pool.Exec(ctx, `INSERT INTO settings (key, data) VALUES ('pushHost', $1::jsonb) ON CONFLICT (key) DO UPDATE SET data = $1::jsonb`, jsonx.Encode(jsonx.M{"host": host}))
+}
 
 // PublicKey is what browsers need to subscribe.
 func PublicKey() string { return publicKey }
@@ -30,6 +62,11 @@ func PublicKey() string { return publicKey }
 // Init loads the VAPID keys from the database, creating them on first start (no configuration needed).
 func Init(ctx context.Context, cfg config.Config) error {
 	subject = cfg.VapidSubject
+	subjectEnv = subject != defaultSubj
+	var hostRaw []byte
+	if store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'pushHost'`).Scan(&hostRaw) == nil {
+		pushHost = jsonx.Str(jsonx.Decode(hostRaw), "host")
+	}
 	var raw []byte
 	err := store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'vapid'`).Scan(&raw)
 	if err != nil && err != pgx.ErrNoRows {
@@ -82,7 +119,7 @@ func Send(userID string, n jsonx.M) {
 			Endpoint: s.endpoint,
 			Keys:     webpush.Keys{Auth: jsonx.Str(keys, "auth"), P256dh: jsonx.Str(keys, "p256dh")},
 		}, &webpush.Options{
-			Subscriber:      subject,
+			Subscriber:      senderSubject(),
 			VAPIDPublicKey:  publicKey,
 			VAPIDPrivateKey: privateKey,
 			TTL:             86400,
@@ -150,7 +187,7 @@ func Test(userID string) []Result {
 		resp, err := webpush.SendNotification(payload, &webpush.Subscription{
 			Endpoint: s.endpoint,
 			Keys:     webpush.Keys{Auth: jsonx.Str(keys, "auth"), P256dh: jsonx.Str(keys, "p256dh")},
-		}, &webpush.Options{Subscriber: subject, VAPIDPublicKey: publicKey, VAPIDPrivateKey: privateKey, TTL: 600, Urgency: webpush.UrgencyHigh})
+		}, &webpush.Options{Subscriber: senderSubject(), VAPIDPublicKey: publicKey, VAPIDPrivateKey: privateKey, TTL: 600, Urgency: webpush.UrgencyHigh})
 		if err != nil {
 			r.Error = err.Error()
 		} else {

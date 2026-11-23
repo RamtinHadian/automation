@@ -74,6 +74,7 @@ func pushKey(w http.ResponseWriter, _ *http.Request) {
 }
 
 func pushSubscribe(w http.ResponseWriter, r *http.Request) {
+	push.SetHost(r.Context(), r.Host)
 	body, ok := httpx.ReadBody(w, r)
 	if !ok {
 		return
@@ -96,6 +97,7 @@ func pushSubscribe(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/push/test: sends a test notification to the devices of this user and says what each push service answered
 func pushTest(w http.ResponseWriter, r *http.Request) {
+	push.SetHost(r.Context(), r.Host)
 	httpx.JSON(w, http.StatusOK, map[string]any{"devices": push.Test(auth.Current(r).ID())})
 }
 
