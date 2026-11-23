@@ -110,6 +110,66 @@ func Send(userID string, n jsonx.M) {
 	}
 }
 
+// Result is what happened to one device of a test notification.
+type Result struct {
+	Host    string `json:"host"`    // the push service of that device (fcm.googleapis.com, web.push.apple.com, …)
+	OK      bool   `json:"ok"`      // the push service accepted it
+	Status  int    `json:"status"`  // its HTTP answer (0 = it could not be reached)
+	Error   string `json:"error"`   // the reason when it could not be reached
+	Removed bool   `json:"removed"` // the device was gone (404/410) and has been forgotten
+}
+
+// Test sends a test notification to every device of the user and says what each push service answered: this is what the «آزمایش اعلان موبایل» button shows.
+func Test(userID string) []Result {
+	ctx := context.Background()
+	rows, err := store.Pool.Query(ctx, `SELECT endpoint, data FROM push_subscriptions WHERE user_id = $1`, userID)
+	if err != nil {
+		return nil
+	}
+	type sub struct {
+		endpoint string
+		data     []byte
+	}
+	var subs []sub
+	for rows.Next() {
+		var s sub
+		if rows.Scan(&s.endpoint, &s.data) == nil {
+			subs = append(subs, s)
+		}
+	}
+	rows.Close()
+	payload, _ := json.Marshal(jsonx.M{"id": "test-" + userID, "title": "آزمایش اعلان هورمند", "body": "اگر این را می‌بینید، اعلان موبایل درست کار می‌کند.", "kind": "alert", "test": true})
+	out := []Result{}
+	for _, s := range subs {
+		keys := jsonx.Sub(jsonx.Decode(s.data), "keys")
+		host := s.endpoint
+		if u, perr := url.Parse(s.endpoint); perr == nil {
+			host = u.Host
+		}
+		r := Result{Host: host}
+		resp, err := webpush.SendNotification(payload, &webpush.Subscription{
+			Endpoint: s.endpoint,
+			Keys:     webpush.Keys{Auth: jsonx.Str(keys, "auth"), P256dh: jsonx.Str(keys, "p256dh")},
+		}, &webpush.Options{Subscriber: subject, VAPIDPublicKey: publicKey, VAPIDPrivateKey: privateKey, TTL: 600, Urgency: webpush.UrgencyHigh})
+		if err != nil {
+			r.Error = err.Error()
+		} else {
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 200))
+			resp.Body.Close()
+			r.Status, r.OK = resp.StatusCode, resp.StatusCode < 300
+			if !r.OK {
+				r.Error = strings.TrimSpace(string(body))
+			}
+			if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
+				_, _ = store.Pool.Exec(ctx, `DELETE FROM push_subscriptions WHERE endpoint = $1`, s.endpoint)
+				r.Removed = true
+			}
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
 // Payload is what the phone receives. Only who it is from is shown (short); notifications without a sender keep their own text.
 func Payload(n jsonx.M) jsonx.M {
 	title, body := n["title"], n["body"]

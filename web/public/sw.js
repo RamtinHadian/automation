@@ -13,7 +13,7 @@ self.addEventListener('push', (event) => {
     (async () => {
       // When the app is open and in front, it already plays its own sound and toast.
       const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      if (wins.some((c) => c.visibilityState === 'visible' && c.focused)) return;
+      if (!d.test && wins.some((c) => c.visibilityState === 'visible' && c.focused)) return; // a test notification is always shown
       // Unread count on the app icon (the server sends it with the push).
       try {
         if (typeof d.unread === 'number' && self.navigator && 'setAppBadge' in self.navigator) await self.navigator.setAppBadge(d.unread);

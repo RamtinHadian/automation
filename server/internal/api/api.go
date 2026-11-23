@@ -85,6 +85,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("GET /api/push/key", auth.Require(pushKey))
 	mux.HandleFunc("POST /api/push/subscribe", auth.Require(pushSubscribe))
 	mux.HandleFunc("POST /api/push/unsubscribe", auth.Require(pushUnsubscribe))
+	mux.HandleFunc("POST /api/push/test", auth.Require(pushTest))
 
 	mux.HandleFunc("GET /api/signal/stream", auth.Require(signalStream))
 	mux.HandleFunc("POST /api/signal/send", auth.Require(signalSend))
