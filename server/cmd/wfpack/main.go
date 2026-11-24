@@ -4,6 +4,7 @@
 //	wfpack check  <file.json>              checks the file completely (steps, people, targets) without signing
 //	wfpack sign   <file.json> [-key <f>] [-out <f>]   checks, signs and writes the file the customer uploads (default: <name>.signed.json)
 //	wfpack verify <file.signed.json>       checks that the signature is ours and the file is untouched
+//	wfpack studio [-port 8099] [-dir <folder>] [-demo http://localhost:8095]   «ساز گردشکار»: builds, signs and (on the demo) uploads a workflow with forms
 //
 // The private key is a file on our own computer (default %USERPROFILE%\.hoormand\workflow-signing.key). It must never be committed or sent to a customer;
 // keep a backup, because without it no new package can be signed (the server would then need a new public key).
@@ -51,6 +52,10 @@ func main() {
 		die("usage: wfpack keygen|check|sign|verify")
 	}
 	cmd, args := os.Args[1], os.Args[2:]
+	if cmd == "studio" {
+		studio(args)
+		return
+	}
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
 	keyPath := fs.String("key", defaultKey(), "signing key file")
 	out := fs.String("out", "", "output file")

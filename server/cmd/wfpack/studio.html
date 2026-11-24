@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ساز گردشکار هورمند</title>
+<style>
+  :root { --maroon:#6E1B1B; --orange:#D34A32; --ink:#3A241F; --muted:#8C6F66; --line:#EBDBCE; --bg:#FAF5F1; --ok:#15803D; --bad:#BE123C; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Tahoma, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.8; }
+  header { background: var(--maroon); color:#fff; padding: 14px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size: 19px; }
+  header .chip { background: rgba(255,255,255,.16); border-radius: 99px; padding: 2px 12px; font-size: 12px; }
+  header .chip.bad { background: #BE123C; }
+  main { max-width: 1280px; margin: 0 auto; padding: 18px; display:grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); gap: 18px; align-items:start; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; }
+  .card h2 { margin:0 0 10px; font-size:15px; color: var(--maroon); display:flex; align-items:center; gap:8px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  label { display:block; font-weight:700; font-size:12.5px; margin: 8px 0 3px; }
+  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:10px; font: inherit; background:#fff; color: var(--ink); }
+  textarea { min-height: 64px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .row > * { flex: 1 1 140px; }
+  .row > .fit { flex: 0 0 auto; }
+  button { font: inherit; cursor:pointer; border-radius:10px; border:1px solid var(--line); background:#fff; padding:7px 14px; color: var(--maroon); font-weight:700; }
+  button.main { background: var(--maroon); color:#fff; border-color: var(--maroon); }
+  button.green { background: var(--ok); color:#fff; border-color: var(--ok); }
+  button.orange { background: var(--orange); color:#fff; border-color: var(--orange); }
+  button.x { padding: 3px 9px; color: var(--bad); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .step { border:1.5px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 10px; background: #FFFBF8; }
+  .step.approval { border-color:#9ADBD2; } .step.task { border-color:#A5C8F0; } .step.condition { border-color:#F2C98A; } .step.notify { border-color:#C9BDF5; } .step.end { border-color:#CBD5E1; }
+  .step .head { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .step .num { background: var(--maroon); color:#fff; border-radius:99px; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; }
+  .tag { font-size:11px; border-radius:99px; padding:1px 10px; background:#F3F0FF; }
+  .who { background:#fff; border:1px dashed var(--line); border-radius:10px; padding:8px; margin:4px 0; }
+  .err { background:#FDECEF; border:1.5px solid #F3A9B8; color:#8A1235; border-radius:12px; padding:10px 12px; font-weight:700; }
+  .good { background:#E9F8EE; border:1.5px solid #9AD7B0; color:#14532D; border-radius:12px; padding:10px 12px; font-weight:700; }
+  .pv { font-size: 12.5px; }
+  .pv .s { border-right: 4px solid var(--orange); padding: 3px 10px; margin: 6px 0; background: #FFFBF8; border-radius: 6px; }
+  .pv .s b { color: var(--maroon); }
+  .chips button { padding: 1px 9px; font-size: 11px; margin: 2px 0 0 4px; }
+  .sticky { position: sticky; top: 12px; }
+  .big { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  code { background:#F6EFE9; padding: 1px 6px; border-radius:6px; direction:ltr; display:inline-block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ساز گردشکار هورمند</h1>
+  <span class="chip" id="chipKey"></span>
+  <span class="chip" id="chipDir"></span>
+</header>
+<main>
+  <section>
+    <div class="card" id="cardOpen">
+      <h2>شروع</h2>
+      <div class="row">
+        <button class="fit main" onclick="newFlow()">گردشکار تازه</button>
+        <select id="saved" onchange="openSaved(this.value)"><option value="">باز کردن یکی از ذخیره‌شده‌ها…</option></select>
+        <button class="fit" onclick="preset('buy')">نمونه: تأیید خرید با شرط مبلغ</button>
+        <button class="fit" onclick="preset('simple')">نمونه: تأیید ساده</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>۱) مشخصات</h2>
+      <div class="row">
+        <div><label>نام گردشکار (کاربر می‌بیند)</label><input id="name" oninput="S.name=this.value;refresh()" placeholder="مثلاً درخواست خرید تجهیزات"></div>
+        <div><label>نام مشتری (فقط برای خودمان)</label><input id="customer" oninput="S.customer=this.value;save()"></div>
+      </div>
+      <label>توضیح کوتاه (در کارت گردشکار نشان داده می‌شود)</label>
+      <input id="description" oninput="S.description=this.value;refresh()">
+      <div class="row">
+        <div><label>شناسهٔ انگلیسی (برای سیستم؛ فقط حرف کوچک، عدد و خط تیره)</label><input id="gid" dir="ltr" oninput="S.id=this.value.trim();refresh()"></div>
+        <div class="fit" style="flex-basis:110px"><label>نسخه</label><input id="version" type="number" min="1" oninput="S.version=parseInt(this.value)||1;refresh()"></div>
+      </div>
+      <label>چه کسانی می‌توانند این درخواست را شروع کنند؟</label>
+      <div id="allow"></div>
+    </div>
+
+    <div class="card">
+      <h2>۲) فرم (چه چیزهایی از درخواست‌دهنده پرسیده شود)</h2>
+      <div id="fields"></div>
+      <button onclick="addField()">+ افزودن فیلد</button>
+      <label>عنوان هر درخواست (اختیاری؛ برای وارد کردن مقدار فرم، روی نام فیلد بزنید)</label>
+      <input id="title" oninput="S.title=this.value;refresh()" placeholder="مثلاً خرید {{کالا}}">
+      <div class="chips" id="titleChips"></div>
+    </div>
+
+    <div class="card">
+      <h2>۳) مرحله‌ها (به ترتیب؛ هر مرحله به مرحلهٔ بعدی می‌رود)</h2>
+      <div id="steps"></div>
+      <div class="row">
+        <button class="fit" onclick="addStep('approval')">+ تأیید</button>
+        <button class="fit" onclick="addStep('task')">+ کار (انجام‌دهنده «انجام شد» می‌زند)</button>
+        <button class="fit" onclick="addStep('condition')">+ شرط (اگر… آنگاه…)</button>
+        <button class="fit" onclick="addStep('notify')">+ اطلاع‌رسانی</button>
+        <button class="fit" onclick="addStep('end')">+ پایان</button>
+      </div>
+      <p class="hint">اگر آخرین مرحله «پایان» نباشد، خودکار یک «پایان (انجام شد)» اضافه می‌شود.</p>
+    </div>
+  </section>
+
+  <aside class="sticky">
+    <div class="card">
+      <h2>بررسی و خروجی</h2>
+      <div id="verdict"></div>
+      <div class="big">
+        <button onclick="saveDraft()">ذخیرهٔ پیش‌نویس</button>
+        <button class="main" id="btnSign" onclick="build()">ساخت و امضا</button>
+      </div>
+      <div id="result" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h2>پیش‌نمایش (همان‌طور که کاربر می‌بیند)</h2>
+      <div class="pv" id="preview"></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const WHO = [['starter', 'درخواست‌دهنده'], ['starterManager', 'مدیر واحدِ درخواست‌دهنده'], ['ceo', 'مدیرعامل'], ['admin', 'مدیر سیستم'], ['user', 'یک نفر مشخص (نام یا ایمیل)'], ['unit', 'مدیر یک واحد (نام واحد)'], ['unitMembers', 'همهٔ اعضای یک واحد (نام واحد)'], ['field', 'فردِ انتخاب‌شده در فرم']];
+const ALLOW = [['everyone', 'همهٔ همکاران']].concat(WHO.filter((x) => x[0] !== 'starter' && x[0] !== 'starterManager'));
+const FTYPES = [['text', 'متن کوتاه'], ['textarea', 'متن بلند'], ['number', 'عدد'], ['money', 'مبلغ'], ['date', 'تاریخ'], ['select', 'انتخاب از فهرست'], ['person', 'انتخاب همکار'], ['yesno', 'بله / خیر']];
+const OPS = [['>', 'بیشتر از'], ['>=', 'بیشتر یا برابر'], ['<', 'کمتر از'], ['<=', 'کمتر یا برابر'], ['==', 'برابر'], ['!=', 'نابرابر'], ['contains', 'شامل'], ['notEmpty', 'پر باشد'], ['empty', 'خالی باشد']];
+const STEPNAME = { approval: 'تأیید', task: 'کار', condition: 'شرط', notify: 'اطلاع‌رسانی', end: 'پایان' };
+const OUTCOME = [['approved', 'تأیید شد'], ['done', 'انجام شد'], ['rejected', 'رد شد']];
+let INFO = { dir: '', keyOk: false };
+let LAST = null;
+
+function fresh() { return { id: 'flow-' + Math.random().toString(36).slice(2, 6), version: 1, name: '', description: '', customer: '', allow: [{ kind: 'everyone', ref: '' }], title: '', fields: [], steps: [], nf: 0, nu: 0 }; }
+let S;
+try { S = JSON.parse(localStorage.getItem('wf_studio') || 'null'); } catch (e) { S = null; }
+if (!S || !S.steps) S = fresh();
+
+function save() { try { localStorage.setItem('wf_studio', JSON.stringify(S)); } catch (e) { /* optional */ } }
+function newFlow() { if (S.steps.length && !confirm('گردشکار فعلی پاک شود و تازه شروع کنیم؟')) return; S = fresh(); render(); }
+function uid() { S.nu = (S.nu || 0) + 1; return 'u' + S.nu; }
+
+// ---------- fields ----------
+function addField() { S.nf = (S.nf || 0) + 1; S.fields.push({ key: 'f' + S.nf, label: '', type: 'text', required: false, options: '' }); render(); }
+function delField(i) { S.fields.splice(i, 1); render(); }
+function fieldLabel(key) { const f = S.fields.find((x) => x.key === key); return f ? (f.label || key) : key; }
+
+// ---------- steps ----------
+function addStep(type) {
+  const s = { uid: uid(), type, name: '', who: [{ kind: type === 'task' ? 'user' : 'starterManager', ref: '' }], mode: 'any', hours: '', reject: '', next: '', cond: { field: (S.fields[0] || {}).key || '', op: '>', value: '' }, then: '', else: '', to: [{ kind: 'starter', ref: '' }], text: '', outcome: type === 'end' ? 'approved' : 'done' };
+  S.steps.push(s); render();
+}
+function delStep(i) { const u = S.steps[i].uid; S.steps.splice(i, 1); S.steps.forEach((s) => { ['reject', 'next', 'then', 'else'].forEach((k) => { if (s[k] === u) s[k] = ''; }); }); render(); }
+function moveStep(i, d) { const j = i + d; if (j < 0 || j >= S.steps.length) return; const t = S.steps[i]; S.steps[i] = S.steps[j]; S.steps[j] = t; render(); }
+function stepName(s, i) { return (s.name || '').trim() || (STEPNAME[s.type] + ' ' + (i + 1)); }
+
+// ---------- the people lists ----------
+function whoEditor(list, kinds, path) {
+  return list.map((w, i) => `<div class="who row">
+    <select data-p="${path}" data-i="${i}" data-k="kind" onchange="setWho(this)">${kinds.map((k) => `<option value="${k[0]}"${w.kind === k[0] ? ' selected' : ''}>${k[1]}</option>`).join('')}</select>
+    ${['user', 'unit', 'unitMembers'].includes(w.kind) ? `<input data-p="${path}" data-i="${i}" data-k="ref" oninput="setWho(this,true)" value="${esc(w.ref)}" placeholder="${w.kind === 'user' ? 'نام کامل یا ایمیل همکار' : 'نام واحد'}">` : ''}
+    ${w.kind === 'field' ? `<select data-p="${path}" data-i="${i}" data-k="ref" onchange="setWho(this)"><option value="">فیلد «انتخاب همکار» را برگزینید</option>${S.fields.filter((f) => f.type === 'person').map((f) => `<option value="${f.key}"${w.ref === f.key ? ' selected' : ''}>${esc(f.label || f.key)}</option>`).join('')}</select>` : ''}
+    ${list.length > 1 ? `<button class="x fit" onclick="delWho('${path}',${i})">×</button>` : ''}
+  </div>`).join('') + `<button class="fit" onclick="addWho('${path}')">+ نفر دیگر</button>`;
+}
+function resolve(path) { const p = path.split('.'); if (p[0] === 'allow') return S.allow; const s = S.steps[parseInt(p[1])]; return s[p[2]]; }
+function setWho(el, silent) { const l = resolve(el.dataset.p); const w = l[parseInt(el.dataset.i)]; w[el.dataset.k] = el.value; if (el.dataset.k === 'kind') { w.ref = ''; render(); } else refresh(); }
+function addWho(path) { resolve(path).push({ kind: 'user', ref: '' }); render(); }
+function delWho(path, i) { resolve(path).splice(i, 1); render(); }
+
+// ---------- drawing ----------
+function chips(target) { return S.fields.filter((f) => f.label.trim()).map((f) => `<button type="button" onclick="insertTpl('${target}','${f.key}')">${esc(f.label)}</button>`).join(''); }
+function insertTpl(target, key) {
+  const lbl = fieldLabel(key);
+  if (target === 'title') { S.title = (S.title || '') + '{{' + lbl + '}}'; $('#title').value = S.title; } else { const s = S.steps[parseInt(target)]; s.text = (s.text || '') + '{{' + lbl + '}}'; const e = $('#text' + target); if (e) e.value = s.text; }
+  refresh();
+}
+function targets(except, i, cur, allowEnd) {
+  return `<option value="">${allowEnd || 'مرحلهٔ بعد (پیش‌فرض)'}</option>` + S.steps.map((s, j) => (j === i ? '' : `<option value="${s.uid}"${cur === s.uid ? ' selected' : ''}>${j + 1}. ${esc(stepName(s, j))}</option>`)).join('');
+}
+function render() {
+  $('#name').value = S.name; $('#customer').value = S.customer; $('#description').value = S.description; $('#gid').value = S.id; $('#version').value = S.version; $('#title').value = S.title;
+  $('#allow').innerHTML = whoEditor(S.allow, ALLOW, 'allow');
+  $('#fields').innerHTML = S.fields.map((f, i) => `<div class="who">
+    <div class="row">
+      <input value="${esc(f.label)}" placeholder="عنوان فیلد (مثلاً مبلغ)" oninput="S.fields[${i}].label=this.value;refresh()" onchange="render()">
+      <select class="fit" style="flex-basis:150px" onchange="S.fields[${i}].type=this.value;render()">${FTYPES.map((t) => `<option value="${t[0]}"${f.type === t[0] ? ' selected' : ''}>${t[1]}</option>`).join('')}</select>
+      <label class="fit" style="margin:0;font-weight:400"><input type="checkbox" style="width:auto" ${f.required ? 'checked' : ''} onchange="S.fields[${i}].required=this.checked;refresh()"> لازم</label>
+      <button class="x fit" onclick="delField(${i})">×</button>
+    </div>
+    ${f.type === 'select' ? `<input value="${esc(f.options)}" placeholder="گزینه‌ها را با ویرگول جدا کنید: الف، ب، ج" oninput="S.fields[${i}].options=this.value;refresh()">` : ''}
+  </div>`).join('') || '<p class="hint">هنوز فیلدی نیست. اگر درخواست چیزی لازم ندارد، فرم را خالی بگذارید.</p>';
+  $('#titleChips').innerHTML = chips('title');
+  $('#steps').innerHTML = S.steps.map((s, i) => stepHtml(s, i)).join('') || '<p class="hint">مرحله‌ای نیست؛ با دکمه‌های پایین اضافه کنید.</p>';
+  refresh();
+}
+function stepHtml(s, i) {
+  const personFields = S.fields.filter((f) => f.type === 'person');
+  let body = '';
+  if (s.type === 'approval' || s.type === 'task') {
+    body += `<label>${s.type === 'approval' ? 'چه کسی تأیید می‌کند؟' : 'چه کسی انجام می‌دهد؟'}</label>` + whoEditor(s.who, WHO, `step.${i}.who`);
+    if (s.type === 'approval' && s.who.length > 1) body += `<label>اگر چند نفرند</label><select onchange="S.steps[${i}].mode=this.value;refresh()"><option value="any"${s.mode !== 'all' ? ' selected' : ''}>تأیید یکی از آن‌ها کافی است</option><option value="all"${s.mode === 'all' ? ' selected' : ''}>همه باید تأیید کنند</option></select>`;
+    body += `<div class="row"><div><label>مهلت (ساعت؛ خالی = بدون مهلت)</label><input type="number" min="0" value="${esc(s.hours)}" oninput="S.steps[${i}].hours=this.value;refresh()"></div>`;
+    if (s.type === 'approval') body += `<div><label>اگر رد شد</label><select onchange="S.steps[${i}].reject=this.value;refresh()">${targets(null, i, s.reject, 'درخواست رد می‌شود و تمام می‌شود')}</select></div>`;
+    body += `</div>`;
+  } else if (s.type === 'condition') {
+    const f = S.fields.find((x) => x.key === s.cond.field);
+    body += `<label>شرط</label><div class="row"><select onchange="S.steps[${i}].cond.field=this.value;render()"><option value="">فیلد…</option>${S.fields.map((x) => `<option value="${x.key}"${s.cond.field === x.key ? ' selected' : ''}>${esc(x.label || x.key)}</option>`).join('')}</select>
+      <select onchange="S.steps[${i}].cond.op=this.value;render()">${OPS.map((o) => `<option value="${o[0]}"${s.cond.op === o[0] ? ' selected' : ''}>${o[1]}</option>`).join('')}</select>
+      ${['empty', 'notEmpty'].includes(s.cond.op) ? '' : `<input value="${esc(s.cond.value)}" placeholder="مقدار" oninput="S.steps[${i}].cond.value=this.value;refresh()">`}</div>`;
+    body += `<div class="row"><div><label>اگر بله ← برو به</label><select onchange="S.steps[${i}].then=this.value;refresh()">${targets(null, i, s.then)}</select></div><div><label>اگر نه ← برو به</label><select onchange="S.steps[${i}].else=this.value;refresh()">${targets(null, i, s.else)}</select></div></div>`;
+  } else if (s.type === 'notify') {
+    body += `<label>به چه کسی خبر داده شود؟</label>` + whoEditor(s.to, WHO, `step.${i}.to`);
+    body += `<label>متن پیام</label><input id="text${i}" value="${esc(s.text)}" oninput="S.steps[${i}].text=this.value;refresh()"><div class="chips">${chips(String(i))}</div>`;
+  } else if (s.type === 'end') {
+    body += `<label>نتیجه</label><select onchange="S.steps[${i}].outcome=this.value;refresh()">${OUTCOME.map((o) => `<option value="${o[0]}"${s.outcome === o[0] ? ' selected' : ''}>${o[1]}</option>`).join('')}</select>`;
+  }
+  if (s.type === 'approval' || s.type === 'task' || s.type === 'notify') body += `<label>بعد از این مرحله</label><select onchange="S.steps[${i}].next=this.value;refresh()">${targets(null, i, s.next)}</select>`;
+  return `<div class="step ${s.type}">
+    <div class="head"><span class="num">${i + 1}</span><span class="tag">${STEPNAME[s.type]}</span>
+      <input style="flex:1" value="${esc(s.name)}" placeholder="نام مرحله (مثلاً تأیید مدیر واحد)" oninput="S.steps[${i}].name=this.value;refresh()" onchange="render()">
+      <button class="fit" onclick="moveStep(${i},-1)" title="بالا">↑</button><button class="fit" onclick="moveStep(${i},1)" title="پایین">↓</button><button class="x fit" onclick="delStep(${i})">×</button></div>
+    ${body}
+  </div>`;
+}
+
+// ---------- the package ----------
+function tpl(text) { let t = text || ''; S.fields.forEach((f) => { if (f.label.trim()) t = t.split('{{' + f.label.trim() + '}}').join('{{' + f.key + '}}'); }); return t; }
+function refs(list) { return list.map((w) => { const o = { kind: w.kind }; if (['user', 'unit', 'unitMembers', 'field'].includes(w.kind)) o.ref = (w.ref || '').trim(); return o; }); }
+function toPackage() {
+  const steps = S.steps.map((s) => Object.assign({}, s));
+  if (!steps.length || steps[steps.length - 1].type !== 'end') steps.push({ uid: '_end', type: 'end', name: 'پایان', outcome: 'done' });
+  const ids = steps.map((_, i) => 's' + (i + 1));
+  const idOf = (u) => { const i = steps.findIndex((s) => s.uid === u); return i < 0 ? '' : ids[i]; };
+  const out = steps.map((s, i) => {
+    const nx = i + 1 < steps.length ? ids[i + 1] : '';
+    const o = { id: ids[i], type: s.type };
+    if ((s.name || '').trim()) o.name = s.name.trim();
+    if (s.type === 'approval' || s.type === 'task') {
+      o.who = refs(s.who);
+      if (s.type === 'approval' && s.who.length > 1 && s.mode === 'all') o.mode = 'all';
+      const h = parseFloat(s.hours); if (h > 0) o.hours = h;
+      o.next = (s.next && idOf(s.next)) || nx;
+      if (s.type === 'approval' && s.reject && idOf(s.reject)) o.onReject = idOf(s.reject);
+    } else if (s.type === 'condition') {
+      const f = S.fields.find((x) => x.key === s.cond.field);
+      const c = { field: s.cond.field, op: s.cond.op };
+      if (!['empty', 'notEmpty'].includes(s.cond.op)) { const n = parseFloat(String(s.cond.value).replace(/[٬,\s]/g, '')); c.value = (f && (f.type === 'number' || f.type === 'money') && !isNaN(n)) ? n : s.cond.value; }
+      o.if = c; o.then = (s.then && idOf(s.then)) || nx; o.else = (s.else && idOf(s.else)) || nx;
+    } else if (s.type === 'notify') {
+      o.to = refs(s.to); o.text = tpl(s.text); o.next = (s.next && idOf(s.next)) || nx;
+    } else if (s.type === 'end') { o.outcome = s.outcome; }
+    return o;
+  });
+  const p = { format: 'hoormand-workflow/1', id: S.id, version: S.version, name: S.name.trim() };
+  if (S.description.trim()) p.description = S.description.trim();
+  if (S.customer.trim()) p.customer = S.customer.trim();
+  p.start = { allow: refs(S.allow) };
+  if (S.title.trim()) p.start.title = tpl(S.title);
+  if (S.fields.length) p.fields = S.fields.map((f) => { const o = { key: f.key, label: f.label.trim(), type: f.type }; if (f.required) o.required = true; if (f.type === 'select') o.options = f.options.split(/[,،]/).map((x) => x.trim()).filter(Boolean); return o; });
+  p.steps = out;
+  return p;
+}
+function fromPackage(p) {
+  const n = fresh();
+  n.id = p.id; n.version = p.version; n.name = p.name; n.description = p.description || ''; n.customer = p.customer || '';
+  n.allow = (p.start && p.start.allow || [{ kind: 'everyone' }]).map((w) => ({ kind: w.kind, ref: w.ref || '' }));
+  n.fields = (p.fields || []).map((f) => ({ key: f.key, label: f.label, type: f.type, required: !!f.required, options: (f.options || []).join('، ') }));
+  n.nf = n.fields.reduce((m, f) => Math.max(m, parseInt((f.key.match(/\d+/) || [0])[0]) || 0), 0);
+  const back = (t) => { let x = t || ''; n.fields.forEach((f) => { x = x.split('{{' + f.key + '}}').join('{{' + f.label + '}}'); }); return x; };
+  n.title = back(p.start && p.start.title);
+  const uids = p.steps.map(() => uid.call(null) && ''); // placeholder
+  n.nu = 0; const U = p.steps.map(() => { n.nu++; return 'u' + n.nu; });
+  const at = (id) => { const i = p.steps.findIndex((s) => s.id === id); return i < 0 ? '' : U[i]; };
+  n.steps = p.steps.map((s, i) => {
+    const nx = p.steps[i + 1] ? p.steps[i + 1].id : '';
+    const x = { uid: U[i], type: s.type, name: s.name || '', who: (s.who || [{ kind: 'starterManager' }]).map((w) => ({ kind: w.kind, ref: w.ref || '' })), mode: s.mode || 'any', hours: s.hours || '', reject: at(s.onReject), next: s.next && s.next !== nx ? at(s.next) : '', cond: { field: '', op: '>', value: '' }, then: '', else: '', to: (s.to || [{ kind: 'starter' }]).map((w) => ({ kind: w.kind, ref: w.ref || '' })), text: back(s.text), outcome: s.outcome || 'done' };
+    if (s.if) { x.cond = { field: s.if.field || '', op: s.if.op || '>', value: s.if.value == null ? '' : s.if.value }; x.then = s.then && s.then !== nx ? at(s.then) : ''; x.else = s.else && s.else !== nx ? at(s.else) : ''; }
+    return x;
+  });
+  return n;
+}
+
+// ---------- preview, validation ----------
+let timer = null;
+function who(l) { return l.map((w) => ({ everyone: 'همهٔ همکاران', starter: 'درخواست‌دهنده', starterManager: 'مدیر واحدِ درخواست‌دهنده', ceo: 'مدیرعامل', admin: 'مدیر سیستم', user: w.ref || '؟', unit: 'مدیر واحد «' + (w.ref || '؟') + '»', unitMembers: 'اعضای واحد «' + (w.ref || '؟') + '»', field: 'فردِ انتخاب‌شده در «' + fieldLabel(w.ref) + '»' }[w.kind])).join(' + '); }
+function refresh() {
+  save();
+  const steps = S.steps;
+  $('#preview').innerHTML = `<div class="s"><b>شروع:</b> ${esc(who(S.allow))}${S.fields.length ? ' — فرم: ' + esc(S.fields.map((f) => f.label || f.key).join('، ')) : ''}</div>` + steps.map((s, i) => {
+    let t = '';
+    if (s.type === 'approval' || s.type === 'task') t = `${s.type === 'approval' ? 'تأیید' : 'انجام'}: ${esc(who(s.who))}${s.hours ? ' — مهلت ' + esc(s.hours) + ' ساعت' : ''}`;
+    if (s.type === 'condition') t = `اگر ${esc(fieldLabel(s.cond.field))} ${esc((OPS.find((o) => o[0] === s.cond.op) || [0, ''])[1])} ${esc(s.cond.value)} ← ${esc(nm(s.then, 'مرحلهٔ بعد'))}، وگرنه ← ${esc(nm(s.else, 'مرحلهٔ بعد'))}`;
+    if (s.type === 'notify') t = `خبر به ${esc(who(s.to))}: ${esc(s.text)}`;
+    if (s.type === 'end') t = esc((OUTCOME.find((o) => o[0] === s.outcome) || [0, ''])[1]);
+    return `<div class="s"><b>${i + 1}. ${esc(stepName(s, i))}</b><br>${t}</div>`;
+  }).join('') + ((!steps.length || steps[steps.length - 1].type !== 'end') ? '<div class="s"><b>پایان</b> (خودکار) — انجام شد</div>' : '');
+  clearTimeout(timer);
+  timer = setTimeout(check, 250);
+}
+function nm(u, d) { const i = S.steps.findIndex((s) => s.uid === u); return i < 0 ? d : (i + 1) + '. ' + stepName(S.steps[i], i); }
+async function check() {
+  let r;
+  try { r = await (await fetch('/api/check', { method: 'POST', body: JSON.stringify(toPackage()) })).json(); } catch (e) { return; }
+  $('#verdict').innerHTML = r.ok ? `<div class="good">✓ فایل درست است (${r.steps} مرحله). می‌توانید بسازید و امضا کنید.</div>` : `<div class="err">${esc(r.error)}</div>`;
+  $('#btnSign').disabled = !r.ok || !INFO.keyOk;
+}
+async function post(path, body) { return (await fetch(path, { method: 'POST', body: JSON.stringify(body) })).json(); }
+async function saveDraft() { const r = await post('/api/save', { package: toPackage(), sign: false }); $('#result').innerHTML = r.ok ? `<div class="good">پیش‌نویس ذخیره شد:<br><code>${esc(r.file)}</code></div>` : `<div class="err">${esc(r.error)}</div>`; loadList(); }
+async function build() {
+  const r = await post('/api/save', { package: toPackage(), sign: true });
+  if (!r.ok) { $('#result').innerHTML = `<div class="err">${esc(r.error)}</div>`; return; }
+  LAST = r;
+  $('#result').innerHTML = `<div class="good">ساخته و امضا شد ✓<br>فایلی که به مشتری می‌دهید:<br><code>${esc(r.signedFile)}</code></div>
+    <div class="big"><button class="green" onclick="demoUpload()">بارگذاری و روشن کردن در دموی لوکال</button><button onclick="dl()">دانلود فایل</button></div><div id="demoMsg" style="margin-top:8px"></div>`;
+  loadList();
+}
+function dl() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([LAST.signedText], { type: 'application/json' })); a.download = LAST.signedName; a.click(); }
+async function demoUpload() { $('#demoMsg').innerHTML = '<span class="hint">در حال بارگذاری…</span>'; const r = await post('/api/demo', { signedText: LAST.signedText }); $('#demoMsg').innerHTML = r.ok ? `<div class="good">${esc(r.message)}</div>` : `<div class="err">${esc(r.error)}</div>`; }
+async function loadList() { try { const l = await (await fetch('/api/list')).json(); $('#saved').innerHTML = '<option value="">باز کردن یکی از ذخیره‌شده‌ها…</option>' + (l || []).map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join(''); } catch (e) { /* none */ } }
+async function openSaved(n) { if (!n) return; const p = await (await fetch('/api/load?name=' + encodeURIComponent(n))).json(); try { S = fromPackage(p); render(); $('#result').innerHTML = ''; } catch (e) { alert('این فایل با ساز سازگار نیست: ' + e.message); } $('#saved').value = ''; }
+
+function preset(kind) {
+  if (S.steps.length && !confirm('گردشکار فعلی با نمونه عوض شود؟')) return;
+  const n = fresh(); n.name = kind === 'buy' ? 'درخواست خرید تجهیزات' : 'درخواست تأیید ساده'; n.description = kind === 'buy' ? 'مدیر واحد تأیید می‌کند؛ اگر مبلغ از ۵۰ میلیون تومان بیشتر بود مدیرعامل هم می‌بیند.' : 'همکار درخواست می‌دهد و مدیر واحدش تأیید می‌کند.';
+  n.fields = [{ key: 'f1', label: 'موضوع', type: 'text', required: true, options: '' }, { key: 'f2', label: 'مبلغ', type: 'money', required: kind === 'buy', options: '' }]; n.nf = 2; n.title = '{{موضوع}}';
+  const mk = (type, extra) => Object.assign({ uid: uid.call(null), type, name: '', who: [{ kind: 'starterManager', ref: '' }], mode: 'any', hours: '', reject: '', next: '', cond: { field: 'f2', op: '>', value: '' }, then: '', else: '', to: [{ kind: 'starter', ref: '' }], text: '', outcome: 'approved' }, extra);
+  const saveS = S; S = n;
+  if (kind === 'buy') {
+    const a = mk('approval', { name: 'تأیید مدیر واحد', hours: 24 }), c = mk('condition', { name: 'مبلغ بالاست؟', cond: { field: 'f2', op: '>', value: '50000000' } }), m = mk('approval', { name: 'تأیید مدیرعامل', who: [{ kind: 'ceo', ref: '' }], hours: 48 }), e = mk('end', { name: 'تأیید شد' });
+    c.then = m.uid; c.else = e.uid; n.steps = [a, c, m, e];
+  } else { n.steps = [mk('approval', { name: 'تأیید مدیر واحد', hours: 24 }), mk('end', { name: 'تأیید شد' })]; }
+  render();
+}
+
+(async () => {
+  try { INFO = await (await fetch('/api/info')).json(); } catch (e) { /* offline */ }
+  $('#chipKey').textContent = INFO.keyOk ? 'کلید امضا: آماده' : 'کلید امضا پیدا نشد';
+  $('#chipKey').className = 'chip' + (INFO.keyOk ? '' : ' bad');
+  $('#chipDir').textContent = 'فایل‌ها: ' + INFO.dir;
+  loadList(); render();
+})();
+</script>
+</body>
+</html>
