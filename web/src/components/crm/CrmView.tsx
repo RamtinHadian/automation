@@ -43,7 +43,8 @@ import { toPersianDigits } from '../../lib/jalali';
 import { FunnelModal } from './FunnelModal';
 import { MarketingView } from './MarketingView';
 import { InventoryView } from './InventoryView';
-import { ProformaListView } from './ProformaListView';
+import { ProformaInvoiceTabs } from './ProformaInvoiceTabs';
+import { openInvoicePdf } from '../../lib/invoice';
 import { ProformaViewer } from './ProformaViewer';
 import { SocialButton, SocialDialog, CustomerSocialIcons } from './SocialNetworks';
 import { SendMessageDialog } from './MessageTemplates';
@@ -995,7 +996,7 @@ export const CrmView: React.FC = () => {
 
       {tab === 'inventory' && <InventoryView deals={deals} customers={allContacts} activities={activities} canMoney={canSeeSalesTotals(currentUser)} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 
-      {tab === 'proformalist' && <ProformaListView deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={(d) => (d.proformaNumber || (d.items && d.items.length) ? setViewProforma(d) : setProformaFor(d))} />}
+      {tab === 'proformalist' && <ProformaInvoiceTabs deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={(d) => (d.proformaNumber || (d.items && d.items.length) ? setViewProforma(d) : setProformaFor(d))} onOpenInvoice={(d) => openInvoicePdf(d, customerById.get(d.customerId), settings, currentUser.fullName)} />}
 
       {/* ---------- customers ---------- */}
       {tab === 'customers' && (

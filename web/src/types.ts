@@ -335,6 +335,8 @@ export interface Deal {
   };
   /** Issue day and last valid day, yyyy-mm-dd. */
   proformaAt?: string;
+  /** Hoormand's own sales invoice (official or unofficial): a frozen copy of the proforma at the moment it was issued; written by the server, never edited, only cancelled. */
+  invoice?: DealInvoice;
   /** Texts typed in by hand when the proforma was made (override the defaults from settings and the customer). */
   proformaFields?: ProformaFields;
   validUntil?: string;
@@ -418,6 +420,28 @@ export interface ProformaItem {
 
 export type ProformaSectionId = 'meta' | 'parties' | 'items' | 'totals' | 'terms' | 'signatures';
 export type ProformaHeaderItem = 'logo' | 'company' | 'title';
+
+/** The invoice of a deal (made from its proforma; see server/internal/api/invoice.go). */
+export interface DealInvoice {
+  number: string;
+  kind: 'OFFICIAL' | 'UNOFFICIAL';
+  status: 'issued' | 'cancelled';
+  issuedAt: string;
+  issuedById?: string;
+  issuedByName?: string;
+  issuerId?: string;
+  proformaNumber?: string;
+  items: ProformaItem[];
+  discountPercent?: number;
+  taxPercent?: number;
+  fields?: ProformaFields;
+  amount?: number;
+  customerName?: string;
+  note?: string;
+  cancelledAt?: string;
+  cancelledByName?: string;
+  cancelReason?: string;
+}
 
 /** How proforma invoices look; designed by an admin with drag and drop. */
 export interface ProformaTemplate {

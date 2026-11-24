@@ -22,7 +22,7 @@ const STATE: Record<Exclude<St, 'ALL'>, { label: string; cls: string }> = {
 const STATE_COLOR: Record<Exclude<St, 'ALL'>, string> = { DRAFT: '#2a78d6', PENDING: '#eda100', APPROVED: '#1baf7a', REJECTED: '#e34948' };
 const stateOf = (d: Deal): Exclude<St, 'ALL'> => (d.proformaApproval?.status === 'PENDING' ? 'PENDING' : d.proformaApproval?.status === 'APPROVED' ? 'APPROVED' : d.proformaApproval?.status === 'REJECTED' ? 'REJECTED' : 'DRAFT');
 
-export const ProformaListView: React.FC<{ deals: Deal[]; canMoney: boolean; onOpen: (d: Deal) => void }> = ({ deals, canMoney, onOpen }) => {
+export const ProformaOnly: React.FC<{ deals: Deal[]; canMoney: boolean; onOpen: (d: Deal) => void }> = ({ deals, canMoney, onOpen }) => {
   const [st, setSt] = useState<St>('ALL');
   const [q, setQ] = useState('');
   const list = useMemo(() => deals

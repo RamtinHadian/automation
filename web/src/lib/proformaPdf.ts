@@ -91,6 +91,8 @@ export interface ProformaRenderInput {
   settings: SystemSettings;
   issuerName: string;
   template?: ProformaTemplate | null;
+  /** 'invoice' = the page is a sales invoice (its number, date and lines come from deal.invoice; see lib/invoice.ts) */
+  docKind?: 'invoice';
 }
 
 /**
@@ -105,6 +107,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
   const items = deal.items && deal.items.length ? deal.items : [];
   const t = proformaTotals(items, deal.discountPercent || 0, deal.taxPercent ?? 0);
   const date = deal.proformaAt || todayIso();
+  const inv = input.docKind === 'invoice';
   const valid = deal.validUntil || addDaysIso(date, settings.proformaValidDays || 7);
   const f = deal.proformaFields || {};
   // with the approval setting on, the CEO's stamp and signature appear only after the CEO approved the proforma
@@ -137,7 +140,7 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
   const logo = isMain ? tpl.logoUrl || issuer.logoUrl : issuer.logoUrl;
   const stampImg = issuer.stampUrl;
   const signatureImg = issuer.signatureUrl;
-  const terms = (deal.terms ?? settings.proformaTerms ?? DEFAULT_PROFORMA_TERMS).trim();
+  const terms = inv ? (deal.terms ?? '').trim() : (deal.terms ?? settings.proformaTerms ?? DEFAULT_PROFORMA_TERMS).trim();
   const design = mode === 'design';
 
   const contactLines = [
@@ -183,9 +186,9 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
 
   const body: Record<ProformaSectionId, string> = {
     meta: `<div class="meta">
-      <div><span>شمارهٔ پیش‌فاکتور</span><b>${toPersianDigits(deal.proformaNumber || '—')}</b></div>
+      <div><span>شمارهٔ ${inv ? 'فاکتور' : 'پیش‌فاکتور'}</span><b>${toPersianDigits(deal.proformaNumber || '—')}</b></div>
       <div><span>تاریخ صدور</span><b>${formatTaskDate(date)}</b></div>
-      <div><span>اعتبار تا</span><b>${formatTaskDate(valid)}</b></div>
+      ${inv ? '' : `<div><span>اعتبار تا</span><b>${formatTaskDate(valid)}</b></div>`}
     </div>`,
     parties: `<div class="parties">
       <div class="box"><h3>فروشنده</h3><div class="in">
@@ -226,8 +229,8 @@ export function buildProformaHtml(input: ProformaRenderInput, mode: 'print' | 'p
       <div class="words">مبلغ به حروف: <b>${numberToPersianWords(toDisplay(t.payable))} ${unitName()}</b></div>
     </div></div>`,
     terms: `<div class="terms">
-      <h4>شرایط و توضیحات</h4>
-      <ol>${terms.split('\n').filter(Boolean).map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
+      <h4>${inv ? 'توضیحات' : 'شرایط و توضیحات'}</h4>
+      ${terms ? `<ol>${terms.split('\n').filter(Boolean).map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : ''}
       ${deal.notes ? `<div style="margin-top:6px;font-size:10.5px"><b>توضیح:</b> ${nl(deal.notes)}</div>` : ''}
       ${bankInfo ? `<div class="bank"><h4>اطلاعات پرداخت</h4>${nl(bankInfo)}</div>` : ''}
     </div>`,
@@ -261,7 +264,7 @@ el.addEventListener('drop',function(e){e.preventDefault();if(!drag||drag===el)re
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8" />
-<title>پیش‌فاکتور ${esc(deal.proformaNumber || '')} - ${esc(customer?.name || deal.customerName)}</title>
+<title>${inv ? 'فاکتور' : 'پیش‌فاکتور'} ${esc(deal.proformaNumber || '')} - ${esc(customer?.name || deal.customerName)}</title>
 <style>
   @font-face { font-family: 'Vazirmatn'; src: url('${location.origin}${fontUrl}') format('woff2'); font-weight: 100 900; }
   :root { --p: ${c.primary}; --a: ${c.accent}; --th: ${c.tableHead}; --tht: ${c.tableHeadText}; --paper: ${c.paper}; --soft: ${c.soft}; --tx: ${c.text}; --r: ${tpl.radius}px; --fs: ${tpl.fontSize}px;

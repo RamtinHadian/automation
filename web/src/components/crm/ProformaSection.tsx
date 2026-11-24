@@ -10,6 +10,7 @@ import { approvalRequired, proformaReleased } from '../../lib/proformaApproval';
 import { openProformaPdf, proformaTotals } from '../../lib/proformaPdf';
 import { downloadBlob, renderProformaJpeg } from '../../lib/proformaFile';
 import { DeliveryMinutesDialog } from '../minutes/DeliveryMinutesDialog';
+import { InvoiceBlock } from './InvoiceBlock';
 
 /**
  * «پیش‌فاکتور» block of a sales opportunity: issue one (with the right company when there are several), see its number,
@@ -76,6 +77,7 @@ export const ProformaSection: React.FC<{
     </div>
   );
   return (
+    <>
     <section className="rounded-2xl border border-violet-200 bg-white p-4 space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 font-black text-xs text-[#3A241F]">
@@ -165,5 +167,7 @@ export const ProformaSection: React.FC<{
         )}
       </div>
     </section>
+    {released && <InvoiceBlock deal={deal} customer={customer} />}
+    </>
   );
 };

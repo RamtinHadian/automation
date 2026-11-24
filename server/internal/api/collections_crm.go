@@ -240,6 +240,9 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	}
 	stage := jsonx.Str(doc, "stage")
 	enforceProformaAmount(doc)
+	if !enforceInvoice(w, r, me, before, doc) {
+		return
+	}
 	if msg := dealRuleViolation(r, me, jsonx.Str(before, "stage"), stage, jsonx.Num(doc["amount"]), jsonx.Str(doc, "proformaNumber")); msg != "" {
 		httpx.Error(w, http.StatusForbidden, msg)
 		return
@@ -371,6 +374,7 @@ func removeDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string)
 		return
 	}
 	var owner string
+	var invoiced int
 	err := store.Pool.QueryRow(r.Context(), `SELECT COALESCE(owner_id, '') FROM crm_deals WHERE id = $1`, id).Scan(&owner)
 	if err == pgx.ErrNoRows {
 		httpx.OK(w)
@@ -378,6 +382,11 @@ func removeDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string)
 	}
 	if err != nil {
 		internalError(w)
+		return
+	}
+	_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM crm_deals WHERE id = $1 AND data->'invoice'->>'number' IS NOT NULL`, id).Scan(&invoiced)
+	if invoiced > 0 {
+		httpx.Error(w, http.StatusConflict, "برای این فرصت فاکتور صادر شده است و حذف نمی‌شود؛ اگر درست نیست، فاکتور را باطل کنید.")
 		return
 	}
 	if !me.IsAdmin() && owner != me.ID() {

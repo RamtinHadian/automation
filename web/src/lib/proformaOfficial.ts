@@ -104,7 +104,7 @@ export function buildOfficialHtml(input: ProformaRenderInput, mode: 'print' | 'p
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8" />
-<title>پیش‌فاکتور فروش ${esc(serial)} - ${esc(buyer.name)}</title>
+<title>${input.docKind === 'invoice' ? 'فاکتور رسمی فروش' : 'پیش‌فاکتور فروش'} ${esc(serial)} - ${esc(buyer.name)}</title>
 <style>
   @font-face { font-family: 'Vazirmatn'; src: url('${location.origin}${fontUrl}') format('woff2'); font-weight: 100 900; }
   @page { size: A4 landscape; margin: 0; }
@@ -158,7 +158,7 @@ ${mode === 'print' ? '<div class="toolbar"><button onclick="window.print()">چا
 <div class="page" data-official-form="1">
   <div class="top">
     <div class="logo">${logo ? `<img src="${esc(logo)}" alt="" />` : ''}</div>
-    <div class="ttl">پیش‌فاکتور فروش</div>
+    <div class="ttl">${input.docKind === 'invoice' ? 'فاکتور رسمی فروش' : 'پیش‌فاکتور فروش'}</div>
     <div class="nums">
       <div><span>شمارهٔ سریال:</span><b>${num(serial)}</b></div>
       <div><span>تاریخ:</span><b>${formatTaskDate(date)}</b></div>
