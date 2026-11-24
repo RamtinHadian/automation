@@ -55,6 +55,7 @@ export const EVENTS: { label: string; kind: NotificationKind; group: string }[] 
   { label: 'در سپیدار انجام شد', kind: 'task', group: 'سپیدار' },
   { label: 'در سپیدار ناقص انجام شد', kind: 'alert', group: 'سپیدار' },
   { label: 'در سپیدار انجام نشد', kind: 'alert', group: 'سپیدار' },
+  { label: 'گردشکار', kind: 'task', group: 'گردشکار' },
   { label: 'تماس ورودی', kind: 'call', group: 'تلفن' },
   { label: 'تماس بی‌پاسخ', kind: 'call', group: 'تلفن' },
 ];

@@ -1,0 +1,117 @@
+{
+  "customer": "نمونه",
+  "description": "بعد از فروش موفق: قرارداد، نصب و راه‌اندازی، و تحویل. تحویل را هم مسئول پروژه و هم مدیرعامل تأیید می‌کنند (هر دو لازم است).",
+  "fields": [
+    {
+      "key": "customer",
+      "label": "نام مشتری",
+      "required": true,
+      "type": "text"
+    },
+    {
+      "key": "owner",
+      "label": "مسئول پروژه",
+      "required": true,
+      "type": "person"
+    },
+    {
+      "key": "date",
+      "label": "تاریخ پیشنهادی نصب",
+      "type": "date"
+    },
+    {
+      "key": "note",
+      "label": "توضیحات",
+      "type": "textarea"
+    }
+  ],
+  "format": "hoormand-workflow/1",
+  "id": "customer-onboarding",
+  "name": "استقرار مشتری جدید",
+  "signature": {
+    "alg": "ed25519",
+    "keyId": "hoormand-1",
+    "value": "0I6pi9V2XOwlwANAANJLJq7qZorKrcpgz0nXybrurMxOiqIsmclmKNkQL/Do55TQ1kTRaDifGjzK2H3pIJJrBg=="
+  },
+  "start": {
+    "allow": [
+      {
+        "kind": "unitMembers",
+        "ref": "فروش و بازاریابی"
+      },
+      {
+        "kind": "ceo"
+      }
+    ],
+    "title": "استقرار {{customer}}"
+  },
+  "steps": [
+    {
+      "hours": 72,
+      "id": "contract",
+      "name": "تنظیم و امضای قرارداد",
+      "next": "install",
+      "type": "task",
+      "who": [
+        {
+          "kind": "field",
+          "ref": "owner"
+        }
+      ]
+    },
+    {
+      "hours": 120,
+      "id": "install",
+      "name": "نصب و راه‌اندازی",
+      "next": "handover",
+      "type": "task",
+      "who": [
+        {
+          "kind": "unitMembers",
+          "ref": "فناوری اطلاعات"
+        }
+      ]
+    },
+    {
+      "hours": 48,
+      "id": "handover",
+      "mode": "all",
+      "name": "تأیید تحویل",
+      "next": "tell",
+      "onReject": "install",
+      "type": "approval",
+      "who": [
+        {
+          "kind": "field",
+          "ref": "owner"
+        },
+        {
+          "kind": "ceo"
+        }
+      ]
+    },
+    {
+      "id": "tell",
+      "name": "خبر به همه",
+      "next": "done",
+      "text": "استقرار {{customer}} تحویل شد؛ گارانتی و پشتیبانی از امروز شروع می‌شود.",
+      "to": [
+        {
+          "kind": "starter"
+        },
+        {
+          "kind": "field",
+          "ref": "owner"
+        }
+      ],
+      "type": "notify"
+    },
+    {
+      "id": "done",
+      "name": "پایان",
+      "outcome": "done",
+      "type": "end"
+    }
+  ],
+  "version": 1
+}

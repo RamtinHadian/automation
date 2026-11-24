@@ -5,6 +5,7 @@
 package demo
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"context"
@@ -22,6 +23,7 @@ import (
 	"automation/server/internal/httpx"
 	"automation/server/internal/jsonx"
 	"automation/server/internal/store"
+	"automation/server/internal/workflow"
 )
 
 // Password is shown on the login page on purpose; every demo account uses it.
@@ -248,6 +250,19 @@ func Reset(ctx context.Context) error {
 	for _, d := range departments {
 		if err := exec(ctx, `INSERT INTO departments (id, data) VALUES ($1, $2::jsonb)`, jsonx.Str(d, "id"), jsonx.Encode(d)); err != nil {
 			return err
+		}
+	}
+	// the models of workflow packages (signed by us) are on, so the demo shows the «گردشکارها» at once
+	if err := exec(ctx, `TRUNCATE wf_instances, wf_packages`); err != nil {
+		return err
+	}
+	for _, raw := range workflow.Examples() {
+		if p, err := workflow.Parse(raw); err == nil {
+			var doc any
+			_ = json.Unmarshal(raw, &doc)
+			if err := exec(ctx, `INSERT INTO wf_packages (id, version, name, data, enabled, key_id, uploaded_by) VALUES ($1, $2, $3, $4::jsonb, true, 'hoormand-1', 'نمونه')`, p.ID, p.Version, p.Name, jsonx.Encode(doc)); err != nil {
+				return err
+			}
 		}
 	}
 	settings := jsonx.M{

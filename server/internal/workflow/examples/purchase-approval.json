@@ -1,0 +1,23 @@
+{
+  "format": "hoormand-workflow/1",
+  "id": "purchase-approval",
+  "version": 1,
+  "name": "درخواست خرید تجهیزات",
+  "description": "هر همکار برای خرید تجهیزات درخواست می‌دهد؛ مدیر واحد او تأیید می‌کند، اگر مبلغ از ۵۰ میلیون تومان بیشتر بود مدیرعامل هم می‌بیند، بعد خرید انجام و به درخواست‌دهنده خبر داده می‌شود.",
+  "customer": "نمونه",
+  "start": { "allow": [{ "kind": "everyone" }], "title": "خرید {{item}}" },
+  "fields": [
+    { "key": "item", "label": "کالا یا تجهیزات", "type": "text", "required": true },
+    { "key": "qty", "label": "تعداد", "type": "number", "required": true },
+    { "key": "amount", "label": "مبلغ تقریبی (تومان)", "type": "money", "required": true },
+    { "key": "reason", "label": "دلیل نیاز", "type": "textarea" }
+  ],
+  "steps": [
+    { "id": "manager", "type": "approval", "name": "تأیید مدیر واحد", "who": [{ "kind": "starterManager" }], "hours": 24, "escalate": [{ "kind": "ceo" }], "next": "check" },
+    { "id": "check", "type": "condition", "name": "مبلغ بالاست؟", "if": { "field": "amount", "op": ">", "value": 50000000 }, "then": "ceo", "else": "buy" },
+    { "id": "ceo", "type": "approval", "name": "تأیید مدیرعامل", "who": [{ "kind": "ceo" }], "hours": 48, "next": "buy" },
+    { "id": "buy", "type": "task", "name": "خرید و تحویل", "who": [{ "kind": "user", "ref": "مریم احمدی" }], "hours": 72, "next": "tell" },
+    { "id": "tell", "type": "notify", "name": "خبر به درخواست‌دهنده", "to": [{ "kind": "starter" }], "text": "{{item}} خریداری و تحویل شد.", "next": "done" },
+    { "id": "done", "type": "end", "name": "پایان", "outcome": "done" }
+  ]
+}

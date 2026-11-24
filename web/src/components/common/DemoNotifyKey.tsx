@@ -62,6 +62,7 @@ const GROUPS: { name: string; items: Sample[] }[] = [
     { label: 'پیام در تلگرام', kind: 'chat', title: 'پیام تازه از «فروشگاه یدک شمال»', body: 'قیمت فیلتر هیدرولیک چند است؟', ref: 'customer', who: 'customer' },
   ] },
   { name: 'اداری', items: [
+    { label: 'گردشکار', kind: 'task', title: 'درخواست خرید تجهیزات — تأیید مدیر واحد', body: 'خرید لپ‌تاپ برای تأیید شما', ref: 'workflow' },
     { label: 'مرخصی', kind: 'task', title: 'درخواست مرخصی جدید', body: 'حمید نوری — سه‌شنبه تا پنجشنبه', ref: 'leave' },
     { label: 'یادآور', kind: 'alert', title: 'یادآور: جلسهٔ فروش', body: 'جلسه ساعت ۱۰ در سالن اجتماعات', ref: 'reminder' },
     { label: 'تابلو اعلانات', kind: 'alert', title: 'تعطیلی شرکت در روز سه‌شنبه', body: 'به‌مناسبت مراسم سالانهٔ شرکت', ref: 'announcement' },

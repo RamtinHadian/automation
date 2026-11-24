@@ -1,3 +1,5 @@
+import { WorkflowAdminCard } from './WorkflowAdminCard';
+import { Workflow } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ClockFace, CLOCK_COUNT, designName } from '../common/AnalogClock';
 import React, { useState, useRef, useEffect } from 'react';
@@ -146,7 +148,7 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
-type SettingsSection = 'forms' | 'identity' | 'phone' | 'sms' | 'field' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'ai' | 'backup' | 'license';
+type SettingsSection = 'forms' | 'identity' | 'phone' | 'sms' | 'field' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'ai' | 'backup' | 'license' | 'workflow';
 
 /** Each group of settings has its own tab under the page title. */
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -164,6 +166,7 @@ const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.Compo
   { id: 'field', label: 'ورود مشتریان (بازاریاب میدانی)', Icon: Smartphone },
   { id: 'msgr', label: 'تلگرام و بله', Icon: Send },
   { id: 'api', label: 'اتصال برنامه‌ها (API)', Icon: Plug },
+  { id: 'workflow', label: 'گردشکارها', Icon: Workflow },
   { id: 'ai', label: 'هوش مصنوعی', Icon: Sparkles },
   { id: 'backup', label: 'پشتیبان‌گیری', Icon: DatabaseBackup },
   { id: 'license', label: 'مجوز و فعال‌سازی', Icon: KeyRound },
@@ -589,6 +592,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {section === 'ai' && <AiSettingsCard />}
+      {section === 'workflow' && <WorkflowAdminCard />}
 
       {section === 'backup' && <BackupSettingsCard />}
 

@@ -15,6 +15,8 @@ import { AgentLetter } from '../components/letters/AgentLetter';
 import { LeaveView } from '../components/leave/LeaveView';
 import { LetterDownloadMenu } from '../components/letters/LetterExportButtons';
 import { OrdersView } from '../components/orders/OrdersView';
+import { WorkflowView } from '../components/workflow/WorkflowView';
+import { Workflow } from 'lucide-react';
 import { InternalLettersView } from '../components/letters/InternalLettersView';
 import { SideMenu, TopMenu } from '../components/common/SideMenu';
 import { MENU_TONES, MENU_TONE_KEY, MENU_SOUND_KEY, loadMenuTone, menuToneVars } from '../lib/menuTone';
@@ -150,7 +152,8 @@ export default function UserPanel() {
   } = useAppContext();
 
   // Top Main Menu: 'files' (ارسال فایل) vs 'letters' (نامه)
-  const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders' | 'minutes' | 'orders'>('files');
+  const [filesSection, setFilesSection] = useState<'files' | 'chat' | 'leave' | 'board' | 'reminders' | 'minutes' | 'orders' | 'workflow'>('files');
+  const [workflowWaiting, setWorkflowWaiting] = useState(0);
   const [ordersUnread, setOrdersUnread] = useState(0);
   // the vertical menu layout is off until a person switches it on (kept in this browser)
   const [sideMenu, setSideMenu] = useState<boolean>(() => {
@@ -311,7 +314,7 @@ export default function UserPanel() {
     if (t === 'customer' || t === 'deal') return 'crm';
     if (t === 'task' || t === 'report') return 'tasks';
     if (t === 'letter' || t === 'icorr') return 'letters';
-    if (t === 'file' || t === 'chat' || t === 'leave' || t === 'announcement' || t === 'minutes') return 'files';
+    if (t === 'file' || t === 'chat' || t === 'leave' || t === 'announcement' || t === 'minutes' || t === 'workflow') return 'files';
     if (n.kind === 'file' || n.kind === 'chat') return 'files';
     if (n.kind === 'letter') return 'letters';
     if (n.kind === 'task') return 'tasks';
@@ -402,6 +405,10 @@ export default function UserPanel() {
     } else if (type === 'announcement') {
       setFilesSection('board');
       setMainMenuTab('files');
+    } else if (type === 'workflow') {
+      setFilesSection('workflow');
+      setMainMenuTab('files');
+      window.dispatchEvent(new Event('hoormand-workflow-changed'));
     } else if (type === 'leave') {
       setFilesSection('leave');
       setMainMenuTab('files');
@@ -1294,9 +1301,11 @@ export default function UserPanel() {
               className="mx-4 sm:mx-6 mb-2" /* no wrapper around it: a sticky bar cannot leave its parent, so it could not stay at the top while the page scrolls */
               value={filesSection}
               onChange={(k) => setFilesSection(k as typeof filesSection)}
-              tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'مرخصی و مساعده', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing], ['minutes', 'صورتجلسه', ScrollText], ['orders', 'دستورهای اداری', FileText]] as const).filter(([id]) => id === 'orders' || canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : id === 'orders' ? ordersUnread : 0 }))}
+              tabs={([['files', 'ارسال و دریافت فایل‌ها', Send], ['chat', 'گفتگو', MessageCircle], ['leave', 'مرخصی و مساعده', CalendarCheck2], ['board', 'تابلو اعلانات', Megaphone], ['reminders', 'یادآور', BellRing], ['minutes', 'صورتجلسه', ScrollText], ['orders', 'دستورهای اداری', FileText], ['workflow', 'گردشکارها', Workflow]] as const).filter(([id]) => id === 'orders' || canSub(currentUser, 'files.' + (id === 'files' ? 'transfer' : id))).map(([id, label, Icon]) => ({ id, label, Icon, badge: id === 'chat' ? chatUnread : id === 'orders' ? ordersUnread : id === 'workflow' ? workflowWaiting : 0 }))}
             />
-            {filesSection === 'orders' ? (
+            {filesSection === 'workflow' ? (
+              <WorkflowView onWaiting={setWorkflowWaiting} />
+            ) : filesSection === 'orders' ? (
               <OrdersView onUnread={setOrdersUnread} />
             ) : filesSection === 'minutes' ? (
               <MinutesView />

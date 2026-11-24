@@ -59,6 +59,35 @@ var schema = []string{
 	  id TEXT PRIMARY KEY,
 	  data JSONB NOT NULL
 	)`,
+	// Workflow packages (signed files we write for a customer) and the requests running through them.
+	`CREATE TABLE IF NOT EXISTS wf_packages (
+	  id TEXT NOT NULL,
+	  version INT NOT NULL,
+	  name TEXT NOT NULL,
+	  data JSONB NOT NULL,
+	  enabled BOOLEAN NOT NULL DEFAULT false,
+	  key_id TEXT NOT NULL DEFAULT '',
+	  uploaded_by TEXT NOT NULL DEFAULT '',
+	  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  PRIMARY KEY (id, version)
+	)`,
+	`CREATE TABLE IF NOT EXISTS wf_instances (
+	  id TEXT PRIMARY KEY,
+	  package_id TEXT NOT NULL,
+	  package_version INT NOT NULL,
+	  package_name TEXT NOT NULL DEFAULT '',
+	  title TEXT NOT NULL DEFAULT '',
+	  started_by TEXT NOT NULL,
+	  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  status TEXT NOT NULL,
+	  state JSONB NOT NULL,
+	  waiting TEXT[] NOT NULL DEFAULT '{}',
+	  due_at TIMESTAMPTZ,
+	  reminded BOOLEAN NOT NULL DEFAULT false,
+	  finished_at TIMESTAMPTZ
+	)`,
+	`CREATE INDEX IF NOT EXISTS wf_instances_waiting_idx ON wf_instances USING gin (waiting)`,
+	`CREATE INDEX IF NOT EXISTS wf_instances_started_idx ON wf_instances (started_by, started_at DESC)`,
 	`CREATE TABLE IF NOT EXISTS transfers (
 	  id TEXT PRIMARY KEY,
 	  sender_id TEXT,

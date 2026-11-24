@@ -1,0 +1,120 @@
+{
+  "customer": "نمونه",
+  "description": "هر همکار برای خرید تجهیزات درخواست می‌دهد؛ مدیر واحد او تأیید می‌کند، اگر مبلغ از ۵۰ میلیون تومان بیشتر بود مدیرعامل هم می‌بیند، بعد خرید انجام و به درخواست‌دهنده خبر داده می‌شود.",
+  "fields": [
+    {
+      "key": "item",
+      "label": "کالا یا تجهیزات",
+      "required": true,
+      "type": "text"
+    },
+    {
+      "key": "qty",
+      "label": "تعداد",
+      "required": true,
+      "type": "number"
+    },
+    {
+      "key": "amount",
+      "label": "مبلغ تقریبی (تومان)",
+      "required": true,
+      "type": "money"
+    },
+    {
+      "key": "reason",
+      "label": "دلیل نیاز",
+      "type": "textarea"
+    }
+  ],
+  "format": "hoormand-workflow/1",
+  "id": "purchase-approval",
+  "name": "درخواست خرید تجهیزات",
+  "signature": {
+    "alg": "ed25519",
+    "keyId": "hoormand-1",
+    "value": "7bf6619lFbpyGKFTM8wnUk/NDbadcNkjpRDoeJGNubaH9GS+tmNiDGQWbXPFZoUDdysOesbiLVogqRTVWjEqCg=="
+  },
+  "start": {
+    "allow": [
+      {
+        "kind": "everyone"
+      }
+    ],
+    "title": "خرید {{item}}"
+  },
+  "steps": [
+    {
+      "escalate": [
+        {
+          "kind": "ceo"
+        }
+      ],
+      "hours": 24,
+      "id": "manager",
+      "name": "تأیید مدیر واحد",
+      "next": "check",
+      "type": "approval",
+      "who": [
+        {
+          "kind": "starterManager"
+        }
+      ]
+    },
+    {
+      "else": "buy",
+      "id": "check",
+      "if": {
+        "field": "amount",
+        "op": ">",
+        "value": 50000000
+      },
+      "name": "مبلغ بالاست؟",
+      "then": "ceo",
+      "type": "condition"
+    },
+    {
+      "hours": 48,
+      "id": "ceo",
+      "name": "تأیید مدیرعامل",
+      "next": "buy",
+      "type": "approval",
+      "who": [
+        {
+          "kind": "ceo"
+        }
+      ]
+    },
+    {
+      "hours": 72,
+      "id": "buy",
+      "name": "خرید و تحویل",
+      "next": "tell",
+      "type": "task",
+      "who": [
+        {
+          "kind": "user",
+          "ref": "مریم احمدی"
+        }
+      ]
+    },
+    {
+      "id": "tell",
+      "name": "خبر به درخواست‌دهنده",
+      "next": "done",
+      "text": "{{item}} خریداری و تحویل شد.",
+      "to": [
+        {
+          "kind": "starter"
+        }
+      ],
+      "type": "notify"
+    },
+    {
+      "id": "done",
+      "name": "پایان",
+      "outcome": "done",
+      "type": "end"
+    }
+  ],
+  "version": 1
+}

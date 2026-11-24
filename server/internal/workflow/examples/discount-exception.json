@@ -1,0 +1,20 @@
+{
+  "format": "hoormand-workflow/1",
+  "id": "discount-exception",
+  "version": 1,
+  "name": "درخواست تخفیف ویژه به مشتری",
+  "description": "فروشنده برای تخفیف بیشتر از حد معمول درخواست می‌دهد. تا ۱۵ درصد مدیر فروش تصمیم می‌گیرد و بیشتر از آن مدیرعامل. نتیجه به فروشنده اعلام می‌شود.",
+  "customer": "نمونه",
+  "start": { "allow": [{ "kind": "unitMembers", "ref": "فروش و بازاریابی" }, { "kind": "ceo" }], "title": "تخفیف {{percent}}٪ برای {{customer}}" },
+  "fields": [
+    { "key": "customer", "label": "نام مشتری", "type": "text", "required": true },
+    { "key": "percent", "label": "درصد تخفیف درخواستی", "type": "number", "required": true },
+    { "key": "reason", "label": "دلیل (مثلاً رقیب، خرید حجمی)", "type": "textarea", "required": true }
+  ],
+  "steps": [
+    { "id": "size", "type": "condition", "name": "تخفیف از ۱۵٪ بیشتر است؟", "if": { "field": "percent", "op": ">", "value": 15 }, "then": "ceo", "else": "sales" },
+    { "id": "sales", "type": "approval", "name": "تصمیم مدیر فروش", "who": [{ "kind": "unit", "ref": "فروش و بازاریابی" }], "hours": 8, "escalate": [{ "kind": "ceo" }], "next": "yes" },
+    { "id": "ceo", "type": "approval", "name": "تصمیم مدیرعامل", "who": [{ "kind": "ceo" }], "hours": 24, "next": "yes" },
+    { "id": "yes", "type": "end", "name": "تخفیف تأیید شد", "outcome": "approved" }
+  ]
+}

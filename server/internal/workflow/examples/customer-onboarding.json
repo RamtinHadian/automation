@@ -1,0 +1,22 @@
+{
+  "format": "hoormand-workflow/1",
+  "id": "customer-onboarding",
+  "version": 1,
+  "name": "استقرار مشتری جدید",
+  "description": "بعد از فروش موفق: قرارداد، نصب و راه‌اندازی، و تحویل. تحویل را هم مسئول پروژه و هم مدیرعامل تأیید می‌کنند (هر دو لازم است).",
+  "customer": "نمونه",
+  "start": { "allow": [{ "kind": "unitMembers", "ref": "فروش و بازاریابی" }, { "kind": "ceo" }], "title": "استقرار {{customer}}" },
+  "fields": [
+    { "key": "customer", "label": "نام مشتری", "type": "text", "required": true },
+    { "key": "owner", "label": "مسئول پروژه", "type": "person", "required": true },
+    { "key": "date", "label": "تاریخ پیشنهادی نصب", "type": "date" },
+    { "key": "note", "label": "توضیحات", "type": "textarea" }
+  ],
+  "steps": [
+    { "id": "contract", "type": "task", "name": "تنظیم و امضای قرارداد", "who": [{ "kind": "field", "ref": "owner" }], "hours": 72, "next": "install" },
+    { "id": "install", "type": "task", "name": "نصب و راه‌اندازی", "who": [{ "kind": "unitMembers", "ref": "فناوری اطلاعات" }], "hours": 120, "next": "handover" },
+    { "id": "handover", "type": "approval", "name": "تأیید تحویل", "mode": "all", "who": [{ "kind": "field", "ref": "owner" }, { "kind": "ceo" }], "hours": 48, "next": "tell", "onReject": "install" },
+    { "id": "tell", "type": "notify", "name": "خبر به همه", "to": [{ "kind": "starter" }, { "kind": "field", "ref": "owner" }], "text": "استقرار {{customer}} تحویل شد؛ گارانتی و پشتیبانی از امروز شروع می‌شود.", "next": "done" },
+    { "id": "done", "type": "end", "name": "پایان", "outcome": "done" }
+  ]
+}
