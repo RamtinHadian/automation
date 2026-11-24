@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,6 +21,9 @@ import (
 
 //go:embed studio.html
 var studioHTML []byte
+
+//go:embed fonts/*.woff2
+var studioFonts embed.FS
 
 // studio: «ساز گردشکار» — a page on this computer where a workflow is built with forms and pickers (no JSON to write); it checks the file, signs it with our key
 // and can put it on the local demo and switch it on. Only this computer can reach it (127.0.0.1).
@@ -64,6 +67,16 @@ func studio(args []string) {
 	mux.HandleFunc("/", local(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write(studioHTML)
+	}))
+	mux.HandleFunc("/fonts/", local(func(w http.ResponseWriter, r *http.Request) {
+		b, err := studioFonts.ReadFile("fonts/" + filepath.Base(r.URL.Path))
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "font/woff2")
+		w.Header().Set("Cache-Control", "max-age=86400")
+		_, _ = w.Write(b)
 	}))
 	mux.HandleFunc("/api/info", local(func(w http.ResponseWriter, r *http.Request) {
 		_, err := os.Stat(keyPath)
