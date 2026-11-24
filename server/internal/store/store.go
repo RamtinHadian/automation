@@ -86,6 +86,8 @@ var schema = []string{
 	  reminded BOOLEAN NOT NULL DEFAULT false,
 	  finished_at TIMESTAMPTZ
 	)`,
+	// 'signed' = a file we signed; 'local' = built by the company's own administrator inside Hoormand (no signature)
+	`ALTER TABLE wf_packages ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'signed'`,
 	`CREATE INDEX IF NOT EXISTS wf_instances_waiting_idx ON wf_instances USING gin (waiting)`,
 	`CREATE INDEX IF NOT EXISTS wf_instances_started_idx ON wf_instances (started_by, started_at DESC)`,
 	`CREATE TABLE IF NOT EXISTS transfers (

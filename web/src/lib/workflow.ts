@@ -11,7 +11,7 @@ export interface WfPackageBody {
   id: string; version: number; name: string; description?: string; customer?: string;
   start: { allow?: WfRef[]; title?: string }; fields?: WfField[]; steps: WfStep[];
 }
-export interface WfPackageRow { id: string; version: number; name: string; enabled: boolean; keyId: string; uploadedAt: string; uploadedBy: string; running: number; package: WfPackageBody }
+export interface WfPackageRow { id: string; version: number; name: string; enabled: boolean; keyId: string; source: 'signed' | 'local'; uploadedAt: string; uploadedBy: string; running: number; package: WfPackageBody }
 export interface WfStartable { id: string; version: number; name: string; description?: string; fields: WfField[] }
 export interface WfEvent { at: string; step: string; stepName?: string; type: string; action?: string; by?: string; comment?: string; note?: string }
 export interface WfInstance {

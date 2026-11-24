@@ -1,3 +1,4 @@
+import { CompanyFooter } from '../components/common/CompanyFooter';
 import React, { useState, useRef, useEffect } from 'react';
 import { User as UserIcon, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { User } from '../types';
@@ -224,6 +225,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
           </button>
         </div>
       </div>
+      <CompanyFooter tone="dark" className="!mt-4 !pt-0" />
     </LoginBackdrop>
   );
 };

@@ -1,3 +1,4 @@
+import { CompanyFooter } from '../components/common/CompanyFooter';
 import { SepidarStatusChip } from '../components/sepidar/SepidarStatusChip';
 import { TwoFactorCard } from '../components/common/TwoFactorCard';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
@@ -2155,6 +2156,7 @@ export default function UserPanel() {
         )}
 
       </div>
+      <CompanyFooter />
       </div>
 
       {/* Letter Preview & Inspection Modal */}

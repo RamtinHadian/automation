@@ -1,3 +1,4 @@
+import { CompanyFooter } from '../components/common/CompanyFooter';
 import { DemoAdminHint, useDemoInfo } from '../components/common/DemoBanner';
 import { DayNightToggle } from '../components/common/DayNightToggle';
 import { askConfirm } from '../lib/confirmDialog';
@@ -527,7 +528,7 @@ export default function AdminPanel() {
       </div>
 
         {/* Tab Content */}
-        <main data-app-scroll className="p-3 sm:p-6 lg:p-8 flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white">
+        <main data-app-scroll className="p-3 sm:p-6 lg:p-8 flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white flex flex-col">
           {activeTab === 'users' && (
             <UserManagementView
               users={staffList}
@@ -626,6 +627,7 @@ export default function AdminPanel() {
               }}
             />
           )}
+        <CompanyFooter />
         </main>
       </div>
 

@@ -2,8 +2,11 @@ package api
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -80,7 +83,7 @@ func (r wfResolver) Resolve(refs []workflow.Ref, st *workflow.State) []string {
 // ---------- the packages (administrator) ----------
 
 type wfRow struct {
-	ID, Name, KeyID, UploadedBy string
+	ID, Name, KeyID, UploadedBy, Source string
 	Version                     int
 	Enabled                     bool
 	UploadedAt                  time.Time
@@ -91,7 +94,7 @@ func wfPackageJSON(row wfRow, running int) jsonx.M {
 	var p map[string]any
 	_ = json.Unmarshal(row.Data, &p)
 	delete(p, "signature")
-	return jsonx.M{"id": row.ID, "version": row.Version, "name": row.Name, "enabled": row.Enabled, "keyId": row.KeyID, "uploadedAt": row.UploadedAt, "uploadedBy": row.UploadedBy, "running": running, "package": p}
+	return jsonx.M{"id": row.ID, "version": row.Version, "name": row.Name, "enabled": row.Enabled, "keyId": row.KeyID, "source": row.Source, "uploadedAt": row.UploadedAt, "uploadedBy": row.UploadedBy, "running": running, "package": p}
 }
 
 // GET /api/workflow/packages (administrators)
@@ -100,7 +103,7 @@ func wfPackages(w http.ResponseWriter, r *http.Request) {
 		httpx.Forbidden(w)
 		return
 	}
-	rows, err := store.Pool.Query(r.Context(), `SELECT p.id, p.version, p.name, p.key_id, p.uploaded_by, p.enabled, p.uploaded_at, p.data,
+	rows, err := store.Pool.Query(r.Context(), `SELECT p.id, p.version, p.name, p.key_id, p.uploaded_by, p.enabled, p.uploaded_at, p.data, p.source,
 		(SELECT count(*) FROM wf_instances i WHERE i.package_id = p.id AND i.package_version = p.version AND i.status = 'running')
 		FROM wf_packages p ORDER BY p.uploaded_at DESC`)
 	if err != nil {
@@ -112,7 +115,7 @@ func wfPackages(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var x wfRow
 		var running int
-		if rows.Scan(&x.ID, &x.Version, &x.Name, &x.KeyID, &x.UploadedBy, &x.Enabled, &x.UploadedAt, &x.Data, &running) == nil {
+		if rows.Scan(&x.ID, &x.Version, &x.Name, &x.KeyID, &x.UploadedBy, &x.Enabled, &x.UploadedAt, &x.Data, &x.Source, &running) == nil {
 			out = append(out, wfPackageJSON(x, running))
 		}
 	}
@@ -143,6 +146,12 @@ func wfUpload(w http.ResponseWriter, r *http.Request) {
 	p, err := workflow.Parse(raw)
 	if err != nil {
 		httpx.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var mine int
+	_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM wf_packages WHERE id = $1 AND source = 'local'`, p.ID).Scan(&mine)
+	if mine > 0 {
+		httpx.Error(w, http.StatusConflict, "گردشکاری که خودتان ساخته‌اید همین شناسه را دارد؛ اول آن را حذف کنید یا شناسهٔ دیگری بگیرید.")
 		return
 	}
 	var data any
@@ -631,4 +640,132 @@ func wfRemind(ctx context.Context) {
 		_ = added
 		wfNotify(ctx, i.ID, []workflow.Effect{{Users: who, Title: i.PackageName + " — مهلت گذشت", Body: i.Title + " — مرحلهٔ «" + name + "» هنوز تمام نشده است"}}, "")
 	}
+}
+
+// ---------- built inside Hoormand ----------
+
+// The administrator of a company can build a workflow in the app (no signature: it is «ساختهٔ مدیر سامانه»); we can build and sign one on our own server,
+// which is the only place that holds the signing key (environment WORKFLOW_SIGNING_KEY). A customer's server has no key, so it can never sign.
+func wfSigningKey() ed25519.PrivateKey {
+	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(os.Getenv("WORKFLOW_SIGNING_KEY")))
+	if err != nil || len(raw) != ed25519.PrivateKeySize {
+		return nil
+	}
+	return ed25519.PrivateKey(raw)
+}
+
+// GET /api/workflow/studio: what the builder may do here.
+func wfStudioInfo(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, jsonx.M{"canSign": wfSigningKey() != nil})
+}
+
+// POST /api/workflow/check {package}: is it complete and right? (the builder asks while the person works)
+func wfCheck(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	raw, _ := json.Marshal(body["package"])
+	p, err := workflow.Parse(raw)
+	if err != nil {
+		httpx.JSON(w, http.StatusOK, jsonx.M{"ok": false, "error": err.Error()})
+		return
+	}
+	httpx.JSON(w, http.StatusOK, jsonx.M{"ok": true, "steps": len(p.Steps)})
+}
+
+// POST /api/workflow/local {package, enable}: saves a workflow built here. Every save is a new version (the requests running on the old one finish on it).
+func wfLocalSave(w http.ResponseWriter, r *http.Request) {
+	me := auth.Current(r)
+	if !me.IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	pkg, _ := body["package"].(map[string]any)
+	if pkg == nil {
+		httpx.Error(w, http.StatusBadRequest, "گردشکار خالی است.")
+		return
+	}
+	delete(pkg, "signature")
+	id, _ := pkg["id"].(string)
+	var signedHere int
+	_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM wf_packages WHERE id = $1 AND source = 'signed'`, id).Scan(&signedHere)
+	if signedHere > 0 {
+		httpx.Error(w, http.StatusConflict, "این شناسه برای یک گردشکار امضاشدهٔ هورمند است و عوض نمی‌شود؛ شناسهٔ دیگری بگذارید.")
+		return
+	}
+	var last int
+	var wasOn bool
+	_ = store.Pool.QueryRow(r.Context(), `SELECT COALESCE(max(version), 0) FROM wf_packages WHERE id = $1`, id).Scan(&last)
+	_ = store.Pool.QueryRow(r.Context(), `SELECT COALESCE(bool_or(enabled), false) FROM wf_packages WHERE id = $1`, id).Scan(&wasOn)
+	pkg["version"] = last + 1
+	raw, _ := json.Marshal(pkg)
+	p, err := workflow.Parse(raw)
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	on := wasOn || jsonx.Bool(body, "enable")
+	tx, err := store.Pool.Begin(r.Context())
+	if err != nil {
+		internalError(w)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	if on {
+		_, _ = tx.Exec(r.Context(), `UPDATE wf_packages SET enabled = false WHERE id = $1`, p.ID)
+	}
+	if _, err := tx.Exec(r.Context(), `INSERT INTO wf_packages (id, version, name, data, enabled, key_id, uploaded_by, source) VALUES ($1, $2, $3, $4, $5, '', $6, 'local')`,
+		p.ID, p.Version, p.Name, pkg, on, me.Name()); err != nil {
+		internalError(w)
+		return
+	}
+	// the older versions nobody is using any more go away, so the list does not fill up
+	_, _ = tx.Exec(r.Context(), `DELETE FROM wf_packages p WHERE p.id = $1 AND p.version < $2 AND p.source = 'local'
+		AND NOT EXISTS (SELECT 1 FROM wf_instances i WHERE i.package_id = p.id AND i.package_version = p.version AND i.status = 'running')`, p.ID, p.Version)
+	if tx.Commit(r.Context()) != nil {
+		internalError(w)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, jsonx.M{"ok": true, "id": p.ID, "version": p.Version, "enabled": on})
+}
+
+// POST /api/workflow/sign {package}: only on our own server (the one with the key). Returns the signed file's text.
+func wfSign(w http.ResponseWriter, r *http.Request) {
+	if !auth.Current(r).IsAdmin() {
+		httpx.Forbidden(w)
+		return
+	}
+	key := wfSigningKey()
+	if key == nil {
+		httpx.Error(w, http.StatusForbidden, "امضا فقط روی سرور هورمند ممکن است. برای دریافت فایل امضاشده با ما تماس بگیرید.")
+		return
+	}
+	body, ok := httpx.ReadBody(w, r)
+	if !ok {
+		return
+	}
+	raw, _ := json.Marshal(body["package"])
+	if _, err := workflow.Parse(raw); err != nil {
+		httpx.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	signed, err := workflow.Sign(raw, "hoormand-1", key)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, jsonx.M{"ok": true, "file": string(signed)})
 }
