@@ -225,7 +225,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ staffList, onLogin, onAdmi
           </button>
         </div>
       </div>
-      <CompanyFooter tone="dark" className="!mt-4 !pt-0" />
+      <CompanyFooter tone="dark" floating />
     </LoginBackdrop>
   );
 };
