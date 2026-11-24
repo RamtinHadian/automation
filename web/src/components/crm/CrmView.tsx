@@ -604,34 +604,27 @@ export const CrmView: React.FC = () => {
     const open = openValueOf(c.id);
     const last = lastActivity.get(c.id);
     return (
-      <div key={c.id} onClick={() => setOpenCustomer(c.id)} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 space-y-2 hover:shadow-md transition-all cursor-pointer text-right">
+      <div key={c.id} onClick={() => setOpenCustomer(c.id)} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 flex flex-col gap-1.5 h-full hover:shadow-md transition-all cursor-pointer text-right" data-customer-card>
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="font-black text-[13px] text-[#3A241F] leading-snug [overflow-wrap:anywhere] line-clamp-3" title={c.name}>{c.name}</div>
-            <span className={`inline-block text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}
-            <div className="mt-0.5"><FinanceChip customerId={c.id} small /></div>
-            {c.company && c.company !== c.name && (
-              <div className="text-[11px] text-[#8C6F66] flex items-start gap-1 [overflow-wrap:anywhere]">
-                <Building2 className="w-3 h-3 shrink-0" />
-                {c.company}
-              </div>
-            )}
-            {c.kind === 'SHOP' && (c.firstName || c.lastName) && (
-              <div className="text-[12px] font-black text-[#3A241F] flex items-center gap-1 truncate" data-shop-owner>
-                <Users className="w-3 h-3 shrink-0 text-[#8C6F66]" />
-                مالک: {`${c.firstName || ''} ${c.lastName || ''}`.trim()}
-              </div>
-            )}
-            {c.kind === 'SHOP' && c.shopType && (
-              <div className="text-[11px] text-[#8C6F66] flex items-center gap-1 truncate" data-shop-type>
-                <Store className="w-3 h-3 shrink-0" />
-                {c.shopType}
-              </div>
-            )}
+          <div className="min-w-0 flex-1">
+            <div className="font-black text-[13px] text-[#3A241F] leading-snug [overflow-wrap:anywhere] line-clamp-2 min-h-[2.75em]" title={c.name}>{c.name}</div>
+            <div className="flex items-center gap-1 h-[22px] overflow-hidden" data-customer-chips>
+              <span className={`inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}
+              <FinanceChip customerId={c.id} small />
+            </div>
+            {/* one line: the company, or for a shop its type and owner */}
+            <div className="h-4 text-[11px] text-[#8C6F66] flex items-center gap-1 min-w-0" data-customer-company title={[c.company, c.shopType, c.kind === 'SHOP' ? `${c.firstName || ''} ${c.lastName || ''}`.trim() : ''].filter(Boolean).join(' · ')}>
+              {(c.company && c.company !== c.name) || c.kind === 'SHOP' ? (
+                <>
+                  {c.kind === 'SHOP' ? <Store className="w-3 h-3 shrink-0" /> : <Building2 className="w-3 h-3 shrink-0" />}
+                  <span className="truncate">{[c.company && c.company !== c.name ? c.company : '', c.kind === 'SHOP' ? c.shopType : '', c.kind === 'SHOP' && (c.firstName || c.lastName) ? `مالک: ${`${c.firstName || ''} ${c.lastName || ''}`.trim()}` : ''].filter(Boolean).join(' · ')}</span>
+                </>
+              ) : null}
+            </div>
           </div>
           <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
         </div>
-        <div className="flex items-center justify-between gap-2 text-[11px] text-[#8C6F66]">
+        <div className="flex items-center justify-between gap-2 text-[11px] text-[#8C6F66] h-7" data-customer-phone>
           <span className="truncate" dir="ltr">
             {c.hiddenContact ? 'شماره مخفی' : c.phones[0] ? toPersianDigits(c.phones[0]) : '—'}
           </span>
@@ -664,13 +657,14 @@ export const CrmView: React.FC = () => {
             </button>
           )}
         </div>
-        <div className="flex items-center justify-between text-[10px] font-bold text-[#8C6F66]">
-          <span className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between gap-2 text-[10px] font-bold text-[#8C6F66] h-4" data-customer-owner>
+          <span className="flex items-center gap-1.5 truncate">
             {userById.get(c.ownerId)?.fullName || c.ownerName}
           </span>
           <span>{open > 0 ? `${toman(open)} ${unitName()} در جریان` : last ? `آخرین تعامل: ${formatTaskDate(last.slice(0, 10))}` : ''}</span>
         </div>
-        {c.createdAt && <div className="text-[10px] font-medium text-[#8C6F66]/80" data-customer-since>مشتری از {formatDateTime(c.createdAt)}</div>}
+        <div className="h-4 text-[10px] font-medium text-[#8C6F66]/80" data-customer-since>{c.createdAt ? `مشتری از ${formatDateTime(c.createdAt)}` : ''}</div>
+        <div className="mt-auto min-h-[28px] pt-1" data-customer-icons>
         {!c.hiddenContact && <CustomerSocialIcons customer={c} onPick={(net) => {
           if (net === 'website') {
             const list = c.social?.website?.accounts || [];
@@ -680,6 +674,7 @@ export const CrmView: React.FC = () => {
           }
           setSocialSend({ customer: c, network: net });
         }} />}
+        </div>
       </div>
     );
   };
