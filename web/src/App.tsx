@@ -13,6 +13,7 @@ const LeadPage = React.lazy(() => import('./pages/LeadPage').then((m) => ({ defa
 import { useCompanyName } from './lib/useCompanyName';
 import { NotificationPopups } from './components/common/NotificationPopups';
 import { DemoBanner } from './components/common/DemoBanner';
+import { DemoNotifyKey } from './components/common/DemoNotifyKey';
 import { DayNightToggle } from './components/common/DayNightToggle';
 import { ErrorPopups } from './components/common/ErrorPopups';
 import { LicenseGate } from './components/common/LicenseGate';
@@ -54,6 +55,7 @@ function AppRoutes() {
   return (
     <>
     <DemoBanner />
+    <DemoNotifyKey />
     <CalculatorHost />
     <FormConfigRuntime />
     {loggedInUser && <NotificationPopups />}

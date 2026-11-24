@@ -513,6 +513,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [popups, setPopups] = useState<AppNotification[]>([]);
   const dismissPopup = useCallback((id: string) => setPopups((prev) => prev.filter((p) => p.id !== id)), []);
   const recentAnnounced = useRef<{ key: string; at: number }[]>([]);
+  // The demo's «کلید دمو» (components/common/DemoNotifyKey.tsx) sends sample notifications through this event: they are announced exactly like a real one
+  // (sound, pop-up and the bell list, following the admin's settings) but nothing is stored on the server.
+  useEffect(() => {
+    const onDemo = (e: Event) => {
+      const n = (e as CustomEvent<AppNotification>).detail;
+      if (!n || !n.id) return;
+      setNotifications((prev) => [n, ...prev.filter((x) => x.id !== n.id)].slice(0, 100));
+      const rule = ruleFor(n);
+      playForNotification(n);
+      // the queue shows its LAST card first: a sample goes to the end so it is seen at once, not behind the waiting ones
+      if (rule.enabled && rule.popup) setPopups((prev) => [...prev.filter((x) => x.id !== n.id), n].slice(-12));
+    };
+    window.addEventListener('hoormand-demo-notify', onDemo);
+    return () => window.removeEventListener('hoormand-demo-notify', onDemo);
+  }, []);
   const notificationHandler = useRef<((n: AppNotification) => void) | null>(null);
   const setNotificationHandler = useCallback((fn: ((n: AppNotification) => void) | null) => {
     notificationHandler.current = fn;
