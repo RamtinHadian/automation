@@ -119,7 +119,7 @@ func state(w http.ResponseWriter, r *http.Request) {
 			if customers, err = store.RawList(ctx, `SELECT data FROM crm_customers ORDER BY (data->>'name')`); fail(err) {
 				return
 			}
-			if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals ORDER BY id`); fail(err) {
+			if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals WHERE `+notStandalone+` ORDER BY id`); fail(err) {
 				return
 			}
 			if activities, err = store.RawList(ctx, `SELECT data FROM crm_activities ORDER BY created_at DESC LIMIT 2000`); fail(err) {
@@ -142,7 +142,7 @@ func state(w http.ResponseWriter, r *http.Request) {
 					customers = append(customers, json.RawMessage(jsonx.Encode(redactContacts(jsonx.Decode(raw)))))
 				}
 			}
-			if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals WHERE `+crmMyDeals+` ORDER BY id`, id, managed); fail(err) {
+			if deals, err = store.RawList(ctx, `SELECT data FROM crm_deals WHERE `+notStandalone+` AND `+crmMyDeals+` ORDER BY id`, id, managed); fail(err) {
 				return
 			}
 			if activities, err = store.RawList(ctx, `SELECT data FROM crm_activities WHERE customer_id IN `+crmMyCustomerIDs+` OR owner_id = $1 OR owner_id = ANY($2::text[]) ORDER BY created_at DESC LIMIT 2000`, id, managed); fail(err) {
@@ -209,7 +209,7 @@ func statsData(w http.ResponseWriter, r *http.Request) {
 		"tasks":     `SELECT data FROM tasks ORDER BY created_at DESC`,
 		"reports":   `SELECT data FROM daily_reports ORDER BY report_date DESC LIMIT 1500`,
 		"customers": `SELECT data FROM crm_customers`,
-		"deals":     `SELECT data FROM crm_deals`,
+		"deals":     `SELECT data FROM crm_deals WHERE `+notStandalone,
 		"warranties": `SELECT data FROM warranties ORDER BY created_at DESC LIMIT 5000`,
 		"warrantyClaims": `SELECT data FROM warranty_claims ORDER BY created_at DESC LIMIT 5000`,
 		"supportSubs": `SELECT data FROM support_subs ORDER BY created_at DESC LIMIT 5000`,

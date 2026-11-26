@@ -68,6 +68,7 @@ export function invoiceAsDeal(deal: Deal): Deal {
     taxPercent: inv.taxPercent,
     terms: '',
     notes: inv.note || '',
+    proformaApproval: { status: 'APPROVED' } as Deal['proformaApproval'],
     proformaFields: { ...(inv.fields || {}), title: invoiceTitle(inv.kind) },
   };
 }

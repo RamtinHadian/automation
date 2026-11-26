@@ -79,11 +79,12 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 		httpx.Error(w, http.StatusForbidden, "صدور فاکتور به شما اجازه داده نشده است.")
 		return false, false
 	}
-	if jsonx.Str(doc, "proformaNumber") == "" || len(jsonx.Arr(doc, "items")) == 0 {
+	standalone := jsonx.Bool(doc, "standalone") // issued straight to the customer: there is no proforma to wait for
+	if !standalone && (jsonx.Str(doc, "proformaNumber") == "" || len(jsonx.Arr(doc, "items")) == 0) {
 		httpx.Error(w, http.StatusBadRequest, "فاکتور از روی پیش‌فاکتور ساخته می‌شود؛ اول پیش‌فاکتور بسازید.")
 		return false, false
 	}
-	if !proformaReadyForCustomer(r.Context(), doc) {
+	if !standalone && !proformaReadyForCustomer(r.Context(), doc) {
 		httpx.Error(w, http.StatusForbidden, "پیش‌فاکتور هنوز تأیید نشده است؛ بعد از تأیید می‌توان فاکتور صادر کرد.")
 		return false, false
 	}

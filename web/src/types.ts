@@ -314,6 +314,8 @@ export interface Deal {
   discountPercent?: number;
   taxPercent?: number;
   proformaNumber?: string;
+  /** an invoice issued straight to a customer (no proforma, not an opportunity of the pipeline) */
+  standalone?: boolean;
   /** Which company issues the proforma («main» = the organisation itself, else the id of a ProformaIssuer). */
   proformaIssuerId?: string;
   /** CEO approval of the proforma (kept by the server when the approval setting is on). */

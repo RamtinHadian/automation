@@ -240,6 +240,11 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	}
 	stage := jsonx.Str(doc, "stage")
 	enforceProformaAmount(doc)
+	if jsonx.Bool(before, "standalone") {
+		doc["standalone"] = true
+	} else {
+		delete(doc, "standalone")
+	}
 	invOK, invViaSepidar := enforceInvoice(w, r, me, before, doc)
 	if !invOK {
 		return

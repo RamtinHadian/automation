@@ -1,6 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Receipt, Search } from 'lucide-react';
 import { Deal } from '../../types';
+import { api } from '../../lib/api';
+import { useAppContext } from '../../context/AppContext';
+import { InvoiceBlock } from './InvoiceBlock';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, toDisplay, unitName } from '../../lib/money';
 import { formatTaskDate } from '../../lib/taskDates';
@@ -10,7 +13,9 @@ import { ProformaOnly } from './ProformaListView';
 type Kind = 'ALL' | 'OFFICIAL' | 'UNOFFICIAL' | 'CANCELLED';
 
 /** «فاکتورها»: the sales invoices issued from the proformas (official and unofficial), newest first; a row opens the invoice for printing. */
-const InvoiceList: React.FC<{ deals: Deal[]; canMoney: boolean; onOpenInvoice: (d: Deal) => void }> = ({ deals, canMoney, onOpenInvoice }) => {
+const InvoiceList: React.FC<{ deals: Deal[]; canMoney: boolean; onOpenInvoice: (d: Deal) => void; reloadStandalone: () => void }> = ({ deals, canMoney, onOpenInvoice, reloadStandalone }) => {
+  const { customers } = useAppContext();
+  const [open, setOpen] = useState<Deal | null>(null);
   const [kind, setKind] = useState<Kind>('ALL');
   const [q, setQ] = useState('');
   const all = useMemo(() => deals.filter((d) => hasInvoice(d)).sort((a, b) => (b.invoice?.issuedAt || '').localeCompare(a.invoice?.issuedAt || '')), [deals]);
@@ -41,8 +46,17 @@ const InvoiceList: React.FC<{ deals: Deal[]; canMoney: boolean; onOpenInvoice: (
         </div>
         <div className="relative w-full sm:w-56"><Search className="w-3.5 h-3.5 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" /><input className="w-full px-3 pr-8 py-1.5 bg-white border border-[#EBDBCE] rounded-xl text-[11px] font-bold" placeholder="شماره، مشتری یا صادرکننده" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       </div>
+      {open && (
+        <div className="fixed inset-0 z-[80] bg-black/40 flex items-center justify-center p-3" onClick={() => setOpen(null)} dir="rtl" data-standalone-card>
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="text-sm font-black text-[#3A241F]">{open.customerName}</div>
+            <InvoiceBlock deal={open} customer={customers.find((c) => c.id === open.customerId)} onChanged={() => { reloadStandalone(); setOpen(null); }} />
+            <button type="button" onClick={() => setOpen(null)} className="px-4 py-2 rounded-xl bg-white border border-[#EBDBCE] text-[#6E1B1B] text-xs font-black cursor-pointer">بستن</button>
+          </div>
+        </div>
+      )}
       {shown.length === 0 ? (
-        <div className="text-center text-[11px] font-bold text-gray-400 py-8 border border-dashed border-[#EBDBCE] rounded-2xl bg-white">فاکتوری پیدا نشد. فاکتور از روی پیش‌فاکتور تأییدشده، با دکمهٔ «تبدیل به فاکتور» در پروندهٔ فرصت صادر می‌شود.</div>
+        <div className="text-center text-[11px] font-bold text-gray-400 py-8 border border-dashed border-[#EBDBCE] rounded-2xl bg-white">فاکتوری پیدا نشد. فاکتور را با دکمهٔ «صدور فاکتور» (مستقل) یا با «تبدیل به فاکتور» در پروندهٔ فرصت صادر کنید.</div>
       ) : (
         <div className="border border-[#EBDBCE] rounded-2xl overflow-hidden">
           {shown.slice(0, 300).map((d, i) => {
@@ -50,12 +64,12 @@ const InvoiceList: React.FC<{ deals: Deal[]; canMoney: boolean; onOpenInvoice: (
             const cancelled = inv.status === 'cancelled';
             const pending = inv.status === 'pending';
             return (
-              <button key={d.id} type="button" onClick={() => (pending ? undefined : onOpenInvoice(d))} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-right cursor-pointer hover:brightness-95 transition" style={{ background: tone(i) }} data-invoice-row>
+              <button key={d.id} type="button" onClick={() => (d.standalone ? setOpen(d) : pending ? undefined : onOpenInvoice(d))} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-right cursor-pointer hover:brightness-95 transition" style={{ background: tone(i) }} data-invoice-row>
                 <Receipt className="w-3.5 h-3.5 text-[#8C6F66] shrink-0" />
                 <div className="flex-1 min-w-0 flex items-baseline gap-2">
                   <span className="font-black text-[11.5px] text-[#3A241F] truncate">{d.customerName}</span>
                   <span className="text-[10px] text-[#8C6F66] font-bold shrink-0" dir="ltr">{pending ? '—' : toPersianDigits(inv.number)}</span>
-                  <span className="hidden md:inline text-[10.5px] font-bold text-[#8C6F66] truncate">{invoiceTitle(inv.kind)}</span>
+                  <span className="hidden md:inline text-[10.5px] font-bold text-[#8C6F66] truncate">{invoiceTitle(inv.kind)}{d.standalone ? ' · مستقل' : ''}</span>
                 </div>
                 <span className="hidden sm:inline text-[10.5px] font-bold text-[#8C6F66] shrink-0">{inv.issuedByName}{inv.issuedAt ? ` · ${formatTaskDate(inv.issuedAt.slice(0, 10))}` : ''}</span>
                 {canMoney && <span className="text-[11px] font-black text-[#3A241F] shrink-0 w-32 text-left">{formatMoney(inv.amount ?? d.amount)} {unitName()}</span>}
@@ -72,14 +86,23 @@ const InvoiceList: React.FC<{ deals: Deal[]; canMoney: boolean; onOpenInvoice: (
 /** The proformas and the invoices made from them, one switch apart. */
 export const ProformaInvoiceTabs: React.FC<{ deals: Deal[]; canMoney: boolean; onOpen: (d: Deal) => void; onOpenInvoice: (d: Deal) => void }> = ({ deals, canMoney, onOpen, onOpenInvoice }) => {
   const [mode, setMode] = useState<'proforma' | 'invoice'>('proforma');
-  const n = deals.filter((d) => hasInvoice(d)).length;
+  const [standalone, setStandalone] = useState<Deal[]>([]);
+  const reload = useCallback(() => { api.standaloneInvoices().then(setStandalone).catch(() => setStandalone([])); }, []);
+  useEffect(() => {
+    reload();
+    window.addEventListener('hoormand-invoices-changed', reload);
+    const t = window.setInterval(reload, 15000);
+    return () => { window.removeEventListener('hoormand-invoices-changed', reload); window.clearInterval(t); };
+  }, [reload]);
+  const allInvoiced = useMemo(() => [...deals, ...standalone], [deals, standalone]);
+  const n = allInvoiced.filter((d) => hasInvoice(d)).length;
   const btn = (m: 'proforma' | 'invoice', label: string) => (
     <button type="button" onClick={() => setMode(m)} className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black border cursor-pointer ${mode === m ? 'bg-[#6E1B1B] text-white border-transparent' : 'bg-white text-[#6E1B1B] border-[#EBDBCE]'}`} data-list-mode={m}>{label}</button>
   );
   return (
     <div className="space-y-3">
       <div className="flex gap-2">{btn('proforma', 'پیش‌فاکتورها')}{btn('invoice', `فاکتورها (${toPersianDigits(n)})`)}</div>
-      {mode === 'proforma' ? <ProformaOnly deals={deals} canMoney={canMoney} onOpen={onOpen} /> : <InvoiceList deals={deals} canMoney={canMoney} onOpenInvoice={onOpenInvoice} />}
+      {mode === 'proforma' ? <ProformaOnly deals={deals} canMoney={canMoney} onOpen={onOpen} /> : <InvoiceList deals={allInvoiced} canMoney={canMoney} onOpenInvoice={onOpenInvoice} reloadStandalone={reload} />}
     </div>
   );
 };

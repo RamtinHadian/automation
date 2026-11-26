@@ -63,7 +63,7 @@ const SepidarSend: React.FC<{ deal: Deal }> = ({ deal }) => {
 };
 
 /** «فاکتور»: turns the approved proforma into Hoormand's own sales invoice (official or unofficial, as its issuing company is), prints it, and can cancel it. */
-export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ deal: shown, customer }) => {
+export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged?: () => void }> = ({ deal: shown, customer, onChanged }) => {
   const { settings, currentUser, deals, setDeals, showToast, reloadState } = useAppContext();
   // the window may hold an older copy of the opportunity: the invoice is always read from the live one
   const deal: Deal = { ...shown, invoice: deals.find((x) => x.id === shown.id)?.invoice ?? shown.invoice };
@@ -188,9 +188,15 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
                 const ok = await askConfirm(`${pending ? 'فاکتور در انتظار سپیدار' : 'فاکتور ' + toPersianDigits(inv.number)} باطل شود؟ شمارهٔ آن می‌ماند و دوباره استفاده نمی‌شود.${inv.sepidar ? ' توجه: این فاکتور قبلاً در سپیدار صادر شده و آنجا باطل نمی‌شود؛ باید در سپیدار هم دستی باطلش کنید.' : ''}`, { tone: 'danger', title: 'ابطال فاکتور', confirmText: 'بله، باطل شود' });
                 if (!ok) return;
                 const why = reason.trim();
-                setDeals((prev) => prev.map((x) => (x.id === deal.id && x.invoice ? { ...x, invoice: { ...x.invoice, status: 'cancelled', cancelReason: why, cancelledAt: new Date().toISOString(), cancelledByName: currentUser.fullName } } : x)));
-                showToast('فاکتور باطل شد.');
-                setCancelling(false);
+                try {
+                  await api.invoiceCancel(deal.id, why);
+                  showToast('فاکتور باطل شد.');
+                  setCancelling(false);
+                  reloadState();
+                  onChanged?.();
+                } catch (e) {
+                  showToast(e instanceof Error ? e.message : 'ابطال انجام نشد.');
+                }
               }}
               className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-rose-700 text-white disabled:opacity-50 cursor-pointer"
             >

@@ -12,7 +12,7 @@ import {
   CalendarDays,
   CheckCircle2,
   FileSpreadsheet,
-  FileText,
+  FileText, Receipt,
   Clock,
   LayoutGrid,
   ListChecks,
@@ -62,6 +62,7 @@ import { BulkSms } from './BulkSms';
 import { CustomerForm } from './CustomerForm';
 import { ProformaSection } from './ProformaSection';
 import { QuickProformaDialog } from './QuickProformaDialog';
+import { StandaloneInvoiceDialog } from './StandaloneInvoiceDialog';
 import { formatMoney, formatNumber, fromDisplay, unitName, unitShort } from '../../lib/money';
 import { callerNameOnly, isMobileNumber, normPhone, normText } from '../../lib/customerImport';
 import { remainingText, STATE_LABEL, warrantyState, codeText } from '../../lib/warranty';
@@ -204,6 +205,7 @@ export const CrmView: React.FC = () => {
   // an issued proforma opened from the list is seen as the invoice itself; the editing form opens from its «ویرایش» button
   const [viewProforma, setViewProforma] = useState<Deal | null>(null);
   const [quickProforma, setQuickProforma] = useState(false);
+  const [standaloneInvoice, setStandaloneInvoice] = useState(false);
   // a customer made from inside another window (new opportunity / proforma) is handed back to it when saved
   const [customerCb, setCustomerCb] = useState<((c: Customer) => void) | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -825,6 +827,14 @@ export const CrmView: React.FC = () => {
             <FileText className="w-4 h-4" />
             صدور پیش‌فاکتور
           </button>}
+          {canSub(currentUser, 'crm.invoice') && <button
+            onClick={() => setStandaloneInvoice(true)}
+            className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 text-xs font-black cursor-pointer"
+            data-standalone-invoice-open
+          >
+            <Receipt className="w-4 h-4" />
+            صدور فاکتور
+          </button>}
           <button
             onClick={() => setEditingCustomer(newCustomer())}
             className="order-first sm:order-none col-span-2 sm:col-span-1 flex items-center justify-center gap-2 px-5 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/25 transition-all active:scale-95 cursor-pointer"
@@ -1377,6 +1387,17 @@ export const CrmView: React.FC = () => {
             showToast(`${toPersianDigits(list.length + 1)} فرصت فروش برای این مشتری ثبت شد.`);
           }}
           onDelete={() => removeDeal(editingDeal.deal)}
+        />
+      )}
+
+      {standaloneInvoice && (
+        <StandaloneInvoiceDialog
+          onClose={() => setStandaloneInvoice(false)}
+          onIssued={() => {
+            setStandaloneInvoice(false);
+            setTab('proformalist');
+            window.dispatchEvent(new Event('hoormand-invoices-changed'));
+          }}
         />
       )}
 

@@ -74,6 +74,8 @@ export const SepidarView: React.FC = () => {
   const [showReport, setShowReport] = useState(false);
   const [pair, setPair] = useState<{ code: string; expiresAt: string } | null>(null);
   const [invFilter, setInvFilter] = useState<'all' | 'sepidar' | 'hoormand'>('all');
+  const [standalone, setStandalone] = useState<import('../../types').Deal[]>([]);
+  useEffect(() => { api.standaloneInvoices().then(setStandalone).catch(() => setStandalone([])); }, []);
   const [invSort, setInvSort] = useState<'dateDesc' | 'dateAsc' | 'numDesc' | 'numAsc' | 'amountDesc' | 'amountAsc'>('dateDesc');
   const { currentUser } = useAppContext();
   const isAdmin = currentUser.role === 'SUPER_ADMIN';
@@ -182,7 +184,7 @@ export const SepidarView: React.FC = () => {
     });
 
   // the invoices made in Hoormand that are not in Sepidar's list (not sent yet, or waiting for the number Sepidar gives)
-  const hoormandOnly = deals
+  const hoormandOnly = [...deals, ...standalone]
     .filter((d) => d.invoice && (d.invoice.status === 'issued' || d.invoice.status === 'pending') && !d.invoice.sepidar && !st.links.some((l) => l.kind === 'invoice' && l.ref === d.id))
     .filter((d) => matchesAll(d.invoice, q, d.customerName, d.title, d.invoice?.number || ''))
     .sort((a, b) => String(b.invoice?.issuedAt || '').localeCompare(String(a.invoice?.issuedAt || '')));
