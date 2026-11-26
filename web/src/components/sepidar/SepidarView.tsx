@@ -73,6 +73,7 @@ export const SepidarView: React.FC = () => {
   const [financeFor, setFinanceFor] = useState<{ id: string; name: string } | null>(null);
   const [showReport, setShowReport] = useState(false);
   const [pair, setPair] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [invFilter, setInvFilter] = useState<'all' | 'sepidar' | 'hoormand'>('all');
   const [invSort, setInvSort] = useState<'dateDesc' | 'dateAsc' | 'numDesc' | 'numAsc' | 'amountDesc' | 'amountAsc'>('dateDesc');
   const { currentUser } = useAppContext();
   const isAdmin = currentUser.role === 'SUPER_ADMIN';
@@ -179,6 +180,12 @@ export const SepidarView: React.FC = () => {
       const amount = (Number(a.NetPrice ?? a.Price) || 0) - (Number(b.NetPrice ?? b.Price) || 0);
       return { dateDesc: -date, dateAsc: date, numDesc: -num, numAsc: num, amountDesc: -amount, amountAsc: amount }[invSort];
     });
+
+  // the invoices made in Hoormand that are not in Sepidar's list (not sent yet, or waiting for the number Sepidar gives)
+  const hoormandOnly = deals
+    .filter((d) => d.invoice && (d.invoice.status === 'issued' || d.invoice.status === 'pending') && !d.invoice.sepidar && !st.links.some((l) => l.kind === 'invoice' && l.ref === d.id))
+    .filter((d) => matchesAll(d.invoice, q, d.customerName, d.title, d.invoice?.number || ''))
+    .sort((a, b) => String(b.invoice?.issuedAt || '').localeCompare(String(a.invoice?.issuedAt || '')));
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -393,8 +400,28 @@ export const SepidarView: React.FC = () => {
               <option value="amountAsc">مبلغ خالص (کمترین اول)</option>
             </select>
           </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-black" data-invoice-filter>
+            {([['all', 'همهٔ فاکتورها', invoiceRows.length + hoormandOnly.length], ['sepidar', 'در سپیدار', invoiceRows.length], ['hoormand', 'فقط در هورمند (هنوز در سپیدار نیست)', hoormandOnly.length]] as const).map(([k, t, n]) => (
+              <button key={k} type="button" onClick={() => setInvFilter(k)} className={`px-3 py-1.5 rounded-lg border cursor-pointer ${invFilter === k ? 'bg-[#6E1B1B] text-white border-transparent' : 'bg-white text-[#6E1B1B] border-[#EBDBCE]'}`}>{t} ({toPersianDigits(n)})</button>
+            ))}
+          </div>
           <List empty="فاکتوری دریافت نشده است. «بروزرسانی اطلاعات سپیدار» را بزنید.">
-            {invoiceRows.slice(0, 300).map((i: any) => {
+            {invFilter !== 'sepidar' && hoormandOnly.map((d) => (
+              <Card
+                key={'h-' + d.id}
+                icon={<FileCheck2 className="w-5 h-5" />}
+                tone="amber"
+                title={d.customerName}
+                sub={`${d.invoice?.kind === 'OFFICIAL' ? 'فاکتور رسمی' : 'فاکتور غیررسمی'} هورمند${d.invoice?.number ? ' ' + toPersianDigits(d.invoice.number) : ''}${d.invoice?.issuedAt ? ' · ' + formatTaskDate(d.invoice.issuedAt.slice(0, 10)) : ''}`}
+                badge={d.invoice?.status === 'pending' ? ['در انتظار شمارهٔ سپیدار', 'bg-amber-50 text-amber-800 border-amber-200'] : ['هنوز در سپیدار نیست', 'bg-rose-50 text-rose-700 border-rose-200']}
+                facts={[
+                  ['مبلغ', d.invoice?.amount != null ? fmt(d.invoice.amount) : '—'],
+                  ['فرصت', d.title || '—'],
+                  ['صادرکننده', d.invoice?.issuedByName || '—'],
+                ]}
+              />
+            ))}
+            {invFilter !== 'hoormand' && invoiceRows.slice(0, 300).map((i: any) => {
               const cname = invoiceCustomer(i) || 'مشتری سپیدار ' + toPersianDigits(i.CustomerRef);
               const hoormandCustomerId = [...st.links].find((l) => l.kind === 'customer' && l.sepidarId === i.CustomerRef)?.ref;
               const proforma = st.links.find((l) => l.kind === 'invoice' && l.sepidarId === (i.InvoiceID ?? i.ID));
@@ -411,7 +438,7 @@ export const SepidarView: React.FC = () => {
                     )
                   }
                   sub={`فاکتور فروش ${toPersianDigits(i.Number)}${i.Date ? ' · ' + formatTaskDate(String(i.Date).slice(0, 10)) : ''}`}
-                  badge={proforma ? ['از پیش‌فاکتور هورمند', 'bg-sky-50 text-sky-800 border-sky-200'] : null}
+                  badge={proforma ? [(() => { const hd = deals.find((x) => x.id === proforma.ref); return hd?.invoice?.number ? 'فاکتور هورمند ' + toPersianDigits(hd.invoice.number) : 'از پیش‌فاکتور هورمند'; })(), 'bg-sky-50 text-sky-800 border-sky-200'] : null}
                   facts={[
                     ['مبلغ', i.Price != null ? fmt(i.Price) : '—'],
                     ['تخفیف', i.Discount ? fmt(i.Discount) : '—'],
