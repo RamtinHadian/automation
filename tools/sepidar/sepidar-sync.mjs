@@ -96,7 +96,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.75.4';
+export const TOOL_VERSION = '1.79.2';
 
 async function hoormand(cfg, p) {
   const res = await netFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } }, 'هورمند');
@@ -521,6 +521,40 @@ async function discoverEndpoints(sp, pattern = /stock|inventor|item|ware|balance
   log(found.size ? `  آدرس‌های مربوط به کالا و انبار در سرویس: ${[...found].slice(0, 40).join(' | ')}` : '  فهرست آدرس‌های سرویس پیدا نشد (صفحهٔ راهنمای سرویس باز نشد).');
 }
 
+/** Lists the addresses of Sepidar's own service that match a word (default: invoice, quotation, receipt) with their methods, and saves the whole list in a file. */
+async function cmdEndpoints(cfg, word) {
+  const sp = client(cfg, loadState());
+  const pattern = new RegExp(word || 'invoice|quotation|receipt|order', 'i');
+  let all = [];
+  for (const doc of ['/swagger/docs/v1', '/swagger/v1/swagger.json', '/help', '/api/help', '/api', '/']) {
+    try {
+      const data = await sp.raw('GET', doc);
+      if (data && typeof data === 'object' && data.paths) {
+        all = Object.entries(data.paths).map(([p, v]) => `${Object.keys(v).map((m) => m.toUpperCase()).join('/')} ${p}`);
+      } else {
+        const text = typeof data === 'string' ? data : JSON.stringify(data);
+        all = [...new Set([...text.matchAll(/\/api\/[A-Za-z0-9_\/{}.-]+/g)].map((m) => m[0]))].map((p) => `? ${p}`);
+      }
+      if (all.length) {
+        log(`فهرست آدرس‌های سرویس سپیدار از ${doc}: ${all.length} آدرس`);
+        break;
+      }
+    } catch {
+      /* the next page */
+    }
+  }
+  if (!all.length) return log('فهرست آدرس‌های سرویس پیدا نشد (این سپیدار صفحهٔ راهنما نمی‌دهد). از شرکت سپیدار سیستم مستندات وب‌سرویس را بخواهید.');
+  try {
+    fs.writeFileSync(path.join(dir, 'sepidar-endpoints.txt'), all.sort().join('\n'), 'utf8');
+  } catch {
+    /* the file is a convenience */
+  }
+  const hit = all.filter((x) => pattern.test(x)).sort();
+  log(hit.length ? `آدرس‌های «${word || 'invoice|quotation|receipt|order'}»:\n  ${hit.join('\n  ')}` : 'آدرسی با این کلمه نبود.');
+  const direct = all.some((x) => /^POST\b.*\/api\/invoices\/?$/i.test(x));
+  log(direct ? '→ نتیجه: این سپیدار «ساخت مستقیم فاکتور» (POST /api/Invoices) دارد.' : '→ نتیجه: «ساخت مستقیم فاکتور» پیدا نشد؛ فاکتور فقط از روی پیش‌فاکتور ساخته می‌شود (راه فعلی هورمند همین است).');
+}
+
 async function cmdStock(cfg) {
   const state = loadState();
   const sp = client(cfg, state);
@@ -823,7 +857,27 @@ async function sepidarCustomerRef(cfg, sp, state, c) {
 }
 
 /** Each handler returns { sepidarId, number, message, data } or throws an Error whose text is shown to the person who asked. */
-export const jobHandlers = {
+export /** Puts a deal's lines in Sepidar as a quotation (the deal's customer is put there first when needed). Returns Sepidar's answer. */
+async function sendQuotation(cfg, sp, state, deal) {
+  const c = await hoormandGetOne(cfg, '/customers/' + encodeURIComponent(deal.customerId));
+  let customerRef;
+  try {
+    customerRef = await sepidarCustomerRef(cfg, sp, state, c);
+  } catch (e) {
+    // a quotation needs its customer in Sepidar: say that first, then why the customer could not be put there
+    throw new Error(`پیش‌فاکتور فرستاده نشد، چون مشتری «${c.name || c.company || ''}» هنوز در سپیدار نیست و ثبت او هم نشد: ${e.message}`);
+  }
+  const items = await sp.get('/api/Items');
+  const itemsByCode = new Map(items.filter((i) => i.IsActive !== false && i.IsSellable !== false).map((i) => [String(i.Code).trim(), i]));
+  const q = quotationBody(deal, customerRef, itemsByCode, cfg.sync);
+  if (q.skip) throw new Error(q.skip);
+  const r = await sp.post('/api/Quotations', q.body);
+  state.quotations ||= {};
+  state.quotations[deal.id] = r.ID;
+  return r;
+}
+
+const jobHandlers = {
   async 'customer.send'(cfg, sp, state, job) {
     const c = await hoormandGetOne(cfg, '/customers/' + encodeURIComponent(job.data.customerId));
     const divs = await loadDivisions(sp);
@@ -952,22 +1006,32 @@ export const jobHandlers = {
 
   async 'quotation.send'(cfg, sp, state, job) {
     const deal = await hoormandGetOne(cfg, '/deals/' + encodeURIComponent(job.data.dealId));
-    const c = await hoormandGetOne(cfg, '/customers/' + encodeURIComponent(deal.customerId));
-    let customerRef;
-    try {
-      customerRef = await sepidarCustomerRef(cfg, sp, state, c);
-    } catch (e) {
-      // a quotation needs its customer in Sepidar: say that first, then why the customer could not be put there
-      throw new Error(`پیش‌فاکتور فرستاده نشد، چون مشتری «${c.name || c.company || ''}» هنوز در سپیدار نیست و ثبت او هم نشد: ${e.message}`);
-    }
-    const items = await sp.get('/api/Items');
-    const itemsByCode = new Map(items.filter((i) => i.IsActive !== false && i.IsSellable !== false).map((i) => [String(i.Code).trim(), i]));
-    const q = quotationBody(deal, customerRef, itemsByCode, cfg.sync);
-    if (q.skip) throw new Error(q.skip);
-    const r = await sp.post('/api/Quotations', q.body);
-    state.quotations ||= {};
-    state.quotations[deal.id] = r.ID;
+    const r = await sendQuotation(cfg, sp, state, deal);
     return { sepidarId: r.ID, number: r.Number, message: `پیش‌فاکتور با شمارهٔ ${r.Number} در سپیدار ثبت شد.` };
+  },
+
+  /** The invoice made in Hoormand goes to Sepidar: its lines are put in Sepidar as a quotation (when the deal has none there yet) and Sepidar issues the invoice from it. */
+  async 'invoice.fromHoormand'(cfg, sp, state, job) {
+    const deal = await hoormandGetOne(cfg, '/deals/' + encodeURIComponent(job.data.dealId));
+    const inv = deal.invoice;
+    if (!inv || !inv.number) throw new Error('برای این فرصت در هورمند فاکتوری صادر نشده است.');
+    if (inv.status === 'cancelled') throw new Error('فاکتور هورمند باطل شده است و به سپیدار نمی‌رود.');
+    let quotationId = job.data.sepidarId ? Number(job.data.sepidarId) : (state.quotations || {})[deal.id];
+    let made = null;
+    let note = '';
+    if (!quotationId) {
+      // the lines of the INVOICE (frozen when it was issued), not what the proforma looks like now
+      const snap = { ...deal, items: inv.items, discountPercent: inv.discountPercent, taxPercent: inv.taxPercent, proformaNumber: inv.number, proformaAt: String(inv.issuedAt || '').slice(0, 10) || deal.proformaAt };
+      made = await sendQuotation(cfg, sp, state, snap);
+      quotationId = made.ID;
+    } else {
+      note = ' (پیش‌فاکتورِ این فرصت از قبل در سپیدار بود و فاکتور از روی همان صادر شد؛ اگر ردیف‌هایش با فاکتور هورمند فرق دارد در سپیدار بررسی کنید.)';
+    }
+    const r = await sp.post('/api/Invoices/BasedOnQuotation/', Number(quotationId));
+    return {
+      sepidarId: r.InvoiceID, number: r.Number, quotationId: Number(quotationId), quotationNumber: made ? made.Number : undefined,
+      message: `فاکتور ${inv.number} هورمند در سپیدار با شمارهٔ ${r.Number} صادر شد${note}`,
+    };
   },
 
   async 'quotation.close'(cfg, sp, state, job) {
@@ -1442,6 +1506,7 @@ async function main() {
   if (cmd === 'diag') return cmdDiag(cfg);
   if (cmd === 'sync') return cmdSync(cfg);
   if (cmd === 'stock') return cmdStock(cfg);
+  if (cmd === 'endpoints') return cmdEndpoints(cfg, args[1]);
   if (cmd === 'jobs') return log(`${await cmdJobs(cfg)} درخواست انجام شد.`);
   if (cmd === 'cache') return cmdCache(cfg);
   if (cmd === 'watch') {

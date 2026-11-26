@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Printer, Receipt } from 'lucide-react';
 import { Customer, Deal } from '../../types';
+import { api } from '../../lib/api';
+import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { formatTaskDate } from '../../lib/taskDates';
@@ -9,6 +11,55 @@ import { issuerOf } from '../../lib/proformaIssuer';
 import { downloadBlob, renderProformaJpeg } from '../../lib/proformaFile';
 import { askConfirm } from '../../lib/confirmDialog';
 import { canIssueInvoice, draftInvoice, hasInvoice, invoiceBlocker, invoiceRenderInput, invoiceTitle, openInvoicePdf } from '../../lib/invoice';
+
+/** The invoice made in Hoormand → Sepidar: a button when Sepidar is connected and the person may issue invoices there, and what happened to the last try. */
+const SepidarSend: React.FC<{ deal: Deal }> = ({ deal }) => {
+  const connected = useSepidarConnected();
+  const { showToast } = useAppContext();
+  const [st, setSt] = useState<{ perms: string[]; links: { kind: string; ref: string; number?: number }[]; jobs: { id: string; kind: string; status: string; data: Record<string, unknown>; result?: { message?: string }; createdAt?: string }[] } | null>(null);
+  const inv = deal.invoice;
+  const load = React.useCallback(() => { api.sepidar().then((r) => setSt(r as never)).catch(() => setSt(null)); }, []);
+  useEffect(() => {
+    if (!connected) return undefined;
+    load();
+    const t = window.setInterval(load, 8000); // the answer of the accounting computer arrives by itself
+    return () => window.clearInterval(t);
+  }, [connected, load]);
+  if (!connected || !st || !inv || inv.status === 'cancelled') return null;
+  const mine = st.jobs.filter((j) => j.kind === 'invoice.fromHoormand' && j.data.dealId === deal.id).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  const waiting = mine.some((j) => j.status === 'pending' || j.status === 'running');
+  const failed = !waiting && mine[0]?.status === 'failed' ? mine[0] : undefined;
+  const link = st.links.find((l) => l.kind === 'invoice' && l.ref === deal.id);
+  const can = st.perms.includes('invoice');
+  const send = async () => {
+    const ok = await askConfirm(`فاکتور ${toPersianDigits(inv.number)} به سپیدار فرستاده شود؟ ردیف‌های همین فاکتور در سپیدار پیش‌فاکتور می‌شوند (اگر از قبل نباشد) و سپیدار فاکتور خودش را با شمارهٔ خودش صادر می‌کند. بعد از آن دوباره فرستاده نمی‌شود.`, { tone: 'info', title: 'ارسال فاکتور به سپیدار', confirmText: 'بله، فرستاده شود' });
+    if (!ok) return;
+    try {
+      await api.sepidarJob({ kind: 'invoice.fromHoormand', dealId: deal.id });
+      showToast('فاکتور برای سپیدار در صف قرار گرفت.');
+      load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'ارسال نشد.');
+    }
+  };
+  return (
+    <div className="rounded-xl border border-sky-200 bg-sky-50/50 px-3 py-2.5 space-y-1.5" data-invoice-sepidar>
+      <div className="flex flex-wrap items-center gap-2 text-[11px] font-black text-sky-900">
+        <span>سپیدار:</span>
+        {inv.sepidar || link ? (
+          <span className="text-emerald-700" data-invoice-sepidar-done>صادر شد · شمارهٔ فاکتور سپیدار {toPersianDigits(String(inv.sepidar?.number ?? link?.number ?? '—'))}</span>
+        ) : waiting ? (
+          <span className="text-amber-700">در صف سپیدار است… (برنامهٔ حسابداری آن را برمی‌دارد)</span>
+        ) : can ? (
+          <button type="button" onClick={() => void send()} className="px-3 py-1 rounded-lg bg-sky-700 text-white text-[11px] font-black cursor-pointer" data-invoice-sepidar-send>ارسال به سپیدار</button>
+        ) : (
+          <span className="font-bold text-[#8C6F66]">برای فرستادن، اجازهٔ «صدور فاکتور» در بخش سپیدار لازم است.</span>
+        )}
+      </div>
+      {failed && <div className="text-[11px] font-bold leading-6 text-rose-800" data-invoice-sepidar-failed>ارسال به سپیدار انجام نشد: {failed.result?.message || 'دلیلش نوشته نشده است.'}</div>}
+    </div>
+  );
+};
 
 /** «فاکتور»: turns the approved proforma into Hoormand's own sales invoice (official or unofficial, as its issuing company is), prints it, and can cancel it. */
 export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ deal: shown, customer }) => {
@@ -80,6 +131,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
         <div><div className={small}>از پیش‌فاکتور</div><b>{toPersianDigits(inv.proformaNumber || '—')}</b></div>
         <div><div className={small}>مبلغ</div><b>{payable ? `${formatMoney(payable)} ${unitName()}` : '—'}</b></div>
       </div>
+      <SepidarSend deal={deal} />
       {cancelled && <p className="text-[11px] font-bold text-rose-800 leading-6">ابطال: {inv.cancelReason}{inv.cancelledByName ? ` (${inv.cancelledByName})` : ''}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => openInvoicePdf(deal, customer, settings, currentUser.fullName)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-black bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-50 cursor-pointer" data-invoice-print>
@@ -119,7 +171,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
               type="button"
               disabled={!reason.trim()}
               onClick={async () => {
-                const ok = await askConfirm(`فاکتور ${toPersianDigits(inv.number)} باطل شود؟ شمارهٔ آن می‌ماند و دوباره استفاده نمی‌شود.`, { tone: 'danger', title: 'ابطال فاکتور', confirmText: 'بله، باطل شود' });
+                const ok = await askConfirm(`فاکتور ${toPersianDigits(inv.number)} باطل شود؟ شمارهٔ آن می‌ماند و دوباره استفاده نمی‌شود.${inv.sepidar ? ' توجه: این فاکتور قبلاً در سپیدار صادر شده و آنجا باطل نمی‌شود؛ باید در سپیدار هم دستی باطلش کنید.' : ''}`, { tone: 'danger', title: 'ابطال فاکتور', confirmText: 'بله، باطل شود' });
                 if (!ok) return;
                 const why = reason.trim();
                 setDeals((prev) => prev.map((x) => (x.id === deal.id && x.invoice ? { ...x, invoice: { ...x.invoice, status: 'cancelled', cancelReason: why, cancelledAt: new Date().toISOString(), cancelledByName: currentUser.fullName } } : x)));

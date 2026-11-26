@@ -410,6 +410,20 @@ ok(hoormandResults['sj-3']?.ok === true && hoormandResults['sj-3'].sepidarId ===
 hoormandJobs.push({ id: 'sj-4', kind: 'quotation.close', data: { dealId: 'd-1', sepidarId: 900 } }, { id: 'sj-5', kind: 'invoice.fromProforma', data: { dealId: 'd-1', sepidarId: 900 } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice from 900') && hoormandResults['sj-5'].number === 31 && hoormandResults['sj-5'].sepidarId === 700, 'close and invoice-from-quotation (the body is the plain quotation number)');
+// the invoice made in Hoormand goes to Sepidar: a quotation is made from the lines of the INVOICE (frozen when it was issued), then Sepidar issues the invoice from it
+{
+  const base = deals[0];
+  deals.push({ ...base, id: 'd-71', proformaNumber: 'PF-X', invoice: { number: 'FA-1405-0001', kind: 'OFFICIAL', status: 'issued', issuedAt: '2026-10-20T08:00:00.000Z', items: base.items.map((i) => ({ ...i, qty: 3 })), discountPercent: 0, taxPercent: 0 } });
+  deals.push({ ...base, id: 'd-72', invoice: { number: 'NF-1405-0001', kind: 'UNOFFICIAL', status: 'cancelled', items: base.items } });
+  const before = sp.quotations.length;
+  hoormandJobs.push({ id: 'sj-5b', kind: 'invoice.fromHoormand', data: { dealId: 'd-71' } }, { id: 'sj-5c', kind: 'invoice.fromHoormand', data: { dealId: 'd-72' } });
+  r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+  const res = hoormandResults['sj-5b'];
+  const made = sp.quotations[sp.quotations.length - 1];
+  ok(res?.ok === true && sp.quotations.length === before + 1 && made.Items[0].Quantity === 3, 'invoice.fromHoormand makes the quotation from the invoice lines (not from the proforma)' + String.fromCharCode(0));
+  ok(res.sepidarId === 700 && res.number === 31 && res.quotationId === made.ID && /FA-1405-0001/.test(res.message || ''), 'invoice.fromHoormand reports the Sepidar invoice number, the quotation it made and the Hoormand number');
+  ok(hoormandResults['sj-5c']?.ok === false && /باطل/.test(hoormandResults['sj-5c']?.message || ''), 'a cancelled Hoormand invoice is not sent to Sepidar');
+}
 hoormandJobs.push({ id: 'sj-6', kind: 'receipt.add', data: { dealId: 'd-1', sepidarId: 700, bankAccountId: '9', amount: 250, date: '2026-10-10', description: 'بیعانه' } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(hoormandResults['sj-6']?.ok === true && sp.receipt.InvoiceID === 700 && sp.receipt.Drafts[0].BankAccountID === 9 && sp.receipt.Drafts[0].Amount === 2500 && sp.receipt.Guid === guidFrom('receipt:sj-6'), 'receipt.add posts the draft against the invoice with a stable GUID (amount times the unit multiplier)');

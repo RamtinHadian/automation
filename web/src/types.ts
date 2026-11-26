@@ -441,6 +441,8 @@ export interface DealInvoice {
   cancelledAt?: string;
   cancelledByName?: string;
   cancelReason?: string;
+  /** where the invoice went in Sepidar (written by the server when the accounting program reports it; the invoice itself never changes) */
+  sepidar?: { id: number; number?: number; at?: string };
 }
 
 /** How proforma invoices look; designed by an admin with drag and drop. */

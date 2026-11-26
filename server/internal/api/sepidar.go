@@ -65,6 +65,7 @@ var sepidarJobs = map[string]struct{ Perm, Title string }{
 	"quotation.unclose":    {"quotationClose", "بازکردن پیش‌فاکتور"},
 	"quotation.delete":     {"quotationDelete", "حذف پیش‌فاکتور"},
 	"invoice.fromProforma": {"invoice", "صدور فاکتور"},
+	"invoice.fromHoormand": {"invoice", "ارسال فاکتور هورمند به سپیدار"},
 	"receipt.add":          {"receipt", "ثبت دریافتی"},
 	"refresh":              {"refresh", "بروزرسانی اطلاعات سپیدار"},
 }
@@ -377,7 +378,7 @@ func sepidarJobCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data["customerId"] = ref
-	case "quotation.send", "quotation.close", "quotation.unclose", "quotation.delete", "invoice.fromProforma", "receipt.add":
+	case "quotation.send", "quotation.close", "quotation.unclose", "quotation.delete", "invoice.fromProforma", "invoice.fromHoormand", "receipt.add":
 		ref = strings.TrimSpace(jsonx.Str(body, "dealId"))
 		var raw []byte
 		if store.Pool.QueryRow(ctx, `SELECT data FROM crm_deals WHERE id = $1`, ref).Scan(&raw) != nil {
@@ -414,6 +415,22 @@ func sepidarJobCreate(w http.ResponseWriter, r *http.Request) {
 				bad("فاکتور این پیش‌فاکتور قبلاً صادر شده است.")
 				return
 			}
+		case "invoice.fromHoormand":
+			// the invoice made in Hoormand (official or unofficial) goes to Sepidar: its lines make a quotation there (when none exists yet) and Sepidar issues the invoice from it
+			inv := jsonx.Sub(d, "invoice")
+			if jsonx.Str(inv, "number") == "" || jsonx.Str(inv, "status") == "cancelled" {
+				bad("برای این فرصت فاکتور صادرشدهٔ هورمند وجود ندارد (یا باطل شده است).")
+				return
+			}
+			if hasLink("invoice", ref) {
+				bad("فاکتور این فرصت قبلاً در سپیدار صادر شده است.")
+				return
+			}
+			if !hasLink("quotation", ref) && !sepidarCan(me, "quotationSend") {
+				bad("برای فرستادن فاکتور باید پیش‌فاکتور هم در سپیدار ثبت شود و اجازهٔ «ارسال پیش‌فاکتور به سپیدار» برای شما باز نشده است.")
+				return
+			}
+			data["invoiceNumber"] = jsonx.Str(inv, "number")
 		case "receipt.add":
 			if !hasLink("invoice", ref) {
 				bad("اول فاکتور باید صادر شود.")
@@ -452,7 +469,7 @@ func sepidarJobCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	switch kind {
-	case "quotation.close", "quotation.unclose", "quotation.delete", "invoice.fromProforma":
+	case "quotation.close", "quotation.unclose", "quotation.delete", "invoice.fromProforma", "invoice.fromHoormand":
 		linkOf("quotation", jsonx.Str(data, "dealId"))
 	case "receipt.add":
 		linkOf("invoice", jsonx.Str(data, "dealId"))
@@ -620,6 +637,24 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 		case "invoice.fromProforma":
 			if hasID {
 				save("invoice", jsonx.Str(d, "dealId"))
+			}
+		case "invoice.fromHoormand":
+			if hasID {
+				deal := jsonx.Str(d, "dealId")
+				save("invoice", deal)
+				// when the quotation was made by this very job, it is remembered too (so it can be closed or deleted from Hoormand later)
+				if qid, ok := whNum(body, "quotationId"); ok && qid > 0 {
+					qn, hasQ := whNum(body, "quotationNumber")
+					var qnum any
+					if hasQ {
+						qnum = int64(qn)
+					}
+					_, _ = store.Pool.Exec(ctx, `INSERT INTO sepidar_links (kind, ref, sepidar_id, number, data) VALUES ('quotation', $1, $2, $3, '{}'::jsonb)
+						ON CONFLICT (kind, ref) DO NOTHING`, deal, int64(qid), qnum)
+				}
+				// the Hoormand invoice remembers where it went (the invoice itself never changes; only this note is added)
+				_, _ = store.Pool.Exec(ctx, `UPDATE crm_deals SET data = jsonb_set(data, '{invoice,sepidar}', $2::jsonb) WHERE id = $1 AND data->'invoice' IS NOT NULL`,
+					deal, jsonx.Encode(jsonx.M{"id": int64(sid), "number": number, "at": now()}))
 			}
 		case "receipt.add":
 			if hasID {
