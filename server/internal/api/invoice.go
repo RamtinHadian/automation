@@ -1,8 +1,11 @@
 package api
 
 import (
+	"context"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"automation/server/internal/auth"
 	"automation/server/internal/httpx"
@@ -22,8 +25,43 @@ func invoiceRight(me auth.User) bool {
 	return me.IsAdmin() || !jsonx.Contains(jsonx.Strings(me.M, "hiddenSub"), "crm.invoice")
 }
 
-// enforceInvoice decides what the saved deal's «invoice» becomes. It answers false (after writing the refusal) when the request must stop.
-func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before, doc jsonx.M) bool {
+// invoiceViaSepidar: the invoice number comes from Sepidar (the same number in both) when Sepidar is connected, the setting «شمارهٔ فاکتورها از سپیدار» is on
+// (it is, unless the administrator switched it off) and this kind of invoice is included («invoiceSepidarKinds»: everything, or only the official ones).
+func invoiceViaSepidar(ctx context.Context, kind string) bool {
+	if !sepidarEnabled(ctx) {
+		return false
+	}
+	var raw []byte
+	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
+	set := jsonx.Decode(raw)
+	if _, has := set["invoiceNumberFromSepidar"]; has && !jsonx.Bool(set, "invoiceNumberFromSepidar") {
+		return false
+	}
+	return !(jsonx.Str(set, "invoiceSepidarKinds") == "official" && kind != "OFFICIAL")
+}
+
+// the accounting program asked Hoormand for its work in the last three minutes
+func sepidarAlive(ctx context.Context) bool {
+	seen, _ := sepidarConnectorSeen(ctx)
+	t, err := time.Parse("2006-01-02T15:04:05.000Z", seen)
+	return err == nil && time.Since(t) < 3*time.Minute
+}
+
+// queueSepidarInvoice asks the accounting program to issue the deal's pending invoice in Sepidar; its number comes back and becomes the invoice's number.
+func queueSepidarInvoice(ctx context.Context, me auth.User, dealID string, doc jsonx.M) {
+	var dup int
+	_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM sepidar_jobs WHERE kind = 'invoice.fromHoormand' AND ref = $1 AND status IN ('pending', 'running')`, dealID).Scan(&dup)
+	if dup > 0 {
+		return
+	}
+	data := jsonx.M{"dealId": dealID, "title": jsonx.Str(doc, "customerName")}
+	_, _ = store.Pool.Exec(ctx, `INSERT INTO sepidar_jobs (id, kind, ref, data, created_by, created_by_name) VALUES ($1, 'invoice.fromHoormand', $2, $3::jsonb, $4, $5)`,
+		"sj-"+randomHex(6), dealID, jsonx.Encode(data), me.ID(), me.Name())
+}
+
+// enforceInvoice decides what the saved deal's «invoice» becomes. It answers false (after writing the refusal) when the request must stop;
+// the second answer is true when the invoice waits for its Sepidar number (the caller queues the request after the deal is saved).
+func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before, doc jsonx.M) (bool, bool) {
 	old, inc := jsonx.Sub(before, "invoice"), jsonx.Sub(doc, "invoice")
 	delete(doc, "invoice")
 	if len(old) > 0 {
@@ -31,48 +69,89 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 		if len(inc) > 0 && jsonx.Str(old, "status") != "cancelled" && jsonx.Str(inc, "status") == "cancelled" {
 			if !invoiceRight(me) {
 				httpx.Error(w, http.StatusForbidden, "ابطال فاکتور به شما اجازه داده نشده است.")
-				return false
+				return false, false
 			}
 			reason := strings.TrimSpace(jsonx.Str(inc, "cancelReason"))
 			if reason == "" {
 				httpx.Error(w, http.StatusBadRequest, "دلیل ابطال فاکتور را بنویسید.")
-				return false
+				return false, false
 			}
+			wasPending := jsonx.Str(old, "status") == "pending"
 			keep["status"], keep["cancelledAt"] = "cancelled", now()
 			keep["cancelledById"], keep["cancelledByName"], keep["cancelReason"] = me.ID(), me.Name(), reason
+			if wasPending { // it was still waiting for Sepidar: the waiting request is withdrawn
+				_, _ = store.Pool.Exec(r.Context(), `UPDATE sepidar_jobs SET status = 'failed', finished_at = now(), result = $2::jsonb WHERE kind = 'invoice.fromHoormand' AND ref = $1 AND status = 'pending'`,
+					jsonx.Str(doc, "id"), jsonx.Encode(jsonx.M{"message": "فاکتور هورمند پیش از صدور در سپیدار لغو شد."}))
+			}
 		}
 		doc["invoice"] = keep
-		return true
+		return true, false
 	}
 	if len(inc) == 0 {
-		return true
+		return true, false
 	}
 	if !invoiceRight(me) {
 		httpx.Error(w, http.StatusForbidden, "صدور فاکتور به شما اجازه داده نشده است.")
-		return false
+		return false, false
 	}
 	if jsonx.Str(doc, "proformaNumber") == "" || len(jsonx.Arr(doc, "items")) == 0 {
 		httpx.Error(w, http.StatusBadRequest, "فاکتور از روی پیش‌فاکتور ساخته می‌شود؛ اول پیش‌فاکتور بسازید.")
-		return false
+		return false, false
 	}
 	if !proformaReadyForCustomer(r.Context(), doc) {
 		httpx.Error(w, http.StatusForbidden, "پیش‌فاکتور هنوز تأیید نشده است؛ بعد از تأیید می‌توان فاکتور صادر کرد.")
-		return false
+		return false, false
+	}
+	kind := "UNOFFICIAL"
+	if jsonx.Str(inc, "kind") == "OFFICIAL" {
+		kind = "OFFICIAL"
+	}
+	// the number is Sepidar's: the invoice waits («pending») until the accounting program issues it there and brings the number back
+	if invoiceViaSepidar(r.Context(), kind) {
+		// Sepidar already issued an invoice for this deal (the Sepidar menu's «صدور فاکتور»): its number is simply taken, nothing more to wait for
+		var sid int64
+		var sn *int64
+		if store.Pool.QueryRow(r.Context(), `SELECT sepidar_id, number FROM sepidar_links WHERE kind = 'invoice' AND ref = $1`, jsonx.Str(doc, "id")).Scan(&sid, &sn) == nil {
+			num := sid
+			if sn != nil {
+				num = *sn
+			}
+			doc["invoice"] = jsonx.M{
+				"number": strconv.FormatInt(num, 10), "kind": kind, "status": "issued", "issuedAt": now(), "issuedById": me.ID(), "issuedByName": me.Name(),
+				"issuerId": doc["proformaIssuerId"], "proformaNumber": doc["proformaNumber"],
+				"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
+				"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
+				"note": strings.TrimSpace(jsonx.Str(inc, "note")), "sepidar": jsonx.M{"id": sid, "number": num, "at": now()},
+			}
+			return true, false
+		}
+		if !sepidarAlive(r.Context()) {
+			httpx.Error(w, http.StatusConflict, "شمارهٔ فاکتور را سپیدار می‌دهد ولی برنامهٔ سپیدار روی رایانهٔ حسابداری الان در دسترس نیست. آن را روشن کنید و دوباره بزنید (یا در تنظیمات «شمارهٔ فاکتورها از سپیدار» را خاموش کنید).")
+			return false, false
+		}
+		if !sepidarCan(me, "invoice") || !sepidarCan(me, "quotationSend") {
+			httpx.Error(w, http.StatusForbidden, "صدور فاکتور از طریق سپیدار، اجازهٔ «صدور فاکتور» و «ارسال پیش‌فاکتور به سپیدار» در بخش سپیدار را لازم دارد.")
+			return false, false
+		}
+		doc["invoice"] = jsonx.M{
+			"number": "", "kind": kind, "status": "pending", "issuedAt": now(), "issuedById": me.ID(), "issuedByName": me.Name(),
+			"issuerId": doc["proformaIssuerId"], "proformaNumber": doc["proformaNumber"],
+			"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
+			"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
+			"note": strings.TrimSpace(jsonx.Str(inc, "note")),
+		}
+		return true, true
 	}
 	number := strings.TrimSpace(jsonx.Str(inc, "number"))
 	if number == "" || len(number) > 40 {
 		httpx.Error(w, http.StatusBadRequest, "شمارهٔ فاکتور درست نیست.")
-		return false
+		return false, false
 	}
 	var same int
 	_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM crm_deals WHERE id <> $1 AND data->'invoice'->>'number' = $2`, jsonx.Str(doc, "id"), number).Scan(&same)
 	if same > 0 {
 		httpx.Error(w, http.StatusConflict, "این شمارهٔ فاکتور قبلاً برای فاکتور دیگری گرفته شده است؛ دوباره تلاش کنید.")
-		return false
-	}
-	kind := "UNOFFICIAL"
-	if jsonx.Str(inc, "kind") == "OFFICIAL" {
-		kind = "OFFICIAL"
+		return false, false
 	}
 	doc["invoice"] = jsonx.M{
 		"number": number, "kind": kind, "status": "issued", "issuedAt": now(), "issuedById": me.ID(), "issuedByName": me.Name(),
@@ -81,5 +160,5 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 		"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
 		"note": strings.TrimSpace(jsonx.Str(inc, "note")),
 	}
-	return true
+	return true, false
 }

@@ -423,9 +423,10 @@ export type ProformaHeaderItem = 'logo' | 'company' | 'title';
 
 /** The invoice of a deal (made from its proforma; see server/internal/api/invoice.go). */
 export interface DealInvoice {
+  /** empty while the invoice waits for the number Sepidar gives it (status «pending») */
   number: string;
   kind: 'OFFICIAL' | 'UNOFFICIAL';
-  status: 'issued' | 'cancelled';
+  status: 'issued' | 'cancelled' | 'pending';
   issuedAt: string;
   issuedById?: string;
   issuedByName?: string;
@@ -793,6 +794,10 @@ export interface SystemSettings {
   /** value-added tax is put on every new proforma by itself (default: yes); a person can still change the percent on the proforma */
   proformaVatByDefault?: boolean;
   proformaValidDays?: number;
+  /** with Sepidar connected the number of every invoice is the one Sepidar gives it (default: yes) */
+  invoiceNumberFromSepidar?: boolean;
+  /** which invoices take Sepidar's number: both kinds (default) or only the official ones */
+  invoiceSepidarKinds?: 'both' | 'official';
   /** The organisation's standard letter layout, set once by an admin in the letter editor. */
   letterTemplate?: OrgLetterTemplate;
   /** Per form (data-form-id): fields switched off, required fields and where Enter goes (set in the management console). */

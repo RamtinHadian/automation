@@ -1014,7 +1014,7 @@ const jobHandlers = {
   async 'invoice.fromHoormand'(cfg, sp, state, job) {
     const deal = await hoormandGetOne(cfg, '/deals/' + encodeURIComponent(job.data.dealId));
     const inv = deal.invoice;
-    if (!inv || !inv.number) throw new Error('برای این فرصت در هورمند فاکتوری صادر نشده است.');
+    if (!inv || (!inv.number && inv.status !== 'pending')) throw new Error('برای این فرصت در هورمند فاکتوری صادر نشده است.');
     if (inv.status === 'cancelled') throw new Error('فاکتور هورمند باطل شده است و به سپیدار نمی‌رود.');
     let quotationId = job.data.sepidarId ? Number(job.data.sepidarId) : (state.quotations || {})[deal.id];
     let made = null;
@@ -1030,7 +1030,7 @@ const jobHandlers = {
     const r = await sp.post('/api/Invoices/BasedOnQuotation/', Number(quotationId));
     return {
       sepidarId: r.InvoiceID, number: r.Number, quotationId: Number(quotationId), quotationNumber: made ? made.Number : undefined,
-      message: `فاکتور ${inv.number} هورمند در سپیدار با شمارهٔ ${r.Number} صادر شد${note}`,
+      message: `فاکتور هورمند${inv.number ? ' ' + inv.number : ''} در سپیدار با شمارهٔ ${r.Number} صادر شد (همین شماره شمارهٔ فاکتور هورمند می‌شود)${note}`,
     };
   },
 

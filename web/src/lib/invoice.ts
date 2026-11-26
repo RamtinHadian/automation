@@ -17,7 +17,12 @@ export function nextInvoiceNumber(deals: Deal[], kind: DealInvoice['kind']): str
   return nextProformaNumber(same, { numberFormat: kind === 'OFFICIAL' ? OFFICIAL_INVOICE_FORMAT : UNOFFICIAL_INVOICE_FORMAT });
 }
 
-export const hasInvoice = (d: Pick<Deal, 'invoice'>) => !!d.invoice && !!d.invoice.number;
+export const hasInvoice = (d: Pick<Deal, 'invoice'>) => !!d.invoice && (!!d.invoice.number || d.invoice.status === 'pending');
+/** The invoice waits for the number Sepidar gives it (it cannot be printed yet). */
+export const invoicePending = (d: Pick<Deal, 'invoice'>) => d.invoice?.status === 'pending';
+/** Does an invoice of this kind take its number from Sepidar? (the server decides the same way) */
+export const invoiceViaSepidar = (settings: Pick<SystemSettings, 'invoiceNumberFromSepidar' | 'invoiceSepidarKinds'>, sepidarConnected: boolean, kind: DealInvoice['kind']) =>
+  sepidarConnected && settings.invoiceNumberFromSepidar !== false && !(settings.invoiceSepidarKinds === 'official' && kind !== 'OFFICIAL');
 
 /** May an invoice be issued for this deal now? Says why not (null = yes). */
 export function invoiceBlocker(deal: Deal, settings: SystemSettings, customer?: Customer): string | null {
@@ -40,10 +45,10 @@ export function invoiceBlocker(deal: Deal, settings: SystemSettings, customer?: 
 }
 
 /** The invoice to be saved with the deal: a frozen copy of the proforma (the server writes the same copy itself and keeps its own). */
-export function draftInvoice(deal: Deal, deals: Deal[], settings: SystemSettings, me: Pick<User, 'id' | 'fullName'>, note = ''): DealInvoice {
+export function draftInvoice(deal: Deal, deals: Deal[], settings: SystemSettings, me: Pick<User, 'id' | 'fullName'>, note = '', viaSepidar = false): DealInvoice {
   const kind: DealInvoice['kind'] = issuerOf(deal, settings).kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL';
   return {
-    number: nextInvoiceNumber(deals, kind), kind, status: 'issued', issuedAt: new Date().toISOString(), issuedById: me.id, issuedByName: me.fullName,
+    number: viaSepidar ? '' : nextInvoiceNumber(deals, kind), kind, status: viaSepidar ? 'pending' : 'issued', issuedAt: new Date().toISOString(), issuedById: me.id, issuedByName: me.fullName,
     issuerId: deal.proformaIssuerId, proformaNumber: deal.proformaNumber, items: deal.items || [], discountPercent: deal.discountPercent, taxPercent: deal.taxPercent,
     fields: deal.proformaFields, amount: deal.amount, customerName: deal.customerName, note,
   };

@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { ClockFace, CLOCK_COUNT, designName } from '../common/AnalogClock';
 import React, { useState, useRef, useEffect } from 'react';
 import { ProformaIssuersCard } from './ProformaIssuersCard';
+import { InvoiceNumberingCard } from './InvoiceNumberingCard';
 import { askConfirm } from '../../lib/confirmDialog';
 import { SignatureField } from '../common/SignaturePad';
 import { InternalNumberingCard } from './InternalNumberingCard';
@@ -619,6 +620,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           دیدن نمونهٔ فرم رسمی
         </button>
       </ProformaIssuersCard>
+
+      <InvoiceNumberingCard settings={settings} setSettings={setSettings} />
 
       <details className="bg-white p-5 rounded-3xl border border-[#EBDBCE] shadow-sm text-xs">
         <summary className="cursor-pointer font-black text-sm text-[#3A241F]">تنظیمات عمومی (طراحی قالب غیررسمی، شرایط، واحد پول، مدت اعتبار)</summary>

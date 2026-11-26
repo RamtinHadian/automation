@@ -423,6 +423,11 @@ ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice 
   ok(res?.ok === true && sp.quotations.length === before + 1 && made.Items[0].Quantity === 3, 'invoice.fromHoormand makes the quotation from the invoice lines (not from the proforma)' + String.fromCharCode(0));
   ok(res.sepidarId === 700 && res.number === 31 && res.quotationId === made.ID && /FA-1405-0001/.test(res.message || ''), 'invoice.fromHoormand reports the Sepidar invoice number, the quotation it made and the Hoormand number');
   ok(hoormandResults['sj-5c']?.ok === false && /باطل/.test(hoormandResults['sj-5c']?.message || ''), 'a cancelled Hoormand invoice is not sent to Sepidar');
+  // an invoice still waiting for its number (status pending, no number yet) is issued in Sepidar and reports Sepidar's number back
+  deals.push({ ...base, id: 'd-73', invoice: { number: '', kind: 'UNOFFICIAL', status: 'pending', issuedAt: '2026-10-21T08:00:00.000Z', items: base.items, discountPercent: 0, taxPercent: 0 } });
+  hoormandJobs.push({ id: 'sj-5d', kind: 'invoice.fromHoormand', data: { dealId: 'd-73' } });
+  r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+  ok(hoormandResults['sj-5d']?.ok === true && hoormandResults['sj-5d'].number === 31 && /همین شماره/.test(hoormandResults['sj-5d'].message || ''), 'a pending invoice (no number yet) is issued in Sepidar and its number is reported back to become the Hoormand number');
 }
 hoormandJobs.push({ id: 'sj-6', kind: 'receipt.add', data: { dealId: 'd-1', sepidarId: 700, bankAccountId: '9', amount: 250, date: '2026-10-10', description: 'بیعانه' } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);

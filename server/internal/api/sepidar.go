@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -418,7 +419,7 @@ func sepidarJobCreate(w http.ResponseWriter, r *http.Request) {
 		case "invoice.fromHoormand":
 			// the invoice made in Hoormand (official or unofficial) goes to Sepidar: its lines make a quotation there (when none exists yet) and Sepidar issues the invoice from it
 			inv := jsonx.Sub(d, "invoice")
-			if jsonx.Str(inv, "number") == "" || jsonx.Str(inv, "status") == "cancelled" {
+			if (jsonx.Str(inv, "number") == "" && jsonx.Str(inv, "status") != "pending") || jsonx.Str(inv, "status") == "cancelled" {
 				bad("برای این فرصت فاکتور صادرشدهٔ هورمند وجود ندارد (یا باطل شده است).")
 				return
 			}
@@ -652,6 +653,13 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 					_, _ = store.Pool.Exec(ctx, `INSERT INTO sepidar_links (kind, ref, sepidar_id, number, data) VALUES ('quotation', $1, $2, $3, '{}'::jsonb)
 						ON CONFLICT (kind, ref) DO NOTHING`, deal, int64(qid), qnum)
 				}
+				// an invoice that was waiting for its number takes Sepidar's (the same number in both)
+				num := strconv.FormatInt(int64(sid), 10)
+				if hasNum {
+					num = strconv.FormatInt(int64(number), 10)
+				}
+				_, _ = store.Pool.Exec(ctx, `UPDATE crm_deals SET data = jsonb_set(jsonb_set(jsonb_set(data, '{invoice,number}', to_jsonb($2::text)), '{invoice,status}', '"issued"'), '{invoice,issuedAt}', to_jsonb($3::text))
+					WHERE id = $1 AND data->'invoice'->>'status' = 'pending'`, deal, num, now())
 				// the Hoormand invoice remembers where it went (the invoice itself never changes; only this note is added)
 				_, _ = store.Pool.Exec(ctx, `UPDATE crm_deals SET data = jsonb_set(data, '{invoice,sepidar}', $2::jsonb) WHERE id = $1 AND data->'invoice' IS NOT NULL`,
 					deal, jsonx.Encode(jsonx.M{"id": int64(sid), "number": number, "at": now()}))
@@ -666,6 +674,12 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 				body["data"] = rd
 				save("receipt", jsonx.Str(d, "dealId")+"#"+id)
 			}
+		}
+	} else if kind == "invoice.fromHoormand" {
+		// Sepidar did not issue it: the invoice that was waiting for its number is withdrawn (the person was told why); they can try again
+		_, _ = store.Pool.Exec(ctx, `UPDATE crm_deals SET data = data #- '{invoice}' WHERE id = $1 AND data->'invoice'->>'status' = 'pending'`, jsonx.Str(d, "dealId"))
+		if by != "" {
+			notify.Notify(ctx, []string{by}, notify.Note{Kind: "alert", Label: "سپیدار", Title: "صدور فاکتور در سپیدار انجام نشد", Body: msg, Ref: ref0("sepidar", id)}, "")
 		}
 	} else if by != "" {
 		title := sepidarJobs[kind].Title

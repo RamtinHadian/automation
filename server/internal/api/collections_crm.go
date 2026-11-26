@@ -240,7 +240,8 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	}
 	stage := jsonx.Str(doc, "stage")
 	enforceProformaAmount(doc)
-	if !enforceInvoice(w, r, me, before, doc) {
+	invOK, invViaSepidar := enforceInvoice(w, r, me, before, doc)
+	if !invOK {
 		return
 	}
 	if msg := dealRuleViolation(r, me, jsonx.Str(before, "stage"), stage, jsonx.Num(doc["amount"]), jsonx.Str(doc, "proformaNumber")); msg != "" {
@@ -274,6 +275,9 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 		id, jsonx.Str(doc, "customerId"), owner, jsonx.Encode(doc)); err != nil {
 		internalError(w)
 		return
+	}
+	if invViaSepidar {
+		queueSepidarInvoice(r.Context(), me, id, doc)
 	}
 	notifyNewOwner(r, me, owner, oldOwner, "deal", "فرصت فروش", "فرصت «"+jsonx.Str(doc, "title")+"» به شما سپرده شد", id)
 	notifyProformaApproval(r, me, approvalEvent, doc, id)

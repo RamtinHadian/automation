@@ -10,7 +10,7 @@ import { formatMoney, unitName } from '../../lib/money';
 import { issuerOf } from '../../lib/proformaIssuer';
 import { downloadBlob, renderProformaJpeg } from '../../lib/proformaFile';
 import { askConfirm } from '../../lib/confirmDialog';
-import { canIssueInvoice, draftInvoice, hasInvoice, invoiceBlocker, invoiceRenderInput, invoiceTitle, openInvoicePdf } from '../../lib/invoice';
+import { canIssueInvoice, draftInvoice, hasInvoice, invoiceBlocker, invoiceRenderInput, invoiceTitle, invoiceViaSepidar, openInvoicePdf } from '../../lib/invoice';
 
 /** The invoice made in Hoormand → Sepidar: a button when Sepidar is connected and the person may issue invoices there, and what happened to the last try. */
 const SepidarSend: React.FC<{ deal: Deal }> = ({ deal }) => {
@@ -26,6 +26,7 @@ const SepidarSend: React.FC<{ deal: Deal }> = ({ deal }) => {
     return () => window.clearInterval(t);
   }, [connected, load]);
   if (!connected || !st || !inv || inv.status === 'cancelled') return null;
+  const isPending = inv.status === 'pending';
   const mine = st.jobs.filter((j) => j.kind === 'invoice.fromHoormand' && j.data.dealId === deal.id).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   const waiting = mine.some((j) => j.status === 'pending' || j.status === 'running');
   const failed = !waiting && mine[0]?.status === 'failed' ? mine[0] : undefined;
@@ -46,10 +47,10 @@ const SepidarSend: React.FC<{ deal: Deal }> = ({ deal }) => {
     <div className="rounded-xl border border-sky-200 bg-sky-50/50 px-3 py-2.5 space-y-1.5" data-invoice-sepidar>
       <div className="flex flex-wrap items-center gap-2 text-[11px] font-black text-sky-900">
         <span>سپیدار:</span>
-        {inv.sepidar || link ? (
+        {inv.sepidar || (link && !isPending) ? (
           <span className="text-emerald-700" data-invoice-sepidar-done>صادر شد · شمارهٔ فاکتور سپیدار {toPersianDigits(String(inv.sepidar?.number ?? link?.number ?? '—'))}</span>
-        ) : waiting ? (
-          <span className="text-amber-700">در صف سپیدار است… (برنامهٔ حسابداری آن را برمی‌دارد)</span>
+        ) : waiting || isPending ? (
+          <span className="text-amber-700">در صف سپیدار است… (برنامهٔ حسابداری آن را برمی‌دارد و شمارهٔ فاکتور سپیدار را برمی‌گرداند)</span>
         ) : can ? (
           <button type="button" onClick={() => void send()} className="px-3 py-1 rounded-lg bg-sky-700 text-white text-[11px] font-black cursor-pointer" data-invoice-sepidar-send>ارسال به سپیدار</button>
         ) : (
@@ -70,6 +71,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const inv = deal.invoice;
+  const sepidarOn = useSepidarConnected();
   const allowed = canIssueInvoice(currentUser);
   const issuer = issuerOf(deal, settings);
   const kindWord = issuer.kind === 'OFFICIAL' ? 'رسمی' : 'غیررسمی';
@@ -83,7 +85,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
           فاکتور فروش ({kindWord})
         </div>
         <p className="text-[11px] leading-6 text-[#8C6F66] font-medium">
-          فاکتور از روی همین پیش‌فاکتور صادر می‌شود؛ یک نسخهٔ ثابت با شمارهٔ خودش که بعد از صدور تغییر نمی‌کند (فقط می‌شود آن را باطل کرد).
+          فاکتور از روی همین پیش‌فاکتور صادر می‌شود؛ یک نسخهٔ ثابت با شمارهٔ خودش که بعد از صدور تغییر نمی‌کند (فقط می‌شود آن را باطل کرد).{invoiceViaSepidar(settings, sepidarOn, issuer.kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL') ? ' شمارهٔ فاکتور را سپیدار می‌دهد و همان شماره در هورمند هم می‌نشیند.' : ''}
           {issuer.kind === 'OFFICIAL' ? ' فاکتور رسمی با همهٔ مشخصات هویتی فروشنده و خریدار چاپ می‌شود.' : ' فاکتور غیررسمی با نام کسب‌وکار غیررسمی چاپ می‌شود.'}
         </p>
         {blocker && <p className="text-[11px] font-bold text-amber-800 leading-6">{blocker}</p>}
@@ -92,13 +94,16 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
           type="button"
           disabled={!!blocker || !allowed || busy}
           onClick={async () => {
-            const draft = draftInvoice(deal, deals, settings, currentUser);
-            const ok = await askConfirm(`از روی پیش‌فاکتور ${toPersianDigits(deal.proformaNumber || '')}، «${invoiceTitle(draft.kind)}» با شمارهٔ ${toPersianDigits(draft.number)} صادر شود؟ بعد از صدور قابل ویرایش نیست.`, { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' });
+            const via = invoiceViaSepidar(settings, sepidarOn, issuer.kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL');
+            const draft = draftInvoice(deal, deals, settings, currentUser, '', via);
+            const ok = await askConfirm(via
+              ? `از روی پیش‌فاکتور ${toPersianDigits(deal.proformaNumber || '')}، «${invoiceTitle(draft.kind)}» صادر شود؟ شمارهٔ فاکتور را سپیدار می‌دهد: فاکتور اول در سپیدار صادر می‌شود و همان شماره شمارهٔ فاکتور هورمند هم می‌شود (تا آن موقع «در انتظار سپیدار» است). بعد از صدور قابل ویرایش نیست.`
+              : `از روی پیش‌فاکتور ${toPersianDigits(deal.proformaNumber || '')}، «${invoiceTitle(draft.kind)}» با شمارهٔ ${toPersianDigits(draft.number)} صادر شود؟ بعد از صدور قابل ویرایش نیست.`, { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' });
             if (!ok) return;
             setBusy(true);
             try {
               setDeals((prev) => prev.map((x) => (x.id === deal.id ? { ...x, invoice: draft } : x)));
-              showToast(`فاکتور ${toPersianDigits(draft.number)} صادر شد.`);
+              showToast(via ? 'فاکتور برای سپیدار فرستاده شد؛ شمارهٔ آن بعد از صدور در سپیدار می‌آید.' : `فاکتور ${toPersianDigits(draft.number)} صادر شد.`);
             } finally {
               setBusy(false);
             }
@@ -113,6 +118,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
   }
 
   const cancelled = inv.status === 'cancelled';
+  const pending = inv.status === 'pending';
   const payable = inv.amount ?? deal.amount;
   const small = 'text-[10px] font-bold text-[#8C6F66]';
   return (
@@ -120,10 +126,10 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 font-black text-xs text-[#3A241F]">
           <Receipt className="w-4 h-4 text-emerald-700" />
-          {invoiceTitle(inv.kind)} {toPersianDigits(inv.number)}
+          {invoiceTitle(inv.kind)} {pending ? <span className="text-amber-700">(در انتظار شمارهٔ سپیدار)</span> : toPersianDigits(inv.number)}
           <span className={`text-[10px] font-black rounded-full px-2 py-0.5 border ${inv.kind === 'OFFICIAL' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{inv.kind === 'OFFICIAL' ? 'رسمی' : 'غیررسمی'}</span>
         </div>
-        <span className={`text-[11px] font-black ${cancelled ? 'text-rose-700' : 'text-emerald-700'}`}>{cancelled ? 'باطل شده' : 'صادر شده'}</span>
+        <span className={`text-[11px] font-black ${cancelled ? 'text-rose-700' : pending ? 'text-amber-700' : 'text-emerald-700'}`}>{cancelled ? 'باطل شده' : pending ? 'در انتظار سپیدار' : 'صادر شده'}</span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
         <div><div className={small}>تاریخ صدور</div><b>{formatTaskDate(inv.issuedAt.slice(0, 10))}</b></div>
@@ -134,11 +140,11 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
       <SepidarSend deal={deal} />
       {cancelled && <p className="text-[11px] font-bold text-rose-800 leading-6">ابطال: {inv.cancelReason}{inv.cancelledByName ? ` (${inv.cancelledByName})` : ''}</p>}
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => openInvoicePdf(deal, customer, settings, currentUser.fullName)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-black bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-50 cursor-pointer" data-invoice-print>
+        {!pending && <button type="button" onClick={() => openInvoicePdf(deal, customer, settings, currentUser.fullName)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-black bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-50 cursor-pointer" data-invoice-print>
           <Printer className="w-3.5 h-3.5" />
           چاپ / PDF
-        </button>
-        <button
+        </button>}
+        {!pending && <button
           type="button"
           disabled={busy}
           onClick={async () => {
@@ -155,10 +161,10 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
         >
           <Image className="w-3.5 h-3.5" />
           دریافت JPG
-        </button>
+        </button>}
         {!cancelled && allowed && !cancelling && (
           <button type="button" onClick={() => setCancelling(true)} className="px-3.5 py-2 rounded-xl text-[11px] font-black bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 cursor-pointer" data-invoice-cancel>
-            ابطال فاکتور
+            {pending ? 'انصراف از صدور' : 'ابطال فاکتور'}
           </button>
         )}
       </div>
@@ -171,7 +177,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
               type="button"
               disabled={!reason.trim()}
               onClick={async () => {
-                const ok = await askConfirm(`فاکتور ${toPersianDigits(inv.number)} باطل شود؟ شمارهٔ آن می‌ماند و دوباره استفاده نمی‌شود.${inv.sepidar ? ' توجه: این فاکتور قبلاً در سپیدار صادر شده و آنجا باطل نمی‌شود؛ باید در سپیدار هم دستی باطلش کنید.' : ''}`, { tone: 'danger', title: 'ابطال فاکتور', confirmText: 'بله، باطل شود' });
+                const ok = await askConfirm(`${pending ? 'فاکتور در انتظار سپیدار' : 'فاکتور ' + toPersianDigits(inv.number)} باطل شود؟ شمارهٔ آن می‌ماند و دوباره استفاده نمی‌شود.${inv.sepidar ? ' توجه: این فاکتور قبلاً در سپیدار صادر شده و آنجا باطل نمی‌شود؛ باید در سپیدار هم دستی باطلش کنید.' : ''}`, { tone: 'danger', title: 'ابطال فاکتور', confirmText: 'بله، باطل شود' });
                 if (!ok) return;
                 const why = reason.trim();
                 setDeals((prev) => prev.map((x) => (x.id === deal.id && x.invoice ? { ...x, invoice: { ...x.invoice, status: 'cancelled', cancelReason: why, cancelledAt: new Date().toISOString(), cancelledByName: currentUser.fullName } } : x)));
