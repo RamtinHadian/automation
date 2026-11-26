@@ -663,6 +663,10 @@ func extSepidarResult(w http.ResponseWriter, r *http.Request, k extKey, user aut
 				// the Hoormand invoice remembers where it went (the invoice itself never changes; only this note is added)
 				_, _ = store.Pool.Exec(ctx, `UPDATE crm_deals SET data = jsonb_set(data, '{invoice,sepidar}', $2::jsonb) WHERE id = $1 AND data->'invoice' IS NOT NULL`,
 					deal, jsonx.Encode(jsonx.M{"id": int64(sid), "number": number, "at": now()}))
+				// numbered by the counter: Sepidar's number must be the same as Hoormand's
+				if hasNum {
+					checkInvoiceNumberMatch(ctx, deal, int64(number), by)
+				}
 			}
 		case "receipt.add":
 			if hasID {

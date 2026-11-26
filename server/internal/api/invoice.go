@@ -25,21 +25,6 @@ func invoiceRight(me auth.User) bool {
 	return me.IsAdmin() || !jsonx.Contains(jsonx.Strings(me.M, "hiddenSub"), "crm.invoice")
 }
 
-// invoiceViaSepidar: the invoice number comes from Sepidar (the same number in both) when Sepidar is connected, the setting «شمارهٔ فاکتورها از سپیدار» is on
-// (it is, unless the administrator switched it off) and this kind of invoice is included («invoiceSepidarKinds»: everything, or only the official ones).
-func invoiceViaSepidar(ctx context.Context, kind string) bool {
-	if !sepidarEnabled(ctx) {
-		return false
-	}
-	var raw []byte
-	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
-	set := jsonx.Decode(raw)
-	if _, has := set["invoiceNumberFromSepidar"]; has && !jsonx.Bool(set, "invoiceNumberFromSepidar") {
-		return false
-	}
-	return !(jsonx.Str(set, "invoiceSepidarKinds") == "official" && kind != "OFFICIAL")
-}
-
 // the accounting program asked Hoormand for its work in the last three minutes
 func sepidarAlive(ctx context.Context) bool {
 	seen, _ := sepidarConnectorSeen(ctx)
@@ -107,7 +92,8 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 		kind = "OFFICIAL"
 	}
 	// the number is Sepidar's: the invoice waits («pending») until the accounting program issues it there and brings the number back
-	if invoiceViaSepidar(r.Context(), kind) {
+	mode := invoiceMode(r.Context(), kind)
+	if mode == "sepidar" {
 		// Sepidar already issued an invoice for this deal (the Sepidar menu's «صدور فاکتور»): its number is simply taken, nothing more to wait for
 		var sid int64
 		var sn *int64
@@ -142,23 +128,15 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 		}
 		return true, true
 	}
-	number := strings.TrimSpace(jsonx.Str(inc, "number"))
-	if number == "" || len(number) > 40 {
-		httpx.Error(w, http.StatusBadRequest, "شمارهٔ فاکتور درست نیست.")
-		return false, false
-	}
-	var same int
-	_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM crm_deals WHERE id <> $1 AND data->'invoice'->>'number' = $2`, jsonx.Str(doc, "id"), number).Scan(&same)
-	if same > 0 {
-		httpx.Error(w, http.StatusConflict, "این شمارهٔ فاکتور قبلاً برای فاکتور دیگری گرفته شده است؛ دوباره تلاش کنید.")
-		return false, false
-	}
+	// the server gives the number (the counter continuing Sepidar's, or the yearly one); it is put on right before the deal is saved, so a refused save never uses a number
 	doc["invoice"] = jsonx.M{
-		"number": number, "kind": kind, "status": "issued", "issuedAt": now(), "issuedById": me.ID(), "issuedByName": me.Name(),
+		"number": invoiceNumberPending, "kind": kind, "status": "issued", "issuedAt": now(), "issuedById": me.ID(), "issuedByName": me.Name(),
 		"issuerId": doc["proformaIssuerId"], "proformaNumber": doc["proformaNumber"],
 		"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
 		"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
 		"note": strings.TrimSpace(jsonx.Str(inc, "note")),
 	}
-	return true, false
+	// numbered by the counter: the invoice also goes to Sepidar by itself (the numbers are compared when it comes back)
+	return true, mode == "counter" && sepidarEnabled(r.Context())
 }
+

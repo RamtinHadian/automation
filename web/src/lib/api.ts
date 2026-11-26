@@ -781,6 +781,10 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   wfCheck: (pkg: unknown) => request<{ ok: boolean; error?: string; steps?: number }>('POST', '/api/workflow/check', { package: pkg }),
   wfLocalSave: (pkg: unknown, enable: boolean) => request<{ ok: boolean; id: string; version: number; enabled: boolean }>('POST', '/api/workflow/local', { package: pkg, enable }),
   wfSign: (pkg: unknown) => request<{ ok: boolean; file: string }>('POST', '/api/workflow/sign', { package: pkg }),
+  invoiceNumberingInfo: () => request<Record<'OFFICIAL' | 'UNOFFICIAL', { mode: 'counter' | 'sepidar' | 'year'; next: string }>>('GET', '/api/invoice-numbering/info'),
+  invoiceNumbering: () => request<InvoiceNumberingState>('GET', '/api/invoice-numbering'),
+  invoiceNumberingSave: (b: unknown) => request<{ ok: boolean }>('PUT', '/api/invoice-numbering', b),
+  invoiceIssue: (dealId: string, kind: 'OFFICIAL' | 'UNOFFICIAL') => request<{ ok: boolean }>('POST', '/api/invoice/issue', { dealId, kind }),
   wfStartable: () => request<import('./workflow').WfStartable[]>('GET', '/api/workflow/startable'),
   wfStart: (id: string, values: Record<string, unknown>) => request<{ ok: boolean; id: string }>('POST', '/api/workflow/start', { id, values }),
   wfInbox: () => request<import('./workflow').WfInstance[]>('GET', '/api/workflow/inbox'),
@@ -825,3 +829,6 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
     request<{ ok: true }>('DELETE', `/api/${collection}/${encodeURIComponent(id)}`),
 
 };
+
+export interface InvoiceCounter { prefix: string; set: boolean; last?: number; next?: string; usedMax: number }
+export interface InvoiceNumberingState { mode: 'default' | 'counter' | 'sepidar' | 'year'; sepidarKinds: string; connected: boolean; sepidarLast: number; ALL: InvoiceCounter }

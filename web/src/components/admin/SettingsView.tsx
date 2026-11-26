@@ -621,7 +621,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </ProformaIssuersCard>
 
-      <InvoiceNumberingCard settings={settings} setSettings={setSettings} />
+      <InvoiceNumberingCard />
 
       <details className="bg-white p-5 rounded-3xl border border-[#EBDBCE] shadow-sm text-xs">
         <summary className="cursor-pointer font-black text-sm text-[#3A241F]">تنظیمات عمومی (طراحی قالب غیررسمی، شرایط، واحد پول، مدت اعتبار)</summary>

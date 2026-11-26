@@ -269,6 +269,10 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	if tellProforma {
 		doc["proformaSmsNumber"] = no
 	}
+	if err := assignInvoiceNumber(r.Context(), doc); err != nil {
+		httpx.Error(w, http.StatusConflict, err.Error())
+		return
+	}
 	if _, err := store.Pool.Exec(r.Context(),
 		`INSERT INTO crm_deals (id, customer_id, owner_id, data) VALUES ($1, $2, $3, $4::jsonb)
 		 ON CONFLICT (id) DO UPDATE SET customer_id = $2, owner_id = $3, data = $4::jsonb`,

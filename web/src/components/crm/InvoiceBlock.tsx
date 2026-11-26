@@ -10,7 +10,7 @@ import { formatMoney, unitName } from '../../lib/money';
 import { issuerOf } from '../../lib/proformaIssuer';
 import { downloadBlob, renderProformaJpeg } from '../../lib/proformaFile';
 import { askConfirm } from '../../lib/confirmDialog';
-import { canIssueInvoice, draftInvoice, hasInvoice, invoiceBlocker, invoiceRenderInput, invoiceTitle, invoiceViaSepidar, openInvoicePdf } from '../../lib/invoice';
+import { canIssueInvoice, hasInvoice, invoiceBlocker, invoiceRenderInput, invoiceTitle, openInvoicePdf } from '../../lib/invoice';
 
 /** The invoice made in Hoormand → Sepidar: a button when Sepidar is connected and the person may issue invoices there, and what happened to the last try. */
 const SepidarSend: React.FC<{ deal: Deal }> = ({ deal }) => {
@@ -64,14 +64,15 @@ const SepidarSend: React.FC<{ deal: Deal }> = ({ deal }) => {
 
 /** «فاکتور»: turns the approved proforma into Hoormand's own sales invoice (official or unofficial, as its issuing company is), prints it, and can cancel it. */
 export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ deal: shown, customer }) => {
-  const { settings, currentUser, deals, setDeals, showToast } = useAppContext();
+  const { settings, currentUser, deals, setDeals, showToast, reloadState } = useAppContext();
   // the window may hold an older copy of the opportunity: the invoice is always read from the live one
   const deal: Deal = { ...shown, invoice: deals.find((x) => x.id === shown.id)?.invoice ?? shown.invoice };
   const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const inv = deal.invoice;
-  const sepidarOn = useSepidarConnected();
+  const [info, setInfo] = useState<Awaited<ReturnType<typeof api.invoiceNumberingInfo>> | null>(null);
+  useEffect(() => { api.invoiceNumberingInfo().then(setInfo).catch(() => setInfo(null)); }, [deal.id, deal.invoice?.status]);
   const allowed = canIssueInvoice(currentUser);
   const issuer = issuerOf(deal, settings);
   const kindWord = issuer.kind === 'OFFICIAL' ? 'رسمی' : 'غیررسمی';
@@ -85,7 +86,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
           فاکتور فروش ({kindWord})
         </div>
         <p className="text-[11px] leading-6 text-[#8C6F66] font-medium">
-          فاکتور از روی همین پیش‌فاکتور صادر می‌شود؛ یک نسخهٔ ثابت با شمارهٔ خودش که بعد از صدور تغییر نمی‌کند (فقط می‌شود آن را باطل کرد).{invoiceViaSepidar(settings, sepidarOn, issuer.kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL') ? ' شمارهٔ فاکتور را سپیدار می‌دهد و همان شماره در هورمند هم می‌نشیند.' : ''}
+          فاکتور از روی همین پیش‌فاکتور صادر می‌شود؛ یک نسخهٔ ثابت با شمارهٔ خودش که بعد از صدور تغییر نمی‌کند (فقط می‌شود آن را باطل کرد).{info?.[issuer.kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL']?.mode === 'sepidar' ? ' شمارهٔ فاکتور را سپیدار می‌دهد و همان شماره در هورمند هم می‌نشیند.' : info?.[issuer.kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL']?.mode === 'counter' ? ' شمارهٔ فاکتور ادامهٔ شمارهٔ سپیدار است و خودکار به سپیدار هم می‌رود.' : ''}
           {issuer.kind === 'OFFICIAL' ? ' فاکتور رسمی با همهٔ مشخصات هویتی فروشنده و خریدار چاپ می‌شود.' : ' فاکتور غیررسمی با نام کسب‌وکار غیررسمی چاپ می‌شود.'}
         </p>
         {blocker && <p className="text-[11px] font-bold text-amber-800 leading-6">{blocker}</p>}
@@ -94,16 +95,23 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer }> = ({ de
           type="button"
           disabled={!!blocker || !allowed || busy}
           onClick={async () => {
-            const via = invoiceViaSepidar(settings, sepidarOn, issuer.kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL');
-            const draft = draftInvoice(deal, deals, settings, currentUser, '', via);
-            const ok = await askConfirm(via
-              ? `از روی پیش‌فاکتور ${toPersianDigits(deal.proformaNumber || '')}، «${invoiceTitle(draft.kind)}» صادر شود؟ شمارهٔ فاکتور را سپیدار می‌دهد: فاکتور اول در سپیدار صادر می‌شود و همان شماره شمارهٔ فاکتور هورمند هم می‌شود (تا آن موقع «در انتظار سپیدار» است). بعد از صدور قابل ویرایش نیست.`
-              : `از روی پیش‌فاکتور ${toPersianDigits(deal.proformaNumber || '')}، «${invoiceTitle(draft.kind)}» با شمارهٔ ${toPersianDigits(draft.number)} صادر شود؟ بعد از صدور قابل ویرایش نیست.`, { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' });
+            const kind = issuer.kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL';
+            const mi = info?.[kind];
+            const how =
+              mi?.mode === 'sepidar'
+                ? 'شمارهٔ فاکتور را سپیدار می‌دهد: فاکتور اول در سپیدار صادر می‌شود و همان شماره شمارهٔ فاکتور هورمند هم می‌شود (تا آن موقع «در انتظار سپیدار» است).'
+                : mi?.mode === 'counter'
+                  ? `شمارهٔ فاکتور ${toPersianDigits(mi.next)} می‌شود (ادامهٔ شمارهٔ سپیدار) و فاکتور خودکار به سپیدار هم فرستاده می‌شود.`
+                  : `با شمارهٔ ${toPersianDigits(mi?.next || '')} صادر می‌شود.`;
+            const ok = await askConfirm(`از روی پیش‌فاکتور ${toPersianDigits(deal.proformaNumber || '')}، «${invoiceTitle(kind)}» صادر شود؟ ${how} بعد از صدور قابل ویرایش نیست.`, { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' });
             if (!ok) return;
             setBusy(true);
             try {
-              setDeals((prev) => prev.map((x) => (x.id === deal.id ? { ...x, invoice: draft } : x)));
-              showToast(via ? 'فاکتور برای سپیدار فرستاده شد؛ شمارهٔ آن بعد از صدور در سپیدار می‌آید.' : `فاکتور ${toPersianDigits(draft.number)} صادر شد.`);
+              await api.invoiceIssue(deal.id, kind);
+              reloadState();
+              showToast(mi?.mode === 'sepidar' ? 'فاکتور برای سپیدار فرستاده شد؛ شمارهٔ آن بعد از صدور در سپیدار می‌آید.' : 'فاکتور صادر شد.');
+            } catch (e) {
+              showToast(e instanceof Error ? e.message : 'صدور فاکتور انجام نشد.');
             } finally {
               setBusy(false);
             }
