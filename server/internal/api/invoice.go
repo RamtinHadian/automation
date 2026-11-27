@@ -141,9 +141,9 @@ func enforceInvoiceOpt(w http.ResponseWriter, r *http.Request, me auth.User, bef
 				"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
 				"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
 				"note": strings.TrimSpace(jsonx.Str(inc, "note")), "paid": jsonx.Bool(inc, "paid"), "settlement": settlementOf(inc), "dueDate": cutRunes(jsonx.Str(inc, "dueDate"), 10), "stockCode": cutRunes(strings.TrimSpace(jsonx.Str(inc, "stockCode")), 40),
-				"approvers": approvers,
+				"approvers": approvers, "step": 0, "steps": []any{},
 			}
-			notify.Notify(r.Context(), approvers, notify.Note{Kind: "alert", Label: "فاکتور منتظر تأیید", Title: "فاکتور مشتری «" + jsonx.Str(doc, "customerName") + "» منتظر تأیید شماست", Body: me.Name() + " آن را صادر کرده است.", Ref: ref("deal", jsonx.Str(doc, "id"))}, me.ID())
+			notify.Notify(r.Context(), approvers[:1], notify.Note{Kind: "alert", Label: "فاکتور منتظر تأیید", Title: "فاکتور مشتری «" + jsonx.Str(doc, "customerName") + "» منتظر تأیید شماست", Body: me.Name() + " آن را صادر کرده است (مرحلهٔ ۱ از " + strconv.Itoa(len(approvers)) + ").", Ref: ref("deal", jsonx.Str(doc, "id"))}, me.ID())
 			return true, false
 		}
 	}

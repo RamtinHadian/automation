@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"automation/server/internal/auth"
@@ -42,12 +43,16 @@ func invoiceApprovalFor(ctx context.Context, me auth.User) (needed bool, approve
 	approvers = invoiceApproversOf(ctx, me.ID())
 	var raw []byte
 	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
+	inOwn := false
 	if m, _ := jsonx.Decode(raw)["invoiceApprovers"].(map[string]any); m != nil {
 		for _, v := range jsonx.Strings(jsonx.M{"x": m[me.ID()]}, "x") {
-			if v == me.ID() { // he is his own approver: nothing to wait for
-				return false, nil, ""
+			if v == me.ID() { // he is in his own list: his own step is skipped; with nobody else left there is nothing to wait for
+				inOwn = true
 			}
 		}
+	}
+	if inOwn && len(approvers) == 0 {
+		return false, nil, ""
 	}
 	if len(approvers) == 0 {
 		return false, nil, "برای شما در کنسول مدیریت تأییدکنندهٔ صدور فاکتور تعریف نشده است؛ از مدیر بخواهید در «تنظیمات سیستم ← تأییدکنندگان صدور فاکتور» تعریف کند."
@@ -75,8 +80,17 @@ func invoiceDecide(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusConflict, "این فاکتور منتظر تأیید نیست.")
 		return
 	}
-	if !me.IsAdmin() && !jsonx.Contains(jsonx.Strings(inv, "approvers"), me.ID()) {
-		httpx.Error(w, http.StatusForbidden, "شما تأییدکنندهٔ این فاکتور نیستید.")
+	chain := jsonx.Strings(inv, "approvers")
+	step := int(jsonx.Num(inv["step"]))
+	if step < 0 || step >= len(chain) {
+		step = 0
+	}
+	if !me.IsAdmin() && (len(chain) == 0 || chain[step] != me.ID()) {
+		if jsonx.Contains(chain, me.ID()) {
+			httpx.Error(w, http.StatusForbidden, "نوبت شما نیست؛ فاکتور باید اول مرحلهٔ قبل را بگذراند.")
+		} else {
+			httpx.Error(w, http.StatusForbidden, "شما تأییدکنندهٔ این فاکتور نیستید.")
+		}
 		return
 	}
 	requesterID, requesterName := jsonx.Str(inv, "issuedById"), jsonx.Str(inv, "issuedByName")
@@ -101,7 +115,25 @@ func invoiceDecide(w http.ResponseWriter, r *http.Request) {
 		httpx.OK(w)
 		return
 	}
-	// approved: issued as if the issuer had issued it (the number, the request to Sepidar), the approval is written on it
+	// approved at this step; not the last step: it goes on to the next person (the administrator's approval is the last one)
+	steps := []any{}
+	if old, ok := inv["steps"].([]any); ok {
+		steps = append(steps, old...)
+	}
+	steps = append(steps, jsonx.M{"id": me.ID(), "name": me.Name(), "status": "APPROVED", "at": now(), "note": note})
+	if !me.IsAdmin() && step+1 < len(chain) {
+		inv["step"], inv["steps"] = step+1, steps
+		doc["invoice"] = inv
+		doc["updatedAt"] = now()
+		if _, err := store.Pool.Exec(ctx, `UPDATE crm_deals SET data = $2::jsonb WHERE id = $1`, id, jsonx.Encode(doc)); err != nil {
+			internalError(w)
+			return
+		}
+		notify.Notify(ctx, []string{chain[step+1]}, notify.Note{Kind: "alert", Label: "فاکتور منتظر تأیید", Title: label + " منتظر تأیید شماست", Body: me.Name() + " تأیید کرد (مرحلهٔ " + strconv.Itoa(step+2) + " از " + strconv.Itoa(len(chain)) + ").", Ref: ref("deal", id)}, me.ID())
+		httpx.OK(w)
+		return
+	}
+	// the last approval: issued as if the issuer had issued it (the number, the request to Sepidar), the approvals are written on it
 	before := jsonx.Copy(doc)
 	delete(before, "invoice")
 	doc2 := jsonx.Copy(doc)
@@ -116,7 +148,7 @@ func invoiceDecide(w http.ResponseWriter, r *http.Request) {
 	inv2 := jsonx.Sub(doc2, "invoice")
 	inv2["requestedAt"] = inv["issuedAt"]
 	inv2["issuedById"], inv2["issuedByName"] = requesterID, requesterName
-	inv2["approvedById"], inv2["approvedByName"], inv2["approvedAt"] = me.ID(), me.Name(), now()
+	inv2["approvedById"], inv2["approvedByName"], inv2["approvedAt"], inv2["approvalSteps"] = me.ID(), me.Name(), now(), steps
 	doc2["invoice"] = inv2
 	if jsonx.Bool(doc2, "standalone") { // a standalone invoice is a sale from now on (it was kept out of the reports while it waited)
 		doc2["stage"], doc2["closedAt"] = "WON", now()

@@ -226,8 +226,10 @@ const InvoiceApprovalBox: React.FC<{ deal: Deal }> = ({ deal }) => {
   const [rejecting, setRejecting] = useState(false);
   const inv = deal.invoice;
   if (!inv) return null;
-  const names = (inv.approvers || []).map((id) => staffList.find((u) => u.id === id)?.fullName || '').filter(Boolean);
-  const mayDecide = currentUser.role === 'SUPER_ADMIN' || (inv.approvers || []).includes(currentUser.id);
+  const chain = inv.approvers || [];
+  const step = Math.min(Math.max(inv.step || 0, 0), Math.max(chain.length - 1, 0));
+  const nameOf = (id: string) => staffList.find((u) => u.id === id)?.fullName || '—';
+  const mayDecide = currentUser.role === 'SUPER_ADMIN' || chain[step] === currentUser.id;
   const decide = async (decision: 'approve' | 'reject') => {
     if (decision === 'reject' && !reason.trim()) { showToast('دلیل رد را بنویسید.'); return; }
     setBusy(true);
@@ -245,8 +247,16 @@ const InvoiceApprovalBox: React.FC<{ deal: Deal }> = ({ deal }) => {
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2" data-invoice-approval>
       <p className="text-[11.5px] font-bold text-amber-900 leading-6">
-        این فاکتور منتظر تأیید است؛ تا تأیید نشود شماره نمی‌گیرد، به سپیدار نمی‌رود و چاپ نمی‌شود. تأییدکنندگان (یک نفرشان کافی است): {names.length ? names.join('، ') : '—'}
+        این فاکتور منتظر تأیید است؛ تا همهٔ مرحله‌ها تأیید نکنند شماره نمی‌گیرد، به سپیدار نمی‌رود و چاپ نمی‌شود.
       </p>
+      <ol className="space-y-1 text-[11px] font-bold" data-approval-chain>
+        {chain.map((id, i) => (
+          <li key={i} className={`flex items-center gap-2 ${i < step ? 'text-emerald-800' : i === step ? 'text-amber-900' : 'text-[#8C6F66]'}`}>
+            <span className="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] shrink-0">{i < step ? '✓' : toPersianDigits(i + 1)}</span>
+            {nameOf(id)}{i === step ? ' (نوبت اوست)' : ''}
+          </li>
+        ))}
+      </ol>
       {mayDecide && (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">

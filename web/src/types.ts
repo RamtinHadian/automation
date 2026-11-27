@@ -431,6 +431,10 @@ export interface DealInvoice {
   status: 'issued' | 'cancelled' | 'pending' | 'awaiting';
   /** «awaiting»: the people who may approve it (any one is enough), and later who approved */
   approvers?: string[];
+  /** the place of the approver whose turn it is, and what each has decided */
+  step?: number;
+  steps?: { id: string; name: string; status: string; at: string; note?: string }[];
+  approvalSteps?: { id: string; name: string; status: string; at: string; note?: string }[];
   approvedByName?: string;
   approvedAt?: string;
   issuedAt: string;
