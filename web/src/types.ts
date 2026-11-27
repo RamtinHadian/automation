@@ -167,6 +167,8 @@ export interface Customer {
   kind?: 'PERSON' | 'COMPANY' | 'SHOP';
   /** also (or only) a supplier: the same person / company can be both a customer and a supplier */
   isSupplier?: boolean;
+  /** ticked when the customer is defined: he only asks for prices («فقط قیمت‌گیر»); shown as a label next to the name (besides the automatic one for those who got a proforma and never bought) */
+  priceOnly?: boolean;
   // --- shop («SHOP»): the shop's name is name / company; the owner is firstName / lastName
   /** What the shop sells or does (guild / line of business). */
   shopType?: string;
