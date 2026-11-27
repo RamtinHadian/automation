@@ -49,6 +49,9 @@ export interface User {
   canSeeSalesMoney?: boolean;
   /** with «مشتریان همکاران»: only the customers of these colleagues are added to the person's own (empty = every colleague) */
   crmTeamIds?: string[];
+  /** whose deals this person may issue an invoice on: the ones he reaches (default), only his own, or his own and invoiceTeamIds' */
+  invoiceScope?: 'visible' | 'own' | 'people';
+  invoiceTeamIds?: string[];
   /** customers (ids) this person may work with in addition to his own, picked by an administrator */
   crmCustomerIds?: string[];
   /** warehouses (ids) this person works with (none = every warehouse) */

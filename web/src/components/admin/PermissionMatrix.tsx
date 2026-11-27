@@ -10,6 +10,8 @@ import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { api, WhState } from '../../lib/api';
 import { useSepidarConnected } from '../../lib/sepidarCustomerFields';
 import { matchesAll } from '../../lib/searchAll';
+import { InvoiceRightsDialog, invoiceSummary } from './InvoiceRightsDialog';
+import { MenuRightsDialog } from './MenuRightsDialog';
 
 const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'مدیر ارشد', DEPT_ADMIN: 'مدیر واحد', STAFF: 'کارمند' };
 
@@ -18,6 +20,11 @@ const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'مدیر ارشد', D
  * A tick gives the right and is saved at once. A sub-menu is open by default and a person sees it only when the menu itself is open for them.
  */
 /** Under the name: whose customers this person works with (a tap re-opens the choosing window). */
+/** Under the name of a person who may issue invoices: for whom, and how many limits; opens the window of all the invoice rights. */
+const InvoiceChip: React.FC<{ u: User; users: User[]; onOpen: () => void }> = ({ u, users, onOpen }) => (
+  <button type="button" onClick={onOpen} className="mt-1 ml-1 text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 cursor-pointer" data-invoice-rights-chip>{invoiceSummary(u, users)}</button>
+);
+
 const TeamCrmChip: React.FC<{ u: User; users: User[]; onOpen: () => void }> = ({ u, users, onOpen }) => {
   const n = (u.crmTeamIds || []).filter((id) => users.some((x) => x.id === id)).length;
   const m = (u.crmCustomerIds || []).length;
@@ -304,6 +311,9 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
   const sepidarOn = useSepidarConnected();
   const [whDlg, setWhDlg] = useState<{ u: User; tab: 'wh' | 'prod' | 'groups' } | null>(null);
   const [teamDlg, setTeamDlg] = useState<User | null>(null);
+  const [invDlg, setInvDlg] = useState<User | null>(null);
+  /** the page with every right of one menu for one person (id of the person: always read live from `users`) */
+  const [menuDlg, setMenuDlg] = useState<{ uid: string; menuId: string } | null>(null);
   const [q, setQ] = useState('');
   const [dept, setDept] = useState('');
   const [onlyStaff, setOnlyStaff] = useState(false);
@@ -350,6 +360,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
     if (on && c.id === 'warehouse.warehouses') setWhDlg({ u, tab: 'wh' });
     if (on && c.id === 'warehouse.products') setWhDlg({ u, tab: 'prod' });
     if (on && c.id === 'warehouse.groups') setWhDlg({ u, tab: 'groups' });
+    if (on && c.id === 'crm.invoice') setInvDlg({ ...u, ...colPatch(u, c, true) }); // choose for whom and what right away
     if (on && c.id === 'crm.team') setTeamDlg({ ...u, canSeeTeamCrm: true }); // choose whose customers (or «all») right away
     showToast(`«${c.label}» برای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
     if (on && sepidarOn && (c.id === 'crm.customers' || c.id === 'crm.import')) void offerSepidarCustomerRight(u);
@@ -368,7 +379,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
     showToast(`همهٔ مجوزهای ${u.fullName} ${on ? 'داده شد' : 'گرفته شد'}.`);
   };
   // «مشابه فلانی»: every right of the chosen employee is copied to this one (not his role, not the signature right, not the agent settings)
-  const COPY_KEYS = ['canSendOfficialLetters', 'canUseTasks', 'canUseCrm', 'canUseWarranty', 'canSendSms', 'canSeeSalesMoney', 'canUseWarehouse', 'canSeeTeamCrm', 'canSeeAllCalls', 'canViewStats', 'canPostAnnouncements', 'sepidarPerms', 'hiddenSub', 'whGroups', 'whWarehouseIds', 'whProducts', 'crmTeamIds', 'crmCustomerIds'] as const;
+  const COPY_KEYS = ['canSendOfficialLetters', 'canUseTasks', 'canUseCrm', 'canUseWarranty', 'canSendSms', 'canSeeSalesMoney', 'canUseWarehouse', 'canSeeTeamCrm', 'canSeeAllCalls', 'canViewStats', 'canPostAnnouncements', 'sepidarPerms', 'hiddenSub', 'whGroups', 'whWarehouseIds', 'whProducts', 'crmTeamIds', 'crmCustomerIds', 'invoiceScope', 'invoiceTeamIds'] as const;
   const copyFrom = async (u: User, refId: string) => {
     const ref = users.find((x) => x.id === refId);
     if (!ref || ref.id === u.id) return;
@@ -472,6 +483,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                   </div>
                   {!admin && (u.canSeeTeamCrm || u.canUseCrm || (u.crmCustomerIds || []).length > 0) && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
                   {!admin && u.canUseWarehouse && <WhChip u={u} onOpen={(t) => setWhDlg({ u, tab: t })} />}
+                  {!admin && u.canUseCrm && colOn(u, COLUMNS.find((x) => x.id === 'crm.invoice')!) && <InvoiceChip u={u} users={users} onOpen={() => setInvDlg(u)} />}
                   {!admin && (
                     <span className="flex items-center gap-1.5 shrink-0">
                       <button type="button" onClick={() => rowAll(u, true)} className="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
@@ -491,6 +503,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
         const sm = menuCols.find((x) => x.m.id === sec);
         if (!sm) return null;
         const { m, cols } = sm;
+        const compact = cols.length > 1; // a menu with sub-rights: one button per person opens the page with all its ticks
         const needle = secQ.trim();
         const list = rows.filter((u) => !needle || u.fullName.includes(needle));
         return (
@@ -506,14 +519,15 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
               </div>
             </div>
             <div className="w-full max-w-[1760px] mx-auto px-[clamp(14px,3.2vw,64px)] pt-4 pb-4 flex-1 min-h-0 flex flex-col gap-3">
-              <p className="text-[11px] font-bold text-[#8C6F66] shrink-0">روی نام هر ستون بزنید تا برای همهٔ کارمندان عادی تیک زده یا برداشته شود؛ عدد زیر نام ستون یعنی چند نفر آن را دارند.</p>
+              <p className="text-[11px] font-bold text-[#8C6F66] shrink-0">{compact ? 'روی «تنظیم مجوزها» در ردیف هر کارمند بزنید تا صفحهٔ همهٔ مجوزهای این بخش با توضیحشان باز شود و تیک بزنید.' : 'روی نام ستون بزنید تا برای همهٔ کارمندان عادی تیک زده یا برداشته شود؛ عدد زیر آن یعنی چند نفر دارند.'}</p>
               <div className="bg-white rounded-2xl border border-[#EBDBCE] shadow-xs overflow-y-auto overflow-x-hidden flex-1 min-h-0" data-perm-scroll>
                 <table className="w-full table-fixed text-right text-xs border-separate border-spacing-0">
                   {/* the column titles stay at the top while the employees scroll under them */}
                   <thead className="sticky top-0 z-20">
                     <tr className="bg-[#FAF5F1]">
                       <th className="px-4 py-3 text-[11px] font-black text-[#8C6F66] w-[clamp(110px,10vw,170px)] sticky right-0 top-0 bg-[#FAF5F1] z-30 border-b border-[#EBDBCE]">کارمند</th>
-                      {cols.map((c) => (
+                      {compact && <th className="px-3 py-3 text-[11px] font-black text-right bg-[#FAF5F1] border-b border-[#EBDBCE]" style={{ color: m.tone }}>مجوزهای این بخش</th>}
+                      {!compact && cols.map((c) => (
                         <th key={c.id} className="px-px py-2 text-center align-bottom bg-[#FAF5F1] border-b border-[#EBDBCE]" style={c.isMain ? { backgroundImage: `linear-gradient(${m.tone}14, ${m.tone}14)` } : undefined}>
                           <button type="button" title={c.hint} onClick={() => colAll(c)} className="block mx-auto text-[clamp(8.5px,0.6vw,10.5px)] font-black leading-[1.35] hover:underline cursor-pointer [overflow-wrap:normal] [word-break:keep-all] max-w-full" style={{ color: m.tone }}>
                             {c.isMain ? 'ورود به منو' : c.label}
@@ -533,9 +547,18 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                             <span className="block text-xs font-black text-[#3A241F] truncate">{u.fullName}</span>
                             <span className="block text-[10px] font-bold text-[#8C6F66] truncate">{ROLE_LABEL[u.role] || u.role} · {u.departmentName}</span>
                             {!admin && m.id === 'crm' && (u.canSeeTeamCrm || u.canUseCrm || (u.crmCustomerIds || []).length > 0) && <TeamCrmChip u={u} users={users} onOpen={() => setTeamDlg(u)} />}
+                            {!admin && m.id === 'crm' && u.canUseCrm && colOn(u, COLUMNS.find((x) => x.id === 'crm.invoice')!) && <InvoiceChip u={u} users={users} onOpen={() => setInvDlg(u)} />}
                             {!admin && m.id === 'warehouse' && u.canUseWarehouse && <WhChip u={u} onOpen={(t) => setWhDlg({ u, tab: t })} />}
                           </td>
-                          {cols.map((c) => {
+                          {compact && (
+                            <td className="px-3 py-2" data-perm-compact>
+                              <button type="button" onClick={() => setMenuDlg({ uid: u.id, menuId: m.id })} className="w-full max-w-md flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-[#EBDBCE] bg-[#FAF5F1] hover:bg-[#F3E9E2] text-right cursor-pointer" data-open-menu-rights={u.id}>
+                                <span className="text-[11px] font-black text-[#3A241F]">{toPersianDigits(cols.filter((c) => (admin ? (adminEditable(c) ? adminOn(u, c) : true) : colOn(u, c))).length)} از {toPersianDigits(cols.length)} مجوز</span>
+                                <span className="text-[11px] font-black" style={{ color: m.tone }}>تنظیم مجوزها ←</span>
+                              </button>
+                            </td>
+                          )}
+                          {!compact && cols.map((c) => {
                             const editableAdmin = admin && adminEditable(c);
                             const on = admin ? (editableAdmin ? adminOn(u, c) : true) : colOn(u, c);
                             const dim = !admin && !c.isMain && !menuOpen(u, c.menuId);
@@ -563,7 +586,7 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
                             );
                           })}
                           <td className="px-1 py-2 text-center">
-                            {admin ? <ShieldCheck className="w-4 h-4 text-[#6E1B1B] inline" /> : (
+                            {compact && admin ? <ShieldCheck className="w-4 h-4 text-[#6E1B1B] inline" /> : admin ? <ShieldCheck className="w-4 h-4 text-[#6E1B1B] inline" /> : (
                               <span className="inline-flex gap-0.5 flex-wrap justify-center">
                                 <button type="button" onClick={() => { onUpdateUser(u.id, colPatchMany(u, cols, true)); showToast(`همهٔ مجوزهای «${m.title}» برای ${u.fullName} داده شد.`); }} className="px-1.5 py-1 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-pointer">همه</button>
                                 <button type="button" onClick={() => { onUpdateUser(u.id, colPatchMany(u, cols, false)); showToast(`مجوزهای «${m.title}» از ${u.fullName} گرفته شد.`); }} className="px-1.5 py-1 rounded-md text-[10px] font-black bg-white text-[#8C6F66] border border-[#EBDBCE] cursor-pointer">هیچ</button>
@@ -641,6 +664,40 @@ export const PermissionMatrix: React.FC<{ users: User[]; departments: Department
         برای مدیران هم می‌توانید منو و زیرمنو را تیک بزنید یا بردارید (فقط نمایش آن برایشان). «مدیرعامل / صاحب امضای مجاز» فقط یک نفر است و از «ویرایش کاربر» تعیین می‌شود. هر تیک همان لحظه ذخیره می‌شود و کارمند از تغییر مجوزهایش با یک اعلان باخبر می‌شود. هر منو یا زیرمنوی تازه‌ای که به سامانه اضافه شود، یک ستون در همین جدول می‌گیرد.
       </p>
       {whDlg && <WhDialog u={whDlg.u} tab0={whDlg.tab} onSave={(w, pr, gr) => onUpdateUser(whDlg.u.id, { whWarehouseIds: w, whProducts: pr, whGroups: gr })} onClose={() => setWhDlg(null)} />}
+      {menuDlg && (() => {
+        const mm = menuCols.find((x) => x.m.id === menuDlg.menuId);
+        const uu = users.find((x) => x.id === menuDlg.uid);
+        if (!mm || !uu) return null;
+        const adm = isAdminUser(uu);
+        return (
+          <MenuRightsDialog
+            user={uu}
+            menu={mm.m}
+            cols={mm.cols}
+            isOn={(x, c) => (isAdminUser(x) ? (adminEditable(c) ? adminOn(x, c) : true) : colOn(x, c))}
+            locked={(x, c) => isAdminUser(x) && !adminEditable(c)}
+            dimmed={(x, c) => !isAdminUser(x) && !c.isMain && !menuOpen(x, c.menuId)}
+            onToggle={toggle}
+            extra={(x, c) => {
+              if (isAdminUser(x)) return null;
+              const btn = 'text-[10.5px] font-black text-[#6E1B1B] bg-white border border-[#E4CFC2] rounded-full px-2.5 py-1 cursor-pointer';
+              if (c.id === 'crm.team') return <button type="button" className={btn} onClick={() => setTeamDlg(x)}>کدام همکاران؟ ←</button>;
+              if (c.id === 'crm.invoice') return <button type="button" className={btn} onClick={() => setInvDlg(x)}>جزئیات صدور فاکتور (برای چه کسانی، چه نوعی) ←</button>;
+              if (c.id === 'warehouse.warehouses') return <button type="button" className={btn} onClick={() => setWhDlg({ u: x, tab: 'wh' })}>کدام انبارها؟ ←</button>;
+              if (c.id === 'warehouse.products') return <button type="button" className={btn} onClick={() => setWhDlg({ u: x, tab: 'prod' })}>کدام کالاها؟ ←</button>;
+              if (c.id === 'warehouse.groups') return <button type="button" className={btn} onClick={() => setWhDlg({ u: x, tab: 'groups' })}>کدام گروه‌ها؟ ←</button>;
+              return null;
+            }}
+            onAll={(x, on) => {
+              if (adm) return;
+              onUpdateUser(x.id, colPatchMany(x, mm.cols, on));
+              showToast(on ? `همهٔ مجوزهای «${mm.m.title}» برای ${x.fullName} داده شد.` : `مجوزهای «${mm.m.title}» از ${x.fullName} گرفته شد.`);
+            }}
+            onClose={() => setMenuDlg(null)}
+          />
+        );
+      })()}
+      {invDlg && <InvoiceRightsDialog u={invDlg} users={users} onSave={(patch) => onUpdateUser(invDlg.id, patch)} onClose={() => setInvDlg(null)} />}
       {teamDlg && <TeamCrmDialog u={teamDlg} users={users} onSave={(ids, customerIds, seesTeam) => onUpdateUser(teamDlg.id, { crmTeamIds: ids, crmCustomerIds: customerIds, canSeeTeamCrm: seesTeam })} onClose={() => setTeamDlg(null)} />}
     </div>
   );

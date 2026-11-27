@@ -69,7 +69,7 @@ func enforceInvoiceOpt(w http.ResponseWriter, r *http.Request, me auth.User, bef
 	if len(old) > 0 {
 		keep := jsonx.Copy(old)
 		if len(inc) > 0 && jsonx.Str(old, "status") != "cancelled" && jsonx.Str(inc, "status") == "cancelled" {
-			if !invoiceRight(me) {
+			if !invoiceRight(me) || !invoiceSub(me, "crm.invoice.cancel") {
 				httpx.Error(w, http.StatusForbidden, "ابطال فاکتور به شما اجازه داده نشده است.")
 				return false, false
 			}
@@ -129,6 +129,25 @@ func enforceInvoiceOpt(w http.ResponseWriter, r *http.Request, me auth.User, bef
 	kind := "UNOFFICIAL"
 	if jsonx.Str(inc, "kind") == "OFFICIAL" {
 		kind = "OFFICIAL"
+	}
+	if !approved && !me.IsAdmin() { // the detail rights of this person (permission table → «صدور و ابطال فاکتور»)
+		refuse := ""
+		switch {
+		case kind == "OFFICIAL" && !invoiceSub(me, "crm.invoice.official"):
+			refuse = "صدور فاکتور رسمی به شما اجازه داده نشده است."
+		case kind != "OFFICIAL" && !invoiceSub(me, "crm.invoice.unofficial"):
+			refuse = "صدور فاکتور غیررسمی به شما اجازه داده نشده است."
+		case standalone && !invoiceSub(me, "crm.invoice.standalone"):
+			refuse = "صدور فاکتور مستقل (بدون پیش‌فاکتور) به شما اجازه داده نشده است."
+		case jsonx.Bool(inc, "paid") && !invoiceSub(me, "crm.invoice.paid"):
+			refuse = "ثبت «پرداخت شده» هنگام صدور فاکتور به شما اجازه داده نشده است."
+		default:
+			refuse = invoiceScopeRefusal(r.Context(), me, doc)
+		}
+		if refuse != "" {
+			httpx.Error(w, http.StatusForbidden, refuse)
+			return false, false
+		}
 	}
 	// the invoices of a person who needs approval wait for it: no number, nothing sent to Sepidar, until the approval is over
 	awaitingInvoice := func(extra jsonx.M) jsonx.M {
