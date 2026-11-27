@@ -101,11 +101,10 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.81.7';
+export const TOOL_VERSION = '1.82.0';
 
-// Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
-// read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
-// then try the usual spellings, first as it is, then closed, then open again. Every try is logged.
+// Sepidar's own API description (Swagger, «Issue Invoice From Quotation») asks for the body {"QuatationID": <id>} - the field is spelt «Quatation». The older
+// spellings are tried after it, for other versions.
 async function invoiceFromQuotation(sp, quotationId) {
   const id = Number(quotationId);
   let q = null;
@@ -116,27 +115,15 @@ async function invoiceFromQuotation(sp, quotationId) {
     log('  پیش‌فاکتور ' + id + ' را از سپیدار نتوانستم بخوانم:', e && e.message);
   }
   let last;
-  const wasClosed = q && q.Closed === true;
-  for (const mode of ['asis', 'flip']) {
-    if (mode === 'flip') {
-      try { await sp.post('/api/Quotations/' + id + (wasClosed ? '/UnClose/' : '/Close/')); log('  حالت پیش‌فاکتور را عوض کردم (' + (wasClosed ? 'باز' : 'بسته') + ')'); } catch (e) { log('  عوض‌کردن حالت پیش‌فاکتور نشد:', e && e.message); }
-    }
-    // the value: the quotation's ID, then (the lookup may be by number) its Number, then its GUID
-    const values = [['ID', id]];
-    if (q && q.Number != null) values.push(['Number', Number(q.Number)]);
-    if (q && q.GUID) values.push(['GUID', q.GUID]);
-    for (const [vname, val] of values) {
-      for (const key of ['QuotationID', 'QuotationId', 'QuotationRef', 'ID']) {
-        try {
-          const r = await sp.post('/api/Invoices/BasedOnQuotation/', { [key]: val });
-          log('  فاکتور ساخته شد با فیلد ' + key + ' و مقدار ' + vname + (mode === 'flip' ? ' (بعد از عوض‌کردن حالت پیش‌فاکتور)' : ''));
-          return r;
-        } catch (e) {
-          last = e;
-          log('  BasedOnQuotation با ' + key + '=' + vname + ' (' + mode + '):', e && e.message);
-          if (!(e && (e.status === 400 || e.status === 404 || e.status === 500))) throw e;
-        }
-      }
+  for (const key of ['QuatationID', 'QuotationID', 'QuotationId']) {
+    try {
+      const r = await sp.post('/api/Invoices/BasedOnQuotation', { [key]: id });
+      log('  فاکتور از پیش‌فاکتور ساخته شد با فیلد ' + key + ':', JSON.stringify(r).slice(0, 300));
+      return r;
+    } catch (e) {
+      last = e;
+      log('  BasedOnQuotation با ' + key + ':', e && e.message);
+      if (!(e && (e.status === 400 || e.status === 404 || e.status === 500))) throw e;
     }
   }
   await diagQuotation(sp, id, q);
@@ -1162,9 +1149,20 @@ const jobHandlers = {
     };
     let maxBefore = 0;
     try { maxBefore = Math.max(0, ...(await sp.get('/api/Invoices')).map((x) => Number(x.InvoiceID ?? x.ID) || 0)); } catch { /* only used to find the invoice when the answer does not name it */ }
-    let r;
+    // way 1 (Sepidar's own): a quotation with the lines and their warehouse, then the invoice issued from it - the invoice then goes through Sepidar's usual path
+    let r = null;
     let last;
-    for (const key of ['InvoiceItems', 'Items']) {
+    let madeQuotation = null;
+    try {
+      const qrows = q.body.Items.map((x) => ({ ...x, StockRef: stockOf(x.ItemRef) }));
+      madeQuotation = await sp.post('/api/Quotations', { ...q.body, GUID: guidFrom('invq:' + deal.id + ':' + job.id), Date: when, Items: qrows });
+      r = await invoiceFromQuotation(sp, madeQuotation.ID);
+    } catch (e) {
+      log('  راه اول (فاکتور از روی پیش‌فاکتور) نشد؛ فاکتور مستقیم ساخته می‌شود:', e && e.message);
+      if (madeQuotation && madeQuotation.ID) { try { await sp.call('DELETE', '/api/Quotations/' + madeQuotation.ID); } catch { /* it stays for the accountant to delete */ } }
+      r = null;
+    }
+    for (const key of (r ? [] : ['Items', 'InvoiceItems'])) {
       try {
         r = await sp.post('/api/Invoices', { ...head, [key]: rows });
         log('  فاکتور در سپیدار ساخته شد (فیلد ردیف‌ها: ' + key + '):', JSON.stringify(r).slice(0, 300));
@@ -1175,7 +1173,7 @@ const jobHandlers = {
         if (!(e && (e.status === 400 || e.status === 500))) throw e;
       }
     }
-    if (!r) throw last;
+    if (!r) throw last || new Error('فاکتور در سپیدار ساخته نشد.');
     // which invoice is the one just made: the answer says (an object with InvoiceID / Number, or just the id); if it does not, the invoice is the customer's
     // one that did not exist before the request. Never «the newest invoice of the customer»: that can be an older one and gives the wrong number.
     let id = typeof r === 'number' ? r : r?.InvoiceID ?? r?.ID ?? null;

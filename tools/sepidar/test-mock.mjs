@@ -94,7 +94,12 @@ const sepidarServer = http.createServer(async (req, res) => {
     sp.invoicePosted = body; sp.invoicePostedCount = (sp.invoicePostedCount || 0) + 1;
     return send(res, 200, { InvoiceID: 700, Number: 31 });
   }
-  if (req.method === 'POST' && url === '/api/Invoices/BasedOnQuotation') { if (typeof body !== 'object' || !body.QuotationID) return send(res, 400, { Message: "Error converting value to type 'QuotationIdDto'" }); sp.calls.push('invoice from ' + JSON.stringify(body)); return send(res, 200, { InvoiceID: 700, Number: 31 }); }
+  if (req.method === 'POST' && url === '/api/Invoices/BasedOnQuotation') {
+    if (sp.refuseBased) return send(res, 404, { Message: 'پیش‌فاکتور پیدا نشد.' });
+    // like Sepidar's own description: the field is spelt «QuatationID»
+    if (typeof body !== 'object' || !body.QuatationID) return send(res, 400, { Message: "Required property 'QuatationID' not found in JSON." });
+    sp.calls.push('invoice from ' + JSON.stringify(body)); return send(res, 200, { InvoiceID: 700, Number: 31 });
+  }
   if (req.method === 'POST' && url === '/api/Receipts/BasedOnInvoice') { sp.receipt = body; return send(res, 200, { ReceiptID: 55 }); }
   if (req.method === 'GET' && url.startsWith('/api/Customers/') && url.length > 15) return send(res, 200, { ...(sp.customers.find((c) => '/api/Customers/' + c.CustomerID === url) || {}), Version: 'v1' });
   if (req.method === 'PUT' && url.startsWith('/api/Customers/')) {
@@ -415,7 +420,7 @@ ok(hoormandResults['sj-3']?.ok === true && hoormandResults['sj-3'].sepidarId ===
 }
 hoormandJobs.push({ id: 'sj-4', kind: 'quotation.close', data: { dealId: 'd-1', sepidarId: 900 } }, { id: 'sj-5', kind: 'invoice.fromProforma', data: { dealId: 'd-1', sepidarId: 900 } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
-ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice from {"QuotationID":900}') && hoormandResults['sj-5'].number === 31 && hoormandResults['sj-5'].sepidarId === 700, 'close and invoice-from-quotation (the body is an object with the quotation id)');
+ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice from {"QuatationID":900}') && hoormandResults['sj-5'].number === 31 && hoormandResults['sj-5'].sepidarId === 700, 'close and invoice-from-quotation (the body is an object with the quotation id)');
 // the invoice made in Hoormand is written straight into Sepidar's sales invoices (no quotation); the stock of the line comes from the warehouse that holds most of it
 {
   const base = deals[0];
@@ -427,8 +432,17 @@ ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice 
   const res = hoormandResults['sj-5b'];
   const made = sp.invoicePosted || {};
   const rowsOut = made.InvoiceItems || made.Items || [];
-  ok(res?.ok === true && sp.quotations.length === before && rowsOut.length >= 1 && rowsOut[0].Quantity === 3 && made.CustomerRef != null && made.GUID, 'invoice.fromHoormand writes the invoice straight into Sepidar (no quotation), with the lines of the invoice');
-  ok(Number(made.NetPrice) === rowsOut.reduce((t, x) => t + x.NetPrice, 0) && made.SettlementType === 2, 'the invoice carries its total and the settlement type');
+  const qmade = sp.quotations[sp.quotations.length - 1];
+  ok(res?.ok === true && sp.quotations.length === before + 1 && qmade.Items[0].Quantity === 3 && sp.calls.some((c) => /^invoice from \{"QuatationID":\d+\}$/.test(c)), 'invoice.fromHoormand makes a quotation from the invoice lines and issues the invoice from it (the way Sepidar itself does it, field «QuatationID»)');
+  // when Sepidar refuses the quotation way, the invoice is written directly (and the quotation made for it is deleted again)
+  sp.refuseBased = true;
+  deals.push({ ...base, id: 'd-74', invoice: { number: 'FA-1405-0002', kind: 'UNOFFICIAL', status: 'issued', issuedAt: '2026-10-22T08:00:00.000Z', items: base.items.map((i) => ({ ...i, qty: 2 })), discountPercent: 0, taxPercent: 0, settlement: 'CASH' } });
+  hoormandJobs.push({ id: 'sj-5e', kind: 'invoice.fromHoormand', data: { dealId: 'd-74' } });
+  r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
+  sp.refuseBased = false;
+  const direct = sp.invoicePosted || {};
+  const rowsDirect = direct.Items || direct.InvoiceItems || [];
+  ok(hoormandResults['sj-5e']?.ok === true && rowsDirect.length >= 1 && rowsDirect[0].Quantity === 2 && direct.SettlementType === 1 && Number(direct.NetPrice) === rowsDirect.reduce((t, x) => t + x.NetPrice, 0), 'when the quotation way is refused the invoice is written directly, with its settlement type and total');
   ok(res.sepidarId === 700 && res.number === 31 && /FA-1405-0001/.test(res.message || '') && /می‌ماند/.test(res.message || ''), 'invoice.fromHoormand reports the Sepidar invoice number and says it stays in Sepidar when cancelled in Hoormand');
   ok(hoormandResults['sj-5c']?.ok === false && /باطل/.test(hoormandResults['sj-5c']?.message || ''), 'a cancelled Hoormand invoice is not sent to Sepidar');
   // an invoice still waiting for its number (status pending, no number yet) is issued in Sepidar and reports Sepidar's number back
