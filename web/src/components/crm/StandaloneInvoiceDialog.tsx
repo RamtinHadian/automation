@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
-import { Plus, Receipt, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { PackageSearch, Plus, Receipt, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
-import { formatMoney, fromDisplay, unitName } from '../../lib/money';
+import { formatMoney, fromDisplay, toDisplay, unitName } from '../../lib/money';
+import { WarehousePicker, WarehouseProduct } from './WarehousePicker';
 import { issuerById, issuersOf, officialProblems } from '../../lib/proformaIssuer';
 import { proformaTotals } from '../../lib/proformaPdf';
 import { canIssueInvoice } from '../../lib/invoice';
@@ -32,6 +33,18 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
   const [taxPercent, setTaxPercent] = useState<string>(String(issuers[0].taxPercent ?? 0));
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  // the warehouse: its products come with their prices; the seller puts one of them in the price box of the row
+  const [catalog, setCatalog] = useState<WarehouseProduct[]>([]);
+  const [picking, setPicking] = useState(false);
+  useEffect(() => { api.crmProducts().then((r) => setCatalog(r.products as WarehouseProduct[])).catch(() => setCatalog([])); }, []);
+  const pickProduct = (p: WarehouseProduct) => {
+    const line: Row = { title: p.title, code: p.code || '', unit: p.unit || '', qty: '1', price: p.prices && p.prices[0] ? String(toDisplay(p.prices[0].amount)) : '', discount: '' };
+    setRows((cur) => {
+      const last = cur[cur.length - 1];
+      return last && !last.title.trim() && !last.code && !last.price ? [...cur.slice(0, -1), line] : [...cur, line];
+    });
+    setPicking(false);
+  };
   const customer = customers.find((c) => c.id === customerId);
   const kind = issuer.kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL';
   const items = useMemo(() => rows.filter((r) => r.title.trim()).map((r) => ({ id: '', title: r.title.trim(), code: r.code.trim(), unit: r.unit.trim(), qty: num(r.qty) || 0, unitPrice: fromDisplay(num(r.price)), discount: fromDisplay(num(r.discount)) })), [rows]);
@@ -100,9 +113,23 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
                   <MoneyInput value={r.price} onChange={(d) => set(i, 'price', d)} placeholder={`قیمت واحد (${unitName()})`} unit={false} className={inp} />
                   <MoneyInput value={r.discount} onChange={(d) => set(i, 'discount', d)} placeholder="تخفیف ردیف" unit={false} className={inp} />
                 </div>
+                {(() => {
+                  const prod = catalog.find((x) => x.code && x.code === r.code.trim());
+                  const ps = prod?.prices || [];
+                  if (!ps.length) return null;
+                  return (
+                    <div className="flex flex-wrap items-center gap-1.5" data-product-prices>
+                      <span className="text-[10px] font-black text-amber-800">قیمت‌های این کالا:</span>
+                      {ps.map((x) => (
+                        <button key={x.title} type="button" onClick={() => set(i, 'price', String(toDisplay(x.amount)))} className={`px-2.5 py-1 rounded-full border text-[10.5px] font-black cursor-pointer ${num(r.price) === toDisplay(x.amount) ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>{x.title}: {formatMoney(x.amount)}</button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
+          <button type="button" onClick={() => setPicking(true)} className="mt-2 ml-2 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-black cursor-pointer" data-pick-product><PackageSearch className="w-3.5 h-3.5 inline ml-1" />انتخاب کالا از انبار</button>
           <button type="button" onClick={() => setRows((p) => [...p, blank()])} className="mt-2 px-3 py-1.5 rounded-xl border border-dashed border-[#C98B6A] text-[11px] font-black text-[#6E1B1B] cursor-pointer"><Plus className="w-3.5 h-3.5 inline ml-1" />ردیف تازه</button>
         </div>
 
@@ -124,6 +151,8 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
           <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl bg-white border border-[#EBDBCE] text-[#6E1B1B] text-xs font-black cursor-pointer">انصراف</button>
         </div>
       </div>
+      {/* a click inside the picker must not reach this dialog's backdrop (it would close the dialog) */}
+      {picking && <div onClick={(e) => e.stopPropagation()}><WarehousePicker products={catalog} priceFor={(p) => (p.prices && p.prices[0] ? p.prices[0].amount : 0)} onPick={pickProduct} onClose={() => setPicking(false)} /></div>}
     </div>
   );
 };

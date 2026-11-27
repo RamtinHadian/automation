@@ -1799,6 +1799,26 @@ export const DealForm: React.FC<{
                 <span className="text-[11px] font-black text-[#3A241F]">قیمت نقدی و قیمت مدت‌دار (هر واحد)</span>
                 <span className="text-[10px] font-bold text-[#8C6F66]">اگر مشتری نقد بخرد یک قیمت و اگر مدت‌دار بخواهد قیمت دیگر؛ هر کدام را بخواهید «استفاده» بزنید تا در قیمت واحد بنشیند.</span>
               </div>
+              {(() => {
+                const prod = whProducts.find((x) => x.code && x.code === d.productCode);
+                const ps = prod?.prices || [];
+                if (!ps.length) return null;
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5" data-product-prices>
+                    <span className="text-[10px] font-black text-amber-800">قیمت‌های تعریف‌شدهٔ این کالا (یکی را بزنید تا در «قیمت واحد» بنشیند):</span>
+                    {ps.map((x) => (
+                      <button
+                        key={x.title}
+                        type="button"
+                        onClick={() => { setUnitNow(x.amount); setAmountText(x.amount ? toman(x.amount) : ''); patch({ unitPrice: x.amount, amount: x.amount * (d.quantity || 1), priceChoice: undefined }); }}
+                        className={`px-2.5 py-1 rounded-full border text-[10.5px] font-black cursor-pointer ${unitNow === x.amount ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-50 text-amber-800 border-amber-200'}`}
+                      >
+                        {x.title}: {toman(x.amount)}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
               {options.map((o) => (
                 <div key={o.id} className="flex flex-wrap items-center gap-2" data-price-option>
                   {o.term === '' ? (
