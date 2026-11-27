@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.82.0';
+export const TOOL_VERSION = '1.82.1';
 
 // Sepidar's own API description (Swagger, «Issue Invoice From Quotation») asks for the body {"QuatationID": <id>} - the field is spelt «Quatation». The older
 // spellings are tried after it, for other versions.
@@ -950,6 +950,9 @@ async function sendQuotation(cfg, sp, state, deal) {
   return r;
 }
 
+// set when something that moves the stock was written in Sepidar (an invoice): the stock is sent to Hoormand right after the requests, not 10 minutes later
+let stockDirty = false;
+
 const jobHandlers = {
   async 'customer.send'(cfg, sp, state, job) {
     const c = await hoormandGetOne(cfg, '/customers/' + encodeURIComponent(job.data.customerId));
@@ -1194,6 +1197,7 @@ const jobHandlers = {
       log('  [فاکتور ساخته‌شده در سپیدار]', JSON.stringify({ State: full.State, SettlementType: full.SettlementType, Number: full.Number, Items: (full.InvoiceItems || []).map((x) => ({ ItemRef: x.ItemRef, Quantity: x.Quantity, StockRef: x.StockRef ?? null })) }));
     } catch { /* only a help */ }
     if (id == null || number == null) throw new Error('سپیدار فاکتور را پذیرفت ولی شمارهٔ آن را برنگرداند؛ در «سپیدار ← فاکتورها» ببینید ساخته شده است (شمارهٔ هورمند عوض نمی‌شود).');
+    stockDirty = true;
     return {
       sepidarId: id, number,
       message: `فاکتور هورمند${inv.number ? ' ' + inv.number : ''} در سپیدار با شمارهٔ ${number} صادر شد (همین شماره شمارهٔ فاکتور هورمند می‌شود). موجودی کالا را سپیدار کم می‌کند. اگر این فاکتور را در هورمند باطل کنید در سپیدار می‌ماند تا از داخل سپیدار پاک شود.`,
@@ -1234,7 +1238,10 @@ const jobHandlers = {
 
   async refresh(cfg, sp, state) {
     await pushCaches(cfg, sp, state);
-    return { sepidarId: 0, message: 'اطلاعات سپیدار بروز شد.' };
+    // the stock too: the warehouse page of Hoormand must show what Sepidar has right now (the button used to leave it as it was)
+    let stockNote = '';
+    try { await cmdStock(cfg); stockNote = ' موجودی انبار هم بروز شد.'; } catch (e) { stockNote = ' (موجودی انبار بروز نشد: ' + String(e && e.message).slice(0, 80) + ')'; }
+    return { sepidarId: 0, message: 'اطلاعات سپیدار بروز شد.' + stockNote };
   },
 };
 
@@ -1776,6 +1783,10 @@ async function main() {
           }
         }
         await cmdJobs(cfg);
+        if (stockDirty) {
+          stockDirty = false;
+          try { await cmdStock(cfg); } catch (e) { log('موجودی بعد از فاکتور فرستاده نشد:', e.message); }
+        }
       } catch (e) {
         log('خطا:', e.message);
       }
