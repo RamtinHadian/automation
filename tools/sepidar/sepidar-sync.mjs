@@ -96,23 +96,39 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.80.4';
+export const TOOL_VERSION = '1.80.5';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
-// read, so the usual spellings are tried one after the other; «not found» with the wrong name looks like a missing quotation, so 404 is tried too.
+// read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
+// then try the usual spellings, first as it is, then closed, then open again. Every try is logged.
 async function invoiceFromQuotation(sp, quotationId) {
   const id = Number(quotationId);
+  let q = null;
+  try {
+    q = await sp.get('/api/Quotations/' + id);
+    log('  پیش‌فاکتور در سپیدار:', JSON.stringify({ ID: q.ID, Number: q.Number, Closed: q.Closed, Customer: q.CustomerRef, Items: Array.isArray(q.Items) ? q.Items.length : undefined }));
+  } catch (e) {
+    log('  پیش‌فاکتور ' + id + ' را از سپیدار نتوانستم بخوانم:', e && e.message);
+  }
   let last;
-  for (const key of ['QuotationID', 'QuotationId', 'QuotationRef', 'ID']) {
-    try {
-      return await sp.post('/api/Invoices/BasedOnQuotation/', { [key]: id });
-    } catch (e) {
-      last = e;
-      if (!(e && (e.status === 400 || e.status === 404 || e.status === 500))) throw e;
+  const wasClosed = q && q.Closed === true;
+  for (const mode of ['asis', 'flip']) {
+    if (mode === 'flip') {
+      try { await sp.post('/api/Quotations/' + id + (wasClosed ? '/UnClose/' : '/Close/')); log('  حالت پیش‌فاکتور را عوض کردم (' + (wasClosed ? 'باز' : 'بسته') + ')'); } catch (e) { log('  عوض‌کردن حالت پیش‌فاکتور نشد:', e && e.message); }
+    }
+    for (const key of ['QuotationID', 'QuotationId', 'QuotationRef', 'ID']) {
+      try {
+        const r = await sp.post('/api/Invoices/BasedOnQuotation/', { [key]: id });
+        log('  فاکتور ساخته شد با فیلد ' + key + (mode === 'flip' ? ' (بعد از عوض‌کردن حالت پیش‌فاکتور)' : ''));
+        return r;
+      } catch (e) {
+        last = e;
+        log('  BasedOnQuotation با ' + key + ' (' + mode + '):', e && e.message);
+        if (!(e && (e.status === 400 || e.status === 404 || e.status === 500))) throw e;
+      }
     }
   }
   throw last;
-}
 }
 
 async function hoormand(cfg, p) {
