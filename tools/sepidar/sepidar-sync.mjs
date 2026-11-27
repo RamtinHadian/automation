@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.80.6';
+export const TOOL_VERSION = '1.80.7';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -1584,6 +1584,11 @@ async function main() {
       }
     };
     ensureWatchdog();
+    // «I am alive» every 30 seconds by its own timer: whatever the synchronisation is busy with (even one very slow answer of Sepidar), Hoormand keeps
+    // showing «connected». An older Hoormand without this call answers 404; that is ignored.
+    const beat = () => hoormand(cfg, '/sepidar/beat?v=' + encodeURIComponent(TOOL_VERSION)).catch(() => {});
+    beat();
+    setInterval(beat, 30000).unref?.();
     for (;;) {
       try {
         if (cfg.autoUpdate !== false && Date.now() >= nextUpdate) {

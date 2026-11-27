@@ -1278,6 +1278,15 @@ func registerSepidar(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/sepidar/jobs", auth.Require(sepidarJobCreate))
 	mux.HandleFunc("POST /api/sepidar/jobs/{id}/cancel", auth.Require(sepidarJobCancel))
 	mux.HandleFunc("GET /api/ext/v1/sepidar/jobs", extAuth("sepidar.connect", extSepidarJobs))
+	// «I am alive» only (no job is taken): the program sends it by its own timer, so a long synchronisation can never look like a disconnection
+	mux.HandleFunc("GET /api/ext/v1/sepidar/beat", extAuth("sepidar.connect", func(w http.ResponseWriter, r *http.Request, k extKey, user auth.User) {
+		ver := r.URL.Query().Get("v")
+		if len(ver) > 20 {
+			ver = ver[:20]
+		}
+		sepidarBeat(r.Context(), k.Name, ver)
+		httpx.OK(w)
+	}))
 	mux.HandleFunc("POST /api/ext/v1/sepidar/jobs/{id}/result", extAuth("sepidar.connect", extSepidarResult))
 	mux.HandleFunc("POST /api/ext/v1/sepidar/push", extAuth("sepidar.connect", extSepidarPush))
 	mux.HandleFunc("GET /api/ext/v1/sepidar/links", extAuth("sepidar.connect", extSepidarLinks))
