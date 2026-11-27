@@ -590,6 +590,17 @@ export const CustomerForm: React.FC<{
           )}
         </Section>
 
+        {!contactKind && (
+          <div className="max-w-sm" data-customer-status>
+            <label className={label}>وضعیت مشتری</label>
+            <select className={field} value={c.status} onChange={(e) => patch({ status: e.target.value as CustomerStatus })}>
+              {(Object.keys(STATUS_LABEL) as CustomerStatus[]).map((k) => (
+                <option key={k} value={k}>{STATUS_LABEL[k]}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {!isCompany && !isShop && (
           <Section title="اطلاعات تکمیلی شخص">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -598,9 +609,10 @@ export const CustomerForm: React.FC<{
                 <input className={field} value={c.fatherName || ''} onChange={(e) => patch({ fatherName: e.target.value })} />
               </div>
               <div>
-                <label className={label}>کد ملی {!contactKind && <span className="font-medium text-[#8C6F66]">(چهار رقم آخر، رمز ورود به صفحهٔ پشتیبانی مشتری است)</span>}</label>
+                <label className={label}>کد ملی</label>
                 <input className={field} dir="ltr" inputMode="numeric" maxLength={10} value={c.nationalCode || ''} onChange={(e) => patch({ nationalCode: e.target.value })} />
                 {hint(nationalCodeBad, 'کد ملی معتبر نیست.')}
+                {!contactKind && <p className="mt-1 text-[10.5px] font-medium text-[#8C6F66] leading-5">چهار رقم آخرش رمز ورود مشتری به صفحهٔ پشتیبانی است.</p>}
               </div>
               <div>
                 <label className={label}>شمارهٔ شناسنامه</label>
@@ -819,14 +831,6 @@ export const CustomerForm: React.FC<{
 
         <Section title="پیگیری">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {!contactKind && <div>
-              <label className={label}>وضعیت</label>
-              <select className={field} value={c.status} onChange={(e) => patch({ status: e.target.value as CustomerStatus })}>
-                {(Object.keys(STATUS_LABEL) as CustomerStatus[]).map((k) => (
-                  <option key={k} value={k}>{STATUS_LABEL[k]}</option>
-                ))}
-              </select>
-            </div>}
             <div>
               <label className={label}>مسئول پیگیری</label>
               <PersonPicker title="مسئول پیگیری" items={staffItems(staff)} value={c.ownerId} onChange={(id) => patch({ ownerId: id })} />
