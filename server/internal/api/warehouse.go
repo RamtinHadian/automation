@@ -673,6 +673,8 @@ func whDelete(table, col string, w http.ResponseWriter, r *http.Request) {
 
 func whProductDelete(w http.ResponseWriter, r *http.Request) {
 	whDelete("wh_products", "product_id", w, r)
+	// the photos of a product that is gone go with it
+	_, _ = store.Pool.Exec(r.Context(), `DELETE FROM wh_product_images WHERE id NOT IN (SELECT id FROM wh_products)`)
 }
 func whWarehouseDelete(w http.ResponseWriter, r *http.Request) {
 	whDelete("wh_warehouses", "warehouse_id", w, r)
