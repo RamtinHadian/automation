@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.80.8';
+export const TOOL_VERSION = '1.80.9';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -121,15 +121,21 @@ async function invoiceFromQuotation(sp, quotationId) {
     if (mode === 'flip') {
       try { await sp.post('/api/Quotations/' + id + (wasClosed ? '/UnClose/' : '/Close/')); log('  حالت پیش‌فاکتور را عوض کردم (' + (wasClosed ? 'باز' : 'بسته') + ')'); } catch (e) { log('  عوض‌کردن حالت پیش‌فاکتور نشد:', e && e.message); }
     }
-    for (const key of ['QuotationID', 'QuotationId', 'QuotationRef', 'ID']) {
-      try {
-        const r = await sp.post('/api/Invoices/BasedOnQuotation/', { [key]: id });
-        log('  فاکتور ساخته شد با فیلد ' + key + (mode === 'flip' ? ' (بعد از عوض‌کردن حالت پیش‌فاکتور)' : ''));
-        return r;
-      } catch (e) {
-        last = e;
-        log('  BasedOnQuotation با ' + key + ' (' + mode + '):', e && e.message);
-        if (!(e && (e.status === 400 || e.status === 404 || e.status === 500))) throw e;
+    // the value: the quotation's ID, then (the lookup may be by number) its Number, then its GUID
+    const values = [['ID', id]];
+    if (q && q.Number != null) values.push(['Number', Number(q.Number)]);
+    if (q && q.GUID) values.push(['GUID', q.GUID]);
+    for (const [vname, val] of values) {
+      for (const key of ['QuotationID', 'QuotationId', 'QuotationRef', 'ID']) {
+        try {
+          const r = await sp.post('/api/Invoices/BasedOnQuotation/', { [key]: val });
+          log('  فاکتور ساخته شد با فیلد ' + key + ' و مقدار ' + vname + (mode === 'flip' ? ' (بعد از عوض‌کردن حالت پیش‌فاکتور)' : ''));
+          return r;
+        } catch (e) {
+          last = e;
+          log('  BasedOnQuotation با ' + key + '=' + vname + ' (' + mode + '):', e && e.message);
+          if (!(e && (e.status === 400 || e.status === 404 || e.status === 500))) throw e;
+        }
       }
     }
   }
@@ -1249,7 +1255,10 @@ export async function pushCaches(cfg, sp, state) {
     const want = new Set(Object.values(state.customers || {}).map(Number));
     try { for (const inv of await sp.get('/api/Invoices')) if (inv.CustomerRef != null) want.add(Number(inv.CustomerRef)); } catch { /* the invoices are optional here */ }
     const now = Date.now();
-    const todo = [...want].filter((id) => Number.isFinite(id) && !(state.balCache[id] && now - state.balCache[id].at < 20 * 60 * 1000));
+    // a figure is kept for 3 hours and at most 120 customers are opened per round (the oldest first): opening ~1700 one by one took more than 4 minutes
+    // of every 10, during which Hoormand's requests waited. The rest follows in the next rounds.
+    const todo = [...want].filter((id) => Number.isFinite(id) && !(state.balCache[id] && now - state.balCache[id].at < 3 * 60 * 60 * 1000))
+      .sort((x, y) => (state.balCache[x]?.at || 0) - (state.balCache[y]?.at || 0)).slice(0, 120);
     let next = 0;
     let opened = 0;
     let failed = 0;
