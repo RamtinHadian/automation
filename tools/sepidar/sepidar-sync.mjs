@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.80.9';
+export const TOOL_VERSION = '1.80.10';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -139,7 +139,28 @@ async function invoiceFromQuotation(sp, quotationId) {
       }
     }
   }
+  await diagQuotation(sp, id, q);
   throw last;
+}
+
+// When Sepidar refuses every try: what does a quotation that Sepidar really turned into an invoice look like (state, ids)? The lines go to the log for the report.
+async function diagQuotation(sp, id, q) {
+  const cut = (x) => JSON.stringify(x).slice(0, 1400);
+  try {
+    log('  [تشخیص] پیش‌فاکتور ما (همهٔ فیلدها):', cut(q));
+    const inv = (await sp.get('/api/Invoices')).filter((x) => x.QuotationRef != null).slice(-2);
+    log('  [تشخیص] فاکتورهای سپیدار که از پیش‌فاکتور ساخته شده‌اند:', inv.length);
+    for (const x of inv) {
+      log('  [تشخیص] فاکتور', JSON.stringify({ InvoiceID: x.InvoiceID, Number: x.Number, QuotationRef: x.QuotationRef, OrderRef: x.OrderRef, Date: x.Date }));
+      try { log('  [تشخیص] پیش‌فاکتورِ همان فاکتور:', cut(await sp.get('/api/Quotations/' + x.QuotationRef))); } catch (e) { log('  [تشخیص] خواندن آن پیش‌فاکتور نشد:', e && e.message); }
+    }
+    // other places the conversion could live
+    for (const path of [`/api/Invoices/BasedOnQuotation/${id}`, `/api/Quotations/${id}/Invoice`, `/api/Quotations/${id}/CreateInvoice`]) {
+      try { const r = await sp.post(path); log('  [تشخیص] جواب داد:', path, cut(r)); return; } catch (e) { log('  [تشخیص]', path, '→', e && e.message); }
+    }
+  } catch (e) {
+    log('  [تشخیص] انجام نشد:', e && e.message);
+  }
 }
 
 async function hoormand(cfg, p) {
