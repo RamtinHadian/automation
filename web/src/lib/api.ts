@@ -831,6 +831,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   whProductDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/warehouse/products/${encodeURIComponent(id)}`),
   whWarehouseSave: (id: string, b: Record<string, unknown>) => request<{ ok: true }>('PUT', `/api/warehouse/warehouses/${encodeURIComponent(id)}`, b),
   whWarehouseDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/warehouse/warehouses/${encodeURIComponent(id)}`),
+  whPricesFromSepidar: (b: { apply: boolean; mode: 'add' | 'replace'; divisor?: number }) => request<{ applied: boolean; mode: string; divisor: number; matched: number; updated: number; added: number; notFound: number; notFoundCodes: string[]; examples: { code: string; title: string; before: number; after: number; prices: { title: string; amount: number }[] }[] }>('POST', '/api/warehouse/prices-from-sepidar', b),
   whSepidarDocsImport: (type: 'issue' | 'issueReturn', rows: Record<string, string>[]) => request<{ added: number; updated: number; total: number }>('POST', '/api/warehouse/sepidar-docs', { type, rows }),
   whDocCreate: (b: Record<string, unknown>) => request<WhDoc>('POST', '/api/warehouse/docs', b),
   whDocVoid: (id: string, reason: string) => request<{ ok: true }>('POST', `/api/warehouse/docs/${encodeURIComponent(id)}/void`, { reason }),

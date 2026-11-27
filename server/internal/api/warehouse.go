@@ -1033,6 +1033,7 @@ func registerWarehouse(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/warehouse", auth.Require(whState))
 	mux.HandleFunc("GET /api/warehouse/docs", auth.Require(whDocs))
 	mux.HandleFunc("POST /api/warehouse/sepidar-docs", auth.Require(whSepDocsImport))
+	mux.HandleFunc("POST /api/warehouse/prices-from-sepidar", auth.Require(whPricesFromSepidar))
 	mux.HandleFunc("GET /api/warehouse/card", auth.Require(whCard))
 	mux.HandleFunc("PUT /api/warehouse/products/{id}", auth.Require(whProductPut))
 	mux.HandleFunc("DELETE /api/warehouse/products/{id}", auth.Require(whProductDelete))

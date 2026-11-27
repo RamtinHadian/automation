@@ -1,3 +1,4 @@
+import { SepidarPricesDialog } from './SepidarPricesDialog';
 import { CustomerSelect } from '../common/CustomerSelect';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Ban, Boxes, ChevronDown, ChevronLeft, Download, FileText, Folder, Package, Plus, Search, Warehouse as WarehouseIcon, X } from 'lucide-react';
@@ -44,6 +45,7 @@ export const WarehouseView: React.FC = () => {
   const [docOpen, setDocOpen] = useState<WhDoc | null>(null);
   const [prodEdit, setProdEdit] = useState<Partial<WhProduct> | null>(null);
   const [group, setGroup] = useState('');
+  const [sepPrices, setSepPrices] = useState(false);
   const sepidarOn = useSepidarConnected(); // a hook: it stays above every early return of this component
   const [whEdit, setWhEdit] = useState<Partial<WhWarehouse> | null>(null);
 
@@ -101,6 +103,9 @@ const qtyOk = st.limits ? st.limits.qty : true;
           </span>
         ) : (
           <span>موجودی در خود هورمند نگهداری می‌شود.</span>
+        )}
+        {isAdmin && sepidarOn && (
+          <button type="button" onClick={() => setSepPrices(true)} className="mr-auto text-[11px] font-black underline cursor-pointer" data-open-sepidar-prices>گرفتن قیمت‌ها از سپیدار</button>
         )}
         {isAdmin && sepidarOn && (
           <button type="button" onClick={() => setMode(sepidar ? 'standalone' : 'sepidar')} className="mr-auto text-[11px] font-black underline cursor-pointer">
@@ -162,6 +167,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
         const d = r?.docs.find((x) => x.id === id);
         if (d) setDocOpen(d);
       }} />}
+      {sepPrices && <SepidarPricesDialog onClose={() => setSepPrices(false)} onDone={() => load()} />}
       {docOpen && <DocModal doc={docOpen} isAdmin={isAdmin && !sepidar} onClose={() => setDocOpen(null)} onChanged={() => { setDocOpen(null); load(); }} />}
       {prodEdit && <ProductModal p={prodEdit} sepidar={sepidar} isAdmin={isAdmin} onClose={() => setProdEdit(null)} onSaved={() => { setProdEdit(null); load(); }} />}
       {whEdit && <WarehouseModal w={whEdit} sepidar={sepidar} isAdmin={isAdmin} onClose={() => setWhEdit(null)} onSaved={() => { setWhEdit(null); load(); }} />}

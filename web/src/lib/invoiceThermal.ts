@@ -150,32 +150,58 @@ export function buildThermalHtml(deal: Deal, customer: Customer | undefined, set
   <hr class="hr">
   <div class="ft">صادرکننده: ${esc(inv.issuedByName || issuerName)}<br>سپاس از خرید شما</div>
 </div></div>
-<script>
-(function(){
-  var SIZES = ${JSON.stringify(sizes)};
-  var sel = document.getElementById('sz'), mm = document.getElementById('mm'), paper = document.getElementById('paper'), pg = document.getElementById('pg'), hint = document.getElementById('hint');
-  function apply() {
-    var id = sel.value, s = SIZES.filter(function(x){return x.id===id})[0] || SIZES[0];
-    var w = 0, page = s.page;
-    if (id === 'custom') { w = Math.min(200, Math.max(30, Number(mm.value) || 80)); page = w + 'mm auto'; }
-    else if (id === 'auto') { w = 80; }
-    else { w = parseFloat(s.width) + 8; }
+</body></html>`;
+}
+
+/**
+ * The new window cannot carry a script of its own (the site's security policy, script-src 'self', forbids inline scripts in it), so the buttons are
+ * wired from here: the window is of the same site, and these functions run in the page that opened it.
+ */
+function wireThermalWindow(w: Window, size: ThermalSize) {
+  const d = w.document;
+  const sel = d.getElementById('sz') as HTMLSelectElement | null;
+  const mm = d.getElementById('mm') as HTMLInputElement | null;
+  const paper = d.getElementById('paper') as HTMLElement | null;
+  const pg = d.getElementById('pg') as HTMLStyleElement | null;
+  const hint = d.getElementById('hint') as HTMLElement | null;
+  if (!sel || !mm || !paper || !pg || !hint) return;
+  const apply = () => {
+    const id = sel.value as ThermalSize;
+    const s = THERMAL_SIZES.find((x) => x.id === id) || THERMAL_SIZES[0];
+    let width = 80;
+    let page = s.page;
+    if (id === 'custom') {
+      width = Math.min(200, Math.max(30, Number(mm.value) || 80));
+      page = `${width}mm auto`;
+    } else if (id !== 'auto') {
+      width = parseFloat(s.width) + 8;
+    }
     mm.style.display = id === 'custom' ? 'inline-block' : 'none';
-    paper.style.width = (w - 8 > 0 ? w : 80) + 'mm';
-    pg.textContent = '@page { size: ' + page + '; margin: 2mm; }';
+    paper.style.width = `${width}mm`;
+    pg.textContent = `@page { size: ${page}; margin: 2mm; }`;
     hint.textContent = id === 'auto'
       ? 'اندازهٔ کاغذ را همان پرینتری که در پنجرهٔ چاپ انتخاب می‌کنید تعیین می‌کند؛ حروف و بارکد خودکار با عرض آن تنظیم می‌شوند. پیش‌نمایش بالا فقط نمونه‌ای ۸۰ میلی‌متری است.'
-      : 'کاغذ روی «' + s.label + '» ثابت شده است. اگر پرینتر چیز دیگری نشان می‌دهد، در پنجرهٔ چاپ اندازهٔ کاغذ همان پرینتر را هم انتخاب کنید.';
-    try { if (window.opener) window.opener.postMessage({ thermalSize: id, thermalMm: Number(mm.value) || 80 }, location.origin); } catch (e) {}
-  }
-  sel.addEventListener('change', apply); mm.addEventListener('input', apply);
-  document.getElementById('go').addEventListener('click', function(){ (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function(){ window.print(); }); });
-  document.getElementById('cl').addEventListener('click', function(){ window.close(); });
-  window.addEventListener('keydown', function(e){ if (e.key === 'Enter' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'INPUT') { e.preventDefault(); document.getElementById('go').click(); } if (e.key === 'Escape') window.close(); });
+      : `کاغذ روی «${s.label}» ثابت شده است. اگر پرینتر چیز دیگری نشان می‌دهد، در پنجرهٔ چاپ اندازهٔ کاغذ همان پرینتر را هم انتخاب کنید.`;
+    rememberThermalSize(id);
+    if (id === 'custom') rememberThermalMm(Number(mm.value) || 80);
+  };
+  const print = () => {
+    const fonts = (w.document as Document & { fonts?: { ready: Promise<unknown> } }).fonts;
+    void (fonts ? fonts.ready : Promise.resolve()).then(() => w.print());
+  };
+  sel.addEventListener('change', apply);
+  mm.addEventListener('input', apply);
+  d.getElementById('go')?.addEventListener('click', print);
+  d.getElementById('cl')?.addEventListener('click', () => w.close());
+  w.addEventListener('keydown', (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement | null)?.tagName;
+    if (e.key === 'Enter' && tag !== 'SELECT' && tag !== 'INPUT') {
+      e.preventDefault();
+      print();
+    }
+    if (e.key === 'Escape') w.close();
+  });
   apply();
-})();
-</script>
-</body></html>`;
 }
 
 /** Opens the narrow invoice in a window of its own with a print button; the person picks the printer in the print window. Must be called from a click. */
@@ -188,23 +214,8 @@ export function openInvoiceThermal(deal: Deal, customer: Customer | undefined, s
     window.alert('مرورگر بازشدن پنجرهٔ چاپ را مسدود کرد؛ اجازهٔ پنجره‌های بازشو را بدهید و دوباره بزنید.');
     return;
   }
-  // the size picked inside the window is remembered for the next time
-  const onMsg = (e: MessageEvent) => {
-    if (e.source !== w) return;
-    const d = e.data as { thermalSize?: ThermalSize; thermalMm?: number } | null;
-    if (d?.thermalSize && THERMAL_SIZES.some((s) => s.id === d.thermalSize)) {
-      rememberThermalSize(d.thermalSize);
-      if (d.thermalSize === 'custom' && d.thermalMm) rememberThermalMm(d.thermalMm);
-    }
-  };
-  window.addEventListener('message', onMsg);
-  const timer = window.setInterval(() => {
-    if (w.closed) {
-      window.removeEventListener('message', onMsg);
-      window.clearInterval(timer);
-    }
-  }, 1500);
   w.document.open();
   w.document.write(buildThermalHtml(deal, customer, settings, issuerName, size, customMm));
   w.document.close();
+  wireThermalWindow(w, size);
 }
