@@ -201,7 +201,13 @@ export const CrmView: React.FC = () => {
   const [kindFix, setKindFix] = useState(false);
   const [editingDeal, setEditingDeal] = useState<{ deal: Deal; isNew: boolean } | null>(null);
   const [voip, setVoip] = useState<{ enabled: boolean; connected: boolean; extension: string } | null>(null);
-  const [proformaFor, setProformaFor] = useState<Deal | null>(null);
+  // the proforma can be switched off in the console: then nothing opens its window (and the buttons are not drawn)
+  const proformaOn = settings.proformaEnabled !== false;
+  const [proformaFor, setProformaForRaw] = useState<Deal | null>(null);
+  const setProformaFor = (d: Deal | null) => {
+    if (d && !proformaOn) { showToast('پیش‌فاکتور در این سازمان غیرفعال است.'); return; }
+    setProformaForRaw(d);
+  };
   // an issued proforma opened from the list is seen as the invoice itself; the editing form opens from its «ویرایش» button
   const [viewProforma, setViewProforma] = useState<Deal | null>(null);
   const [quickProforma, setQuickProforma] = useState(false);
@@ -560,7 +566,7 @@ export const CrmView: React.FC = () => {
     ['overview', 'خلاصه', TrendingUp],
     ['customers', 'مشتریان', Users],
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
-    ['proformalist', 'پیش‌فاکتورها', FileText],
+    ['proformalist', proformaOn ? 'پیش‌فاکتورها' : 'فاکتورها', FileText],
     ['followups', 'پیگیری‌ها', ListChecks],
     ['reports', 'گزارش‌ها', BarChart3],
     ['commission', 'پورسانت', BadgeDollarSign],
@@ -820,7 +826,7 @@ export const CrmView: React.FC = () => {
             <Briefcase className="w-4 h-4" />
             فرصت جدید
           </button>
-          {canSub(currentUser, 'crm.proforma') && <button
+          {proformaOn && canSub(currentUser, 'crm.proforma') && <button
             onClick={() => setQuickProforma(true)}
             className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] sm:min-h-0 rounded-2xl bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-black cursor-pointer"
           >
@@ -1001,7 +1007,7 @@ export const CrmView: React.FC = () => {
 
       {tab === 'inventory' && <InventoryView deals={deals} customers={allContacts} activities={activities} canMoney={canSeeSalesTotals(currentUser)} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 
-      {tab === 'proformalist' && <ProformaInvoiceTabs deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={(d) => (d.proformaNumber || (d.items && d.items.length) ? setViewProforma(d) : setProformaFor(d))} onOpenInvoice={(d) => openInvoicePdf(d, customerById.get(d.customerId), settings, currentUser.fullName)} />}
+      {tab === 'proformalist' && <ProformaInvoiceTabs proformaOn={proformaOn} deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={(d) => (d.proformaNumber || (d.items && d.items.length) ? setViewProforma(d) : setProformaFor(d))} onOpenInvoice={(d) => openInvoicePdf(d, customerById.get(d.customerId), settings, currentUser.fullName)} />}
 
       {/* ---------- customers ---------- */}
       {tab === 'customers' && (
@@ -1368,6 +1374,7 @@ export const CrmView: React.FC = () => {
           canDelete={!editingDeal.isNew && canDelete(editingDeal.deal.ownerId)}
           onClose={() => setEditingDeal(null)}
           onCreateCustomer={startCustomerFor}
+          proformaOn={proformaOn}
           onProforma={(d) => {
             saveDeal(d);
             setEditingDeal(null);
@@ -1593,9 +1600,11 @@ export const DealForm: React.FC<{
   /** more opportunities written under the first one (Enter in the title): all for the same customer */
   onSaveMore?: (list: Deal[]) => void;
   onProforma: (d: Deal) => void;
+  /** false when the proforma is switched off in the console */
+  proformaOn?: boolean;
   onDelete: () => void;
   onCreateCustomer: (cb: (c: Customer) => void) => void;
-}> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onSaveMore, onProforma, onDelete, onCreateCustomer }) => {
+}> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onSaveMore, onProforma, proformaOn = true, onDelete, onCreateCustomer }) => {
   const [d, setD] = useState<Deal>(initial);
   // Enter in a title opens the line of the next opportunity (title, product code, amount); every line becomes an opportunity of the same customer
   const [more, setMore] = useState<{ id: string; title: string; code: string; amountText: string; amount: number; qtyText: string; qty: number }[]>([]);
@@ -1697,7 +1706,7 @@ export const DealForm: React.FC<{
             </div>
             <div className="flex gap-2 flex-wrap">
               <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black text-[#3A241F] bg-[#FAF5F1] border border-[#EBDBCE] cursor-pointer">انصراف</button>
-              {valid && (
+              {valid && proformaOn && (
                 <button type="button" onClick={async () => {
                   const owner = staff.find((u) => u.id === d.ownerId)?.fullName || d.ownerName;
                   if (!filledMore.length) { onProforma({ ...named(d), ownerName: owner }); return; }
@@ -1947,12 +1956,12 @@ export const DealForm: React.FC<{
             emptyLabel="+ افزودن مسئول همراه..."
           />
         </div>
-        <ProformaSection
+        {proformaOn && <ProformaSection
           deal={d}
           customer={customers.find((c) => c.id === d.customerId)}
           ready={!!valid}
           onOpen={(issuerId) => onProforma({ ...d, ownerName: staff.find((u) => u.id === d.ownerId)?.fullName || d.ownerName, ...(issuerId ? { proformaIssuerId: issuerId } : {}) })}
-        />
+        />}
         <div>
           <label className={label}>تاریخ پیش‌بینی‌شدهٔ بستن</label>
           <div className="flex gap-2 items-center">

@@ -245,6 +245,11 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	} else {
 		delete(doc, "standalone")
 	}
+	// a new proforma is refused while the proforma is switched off in the console
+	if jsonx.Str(doc, "proformaNumber") != "" && jsonx.Str(before, "proformaNumber") == "" && !jsonx.Bool(doc, "standalone") && !proformaEnabled(r.Context()) {
+		httpx.Error(w, http.StatusConflict, "پیش‌فاکتور در این سازمان غیرفعال است.")
+		return
+	}
 	invOK, invViaSepidar := enforceInvoice(w, r, me, before, doc)
 	if !invOK {
 		return

@@ -796,6 +796,8 @@ export interface SystemSettings {
   /** value-added tax is put on every new proforma by itself (default: yes); a person can still change the percent on the proforma */
   proformaVatByDefault?: boolean;
   proformaValidDays?: number;
+  /** the proforma can be switched off in the console (default: on); the data stays, only the making of new ones stops */
+  proformaEnabled?: boolean;
   /** with Sepidar connected the number of every invoice is the one Sepidar gives it (default: yes) */
   invoiceNumberFromSepidar?: boolean;
   /** which invoices take Sepidar's number: both kinds (default) or only the official ones */

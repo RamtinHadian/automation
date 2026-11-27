@@ -20,6 +20,17 @@ import (
 // type an invoice that differs from the proforma it came from. Once issued it never changes; the only later change is to cancel it (with a reason).
 // A deal that has an invoice cannot be deleted. This is separate from the invoice that Sepidar issues (the Sepidar menu).
 
+// proformaEnabled: the console can switch the proforma off (default: on). Switched off, no new proforma is accepted; what exists stays.
+func proformaEnabled(ctx context.Context) bool {
+	var raw []byte
+	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
+	set := jsonx.Decode(raw)
+	if _, has := set["proformaEnabled"]; has {
+		return jsonx.Bool(set, "proformaEnabled")
+	}
+	return true
+}
+
 // invoiceRight: administrators always; others unless the permission table switched «crm.invoice» off for them.
 func invoiceRight(me auth.User) bool {
 	return me.IsAdmin() || !jsonx.Contains(jsonx.Strings(me.M, "hiddenSub"), "crm.invoice")
@@ -80,6 +91,10 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 		return false, false
 	}
 	standalone := jsonx.Bool(doc, "standalone") // issued straight to the customer: there is no proforma to wait for
+	if !standalone && !proformaEnabled(r.Context()) {
+		httpx.Error(w, http.StatusConflict, "پیش‌فاکتور در این سازمان غیرفعال است؛ برای فاکتور از «صدور فاکتور» (مستقل از پیش‌فاکتور) استفاده کنید.")
+		return false, false
+	}
 	if !standalone && (jsonx.Str(doc, "proformaNumber") == "" || len(jsonx.Arr(doc, "items")) == 0) {
 		httpx.Error(w, http.StatusBadRequest, "فاکتور از روی پیش‌فاکتور ساخته می‌شود؛ اول پیش‌فاکتور بسازید.")
 		return false, false

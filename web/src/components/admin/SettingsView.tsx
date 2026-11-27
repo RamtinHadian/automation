@@ -5,6 +5,7 @@ import { ClockFace, CLOCK_COUNT, designName } from '../common/AnalogClock';
 import React, { useState, useRef, useEffect } from 'react';
 import { ProformaIssuersCard } from './ProformaIssuersCard';
 import { InvoiceNumberingCard } from './InvoiceNumberingCard';
+import { ProformaSwitchCard } from './ProformaSwitchCard';
 import { askConfirm } from '../../lib/confirmDialog';
 import { SignatureField } from '../common/SignaturePad';
 import { InternalNumberingCard } from './InternalNumberingCard';
@@ -604,6 +605,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'proforma' && (
       <>
+      <ProformaSwitchCard settings={settings} setSettings={setSettings} />
       <ProformaIssuersCard
         staff={staffList.filter((u) => u.isActive !== false).map((u) => ({ id: u.id, name: u.fullName }))}
         settings={settings}

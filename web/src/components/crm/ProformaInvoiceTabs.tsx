@@ -84,8 +84,9 @@ const InvoiceList: React.FC<{ deals: Deal[]; canMoney: boolean; onOpenInvoice: (
 };
 
 /** The proformas and the invoices made from them, one switch apart. */
-export const ProformaInvoiceTabs: React.FC<{ deals: Deal[]; canMoney: boolean; onOpen: (d: Deal) => void; onOpenInvoice: (d: Deal) => void }> = ({ deals, canMoney, onOpen, onOpenInvoice }) => {
-  const [mode, setMode] = useState<'proforma' | 'invoice'>('proforma');
+export const ProformaInvoiceTabs: React.FC<{ proformaOn?: boolean; deals: Deal[]; canMoney: boolean; onOpen: (d: Deal) => void; onOpenInvoice: (d: Deal) => void }> = ({ proformaOn = true, deals, canMoney, onOpen, onOpenInvoice }) => {
+  const [modeRaw, setMode] = useState<'proforma' | 'invoice'>('proforma');
+  const mode = proformaOn ? modeRaw : 'invoice';
   const [standalone, setStandalone] = useState<Deal[]>([]);
   const reload = useCallback(() => { api.standaloneInvoices().then(setStandalone).catch(() => setStandalone([])); }, []);
   useEffect(() => {
@@ -101,7 +102,7 @@ export const ProformaInvoiceTabs: React.FC<{ deals: Deal[]; canMoney: boolean; o
   );
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">{btn('proforma', 'پیش‌فاکتورها')}{btn('invoice', `فاکتورها (${toPersianDigits(n)})`)}</div>
+      {proformaOn && <div className="flex gap-2">{btn('proforma', 'پیش‌فاکتورها')}{btn('invoice', `فاکتورها (${toPersianDigits(n)})`)}</div>}
       {mode === 'proforma' ? <ProformaOnly deals={deals} canMoney={canMoney} onOpen={onOpen} /> : <InvoiceList deals={allInvoiced} canMoney={canMoney} onOpenInvoice={onOpenInvoice} reloadStandalone={reload} />}
     </div>
   );
