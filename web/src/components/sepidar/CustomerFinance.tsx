@@ -49,13 +49,14 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
   // a debtor is red; a settled or creditor customer is green; no figure at all stays neutral
   const debtor = hasBalance && rem > 0;
   const paid = hasBalance && rem <= 0;
-  const word = !hasBalance ? 'مانده نامشخص' : rem > 0 ? 'بدهکار' : rem < 0 ? 'بستانکار' : 'تسویه‌شده';
+  const word = !hasBalance ? 'مانده نامشخص' : rem > 0 ? 'بدهکار' : rem < 0 ? 'بستانکار' : 'بدون بدهی';
   const stale = data.balanceAt ? Date.now() - new Date(data.balanceAt).getTime() > 24 * 3600 * 1000 : false;
 
   const hasCredit = typeof data.creditRemainder === 'number';
   const hasInvoices = !!data.invoices && data.invoices.length > 0;
   if (!hasBalance && !hasCredit && !hasInvoices && data.invoiceCount === undefined) return null; // nothing this person may see (e.g. no right to the money)
 
+  if (compact && hasBalance && !debtor && !hasCredit) return null; // a settled customer: nothing to say in the call pop-up
   if (compact) {
     return (
       <div className={`px-3.5 border-t flex items-center justify-between gap-2 font-bold ${debtor ? 'py-3 border-rose-100 bg-rose-100 text-rose-950 text-[13px]' : paid ? 'py-2 border-emerald-100 bg-emerald-50 text-emerald-950 text-[11px]' : 'py-2 border-slate-100 bg-slate-50 text-slate-900 text-[11px]'}`} data-call-finance>
@@ -181,8 +182,9 @@ export const FinanceChip: React.FC<{ customerId: string; small?: boolean }> = ({
   const b = briefCache.get(customerId);
   if (!b || typeof b.rem !== 'number') return null;
   const rem = b.rem;
-  const cls = rem > 0 ? 'bg-rose-50 text-rose-800 border-rose-200' : rem < 0 ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
-  const word = rem > 0 ? 'بدهکار' : rem < 0 ? 'بستانکار' : 'تسویه‌شده';
+  if (!(rem > 0)) return null; // no «settled» / «creditor» tick: only a debtor is shown, in red, with his debt
+  const cls = 'bg-rose-50 text-rose-800 border-rose-300';
+  const word = 'بدهکار';
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border font-black ${small ? 'text-[9.5px] px-1.5 py-px' : 'text-[10px] px-2 py-0.5'} ${cls}`} title="وضعیت مالی در سپیدار" data-finance-chip>
       <Landmark className="w-3 h-3 shrink-0" />

@@ -79,6 +79,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const staffMatch = useStaffByPhone(callNumber);
   const unknownNumber = savedContact || staffMatch || (n.ref?.type === 'phone' && isExtensionNumber(n.ref.id)) ? '' : callNumber;
   // an incoming-call card stays until the call ends (or at most the number of seconds the admin set); the other cards use the admin's time, or stay until closed
+  const priceCall = !!(isCall && cust && summary?.priceOnly); // a price-only customer is calling: a red, different pop-up
   const incoming = isCall && n.label !== 'تماس بی‌پاسخ';
   const conf = getNotifyConfig();
   const callSecs = conf?.callPopupSeconds ?? 120;
@@ -136,15 +137,15 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         else setDx(0);
       } : undefined}
       style={mobile ? { transform: dx ? `translateX(${dx}px) rotate(${dx / 60}deg)` : undefined, opacity: dx ? Math.max(0.35, 1 - Math.abs(dx) / 260) : 1, transition: swipe.current ? 'none' : 'transform .22s, opacity .22s', touchAction: 'pan-y' } : undefined}
-      className={mobile ? 'relative overflow-hidden w-full rounded-[28px] text-right text-white border border-white/10 shadow-[0_18px_48px_rgba(8,14,48,0.55)] bg-[linear-gradient(150deg,#1b2e70_0%,#112052_55%,#0b1642_100%)]' : `relative overflow-hidden w-full bg-white rounded-2xl border ${k.ring} shadow-[0_14px_40px_rgba(58,36,31,0.28)] text-right`}
+      className={mobile ? 'relative overflow-hidden w-full rounded-[28px] text-right text-white border border-white/10 shadow-[0_18px_48px_rgba(8,14,48,0.55)] ' + (priceCall ? 'bg-[linear-gradient(150deg,#9f1239_0%,#7f1d1d_55%,#450a0a_100%)]' : 'bg-[linear-gradient(150deg,#1b2e70_0%,#112052_55%,#0b1642_100%)]') : `relative overflow-hidden w-full rounded-2xl text-right shadow-[0_14px_40px_rgba(58,36,31,0.28)] ${priceCall ? 'bg-rose-50 border-2 border-rose-600 ring-4 ring-rose-300/70' : `bg-white border ${k.ring}`}`}
     >
       {!mobile ? (
       <button type="button" onClick={onOpen} className="w-full flex items-start gap-3 p-3.5 pr-3.5 text-right cursor-pointer hover:bg-[#FAF5F1]/70 transition-colors">
-        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${k.badge}`}>
+        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${priceCall ? 'bg-rose-600 text-white' : k.badge}`}>
           <Icon className="w-5 h-5" />
         </span>
         <span className="flex-1 min-w-0">
-          <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full mb-1 ${k.badge}`}>{n.label || k.fallback}</span>
+          <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full mb-1 ${priceCall ? 'bg-rose-600 text-white' : k.badge}`}>{n.label || k.fallback}{priceCall ? ' · قیمت‌گیر' : ''}</span>
           <span className="block text-[13px] font-black text-[#3A241F] leading-5">{callTitle(n, savedContact, staffMatch)}</span>
           {n.body && <span className="block text-[11px] text-[#8C6F66] leading-5 mt-0.5 line-clamp-2">{n.body}</span>}
         </span>
@@ -180,8 +181,8 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         </button>
       )}
       {isCall && cust && summary?.priceOnly && (
-        <div className="px-3.5 py-2.5 bg-sky-100 border-t-2 border-sky-400 text-[12px] font-black text-sky-950 flex items-center gap-2" data-call-price-only>
-          <span className="px-2 py-0.5 rounded-full bg-sky-600 text-white text-[11px]">فقط قیمت‌گیر</span>
+        <div className="px-3.5 py-2.5 bg-rose-100 border-t-2 border-rose-500 text-[12px] font-black text-rose-950 flex items-center gap-2" data-call-price-only>
+          <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[11px] shrink-0">فقط قیمت‌گیر</span>
           پیش‌فاکتور گرفته ولی تا حالا خرید نکرده؛ این تماس را برای فروش پیگیری کنید.
         </div>
       )}
