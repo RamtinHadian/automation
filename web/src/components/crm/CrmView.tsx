@@ -106,7 +106,6 @@ const kindOf = (c: { kind?: string }) => KIND_NAME[c.kind || 'PERSON'] || KIND_N
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
   ACTIVE: { label: 'مشتری فعال', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  PRICE_ONLY: { label: 'قیمت‌گیر', cls: 'bg-sky-50 text-sky-800 border-sky-300' },
   INQUIRER: { label: 'پرسشگر', cls: 'bg-violet-50 text-violet-800 border-violet-300' },
   INACTIVE: { label: 'غیرفعال', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
@@ -346,7 +345,7 @@ export const CrmView: React.FC = () => {
   // one searchable line per customer: every field it is stored with, its opportunities, notes, quotes… (digits and letters unified)
   const searchIndex = useMemo(() => buildCustomerIndex(customers, deals, activities), [customers, deals, activities]);
   const boughtIds = useMemo(() => new Set(deals.filter((d) => d.stage === 'WON').map((d) => d.customerId)), [deals]);
-  // «فقط قیمت‌گیر»: was given a proforma (a price) but has never bought (no won deal, no issued invoice)
+  // «پرسشگر»: was given a proforma (a price) but has never bought (no won deal, no issued invoice)
   const priceOnlyIds = useMemo(() => {
     const priced = new Set<string>();
     const bought = new Set<string>(boughtIds);
@@ -356,7 +355,7 @@ export const CrmView: React.FC = () => {
     }
     return new Set([...priced].filter((id) => !bought.has(id)));
   }, [deals, boughtIds]);
-  const priceOnlyChip = (id: string) => ((priceOnlyIds.has(id) || customers.find((x) => x.id === id)?.priceOnly) && customers.find((x) => x.id === id)?.status !== 'PRICE_ONLY' ? <span className="inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border bg-sky-50 text-sky-800 border-sky-300 mr-1" title="پیش‌فاکتور (قیمت) گرفته ولی هنوز خرید نکرده" data-customer-price-only>فقط قیمت‌گیر</span> : null)
+  const priceOnlyChip = (id: string) => ((priceOnlyIds.has(id) || customers.find((x) => x.id === id)?.priceOnly) && customers.find((x) => x.id === id)?.status !== 'INQUIRER' ? <span className="inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border bg-sky-50 text-sky-800 border-sky-300 mr-1" title="پیش‌فاکتور (قیمت) گرفته ولی هنوز خرید نکرده" data-customer-price-only>پرسشگر</span> : null)
   const filteredCustomers = useMemo(() => {
     const quietLimit = adv.quiet ? Date.now() - Number(adv.quiet) * 86400000 : 0;
     const rank = new Map<string, number>(); // with a search text, the best answers (the owner's name first) come before the chosen order
@@ -737,7 +736,7 @@ export const CrmView: React.FC = () => {
             در پیش‌فاکتور «{deals.find((x) => x.id === d.mergedInto)?.title || 'فرصت دیگر'}»{d.mergedAmount ? ` · ${toman(d.mergedAmount)} ${unitName()}` : ''}
           </div>
         )}
-        {(priceOnlyIds.has(d.customerId) || customers.find((x) => x.id === d.customerId)?.priceOnly) && <div className="text-[10px] font-black rounded-full px-2 py-0.5 border bg-sky-50 text-sky-800 border-sky-300 w-fit" title="این مشتری پیش‌فاکتور (قیمت) گرفته ولی هنوز خرید نکرده" data-deal-price-only>فقط قیمت‌گیر</div>}
+        {(priceOnlyIds.has(d.customerId) || customers.find((x) => x.id === d.customerId)?.priceOnly) && <div className="text-[10px] font-black rounded-full px-2 py-0.5 border bg-sky-50 text-sky-800 border-sky-300 w-fit" title="این مشتری پیش‌فاکتور (قیمت) گرفته ولی هنوز خرید نکرده" data-deal-price-only>پرسشگر</div>}
         <div className="deal-title" title={d.title}>{d.title}</div>
         {d.productCode && <div className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 w-fit" dir="ltr">{toPersianDigits(d.productCode)}</div>}
         {approvalRequired(settings, d.proformaIssuerId) && d.proformaApproval && (

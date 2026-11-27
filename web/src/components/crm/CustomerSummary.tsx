@@ -171,10 +171,10 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
             <div className="text-[11px] font-bold opacity-75">خلاصهٔ کامل مشتری</div>
             <h2 className="text-2xl font-black truncate">{customer.name}</h2>
             {(() => {
-              // «فقط قیمت‌گیر»: was given a proforma (a price) but has never bought (no won deal, no issued invoice)
+              // «پرسشگر»: was given a proforma (a price) but has never bought (no won deal, no issued invoice)
               const priced = s.deals.some((d) => d.proformaNumber && !d.standalone);
               const bought = s.deals.some((d) => d.stage === 'WON' || (d.invoice && d.invoice.status !== 'cancelled' && d.invoice.status !== 'awaiting'));
-              return customer.priceOnly || (priced && !bought) ? <span className="inline-block mb-1 text-[10.5px] font-black rounded-full px-2 py-0.5 border bg-sky-50 text-sky-800 border-sky-300" data-customer-price-only>{customer.priceOnly ? 'فقط قیمت‌گیر' : 'فقط قیمت‌گیر: پیش‌فاکتور گرفته، هنوز خرید نکرده'}</span> : null;
+              return customer.priceOnly || (priced && !bought) ? <span className="inline-block mb-1 text-[10.5px] font-black rounded-full px-2 py-0.5 border bg-sky-50 text-sky-800 border-sky-300" data-customer-price-only>{customer.priceOnly ? 'پرسشگر' : 'پرسشگر: پیش‌فاکتور گرفته، هنوز خرید نکرده'}</span> : null;
             })()}
             <div className="text-xs font-bold opacity-80">
               {customer.company && customer.company !== customer.name ? `${customer.company} · ` : ''}

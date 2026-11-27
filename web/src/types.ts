@@ -131,7 +131,7 @@ export interface DailyReport {
   updatedAt: string;
 }
 
-export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE' | 'PRICE_ONLY' | 'INQUIRER';
+export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE' | 'INQUIRER';
 export type DealStage = 'NEW' | 'CONTACTED' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST';
 export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP' | 'MISSING' | 'QUOTE';
 
@@ -167,7 +167,7 @@ export interface Customer {
   kind?: 'PERSON' | 'COMPANY' | 'SHOP';
   /** also (or only) a supplier: the same person / company can be both a customer and a supplier */
   isSupplier?: boolean;
-  /** ticked when the customer is defined: he only asks for prices («فقط قیمت‌گیر»); shown as a label next to the name (besides the automatic one for those who got a proforma and never bought) */
+  /** ticked when the customer is defined: he only asks for prices («پرسشگر»); shown as a label next to the name (besides the automatic one for those who got a proforma and never bought) */
   priceOnly?: boolean;
   // --- shop («SHOP»): the shop's name is name / company; the owner is firstName / lastName
   /** What the shop sells or does (guild / line of business). */
@@ -367,7 +367,7 @@ export interface NotifyRule {
 
 /** How notifications look and sound in the whole organisation (set by an admin). */
 export interface NotifySettings {
-  /** the colour of the incoming-call pop-up per customer status (LEAD, ACTIVE, INACTIVE, PRICE_ONLY, INQUIRER): `on` switches it, `color` is a #hex */
+  /** the colour of the incoming-call pop-up per customer status (LEAD, ACTIVE, INACTIVE, INQUIRER and the other kinds of caller): `on` switches it, `color` is a #hex */
   callColors?: Record<string, { on?: boolean; color?: string }>;
   enabled?: boolean;
   volume?: number;

@@ -16,7 +16,7 @@ import { api } from '../../lib/api';
 import { askConfirm } from '../../lib/confirmDialog';
 import { requiredOf } from '../../lib/formConfig';
 
-const STATUS_LABEL: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', PRICE_ONLY: 'قیمت‌گیر', INQUIRER: 'پرسشگر', INACTIVE: 'غیرفعال' };
+const STATUS_LABEL: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INQUIRER: 'پرسشگر', INACTIVE: 'غیرفعال' };
 const COMPANY_TYPES = ['سهامی خاص', 'سهامی عام', 'مسئولیت محدود', 'تضامنی', 'نسبی', 'تعاونی', 'مؤسسه / انجمن', 'شخص حقیقی با کد اقتصادی', 'سایر'];
 
 const digits = (v: string) => normText(v).replace(/\D/g, '');
@@ -612,7 +612,6 @@ export const CustomerForm: React.FC<{
                 <label className={label}>کد ملی</label>
                 <input className={field} dir="ltr" inputMode="numeric" maxLength={10} value={c.nationalCode || ''} onChange={(e) => patch({ nationalCode: e.target.value })} />
                 {hint(nationalCodeBad, 'کد ملی معتبر نیست.')}
-                {!contactKind && <p className="mt-1 text-[10.5px] font-medium text-[#8C6F66] leading-5">چهار رقم آخرش رمز ورود مشتری به صفحهٔ پشتیبانی است.</p>}
               </div>
               <div>
                 <label className={label}>شمارهٔ شناسنامه</label>

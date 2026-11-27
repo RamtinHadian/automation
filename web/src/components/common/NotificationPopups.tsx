@@ -58,7 +58,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
     if (!cust) return null;
     const mine = deals.filter((d) => d.customerId === cust.id && d.proformaNumber);
     const won = deals.filter((d) => d.customerId === cust.id && d.stage === 'WON');
-    // «فقط قیمت‌گیر»: has been given prices but has never bought (no won sale, no issued invoice)
+    // «پرسشگر»: has been given prices but has never bought (no won sale, no issued invoice)
     const bought = deals.some((d) => d.customerId === cust.id && (d.stage === 'WON' || (d.invoice && d.invoice.status !== 'cancelled' && d.invoice.status !== 'awaiting')));
     return { bought: won.reduce((s, d) => s + (d.amount || 0), 0), wonCount: won.length, quotes: mine.length, status: cust.status, priceOnly: (mine.some((d) => !d.standalone) && !bought) || !!cust.priceOnly };
   }, [cust, deals]);
@@ -80,17 +80,17 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const staffMatch = useStaffByPhone(callNumber);
   const unknownNumber = savedContact || staffMatch || (n.ref?.type === 'phone' && isExtensionNumber(n.ref.id)) ? '' : callNumber;
   // an incoming-call card stays until the call ends (or at most the number of seconds the admin set); the other cards use the admin's time, or stay until closed
-  // the colour the console gave to this customer's status (a customer who only asks for prices counts as «قیمت‌گیر», red unless changed)
+  // the colour the console gave to this customer's status (a customer who only asks for prices counts as «پرسشگر», red unless changed)
   // who is calling, for the colour: a customer (by his status), a supplier / colleague / agent / other of the phone book, a member of staff, or a number nobody knows
   const colors = settings?.notifySettings?.callColors;
-  const colorOn = (k: string) => (colors?.[k] ? !!colors[k]!.on : k === 'PRICE_ONLY');
+  const colorOn = (k: string) => (colors?.[k] ? !!colors[k]!.on : k === 'INQUIRER');
   const known = cust || savedContact;
   const statusKey = (() => {
     if (known) {
       const t = contactTypeOf(known);
       if (t !== 'CUSTOMER') return t;
       if (known.isSupplier && colorOn('SUPPLIER')) return 'SUPPLIER';
-      return known.status === 'PRICE_ONLY' || (cust && summary?.priceOnly) ? 'PRICE_ONLY' : known.status;
+      return known.status === 'INQUIRER' || (cust && summary?.priceOnly) ? 'INQUIRER' : known.status;
     }
     if (staffMatch) return (staffMatch as { isAgent?: boolean }).isAgent ? 'AGENT' : 'STAFF';
     return unknownNumber ? 'UNKNOWN' : '';
@@ -163,7 +163,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
           <Icon className="w-5 h-5" />
         </span>
         <span className="flex-1 min-w-0">
-          <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full mb-1 ${priceCall ? 'text-white' : k.badge}`} style={tint ? { background: tint } : undefined}>{n.label || k.fallback}{statusKey === 'PRICE_ONLY' && priceCall ? ' · قیمت‌گیر' : ''}</span>
+          <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full mb-1 ${priceCall ? 'text-white' : k.badge}`} style={tint ? { background: tint } : undefined}>{n.label || k.fallback}{statusKey === 'INQUIRER' && priceCall ? ' · پرسشگر' : ''}</span>
           <span className="block text-[13px] font-black text-[#3A241F] leading-5">{callTitle(n, savedContact, staffMatch)}</span>
           {n.body && <span className="block text-[11px] text-[#8C6F66] leading-5 mt-0.5 line-clamp-2">{n.body}</span>}
         </span>
@@ -200,7 +200,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
       )}
       {isCall && cust && summary?.priceOnly && (
         <div className="px-3.5 py-2.5 bg-rose-100 border-t-2 border-rose-500 text-[12px] font-black text-rose-950 flex items-center gap-2" data-call-price-only>
-          <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[11px] shrink-0">فقط قیمت‌گیر</span>
+          <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[11px] shrink-0">پرسشگر</span>
           پیش‌فاکتور گرفته ولی تا حالا خرید نکرده؛ این تماس را برای فروش پیگیری کنید.
         </div>
       )}
