@@ -794,7 +794,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   standaloneInvoices: () => request<import('../types').Deal[]>('GET', '/api/invoice/standalone'),
   invoiceStandalone: (b: unknown) => request<{ ok: boolean; id: string; number: string }>('POST', '/api/invoice/standalone', b),
   invoiceCancel: (dealId: string, reason: string) => request<{ ok: boolean }>('POST', '/api/invoice/cancel', { dealId, reason }),
-  invoiceIssue: (dealId: string, kind: 'OFFICIAL' | 'UNOFFICIAL', paid = false) => request<{ ok: boolean }>('POST', '/api/invoice/issue', { dealId, kind, paid }),
+  invoiceIssue: (dealId: string, kind: 'OFFICIAL' | 'UNOFFICIAL', paid = false, extra: { settlement?: string; dueDate?: string; stockCode?: string } = {}) => request<{ ok: boolean }>('POST', '/api/invoice/issue', { dealId, kind, paid, ...extra }),
   wfStartable: () => request<import('./workflow').WfStartable[]>('GET', '/api/workflow/startable'),
   wfStart: (id: string, values: Record<string, unknown>) => request<{ ok: boolean; id: string }>('POST', '/api/workflow/start', { id, values }),
   wfInbox: () => request<import('./workflow').WfInstance[]>('GET', '/api/workflow/inbox'),

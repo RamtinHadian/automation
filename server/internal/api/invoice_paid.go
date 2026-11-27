@@ -41,3 +41,11 @@ func unpaidBySepidarCustomer(ctx context.Context) map[int64]float64 {
 	}
 	return out
 }
+
+// the way the invoice is settled, as Sepidar names it: «CREDIT» (نسیه, the default) or «CASH» (نقدی)
+func settlementOf(inc map[string]any) string {
+	if v, _ := inc["settlement"].(string); v == "CASH" {
+		return "CASH"
+	}
+	return "CREDIT"
+}

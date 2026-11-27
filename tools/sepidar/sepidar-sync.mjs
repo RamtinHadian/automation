@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.81.4';
+export const TOOL_VERSION = '1.81.5';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -168,6 +168,13 @@ async function diagQuotation(sp, id, q) {
     try { const o = await sp.get('/api/Orders'); log('  [تشخیص] /api/Orders:', Array.isArray(o) ? o.length : '?', 'ردیف', o && o[0] ? Object.keys(o[0]).join(',') : ''); } catch (e) { log('  [تشخیص] /api/Orders:', e && e.message); }
     // is the quotation really closed after Close? (the earlier tries could have been on an open one)
     try { const again = await sp.get('/api/Quotations/' + id); log('  [تشخیص] پیش‌فاکتور الان Closed =', again.Closed); } catch { /* skip */ }
+    // is there a place where the goods are taken out of a warehouse (a «delivery / issue / voucher» of Sepidar's service)? only GET: nothing is written
+    for (const path of ['InventoryDeliveries', 'InventoryDelivery', 'Deliveries', 'StockIssues', 'InventoryIssues', 'InventoryVouchers', 'StockVouchers', 'StockOutputs', 'ItemDeliveries', 'Remittances', 'InventoryRemittances', 'StockRemittances', 'DeliveryOrders', 'InventoryReceipts', 'StockReceipts', 'Stocks', 'Items/Inventories']) {
+      try {
+        const o = await sp.get('/api/' + path);
+        log('  [تشخیص] /api/' + path + ' وجود دارد:', Array.isArray(o) ? o.length + ' ردیف' : typeof o, Array.isArray(o) && o[0] ? Object.keys(o[0]).slice(0, 14).join(',') : '');
+      } catch (e) { if (!/صفحه درخواست شده پیدا نشد/.test(String(e && e.message))) log('  [تشخیص] /api/' + path + ':', e && e.message); }
+    }
     // other places the conversion could live
     for (const path of [`/api/Invoices/BasedOnQuotation/${id}`, `/api/Quotations/${id}/Invoice`, `/api/Quotations/${id}/CreateInvoice`]) {
       try { const r = await sp.post(path); log('  [تشخیص] جواب داد:', path, cut(r)); return; } catch (e) { log('  [تشخیص]', path, '→', e && e.message); }
@@ -1114,7 +1121,13 @@ const jobHandlers = {
     if (q.skip) throw new Error(q.skip);
     // the warehouse each line leaves: the one set in config.json, else the warehouse of Sepidar that holds the most of that item
     let stockOf = () => cfg.sync.stockRef ?? null;
-    if (cfg.sync.stockRef == null) {
+    // the warehouse chosen when issuing (its code in Sepidar): every line leaves it
+    let chosenStock = null;
+    if (inv.stockCode) {
+      try { chosenStock = (await sp.get('/api/Stocks')).find((w) => String(w.Code ?? w.StockID).trim() === String(inv.stockCode).trim())?.StockID ?? null; } catch { /* the usual choice below */ }
+    }
+    if (chosenStock != null) stockOf = () => chosenStock;
+    else if (cfg.sync.stockRef == null) {
       try {
         const inv0 = await sp.get(cfg.sync.inventoryPath || '/api/Items/Inventories');
         const best = new Map();
@@ -1144,8 +1157,8 @@ const jobHandlers = {
     const when = String(inv.issuedAt || new Date().toISOString()).slice(0, 10) + 'T00:00:00';
     const head = {
       GUID: guidFrom('invoice:' + deal.id), Date: when, CustomerRef: customerRef, CurrencyRef: cfg.sync.currencyRef, Rate: 1, SaleTypeRef: cfg.sync.saleTypeRef, AddressRef: addressRef,
-      Price: q.body.Price, Discount: q.body.Discount, Tax: q.body.Tax, Duty: 0, Addition: 0, NetPrice: q.total, SettlementType: cfg.sync.settlementType ?? 2, DeliveryLocationRef: 1,
-      Description: 'فاکتور هورمند ' + (inv.number || deal.id),
+      Price: q.body.Price, Discount: q.body.Discount, Tax: q.body.Tax, Duty: 0, Addition: 0, NetPrice: q.total, SettlementType: inv.settlement === 'CASH' ? 1 : (cfg.sync.settlementType ?? 2), DeliveryLocationRef: 1,
+      Description: 'فاکتور هورمند ' + (inv.number || deal.id) + (inv.note ? ' · ' + String(inv.note).slice(0, 200) : ''),
     };
     let r;
     let last;

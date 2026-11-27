@@ -443,6 +443,10 @@ export interface DealInvoice {
   note?: string;
   /** the invoice was issued as «paid» (a cash sale): the finance page does not call it unpaid */
   paid?: boolean;
+  /** how it is settled in Sepidar: «CREDIT» نسیه (default) or «CASH» نقدی; the day it must be settled; the code of the warehouse the goods leave */
+  settlement?: 'CREDIT' | 'CASH';
+  dueDate?: string;
+  stockCode?: string;
   cancelledAt?: string;
   cancelledByName?: string;
   cancelReason?: string;

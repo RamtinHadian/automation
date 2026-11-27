@@ -10,6 +10,7 @@ import { formatMoney, unitName } from '../../lib/money';
 import { issuerOf } from '../../lib/proformaIssuer';
 import { downloadBlob, renderProformaJpeg } from '../../lib/proformaFile';
 import { askConfirm } from '../../lib/confirmDialog';
+import { InvoiceSepidarFields, InvoiceExtra, emptyInvoiceExtra } from './InvoiceSepidarFields';
 import { canIssueInvoice, hasInvoice, invoiceBlocker, invoiceRenderInput, invoiceTitle, openInvoicePdf } from '../../lib/invoice';
 
 /** The invoice made in Hoormand → Sepidar: a button when Sepidar is connected and the person may issue invoices there, and what happened to the last try. */
@@ -69,6 +70,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
   const deal: Deal = { ...shown, invoice: deals.find((x) => x.id === shown.id)?.invoice ?? shown.invoice };
   const [busy, setBusy] = useState(false);
   const [paidTick, setPaidTick] = useState(false);
+  const [extra, setExtra] = useState<InvoiceExtra>(emptyInvoiceExtra);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const inv = deal.invoice;
@@ -92,6 +94,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
         </p>
         {blocker && <p className="text-[11px] font-bold text-amber-800 leading-6">{blocker}</p>}
         {!allowed && <p className="text-[11px] font-bold text-rose-700">صدور فاکتور به شما اجازه داده نشده است.</p>}
+        <InvoiceSepidarFields value={extra} onChange={setExtra} />
         <label className="flex items-center gap-2 text-[11px] font-black text-[#3A241F] cursor-pointer" data-paid-tick><input type="checkbox" className="w-4 h-4 accent-emerald-700" checked={paidTick} onChange={(e) => setPaidTick(e.target.checked)} />این فاکتور پرداخت شده است (فروش نقدی)؛ بدون این تیک تا پرداخت‌شدن در سپیدار «تسویه‌نشده» می‌ماند</label>
         <button
           type="button"
@@ -109,7 +112,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
             if (!ok) return;
             setBusy(true);
             try {
-              await api.invoiceIssue(deal.id, kind, paidTick);
+              await api.invoiceIssue(deal.id, kind, paidTick, extra);
               reloadState();
               showToast(mi?.mode === 'sepidar' ? 'فاکتور برای سپیدار فرستاده شد؛ شمارهٔ آن بعد از صدور در سپیدار می‌آید.' : 'فاکتور صادر شد.');
             } catch (e) {

@@ -94,7 +94,7 @@ func invoiceStandaloneIssue(w http.ResponseWriter, r *http.Request) {
 		"items": items, "discountPercent": jsonx.Num(body["discountPercent"]), "taxPercent": jsonx.Num(body["taxPercent"]),
 		"proformaIssuerId": strings.TrimSpace(jsonx.Str(body, "issuerId")), "proformaAt": now()[:10],
 		"proformaFields": jsonx.Sub(body, "fields"), "notes": cutRunes(strings.TrimSpace(jsonx.Str(body, "note")), 1000),
-		"invoice": jsonx.M{"kind": kind, "note": cutRunes(strings.TrimSpace(jsonx.Str(body, "note")), 1000), "paid": jsonx.Bool(body, "paid")},
+		"invoice": jsonx.M{"kind": kind, "note": cutRunes(strings.TrimSpace(jsonx.Str(body, "note")), 1000), "paid": jsonx.Bool(body, "paid"), "settlement": jsonx.Str(body, "settlement"), "dueDate": jsonx.Str(body, "dueDate"), "stockCode": jsonx.Str(body, "stockCode")},
 	}
 	if doc["proformaFields"] == nil {
 		doc["proformaFields"] = jsonx.M{}
