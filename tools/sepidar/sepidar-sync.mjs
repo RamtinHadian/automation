@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.81.6';
+export const TOOL_VERSION = '1.81.7';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -169,7 +169,7 @@ async function diagQuotation(sp, id, q) {
     // is the quotation really closed after Close? (the earlier tries could have been on an open one)
     try { const again = await sp.get('/api/Quotations/' + id); log('  [تشخیص] پیش‌فاکتور الان Closed =', again.Closed); } catch { /* skip */ }
     // is there a place where the goods are taken out of a warehouse (a «delivery / issue / voucher» of Sepidar's service)? only GET: nothing is written
-    for (const path of ['InventoryDeliveries', 'InventoryDelivery', 'Deliveries', 'StockIssues', 'InventoryIssues', 'InventoryVouchers', 'StockVouchers', 'StockOutputs', 'ItemDeliveries', 'Remittances', 'InventoryRemittances', 'StockRemittances', 'DeliveryOrders', 'InventoryReceipts', 'StockReceipts', 'Stocks', 'Items/Inventories']) {
+    for (const path of ['InventoryDeliveries', 'InventoryDelivery', 'Deliveries', 'StockIssues', 'InventoryIssues', 'InventoryVouchers', 'StockVouchers', 'StockOutputs', 'ItemDeliveries', 'Remittances', 'InventoryRemittances', 'StockRemittances', 'DeliveryOrders', 'InventoryReceipts', 'StockReceipts', 'Stocks', 'Items/Inventories', 'Vouchers', 'AccountingVouchers', 'AccountingDocuments', 'Documents', 'InvoiceAccounting', 'Invoices/Accounting', 'Invoices/IssueDocument', 'Invoices/Voucher', 'Invoices/Finalize', 'Invoices/Confirm', 'Invoices/Approve', 'Invoices/Post']) {
       try {
         const o = await sp.get('/api/' + path);
         log('  [تشخیص] /api/' + path + ' وجود دارد:', Array.isArray(o) ? o.length + ' ردیف' : typeof o, Array.isArray(o) && o[0] ? Object.keys(o[0]).slice(0, 14).join(',') : '');
