@@ -8,6 +8,7 @@ import { normPhone } from '../../lib/customerImport';
 import { fullPhone, useVoipArea } from '../../lib/voipArea';
 import { useAppContext } from '../../context/AppContext';
 import { canSeeSalesTotals, canSub } from '../../lib/permissions';
+import { contactTypeOf } from '../../lib/contactTypes';
 import { callTitle, isExtensionNumber, SavedContactLine, UnknownNumberActions, useSavedContact, useStaffByPhone } from './UnknownNumber';
 import { CustomerFinance } from '../sepidar/CustomerFinance';
 import { AppNotification, getNotifyConfig, isAudioReady, isSoundEnabled, playChime } from '../../lib/notifications';
@@ -80,9 +81,22 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const unknownNumber = savedContact || staffMatch || (n.ref?.type === 'phone' && isExtensionNumber(n.ref.id)) ? '' : callNumber;
   // an incoming-call card stays until the call ends (or at most the number of seconds the admin set); the other cards use the admin's time, or stay until closed
   // the colour the console gave to this customer's status (a customer who only asks for prices counts as «قیمت‌گیر», red unless changed)
-  const statusKey = cust ? (cust.status === 'PRICE_ONLY' || summary?.priceOnly ? 'PRICE_ONLY' : cust.status) : '';
-  const colorCfg = statusKey ? settings?.notifySettings?.callColors?.[statusKey] : undefined;
-  const tint = statusKey && (colorCfg ? colorCfg.on : statusKey === 'PRICE_ONLY') ? colorCfg?.color || '#e11d48' : '';
+  // who is calling, for the colour: a customer (by his status), a supplier / colleague / agent / other of the phone book, a member of staff, or a number nobody knows
+  const colors = settings?.notifySettings?.callColors;
+  const colorOn = (k: string) => (colors?.[k] ? !!colors[k]!.on : k === 'PRICE_ONLY');
+  const known = cust || savedContact;
+  const statusKey = (() => {
+    if (known) {
+      const t = contactTypeOf(known);
+      if (t !== 'CUSTOMER') return t;
+      if (known.isSupplier && colorOn('SUPPLIER')) return 'SUPPLIER';
+      return known.status === 'PRICE_ONLY' || (cust && summary?.priceOnly) ? 'PRICE_ONLY' : known.status;
+    }
+    if (staffMatch) return (staffMatch as { isAgent?: boolean }).isAgent ? 'AGENT' : 'STAFF';
+    return unknownNumber ? 'UNKNOWN' : '';
+  })();
+  const colorCfg = statusKey ? colors?.[statusKey] : undefined;
+  const tint = isCall && statusKey && colorOn(statusKey) ? colorCfg?.color || '#e11d48' : '';
   const priceCall = !!tint;
   const incoming = isCall && n.label !== 'تماس بی‌پاسخ';
   const conf = getNotifyConfig();
