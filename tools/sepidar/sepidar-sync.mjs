@@ -63,6 +63,11 @@ const toLatin = (s) => String(s ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵�
 // Hoormand's requests (and the sign of life the page shows) must not wait for a long synchronisation: while it runs, the loops below call
 // pumpJobs() between customers, pushes and quotations. The automatic mode (watch) puts the real function here; everywhere else it does nothing.
 let pumpJobs = async () => false;
+// after a request was taken in the middle of a long loop: what the requests changed (links to customers and quotations…) is read again, but the loop's own working copies (balances, invoice lines) are kept
+function reloadJobState(state) {
+  const fresh = loadState();
+  for (const k of Object.keys(fresh)) if (k !== 'balCache' && k !== 'saleDocs') state[k] = fresh[k];
+}
 
 // Sepidar writes the «عنوان تفضیلی» of a real person as «family name, then name» (it joins its own LastName + Name fields in that order). To get «name, then family name»
 // in that title, the first name is sent in the LastName field and the family name in the Name field. config.json can switch this off: "sepidar": { "titleNameFirst": false }.
@@ -96,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.80.5';
+export const TOOL_VERSION = '1.80.6';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -1186,6 +1191,7 @@ export async function pushCaches(cfg, sp, state) {
     const fresh = (Array.isArray(list) ? list : []).filter((x) => !known[String(x.InvoiceID ?? x.ID)]).sort((a, b) => day(b).localeCompare(day(a))).slice(0, 25);
     for (const x of fresh) {
       const id = x.InvoiceID ?? x.ID;
+      if (await pumpJobs()) reloadJobState(state);
       try {
         const full = await sp.get('/api/Invoices/' + id);
         const lines = (Array.isArray(full.InvoiceItems) ? full.InvoiceItems : []).map((it) => ({ code: codeOfItem.get(it.ItemRef)?.code || '', title: codeOfItem.get(it.ItemRef)?.title || '', qty: Number(it.Quantity) || 0 })).filter((l) => l.qty);
@@ -1250,6 +1256,9 @@ export async function pushCaches(cfg, sp, state) {
     const worker = async () => {
       while (next < todo.length) {
         const id = todo[next++];
+        // opening ~1700 customers one by one takes minutes: Hoormand's requests must still be taken meanwhile (and Hoormand must still hear from the program,
+        // or it shows «disconnected» after 3 minutes of silence)
+        if (await pumpJobs()) reloadJobState(state);
         try {
           const one = await sp.get(`/api/Customers/${id}`);
           state.balCache[id] = { at: Date.now(), row: pick(one || {}, ['AccountingRemainder', 'RemainderWithoutCheque', 'CreditRemainder', 'QuantityCreditRemainder', 'Remainder']) };
