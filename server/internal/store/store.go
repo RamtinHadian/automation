@@ -332,6 +332,12 @@ var schema = []string{
 	  data JSONB NOT NULL,
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
+	`CREATE TABLE IF NOT EXISTS wh_product_images (
+	  id TEXT PRIMARY KEY,
+	  mime TEXT NOT NULL,
+	  data BYTEA NOT NULL,
+	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`,
 	`CREATE TABLE IF NOT EXISTS wh_docs (
 	  id TEXT PRIMARY KEY,
 	  kind TEXT NOT NULL,

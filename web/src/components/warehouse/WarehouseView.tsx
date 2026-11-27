@@ -1,3 +1,4 @@
+import { ProductImageEditor, ProductThumb } from './ProductImage';
 import { SepidarPricesDialog } from './SepidarPricesDialog';
 import { CustomerSelect } from '../common/CustomerSelect';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -169,7 +170,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
       }} />}
       {sepPrices && <SepidarPricesDialog onClose={() => setSepPrices(false)} onDone={() => load()} />}
       {docOpen && <DocModal doc={docOpen} isAdmin={isAdmin && !sepidar} onClose={() => setDocOpen(null)} onChanged={() => { setDocOpen(null); load(); }} />}
-      {prodEdit && <ProductModal p={prodEdit} sepidar={sepidar} isAdmin={isAdmin} onClose={() => setProdEdit(null)} onSaved={() => { setProdEdit(null); load(); }} />}
+      {prodEdit && <ProductModal p={prodEdit} sepidar={sepidar} isAdmin={isAdmin} onClose={() => setProdEdit(null)} onSaved={() => { setProdEdit(null); load(); }} onImage={() => load()} />}
       {whEdit && <WarehouseModal w={whEdit} sepidar={sepidar} isAdmin={isAdmin} onClose={() => setWhEdit(null)} onSaved={() => { setWhEdit(null); load(); }} />}
     </div>
   );
@@ -393,7 +394,7 @@ const StockTab: React.FC<{ st: WhState; group: string; onCard: (p: WhProduct) =>
             <BoxCard
               key={p.id}
               onClick={() => onCard(p)}
-              icon={<Package className="w-5 h-5" />}
+              icon={p.imageAt ? <ProductThumb id={p.id} at={p.imageAt} size={44} /> : <Package className="w-5 h-5" />}
               tone={lowRow ? 'rose' : qty === 0 ? 'slate' : 'amber'}
               title={p.title}
               sub={[toPersianDigits(p.code), p.group].filter(Boolean).join(' · ')}
@@ -961,7 +962,7 @@ const UnitField: React.FC<{ value: string; kind: string; disabled: boolean; onCh
   );
 };
 
-const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin: boolean; onClose: () => void; onSaved: () => void }> = ({ p, sepidar, isAdmin, onClose, onSaved }) => {
+const ProductModal: React.FC<{ p: Partial<WhProduct>; sepidar: boolean; isAdmin: boolean; onClose: () => void; onSaved: () => void; onImage?: () => void }> = ({ p, sepidar, isAdmin, onClose, onSaved, onImage }) => {
 const { showToast, currentUser } = useAppContext();
   const isNew = !p.id;
   const [f, setF] = useState({ code: p.code || '', title: p.title || '', unit: p.unit || 'عدد', group: p.group || '', barcode: p.barcode || '', minQty: p.minQty ? String(p.minQty) : '', warrantyMonths: p.warrantyMonths ? String(p.warrantyMonths) : '', note: p.note || '', active: p.active !== false, kind: (p.kind === 'service' ? 'service' : 'good') as 'good' | 'service' });
@@ -1019,6 +1020,7 @@ const { showToast, currentUser } = useAppContext();
           <div><span className={label}>گارانتی (ماه؛ خالی = گارانتی ندارد)</span><input value={f.warrantyMonths} onChange={(e) => setF({ ...f, warrantyMonths: e.target.value })} inputMode="numeric" placeholder="مثلاً ۱۸" className={field} data-product-warranty /></div>
         )}
         <div className="flex items-end"><label className="flex items-center gap-2 text-xs font-bold cursor-pointer"><input type="checkbox" disabled={lockBase} checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} className="w-4 h-4" /> فعال</label></div>
+        <div className="sm:col-span-2"><ProductImageEditor id={p.id} at={p.imageAt} onChanged={() => onImage?.()} /></div>
         <div className="sm:col-span-2"><span className={label}>یادداشت</span><input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} className={field} /></div>
 {canSub(currentUser, 'warehouse.money') && <div className="sm:col-span-2 space-y-2">
           <span className={label}>قیمت‌ها (مثلاً خرده‌فروشی، عمده، نمایندگی)</span>

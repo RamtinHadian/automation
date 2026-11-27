@@ -1,3 +1,4 @@
+import { ProductThumb } from '../warehouse/ProductImage';
 import React, { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { fold, matchesQuery } from '../../lib/customerSearch';
@@ -6,6 +7,7 @@ import { formatMoney, unitName } from '../../lib/money';
 import { Modal } from './crmUi';
 
 export interface WarehouseProduct {
+  imageAt?: number;
   id: string;
   code: string;
   title: string;
@@ -65,9 +67,12 @@ export const WarehousePicker: React.FC<{
                 onClick={() => onPick(p)}
                 className="w-full text-right flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-[#EBDBCE] bg-white hover:bg-violet-50 hover:border-violet-300 cursor-pointer"
               >
-                <span className="min-w-0">
+                <span className="min-w-0 flex items-center gap-2.5">
+                  <ProductThumb id={p.id} at={p.imageAt} size={38} className="shrink-0" />
+                  <span className="min-w-0">
                   <span className="block text-xs font-black text-[#3A241F] truncate">{p.title}</span>
                   <span className="block text-[10px] font-bold text-[#8C6F66]" dir="ltr">{p.code}{p.group ? ` · ${p.group}` : ''}</span>
+                  </span>
                 </span>
                 <span className="shrink-0 text-left">
                   <span className="block text-[11px] font-black text-violet-700">{price ? `${formatMoney(price)} ${unitName()}` : 'بدون قیمت'}</span>

@@ -323,6 +323,7 @@ func whState(w http.ResponseWriter, r *http.Request) {
 	}
 	rows.Close()
 	prods := []jsonx.M{}
+	imageAt := whImageStamps(ctx)
 	rows, err = store.Pool.Query(ctx, `SELECT id, data FROM wh_products ORDER BY (data->>'title')`)
 	if err != nil {
 		internalError(w)
@@ -357,6 +358,9 @@ func whState(w http.ResponseWriter, r *http.Request) {
 				delete(d, "cost") // purchase prices are not shown anywhere: only the selling prices
 				if !showMoney {
 					delete(d, "prices")
+				}
+				if at, has := imageAt[id]; has {
+					d["imageAt"] = at
 				}
 				prods = append(prods, d)
 		}
@@ -994,6 +998,7 @@ func whVoidDoc(w http.ResponseWriter, r *http.Request) {
 // people with customer access can read it without the warehouse right (no warehouse details, no documents).
 func crmProducts(w http.ResponseWriter, r *http.Request) {
 	me := auth.Current(r)
+	stamps := whImageStamps(r.Context())
 	if !me.CanUseCrm() && !canUseWarehouse(me) {
 		httpx.Forbidden(w)
 		return
@@ -1022,7 +1027,11 @@ func crmProducts(w http.ResponseWriter, r *http.Request) {
 		for _, n := range bal[id] {
 			total += n
 		}
-		out = append(out, jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "kind": jsonx.Str(d, "kind"), "warrantyMonths": jsonx.Int(d, "warrantyMonths"), "total": math.Round(total*1000) / 1000, "prices": d["prices"], "cost": costFor(me, d)})
+		item := jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "kind": jsonx.Str(d, "kind"), "warrantyMonths": jsonx.Int(d, "warrantyMonths"), "total": math.Round(total*1000) / 1000, "prices": d["prices"], "cost": costFor(me, d)}
+		if at, has := stamps[id]; has {
+			item["imageAt"] = at
+		}
+		out = append(out, item)
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"products": out})
 }
@@ -1035,6 +1044,9 @@ func registerWarehouse(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/warehouse/sepidar-docs", auth.Require(whSepDocsImport))
 	mux.HandleFunc("POST /api/warehouse/prices-from-sepidar", auth.Require(whPricesFromSepidar))
 	mux.HandleFunc("GET /api/warehouse/card", auth.Require(whCard))
+	mux.HandleFunc("GET /api/warehouse/products/{id}/image", auth.Require(whImageGet))
+	mux.HandleFunc("PUT /api/warehouse/products/{id}/image", auth.Require(whImagePut))
+	mux.HandleFunc("DELETE /api/warehouse/products/{id}/image", auth.Require(whImageDelete))
 	mux.HandleFunc("PUT /api/warehouse/products/{id}", auth.Require(whProductPut))
 	mux.HandleFunc("DELETE /api/warehouse/products/{id}", auth.Require(whProductDelete))
 	mux.HandleFunc("PUT /api/warehouse/warehouses/{id}", auth.Require(whWarehousePut))
