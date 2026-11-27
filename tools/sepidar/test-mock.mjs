@@ -88,7 +88,7 @@ const sepidarServer = http.createServer(async (req, res) => {
   sp.calls ||= [];
   if (req.method === 'POST' && (url.startsWith('/api/Quotations/') && (url.endsWith('/Close') || url.endsWith('/UnClose')))) { sp.calls.push(url); return send(res, 200, {}); }
   if (req.method === 'DELETE' && (url.startsWith('/api/Quotations/') && !url.slice(15).includes('/') && url.length > 15)) { sp.calls.push('DELETE ' + url); return send(res, 200, {}); }
-  if (req.method === 'POST' && url === '/api/Invoices/BasedOnQuotation') { sp.calls.push('invoice from ' + JSON.stringify(body)); return send(res, 200, { InvoiceID: 700, Number: 31 }); }
+  if (req.method === 'POST' && url === '/api/Invoices/BasedOnQuotation') { if (typeof body !== 'object' || !body.QuotationID) return send(res, 400, { Message: "Error converting value to type 'QuotationIdDto'" }); sp.calls.push('invoice from ' + JSON.stringify(body)); return send(res, 200, { InvoiceID: 700, Number: 31 }); }
   if (req.method === 'POST' && url === '/api/Receipts/BasedOnInvoice') { sp.receipt = body; return send(res, 200, { ReceiptID: 55 }); }
   if (req.method === 'GET' && url.startsWith('/api/Customers/') && url.length > 15) return send(res, 200, { ...(sp.customers.find((c) => '/api/Customers/' + c.CustomerID === url) || {}), Version: 'v1' });
   if (req.method === 'PUT' && url.startsWith('/api/Customers/')) {
@@ -409,7 +409,7 @@ ok(hoormandResults['sj-3']?.ok === true && hoormandResults['sj-3'].sepidarId ===
 }
 hoormandJobs.push({ id: 'sj-4', kind: 'quotation.close', data: { dealId: 'd-1', sepidarId: 900 } }, { id: 'sj-5', kind: 'invoice.fromProforma', data: { dealId: 'd-1', sepidarId: 900 } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
-ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice from 900') && hoormandResults['sj-5'].number === 31 && hoormandResults['sj-5'].sepidarId === 700, 'close and invoice-from-quotation (the body is the plain quotation number)');
+ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice from {"QuotationID":900}') && hoormandResults['sj-5'].number === 31 && hoormandResults['sj-5'].sepidarId === 700, 'close and invoice-from-quotation (the body is an object with the quotation id)');
 // the invoice made in Hoormand goes to Sepidar: a quotation is made from the lines of the INVOICE (frozen when it was issued), then Sepidar issues the invoice from it
 {
   const base = deals[0];

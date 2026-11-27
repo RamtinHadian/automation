@@ -96,7 +96,18 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.79.2';
+export const TOOL_VERSION = '1.79.9';
+
+// Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»): try the usual spelling, then the other one
+async function invoiceFromQuotation(sp, quotationId) {
+  const id = Number(quotationId);
+  try {
+    return await sp.post('/api/Invoices/BasedOnQuotation/', { QuotationID: id });
+  } catch (e) {
+    if (!/QuotationI[dD]|Required property|converting|Could not find member/i.test(String(e && e.message))) throw e;
+    return await sp.post('/api/Invoices/BasedOnQuotation/', { QuotationId: id });
+  }
+}
 
 async function hoormand(cfg, p) {
   const res = await netFetch(cfg.hoormand.url.replace(/\/+$/, '') + '/api/ext/v1' + p, { headers: { Authorization: 'Bearer ' + cfg.hoormand.apiKey } }, 'هورمند');
@@ -1027,7 +1038,7 @@ const jobHandlers = {
     } else {
       note = ' (پیش‌فاکتورِ این فرصت از قبل در سپیدار بود و فاکتور از روی همان صادر شد؛ اگر ردیف‌هایش با فاکتور هورمند فرق دارد در سپیدار بررسی کنید.)';
     }
-    const r = await sp.post('/api/Invoices/BasedOnQuotation/', Number(quotationId));
+    const r = await invoiceFromQuotation(sp, quotationId);
     return {
       sepidarId: r.InvoiceID, number: r.Number, quotationId: Number(quotationId), quotationNumber: made ? made.Number : undefined,
       message: `فاکتور هورمند${inv.number ? ' ' + inv.number : ''} در سپیدار با شمارهٔ ${r.Number} صادر شد (همین شماره شمارهٔ فاکتور هورمند می‌شود)${note}`,
@@ -1051,7 +1062,7 @@ const jobHandlers = {
   },
 
   async 'invoice.fromProforma'(cfg, sp, state, job) {
-    const r = await sp.post('/api/Invoices/BasedOnQuotation/', Number(job.data.sepidarId));
+    const r = await invoiceFromQuotation(sp, job.data.sepidarId);
     return { sepidarId: r.InvoiceID, number: r.Number, message: `فاکتور فروش با شمارهٔ ${r.Number} صادر شد.` };
   },
 
