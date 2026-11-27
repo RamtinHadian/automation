@@ -1,3 +1,5 @@
+import { PriceBox } from '../common/PriceBox';
+import { enterNextKeyDown } from '../../lib/enterNext';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Link2, PackageSearch, Plus, Send, Trash2, X } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -12,7 +14,7 @@ import { normalizeTemplate } from '../../lib/proformaTemplates';
 import { todayIso } from '../../lib/taskDates';
 import { Customer, Deal, ProformaFields, ProformaIssuer, ProformaItem, SystemSettings } from '../../types';
 import { JalaliDateField } from '../tasks/TasksView';
-import { formatMoney, fromDisplay, unitName } from '../../lib/money';
+import { formatMoney, fromDisplay, toDisplay, unitName } from '../../lib/money';
 import { WarehousePicker, WarehouseProduct } from './WarehousePicker';
 import { DeliveryMinutesDialog } from '../minutes/DeliveryMinutesDialog';
 import { ProformaShareDialog } from './ProformaShare';
@@ -341,7 +343,7 @@ export const ProformaModal: React.FC<{
 
   return (
     <>
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-xs p-3" onMouseDown={onClose} onKeyDown={enterNextKeyDown}>
       <div dir="rtl" onMouseDown={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col border border-[#EBDBCE] text-right">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#EBDBCE]">
           <h3 className="font-black text-sm text-[#3A241F] flex items-center gap-2">
@@ -498,7 +500,7 @@ export const ProformaModal: React.FC<{
                   </div>
                   <div>
                     <label className={label}>قیمت واحد ({unitName()})</label>
-                    <input className={field} inputMode="numeric" value={it.unitPrice ? toman(it.unitPrice) : ''} onChange={(e) => patchItem(i, { unitPrice: fromDisplay(parseNumber(e.target.value)) })} />
+                    <PriceBox value={it.unitPrice ? String(toDisplay(it.unitPrice)) : ''} onChange={(d) => patchItem(i, { unitPrice: fromDisplay(Number(d) || 0) })} className={field} prices={catalog.find((x) => x.code && x.code === it.code)?.prices || []} onPick={(a) => patchItem(i, { unitPrice: a })} />
                   </div>
                   <div>
                     <label className={label}>تخفیف ردیف ({unitName()})</label>
@@ -517,9 +519,6 @@ export const ProformaModal: React.FC<{
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] font-bold" data-item-hints>
                       {p.kind === 'service' ? <span className="text-sky-700">خدمات (موجودی ندارد)</span> : <span className={p.total <= 0 || p.total < (it.qty || 0) ? 'text-rose-600' : 'text-emerald-700'}>موجودی انبار: {toPersianDigits(p.total)} {p.unit}{p.total < (it.qty || 0) ? ' (کمتر از تعداد درخواستی)' : ''}</span>}
                       {last && <button type="button" onClick={() => patchItem(i, { unitPrice: last.price })} className="text-violet-700 underline cursor-pointer">آخرین قیمت به این مشتری: {formatMoney(last.price)}</button>}
-                      {(p.prices || []).map((x) => (
-                        <button key={x.title} type="button" onClick={() => patchItem(i, { unitPrice: x.amount })} className="px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800 cursor-pointer">{x.title}: {formatMoney(x.amount)}</button>
-                      ))}
                     </div>
                   );
                 })()}

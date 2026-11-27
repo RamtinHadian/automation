@@ -1,3 +1,5 @@
+import { PriceBox } from '../common/PriceBox';
+import { enterNextKeyDown } from '../../lib/enterNext';
 import React, { useEffect, useMemo, useState } from 'react';
 import { PackageSearch, Plus, Receipt, X } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -87,7 +89,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-black/40 flex items-center justify-center p-3" onClick={onClose} dir="rtl" data-standalone-invoice>
+    <div className="fixed inset-0 z-[80] bg-black/40 flex items-center justify-center p-3" onClick={onClose} dir="rtl" data-standalone-invoice onKeyDown={enterNextKeyDown}>
       <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-black text-[#3A241F]"><Receipt className="w-5 h-5 text-emerald-700" />صدور فاکتور (بدون پیش‌فاکتور)</div>
@@ -142,22 +144,9 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
                   <input className={inp} value={r.code} onChange={(e) => set(i, 'code', e.target.value)} placeholder={kind === 'OFFICIAL' ? 'شناسهٔ کالا *' : 'شناسهٔ کالا'} />
                   <input className={inp} value={r.unit} onChange={(e) => set(i, 'unit', e.target.value)} placeholder={kind === 'OFFICIAL' ? 'واحد *' : 'واحد'} />
                   <input className={inp} inputMode="numeric" value={r.qty} onChange={(e) => set(i, 'qty', digitsOf(e.target.value))} placeholder="تعداد" />
-                  <MoneyInput value={r.price} onChange={(d) => set(i, 'price', d)} placeholder={`قیمت واحد (${unitName()})`} unit={false} className={inp} />
+                  <PriceBox value={r.price} onChange={(d) => set(i, 'price', d)} placeholder={`قیمت واحد (${unitName()})`} className={inp} prices={catalog.find((x) => x.code && x.code === r.code.trim())?.prices || []} onPick={(a) => set(i, 'price', String(toDisplay(a)))} />
                   <MoneyInput value={r.discount} onChange={(d) => set(i, 'discount', d)} placeholder="تخفیف ردیف" unit={false} className={inp} />
                 </div>
-                {(() => {
-                  const prod = catalog.find((x) => x.code && x.code === r.code.trim());
-                  const ps = prod?.prices || [];
-                  if (!ps.length) return null;
-                  return (
-                    <div className="flex flex-wrap items-center gap-1.5" data-product-prices>
-                      <span className="text-[10px] font-black text-amber-800">قیمت‌های این کالا:</span>
-                      {ps.map((x) => (
-                        <button key={x.title} type="button" onClick={() => set(i, 'price', String(toDisplay(x.amount)))} className={`px-2.5 py-1 rounded-full border text-[10.5px] font-black cursor-pointer ${num(r.price) === toDisplay(x.amount) ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>{x.title}: {formatMoney(x.amount)}</button>
-                      ))}
-                    </div>
-                  );
-                })()}
               </div>
             ))}
           </div>
