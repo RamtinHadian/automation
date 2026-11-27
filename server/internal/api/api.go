@@ -235,6 +235,8 @@ func Router(cfg config.Config) http.Handler {
 	registerCampaigns(mux)
 	registerInbox(mux)
 	registerAiFunnel(mux)
+	registerProductCustomers(mux)
+	registerWeeklyReport(mux)
 	registerCommission(mux)
 	registerOrders(mux)
 	registerInternalLetters(mux)

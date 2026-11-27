@@ -18,6 +18,7 @@ import { matchesAll } from '../../lib/searchAll';
 import { BoxCard, BoxGrid, BoxStats } from '../common/BoxCard';
 import { SubTabs } from '../common/SubTabs';
 import { SepidarDocsImport } from './SepidarDocsImport';
+import { WeeklyReportTab } from './WeeklyReportTab';
 
 const KIND_LABEL: Record<WhKind, string> = { receipt: 'رسید ورود', issue: 'حواله خروج', transfer: 'انتقال بین انبارها', adjust: 'تعدیل انبارگردانی' };
 const KIND_COLOR: Record<WhKind, string> = {
@@ -30,7 +31,7 @@ const KIND_COLOR: Record<WhKind, string> = {
 const fmt = (n: number) => toPersianDigits(Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 3 }));
 const parseNum = (s: string) => Number(String(s).replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[٫,،]/g, '.').trim());
 
-type Tab = 'stock' | 'docs' | 'products' | 'warehouses';
+type Tab = 'stock' | 'docs' | 'products' | 'warehouses' | 'weekly';
 
 export const WarehouseView: React.FC = () => {
   const { currentUser, customers, showToast } = useAppContext();
@@ -74,6 +75,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
 		['docs', 'اسناد'],
 		['products', 'کالاها'],
 		['warehouses', 'انبارها'],
+			['weekly', 'گزارش هفتگی'],
 	] as [Tab, string][]).filter(([k]) => canSub(currentUser, 'warehouse.' + k) && (k === 'stock' ? qtyOk : k === 'docs' ? qtyOk && kindsOk.length > 0 && !sepidar : true));
   const shownTab: Tab | null = tabs.some(([k]) => k === tab) ? tab : tabs[0]?.[0] ?? null;
   const mayWrite = canSub(currentUser, 'warehouse.write');
@@ -123,7 +125,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
         tone="amber"
         value={tab}
         onChange={(k) => setTab(k as typeof tab)}
-        tabs={tabs.map(([k, t]) => ({ id: k, label: t, Icon: ({ stock: Package, docs: FileText, products: Boxes, warehouses: WarehouseIcon } as Record<string, React.ElementType>)[k] }))}
+        tabs={tabs.map(([k, t]) => ({ id: k, label: t, Icon: ({ stock: Package, docs: FileText, products: Boxes, warehouses: WarehouseIcon, weekly: FileText } as Record<string, React.ElementType>)[k] }))}
       />
       {!sepidar && mayWrite && (
         <div className="flex flex-wrap gap-1.5">
@@ -139,6 +141,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
       {shownTab === 'stock' && <StockTab st={st} group={group} onCard={setCardOf} />}
       {shownTab === 'docs' && <DocsTab st={st} onOpen={setDocOpen} isAdmin={isAdmin} sepidar={sepidar} />}
       {shownTab === 'products' && <ProductsTab st={st} group={group} sepidar={sepidar} onEdit={setProdEdit} onCard={setCardOf} />}
+      {shownTab === 'weekly' && <WeeklyReportTab onCard={(code) => { const p = st.products.find((x) => x.code === code); if (p) setCardOf(p); }} />}
       {shownTab === 'warehouses' && <WarehousesTab st={st} sepidar={sepidar} onEdit={setWhEdit} />}
 
       {docForm && (
@@ -168,7 +171,7 @@ const qtyOk = st.limits ? st.limits.qty : true;
 
 // ---------- stock ----------
 
-const csvDownload = (name: string, rows: (string | number)[][]) => {
+export const csvDownload = (name: string, rows: (string | number)[][]) => {
   const body = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const url = URL.createObjectURL(new Blob(['﻿' + body], { type: 'text/csv;charset=utf-8' }));
   const a = document.createElement('a');
@@ -699,54 +702,105 @@ const DocForm: React.FC<{ st: WhState; kind: WhKind; customers: { id: string; na
 
 // ---------- card (kardex) ----------
 
-/** Who this product was priced to (proformas) and who bought it (issued invoices), from the opportunities the person is allowed to see; one line per customer. */
-const ProductCustomers: React.FC<{ product: WhProduct; showMoney: boolean }> = ({ product, showMoney }) => {
-  const { deals } = useAppContext();
-  const code = (product.code || '').trim();
-  const { priced, sold } = useMemo(() => {
-    const pr = new Map<string, { name: string; qty: number; last: string; price: number; numbers: string[] }>();
-    const so = new Map<string, { name: string; qty: number; last: string; price: number; numbers: string[] }>();
-    if (!code) return { priced: [], sold: [] };
-    const add = (m: typeof pr, d: Deal, items: { code?: string; qty: number; unitPrice: number }[], at: string, no: string) => {
-      const hit = items.filter((x) => (x.code || '').trim() === code);
-      if (!hit.length) return;
-      const e = m.get(d.customerId) || { name: d.customerName, qty: 0, last: '', price: 0, numbers: [] };
-      e.qty += hit.reduce((t, x) => t + (x.qty || 0), 0);
-      if (!e.last || at > e.last) { e.last = at; e.price = hit[hit.length - 1].unitPrice; }
-      if (no && !e.numbers.includes(no)) e.numbers.push(no);
-      m.set(d.customerId, e);
-    };
-    for (const d of deals) {
-      if (d.mergedInto) continue;
-      if (d.proformaNumber && !d.standalone && d.items?.length) add(pr, d, d.items, d.proformaAt || d.createdAt || '', d.proformaNumber);
-      const inv = d.invoice;
-      if (inv && inv.status !== 'cancelled' && inv.items?.length) add(so, d, inv.items, inv.issuedAt || d.closedAt || '', inv.number);
-    }
-    const byLast = (a: { last: string }, b: { last: string }) => b.last.localeCompare(a.last);
-    return { priced: [...pr.values()].sort(byLast), sold: [...so.values()].sort(byLast) };
-  }, [deals, code]);
-  const block = (title: string, tone: string, rows: typeof priced, none: string, dataId: string) => (
-    <div className={`rounded-xl border p-3 ${tone}`} data-product-customers={dataId}>
-      <div className="text-xs font-black mb-1.5">{title} ({toPersianDigits(rows.length)} نفر)</div>
-      {rows.length === 0 ? <div className="text-[11px] font-bold opacity-70">{none}</div> : (
-        <div className="space-y-1">
-          {rows.map((x, i) => (
-            <div key={i} className="flex flex-wrap items-center justify-between gap-x-3 text-[11px] font-bold text-[#3A241F] bg-white/70 rounded-lg px-2.5 py-1.5">
-              <span className="font-black">{x.name}</span>
-              <span className="text-[#6B5048]">
-                {toPersianDigits(x.qty)} {product.unit}{showMoney && x.price ? ` · آخرین قیمت ${formatMoney(x.price)} ${unitName()}` : ''}{x.last ? ` · ${formatTaskDate(x.last.slice(0, 10))}` : ''}{x.numbers.length ? ` · ${x.numbers.map((n) => toPersianDigits(n)).join('، ')}` : ''}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+/** Who this product was priced to (proformas) and who bought it (issued invoices): every document with the customer's details, and an AI reading of it all. */
+type PcRow = Record<string, unknown>;
+const pcStr = (v: unknown) => (typeof v === 'string' ? v : '');
+const pcNum = (v: unknown) => (typeof v === 'number' ? v : 0);
+const pcList = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+
+const PcAiList: React.FC<{ title: string; items: unknown[]; render: (x: Record<string, unknown>) => React.ReactNode }> = ({ title, items, render }) =>
+  items.length === 0 ? null : (
+    <div>
+      <div className="text-[11px] font-black text-violet-900">{title}</div>
+      <ul className="list-disc pr-5 text-[11px] font-bold text-[#3A241F] space-y-0.5">
+        {items.map((x, i) => <li key={i}>{render((x && typeof x === 'object' ? x : { text: String(x) }) as Record<string, unknown>)}</li>)}
+      </ul>
     </div>
   );
+
+const ProductCustomers: React.FC<{ product: WhProduct; showMoney: boolean }> = ({ product, showMoney }) => {
+  const { currentUser, showToast } = useAppContext();
+  const code = (product.code || '').trim();
+  const [data, setData] = useState<{ priced: PcRow[]; sold: PcRow[] } | null>(null);
+  const [ai, setAi] = useState<Record<string, unknown> | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setData(null);
+    setAi(null);
+    if (code) api.productCustomers(code).then((r) => live && setData(r)).catch(() => live && setData({ priced: [], sold: [] }));
+    return () => { live = false; };
+  }, [code]);
+  const runAi = async () => {
+    setBusy(true);
+    try {
+      setAi((await api.productAiRun(code, product.total)).analysis);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'تحلیل انجام نشد.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const soldIds = new Set((data?.sold || []).map((r) => pcStr(r.customerId)));
+  const row = (x: PcRow, i: number, tone: string, notSoldTag?: boolean) => {
+    const phones = pcList(x.phones).map(String).filter(Boolean);
+    const place = [pcStr(x.company), pcStr(x.city)].filter(Boolean).join(' · ');
+    return (
+      <div key={i} className={`rounded-xl border bg-white p-2.5 text-[11px] font-bold text-[#3A241F] space-y-1 ${tone}`} data-pc-row>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-black text-xs">{pcStr(x.customerName)}{notSoldTag && !soldIds.has(pcStr(x.customerId)) ? <span className="mr-1.5 text-[9.5px] font-black rounded-full px-1.5 py-px border bg-sky-50 text-sky-800 border-sky-300" data-priced-not-sold>قیمت داده شده، هنوز نخریده</span> : null}{place ? <span className="font-bold text-[#8C6F66]"> · {place}</span> : null}</span>
+          <span className="text-[#6B5048]">{x.kind === 'OFFICIAL' ? 'رسمی · ' : x.kind === 'UNOFFICIAL' ? 'غیررسمی · ' : ''}{toPersianDigits(pcStr(x.number))}{pcStr(x.at) ? ` · ${formatTaskDate(pcStr(x.at).slice(0, 10))}` : ''}</span>
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[#503730]">
+          <span>تعداد: {toPersianDigits(pcNum(x.qty))} {product.unit}</span>
+          {showMoney && pcNum(x.unitPrice) > 0 && <span>قیمت واحد: {formatMoney(pcNum(x.unitPrice))} {unitName()}</span>}
+          {showMoney && pcNum(x.discountPercent) > 0 && <span>تخفیف کل: {toPersianDigits(pcNum(x.discountPercent))}٪</span>}
+          {showMoney && pcNum(x.discount) > 0 && <span>تخفیف ردیف: {formatMoney(pcNum(x.discount))}</span>}
+          {pcStr(x.owner) && <span>فروشنده: {pcStr(x.owner)}</span>}
+          {pcStr(x.dealTitle) && <span>فرصت: {pcStr(x.dealTitle)}</span>}
+        </div>
+        {phones.length > 0 && <div className="text-[#6B5048]">{phones.slice(0, 3).map((t) => toPersianDigits(t)).join(' ، ')}</div>}
+        {pcStr(x.lostReason) && <div className="text-rose-700">دلیل از دست رفتن: {pcStr(x.lostReason)}</div>}
+      </div>
+    );
+  };
+  const block = (title: string, tone: string, rows: PcRow[], none: string, rowTone: string) => (
+    <div className={`rounded-xl border p-3 space-y-1.5 ${tone}`}>
+      <div className="text-xs font-black">{title} ({toPersianDigits(rows.length)} سند، {toPersianDigits(new Set(rows.map((r) => pcStr(r.customerId))).size)} نفر)</div>
+      {rows.length === 0 ? <div className="text-[11px] font-bold opacity-70">{none}</div> : rows.map((x, i) => row(x, i, rowTone, rowTone === 'border-amber-100'))}
+    </div>
+  );
+  if (!code) return null;
   return (
     <div className="space-y-2" data-product-customers-box>
-      {block('فروخته‌شده به (فاکتور صادرشده)', 'border-emerald-200 bg-emerald-50/60 text-emerald-900', sold, 'هنوز فاکتوری با این کالا صادر نشده است.', 'sold')}
-      {block('قیمت داده‌شده به (پیش‌فاکتور)', 'border-amber-200 bg-amber-50/60 text-amber-900', priced, 'هنوز پیش‌فاکتوری با این کالا نیست.', 'priced')}
-      <div className="text-[10px] font-bold text-[#8C6F66]">فقط فرصت‌هایی که شما اجازهٔ دیدنشان را دارید شمرده می‌شود (فروشنده فقط مشتریان خودش را می‌بیند). جستجو بر پایهٔ «کد کالا» است.</div>
+      {!data ? <Empty text="در حال دریافت مشتریان این کالا…" /> : (
+        <>
+          {block('فروخته‌شده به (فاکتور صادرشده)', 'border-emerald-200 bg-emerald-50/60 text-emerald-900', data.sold, 'هنوز فاکتوری با این کالا صادر نشده است.', 'border-emerald-100')}
+          {block('قیمت داده‌شده به (پیش‌فاکتور)', 'border-amber-200 bg-amber-50/60 text-amber-900', data.priced, 'هنوز پیش‌فاکتوری با این کالا نیست.', 'border-amber-100')}
+          <div className="text-[10px] font-bold text-[#8C6F66]">فقط فرصت‌هایی که شما اجازهٔ دیدنشان را دارید شمرده می‌شود (فروشنده فقط مشتریان خودش را می‌بیند). جستجو بر پایهٔ «کد کالا» است.</div>
+          {canSub(currentUser, 'ai.product') && data.sold.length + data.priced.length > 0 && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3 space-y-2" data-product-ai>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-black text-violet-900">تحلیل هوش مصنوعی این کالا</span>
+                <button type="button" disabled={busy} onClick={() => void runAi()} className="px-3 py-1.5 rounded-xl bg-violet-700 text-white text-[11px] font-black cursor-pointer disabled:opacity-60" data-product-ai-run>{busy ? 'در حال تحلیل…' : ai ? 'تحلیل دوباره' : 'تحلیل کن'}</button>
+              </div>
+              {ai && (
+                <div className="space-y-2 text-[11.5px] font-bold text-[#3A241F] leading-6">
+                  <div className="font-black text-sm text-violet-900">{pcStr(ai.headline)}</div>
+                  {pcStr(ai.summary) && <p>{pcStr(ai.summary)}</p>}
+                  {pcStr(ai.demand) && <p><b>تقاضا:</b> {pcStr(ai.demand)}</p>}
+                  {pcStr(ai.pricing) && <p><b>قیمت‌ها:</b> {pcStr(ai.pricing)}</p>}
+                  {pcStr(ai.stock) && <p><b>موجودی:</b> {pcStr(ai.stock)}</p>}
+                  <PcAiList title="خریداران مهم" items={pcList(ai.topBuyers)} render={(x) => <><b>{pcStr(x.name)}</b>{pcStr(x.why) ? ': ' + pcStr(x.why) : ''}</>} />
+                  <PcAiList title="قیمت گرفته‌اند ولی نخریده‌اند" items={pcList(ai.hotLeads)} render={(x) => <><b>{pcStr(x.name)}</b>{pcStr(x.why) ? ': ' + pcStr(x.why) : ''}</>} />
+                  <PcAiList title="خطرها" items={pcList(ai.risks)} render={(x) => <>{pcStr(x.text)}</>} />
+                  <PcAiList title="کارهای بعدی" items={pcList(ai.nextActions)} render={(x) => <><b>{pcStr(x.title)}</b>{pcStr(x.why) ? ': ' + pcStr(x.why) : ''}</>} />
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

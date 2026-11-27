@@ -332,6 +332,17 @@ export const CrmView: React.FC = () => {
   // one searchable line per customer: every field it is stored with, its opportunities, notes, quotes… (digits and letters unified)
   const searchIndex = useMemo(() => buildCustomerIndex(customers, deals, activities), [customers, deals, activities]);
   const boughtIds = useMemo(() => new Set(deals.filter((d) => d.stage === 'WON').map((d) => d.customerId)), [deals]);
+  // «فقط قیمت‌گیر»: was given a proforma (a price) but has never bought (no won deal, no issued invoice)
+  const priceOnlyIds = useMemo(() => {
+    const priced = new Set<string>();
+    const bought = new Set<string>(boughtIds);
+    for (const d of deals) {
+      if (d.invoice && d.invoice.status !== 'cancelled') bought.add(d.customerId);
+      if (d.proformaNumber && !d.standalone) priced.add(d.customerId);
+    }
+    return new Set([...priced].filter((id) => !bought.has(id)));
+  }, [deals, boughtIds]);
+  const priceOnlyChip = (id: string) => (priceOnlyIds.has(id) ? <span className="inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border bg-sky-50 text-sky-800 border-sky-300 mr-1" title="پیش‌فاکتور (قیمت) گرفته ولی هنوز خرید نکرده" data-customer-price-only>فقط قیمت‌گیر</span> : null)
   const filteredCustomers = useMemo(() => {
     const quietLimit = adv.quiet ? Date.now() - Number(adv.quiet) * 86400000 : 0;
     const rank = new Map<string, number>(); // with a search text, the best answers (the owner's name first) come before the chosen order
@@ -598,7 +609,7 @@ export const CrmView: React.FC = () => {
           {c.kind === 'SHOP' && (c.firstName || c.lastName) && <div className="text-[11px] font-black text-[#3A241F] truncate" data-shop-owner>مالک: {`${c.firstName || ''} ${c.lastName || ''}`.trim()}</div>}
           {c.kind === 'SHOP' && c.shopType && <div className="text-[10.5px] text-[#8C6F66] truncate" data-shop-type>{c.shopType}</div>}
         </div>
-        <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}<span className="hidden lg:inline-flex shrink-0"><FinanceChip customerId={c.id} small /></span>
+        <span className={`shrink-0 text-[10px] font-black rounded-full px-2 py-0.5 border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}{priceOnlyChip(c.id)}<span className="hidden lg:inline-flex shrink-0"><FinanceChip customerId={c.id} small /></span>
         <div className="hidden sm:block w-32 text-[11px] font-bold text-[#3A241F]" dir="ltr">{toPersianDigits(c.phones?.[0] || '')}</div>
         <div className="hidden md:block w-28 text-[11px] text-[#8C6F66] truncate">{c.ownerName || ''}</div>
         <div className="hidden md:block w-40 text-[10.5px] text-[#8C6F66]" title="زمان ثبت مشتری">{c.createdAt ? formatDateTime(c.createdAt) : ''}</div>
@@ -617,7 +628,7 @@ export const CrmView: React.FC = () => {
           <div className="min-w-0 flex-1">
             <div className="font-black text-[13px] text-[#3A241F] leading-snug [overflow-wrap:anywhere] line-clamp-2 min-h-[2.75em]" title={c.name}>{c.name}</div>
             <div className="flex items-center gap-1 h-[22px] overflow-hidden" data-customer-chips>
-              <span className={`inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}
+              <span className={`inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}{priceOnlyChip(c.id)}
               <FinanceChip customerId={c.id} small />
             </div>
             {/* one line: the company, or for a shop its type and owner */}
