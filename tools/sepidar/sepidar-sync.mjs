@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.80.11';
+export const TOOL_VERSION = '1.80.12';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -154,6 +154,18 @@ async function diagQuotation(sp, id, q) {
       log('  [تشخیص] فاکتور', JSON.stringify({ InvoiceID: x.InvoiceID, Number: x.Number, QuotationRef: x.QuotationRef, OrderRef: x.OrderRef, Date: x.Date }));
       try { log('  [تشخیص] پیش‌فاکتورِ همان فاکتور:', cut(await sp.get('/api/Quotations/' + x.QuotationRef))); } catch (e) { log('  [تشخیص] خواندن آن پیش‌فاکتور نشد:', e && e.message); }
     }
+    // how Sepidar's own invoices were made: with an order (OrderRef)? what does an order look like? (nothing is written here)
+    try {
+      const all = await sp.get('/api/Invoices');
+      const withOrder = all.filter((x) => x.OrderRef != null);
+      log('  [تشخیص] فاکتورها:', all.length, '· با سفارش (OrderRef):', withOrder.length, '· با پیش‌فاکتور (QuotationRef):', all.filter((x) => x.QuotationRef != null).length);
+      const one = withOrder[withOrder.length - 1] || all[all.length - 1];
+      if (one) log('  [تشخیص] یک فاکتور کامل:', cut(await sp.get('/api/Invoices/' + (one.InvoiceID ?? one.ID))));
+      if (withOrder.length) log('  [تشخیص] سفارش همان فاکتور:', cut(await sp.get('/api/Orders/' + withOrder[withOrder.length - 1].OrderRef)));
+    } catch (e) { log('  [تشخیص] خواندن فاکتور/سفارش نشد:', e && e.message); }
+    try { const o = await sp.get('/api/Orders'); log('  [تشخیص] /api/Orders:', Array.isArray(o) ? o.length : '?', 'ردیف', o && o[0] ? Object.keys(o[0]).join(',') : ''); } catch (e) { log('  [تشخیص] /api/Orders:', e && e.message); }
+    // is the quotation really closed after Close? (the earlier tries could have been on an open one)
+    try { const again = await sp.get('/api/Quotations/' + id); log('  [تشخیص] پیش‌فاکتور الان Closed =', again.Closed); } catch { /* skip */ }
     // other places the conversion could live
     for (const path of [`/api/Invoices/BasedOnQuotation/${id}`, `/api/Quotations/${id}/Invoice`, `/api/Quotations/${id}/CreateInvoice`]) {
       try { const r = await sp.post(path); log('  [تشخیص] جواب داد:', path, cut(r)); return; } catch (e) { log('  [تشخیص]', path, '→', e && e.message); }
