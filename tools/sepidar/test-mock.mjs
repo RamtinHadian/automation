@@ -88,6 +88,12 @@ const sepidarServer = http.createServer(async (req, res) => {
   sp.calls ||= [];
   if (req.method === 'POST' && (url.startsWith('/api/Quotations/') && (url.endsWith('/Close') || url.endsWith('/UnClose')))) { sp.calls.push(url); return send(res, 200, {}); }
   if (req.method === 'DELETE' && (url.startsWith('/api/Quotations/') && !url.slice(15).includes('/') && url.length > 15)) { sp.calls.push('DELETE ' + url); return send(res, 200, {}); }
+  if (req.method === 'POST' && url === '/api/Invoices') {
+    const rowsIn = body.InvoiceItems || body.Items;
+    if (!Array.isArray(rowsIn) || !rowsIn.length) return send(res, 400, { Message: "Required property 'InvoiceItems' not found in JSON." });
+    sp.invoicePosted = body; sp.invoicePostedCount = (sp.invoicePostedCount || 0) + 1;
+    return send(res, 200, { InvoiceID: 700, Number: 31 });
+  }
   if (req.method === 'POST' && url === '/api/Invoices/BasedOnQuotation') { if (typeof body !== 'object' || !body.QuotationID) return send(res, 400, { Message: "Error converting value to type 'QuotationIdDto'" }); sp.calls.push('invoice from ' + JSON.stringify(body)); return send(res, 200, { InvoiceID: 700, Number: 31 }); }
   if (req.method === 'POST' && url === '/api/Receipts/BasedOnInvoice') { sp.receipt = body; return send(res, 200, { ReceiptID: 55 }); }
   if (req.method === 'GET' && url.startsWith('/api/Customers/') && url.length > 15) return send(res, 200, { ...(sp.customers.find((c) => '/api/Customers/' + c.CustomerID === url) || {}), Version: 'v1' });
@@ -410,7 +416,7 @@ ok(hoormandResults['sj-3']?.ok === true && hoormandResults['sj-3'].sepidarId ===
 hoormandJobs.push({ id: 'sj-4', kind: 'quotation.close', data: { dealId: 'd-1', sepidarId: 900 } }, { id: 'sj-5', kind: 'invoice.fromProforma', data: { dealId: 'd-1', sepidarId: 900 } });
 r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
 ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice from {"QuotationID":900}') && hoormandResults['sj-5'].number === 31 && hoormandResults['sj-5'].sepidarId === 700, 'close and invoice-from-quotation (the body is an object with the quotation id)');
-// the invoice made in Hoormand goes to Sepidar: a quotation is made from the lines of the INVOICE (frozen when it was issued), then Sepidar issues the invoice from it
+// the invoice made in Hoormand is written straight into Sepidar's sales invoices (no quotation); the stock of the line comes from the warehouse that holds most of it
 {
   const base = deals[0];
   deals.push({ ...base, id: 'd-71', proformaNumber: 'PF-X', invoice: { number: 'FA-1405-0001', kind: 'OFFICIAL', status: 'issued', issuedAt: '2026-10-20T08:00:00.000Z', items: base.items.map((i) => ({ ...i, qty: 3 })), discountPercent: 0, taxPercent: 0 } });
@@ -419,9 +425,11 @@ ok(sp.calls.includes('/api/Quotations/900/Close') && sp.calls.includes('invoice 
   hoormandJobs.push({ id: 'sj-5b', kind: 'invoice.fromHoormand', data: { dealId: 'd-71' } }, { id: 'sj-5c', kind: 'invoice.fromHoormand', data: { dealId: 'd-72' } });
   r = await runAsync('jobs'); if (process.env.DBG) console.log(r.out);
   const res = hoormandResults['sj-5b'];
-  const made = sp.quotations[sp.quotations.length - 1];
-  ok(res?.ok === true && sp.quotations.length === before + 1 && made.Items[0].Quantity === 3, 'invoice.fromHoormand makes the quotation from the invoice lines (not from the proforma)' + String.fromCharCode(0));
-  ok(res.sepidarId === 700 && res.number === 31 && res.quotationId === made.ID && /FA-1405-0001/.test(res.message || ''), 'invoice.fromHoormand reports the Sepidar invoice number, the quotation it made and the Hoormand number');
+  const made = sp.invoicePosted || {};
+  const rowsOut = made.InvoiceItems || made.Items || [];
+  ok(res?.ok === true && sp.quotations.length === before && rowsOut.length >= 1 && rowsOut[0].Quantity === 3 && made.CustomerRef != null && made.GUID, 'invoice.fromHoormand writes the invoice straight into Sepidar (no quotation), with the lines of the invoice');
+  ok(Number(made.NetPrice) === rowsOut.reduce((t, x) => t + x.NetPrice, 0) && made.SettlementType === 2, 'the invoice carries its total and the settlement type');
+  ok(res.sepidarId === 700 && res.number === 31 && /FA-1405-0001/.test(res.message || '') && /می‌ماند/.test(res.message || ''), 'invoice.fromHoormand reports the Sepidar invoice number and says it stays in Sepidar when cancelled in Hoormand');
   ok(hoormandResults['sj-5c']?.ok === false && /باطل/.test(hoormandResults['sj-5c']?.message || ''), 'a cancelled Hoormand invoice is not sent to Sepidar');
   // an invoice still waiting for its number (status pending, no number yet) is issued in Sepidar and reports Sepidar's number back
   deals.push({ ...base, id: 'd-73', invoice: { number: '', kind: 'UNOFFICIAL', status: 'pending', issuedAt: '2026-10-21T08:00:00.000Z', items: base.items, discountPercent: 0, taxPercent: 0 } });

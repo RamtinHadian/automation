@@ -33,7 +33,7 @@ const SepidarSend: React.FC<{ deal: Deal }> = ({ deal }) => {
   const link = st.links.find((l) => l.kind === 'invoice' && l.ref === deal.id);
   const can = st.perms.includes('invoice');
   const send = async () => {
-    const ok = await askConfirm(`فاکتور ${toPersianDigits(inv.number)} به سپیدار فرستاده شود؟ ردیف‌های همین فاکتور در سپیدار پیش‌فاکتور می‌شوند (اگر از قبل نباشد) و سپیدار فاکتور خودش را با شمارهٔ خودش صادر می‌کند. بعد از آن دوباره فرستاده نمی‌شود.`, { tone: 'info', title: 'ارسال فاکتور به سپیدار', confirmText: 'بله، فرستاده شود' });
+    const ok = await askConfirm(`فاکتور ${toPersianDigits(inv.number)} به سپیدار فرستاده شود؟ ردیف‌های همین فاکتور مستقیم در «فاکتور فروش» سپیدار ثبت می‌شود، سپیدار شمارهٔ خودش را می‌دهد و موجودی کالا را کم می‌کند. بعد از آن دوباره فرستاده نمی‌شود، و اگر در هورمند باطل شود در سپیدار می‌ماند تا از داخل سپیدار پاک شود.`, { tone: 'info', title: 'ارسال فاکتور به سپیدار', confirmText: 'بله، فرستاده شود' });
     if (!ok) return;
     try {
       await api.sepidarJob({ kind: 'invoice.fromHoormand', dealId: deal.id });
@@ -185,7 +185,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
               type="button"
               disabled={!reason.trim()}
               onClick={async () => {
-                const ok = await askConfirm(`${pending ? 'فاکتور در انتظار سپیدار' : 'فاکتور ' + toPersianDigits(inv.number)} باطل شود؟ شمارهٔ آن می‌ماند و دوباره استفاده نمی‌شود.${inv.sepidar ? ' توجه: این فاکتور قبلاً در سپیدار صادر شده و آنجا باطل نمی‌شود؛ باید در سپیدار هم دستی باطلش کنید.' : ''}`, { tone: 'danger', title: 'ابطال فاکتور', confirmText: 'بله، باطل شود' });
+                const ok = await askConfirm(`${pending ? 'فاکتور در انتظار سپیدار' : 'فاکتور ' + toPersianDigits(inv.number)} باطل شود؟ شمارهٔ آن می‌ماند و دوباره استفاده نمی‌شود.${inv.sepidar ? ' توجه: این فاکتور در سپیدار صادر شده و آنجا می‌ماند (موجودی هم برنمی‌گردد) تا خودتان از داخل سپیدار پاکش کنید.' : ''}`, { tone: 'danger', title: 'ابطال فاکتور', confirmText: 'بله، باطل شود' });
                 if (!ok) return;
                 const why = reason.trim();
                 try {

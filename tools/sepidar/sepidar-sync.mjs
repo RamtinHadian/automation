@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.80.12';
+export const TOOL_VERSION = '1.81.0';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -1087,39 +1087,90 @@ const jobHandlers = {
     return { sepidarId: r.ID, number: r.Number, message: `پیش‌فاکتور با شمارهٔ ${r.Number} در سپیدار ثبت شد.` };
   },
 
-  /** The invoice made in Hoormand goes to Sepidar: its lines are put in Sepidar as a quotation (when the deal has none there yet) and Sepidar issues the invoice from it. */
+  /**
+   * The invoice made in Hoormand is written straight into Sepidar's sales invoices (this Sepidar turns no quotation into an invoice: none of its invoices has a
+   * quotation or an order). Sepidar takes the goods out of the warehouse with the invoice. What is written is never withdrawn by Hoormand: if the invoice is
+   * cancelled or deleted in Hoormand it stays in Sepidar until it is deleted there.
+   */
   async 'invoice.fromHoormand'(cfg, sp, state, job) {
     const deal = await hoormandGetOne(cfg, '/deals/' + encodeURIComponent(job.data.dealId));
     const inv = deal.invoice;
     if (!inv || (!inv.number && inv.status !== 'pending')) throw new Error('برای این فرصت در هورمند فاکتوری صادر نشده است.');
     if (inv.status === 'cancelled') throw new Error('فاکتور هورمند باطل شده است و به سپیدار نمی‌رود.');
-    let quotationId = job.data.sepidarId ? Number(job.data.sepidarId) : (state.quotations || {})[deal.id];
-    let made = null;
-    let note = '';
-    if (!quotationId) {
-      // the lines of the INVOICE (frozen when it was issued), not what the proforma looks like now
-      const snap = { ...deal, items: inv.items, discountPercent: inv.discountPercent, taxPercent: inv.taxPercent, proformaNumber: inv.number, proformaAt: String(inv.issuedAt || '').slice(0, 10) || deal.proformaAt };
-      made = await sendQuotation(cfg, sp, state, snap);
-      quotationId = made.ID;
-    } else {
-      note = ' (پیش‌فاکتورِ این فرصت از قبل در سپیدار بود و فاکتور از روی همان صادر شد؛ اگر ردیف‌هایش با فاکتور هورمند فرق دارد در سپیدار بررسی کنید.)';
-    }
-    let r;
+    const c = await hoormandGetOne(cfg, '/customers/' + encodeURIComponent(deal.customerId));
+    let customerRef;
     try {
-      r = await invoiceFromQuotation(sp, quotationId);
+      customerRef = await sepidarCustomerRef(cfg, sp, state, c);
     } catch (e) {
-      // the quotation remembered from an earlier try is gone from Sepidar (deleted or used): make it again from the invoice and retry once
-      if (made || !(e && e.status === 404)) throw e;
-      if (state.quotations) delete state.quotations[deal.id];
-      const snap = { ...deal, items: inv.items, discountPercent: inv.discountPercent, taxPercent: inv.taxPercent, proformaNumber: inv.number, proformaAt: String(inv.issuedAt || '').slice(0, 10) || deal.proformaAt };
-      made = await sendQuotation(cfg, sp, state, snap);
-      quotationId = made.ID;
-      note = '';
-      r = await invoiceFromQuotation(sp, quotationId);
+      throw new Error(`فاکتور فرستاده نشد، چون مشتری «${c.name || c.company || ''}» هنوز در سپیدار نیست و ثبت او هم نشد: ${e.message}`);
     }
+    const items = await sp.get('/api/Items');
+    const itemsByCode = new Map(items.filter((i) => i.IsActive !== false && i.IsSellable !== false).map((i) => [String(i.Code).trim(), i]));
+    // the lines of the INVOICE (frozen when it was issued), not what the proforma looks like now
+    const snap = { ...deal, items: inv.items, discountPercent: inv.discountPercent, taxPercent: inv.taxPercent, proformaNumber: inv.number };
+    const q = quotationBody(snap, customerRef, itemsByCode, cfg.sync);
+    if (q.skip) throw new Error(q.skip);
+    // the warehouse each line leaves: the one set in config.json, else the warehouse of Sepidar that holds the most of that item
+    let stockOf = () => cfg.sync.stockRef ?? null;
+    if (cfg.sync.stockRef == null) {
+      try {
+        const inv0 = await sp.get(cfg.sync.inventoryPath || '/api/Items/Inventories');
+        const best = new Map();
+        for (const r of Array.isArray(inv0) ? inv0 : []) {
+          const ref = r.ItemRef ?? r.ItemID;
+          const st = r.StockRef ?? r.StockeRef ?? r.StockID;
+          const qty = Number(r.Quantity ?? r.Qunatity ?? 0);
+          if (ref == null || st == null) continue;
+          if (!best.has(ref) || qty > best.get(ref).qty) best.set(ref, { st, qty });
+        }
+        stockOf = (ref) => best.get(ref)?.st ?? null;
+      } catch (e) {
+        log('  موجودی انبارها برای انتخاب انبار خوانده نشد:', e && e.message);
+      }
+    }
+    // the customer's address (real Sepidar invoices carry one)
+    let addressRef = null;
+    try {
+      const cu = await sp.get('/api/Customers/' + customerRef);
+      const ad = (cu.Addresses || []).find((x) => x.IsMain) || (cu.Addresses || [])[0];
+      if (ad) { const key = Object.keys(ad).find((k) => /(^|Customer)Address(ID|Id)$/.test(k)) || Object.keys(ad).find((k) => /ID$/.test(k) && !/Customer(ID|Id)$/.test(k)); addressRef = key ? ad[key] : null; }
+    } catch { /* an invoice without an address is tried */ }
+    const rows = q.body.Items.map((r) => ({
+      ItemRef: r.ItemRef, TracingRef: null, StockRef: stockOf(r.ItemRef), Quantity: r.Quantity, SecondaryQuantity: null, Fee: r.Fee, Price: r.Price, Discount: r.Discount,
+      Tax: r.Tax, Duty: 0, Addition: 0, NetPrice: r.Price - r.Discount + r.Tax, Description: r.Description,
+    }));
+    const when = String(inv.issuedAt || new Date().toISOString()).slice(0, 10) + 'T00:00:00';
+    const head = {
+      GUID: guidFrom('invoice:' + deal.id), Date: when, CustomerRef: customerRef, CurrencyRef: cfg.sync.currencyRef, Rate: 1, SaleTypeRef: cfg.sync.saleTypeRef, AddressRef: addressRef,
+      Price: q.body.Price, Discount: q.body.Discount, Tax: q.body.Tax, Duty: 0, Addition: 0, NetPrice: q.total, SettlementType: cfg.sync.settlementType ?? 2, DeliveryLocationRef: 1,
+      Description: 'فاکتور هورمند' + (inv.number ? ' ' + inv.number : ''),
+    };
+    let r;
+    let last;
+    for (const key of ['InvoiceItems', 'Items']) {
+      try {
+        r = await sp.post('/api/Invoices', { ...head, [key]: rows });
+        log('  فاکتور در سپیدار ساخته شد (فیلد ردیف‌ها: ' + key + '):', JSON.stringify(r).slice(0, 300));
+        break;
+      } catch (e) {
+        last = e;
+        log('  POST /api/Invoices با ' + key + ':', e && e.message);
+        if (!(e && (e.status === 400 || e.status === 500))) throw e;
+      }
+    }
+    if (!r) throw last;
+    let id = r.InvoiceID ?? r.ID;
+    let number = r.Number;
+    if ((number == null || id == null) && r.GUID == null) {
+      // the answer did not carry them: the newest invoice of this customer is looked up
+      const all = await sp.get('/api/Invoices');
+      const mine = all.filter((x) => x.CustomerRef === customerRef).sort((a, b) => (b.InvoiceID ?? 0) - (a.InvoiceID ?? 0))[0];
+      if (mine) { id = id ?? mine.InvoiceID; number = number ?? mine.Number; }
+    }
+    if (id == null || number == null) throw new Error('سپیدار فاکتور را پذیرفت ولی شمارهٔ آن را برنگرداند؛ در «سپیدار ← فاکتورها» ببینید ساخته شده است.');
     return {
-      sepidarId: r.InvoiceID, number: r.Number, quotationId: Number(quotationId), quotationNumber: made ? made.Number : undefined,
-      message: `فاکتور هورمند${inv.number ? ' ' + inv.number : ''} در سپیدار با شمارهٔ ${r.Number} صادر شد (همین شماره شمارهٔ فاکتور هورمند می‌شود)${note}`,
+      sepidarId: id, number,
+      message: `فاکتور هورمند${inv.number ? ' ' + inv.number : ''} در سپیدار با شمارهٔ ${number} صادر شد (همین شماره شمارهٔ فاکتور هورمند می‌شود). موجودی کالا را سپیدار کم می‌کند. اگر این فاکتور را در هورمند باطل کنید در سپیدار می‌ماند تا از داخل سپیدار پاک شود.`,
     };
   },
 
