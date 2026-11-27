@@ -1,3 +1,4 @@
+import { directPrintOn, downloadDirectPrintInstaller } from '../../lib/directPrint';
 import { openInvoiceThermal, rememberedThermalMm, rememberedThermalSize, THERMAL_SIZES, ThermalSize } from '../../lib/invoiceThermal';
 import React, { useEffect, useState } from 'react';
 import { Image, Printer, Receipt } from 'lucide-react';
@@ -172,6 +173,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
               <Printer className="w-3.5 h-3.5" />
               چاپ روی پرینتر لیبل‌زن
             </button>
+            {directPrintOn() ? <span className="text-[10px] font-black text-emerald-700 px-1" data-direct-print-on>چاپ مستقیم فعال</span> : <button type="button" onClick={() => { downloadDirectPrintInstaller(); showToast('فایل «Hoormand-Direct-Print-Setup.cmd» دانلود شد؛ روی کامپیوتر پرینتر اجرایش کنید، پرینتر را انتخاب کنید و از آیکون تازهٔ روی دسکتاپ استفاده کنید.'); }} className="text-[10px] font-black text-sky-700 underline cursor-pointer px-1" data-direct-print-install>نصب چاپ مستقیم</button>}
           </span>
         )}
         {!pending && <button

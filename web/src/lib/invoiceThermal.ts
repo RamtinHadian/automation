@@ -6,6 +6,7 @@ import { formatTaskDate } from './taskDates';
 import { invoiceTitle } from './invoice';
 import { proformaTotals } from './proformaPdf';
 import { code128Svg, latinDigits } from './code128';
+import { directPrintOn } from './directPrint';
 
 /**
  * The invoice on a label / receipt printer (thermal roll or label sheet): a window with the paper drawn at its real width, a print button, and
@@ -157,14 +158,14 @@ export function buildThermalHtml(deal: Deal, customer: Customer | undefined, set
  * The new window cannot carry a script of its own (the site's security policy, script-src 'self', forbids inline scripts in it), so the buttons are
  * wired from here: the window is of the same site, and these functions run in the page that opened it.
  */
-function wireThermalWindow(w: Window, size: ThermalSize) {
+function wireThermalWindow(w: Window, size: ThermalSize): (() => void) | undefined {
   const d = w.document;
   const sel = d.getElementById('sz') as HTMLSelectElement | null;
   const mm = d.getElementById('mm') as HTMLInputElement | null;
   const paper = d.getElementById('paper') as HTMLElement | null;
   const pg = d.getElementById('pg') as HTMLStyleElement | null;
   const hint = d.getElementById('hint') as HTMLElement | null;
-  if (!sel || !mm || !paper || !pg || !hint) return;
+  if (!sel || !mm || !paper || !pg || !hint) return undefined;
   const apply = () => {
     const id = sel.value as ThermalSize;
     const s = THERMAL_SIZES.find((x) => x.id === id) || THERMAL_SIZES[0];
@@ -202,6 +203,7 @@ function wireThermalWindow(w: Window, size: ThermalSize) {
     if (e.key === 'Escape') w.close();
   });
   apply();
+  return print;
 }
 
 /** Opens the narrow invoice in a window of its own with a print button; the person picks the printer in the print window. Must be called from a click. */
@@ -217,5 +219,10 @@ export function openInvoiceThermal(deal: Deal, customer: Customer | undefined, s
   w.document.open();
   w.document.write(buildThermalHtml(deal, customer, settings, issuerName, size, customMm));
   w.document.close();
-  wireThermalWindow(w, size);
+  const print = wireThermalWindow(w, size);
+  // «چاپ مستقیم» is installed on this computer (the browser starts with --kiosk-printing): the invoice goes to the printer at once and the window closes
+  if (print && directPrintOn()) {
+    w.addEventListener('afterprint', () => w.close());
+    window.setTimeout(print, 400);
+  }
 }
