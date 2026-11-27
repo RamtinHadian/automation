@@ -33,6 +33,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
   const [discountPercent, setDiscountPercent] = useState('0');
   const [taxPercent, setTaxPercent] = useState<string>(String(issuers[0].taxPercent ?? 0));
   const [note, setNote] = useState('');
+  const [paidTick, setPaidTick] = useState(false);
   const [busy, setBusy] = useState(false);
   // the warehouse: its products come with their prices; the seller puts one of them in the price box of the row
   const [catalog, setCatalog] = useState<WarehouseProduct[]>([]);
@@ -73,7 +74,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
     if (!ok) return;
     setBusy(true);
     try {
-      const r = await api.invoiceStandalone({ customerId, issuerId, kind, items: items.map(({ id: _id, ...x }) => ({ ...x, discount: x.discount || undefined })), discountPercent: Number(discountPercent) || 0, taxPercent: Number(taxPercent) || 0, note });
+      const r = await api.invoiceStandalone({ customerId, issuerId, kind, items: items.map(({ id: _id, ...x }) => ({ ...x, discount: x.discount || undefined })), discountPercent: Number(discountPercent) || 0, taxPercent: Number(taxPercent) || 0, note, paid: paidTick });
       showToast(`فاکتور ${toPersianDigits(r.number || '')} صادر شد.`);
       onIssued();
     } catch (e) {
@@ -174,6 +175,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
           <span>مالیات: {formatMoney(totals.tax)}</span>
           <span className="font-black text-[#3A241F]">قابل پرداخت: {formatMoney(totals.payable)} {unitName()}</span>
         </div>
+        <label className="flex items-center gap-2 text-[11px] font-black text-[#3A241F] cursor-pointer" data-paid-tick><input type="checkbox" className="w-4 h-4 accent-emerald-700" checked={paidTick} onChange={(e) => setPaidTick(e.target.checked)} />این فاکتور پرداخت شده است (فروش نقدی)؛ بدون این تیک تا پرداخت‌شدن در سپیدار «تسویه‌نشده» می‌ماند</label>
         {problem && <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11.5px] font-bold text-amber-900 leading-6" data-invoice-problem>{problem}</div>}
         <div className="flex gap-2 pt-1">
           <button type="button" disabled={busy || !!problem} onClick={() => void issue()} className="px-5 py-2.5 rounded-xl bg-emerald-700 text-white text-xs font-black cursor-pointer disabled:opacity-50" data-standalone-issue>صدور فاکتور {kind === 'OFFICIAL' ? 'رسمی' : 'غیررسمی'}</button>

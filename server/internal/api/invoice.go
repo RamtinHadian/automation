@@ -131,7 +131,7 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 				"issuerId": doc["proformaIssuerId"], "proformaNumber": doc["proformaNumber"],
 				"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
 				"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
-				"note": strings.TrimSpace(jsonx.Str(inc, "note")), "sepidar": jsonx.M{"id": sid, "number": num, "at": now()},
+				"note": strings.TrimSpace(jsonx.Str(inc, "note")), "paid": jsonx.Bool(inc, "paid"), "sepidar": jsonx.M{"id": sid, "number": num, "at": now()},
 			}
 			return true, false
 		}
@@ -148,7 +148,7 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 			"issuerId": doc["proformaIssuerId"], "proformaNumber": doc["proformaNumber"],
 			"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
 			"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
-			"note": strings.TrimSpace(jsonx.Str(inc, "note")),
+			"note": strings.TrimSpace(jsonx.Str(inc, "note")), "paid": jsonx.Bool(inc, "paid"),
 		}
 		return true, true
 	}
@@ -158,7 +158,7 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 		"issuerId": doc["proformaIssuerId"], "proformaNumber": doc["proformaNumber"],
 		"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
 		"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
-		"note": strings.TrimSpace(jsonx.Str(inc, "note")),
+		"note": strings.TrimSpace(jsonx.Str(inc, "note")), "paid": jsonx.Bool(inc, "paid"),
 	}
 	// numbered by the counter: the invoice also goes to Sepidar by itself (the numbers are compared when it comes back)
 	return true, mode == "counter" && sepidarEnabled(r.Context())

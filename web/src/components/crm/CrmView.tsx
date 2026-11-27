@@ -156,7 +156,7 @@ export const CrmView: React.FC = () => {
   const isAdmin = currentUser.role === 'SUPER_ADMIN';
 
   const [funnelOpen, setFunnelOpen] = useState(false);
-  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar' | 'marketing' | 'inventory' | 'proformalist' | 'commission'>('customers');
+  const [tab, setTab] = useState<'overview' | 'customers' | 'pipeline' | 'followups' | 'sms' | 'proformas' | 'reports' | 'club' | 'today' | 'board' | 'calendar' | 'marketing' | 'inventory' | 'proformalist' | 'invoices' | 'commission'>('customers');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | CustomerStatus>('ALL');
   const [mineOnly, setMineOnly] = useState(false);
@@ -577,7 +577,8 @@ export const CrmView: React.FC = () => {
     ['overview', 'خلاصه', TrendingUp],
     ['customers', 'مشتریان', Users],
     ['pipeline', 'فرصت‌های فروش', LayoutGrid],
-    ['proformalist', proformaOn ? 'پیش‌فاکتورها' : 'فاکتورها', FileText],
+    ...(proformaOn ? ([['proformalist', 'پیش‌فاکتورها', FileText]] as const) : []),
+    ['invoices', 'فاکتورها', Receipt],
     ['followups', 'پیگیری‌ها', ListChecks],
     ['reports', 'گزارش‌ها', BarChart3],
     ['commission', 'پورسانت', BadgeDollarSign],
@@ -1018,7 +1019,8 @@ export const CrmView: React.FC = () => {
 
       {tab === 'inventory' && <InventoryView deals={deals} customers={allContacts} activities={activities} canMoney={canSeeSalesTotals(currentUser)} onOpenCustomer={(id) => setOpenCustomer(id)} />}
 
-      {tab === 'proformalist' && <ProformaInvoiceTabs proformaOn={proformaOn} deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={(d) => (d.proformaNumber || (d.items && d.items.length) ? setViewProforma(d) : setProformaFor(d))} onOpenInvoice={(d) => openInvoicePdf(d, customerById.get(d.customerId), settings, currentUser.fullName)} />}
+      {tab === 'invoices' && <ProformaInvoiceTabs only="invoice" proformaOn={proformaOn} deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={() => undefined} onOpenInvoice={(d) => openInvoicePdf(d, customerById.get(d.customerId), settings, currentUser.fullName)} />}
+      {tab === 'proformalist' && <ProformaInvoiceTabs only="proforma" proformaOn={proformaOn} deals={deals} canMoney={canSeeSalesTotals(currentUser)} onOpen={(d) => (d.proformaNumber || (d.items && d.items.length) ? setViewProforma(d) : setProformaFor(d))} onOpenInvoice={(d) => openInvoicePdf(d, customerById.get(d.customerId), settings, currentUser.fullName)} />}
 
       {/* ---------- customers ---------- */}
       {tab === 'customers' && (
@@ -1413,7 +1415,7 @@ export const CrmView: React.FC = () => {
           onClose={() => setStandaloneInvoice(false)}
           onIssued={() => {
             setStandaloneInvoice(false);
-            setTab('proformalist');
+            setTab('invoices');
             window.dispatchEvent(new Event('hoormand-invoices-changed'));
           }}
         />

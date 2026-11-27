@@ -441,6 +441,8 @@ export interface DealInvoice {
   amount?: number;
   customerName?: string;
   note?: string;
+  /** the invoice was issued as «paid» (a cash sale): the finance page does not call it unpaid */
+  paid?: boolean;
   cancelledAt?: string;
   cancelledByName?: string;
   cancelReason?: string;

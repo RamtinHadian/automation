@@ -40,7 +40,9 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
     return compact ? null : <div className="rounded-2xl border border-[#EBDBCE] bg-[#FAF5F1] px-4 py-3 text-[11px] font-bold text-[#8C6F66]">این مشتری هنوز در سپیدار ثبت نشده است؛ وضعیت مالی ندارد.</div>;
   }
 
-  const rem = data.remainder;
+  // the account may show nothing for an invoice that has no voucher yet: what Sepidar says is still unpaid counts as the debt (never both added: the larger one)
+  const unpaidSum = data.unpaidSum || 0;
+  const rem = typeof data.remainder === 'number' ? Math.max(data.remainder, unpaidSum) : unpaidSum > 0 ? unpaidSum : data.remainder;
   const hasBalance = typeof rem === 'number';
   // in Sepidar's accounts a positive balance is what the customer still owes the company
   const tone = !hasBalance ? '' : rem > 0 ? 'text-rose-700' : 'text-emerald-700';
@@ -90,6 +92,11 @@ export const CustomerFinance: React.FC<{ customerId: string; compact?: boolean }
             {hasBalance && rem !== 0 ? ` ${fmt(rem)}${unitOf(data.currencyTitle)}` : ''}
           </div>
           {!hasBalance && <div className="mt-1 text-[10px] font-bold text-[#8C6F66] leading-5">سپیدار برای این مشتری مانده‌ای نفرستاده است؛ بدهی یا تسویه‌بودنش را از همین‌جا نمی‌شود فهمید.</div>}
+          {unpaidSum > 0 && data.unpaidInvoices && (
+            <div className="mt-1.5 text-[10.5px] font-bold text-rose-800 leading-5" data-unpaid-invoices>
+              فاکتور تسویه‌نشده: {data.unpaidInvoices.slice(0, 4).map((u) => `${toPersianDigits(u.number)} (${fmt(u.remaining)}${unitOf(data.currencyTitle)})`).join('، ')}
+            </div>
+          )}
         </div>
         {hasCredit && (
           <div className="rounded-xl bg-white border border-[#EBDBCE] px-3 py-2">

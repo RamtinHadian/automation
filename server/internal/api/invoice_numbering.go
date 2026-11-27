@@ -319,7 +319,7 @@ func invoiceIssue(w http.ResponseWriter, r *http.Request) {
 	if jsonx.Str(body, "kind") == "OFFICIAL" {
 		kind = "OFFICIAL"
 	}
-	doc["invoice"] = jsonx.M{"kind": kind, "note": strings.TrimSpace(jsonx.Str(body, "note"))}
+	doc["invoice"] = jsonx.M{"kind": kind, "note": strings.TrimSpace(jsonx.Str(body, "note")), "paid": jsonx.Bool(body, "paid")}
 	putDeal(w, r, me, id, doc)
 }
 

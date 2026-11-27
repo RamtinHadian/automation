@@ -835,8 +835,10 @@ func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 	}
 	invoices, invAt := cacheItems(ctx, "invoices")
 	last := []jsonx.M{}
-	var total float64
+	var total, unpaidSum float64
 	var count int
+	unpaid := []jsonx.M{}
+	paidByHoormand := paidInvoiceNumbers(ctx)
 	for _, i := range invoices {
 		if ref, _ := whNum(i, "CustomerRef"); int64(ref) != sid {
 			continue
@@ -846,6 +848,14 @@ func sepidarFinance(w http.ResponseWriter, r *http.Request) {
 		count++
 		num, _ := whNum(i, "Number")
 		last = append(last, jsonx.M{"number": int64(num), "date": jsonx.Str(i, "Date"), "net": net})
+		// what Sepidar still wants for this invoice (its own «remaining»); an invoice whose issuing in Hoormand said «paid» is left out
+		if rm, ok := whNum(i, "RemainingAmount"); ok && rm > 0 && !paidByHoormand[int64(num)] && seeInvoices {
+			unpaidSum += rm
+			unpaid = append(unpaid, jsonx.M{"number": int64(num), "date": jsonx.Str(i, "Date"), "remaining": rm})
+		}
+	}
+	if seeInvoices {
+		out["unpaidSum"], out["unpaidInvoices"] = unpaidSum, unpaid
 	}
 	// newest first, three of them
 	for a := 0; a < len(last); a++ {
@@ -997,6 +1007,7 @@ func sepidarFinanceBrief(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 	remOf := sepidarRemainders(ctx)
+	unpaid := unpaidBySepidarCustomer(ctx)
 	items := map[string]any{}
 	for _, cid := range body.IDs {
 		sid, ok := links[cid]
@@ -1004,6 +1015,9 @@ func sepidarFinanceBrief(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		rem, known := remOf[sid]
+		if up := unpaid[sid]; up > rem { // the accounts do not show an invoice yet (no voucher), Sepidar's own «remaining» does
+			rem, known = up, true
+		}
 		if !known || !crmOwnsCustomer(r, me, cid) {
 			continue
 		}

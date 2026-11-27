@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.81.0';
+export const TOOL_VERSION = '1.81.1';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -1264,8 +1264,33 @@ export async function pushCaches(cfg, sp, state) {
   } catch (e) {
     log(`  نام مشتری و کالا برای فاکتورها خوانده نشد (${e.message})`);
   }
+  // what is still to be paid on an invoice: the list may not carry it, one invoice opened does («RemainingAmount»); the newest ones are re-read every 20 minutes
+  const remainOf = new Map();
+  try {
+    state.invRem ||= {};
+    const all = await sp.get('/api/Invoices');
+    const now0 = Date.now();
+    const fresh = (Array.isArray(all) ? all : [])
+      .filter((x) => x.RemainingAmount == null)
+      .sort((a, b) => String(b.Date || '').localeCompare(String(a.Date || '')))
+      .slice(0, 80)
+      .filter((x) => !(state.invRem[x.InvoiceID] && now0 - state.invRem[x.InvoiceID].at < 20 * 60 * 1000))
+      .slice(0, 30);
+    for (const x of fresh) {
+      if (await pumpJobs()) reloadJobState(state);
+      try {
+        const full = await sp.get('/api/Invoices/' + (x.InvoiceID ?? x.ID));
+        state.invRem[x.InvoiceID] = { at: Date.now(), r: Number(full.RemainingAmount ?? 0), t: Number(full.TotalReceivedAmount ?? 0) };
+      } catch { /* this one is tried again in the next round */ }
+    }
+    for (const [k, v] of Object.entries(state.invRem)) remainOf.set(Number(k), v);
+  } catch (e) {
+    log('  مانده فاکتورها خوانده نشد:', e && e.message);
+  }
   await tryPush('invoices', '/api/Invoices', (x) => ({
     ...pick(x, ['InvoiceID', 'ID', 'Number', 'Date', 'CustomerRef', 'QuotationRef', 'Price', 'Discount', 'Tax', 'NetPrice']),
+    RemainingAmount: x.RemainingAmount ?? remainOf.get(x.InvoiceID)?.r ?? null,
+    TotalReceivedAmount: x.TotalReceivedAmount ?? remainOf.get(x.InvoiceID)?.t ?? null,
     CustomerName: nameOfCustomer.get(x.CustomerRef) || x.CustomerTitle || x.CustomerName || '',
     Description: [x.Description, x.Title, x.Comment, x.Memo].filter(Boolean).join(' · ').slice(0, 400),
     Goods: (Array.isArray(x.Items) ? x.Items : []).map((it) => titleOfItem.get(it.ItemRef) || it.Title || it.Description || '').filter(Boolean).slice(0, 30).join('، ').slice(0, 600),

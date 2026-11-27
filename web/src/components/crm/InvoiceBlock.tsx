@@ -68,6 +68,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
   // the window may hold an older copy of the opportunity: the invoice is always read from the live one
   const deal: Deal = { ...shown, invoice: deals.find((x) => x.id === shown.id)?.invoice ?? shown.invoice };
   const [busy, setBusy] = useState(false);
+  const [paidTick, setPaidTick] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const inv = deal.invoice;
@@ -91,6 +92,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
         </p>
         {blocker && <p className="text-[11px] font-bold text-amber-800 leading-6">{blocker}</p>}
         {!allowed && <p className="text-[11px] font-bold text-rose-700">صدور فاکتور به شما اجازه داده نشده است.</p>}
+        <label className="flex items-center gap-2 text-[11px] font-black text-[#3A241F] cursor-pointer" data-paid-tick><input type="checkbox" className="w-4 h-4 accent-emerald-700" checked={paidTick} onChange={(e) => setPaidTick(e.target.checked)} />این فاکتور پرداخت شده است (فروش نقدی)؛ بدون این تیک تا پرداخت‌شدن در سپیدار «تسویه‌نشده» می‌ماند</label>
         <button
           type="button"
           disabled={!!blocker || !allowed || busy}
@@ -107,7 +109,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
             if (!ok) return;
             setBusy(true);
             try {
-              await api.invoiceIssue(deal.id, kind);
+              await api.invoiceIssue(deal.id, kind, paidTick);
               reloadState();
               showToast(mi?.mode === 'sepidar' ? 'فاکتور برای سپیدار فرستاده شد؛ شمارهٔ آن بعد از صدور در سپیدار می‌آید.' : 'فاکتور صادر شد.');
             } catch (e) {
