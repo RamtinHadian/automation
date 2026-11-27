@@ -372,6 +372,15 @@ export const NotificationSettingsCard: React.FC<{ settings: SystemSettings; onSa
             );
           })}
         </div>
+        <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 space-y-1.5" data-inquirer-rule>
+          <div className="font-black text-[#3A241F]">«پرسشگر» خودکار</div>
+          <label className="flex flex-wrap items-center gap-2 font-bold text-[#3A241F]">
+            مشتری‌ای که
+            <input type="number" min={0} max={100} value={cfg.inquirerAfter ?? 0} onChange={(e) => patch({ inquirerAfter: Math.max(0, Math.min(100, Math.floor(Number(e.target.value) || 0))) })} className="w-20 px-2 py-1.5 bg-white border border-[#EBDBCE] rounded-lg text-center font-black" data-inquirer-after />
+            بار با او تماس یا گفتگو ثبت شده (یا قیمت و کالا خواسته) و هنوز خرید نکرده، خودکار «پرسشگر» حساب شود.
+          </label>
+          <p className="text-[10.5px] font-bold text-[#8C6F66] leading-5">عدد ۰ یعنی خاموش. شمارش از «تعامل‌های ثبت‌شده» روی صفحهٔ مشتری است (یادداشت، تماس، جلسه، پیگیری، قیمت و کالای ناموجود). با اولین فروش موفق یا فاکتور، این برچسب خودش برمی‌دارد.</p>
+        </div>
         <p className="text-[10.5px] font-bold text-[#8C6F66]">وضعیت مشتری را خودتان در فرم مشتری انتخاب می‌کنید؛ سیستم خودش آن را عوض نمی‌کند (جز برچسب خودکار «پرسشگر»). برای ذخیرهٔ رنگ‌ها، دکمهٔ «ذخیره» بالای همین بخش را بزنید.</p>
       </div>
     </div>

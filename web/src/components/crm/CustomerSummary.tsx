@@ -129,7 +129,7 @@ const Block: React.FC<{ title: string; count: number; children: React.ReactNode 
 
 /** Everything about the customer over the whole screen; a click anywhere closes it. */
 const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: VoipCall[]; onClose: () => void }> = ({ customer, s, calls, onClose }) => {
-  const { currentUser } = useAppContext();
+  const { currentUser, settings } = useAppContext();
   const seesMoney = canSeeSalesTotals(currentUser);
   const seesMoneyTop = seesMoney;
   const [dealsPage, setDealsPage] = useState(false);
@@ -174,7 +174,8 @@ const CustomerFullSummary: React.FC<{ customer: Customer; s: Summary; calls: Voi
               // «پرسشگر»: was given a proforma (a price) but has never bought (no won deal, no issued invoice)
               const priced = s.deals.some((d) => d.proformaNumber && !d.standalone);
               const bought = s.deals.some((d) => d.stage === 'WON' || (d.invoice && d.invoice.status !== 'cancelled' && d.invoice.status !== 'awaiting'));
-              return customer.priceOnly || (priced && !bought) ? <span className="inline-block mb-1 text-[10.5px] font-black rounded-full px-2 py-0.5 border bg-sky-50 text-sky-800 border-sky-300" data-customer-price-only>{customer.priceOnly ? 'پرسشگر' : 'پرسشگر: پیش‌فاکتور گرفته، هنوز خرید نکرده'}</span> : null;
+              const manyTalks = (settings?.notifySettings?.inquirerAfter || 0) > 0 && s.all.length >= (settings?.notifySettings?.inquirerAfter || 0);
+              return customer.priceOnly || ((priced || manyTalks) && !bought) ? <span className="inline-block mb-1 text-[10.5px] font-black rounded-full px-2 py-0.5 border bg-sky-50 text-sky-800 border-sky-300" data-customer-price-only>{customer.priceOnly ? 'پرسشگر' : 'پرسشگر: پیش‌فاکتور گرفته، هنوز خرید نکرده'}</span> : null;
             })()}
             <div className="text-xs font-bold opacity-80">
               {customer.company && customer.company !== customer.name ? `${customer.company} · ` : ''}

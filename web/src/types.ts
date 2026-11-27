@@ -367,6 +367,8 @@ export interface NotifyRule {
 
 /** How notifications look and sound in the whole organisation (set by an admin). */
 export interface NotifySettings {
+  /** «پرسشگر» by itself: a customer with at least this many recorded contacts (talks, calls, price requests) and no purchase is marked پرسشگر; 0 or empty = off */
+  inquirerAfter?: number;
   /** the colour of the incoming-call pop-up per customer status (LEAD, ACTIVE, INACTIVE, INQUIRER and the other kinds of caller): `on` switches it, `color` is a #hex */
   callColors?: Record<string, { on?: boolean; color?: string }>;
   enabled?: boolean;

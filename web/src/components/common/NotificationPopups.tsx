@@ -60,8 +60,8 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
     const won = deals.filter((d) => d.customerId === cust.id && d.stage === 'WON');
     // «پرسشگر»: has been given prices but has never bought (no won sale, no issued invoice)
     const bought = deals.some((d) => d.customerId === cust.id && (d.stage === 'WON' || (d.invoice && d.invoice.status !== 'cancelled' && d.invoice.status !== 'awaiting')));
-    return { bought: won.reduce((s, d) => s + (d.amount || 0), 0), wonCount: won.length, quotes: mine.length, status: cust.status, priceOnly: (mine.some((d) => !d.standalone) && !bought) || !!cust.priceOnly };
-  }, [cust, deals]);
+    return { bought: won.reduce((s, d) => s + (d.amount || 0), 0), wonCount: won.length, quotes: mine.length, status: cust.status, priceOnly: ((mine.some((d) => !d.standalone) || ((settings?.notifySettings?.inquirerAfter || 0) > 0 && activities.filter((a) => a.customerId === cust.id && a.type !== 'MISSING').length >= (settings?.notifySettings?.inquirerAfter || 0))) && !bought) || !!cust.priceOnly };
+  }, [cust, deals, activities, settings?.notifySettings?.inquirerAfter]);
   // what we know about the caller: the last prices given, the last talks and the open opportunities
   const history = React.useMemo(() => {
     if (!cust) return null;

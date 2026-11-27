@@ -353,8 +353,14 @@ export const CrmView: React.FC = () => {
       if (d.invoice && d.invoice.status !== 'cancelled') bought.add(d.customerId);
       if (d.proformaNumber && !d.standalone) priced.add(d.customerId);
     }
+    const after = settings?.notifySettings?.inquirerAfter || 0; // the console says: this many contacts and no purchase = پرسشگر
+    if (after > 0) {
+      const n = new Map<string, number>();
+      for (const a of activities) if (a.type !== 'MISSING') n.set(a.customerId, (n.get(a.customerId) || 0) + 1);
+      for (const [id, c] of n) if (c >= after) priced.add(id);
+    }
     return new Set([...priced].filter((id) => !bought.has(id)));
-  }, [deals, boughtIds]);
+  }, [deals, boughtIds, activities, settings?.notifySettings?.inquirerAfter]);
   const priceOnlyChip = (id: string) => ((priceOnlyIds.has(id) || customers.find((x) => x.id === id)?.priceOnly) && customers.find((x) => x.id === id)?.status !== 'INQUIRER' ? <span className="inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border bg-sky-50 text-sky-800 border-sky-300 mr-1" title="پیش‌فاکتور (قیمت) گرفته ولی هنوز خرید نکرده" data-customer-price-only>پرسشگر</span> : null)
   const filteredCustomers = useMemo(() => {
     const quietLimit = adv.quiet ? Date.now() - Number(adv.quiet) * 86400000 : 0;
