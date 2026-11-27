@@ -183,13 +183,10 @@ export const FinanceChip: React.FC<{ customerId: string; small?: boolean }> = ({
   if (!b || typeof b.rem !== 'number') return null;
   const rem = b.rem;
   if (!(rem > 0)) return null; // no «settled» / «creditor» tick: only a debtor is shown, in red, with his debt
-  const cls = 'bg-rose-50 text-rose-800 border-rose-300';
-  const word = 'بدهکار';
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border font-black ${small ? 'text-[9.5px] px-1.5 py-px' : 'text-[10px] px-2 py-0.5'} ${cls}`} title="وضعیت مالی در سپیدار" data-finance-chip>
-      <Landmark className="w-3 h-3 shrink-0" />
-      {word}
-      {rem !== 0 ? ` ${fmt(rem)}${unitOf(b.unit)}` : ''}
+    <span className={`inline-flex items-center gap-1.5 rounded-full border-2 border-rose-400 bg-rose-50 text-rose-700 font-black ${small ? 'text-[13px] px-2.5 py-0.5' : 'text-sm px-3 py-1'}`} title={`بدهکار در سپیدار: ${fmt(rem)}${unitOf(b.unit)}`} data-finance-chip>
+      <Landmark className="w-3.5 h-3.5 shrink-0" />
+      {fmt(rem)}{unitOf(b.unit)}
     </span>
   );
 };

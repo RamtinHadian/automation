@@ -72,6 +72,10 @@ export const FormSettingsCard: React.FC = () => {
             );
           })}
         </div>
+        <label className="flex items-center gap-2 rounded-xl border border-[#EBDBCE] bg-[#FAF5F1] px-3 py-2.5 text-xs font-black text-[#3A241F] cursor-pointer" data-price-only-setting>
+          <input type="checkbox" className="accent-sky-600" checked={settings.priceOnlyTick !== false} onChange={(e) => setSettings((prev) => ({ ...prev, priceOnlyTick: e.target.checked }))} />
+          تیک «مشتری قیمت‌گیر است» در فرم مشتری (هنگام تعریف و ویرایش) باشد
+        </label>
         <p className="text-[11px] font-bold text-[#8C6F66]">فعلاً فرم مشتری و فرم فرصت فروش قابل تنظیم‌اند. فرم‌های دیگر (پیش‌فاکتور، نامه…) را هر کدام بخواهید، به همین روش اضافه می‌کنم.</p>
       </section>
       {open === 'deal' && (

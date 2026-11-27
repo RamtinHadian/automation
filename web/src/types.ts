@@ -833,6 +833,8 @@ export interface SystemSettings {
   letterTemplate?: OrgLetterTemplate;
   /** Per form (data-form-id): fields switched off, required fields and where Enter goes (set in the management console). */
   formConfig?: Record<string, import('./lib/formConfig').FormCfg>;
+  /** the tick «مشتری قیمت‌گیر است» in the customer form (new and edit): on unless this is false */
+  priceOnlyTick?: boolean;
   /** Ready-made letter texts written by an admin; users pick one in the letter editor. */
   letterTextTemplates?: LetterTextTemplate[];
   /** Ready-made messages (text, link, file) the staff send to customers on the social networks. */
