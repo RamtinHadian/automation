@@ -131,7 +131,7 @@ export interface DailyReport {
   updatedAt: string;
 }
 
-export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE' | 'PRICE_ONLY';
+export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE' | 'PRICE_ONLY' | 'INQUIRER';
 export type DealStage = 'NEW' | 'CONTACTED' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST';
 export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP' | 'MISSING' | 'QUOTE';
 
@@ -367,7 +367,7 @@ export interface NotifyRule {
 
 /** How notifications look and sound in the whole organisation (set by an admin). */
 export interface NotifySettings {
-  /** the colour of the incoming-call pop-up per customer status (LEAD, ACTIVE, INACTIVE, PRICE_ONLY): `on` switches it, `color` is a #hex */
+  /** the colour of the incoming-call pop-up per customer status (LEAD, ACTIVE, INACTIVE, PRICE_ONLY, INQUIRER): `on` switches it, `color` is a #hex */
   callColors?: Record<string, { on?: boolean; color?: string }>;
   enabled?: boolean;
   volume?: number;

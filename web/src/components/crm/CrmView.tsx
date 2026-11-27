@@ -107,6 +107,7 @@ const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
   ACTIVE: { label: 'مشتری فعال', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   PRICE_ONLY: { label: 'قیمت‌گیر', cls: 'bg-sky-50 text-sky-800 border-sky-300' },
+  INQUIRER: { label: 'پرسشگر', cls: 'bg-violet-50 text-violet-800 border-violet-300' },
   INACTIVE: { label: 'غیرفعال', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 

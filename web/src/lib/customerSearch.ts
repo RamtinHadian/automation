@@ -15,7 +15,7 @@ export const fold = (s: unknown): string =>
     .toLowerCase();
 
 const KIND_TEXT: Record<string, string> = { PERSON: 'شخص حقیقی', COMPANY: 'شرکت حقوقی', SHOP: 'فروشگاه مغازه' };
-const STATUS_TEXT: Record<string, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', PRICE_ONLY: 'قیمت‌گیر', INACTIVE: 'غیرفعال' };
+const STATUS_TEXT: Record<string, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', PRICE_ONLY: 'قیمت‌گیر', INQUIRER: 'پرسشگر', INACTIVE: 'غیرفعال' };
 const ACT_TEXT: Record<string, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد استعلام' };
 
 /** The person in charge is not a search word (searching a colleague's name must not list all of that colleague's customers). */
