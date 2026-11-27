@@ -3,6 +3,7 @@ import { PackageSearch, Plus, Receipt, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
+import { fold, matchesQuery } from '../../lib/customerSearch';
 import { formatMoney, fromDisplay, toDisplay, unitName } from '../../lib/money';
 import { WarehousePicker, WarehouseProduct } from './WarehousePicker';
 import { issuerById, issuersOf, officialProblems } from '../../lib/proformaIssuer';
@@ -35,15 +36,20 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
   const [busy, setBusy] = useState(false);
   // the warehouse: its products come with their prices; the seller puts one of them in the price box of the row
   const [catalog, setCatalog] = useState<WarehouseProduct[]>([]);
-  const [picking, setPicking] = useState(false);
+  const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
+  const [sugRow, setSugRow] = useState<number | null>(null);
+  const catLines = useMemo(() => new Map(catalog.map((p) => [p.id, fold([p.code, p.title, p.group || ''].join(' '))])), [catalog]);
+  const suggestionsFor = (text: string) => (text.trim() ? catalog.filter((p) => matchesQuery(catLines.get(p.id), text)).slice(0, 7) : []);
+  const lineOf = (p: WarehouseProduct, keepQty?: string): Row => ({ title: p.title, code: p.code || '', unit: p.unit || '', qty: keepQty || '1', price: p.prices && p.prices[0] ? String(toDisplay(p.prices[0].amount)) : '', discount: '' });
+  const fillRow = (i: number, p: WarehouseProduct) => { setRows((cur) => cur.map((x, j) => (j === i ? { ...lineOf(p, x.qty), discount: x.discount } : x))); setSugRow(null); };
   useEffect(() => { api.crmProducts().then((r) => setCatalog(r.products as WarehouseProduct[])).catch(() => setCatalog([])); }, []);
   const pickProduct = (p: WarehouseProduct) => {
-    const line: Row = { title: p.title, code: p.code || '', unit: p.unit || '', qty: '1', price: p.prices && p.prices[0] ? String(toDisplay(p.prices[0].amount)) : '', discount: '' };
     setRows((cur) => {
+      if (typeof pickFor === 'number' && cur[pickFor]) return cur.map((x, j) => (j === pickFor ? { ...lineOf(p, x.qty), discount: x.discount } : x));
       const last = cur[cur.length - 1];
-      return last && !last.title.trim() && !last.code && !last.price ? [...cur.slice(0, -1), line] : [...cur, line];
+      return last && !last.title.trim() && !last.code && !last.price ? [...cur.slice(0, -1), lineOf(p)] : [...cur, lineOf(p)];
     });
-    setPicking(false);
+    setPickFor(null);
   };
   const customer = customers.find((c) => c.id === customerId);
   const kind = issuer.kind === 'OFFICIAL' ? 'OFFICIAL' : 'UNOFFICIAL';
@@ -103,7 +109,30 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
             {rows.map((r, i) => (
               <div key={i} className="rounded-xl border border-[#EBDBCE] bg-[#FFFBF8] p-2.5 space-y-2" data-invoice-row-edit>
                 <div className="flex gap-2">
-                  <input className={inp} value={r.title} onChange={(e) => set(i, 'title', e.target.value)} placeholder="عنوان کالا یا خدمت" />
+                  <div className="relative flex-1 min-w-0">
+                    <input className={inp} value={r.title} onChange={(e) => { set(i, 'title', e.target.value); setSugRow(i); }} onFocus={() => setSugRow(i)} onBlur={() => setSugRow((x) => (x === i ? null : x))} autoComplete="off" placeholder="عنوان کالا یا خدمت (برای پیشنهاد از انبار بنویسید)" data-title-input />
+                    {sugRow === i && (() => {
+                      const list = suggestionsFor(r.title).filter((p) => !(p.code && p.code === r.code && p.title === r.title));
+                      if (list.length === 0) return null;
+                      return (
+                        <div className="absolute z-30 inset-x-0 top-full mt-1 rounded-xl border border-[#EBDBCE] bg-white shadow-xl overflow-hidden" data-title-suggestions>
+                          {list.map((p) => (
+                            <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => fillRow(i, p)} className="w-full text-right flex items-center justify-between gap-3 px-3 py-2 hover:bg-violet-50 cursor-pointer border-b border-[#EBDBCE]/50 last:border-b-0">
+                              <span className="min-w-0">
+                                <span className="block text-xs font-black text-[#3A241F] truncate">{p.title}</span>
+                                <span className="block text-[10px] font-bold text-[#8C6F66] truncate" dir="ltr">{p.code}{p.group ? ` · ${p.group}` : ''}</span>
+                              </span>
+                              <span className="shrink-0 text-left">
+                                <span className="block text-[11px] font-black text-violet-700">{p.prices && p.prices[0] ? `${formatMoney(p.prices[0].amount)} ${unitName()}` : 'بدون قیمت'}</span>
+                                {p.kind === 'service' ? <span className="block text-[10px] font-black text-sky-700">خدمات</span> : <span className={`block text-[10px] font-bold ${p.total > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>موجودی: {toPersianDigits(p.total)} {p.unit}</span>}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <button type="button" onClick={() => setPickFor(i)} className="shrink-0 flex items-center gap-1 px-2.5 py-2 rounded-xl text-[11px] font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer" title="پر کردن این ردیف از انبار" data-row-from-warehouse><PackageSearch className="w-3.5 h-3.5" />از انبار</button>
                   {rows.length > 1 && <button type="button" onClick={() => setRows((p) => p.filter((_, j) => j !== i))} className="px-2 text-rose-700 cursor-pointer" aria-label="حذف ردیف"><X className="w-4 h-4" /></button>}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -129,7 +158,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
               </div>
             ))}
           </div>
-          <button type="button" onClick={() => setPicking(true)} className="mt-2 ml-2 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-black cursor-pointer" data-pick-product><PackageSearch className="w-3.5 h-3.5 inline ml-1" />انتخاب کالا از انبار</button>
+          <button type="button" onClick={() => setPickFor('new')} className="mt-2 ml-2 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-black cursor-pointer" data-pick-product><PackageSearch className="w-3.5 h-3.5 inline ml-1" />انتخاب کالا از انبار</button>
           <button type="button" onClick={() => setRows((p) => [...p, blank()])} className="mt-2 px-3 py-1.5 rounded-xl border border-dashed border-[#C98B6A] text-[11px] font-black text-[#6E1B1B] cursor-pointer"><Plus className="w-3.5 h-3.5 inline ml-1" />ردیف تازه</button>
         </div>
 
@@ -152,7 +181,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
         </div>
       </div>
       {/* a click inside the picker must not reach this dialog's backdrop (it would close the dialog) */}
-      {picking && <div onClick={(e) => e.stopPropagation()}><WarehousePicker products={catalog} priceFor={(p) => (p.prices && p.prices[0] ? p.prices[0].amount : 0)} onPick={pickProduct} onClose={() => setPicking(false)} /></div>}
+      {pickFor !== null && <div onClick={(e) => e.stopPropagation()}><WarehousePicker products={catalog} priceFor={(p) => (p.prices && p.prices[0] ? p.prices[0].amount : 0)} onPick={pickProduct} onClose={() => setPickFor(null)} /></div>}
     </div>
   );
 };

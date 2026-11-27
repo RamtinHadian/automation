@@ -84,7 +84,7 @@ const PickerBox: React.FC<Box> = ({ items, title, selected, multiple, onPick, on
             <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی نام…" className="w-full pr-9 pl-3 py-2.5 min-h-[42px] bg-[#FAF5F1] border border-[#EBDBCE] rounded-xl text-xs outline-hidden focus:border-[#6E1B1B]" />
           </div>
         </div>
-        <div className="p-3 overflow-y-auto flex-1 space-y-1" data-picker-list>
+        <div className="p-3 overflow-y-auto flex-1 space-y-1 min-h-[50vh] sm:min-h-[420px]" data-picker-list>
           {onAdd && (
             <button type="button" onClick={() => { onAdd(q.trim()); onClose(); }} className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[46px] rounded-xl text-xs font-black text-right text-[#6E1B1B] bg-[#FAF5F1] border border-dashed border-[#C98B6A] cursor-pointer" data-picker-add>
               <span className="text-base leading-none">+</span>
