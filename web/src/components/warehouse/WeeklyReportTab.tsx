@@ -1,3 +1,4 @@
+import { WeeklyPeopleDialog } from './WeeklyPeopleDialog';
 import React, { useEffect, useState } from 'react';
 import { Download, Sparkles } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -26,6 +27,7 @@ const FLAG_CLS: Record<string, string> = {
 export const WeeklyReportTab: React.FC<{ onCard: (code: string) => void }> = ({ onCard }) => {
   const { currentUser, showToast } = useAppContext();
   const [offset, setOffset] = useState(0);
+  const [peopleOf, setPeopleOf] = useState<{ row: Row; kind: 'priced' | 'sold' } | null>(null);
   const [data, setData] = useState<{ rows: Row[]; from: string; to: string; money: boolean; crm: boolean } | null>(null);
   const [ai, setAi] = useState<Record<string, unknown> | null>(null);
   const [busy, setBusy] = useState(false);
@@ -112,8 +114,8 @@ export const WeeklyReportTab: React.FC<{ onCard: (code: string) => void }> = ({ 
               {rows.map((r) => (
                 <tr key={s(r.code)} className="border-t border-[#F3E8DF] align-top">
                   <td className="p-2"><button type="button" onClick={() => onCard(s(r.code))} className="font-black underline cursor-pointer text-right">{s(r.title)}</button><div className="text-[10px] text-[#8C6F66]">{toPersianDigits(s(r.code))}</div></td>
-                  <td className="p-2">{fmt(n(r.pricedQty))} {s(r.unit)} · {fmt(n(r.pricedCustomers))} نفر<div className="text-[10px] text-[#8C6F66]">{delta(n(r.pricedQty), n(r.pricedPrev))} نسبت به هفتهٔ قبل</div></td>
-                  <td className="p-2">{fmt(n(r.soldQty))} {s(r.unit)} · {fmt(n(r.soldCustomers))} نفر<div className="text-[10px] text-[#8C6F66]">{delta(n(r.soldQty), n(r.soldPrev))} نسبت به هفتهٔ قبل</div></td>
+                  <td className="p-2"><button type="button" onClick={() => setPeopleOf({ row: r, kind: 'priced' })} className="text-right underline decoration-dotted cursor-pointer" title="دیدن اینکه چه کسانی" data-weekly-priced-open>{fmt(n(r.pricedQty))} {s(r.unit)} · {fmt(n(r.pricedCustomers))} نفر ←</button><div className="text-[10px] text-[#8C6F66]">{delta(n(r.pricedQty), n(r.pricedPrev))} نسبت به هفتهٔ قبل</div></td>
+                  <td className="p-2"><button type="button" onClick={() => setPeopleOf({ row: r, kind: 'sold' })} className="text-right underline decoration-dotted cursor-pointer" title="دیدن اینکه چه کسانی" data-weekly-sold-open>{fmt(n(r.soldQty))} {s(r.unit)} · {fmt(n(r.soldCustomers))} نفر ←</button><div className="text-[10px] text-[#8C6F66]">{delta(n(r.soldQty), n(r.soldPrev))} نسبت به هفتهٔ قبل</div></td>
                   <td className={`p-2 ${n(r.minQty) > 0 && n(r.stock) < n(r.minQty) ? 'text-rose-700' : ''}`}>{fmt(n(r.stock))}{n(r.minQty) > 0 ? <span className="text-[10px] text-[#8C6F66]"> (حداقل {fmt(n(r.minQty))})</span> : null}</td>
                   {data.money && <td className="p-2">{n(r.revenue) > 0 ? `${formatMoney(n(r.revenue))}` : '—'}</td>}
                   <td className="p-2"><div className="flex flex-wrap gap-1">{list(r.flags).map((f) => <span key={String(f)} className={`text-[9.5px] font-black rounded-full px-1.5 py-px border ${FLAG_CLS[String(f)] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{String(f)}</span>)}{n(r.pricedNotSoldCustomers) > 0 && <span className="text-[9.5px] font-black rounded-full px-1.5 py-px border bg-sky-50 text-sky-800 border-sky-300">{fmt(n(r.pricedNotSoldCustomers))} نفر قیمت گرفته، نخریده</span>}</div></td>
@@ -123,6 +125,7 @@ export const WeeklyReportTab: React.FC<{ onCard: (code: string) => void }> = ({ 
           </table>
         </div>
       )}
+      {peopleOf && <WeeklyPeopleDialog product={{ code: s(peopleOf.row.code), title: s(peopleOf.row.title), unit: s(peopleOf.row.unit) }} kind={peopleOf.kind} from={data.from} to={data.to} showMoney={!!data.money} onClose={() => setPeopleOf(null)} />}
       <div className="text-[10px] font-bold text-[#8C6F66]">هفته = ۷ روز تا امروز و مقایسه با ۷ روز پیش از آن. فقط فرصت‌هایی که شما اجازهٔ دیدنشان را دارید شمرده می‌شود.</div>
     </div>
   );
