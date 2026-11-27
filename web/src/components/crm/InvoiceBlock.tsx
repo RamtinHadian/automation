@@ -114,7 +114,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
             try {
               await api.invoiceIssue(deal.id, kind, paidTick, extra);
               reloadState();
-              showToast(mi?.mode === 'sepidar' ? 'فاکتور برای سپیدار فرستاده شد؛ شمارهٔ آن بعد از صدور در سپیدار می‌آید.' : 'فاکتور صادر شد.');
+              showToast(currentUser.role !== 'SUPER_ADMIN' ? 'فاکتور ثبت شد؛ اگر منتظر تأیید باشد، تأییدکنندگان شما خبر می‌گیرند.' : mi?.mode === 'sepidar' ? 'فاکتور برای سپیدار فرستاده شد؛ شمارهٔ آن بعد از صدور در سپیدار می‌آید.' : 'فاکتور صادر شد.');
             } catch (e) {
               showToast(e instanceof Error ? e.message : 'صدور فاکتور انجام نشد.');
             } finally {
@@ -131,7 +131,8 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
   }
 
   const cancelled = inv.status === 'cancelled';
-  const pending = inv.status === 'pending';
+  const awaiting = inv.status === 'awaiting';
+  const pending = inv.status === 'pending' || awaiting;
   const payable = inv.amount ?? deal.amount;
   const small = 'text-[10px] font-bold text-[#8C6F66]';
   return (
@@ -139,10 +140,10 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 font-black text-xs text-[#3A241F]">
           <Receipt className="w-4 h-4 text-emerald-700" />
-          {invoiceTitle(inv.kind)} {pending ? <span className="text-amber-700">(در انتظار شمارهٔ سپیدار)</span> : toPersianDigits(inv.number)}
+          {invoiceTitle(inv.kind)} {awaiting ? <span className="text-amber-700">(در انتظار تأیید)</span> : pending ? <span className="text-amber-700">(در انتظار شمارهٔ سپیدار)</span> : toPersianDigits(inv.number)}
           <span className={`text-[10px] font-black rounded-full px-2 py-0.5 border ${inv.kind === 'OFFICIAL' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{inv.kind === 'OFFICIAL' ? 'رسمی' : 'غیررسمی'}</span>
         </div>
-        <span className={`text-[11px] font-black ${cancelled ? 'text-rose-700' : pending ? 'text-amber-700' : 'text-emerald-700'}`}>{cancelled ? 'باطل شده' : pending ? 'در انتظار سپیدار' : 'صادر شده'}</span>
+        <span className={`text-[11px] font-black ${cancelled ? 'text-rose-700' : pending ? 'text-amber-700' : 'text-emerald-700'}`}>{cancelled ? 'باطل شده' : awaiting ? 'در انتظار تأیید' : pending ? 'در انتظار سپیدار' : 'صادر شده'}</span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
         <div><div className={small}>تاریخ صدور</div><b>{formatTaskDate(inv.issuedAt.slice(0, 10))}</b></div>
@@ -150,7 +151,8 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
         <div><div className={small}>از پیش‌فاکتور</div><b>{toPersianDigits(inv.proformaNumber || '—')}</b></div>
         <div><div className={small}>مبلغ</div><b>{payable ? `${formatMoney(payable)} ${unitName()}` : '—'}</b></div>
       </div>
-      <SepidarSend deal={deal} />
+      {!awaiting && <SepidarSend deal={deal} />}
+      {awaiting && <InvoiceApprovalBox deal={deal} />}
       {cancelled && <p className="text-[11px] font-bold text-rose-800 leading-6">ابطال: {inv.cancelReason}{inv.cancelledByName ? ` (${inv.cancelledByName})` : ''}</p>}
       <div className="flex flex-wrap gap-2">
         {!pending && <button type="button" onClick={() => openInvoicePdf(deal, customer, settings, currentUser.fullName)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-black bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-50 cursor-pointer" data-invoice-print>
@@ -212,5 +214,53 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
         </div>
       )}
     </section>
+  );
+};
+
+
+/** An invoice that waits for approval: who may approve it, and (for them) the two buttons. Any one approver is enough. */
+const InvoiceApprovalBox: React.FC<{ deal: Deal }> = ({ deal }) => {
+  const { currentUser, staffList, showToast, reloadState } = useAppContext();
+  const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const inv = deal.invoice;
+  if (!inv) return null;
+  const names = (inv.approvers || []).map((id) => staffList.find((u) => u.id === id)?.fullName || '').filter(Boolean);
+  const mayDecide = currentUser.role === 'SUPER_ADMIN' || (inv.approvers || []).includes(currentUser.id);
+  const decide = async (decision: 'approve' | 'reject') => {
+    if (decision === 'reject' && !reason.trim()) { showToast('دلیل رد را بنویسید.'); return; }
+    setBusy(true);
+    try {
+      await api.invoiceDecide(deal.id, decision, reason.trim());
+      reloadState();
+      window.dispatchEvent(new Event('hoormand-invoices-changed'));
+      showToast(decision === 'approve' ? 'فاکتور تأیید و صادر شد.' : 'فاکتور رد شد.');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'انجام نشد.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2" data-invoice-approval>
+      <p className="text-[11.5px] font-bold text-amber-900 leading-6">
+        این فاکتور منتظر تأیید است؛ تا تأیید نشود شماره نمی‌گیرد، به سپیدار نمی‌رود و چاپ نمی‌شود. تأییدکنندگان (یک نفرشان کافی است): {names.length ? names.join('، ') : '—'}
+      </p>
+      {mayDecide && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={busy} onClick={() => void decide('approve')} className="px-4 py-2 rounded-xl text-[11px] font-black bg-emerald-700 text-white cursor-pointer disabled:opacity-50" data-invoice-approve>تأیید و صدور</button>
+            <button type="button" disabled={busy} onClick={() => setRejecting((v) => !v)} className="px-4 py-2 rounded-xl text-[11px] font-black bg-white border border-rose-200 text-rose-700 cursor-pointer">رد کردن</button>
+          </div>
+          {rejecting && (
+            <div className="flex gap-2">
+              <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="دلیل رد (لازم است)" className="flex-1 px-3 py-2 rounded-xl border border-[#EBDBCE] bg-white text-xs font-bold" />
+              <button type="button" disabled={busy} onClick={() => void decide('reject')} className="px-4 py-2 rounded-xl text-[11px] font-black bg-rose-700 text-white cursor-pointer disabled:opacity-50">تأیید رد</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 };

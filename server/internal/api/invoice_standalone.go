@@ -107,6 +107,9 @@ func invoiceStandaloneIssue(w http.ResponseWriter, r *http.Request) {
 	if !okInv {
 		return
 	}
+	if jsonx.Str(jsonx.Sub(doc, "invoice"), "status") == "awaiting" { // not a sale until it is approved
+		doc["stage"] = "NEW"
+	}
 	if err := assignInvoiceNumber(r.Context(), doc); err != nil {
 		httpx.Error(w, http.StatusConflict, err.Error())
 		return
@@ -118,7 +121,7 @@ func invoiceStandaloneIssue(w http.ResponseWriter, r *http.Request) {
 	if queue {
 		queueSepidarInvoice(r.Context(), me, id, doc)
 	}
-	httpx.JSON(w, http.StatusOK, jsonx.M{"ok": true, "id": id, "number": jsonx.Str(jsonx.Sub(doc, "invoice"), "number")})
+	httpx.JSON(w, http.StatusOK, jsonx.M{"ok": true, "id": id, "number": jsonx.Str(jsonx.Sub(doc, "invoice"), "number"), "awaiting": jsonx.Str(jsonx.Sub(doc, "invoice"), "status") == "awaiting"})
 }
 
 // GET /api/invoice/standalone: the standalone invoices this person may see (the same rule as the opportunities: all for those who see all, else their own and their unit's)

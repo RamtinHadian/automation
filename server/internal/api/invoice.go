@@ -10,6 +10,7 @@ import (
 	"automation/server/internal/auth"
 	"automation/server/internal/httpx"
 	"automation/server/internal/jsonx"
+	"automation/server/internal/notify"
 	"automation/server/internal/store"
 )
 
@@ -58,6 +59,11 @@ func queueSepidarInvoice(ctx context.Context, me auth.User, dealID string, doc j
 // enforceInvoice decides what the saved deal's «invoice» becomes. It answers false (after writing the refusal) when the request must stop;
 // the second answer is true when the invoice waits for its Sepidar number (the caller queues the request after the deal is saved).
 func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before, doc jsonx.M) (bool, bool) {
+	return enforceInvoiceOpt(w, r, me, before, doc, false)
+}
+
+// approved is true only when the approval endpoint issues an invoice that its approver just approved (the issuer's rights were checked when it was asked for).
+func enforceInvoiceOpt(w http.ResponseWriter, r *http.Request, me auth.User, before, doc jsonx.M, approved bool) (bool, bool) {
 	old, inc := jsonx.Sub(before, "invoice"), jsonx.Sub(doc, "invoice")
 	delete(doc, "invoice")
 	if len(old) > 0 {
@@ -94,7 +100,7 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 	if len(inc) == 0 {
 		return true, false
 	}
-	if !invoiceRight(me) {
+	if !approved && !invoiceRight(me) {
 		httpx.Error(w, http.StatusForbidden, "صدور فاکتور به شما اجازه داده نشده است.")
 		return false, false
 	}
@@ -121,6 +127,26 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 	if jsonx.Str(inc, "kind") == "OFFICIAL" {
 		kind = "OFFICIAL"
 	}
+	// the invoices of a person who needs approval wait for it: no number, nothing sent to Sepidar, until one of his approvers approves
+	if !approved {
+		need, approvers, refusal := invoiceApprovalFor(r.Context(), me)
+		if refusal != "" {
+			httpx.Error(w, http.StatusForbidden, refusal)
+			return false, false
+		}
+		if need {
+			doc["invoice"] = jsonx.M{
+				"number": "", "kind": kind, "status": "awaiting", "issuedAt": now(), "issuedById": me.ID(), "issuedByName": me.Name(),
+				"issuerId": doc["proformaIssuerId"], "proformaNumber": doc["proformaNumber"],
+				"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
+				"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
+				"note": strings.TrimSpace(jsonx.Str(inc, "note")), "paid": jsonx.Bool(inc, "paid"), "settlement": settlementOf(inc), "dueDate": cutRunes(jsonx.Str(inc, "dueDate"), 10), "stockCode": cutRunes(strings.TrimSpace(jsonx.Str(inc, "stockCode")), 40),
+				"approvers": approvers,
+			}
+			notify.Notify(r.Context(), approvers, notify.Note{Kind: "alert", Label: "فاکتور منتظر تأیید", Title: "فاکتور مشتری «" + jsonx.Str(doc, "customerName") + "» منتظر تأیید شماست", Body: me.Name() + " آن را صادر کرده است.", Ref: ref("deal", jsonx.Str(doc, "id"))}, me.ID())
+			return true, false
+		}
+	}
 	// the number is Sepidar's: the invoice waits («pending») until the accounting program issues it there and brings the number back
 	mode := invoiceMode(r.Context(), kind)
 	if mode == "sepidar" {
@@ -145,7 +171,7 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 			httpx.Error(w, http.StatusConflict, "شمارهٔ فاکتور را سپیدار می‌دهد ولی برنامهٔ سپیدار روی رایانهٔ حسابداری الان در دسترس نیست. آن را روشن کنید و دوباره بزنید (یا در تنظیمات «شمارهٔ فاکتورها از سپیدار» را خاموش کنید).")
 			return false, false
 		}
-		if !sepidarCan(me, "invoice") || !sepidarCan(me, "quotationSend") {
+		if !approved && (!sepidarCan(me, "invoice") || !sepidarCan(me, "quotationSend")) {
 			httpx.Error(w, http.StatusForbidden, "صدور فاکتور از طریق سپیدار، اجازهٔ «صدور فاکتور» و «ارسال پیش‌فاکتور به سپیدار» در بخش سپیدار را لازم دارد.")
 			return false, false
 		}

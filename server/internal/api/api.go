@@ -108,6 +108,7 @@ func Router(cfg config.Config) http.Handler {
 	mux.HandleFunc("POST /api/invoice/standalone", auth.Require(invoiceStandaloneIssue))
 	mux.HandleFunc("GET /api/invoice/standalone", auth.Require(invoiceStandaloneList))
 	mux.HandleFunc("POST /api/invoice/cancel", auth.Require(invoiceCancel))
+	mux.HandleFunc("POST /api/invoice/decide", auth.Require(invoiceDecide))
 	mux.HandleFunc("GET /api/workflow/packages", auth.Require(wfPackages))
 	mux.HandleFunc("POST /api/workflow/packages", auth.Require(wfUpload))
 	mux.HandleFunc("POST /api/workflow/packages/{id}/{version}/enable", auth.Require(wfEnable))

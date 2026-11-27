@@ -281,7 +281,19 @@ export const CrmView: React.FC = () => {
     setDealSortState(v);
     try { localStorage.setItem('crm_deal_sort', v); } catch { /* private window */ }
   };
-  const pipeDeals = useMemo(() => (dealQ.trim() ? deals.filter((d) => matchesAll(d, dealQ, customerById.get(d.customerId))) : deals), [deals, dealQ, customerById]);
+  // a time range for the search of the opportunities: from / to day (included), by the day it was made or the day it last changed
+  const [dealFrom, setDealFrom] = useState('');
+  const [dealTo, setDealTo] = useState('');
+  const [dealDateBy, setDealDateBy] = useState<'createdAt' | 'updatedAt'>('createdAt');
+  const pipeDeals = useMemo(() => {
+    const inRange = (d: Deal) => {
+      if (!dealFrom && !dealTo) return true;
+      const day = String(d[dealDateBy] || d.createdAt || '').slice(0, 10);
+      return (!dealFrom || day >= dealFrom) && (!dealTo || day <= dealTo);
+    };
+    const ranged = dealFrom || dealTo ? deals.filter(inRange) : deals;
+    return dealQ.trim() ? ranged.filter((d) => matchesAll(d, dealQ, customerById.get(d.customerId))) : ranged;
+  }, [deals, dealQ, customerById, dealFrom, dealTo, dealDateBy]);
 
   useEffect(() => {
     api.voipStatus().then(setVoip).catch(() => {});
@@ -1169,7 +1181,19 @@ export const CrmView: React.FC = () => {
           <div className="relative">
             <Search className="w-4 h-4 text-[#8C6F66] absolute right-3 top-1/2 -translate-y-1/2" />
             <input value={dealQ} onChange={(e) => setDealQ(e.target.value)} placeholder="جستجو در همهٔ مشخصات فرصت‌ها: عنوان، مشتری، توضیحات، کالا، مبلغ، تاریخ، مسئول…" className="w-full pr-9 pl-3 py-2.5 min-h-[42px] bg-white border border-[#EBDBCE] rounded-xl text-xs outline-hidden focus:border-[#6E1B1B]" data-deal-search />
-            {dealQ.trim() && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#8C6F66]">{toPersianDigits(pipeDeals.length)} فرصت</span>}
+            {(dealQ.trim() || dealFrom || dealTo) && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#8C6F66]">{toPersianDigits(pipeDeals.length)} فرصت</span>}
+          </div>
+          <div className="flex flex-wrap items-end gap-2" data-deal-range>
+            <div className="min-w-[150px]"><div className="text-[10px] font-black text-[#8C6F66] mb-1">از تاریخ</div><JalaliDateField value={dealFrom || undefined} onChange={(iso) => setDealFrom(iso || '')} /></div>
+            <div className="min-w-[150px]"><div className="text-[10px] font-black text-[#8C6F66] mb-1">تا تاریخ</div><JalaliDateField value={dealTo || undefined} onChange={(iso) => setDealTo(iso || '')} /></div>
+            <div>
+              <div className="text-[10px] font-black text-[#8C6F66] mb-1">بر اساس</div>
+              <select value={dealDateBy} onChange={(e) => setDealDateBy(e.target.value === 'updatedAt' ? 'updatedAt' : 'createdAt')} className="px-3 py-2 rounded-xl border border-[#EBDBCE] bg-white text-xs font-bold text-[#3A241F]">
+                <option value="createdAt">تاریخ ثبت فرصت</option>
+                <option value="updatedAt">آخرین تغییر</option>
+              </select>
+            </div>
+            {(dealFrom || dealTo) && <button type="button" onClick={() => { setDealFrom(''); setDealTo(''); }} className="px-3 py-2 rounded-xl border border-[#EBDBCE] bg-white text-[11px] font-black text-[#6E1B1B] cursor-pointer">پاک‌کردن بازه</button>}
           </div>
           <div className="flex items-center gap-2 text-[11px] font-black" data-deal-sort>
             <span className="text-[#8C6F66]">ترتیب فرصت‌ها:</span>

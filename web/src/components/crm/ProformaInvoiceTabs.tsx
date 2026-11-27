@@ -74,7 +74,7 @@ const InvoiceList: React.FC<{ deals: Deal[]; canMoney: boolean; onOpenInvoice: (
                 </div>
                 <span className="hidden sm:inline text-[10.5px] font-bold text-[#8C6F66] shrink-0">{inv.issuedByName}{inv.issuedAt ? ` · ${formatTaskDate(inv.issuedAt.slice(0, 10))}` : ''}</span>
                 {canMoney && <span className="text-[11px] font-black text-[#3A241F] shrink-0 w-32 text-left">{formatMoney(inv.amount ?? d.amount)} {unitName()}</span>}
-                <span className={`shrink-0 text-[9.5px] font-black rounded-full px-2 py-0.5 border ${cancelled ? 'bg-rose-50 text-rose-700 border-rose-200' : pending ? 'bg-amber-50 text-amber-800 border-amber-200' : inv.kind === 'OFFICIAL' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>{cancelled ? 'باطل' : pending ? 'در انتظار سپیدار' : inv.kind === 'OFFICIAL' ? 'رسمی' : 'غیررسمی'}</span>
+                <span className={`shrink-0 text-[9.5px] font-black rounded-full px-2 py-0.5 border ${cancelled ? 'bg-rose-50 text-rose-700 border-rose-200' : pending ? 'bg-amber-50 text-amber-800 border-amber-200' : inv.kind === 'OFFICIAL' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>{cancelled ? 'باطل' : inv.status === 'awaiting' ? 'در انتظار تأیید' : pending ? 'در انتظار سپیدار' : inv.kind === 'OFFICIAL' ? 'رسمی' : 'غیررسمی'}</span>
               </button>
             );
           })}

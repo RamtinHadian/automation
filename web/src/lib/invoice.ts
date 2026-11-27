@@ -17,7 +17,7 @@ export function nextInvoiceNumber(deals: Deal[], kind: DealInvoice['kind']): str
   return nextProformaNumber(same, { numberFormat: kind === 'OFFICIAL' ? OFFICIAL_INVOICE_FORMAT : UNOFFICIAL_INVOICE_FORMAT });
 }
 
-export const hasInvoice = (d: Pick<Deal, 'invoice'>) => !!d.invoice && (!!d.invoice.number || d.invoice.status === 'pending');
+export const hasInvoice = (d: Pick<Deal, 'invoice'>) => !!d.invoice && (!!d.invoice.number || d.invoice.status === 'pending' || d.invoice.status === 'awaiting');
 /** The invoice waits for the number Sepidar gives it (it cannot be printed yet). */
 export const invoicePending = (d: Pick<Deal, 'invoice'>) => d.invoice?.status === 'pending';
 /** Does an invoice of this kind take its number from Sepidar? (the server decides the same way) */
