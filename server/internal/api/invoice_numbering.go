@@ -78,8 +78,11 @@ func yearInvoiceNumber(ctx context.Context, kind string) string {
 	n := time.Now().In(time.FixedZone("IRST", 3*3600+1800))
 	jy, _, _ := jalali.FromGregorian(n.Year(), int(n.Month()), n.Day())
 	prefix := fmt.Sprintf("%s-%d-", kindPrefix(kind), jy)
+	if f := peekFreed(ctx, func(x string) bool { return strings.HasPrefix(x, prefix) }); f != "" {
+		return f
+	}
 	max := 0
-	rows, err := store.Pool.Query(ctx, `SELECT data->'invoice'->>'number' FROM crm_deals WHERE data->'invoice'->>'number' LIKE $1`, prefix+"%")
+	rows, err := store.Pool.Query(ctx, `SELECT data->'invoice'->>'number' FROM crm_deals WHERE data->'invoice'->>'number' LIKE $1`+notReleased, prefix+"%")
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -97,6 +100,18 @@ func yearInvoiceNumber(ctx context.Context, kind string) string {
 // allocateCounter takes the next number of the counter (one statement, so two people never get the same number).
 // One counter serves both kinds: Sepidar has one row of invoice numbers.
 func allocateCounter(ctx context.Context) (string, error) {
+	// a number given back (its invoice was cancelled before it went to Sepidar) is used again before the counter moves on
+	for try := 0; try < 6; try++ {
+		n := takeFreed(ctx, func(string) bool { return true })
+		if n == "" {
+			break
+		}
+		var used int
+		_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM crm_deals WHERE data->'invoice'->>'number' = $1`+notReleased, n).Scan(&used)
+		if used == 0 {
+			return n, nil
+		}
+	}
 	for try := 0; try < 6; try++ {
 		var last int64
 		var prefix string
@@ -107,7 +122,7 @@ func allocateCounter(ctx context.Context) (string, error) {
 		}
 		num := prefix + strconv.FormatInt(last, 10)
 		var same int
-		_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM crm_deals WHERE data->'invoice'->>'number' = $1`, num).Scan(&same)
+		_ = store.Pool.QueryRow(ctx, `SELECT count(*) FROM crm_deals WHERE data->'invoice'->>'number' = $1`+notReleased, num).Scan(&same)
 		if same == 0 {
 			return num, nil
 		}
@@ -143,7 +158,7 @@ func assignInvoiceNumber(ctx context.Context, doc jsonx.M) error {
 // the highest number used so far under a prefix (a counter may never be set below it: two invoices would get one number)
 func usedMax(ctx context.Context, prefix string) int64 {
 	var max int64
-	rows, err := store.Pool.Query(ctx, `SELECT data->'invoice'->>'number' FROM crm_deals WHERE data->'invoice'->>'number' LIKE $1`, prefix+"%")
+	rows, err := store.Pool.Query(ctx, `SELECT data->'invoice'->>'number' FROM crm_deals WHERE data->'invoice'->>'number' LIKE $1`+notReleased, prefix+"%")
 	if err != nil {
 		return 0
 	}
@@ -185,6 +200,9 @@ func counterInfo(ctx context.Context, row jsonx.M, kind string) jsonx.M {
 	if _, ok := c["last"]; ok {
 		last := int64(jsonx.Num(c["last"]))
 		out["set"], out["last"], out["next"] = true, last, prefix+strconv.FormatInt(last+1, 10)
+		if f := sortedFreed(freedList(row), func(string) bool { return true }); len(f) > 0 {
+			out["next"], out["freed"] = f[0], f
+		}
 	}
 	out["usedMax"] = usedMax(ctx, prefix)
 	return out

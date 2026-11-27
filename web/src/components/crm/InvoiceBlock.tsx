@@ -185,7 +185,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
               type="button"
               disabled={!reason.trim()}
               onClick={async () => {
-                const ok = await askConfirm(`${pending ? 'فاکتور در انتظار سپیدار' : 'فاکتور ' + toPersianDigits(inv.number)} باطل شود؟ شمارهٔ آن می‌ماند و دوباره استفاده نمی‌شود.${inv.sepidar ? ' توجه: این فاکتور در سپیدار صادر شده و آنجا می‌ماند (موجودی هم برنمی‌گردد) تا خودتان از داخل سپیدار پاکش کنید.' : ''}`, { tone: 'danger', title: 'ابطال فاکتور', confirmText: 'بله، باطل شود' });
+                const ok = await askConfirm(`${pending ? 'فاکتور در انتظار سپیدار' : 'فاکتور ' + toPersianDigits(inv.number)} باطل شود؟ ${inv.sepidar ? 'شمارهٔ آن شمارهٔ سپیدار است و دوباره استفاده نمی‌شود.' : pending ? '' : 'شمارهٔ آن آزاد می‌شود و فاکتور بعدی همین شماره را می‌گیرد.'}${inv.sepidar ? ' توجه: این فاکتور در سپیدار صادر شده و آنجا می‌ماند (موجودی هم برنمی‌گردد) تا خودتان از داخل سپیدار پاکش کنید.' : ''}`, { tone: 'danger', title: 'ابطال فاکتور', confirmText: 'بله، باطل شود' });
                 if (!ok) return;
                 const why = reason.trim();
                 try {

@@ -75,6 +75,14 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 			wasPending := jsonx.Str(old, "status") == "pending"
 			keep["status"], keep["cancelledAt"] = "cancelled", now()
 			keep["cancelledById"], keep["cancelledByName"], keep["cancelReason"] = me.ID(), me.Name(), reason
+			// a number that never went to Sepidar is given back (the next invoice gets it; the cancelled one keeps showing it, marked as released);
+			// a number Sepidar has stays used: that invoice stays in Sepidar until it is deleted there
+			var queued int // a request to Sepidar still waiting or being done: the number may yet become Sepidar's, so it is not given back
+			_ = store.Pool.QueryRow(r.Context(), `SELECT count(*) FROM sepidar_jobs WHERE kind = 'invoice.fromHoormand' AND ref = $1 AND status IN ('pending', 'running')`, jsonx.Str(doc, "id")).Scan(&queued)
+			if num := jsonx.Str(old, "number"); !wasPending && num != "" && queued == 0 && len(jsonx.Sub(old, "sepidar")) == 0 {
+				releaseInvoiceNumber(r.Context(), num)
+				keep["numberReleased"] = true
+			}
 			if wasPending { // it was still waiting for Sepidar: the waiting request is withdrawn
 				_, _ = store.Pool.Exec(r.Context(), `UPDATE sepidar_jobs SET status = 'failed', finished_at = now(), result = $2::jsonb WHERE kind = 'invoice.fromHoormand' AND ref = $1 AND status = 'pending'`,
 					jsonx.Str(doc, "id"), jsonx.Encode(jsonx.M{"message": "فاکتور هورمند پیش از صدور در سپیدار لغو شد."}))
