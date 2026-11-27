@@ -640,7 +640,7 @@ export const CrmView: React.FC = () => {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="font-black text-[13px] text-[#3A241F] leading-snug [overflow-wrap:anywhere] line-clamp-2 min-h-[2.75em]" title={c.name}>{c.name}</div>
-            <div className="flex items-center gap-1 h-[22px] overflow-hidden" data-customer-chips>
+            <div className="flex flex-wrap items-center gap-1 min-h-[22px]" data-customer-chips>
               <span className={`inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}{priceOnlyChip(c.id)}
               <FinanceChip customerId={c.id} small />
             </div>
@@ -733,6 +733,7 @@ export const CrmView: React.FC = () => {
             در پیش‌فاکتور «{deals.find((x) => x.id === d.mergedInto)?.title || 'فرصت دیگر'}»{d.mergedAmount ? ` · ${toman(d.mergedAmount)} ${unitName()}` : ''}
           </div>
         )}
+        {priceOnlyIds.has(d.customerId) && <div className="text-[10px] font-black rounded-full px-2 py-0.5 border bg-sky-50 text-sky-800 border-sky-300 w-fit" title="این مشتری پیش‌فاکتور (قیمت) گرفته ولی هنوز خرید نکرده" data-deal-price-only>فقط قیمت‌گیر</div>}
         <div className="deal-title" title={d.title}>{d.title}</div>
         {d.productCode && <div className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 w-fit" dir="ltr">{toPersianDigits(d.productCode)}</div>}
         {approvalRequired(settings, d.proformaIssuerId) && d.proformaApproval && (

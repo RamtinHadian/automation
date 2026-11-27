@@ -18,44 +18,38 @@ import (
 // defined a person cannot issue at all. The invoice of such a person waits («awaiting»): it has no number, is not sent to Sepidar and counts for nothing until
 // ONE of the approvers approves it; then it is issued exactly as if the issuer had issued it. A rejection cancels it (no number is used).
 
-func invoiceApproversOf(ctx context.Context, userID string) []string {
+// the chain of approvers is ONE for all invoices (main settings, key invoiceApprovalChain, in the order of the steps)
+func invoiceChain(ctx context.Context) []string {
 	var raw []byte
 	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
-	set := jsonx.Decode(raw)
-	m, _ := set["invoiceApprovers"].(map[string]any)
 	out := []string{}
-	if m == nil {
-		return out
-	}
-	for _, v := range jsonx.Strings(jsonx.M{"x": m[userID]}, "x") {
-		if v != "" && v != userID && !jsonx.Contains(out, v) {
+	for _, v := range jsonx.Strings(jsonx.Decode(raw), "invoiceApprovalChain") {
+		if v != "" && !jsonx.Contains(out, v) {
 			out = append(out, v)
 		}
 	}
 	return out
 }
 
-// invoiceApprovalFor says whether this person's invoices need approval, by whom, and (when he may not issue at all) why.
+// invoiceApprovalFor says whether this person's invoices need approval, by whom (the chain without himself), and (when nobody is defined) why he may not issue.
 func invoiceApprovalFor(ctx context.Context, me auth.User) (needed bool, approvers []string, refusal string) {
 	if me.IsAdmin() {
 		return false, nil, ""
 	}
-	approvers = invoiceApproversOf(ctx, me.ID())
-	var raw []byte
-	_ = store.Pool.QueryRow(ctx, `SELECT data FROM settings WHERE key = 'main'`).Scan(&raw)
+	chain := invoiceChain(ctx)
 	inOwn := false
-	if m, _ := jsonx.Decode(raw)["invoiceApprovers"].(map[string]any); m != nil {
-		for _, v := range jsonx.Strings(jsonx.M{"x": m[me.ID()]}, "x") {
-			if v == me.ID() { // he is in his own list: his own step is skipped; with nobody else left there is nothing to wait for
-				inOwn = true
-			}
+	for _, v := range chain {
+		if v == me.ID() { // he is in the flow himself: his own step is skipped; with nobody else left there is nothing to wait for
+			inOwn = true
+		} else {
+			approvers = append(approvers, v)
 		}
 	}
-	if inOwn && len(approvers) == 0 {
-		return false, nil, ""
-	}
 	if len(approvers) == 0 {
-		return false, nil, "برای شما در کنسول مدیریت تأییدکنندهٔ صدور فاکتور تعریف نشده است؛ از مدیر بخواهید در «تنظیمات سیستم ← تأییدکنندگان صدور فاکتور» تعریف کند."
+		if inOwn {
+			return false, nil, ""
+		}
+		return false, nil, "گردش تأیید فاکتورها در کنسول مدیریت تعریف نشده است؛ از مدیر بخواهید در «تنظیمات سیستم ← گردش تأیید فاکتورها» مرحله‌ها را تعریف کند."
 	}
 	return true, approvers, ""
 }

@@ -810,8 +810,8 @@ export interface SystemSettings {
   /** value-added tax is put on every new proforma by itself (default: yes); a person can still change the percent on the proforma */
   proformaVatByDefault?: boolean;
   proformaValidDays?: number;
-  /** who approves the invoices of each person who issues them (person id → approver ids); nobody issues without approvers (the administrator does) */
-  invoiceApprovers?: Record<string, string[]>;
+  /** ONE approval flow for all invoices: the people who approve one after the other (the administrator issues without approval); without it nobody else issues */
+  invoiceApprovalChain?: string[];
   /** the proforma can be switched off in the console (default: on); the data stays, only the making of new ones stops */
   proformaEnabled?: boolean;
   /** with Sepidar connected the number of every invoice is the one Sepidar gives it (default: yes) */

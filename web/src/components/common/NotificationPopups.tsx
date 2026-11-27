@@ -57,7 +57,9 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
     if (!cust) return null;
     const mine = deals.filter((d) => d.customerId === cust.id && d.proformaNumber);
     const won = deals.filter((d) => d.customerId === cust.id && d.stage === 'WON');
-    return { bought: won.reduce((s, d) => s + (d.amount || 0), 0), wonCount: won.length, quotes: mine.length, status: cust.status };
+    // «فقط قیمت‌گیر»: has been given prices but has never bought (no won sale, no issued invoice)
+    const bought = deals.some((d) => d.customerId === cust.id && (d.stage === 'WON' || (d.invoice && d.invoice.status !== 'cancelled' && d.invoice.status !== 'awaiting')));
+    return { bought: won.reduce((s, d) => s + (d.amount || 0), 0), wonCount: won.length, quotes: mine.length, status: cust.status, priceOnly: mine.some((d) => !d.standalone) && !bought };
   }, [cust, deals]);
   // what we know about the caller: the last prices given, the last talks and the open opportunities
   const history = React.useMemo(() => {
@@ -176,6 +178,12 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
             </div>
           ))}
         </button>
+      )}
+      {isCall && cust && summary?.priceOnly && (
+        <div className="px-3.5 py-2.5 bg-sky-100 border-t-2 border-sky-400 text-[12px] font-black text-sky-950 flex items-center gap-2" data-call-price-only>
+          <span className="px-2 py-0.5 rounded-full bg-sky-600 text-white text-[11px]">فقط قیمت‌گیر</span>
+          پیش‌فاکتور گرفته ولی تا حالا خرید نکرده؛ این تماس را برای فروش پیگیری کنید.
+        </div>
       )}
       {isCall && cust && summary && (
         <div className="px-3.5 py-2 bg-emerald-50 border-t border-emerald-100 flex items-center justify-between gap-2 text-[11px] font-bold text-emerald-900">
