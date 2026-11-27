@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.81.5';
+export const TOOL_VERSION = '1.81.6';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -1158,8 +1158,10 @@ const jobHandlers = {
     const head = {
       GUID: guidFrom('invoice:' + deal.id), Date: when, CustomerRef: customerRef, CurrencyRef: cfg.sync.currencyRef, Rate: 1, SaleTypeRef: cfg.sync.saleTypeRef, AddressRef: addressRef,
       Price: q.body.Price, Discount: q.body.Discount, Tax: q.body.Tax, Duty: 0, Addition: 0, NetPrice: q.total, SettlementType: inv.settlement === 'CASH' ? 1 : (cfg.sync.settlementType ?? 2), DeliveryLocationRef: 1,
-      Description: 'فاکتور هورمند ' + (inv.number || deal.id) + (inv.note ? ' · ' + String(inv.note).slice(0, 200) : ''),
+      Description: 'فاکتور هورمند' + (inv.number ? ' ' + inv.number : '') + (inv.note ? ' · ' + String(inv.note).slice(0, 200) : ''),
     };
+    let maxBefore = 0;
+    try { maxBefore = Math.max(0, ...(await sp.get('/api/Invoices')).map((x) => Number(x.InvoiceID ?? x.ID) || 0)); } catch { /* only used to find the invoice when the answer does not name it */ }
     let r;
     let last;
     for (const key of ['InvoiceItems', 'Items']) {
@@ -1174,13 +1176,14 @@ const jobHandlers = {
       }
     }
     if (!r) throw last;
-    // which invoice is the one just made: the answer says (an object with InvoiceID / Number, or just the id); if it does not, the invoice is read back by the
-    // text Hoormand wrote on it. Never «the newest invoice of the customer»: that can be an older one and gives the wrong number.
+    // which invoice is the one just made: the answer says (an object with InvoiceID / Number, or just the id); if it does not, the invoice is the customer's
+    // one that did not exist before the request. Never «the newest invoice of the customer»: that can be an older one and gives the wrong number.
     let id = typeof r === 'number' ? r : r?.InvoiceID ?? r?.ID ?? null;
     let number = typeof r === 'object' ? r?.Number : undefined;
     if (id == null) {
       const all = await sp.get('/api/Invoices');
-      const mine = all.filter((x) => String(x.Description || '').includes(head.Description) && x.CustomerRef === customerRef).sort((a, b) => (b.InvoiceID ?? 0) - (a.InvoiceID ?? 0))[0];
+      // the invoice of this customer that did not exist before the request (the oldest of them, if there are more)
+      const mine = all.filter((x) => (Number(x.InvoiceID ?? x.ID) || 0) > maxBefore && x.CustomerRef === customerRef).sort((a, b) => (a.InvoiceID ?? 0) - (b.InvoiceID ?? 0))[0];
       if (mine) id = mine.InvoiceID ?? mine.ID;
     }
     if (id != null && number == null) {
