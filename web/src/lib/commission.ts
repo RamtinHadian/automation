@@ -3,7 +3,14 @@ import { isoToJalaliParts } from './taskDates';
 
 /** One commission rule: a base percent, and optional steps: when the sales of the month reach «from», the WHOLE month is paid with that step's percent. */
 export interface CommissionTier { from: number; percent: number }
-export interface CommissionRule { percent: number; tiers?: CommissionTier[] }
+/** A fixed-amount step: when the sales of the month reach «from», the fixed amount becomes `amount` (instead of the base fixed amount). */
+export interface CommissionFixedTier { from: number; amount: number }
+/**
+ * `mode`: how the commission is worked out: «percent» (the default, as before), «fixed» (a fixed number, with steps if wanted) or «both» (the two added together).
+ * Fixed: `fixed` is the base amount; `fixedTiers` raise it as the month's sales grow (the amount of the highest step reached is paid, not a sum of steps);
+ * `fixedPer` says whether it is paid once for the month or for every won sale. Nothing fixed is paid to somebody with no sale in the month.
+ */
+export interface CommissionRule { percent: number; tiers?: CommissionTier[]; mode?: 'percent' | 'fixed' | 'both'; fixed?: number; fixedPer?: 'month' | 'deal'; fixedTiers?: CommissionFixedTier[] }
 /** `recipients`: the people who may receive commission at all (chosen by the managers); nobody else gets any, whatever he sold */
 /** A team: the commission is worked out from the sales of all its members together (with the team's own rule), then shared equally or by what each one sold. */
 export interface CommissionGroup { id: string; name: string; memberIds: string[]; rule: CommissionRule; split: 'equal' | 'sales' }
@@ -28,7 +35,29 @@ export const percentFor = (rule: CommissionRule, sales: number): number => {
   return p;
 };
 
+export const ruleMode = (r: CommissionRule): 'percent' | 'fixed' | 'both' => (r.mode === 'fixed' || r.mode === 'both' ? r.mode : 'percent');
+
+/** The fixed amount that applies to a month whose sales are `sales` (the highest step reached, else the base amount). */
+export const fixedAmountFor = (rule: CommissionRule, sales: number): number => {
+  let a = rule.fixed || 0;
+  for (const t of [...(rule.fixedTiers || [])].sort((x, y) => x.from - y.from)) if (sales >= t.from) a = t.amount;
+  return a;
+};
+
+/** Everything a rule gives for a month: the percent used, the percent part, the fixed part and the total. */
+export function workOut(rule: CommissionRule, sales: number, dealCount: number) {
+  const mode = ruleMode(rule);
+  const percent = mode === 'fixed' ? 0 : percentFor(rule, sales);
+  const percentPart = mode === 'fixed' ? 0 : Math.round((sales * percent) / 100);
+  const each = mode === 'percent' || dealCount <= 0 || sales <= 0 ? 0 : fixedAmountFor(rule, sales);
+  const fixed = each ? (rule.fixedPer === 'deal' ? each * dealCount : each) : 0;
+  return { percent, percentPart, fixed, fixedEach: rule.fixedPer === 'deal' ? each : 0, total: percentPart + fixed };
+}
+
 export interface CommissionRow {
+  /** the fixed part of the commission (0 when the rule is only a percent) and, when it is paid per sale, the amount of each sale */
+  fixed?: number;
+  fixedEach?: number;
   userId: string;
   deals: Deal[];
   sales: number;
@@ -62,8 +91,8 @@ export function commissionOf(deals: Deal[], rules: CommissionRules, period: stri
     const g = teamOf.get(userId);
     const sales = salesOf(userId);
     if (!g) {
-      const percent = percentFor(ruleOf(rules, userId), sales);
-      rows.push({ userId, deals: list, sales, percent, commission: Math.round((sales * percent) / 100) });
+      const w = workOut(ruleOf(rules, userId), sales, list.length);
+      rows.push({ userId, deals: list, sales, percent: w.percent, fixed: w.fixed, fixedEach: w.fixedEach, commission: w.total });
       continue;
     }
     // a team's members are all added when the first of them is met (members of the team without a sale also get their share)
@@ -71,12 +100,14 @@ export function commissionOf(deals: Deal[], rules: CommissionRules, period: stri
     doneTeams.add(g.id);
     const members = g.memberIds.filter((m) => teamOf.get(m)?.id === g.id);
     const pooled = members.reduce((s, m) => s + salesOf(m), 0);
-    const percent = percentFor(g.rule, pooled);
-    const total = Math.round((pooled * percent) / 100);
+    const pooledDeals = members.reduce((s, m) => s + (by.get(m) || []).length, 0);
+    const w = workOut(g.rule, pooled, pooledDeals);
+    const percent = w.percent;
+    const total = w.total;
     for (const m of members) {
       const own = salesOf(m);
       const share = g.split === 'sales' ? (pooled > 0 ? Math.round((total * own) / pooled) : 0) : Math.round(total / Math.max(1, members.length));
-      rows.push({ userId: m, deals: by.get(m) || [], sales: own, percent, commission: share, groupName: g.name, groupSales: pooled });
+      rows.push({ userId: m, deals: by.get(m) || [], sales: own, percent, fixed: total ? Math.round((w.fixed * share) / total) : 0, commission: share, groupName: g.name, groupSales: pooled });
     }
   }
   return rows;

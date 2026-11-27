@@ -54,7 +54,36 @@ func cleanRule(v any) jsonx.M {
 	for _, t := range ts {
 		out = append(out, jsonx.M{"from": t.from, "percent": t.percent})
 	}
-	return jsonx.M{"percent": clubNum(m["percent"], 0, 100), "tiers": out}
+	rule := jsonx.M{"percent": clubNum(m["percent"], 0, 100), "tiers": out}
+	// the fixed-amount way (see lib/commission.ts): a mode, a base amount, whether it is paid once a month or for every sale, and steps
+	if mode, _ := m["mode"].(string); mode == "fixed" || mode == "both" {
+		rule["mode"] = mode
+	}
+	rule["fixed"] = clubNum(m["fixed"], 0, 1e15)
+	if per, _ := m["fixedPer"].(string); per == "deal" {
+		rule["fixedPer"] = "deal"
+	}
+	type ftier struct{ from, amount float64 }
+	var fts []ftier
+	if arr, ok := m["fixedTiers"].([]any); ok {
+		for _, x := range arr {
+			if t, ok := x.(map[string]any); ok {
+				if from := clubNum(t["from"], 0, 1e15); from > 0 {
+					fts = append(fts, ftier{from, clubNum(t["amount"], 0, 1e15)})
+				}
+			}
+		}
+	}
+	sort.Slice(fts, func(i, j int) bool { return fts[i].from < fts[j].from })
+	if len(fts) > 12 {
+		fts = fts[:12]
+	}
+	fout := make([]any, 0, len(fts))
+	for _, t := range fts {
+		fout = append(fout, jsonx.M{"from": t.from, "amount": t.amount})
+	}
+	rule["fixedTiers"] = fout
+	return rule
 }
 
 // teams: the commission of a group of people is worked out from the sales of all of them together, then shared (equally, or by what each one sold)

@@ -6,7 +6,7 @@ import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits, formatCurrentJalaliDateTime } from '../../lib/jalali';
 import { formatMoney, fromDisplay, toDisplay, unitName } from '../../lib/money';
 import { JALALI_MONTHS, isoToJalaliParts, todayIso, formatTaskDate } from '../../lib/taskDates';
-import { CommissionGroup, CommissionPayment, CommissionRule, CommissionRules, commissionOf, periodKey, percentFor, ruleOf } from '../../lib/commission';
+import { CommissionGroup, CommissionPayment, CommissionRule, CommissionRules, commissionOf, periodKey, percentFor, ruleMode, ruleOf } from '../../lib/commission';
 import { MoneyInput } from '../common/MoneyInput';
 import { OrderComposeModal } from '../orders/OrderComposeModal';
 import { Deal, User } from '../../types';
@@ -41,32 +41,81 @@ const PercentInput: React.FC<{ value: number; onChange: (n: number) => void; cla
   );
 };
 
-/** One rule: the base percent and the steps (when the month's sales reach an amount, the whole month is paid with a higher percent). Amounts are kept in Toman, typed in the system's unit. */
+/**
+ * One rule. How it is worked out: a percent of the month's sales (with steps: when the sales reach an amount the WHOLE month gets a higher percent), a fixed
+ * number (with steps: when the sales reach an amount the fixed number becomes bigger; once a month or for every sale), or the two together.
+ * Amounts are kept in Toman, typed in the system's unit.
+ */
 const RuleEditor: React.FC<{ rule: CommissionRule; onChange: (r: CommissionRule) => void }> = ({ rule, onChange }) => {
   const tiers = rule.tiers || [];
+  const fixedTiers = rule.fixedTiers || [];
+  const mode = ruleMode(rule);
   const setTier = (i: number, u: Partial<{ from: number; percent: number }>) => onChange({ ...rule, tiers: tiers.map((t, k) => (k === i ? { ...t, ...u } : t)) });
+  const setFTier = (i: number, u: Partial<{ from: number; amount: number }>) => onChange({ ...rule, fixedTiers: fixedTiers.map((t, k) => (k === i ? { ...t, ...u } : t)) });
+  const addBtn = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black text-violet-700 bg-white border border-violet-200 hover:bg-violet-50 cursor-pointer';
   return (
-    <div className="space-y-2.5">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-        <div>
-          <div className="text-[10.5px] font-black text-[#8C6F66] mb-1">درصد پورسانت از فروش موفق ماه</div>
-          <PercentInput value={rule.percent} onChange={(n) => onChange({ ...rule, percent: n })} />
-        </div>
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5" data-commission-mode>
+        {([['percent', 'درصدی'], ['fixed', 'عددی ثابت'], ['both', 'هر دو (جمع)']] as const).map(([id, l]) => (
+          <button key={id} type="button" onClick={() => onChange({ ...rule, mode: id })} className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black border cursor-pointer ${mode === id ? 'bg-violet-700 text-white border-violet-700' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-violet-50'}`} data-commission-mode-opt={id}>{l}</button>
+        ))}
       </div>
-      {tiers.map((t, i) => (
-        <div key={i} className="grid grid-cols-[1fr_120px_auto] gap-2 items-end rounded-xl bg-violet-50/60 border border-violet-100 p-2.5" data-commission-tier>
-          <div>
-            <div className="text-[10.5px] font-black text-violet-900 mb-1">وقتی فروش ماه به این مبلغ برسد</div>
-            <MoneyInput unit className={field} value={t.from ? String(toDisplay(t.from)) : ''} onChange={(d) => setTier(i, { from: fromDisplay(Number(d) || 0) })} placeholder="مثلاً ۶۰۰٬۰۰۰٬۰۰۰" />
+      {mode !== 'fixed' && (
+        <div className="space-y-2.5" data-commission-percent-part>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+            <div>
+              <div className="text-[10.5px] font-black text-[#8C6F66] mb-1">درصد پورسانت از فروش موفق ماه</div>
+              <PercentInput value={rule.percent} onChange={(n) => onChange({ ...rule, percent: n })} />
+            </div>
           </div>
-          <div>
-            <div className="text-[10.5px] font-black text-violet-900 mb-1">کل ماه با درصد</div>
-            <PercentInput value={t.percent} onChange={(n) => setTier(i, { percent: n })} />
-          </div>
-          <button type="button" onClick={() => onChange({ ...rule, tiers: tiers.filter((_, k) => k !== i) })} className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer" aria-label="حذف این پله"><X className="w-4 h-4" /></button>
+          {tiers.map((t, i) => (
+            <div key={i} className="grid grid-cols-[1fr_120px_auto] gap-2 items-end rounded-xl bg-violet-50/60 border border-violet-100 p-2.5" data-commission-tier>
+              <div>
+                <div className="text-[10.5px] font-black text-violet-900 mb-1">وقتی فروش ماه به این مبلغ برسد</div>
+                <MoneyInput unit className={field} value={t.from ? String(toDisplay(t.from)) : ''} onChange={(d) => setTier(i, { from: fromDisplay(Number(d) || 0) })} placeholder="مثلاً ۶۰۰٬۰۰۰٬۰۰۰" />
+              </div>
+              <div>
+                <div className="text-[10.5px] font-black text-violet-900 mb-1">کل ماه با درصد</div>
+                <PercentInput value={t.percent} onChange={(n) => setTier(i, { percent: n })} />
+              </div>
+              <button type="button" onClick={() => onChange({ ...rule, tiers: tiers.filter((_, k) => k !== i) })} className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer" aria-label="حذف این پله"><X className="w-4 h-4" /></button>
+            </div>
+          ))}
+          <button type="button" onClick={() => onChange({ ...rule, tiers: [...tiers, { from: 0, percent: (rule.percent || 0) + 1 }] })} className={addBtn}><Plus className="w-3.5 h-3.5" />پلهٔ درصدی</button>
         </div>
-      ))}
-      <button type="button" onClick={() => onChange({ ...rule, tiers: [...tiers, { from: 0, percent: (rule.percent || 0) + 1 }] })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black text-violet-700 bg-white border border-violet-200 hover:bg-violet-50 cursor-pointer" data-commission-add-tier><Plus className="w-3.5 h-3.5" />پلهٔ بالاتر (درصد بیشتر برای فروش بیشتر)</button>
+      )}
+      {mode !== 'percent' && (
+        <div className="space-y-2.5 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3" data-commission-fixed-part>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+            <div>
+              <div className="text-[10.5px] font-black text-emerald-900 mb-1">مبلغ ثابت پورسانت</div>
+              <MoneyInput unit className={field} value={rule.fixed ? String(toDisplay(rule.fixed)) : ''} onChange={(d) => onChange({ ...rule, fixed: fromDisplay(Number(d) || 0) })} placeholder="مثلاً ۵٬۰۰۰٬۰۰۰" />
+            </div>
+            <div>
+              <div className="text-[10.5px] font-black text-emerald-900 mb-1">این مبلغ را چطور بدهیم؟</div>
+              <select className={field} value={rule.fixedPer === 'deal' ? 'deal' : 'month'} onChange={(e) => onChange({ ...rule, fixedPer: e.target.value === 'deal' ? 'deal' : 'month' })} data-commission-fixed-per>
+                <option value="month">یک‌بار برای هر ماه (اگر فروش داشته باشد)</option>
+                <option value="deal">برای هر فروش موفق</option>
+              </select>
+            </div>
+          </div>
+          {fixedTiers.map((t, i) => (
+            <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end rounded-xl bg-white border border-emerald-100 p-2.5" data-commission-fixed-tier>
+              <div>
+                <div className="text-[10.5px] font-black text-emerald-900 mb-1">وقتی فروش ماه به این مبلغ برسد</div>
+                <MoneyInput unit className={field} value={t.from ? String(toDisplay(t.from)) : ''} onChange={(d) => setFTier(i, { from: fromDisplay(Number(d) || 0) })} placeholder="مثلاً ۶۰۰٬۰۰۰٬۰۰۰" />
+              </div>
+              <div>
+                <div className="text-[10.5px] font-black text-emerald-900 mb-1">مبلغ ثابت می‌شود</div>
+                <MoneyInput unit className={field} value={t.amount ? String(toDisplay(t.amount)) : ''} onChange={(d) => setFTier(i, { amount: fromDisplay(Number(d) || 0) })} placeholder="مثلاً ۸٬۰۰۰٬۰۰۰" />
+              </div>
+              <button type="button" onClick={() => onChange({ ...rule, fixedTiers: fixedTiers.filter((_, k) => k !== i) })} className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer" aria-label="حذف این پله"><X className="w-4 h-4" /></button>
+            </div>
+          ))}
+          <button type="button" onClick={() => onChange({ ...rule, fixedTiers: [...fixedTiers, { from: 0, amount: rule.fixed || 0 }] })} className={addBtn}><Plus className="w-3.5 h-3.5" />پلهٔ مبلغ ثابت</button>
+          <p className="text-[10.5px] font-bold text-emerald-900/80 leading-5">پله‌ها جمع نمی‌شوند: مبلغ بالاترین پله‌ای که فروش ماه به آن رسیده داده می‌شود. به کسی که در آن ماه فروشی نداشته مبلغ ثابت داده نمی‌شود.</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -152,7 +201,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
           body: [
             `${who} گرامی`,
             'سلام و احترام؛',
-            `پورسانت شما بابت فروش‌های موفق ${monthName} محاسبه شد: جمع فروش ${formatMoney(row.sales)} ${unitName()}، درصد پورسانت ${toPersianDigits(row.percent)}٪${row.groupName ? ` (تیم «${row.groupName}»)` : ''}، پورسانت ${formatMoney(row.commission)} ${unitName()}.`,
+            `پورسانت شما بابت فروش‌های موفق ${monthName} محاسبه شد: جمع فروش ${formatMoney(row.sales)} ${unitName()}، ${row.percent ? `درصد پورسانت ${toPersianDigits(row.percent)}٪` : ''}${row.fixed ? `${row.percent ? '، ' : ''}مبلغ ثابت ${formatMoney(row.fixed)} ${unitName()}` : ''}${row.groupName ? ` (تیم «${row.groupName}»)` : ''}، پورسانت ${formatMoney(row.commission)} ${unitName()}.`,
             `دستور می‌شود مبلغ ${formatMoney(amount)} ${unitName()} از این پورسانت پرداخت شود.${payFor.note ? ' ' + payFor.note : ''}`,
             'با تشکر',
           ].join('\n'),
@@ -315,7 +364,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
                   <button type="button" onClick={() => setOpen(isOpen ? null : r.userId)} className="flex items-center gap-2 font-black text-[14px] text-[#3A241F] cursor-pointer"><ChevronDown className={`w-4 h-4 text-[#8C6F66] transition-transform ${isOpen ? 'rotate-180' : ''}`} />{nameOf(r.userId)}</button>
                   <span className="text-[11px] font-bold text-[#8C6F66]">{toPersianDigits(r.deals.length)} فروش · {formatMoney(r.sales)} {unitName()}</span>
                   {r.groupName && <span className="text-[11px] font-black rounded-full px-2.5 py-0.5 bg-sky-50 text-sky-800 border border-sky-200" data-commission-team-chip>تیم «{r.groupName}»: فروش کل {formatMoney(r.groupSales || 0)}</span>}
-                  <span className="text-[11px] font-black rounded-full px-2.5 py-0.5 bg-violet-50 text-violet-800 border border-violet-200">{toPersianDigits(r.percent)}٪{(rule.tiers || []).some((t) => r.sales >= t.from) ? ' (پله)' : ''}</span>
+                  <span className="text-[11px] font-black rounded-full px-2.5 py-0.5 bg-violet-50 text-violet-800 border border-violet-200">{ruleMode(rule) === 'fixed' ? 'مبلغ ثابت' : `${toPersianDigits(r.percent)}٪${(rule.tiers || []).some((t) => r.sales >= t.from) ? ' (پله)' : ''}`}{ruleMode(rule) === 'both' ? ` + ${formatMoney(r.fixed || 0)} ثابت` : ''}</span>
                   <span className="mr-auto flex items-center gap-4 text-[12px] font-black">
                     <span className="text-violet-800">پورسانت: {formatMoney(r.commission)} {unitName()}</span>
                     {pd > 0 && <span className="text-emerald-700">پرداخت‌شده: {formatMoney(pd)}</span>}
@@ -341,7 +390,7 @@ export const CommissionView: React.FC<{ deals: Deal[]; staff: User[]; currentUse
                               <td className="py-2 px-4">{d.title}</td><td className="py-2">{d.customerName}</td>
                               <td className="py-2 whitespace-nowrap">{formatTaskDate((d.closedAt || d.updatedAt || '').slice(0, 10))}</td>
                               <td className="py-2 text-left">{formatMoney(d.amount)}</td>
-                              <td className="py-2 px-4 text-left text-violet-800">{formatMoney(Math.round(((d.amount || 0) * r.percent) / 100))}</td>
+                              <td className="py-2 px-4 text-left text-violet-800">{formatMoney(Math.round(((d.amount || 0) * r.percent) / 100) + (r.fixedEach || 0))}</td>
                             </tr>
                           ))}
                         </tbody>
