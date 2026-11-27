@@ -96,17 +96,23 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.79.9';
+export const TOOL_VERSION = '1.80.4';
 
-// Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»): try the usual spelling, then the other one
+// Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
+// read, so the usual spellings are tried one after the other; «not found» with the wrong name looks like a missing quotation, so 404 is tried too.
 async function invoiceFromQuotation(sp, quotationId) {
   const id = Number(quotationId);
-  try {
-    return await sp.post('/api/Invoices/BasedOnQuotation/', { QuotationID: id });
-  } catch (e) {
-    if (!/QuotationI[dD]|Required property|converting|Could not find member/i.test(String(e && e.message))) throw e;
-    return await sp.post('/api/Invoices/BasedOnQuotation/', { QuotationId: id });
+  let last;
+  for (const key of ['QuotationID', 'QuotationId', 'QuotationRef', 'ID']) {
+    try {
+      return await sp.post('/api/Invoices/BasedOnQuotation/', { [key]: id });
+    } catch (e) {
+      last = e;
+      if (!(e && (e.status === 400 || e.status === 404 || e.status === 500))) throw e;
+    }
   }
+  throw last;
+}
 }
 
 async function hoormand(cfg, p) {
@@ -1038,7 +1044,19 @@ const jobHandlers = {
     } else {
       note = ' (پیش‌فاکتورِ این فرصت از قبل در سپیدار بود و فاکتور از روی همان صادر شد؛ اگر ردیف‌هایش با فاکتور هورمند فرق دارد در سپیدار بررسی کنید.)';
     }
-    const r = await invoiceFromQuotation(sp, quotationId);
+    let r;
+    try {
+      r = await invoiceFromQuotation(sp, quotationId);
+    } catch (e) {
+      // the quotation remembered from an earlier try is gone from Sepidar (deleted or used): make it again from the invoice and retry once
+      if (made || !(e && e.status === 404)) throw e;
+      if (state.quotations) delete state.quotations[deal.id];
+      const snap = { ...deal, items: inv.items, discountPercent: inv.discountPercent, taxPercent: inv.taxPercent, proformaNumber: inv.number, proformaAt: String(inv.issuedAt || '').slice(0, 10) || deal.proformaAt };
+      made = await sendQuotation(cfg, sp, state, snap);
+      quotationId = made.ID;
+      note = '';
+      r = await invoiceFromQuotation(sp, quotationId);
+    }
     return {
       sepidarId: r.InvoiceID, number: r.Number, quotationId: Number(quotationId), quotationNumber: made ? made.Number : undefined,
       message: `فاکتور هورمند${inv.number ? ' ' + inv.number : ''} در سپیدار با شمارهٔ ${r.Number} صادر شد (همین شماره شمارهٔ فاکتور هورمند می‌شود)${note}`,

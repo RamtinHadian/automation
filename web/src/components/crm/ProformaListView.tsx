@@ -1,3 +1,4 @@
+import { matchesAll } from '../../lib/searchAll';
 import React, { useMemo, useState } from 'react';
 import { FileText, Search } from 'lucide-react';
 import { Deal } from '../../types';
@@ -27,7 +28,7 @@ export const ProformaOnly: React.FC<{ deals: Deal[]; canMoney: boolean; onOpen: 
   const [q, setQ] = useState('');
   const list = useMemo(() => deals
     .filter((d) => (d.proformaNumber || (d.items || []).length > 0) && !d.mergedInto)
-    .filter((d) => !q || [d.proformaNumber, d.customerName, d.title, d.ownerName].some((x) => (x || '').includes(q)))
+    .filter((d) => !q || matchesAll(d, q))
     .sort((a, b) => (b.proformaAt || b.updatedAt || '').localeCompare(a.proformaAt || a.updatedAt || '')), [deals, q]);
   const shown = list.filter((d) => st === 'ALL' || stateOf(d) === st);
   // the last six months (Jalali), the sum (or the count when the person may not see money) of the proformas of each

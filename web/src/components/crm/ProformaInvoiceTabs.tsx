@@ -8,6 +8,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { formatMoney, toDisplay, unitName } from '../../lib/money';
 import { formatTaskDate } from '../../lib/taskDates';
 import { hasInvoice, invoiceTitle } from '../../lib/invoice';
+import { matchesAll } from '../../lib/searchAll';
 import { ProformaOnly } from './ProformaListView';
 
 type Kind = 'ALL' | 'OFFICIAL' | 'UNOFFICIAL' | 'CANCELLED';
@@ -22,7 +23,7 @@ const InvoiceList: React.FC<{ deals: Deal[]; canMoney: boolean; onOpenInvoice: (
   const live = all.filter((d) => d.invoice?.status === 'issued');
   const shown = all
     .filter((d) => kind === 'ALL' || (kind === 'CANCELLED' ? d.invoice?.status === 'cancelled' : d.invoice?.kind === kind && d.invoice?.status === 'issued'))
-    .filter((d) => !q || [d.invoice?.number, d.customerName, d.title, d.invoice?.issuedByName].some((x) => (x || '').includes(q)));
+    .filter((d) => !q || matchesAll(d, q));
   const sum = live.reduce((t, d) => t + toDisplay(d.invoice?.amount ?? d.amount), 0);
   const chips: [Kind, string, number][] = [
     ['ALL', 'همه', all.length],
