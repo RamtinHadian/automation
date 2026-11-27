@@ -229,7 +229,8 @@ const InvoiceApprovalBox: React.FC<{ deal: Deal }> = ({ deal }) => {
   const chain = inv.approvers || [];
   const step = Math.min(Math.max(inv.step || 0, 0), Math.max(chain.length - 1, 0));
   const nameOf = (id: string) => staffList.find((u) => u.id === id)?.fullName || '—';
-  const mayDecide = currentUser.role === 'SUPER_ADMIN' || chain[step] === currentUser.id;
+  const byWorkflow = !!inv.workflowId;
+  const mayDecide = !byWorkflow && (currentUser.role === 'SUPER_ADMIN' || chain[step] === currentUser.id);
   const decide = async (decision: 'approve' | 'reject') => {
     if (decision === 'reject' && !reason.trim()) { showToast('دلیل رد را بنویسید.'); return; }
     setBusy(true);
@@ -249,6 +250,7 @@ const InvoiceApprovalBox: React.FC<{ deal: Deal }> = ({ deal }) => {
       <p className="text-[11.5px] font-bold text-amber-900 leading-6">
         این فاکتور منتظر تأیید است؛ تا همهٔ مرحله‌ها تأیید نکنند شماره نمی‌گیرد، به سپیدار نمی‌رود و چاپ نمی‌شود.
       </p>
+      {byWorkflow && <p className="text-[11.5px] font-black text-amber-950" data-invoice-by-workflow>با گردشکار «{inv.workflowName || 'تأیید فاکتور'}» پیش می‌رود؛ تأییدکننده در «امور اداری ← گردشکارها» تصمیم می‌گیرد و فاکتور بعد از «تأیید شد» خودکار صادر می‌شود.</p>}
       <ol className="space-y-1 text-[11px] font-bold" data-approval-chain>
         {chain.map((id, i) => (
           <li key={i} className={`flex items-center gap-2 ${i < step ? 'text-emerald-800' : i === step ? 'text-amber-900' : 'text-[#8C6F66]'}`}>

@@ -79,6 +79,9 @@ func enforceInvoiceOpt(w http.ResponseWriter, r *http.Request, me auth.User, bef
 				return false, false
 			}
 			wasPending := jsonx.Str(old, "status") == "pending"
+			if wf := jsonx.Str(old, "workflowId"); wf != "" && jsonx.Str(old, "status") == "awaiting" {
+				wfCancelInstance(r.Context(), wf, me, "فاکتور را صادرکننده لغو کرد")
+			}
 			keep["status"], keep["cancelledAt"] = "cancelled", now()
 			keep["cancelledById"], keep["cancelledByName"], keep["cancelReason"] = me.ID(), me.Name(), reason
 			// a number that never went to Sepidar is given back (the next invoice gets it; the cancelled one keeps showing it, marked as released);
@@ -127,7 +130,40 @@ func enforceInvoiceOpt(w http.ResponseWriter, r *http.Request, me auth.User, bef
 	if jsonx.Str(inc, "kind") == "OFFICIAL" {
 		kind = "OFFICIAL"
 	}
-	// the invoices of a person who needs approval wait for it: no number, nothing sent to Sepidar, until one of his approvers approves
+	// the invoices of a person who needs approval wait for it: no number, nothing sent to Sepidar, until the approval is over
+	awaitingInvoice := func(extra jsonx.M) jsonx.M {
+		inv := jsonx.M{
+			"number": "", "kind": kind, "status": "awaiting", "issuedAt": now(), "issuedById": me.ID(), "issuedByName": me.Name(),
+			"issuerId": doc["proformaIssuerId"], "proformaNumber": doc["proformaNumber"],
+			"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
+			"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
+			"note": strings.TrimSpace(jsonx.Str(inc, "note")), "paid": jsonx.Bool(inc, "paid"), "settlement": settlementOf(inc), "dueDate": cutRunes(jsonx.Str(inc, "dueDate"), 10), "stockCode": cutRunes(strings.TrimSpace(jsonx.Str(inc, "stockCode")), 40),
+		}
+		for k, v := range extra {
+			inv[k] = v
+		}
+		return inv
+	}
+	if !approved && !me.IsAdmin() {
+		// a workflow tied to «invoice.issue» (built in the console) decides: the system starts it and the invoice waits for its end
+		if wp := wfTriggerPackage(r.Context(), "invoice.issue"); wp != nil {
+			vals := wfDealValues(doc, kind, "", me, strings.TrimSpace(jsonx.Str(inc, "note")))
+			instID, wst, _, err := wfStartTriggered(r.Context(), wp, me, vals, jsonx.Str(doc, "id"))
+			if err != nil {
+				httpx.Error(w, http.StatusUnprocessableEntity, "گردشکار صدور فاکتور شروع نشد: "+err.Error())
+				return false, false
+			}
+			if wst.Status == "running" {
+				doc["invoice"] = awaitingInvoice(jsonx.M{"workflowId": instID, "workflowName": wp.Name})
+				return true, false
+			}
+			if wst.Status != "approved" && wst.Status != "done" {
+				httpx.Error(w, http.StatusForbidden, "گردشکار «"+wp.Name+"» این فاکتور را رد کرد.")
+				return false, false
+			}
+			approved = true // the workflow had nothing to wait for and approved: an ordinary issue
+		}
+	}
 	if !approved {
 		need, approvers, refusal := invoiceApprovalFor(r.Context(), me)
 		if refusal != "" {
@@ -135,14 +171,7 @@ func enforceInvoiceOpt(w http.ResponseWriter, r *http.Request, me auth.User, bef
 			return false, false
 		}
 		if need {
-			doc["invoice"] = jsonx.M{
-				"number": "", "kind": kind, "status": "awaiting", "issuedAt": now(), "issuedById": me.ID(), "issuedByName": me.Name(),
-				"issuerId": doc["proformaIssuerId"], "proformaNumber": doc["proformaNumber"],
-				"items": doc["items"], "discountPercent": doc["discountPercent"], "taxPercent": doc["taxPercent"],
-				"fields": doc["proformaFields"], "amount": doc["amount"], "customerName": doc["customerName"],
-				"note": strings.TrimSpace(jsonx.Str(inc, "note")), "paid": jsonx.Bool(inc, "paid"), "settlement": settlementOf(inc), "dueDate": cutRunes(jsonx.Str(inc, "dueDate"), 10), "stockCode": cutRunes(strings.TrimSpace(jsonx.Str(inc, "stockCode")), 40),
-				"approvers": approvers, "step": 0, "steps": []any{},
-			}
+			doc["invoice"] = awaitingInvoice(jsonx.M{"approvers": approvers, "step": 0, "steps": []any{}})
 			notify.Notify(r.Context(), approvers[:1], notify.Note{Kind: "alert", Label: "فاکتور منتظر تأیید", Title: "فاکتور مشتری «" + jsonx.Str(doc, "customerName") + "» منتظر تأیید شماست", Body: me.Name() + " آن را صادر کرده است (مرحلهٔ ۱ از " + strconv.Itoa(len(approvers)) + ").", Ref: ref("deal", jsonx.Str(doc, "id"))}, me.ID())
 			return true, false
 		}

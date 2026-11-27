@@ -93,6 +93,9 @@ type Package struct {
 	Name        string     `json:"name"`
 	Description string     `json:"description,omitempty"`
 	Customer    string     `json:"customer,omitempty"`
+	// Trigger ties the workflow to a thing the system does («invoice.issue», «proforma.issue»): the system starts it by itself when somebody does that and the thing
+	// goes on only if the workflow ends «approved». Such a workflow is not started by people; its form can only hold the fixed fields of the trigger.
+	Trigger string `json:"trigger,omitempty"`
 	Start       Start_     `json:"start"`
 	Fields      []Field    `json:"fields,omitempty"`
 	Steps       []Step     `json:"steps"`
@@ -116,6 +119,14 @@ func (p *Package) First() string {
 		return ""
 	}
 	return p.Steps[0].ID
+}
+
+// Triggers: what the system can start a workflow for, and the fields the system fills in (nothing else may be asked, nobody fills the form).
+var Triggers = map[string]string{"invoice.issue": "صدور فاکتور", "proforma.issue": "صدور (ارسال برای تأیید) پیش‌فاکتور"}
+
+// TriggerFields are the values the system puts in a triggered workflow (a workflow may declare any of them to use in conditions and in texts).
+var TriggerFields = map[string]string{
+	"customer": "text", "amount": "money", "kind": "text", "number": "text", "issuer": "text", "items": "text", "note": "text", "dealId": "text",
 }
 
 var fieldTypes = map[string]bool{"text": true, "textarea": true, "number": true, "money": true, "date": true, "select": true, "person": true, "yesno": true}
@@ -212,6 +223,20 @@ func (p *Package) Validate() error {
 	}
 	if len(p.Fields) > 40 {
 		return errors.New("فرم بیش از ۴۰ فیلد ندارد")
+	}
+	if p.Trigger != "" {
+		if _, ok := Triggers[p.Trigger]; !ok {
+			return fmt.Errorf("راه‌انداز (trigger) «%s» شناخته‌شده نیست", p.Trigger)
+		}
+		for _, f := range p.Fields {
+			t, ok := TriggerFields[f.Key]
+			if !ok {
+				return fmt.Errorf("گردشکار با راه‌انداز فقط این فیلدها را دارد: customer, amount, kind, number, issuer, items, note, dealId؛ «%s» مجاز نیست", f.Key)
+			}
+			if (t == "money" && f.Type != "money" && f.Type != "number") || (t == "text" && f.Type != "text" && f.Type != "textarea") {
+				return fmt.Errorf("فیلد «%s» باید از نوع %s باشد", f.Key, t)
+			}
+		}
 	}
 	keys := map[string]bool{}
 	for _, f := range p.Fields {

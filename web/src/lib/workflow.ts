@@ -9,6 +9,8 @@ export interface WfStep {
 }
 export interface WfPackageBody {
   id: string; version: number; name: string; description?: string; customer?: string;
+  /** tied to what the system does («invoice.issue», «proforma.issue»): started by the system, not by people */
+  trigger?: string;
   start: { allow?: WfRef[]; title?: string }; fields?: WfField[]; steps: WfStep[];
 }
 export interface WfPackageRow { id: string; version: number; name: string; enabled: boolean; keyId: string; source: 'signed' | 'local'; uploadedAt: string; uploadedBy: string; running: number; package: WfPackageBody }

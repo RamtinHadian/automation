@@ -71,6 +71,9 @@ func proformaApprovalChain(ctx context.Context, issuerID string) []string {
 
 func proformaApprovalGate(ctx context.Context, me auth.User, before, doc jsonx.M) string {
 	required, _ := proformaApprovalConfig(ctx, jsonx.Str(doc, "proformaIssuerId"))
+	if !required && wfTriggerPackage(ctx, "proforma.issue") != nil {
+		required = true // a workflow tied to «proforma.issue» is on: the approval is required and the workflow does it
+	}
 	if !required {
 		return ""
 	}
@@ -114,7 +117,7 @@ func proformaApprovalGate(ctx context.Context, me auth.User, before, doc jsonx.M
 		}
 		switch decision {
 		case "APPROVED", "REJECTED":
-			if oldStatus != "PENDING" || !myTurn {
+			if oldStatus != "PENDING" || !myTurn || jsonx.Str(old, "workflowId") != "" { // a proforma that goes through a workflow is decided there only
 				keepOld()
 				return ""
 			}

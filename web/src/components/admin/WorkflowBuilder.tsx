@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 import { useAppContext } from '../../context/AppContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { WfPackageBody, WfRef } from '../../lib/workflow';
-import { ALLOW_KINDS, BState, BStep, FIELD_TYPES, fromPackage, newStep, OPS, OUTCOMES, presetState, freshState, STEP_NAME, stepLabel, toPackage, WHO_KINDS } from '../../lib/workflowBuilder';
+import { ALLOW_KINDS, BState, BStep, FIELD_TYPES, fromPackage, newStep, OPS, OUTCOMES, presetState, presetTrigger, freshState, STEP_NAME, stepLabel, toPackage, TRIGGERS, TRIGGER_FIELDS, WHO_KINDS } from '../../lib/workflowBuilder';
 import { WorkflowSteps } from '../workflow/WorkflowSteps';
 import { askConfirm } from '../../lib/confirmDialog';
 
@@ -155,6 +155,8 @@ export const WorkflowBuilder: React.FC<{ initial?: WfPackageBody; onClose: () =>
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl border border-[#EBDBCE] bg-white text-[#6E1B1B] text-xs font-black cursor-pointer">← بازگشت به فهرست</button>
         {!initial && (
           <>
+            <button type="button" onClick={() => setS(presetTrigger('invoice.issue'))} className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] font-black text-emerald-900 cursor-pointer" data-wfb-preset-invoice>نمونه: تأیید صدور فاکتور (خودکار)</button>
+            <button type="button" onClick={() => setS(presetTrigger('proforma.issue'))} className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] font-black text-emerald-900 cursor-pointer" data-wfb-preset-proforma>نمونه: تأیید پیش‌فاکتور (خودکار)</button>
             <button type="button" onClick={() => setS(presetState('buy'))} className="px-3 py-2 rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] text-[11px] font-black text-[#6E1B1B] cursor-pointer">نمونه: تأیید خرید با شرط مبلغ</button>
             <button type="button" onClick={() => setS(presetState('simple'))} className="px-3 py-2 rounded-xl bg-[#FAF5F1] border border-[#EBDBCE] text-[11px] font-black text-[#6E1B1B] cursor-pointer">نمونه: تأیید ساده</button>
           </>
@@ -170,14 +172,41 @@ export const WorkflowBuilder: React.FC<{ initial?: WfPackageBody; onClose: () =>
             <input className={input} value={s.description} onChange={(e) => upd((d) => { d.description = e.target.value; })} />
             <label className={lbl}>شناسهٔ انگلیسی (برای سیستم؛ فقط حرف کوچک، عدد و خط تیره)</label>
             <input className={input} dir="ltr" value={s.id} disabled={!!initial} onChange={(e) => upd((d) => { d.id = e.target.value.trim(); })} />
-            <label className={lbl}>چه کسانی می‌توانند این درخواست را شروع کنند؟</label>
-            {whoRows(s.allow, ALLOW_KINDS, (l) => upd((d) => { d.allow = l; }))}
+            <label className={lbl}>این گردشکار برای چه کاری است؟</label>
+            <select className={input} value={s.trigger} data-wfb-trigger onChange={(e) => upd((d) => {
+              d.trigger = e.target.value;
+              if (d.trigger) d.fields = d.fields.filter((f) => TRIGGER_FIELDS.some(([k]) => k === f.key)); // a tied workflow can only use the values the system gives
+            })}>
+              {TRIGGERS.map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+            </select>
+            {s.trigger ? (
+              <p className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-900 leading-6">
+                این گردشکار را خود سامانه شروع می‌کند: هر بار کسی (غیر از مدیر کل) این کار را بکند، گردشکار شروع می‌شود و کار فقط وقتی انجام می‌شود که با «تأیید شد» تمام شود؛ «رد شد» آن را لغو می‌کند. فقط یک گردشکار برای هر کار روشن است (روشن‌کردن این، قبلی را خاموش می‌کند). مدیر کل بدون گردشکار انجام می‌دهد.
+              </p>
+            ) : (
+              <>
+                <label className={lbl}>چه کسانی می‌توانند این درخواست را شروع کنند؟</label>
+                {whoRows(s.allow, ALLOW_KINDS, (l) => upd((d) => { d.allow = l; }))}
+              </>
+            )}
           </div>
 
           <div className="rounded-2xl border border-[#EBDBCE] bg-white p-5">
-            <div className="text-[13px] font-black text-[#6E1B1B] mb-2">۲) فرم (چه چیزهایی از درخواست‌دهنده پرسیده شود)</div>
-            {s.fields.length === 0 && <p className="text-[11px] font-bold text-[#8C6F66]">هنوز فیلدی نیست. اگر درخواست چیزی لازم ندارد، فرم را خالی بگذارید.</p>}
-            {s.fields.map((f, i) => (
+            <div className="text-[13px] font-black text-[#6E1B1B] mb-2">{s.trigger ? '۲) مقدارهایی که سامانه می‌دهد (برای شرط و متن‌ها)' : '۲) فرم (چه چیزهایی از درخواست‌دهنده پرسیده شود)'}</div>
+            {s.trigger && (
+              <div className="flex flex-wrap gap-2" data-wfb-trigger-fields>
+                {TRIGGER_FIELDS.map(([k, t, ty]) => {
+                  const on = s.fields.some((f) => f.key === k);
+                  return (
+                    <label key={k} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black cursor-pointer ${on ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-white border-[#EBDBCE] text-[#503730]'}`}>
+                      <input type="checkbox" checked={on} onChange={(e) => upd((d) => { d.fields = e.target.checked ? [...d.fields, { key: k, label: t, type: ty, required: false, options: '' }] : d.fields.filter((f) => f.key !== k); })} />{t}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            {!s.trigger && s.fields.length === 0 && <p className="text-[11px] font-bold text-[#8C6F66]">هنوز فیلدی نیست. اگر درخواست چیزی لازم ندارد، فرم را خالی بگذارید.</p>}
+            {!s.trigger && s.fields.map((f, i) => (
               <div key={f.key} className="rounded-xl border border-dashed border-[#EBDBCE] p-2 mb-2 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <input className={input + ' !w-auto flex-1 min-w-[150px]'} value={f.label} onChange={(e) => upd((d) => { d.fields[i].label = e.target.value; })} placeholder="عنوان فیلد (مثلاً مبلغ)" />
@@ -188,7 +217,7 @@ export const WorkflowBuilder: React.FC<{ initial?: WfPackageBody; onClose: () =>
                 {f.type === 'select' && <input className={input} value={f.options} onChange={(e) => upd((d) => { d.fields[i].options = e.target.value; })} placeholder="گزینه‌ها را با ویرگول جدا کنید: الف، ب، ج" />}
               </div>
             ))}
-            <button type="button" onClick={() => upd((d) => { d.nf += 1; d.fields.push({ key: 'f' + d.nf, label: '', type: 'text', required: false, options: '' }); })} className="px-3 py-1.5 rounded-xl border border-dashed border-[#C98B6A] text-[11px] font-black text-[#6E1B1B] cursor-pointer" data-wfb-add-field><Plus className="w-3.5 h-3.5 inline ml-1" />افزودن فیلد</button>
+            {!s.trigger && <button type="button" onClick={() => upd((d) => { d.nf += 1; d.fields.push({ key: 'f' + d.nf, label: '', type: 'text', required: false, options: '' }); })} className="px-3 py-1.5 rounded-xl border border-dashed border-[#C98B6A] text-[11px] font-black text-[#6E1B1B] cursor-pointer" data-wfb-add-field><Plus className="w-3.5 h-3.5 inline ml-1" />افزودن فیلد</button>}
             <label className={lbl}>عنوان هر درخواست (اختیاری)</label>
             <input className={input} value={s.title} onChange={(e) => upd((d) => { d.title = e.target.value; })} placeholder="مثلاً خرید {{کالا}}" />
             {chips((t) => upd((d) => { d.title += '{{' + t + '}}'; }))}

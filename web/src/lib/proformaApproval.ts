@@ -30,6 +30,7 @@ export const dealChain = (deal: Pick<Deal, 'proformaApproval'> | undefined, sett
  */
 export const canApproveProforma = (u?: Pick<User, 'id' | 'canSignOfficialLetters'> | null, settings?: ApprovalSettings | null, issuerId?: string, deal?: Pick<Deal, 'proformaApproval'>) => {
   if (!u) return false;
+  if (deal?.proformaApproval?.status === 'PENDING' && deal.proformaApproval.workflowId) return false; // a workflow decides it
   const chain = dealChain(deal, settings, issuerId);
   if (!chain.length) return u.canSignOfficialLetters === true;
   if (deal?.proformaApproval?.status === 'PENDING') return chain[deal.proformaApproval.step || 0] === u.id;
@@ -39,6 +40,7 @@ export const canApproveProforma = (u?: Pick<User, 'id' | 'canSignOfficialLetters
 /** Words for a proforma that waits: whose turn it is and how far it has come. */
 export const approvalProgress = (deal: Pick<Deal, 'proformaApproval'>, names: (id: string) => string) => {
   const ap = deal.proformaApproval;
+  if (ap?.status === 'PENDING' && ap.workflowId) return `با گردشکار «${ap.workflowName || 'تأیید پیش‌فاکتور'}» پیش می‌رود (در «گردشکارها» تصمیم گرفته می‌شود)`;
   if (!ap || ap.status !== 'PENDING' || !ap.chain?.length) return '';
   const st = ap.step || 0;
   return `مرحلهٔ ${st + 1} از ${ap.chain.length}: منتظر ${names(ap.chain[st])}`;

@@ -331,6 +331,9 @@ export interface Deal {
     /** the people who approve one after the other (fixed when the proforma is sent), the place of the one whose turn it is, and what each has decided */
     chain?: string[];
     step?: number;
+    /** when a workflow decides: its instance and name */
+    workflowId?: string;
+    workflowName?: string;
     /** only sent by the browser: «I approve this step» while the proforma stays waiting for the next person */
     decision?: 'APPROVED' | 'REJECTED';
     steps?: { id: string; name: string; status: 'APPROVED' | 'REJECTED'; at: string; note?: string }[];
@@ -430,6 +433,9 @@ export interface DealInvoice {
   kind: 'OFFICIAL' | 'UNOFFICIAL';
   status: 'issued' | 'cancelled' | 'pending' | 'awaiting';
   /** «awaiting»: the people who may approve it (any one is enough), and later who approved */
+  /** when a workflow decides: its instance and name */
+  workflowId?: string;
+  workflowName?: string;
   approvers?: string[];
   /** the place of the approver whose turn it is, and what each has decided */
   step?: number;

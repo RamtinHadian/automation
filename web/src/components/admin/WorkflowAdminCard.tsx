@@ -80,7 +80,7 @@ export const WorkflowAdminCard: React.FC = () => {
               <div className="flex items-center gap-3 px-4 py-3 flex-wrap">
                 <div className="flex-1 min-w-[200px]">
                   <div className="text-[13px] font-black text-[#3A241F]">{r.name} <span className="text-[10.5px] font-bold text-[#8C6F66]">· نسخهٔ {toPersianDigits(r.version)}</span></div>
-                  <div className="text-[10.5px] font-bold text-[#8C6F66]">{toPersianDigits(r.package.steps.length)} مرحله · بارگذاری {formatDateTime(r.uploadedAt)}{r.uploadedBy ? ` · ${r.uploadedBy}` : ''}{r.running ? ` · ${toPersianDigits(r.running)} درخواست در جریان` : ''}</div>
+                  <div className="text-[10.5px] font-bold text-[#8C6F66]">{r.package.trigger ? <b className="text-emerald-800">خودکار هنگام «{r.package.trigger === 'invoice.issue' ? 'صدور فاکتور' : 'ارسال پیش‌فاکتور'}» · </b> : null}{toPersianDigits(r.package.steps.length)} مرحله · بارگذاری {formatDateTime(r.uploadedAt)}{r.uploadedBy ? ` · ${r.uploadedBy}` : ''}{r.running ? ` · ${toPersianDigits(r.running)} درخواست در جریان` : ''}</div>
                 </div>
                 {r.source === 'local'
                   ? <span className="text-[10px] font-black rounded-full px-2 py-0.5 border bg-amber-50 text-amber-800 border-amber-200" title="با ساز داخل هورمند ساخته شده است">ساختهٔ مدیر سامانه</span>

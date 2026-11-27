@@ -269,6 +269,39 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	}
 	owner := jsonx.Str(doc, "ownerId")
 	approvalEvent := proformaApprovalGate(r.Context(), me, before, doc)
+	// a workflow tied to «proforma.issue»: the system starts it when the proforma is sent for approval (and starts it again when the proforma is changed while it waits)
+	if wp := wfTriggerPackage(r.Context(), "proforma.issue"); wp != nil {
+		ap, oldAp := jsonx.Sub(doc, "proformaApproval"), jsonx.Sub(before, "proformaApproval")
+		startNew := approvalEvent == "pending" && jsonx.Str(ap, "status") == "PENDING"
+		if oldWf := jsonx.Str(oldAp, "workflowId"); jsonx.Str(oldAp, "status") == "PENDING" && oldWf != "" && proformaContent(before) != proformaContent(doc) {
+			wfCancelInstance(r.Context(), oldWf, me, "پیش‌فاکتور تغییر کرد و گردشکار دوباره شروع شد")
+			ap, startNew = jsonx.Copy(oldAp), true
+		}
+		if startNew {
+			vals := wfDealValues(doc, "PROFORMA", jsonx.Str(doc, "proformaNumber"), me, jsonx.Str(doc, "notes"))
+			instID, wst, _, werr := wfStartTriggered(r.Context(), wp, me, vals, id)
+			if werr != nil {
+				httpx.Error(w, http.StatusUnprocessableEntity, "گردشکار پیش‌فاکتور شروع نشد: "+werr.Error())
+				return
+			}
+			ap["status"], ap["requestedBy"], ap["requestedByName"], ap["requestedAt"] = "PENDING", me.ID(), me.Name(), now()
+			ap["chain"], ap["step"], ap["steps"], ap["workflowId"], ap["workflowName"] = []any{}, 0, []any{}, instID, wp.Name
+			delete(ap, "decision")
+			if wst.Status != "running" { // nothing to wait for: it ended at once
+				ap["steps"] = wfDecisions(wst)
+				if wst.Status == "approved" || wst.Status == "done" {
+					ap["status"], approvalEvent = "APPROVED", "approved"
+				} else {
+					ap["status"], approvalEvent = "REJECTED", "rejected"
+					ap["note"] = wfLastComment(wst)
+				}
+				ap["decidedBy"], ap["decidedByName"], ap["decidedAt"] = me.ID(), me.Name(), now()
+			} else {
+				approvalEvent = "workflow"
+			}
+			doc["proformaApproval"] = ap
+		}
+	}
 	// the customer is told about a proforma once per proforma number, when it may reach the customer (after the CEO's
 	// approval when the company asks for it); the server remembers the number it told about
 	sentNo, no := jsonx.Str(before, "proformaSmsNumber"), jsonx.Str(doc, "proformaNumber")

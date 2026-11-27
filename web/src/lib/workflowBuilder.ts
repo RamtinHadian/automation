@@ -8,7 +8,7 @@ export interface BStep {
   uid: string; type: WfStep['type']; name: string; who: WfRef[]; mode: 'any' | 'all'; hours: string; reject: string; next: string;
   cond: { field: string; op: string; value: string }; then: string; else: string; to: WfRef[]; text: string; outcome: 'approved' | 'rejected' | 'done';
 }
-export interface BState { id: string; version: number; name: string; description: string; allow: WfRef[]; title: string; fields: BField[]; steps: BStep[]; nf: number; nu: number }
+export interface BState { id: string; version: number; name: string; description: string; trigger: string; allow: WfRef[]; title: string; fields: BField[]; steps: BStep[]; nf: number; nu: number }
 
 export const WHO_KINDS: [string, string][] = [
   ['starter', 'درخواست‌دهنده'], ['starterManager', 'مدیر واحدِ درخواست‌دهنده'], ['ceo', 'مدیرعامل'], ['admin', 'مدیر سیستم'],
@@ -20,7 +20,18 @@ export const OPS: [string, string][] = [['>', 'بیشتر از'], ['>=', 'بیش
 export const STEP_NAME: Record<string, string> = { approval: 'تأیید', task: 'کار', condition: 'شرط', notify: 'اطلاع‌رسانی', end: 'پایان' };
 export const OUTCOMES: ['approved' | 'rejected' | 'done', string][] = [['approved', 'تأیید شد'], ['done', 'انجام شد'], ['rejected', 'رد شد']];
 
-export const freshState = (): BState => ({ id: 'flow-' + Math.random().toString(36).slice(2, 6), version: 1, name: '', description: '', allow: [{ kind: 'everyone' }], title: '', fields: [], steps: [], nf: 0, nu: 0 });
+/** What a workflow can be tied to: the system starts it by itself and the thing goes on only if it ends approved. */
+export const TRIGGERS: [string, string][] = [
+  ['', 'درخواستی که کاربر شروع می‌کند (مثل مرخصی)'],
+  ['invoice.issue', 'خودکار، هنگام صدور فاکتور'],
+  ['proforma.issue', 'خودکار، هنگام ارسال پیش‌فاکتور برای تأیید'],
+];
+/** The values the system fills in for a tied workflow (use them in conditions and texts). */
+export const TRIGGER_FIELDS: [string, string, WfField['type']][] = [
+  ['customer', 'مشتری', 'text'], ['amount', 'مبلغ', 'money'], ['kind', 'نوع', 'text'], ['number', 'شماره', 'text'], ['issuer', 'صادرکننده', 'text'], ['items', 'اقلام', 'text'], ['note', 'توضیحات', 'text'],
+];
+
+export const freshState = (): BState => ({ id: 'flow-' + Math.random().toString(36).slice(2, 6), version: 1, name: '', description: '', trigger: '', allow: [{ kind: 'everyone' }], title: '', fields: [], steps: [], nf: 0, nu: 0 });
 
 export function newStep(s: BState, type: WfStep['type']): BStep {
   s.nu += 1;
@@ -67,7 +78,8 @@ export function toPackage(s: BState): WfPackageBody {
     }
     return o;
   });
-  const p: WfPackageBody = { id: s.id, version: s.version, name: s.name.trim(), start: { allow: cleanRefs(s.allow) }, steps: out };
+  const p: WfPackageBody = { id: s.id, version: s.version, name: s.name.trim(), start: { allow: s.trigger ? [] : cleanRefs(s.allow) }, steps: out };
+  if (s.trigger) p.trigger = s.trigger;
   if (s.description.trim()) p.description = s.description.trim();
   if (s.title.trim()) p.start.title = tpl(s.title);
   if (s.fields.length) p.fields = s.fields.map((f) => ({ key: f.key, label: f.label.trim(), type: f.type, ...(f.required ? { required: true } : {}), ...(f.type === 'select' ? { options: f.options.split(/[,،]/).map((x) => x.trim()).filter(Boolean) } : {}) }));
@@ -77,7 +89,7 @@ export function toPackage(s: BState): WfPackageBody {
 /** A saved package back into the builder (the steps keep their order; only jumps away from «the next step» are remembered). */
 export function fromPackage(p: WfPackageBody): BState {
   const s = freshState();
-  s.id = p.id; s.version = p.version; s.name = p.name; s.description = p.description || '';
+  s.id = p.id; s.version = p.version; s.name = p.name; s.description = p.description || ''; s.trigger = p.trigger || '';
   s.allow = (p.start.allow?.length ? p.start.allow : [{ kind: 'everyone' }]).map((w) => ({ kind: w.kind, ...(w.ref ? { ref: w.ref } : {}) }));
   s.fields = (p.fields || []).map((f) => ({ key: f.key, label: f.label, type: f.type, required: !!f.required, options: (f.options || []).join('، ') }));
   s.nf = s.fields.reduce((m, f) => Math.max(m, parseInt((f.key.match(/\d+/) || ['0'])[0], 10) || 0), 0);
@@ -100,6 +112,26 @@ export function fromPackage(p: WfPackageBody): BState {
     }
     return b;
   });
+  return s;
+}
+
+/** Ready flows for what the system does: the manager of the issuer approves, and above an amount the managing director too. */
+export function presetTrigger(trigger: 'invoice.issue' | 'proforma.issue'): BState {
+  const s = freshState();
+  const inv = trigger === 'invoice.issue';
+  s.trigger = trigger;
+  s.id = (inv ? 'invoice-approval-' : 'proforma-approval-') + Math.random().toString(36).slice(2, 5);
+  s.name = inv ? 'تأیید صدور فاکتور' : 'تأیید پیش‌فاکتور';
+  s.description = 'مدیر واحدِ صادرکننده تأیید می‌کند؛ اگر مبلغ از ۵۰ میلیون ریال بیشتر بود مدیرعامل هم می‌بیند.';
+  s.fields = [{ key: 'customer', label: 'مشتری', type: 'text', required: false, options: '' }, { key: 'amount', label: 'مبلغ', type: 'money', required: false, options: '' }];
+  s.title = '{{مشتری}} · {{مبلغ}}';
+  const a = { ...newStep(s, 'approval'), name: 'تأیید مدیر واحد', hours: '24' };
+  const c = { ...newStep(s, 'condition'), name: 'مبلغ بالاست؟', cond: { field: 'amount', op: '>', value: '50000000' } };
+  const m = { ...newStep(s, 'approval'), name: 'تأیید مدیرعامل', who: [{ kind: 'ceo' }], hours: '48' };
+  const e = { ...newStep(s, 'end'), name: 'تأیید شد' };
+  c.then = m.uid;
+  c.else = e.uid;
+  s.steps = [a, c, m, e];
   return s;
 }
 

@@ -192,6 +192,9 @@ func wfEnable(w http.ResponseWriter, r *http.Request) {
 	} else {
 		_, err = tx.Exec(r.Context(), `UPDATE wf_packages SET enabled = false WHERE id = $1 AND version = $2::int`, id, ver)
 	}
+	if err == nil && on { // only one workflow is on for a trigger: the others of the same trigger are switched off
+		_, err = tx.Exec(r.Context(), `UPDATE wf_packages SET enabled = false WHERE id <> $1 AND enabled AND data->>'trigger' <> '' AND data->>'trigger' = (SELECT data->>'trigger' FROM wf_packages WHERE id = $1 AND version = $2::int)`, id, ver)
+	}
 	if err != nil || tx.Commit(r.Context()) != nil {
 		internalError(w)
 		return
@@ -268,7 +271,7 @@ func wfStartable(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		p, err := workflow.Parse(raw)
-		if err != nil || !wfMayStart(r.Context(), p, me) {
+		if err != nil || p.Trigger != "" || !wfMayStart(r.Context(), p, me) { // a workflow tied to a trigger is started by the system, not by people
 			continue
 		}
 		out = append(out, jsonx.M{"id": p.ID, "version": p.Version, "name": p.Name, "description": p.Description, "fields": p.Fields})
@@ -352,6 +355,10 @@ func wfStart(w http.ResponseWriter, r *http.Request) {
 	p, err := workflow.Parse(raw)
 	if err != nil {
 		internalError(w)
+		return
+	}
+	if p.Trigger != "" {
+		httpx.Error(w, http.StatusForbidden, "این گردشکار را خود سامانه شروع می‌کند (هنگام «"+workflow.Triggers[p.Trigger]+"»)، نه کاربران.")
 		return
 	}
 	if !wfMayStart(r.Context(), p, me) {
@@ -559,6 +566,7 @@ func wfAct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	wfNotify(r.Context(), id, fx, me.ID())
+	wfAfterFinish(r, me, p, i)
 	httpx.JSON(w, http.StatusOK, wfView(r.Context(), i, me))
 }
 
@@ -588,6 +596,9 @@ func wfCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	wfNotify(r.Context(), i.ID, []workflow.Effect{{Users: waitingBefore, Title: i.PackageName, Body: i.Title + " — لغو شد"}}, me.ID())
+	if p, _, perr := wfLoadPackage(r.Context(), i.PackageID, i.Version); perr == nil {
+		wfAfterFinish(r, me, p, i)
+	}
 	httpx.OK(w)
 }
 
