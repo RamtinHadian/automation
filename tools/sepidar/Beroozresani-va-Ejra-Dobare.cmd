@@ -15,7 +15,7 @@ echo [2/3] Gereftan-e file-haye taze az Hoormand ...
 echo.
 echo [3/3] Roshan kardan-e dobareh-ye barnameh ...
 schtasks /Run /TN HoormandSepidarWatch >nul 2>nul
-if errorlevel 1 start "" /b cmd /c ""%NODE%" sepidar-sync.mjs watch --apply >> sepidar.log 2>&1"
+if errorlevel 1 wscript "%~dp0start-watch.vbs"
 timeout /t 5 /nobreak >nul
 echo.
 echo Tamam shod. Hala dar Hoormand rooye neshan-e sabz-e "Sepidar" bala-ye safheh click konid;

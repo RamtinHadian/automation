@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.80.7';
+export const TOOL_VERSION = '1.80.8';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -1566,6 +1566,10 @@ async function main() {
   if (cmd === 'watch') {
     // requests from Hoormand's people are looked at every few seconds; the full synchronisation runs every intervalMinutes
     startFileLog();
+    // one stray error of one round (a network answer that fails late, a bad answer of Sepidar) must never end the program: it is written in the log and the program goes on
+    process.on('uncaughtException', (e) => log('خطای پیش‌بینی‌نشده (برنامه ادامه می‌دهد):', e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : e));
+    process.on('unhandledRejection', (e) => log('خطای پیش‌بینی‌نشده (برنامه ادامه می‌دهد):', e && e.message ? e.message : e));
+    log(`برنامه روشن شد (نسخهٔ ${TOOL_VERSION}).`);
     let nextFull = 0;
     let nextUpdate = 0;
     let lastJobs = 0;
