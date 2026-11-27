@@ -1,3 +1,4 @@
+import { openInvoiceThermal, rememberedThermalSize, THERMAL_SIZES, ThermalSize } from '../../lib/invoiceThermal';
 import React, { useEffect, useState } from 'react';
 import { Image, Printer, Receipt } from 'lucide-react';
 import { Customer, Deal } from '../../types';
@@ -70,6 +71,7 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
   const deal: Deal = { ...shown, invoice: deals.find((x) => x.id === shown.id)?.invoice ?? shown.invoice };
   const [busy, setBusy] = useState(false);
   const [paidTick, setPaidTick] = useState(false);
+  const [thermal, setThermal] = useState<ThermalSize>(rememberedThermalSize);
   const [extra, setExtra] = useState<InvoiceExtra>(emptyInvoiceExtra);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
@@ -159,6 +161,17 @@ export const InvoiceBlock: React.FC<{ deal: Deal; customer?: Customer; onChanged
           <Printer className="w-3.5 h-3.5" />
           چاپ / PDF
         </button>}
+        {!pending && !awaiting && !cancelled && (
+          <span className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-white px-1.5 py-1" data-invoice-thermal>
+            <select value={thermal} onChange={(e) => setThermal(e.target.value as ThermalSize)} className="text-[11px] font-black text-emerald-900 bg-transparent outline-hidden cursor-pointer max-w-[190px]" aria-label="اندازهٔ کاغذ پرینتر لیبل‌زن">
+              {THERMAL_SIZES.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
+            <button type="button" onClick={() => openInvoiceThermal(deal, customer, settings, currentUser.fullName, thermal)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-emerald-600 text-white cursor-pointer" data-invoice-print-thermal>
+              <Printer className="w-3.5 h-3.5" />
+              چاپ روی پرینتر لیبل‌زن
+            </button>
+          </span>
+        )}
         {!pending && <button
           type="button"
           disabled={busy}
