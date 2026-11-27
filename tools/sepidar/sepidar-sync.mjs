@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.81.2';
+export const TOOL_VERSION = '1.81.3';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -157,6 +157,8 @@ async function diagQuotation(sp, id, q) {
     // how Sepidar's own invoices were made: with an order (OrderRef)? what does an order look like? (nothing is written here)
     try {
       const all = await sp.get('/api/Invoices');
+      const newest = [...all].sort((x, y) => (y.InvoiceID ?? 0) - (x.InvoiceID ?? 0)).slice(0, 6).map((x) => ({ InvoiceID: x.InvoiceID, Number: x.Number, Date: String(x.Date || '').slice(0, 10), CustomerRef: x.CustomerRef, Price: x.Price }));
+      log('  [تشخیص] جدیدترین فاکتورها در فهرست سپیدار (بر پایهٔ InvoiceID):', JSON.stringify(newest), '· بیشترین شماره:', Math.max(...all.map((x) => Number(x.Number) || 0)));
       const withOrder = all.filter((x) => x.OrderRef != null);
       log('  [تشخیص] فاکتورها:', all.length, '· با سفارش (OrderRef):', withOrder.length, '· با پیش‌فاکتور (QuotationRef):', all.filter((x) => x.QuotationRef != null).length);
       const one = withOrder[withOrder.length - 1] || all[all.length - 1];
