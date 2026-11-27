@@ -67,7 +67,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
     };
     return officialProblems(merged as Parameters<typeof officialProblems>[0], items as never);
   }, [kind, customer, issuer, items]);
-  const problem = !canIssueInvoice(currentUser) ? 'صدور فاکتور به شما اجازه داده نشده است.' : !customer ? 'مشتری را انتخاب کنید.' : items.length === 0 ? 'دست‌کم یک ردیف با عنوان بنویسید.' : items.some((i) => i.qty <= 0) ? 'تعداد هر ردیف باید بیشتر از صفر باشد.' : lacks.length ? `فاکتور رسمی این موارد را کم دارد: ${lacks.join('، ')}.` : '';
+  const problem = !canIssueInvoice(currentUser) ? 'صدور فاکتور به شما اجازه داده نشده است.' : !customer ? 'مشتری را انتخاب کنید.' : items.length === 0 ? 'دست‌کم یک ردیف با عنوان بنویسید.' : items.some((i) => i.qty <= 0) ? 'تعداد هر ردیف باید بیشتر از صفر باشد.' : items.some((i) => !(i.unitPrice > 0)) ? 'مبلغ (قیمت واحد) هر ردیف اجباری است.' : lacks.length ? `فاکتور رسمی این موارد را کم دارد: ${lacks.join('، ')}.` : '';
 
   const issue = async () => {
     const ok = await askConfirm(`«${kind === 'OFFICIAL' ? 'فاکتور رسمی' : 'فاکتور'}» برای «${customer?.name || ''}» به مبلغ ${formatMoney(totals.payable)} ${unitName()} صادر شود؟ بعد از صدور قابل ویرایش نیست (فقط ابطال).`, { tone: 'info', title: 'صدور فاکتور', confirmText: 'بله، صادر شود' });

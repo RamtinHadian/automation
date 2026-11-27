@@ -29,6 +29,7 @@ export function invoiceBlocker(deal: Deal, settings: SystemSettings, customer?: 
   if (hasInvoice(deal)) return 'برای این فرصت فاکتور صادر شده است.';
   if (!deal.proformaNumber || !deal.items?.some((i) => i.title.trim())) return 'اول پیش‌فاکتور بسازید؛ فاکتور از روی آن صادر می‌شود.';
   if (!proformaReleased(deal, settings)) return 'پیش‌فاکتور هنوز تأیید مدیر را نگرفته است.';
+  if ((deal.items || []).some((i) => i.title.trim() && !(Number(i.unitPrice) > 0))) return 'مبلغ (قیمت واحد) هر ردیف اجباری است؛ در پیش‌فاکتور مبلغ ردیف‌های بدون مبلغ را بنویسید.';
   const issuer = issuerOf(deal, settings);
   if (issuer.kind === 'OFFICIAL') {
     const f: ProformaFields = deal.proformaFields || {};

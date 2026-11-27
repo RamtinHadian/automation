@@ -99,6 +99,12 @@ func enforceInvoice(w http.ResponseWriter, r *http.Request, me auth.User, before
 		return false, false
 	}
 	standalone := jsonx.Bool(doc, "standalone") // issued straight to the customer: there is no proforma to wait for
+	for _, it := range jsonx.Arr(doc, "items") { // the amount of every row is required: an invoice without it is not issued
+		if m, ok := it.(map[string]any); ok && strings.TrimSpace(jsonx.Str(m, "title")) != "" && !(jsonx.Num(m["unitPrice"]) > 0) {
+			httpx.Error(w, http.StatusBadRequest, "مبلغ (قیمت واحد) هر ردیف فاکتور اجباری است؛ فاکتور بدون مبلغ صادر نمی‌شود.")
+			return false, false
+		}
+	}
 	if !standalone && !proformaEnabled(r.Context()) {
 		httpx.Error(w, http.StatusConflict, "پیش‌فاکتور در این سازمان غیرفعال است؛ برای فاکتور از «صدور فاکتور» (مستقل از پیش‌فاکتور) استفاده کنید.")
 		return false, false
