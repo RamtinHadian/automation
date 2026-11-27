@@ -345,6 +345,32 @@ export const NotificationSettingsCard: React.FC<{ settings: SystemSettings; onSa
           )}
         </div>
       </div>
+      {/* the colour of the incoming-call pop-up, per status of the customer who calls */}
+      <div className={card} data-call-colors>
+        <div>
+          <div className="font-black text-sm text-[#3A241F]">رنگ پاپ‌آپ تماس بر اساس وضعیت مشتری</div>
+          <p className="text-[11px] font-bold text-[#8C6F66] mt-1 leading-6">برای هر وضعیت مشتری، اگر تیک بزنید و رنگ بدهید، وقتی چنین مشتری‌ای زنگ بزند پاپ‌آپ تماس به همان رنگ می‌شود. بدون تیک، رنگ همیشگی می‌ماند. مشتری‌ای که فقط پیش‌فاکتور گرفته و خرید نکرده هم «قیمت‌گیر» حساب می‌شود.</p>
+        </div>
+        <div className="space-y-2">
+          {([['PRICE_ONLY', 'قیمت‌گیر', '#e11d48'], ['LEAD', 'مشتری بالقوه', '#d97706'], ['ACTIVE', 'مشتری فعال', '#059669'], ['INACTIVE', 'غیرفعال', '#64748b']] as const).map(([key, label, def]) => {
+            const cc = cfg.callColors?.[key];
+            const on = cc ? !!cc.on : key === 'PRICE_ONLY';
+            const color = cc?.color || def;
+            const set = (u: { on?: boolean; color?: string }) => patch({ callColors: { ...cfg.callColors, [key]: { on, color, ...u } } });
+            return (
+              <div key={key} className="flex items-center gap-3 rounded-xl border border-[#EBDBCE] bg-[#FAF5F1] px-3 py-2.5" data-call-color-row={key}>
+                <label className="flex items-center gap-2 font-black text-[#3A241F] cursor-pointer w-44 shrink-0">
+                  <input type="checkbox" className="accent-[#6E1B1B]" checked={on} onChange={(e) => set({ on: e.target.checked })} />
+                  {label}
+                </label>
+                <input type="color" value={color} disabled={!on} onChange={(e) => set({ color: e.target.value })} className="w-10 h-8 rounded-lg border border-[#EBDBCE] bg-white cursor-pointer disabled:opacity-40" aria-label={`رنگ ${label}`} />
+                <span className="flex-1 min-w-0 rounded-xl px-3 py-2 text-[11px] font-black text-white text-center" style={{ background: on ? color : '#B8A39C' }}>{on ? 'نمونهٔ پاپ‌آپ تماس' : 'رنگ همیشگی'}</span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[10.5px] font-bold text-[#8C6F66]">برای ذخیره، دکمهٔ «ذخیره» بالای همین بخش را بزنید.</p>
+      </div>
     </div>
   );
 };

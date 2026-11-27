@@ -50,7 +50,7 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const [dx, setDx] = useState(0);
   const swipe = useRef<{ x: number; y: number; on: boolean } | null>(null);
   const [muted, setMuted] = useState(() => !isAudioReady() && isSoundEnabled());
-  const { deals, customers, activities, currentUser } = useAppContext();
+  const { deals, customers, activities, currentUser, settings } = useAppContext();
   const isCall = n.kind === 'call';
   const cust = isCall && n.ref?.type === 'customer' ? customers.find((c) => c.id === n.ref!.id) : undefined;
   const summary = React.useMemo(() => {
@@ -79,7 +79,11 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
   const staffMatch = useStaffByPhone(callNumber);
   const unknownNumber = savedContact || staffMatch || (n.ref?.type === 'phone' && isExtensionNumber(n.ref.id)) ? '' : callNumber;
   // an incoming-call card stays until the call ends (or at most the number of seconds the admin set); the other cards use the admin's time, or stay until closed
-  const priceCall = !!(isCall && cust && summary?.priceOnly); // a price-only customer is calling: a red, different pop-up
+  // the colour the console gave to this customer's status (a customer who only asks for prices counts as «قیمت‌گیر», red unless changed)
+  const statusKey = cust ? (cust.status === 'PRICE_ONLY' || summary?.priceOnly ? 'PRICE_ONLY' : cust.status) : '';
+  const colorCfg = statusKey ? settings?.notifySettings?.callColors?.[statusKey] : undefined;
+  const tint = statusKey && (colorCfg ? colorCfg.on : statusKey === 'PRICE_ONLY') ? colorCfg?.color || '#e11d48' : '';
+  const priceCall = !!tint;
   const incoming = isCall && n.label !== 'تماس بی‌پاسخ';
   const conf = getNotifyConfig();
   const callSecs = conf?.callPopupSeconds ?? 120;
@@ -136,16 +140,16 @@ const Card: React.FC<{ n: AppNotification; onOpen: () => void; onClose: () => vo
         if (st?.on && Math.abs(dx) > 90) onClose();
         else setDx(0);
       } : undefined}
-      style={mobile ? { transform: dx ? `translateX(${dx}px) rotate(${dx / 60}deg)` : undefined, opacity: dx ? Math.max(0.35, 1 - Math.abs(dx) / 260) : 1, transition: swipe.current ? 'none' : 'transform .22s, opacity .22s', touchAction: 'pan-y' } : undefined}
-      className={mobile ? 'relative overflow-hidden w-full rounded-[28px] text-right text-white border border-white/10 shadow-[0_18px_48px_rgba(8,14,48,0.55)] ' + (priceCall ? 'bg-[linear-gradient(150deg,#9f1239_0%,#7f1d1d_55%,#450a0a_100%)]' : 'bg-[linear-gradient(150deg,#1b2e70_0%,#112052_55%,#0b1642_100%)]') : `relative overflow-hidden w-full rounded-2xl text-right shadow-[0_14px_40px_rgba(58,36,31,0.28)] ${priceCall ? 'bg-rose-50 border-2 border-rose-600 ring-4 ring-rose-300/70' : `bg-white border ${k.ring}`}`}
+      style={mobile ? { ...(tint ? { background: `linear-gradient(150deg, ${tint}, color-mix(in srgb, ${tint} 45%, #000))` } : {}), transform: dx ? `translateX(${dx}px) rotate(${dx / 60}deg)` : undefined, opacity: dx ? Math.max(0.35, 1 - Math.abs(dx) / 260) : 1, transition: swipe.current ? 'none' : 'transform .22s, opacity .22s', touchAction: 'pan-y' } : tint ? { borderColor: tint, backgroundColor: `color-mix(in srgb, ${tint} 10%, white)`, boxShadow: `0 0 0 4px color-mix(in srgb, ${tint} 28%, transparent), 0 14px 40px rgba(58,36,31,0.28)` } : undefined}
+      className={mobile ? 'relative overflow-hidden w-full rounded-[28px] text-right text-white border border-white/10 shadow-[0_18px_48px_rgba(8,14,48,0.55)] ' + (priceCall ? '' : 'bg-[linear-gradient(150deg,#1b2e70_0%,#112052_55%,#0b1642_100%)]') : `relative overflow-hidden w-full rounded-2xl text-right shadow-[0_14px_40px_rgba(58,36,31,0.28)] ${priceCall ? 'border-2' : `bg-white border ${k.ring}`}`}
     >
       {!mobile ? (
       <button type="button" onClick={onOpen} className="w-full flex items-start gap-3 p-3.5 pr-3.5 text-right cursor-pointer hover:bg-[#FAF5F1]/70 transition-colors">
-        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${priceCall ? 'bg-rose-600 text-white' : k.badge}`}>
+        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${priceCall ? 'text-white' : k.badge}`} style={tint ? { background: tint } : undefined}>
           <Icon className="w-5 h-5" />
         </span>
         <span className="flex-1 min-w-0">
-          <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full mb-1 ${priceCall ? 'bg-rose-600 text-white' : k.badge}`}>{n.label || k.fallback}{priceCall ? ' · قیمت‌گیر' : ''}</span>
+          <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full mb-1 ${priceCall ? 'text-white' : k.badge}`} style={tint ? { background: tint } : undefined}>{n.label || k.fallback}{statusKey === 'PRICE_ONLY' && priceCall ? ' · قیمت‌گیر' : ''}</span>
           <span className="block text-[13px] font-black text-[#3A241F] leading-5">{callTitle(n, savedContact, staffMatch)}</span>
           {n.body && <span className="block text-[11px] text-[#8C6F66] leading-5 mt-0.5 line-clamp-2">{n.body}</span>}
         </span>

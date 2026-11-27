@@ -131,7 +131,7 @@ export interface DailyReport {
   updatedAt: string;
 }
 
-export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE';
+export type CustomerStatus = 'LEAD' | 'ACTIVE' | 'INACTIVE' | 'PRICE_ONLY';
 export type DealStage = 'NEW' | 'CONTACTED' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST';
 export type ActivityType = 'NOTE' | 'CALL' | 'MEETING' | 'FOLLOWUP' | 'MISSING' | 'QUOTE';
 
@@ -367,6 +367,8 @@ export interface NotifyRule {
 
 /** How notifications look and sound in the whole organisation (set by an admin). */
 export interface NotifySettings {
+  /** the colour of the incoming-call pop-up per customer status (LEAD, ACTIVE, INACTIVE, PRICE_ONLY): `on` switches it, `color` is a #hex */
+  callColors?: Record<string, { on?: boolean; color?: string }>;
   enabled?: boolean;
   volume?: number;
   popupSeconds?: number;
@@ -833,8 +835,6 @@ export interface SystemSettings {
   letterTemplate?: OrgLetterTemplate;
   /** Per form (data-form-id): fields switched off, required fields and where Enter goes (set in the management console). */
   formConfig?: Record<string, import('./lib/formConfig').FormCfg>;
-  /** the tick «مشتری قیمت‌گیر است» in the customer form (new and edit): on unless this is false */
-  priceOnlyTick?: boolean;
   /** Ready-made letter texts written by an admin; users pick one in the letter editor. */
   letterTextTemplates?: LetterTextTemplate[];
   /** Ready-made messages (text, link, file) the staff send to customers on the social networks. */

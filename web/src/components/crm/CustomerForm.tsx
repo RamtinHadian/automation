@@ -16,7 +16,7 @@ import { api } from '../../lib/api';
 import { askConfirm } from '../../lib/confirmDialog';
 import { requiredOf } from '../../lib/formConfig';
 
-const STATUS_LABEL: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
+const STATUS_LABEL: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', PRICE_ONLY: 'قیمت‌گیر', INACTIVE: 'غیرفعال' };
 const COMPANY_TYPES = ['سهامی خاص', 'سهامی عام', 'مسئولیت محدود', 'تضامنی', 'نسبی', 'تعاونی', 'مؤسسه / انجمن', 'شخص حقیقی با کد اقتصادی', 'سایر'];
 
 const digits = (v: string) => normText(v).replace(/\D/g, '');
@@ -413,10 +413,6 @@ export const CustomerForm: React.FC<{
           <input type="checkbox" className="w-4 h-4 accent-amber-600" checked={!!c.isSupplier} onChange={(e) => patch({ isSupplier: e.target.checked || undefined })} />
           تأمین‌کننده هم هست (کنار حقیقی، حقوقی یا فروشگاه؛ فقط در هورمند علامت می‌خورد)
         </label>
-        {(appSettings?.priceOnlyTick !== false || c.priceOnly) && !contactKind && <label className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black cursor-pointer ${c.priceOnly ? 'bg-sky-50 border-sky-300 text-sky-900' : 'bg-white border-[#EBDBCE] text-[#3A241F]'}`} data-price-only-toggle>
-          <input type="checkbox" className="w-4 h-4 accent-sky-600" checked={!!c.priceOnly} onChange={(e) => patch({ priceOnly: e.target.checked || undefined })} />
-          مشتری قیمت‌گیر است (فقط قیمت می‌گیرد؛ برچسب «فقط قیمت‌گیر» کنار نامش می‌آید)
-        </label>}
 
         {isShop ? (
           <>

@@ -106,6 +106,7 @@ const kindOf = (c: { kind?: string }) => KIND_NAME[c.kind || 'PERSON'] || KIND_N
 const STATUS: Record<CustomerStatus, { label: string; cls: string }> = {
   LEAD: { label: 'مشتری بالقوه', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
   ACTIVE: { label: 'مشتری فعال', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  PRICE_ONLY: { label: 'قیمت‌گیر', cls: 'bg-sky-50 text-sky-800 border-sky-300' },
   INACTIVE: { label: 'غیرفعال', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 
@@ -354,7 +355,7 @@ export const CrmView: React.FC = () => {
     }
     return new Set([...priced].filter((id) => !bought.has(id)));
   }, [deals, boughtIds]);
-  const priceOnlyChip = (id: string) => (priceOnlyIds.has(id) || customers.find((x) => x.id === id)?.priceOnly ? <span className="inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border bg-sky-50 text-sky-800 border-sky-300 mr-1" title="پیش‌فاکتور (قیمت) گرفته ولی هنوز خرید نکرده" data-customer-price-only>فقط قیمت‌گیر</span> : null)
+  const priceOnlyChip = (id: string) => ((priceOnlyIds.has(id) || customers.find((x) => x.id === id)?.priceOnly) && customers.find((x) => x.id === id)?.status !== 'PRICE_ONLY' ? <span className="inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border bg-sky-50 text-sky-800 border-sky-300 mr-1" title="پیش‌فاکتور (قیمت) گرفته ولی هنوز خرید نکرده" data-customer-price-only>فقط قیمت‌گیر</span> : null)
   const filteredCustomers = useMemo(() => {
     const quietLimit = adv.quiet ? Date.now() - Number(adv.quiet) * 86400000 : 0;
     const rank = new Map<string, number>(); // with a search text, the best answers (the owner's name first) come before the chosen order
@@ -636,7 +637,7 @@ export const CrmView: React.FC = () => {
     const open = openValueOf(c.id);
     const last = lastActivity.get(c.id);
     return (
-      <div key={c.id} onClick={() => setOpenCustomer(c.id)} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 grid row-span-7 [grid-template-rows:subgrid] gap-y-1.5 hover:shadow-md transition-all cursor-pointer text-right" data-customer-card>
+      <div key={c.id} onClick={() => setOpenCustomer(c.id)} className="bg-white border border-[#EBDBCE] rounded-2xl p-3.5 grid row-span-8 [grid-template-rows:subgrid] gap-y-1.5 hover:shadow-md transition-all cursor-pointer text-right" data-customer-card>
         <div className="contents">
           <div className="contents">
             <div className="flex items-start justify-between gap-2 min-w-0">
@@ -645,8 +646,8 @@ export const CrmView: React.FC = () => {
             </div>
             <div className="flex flex-wrap content-start items-center gap-1 min-h-[22px]" data-customer-chips>
               <span className={`inline-block shrink-0 text-[9.5px] font-black rounded-full px-1.5 py-px border ${kindOf(c).cls}`} data-customer-kind>{kindOf(c).label}</span>{supplierChip(c)}{priceOnlyChip(c.id)}
-              <FinanceChip customerId={c.id} small />
             </div>
+            <div className="flex items-center" data-customer-finance><FinanceChip customerId={c.id} small /></div>
             {/* one line: the company, or for a shop its type and owner */}
             <div className="text-[11px] text-[#8C6F66] flex items-start gap-1 min-w-0 leading-[17px]" data-customer-company title={[c.company, c.shopType, c.kind === 'SHOP' ? `${c.firstName || ''} ${c.lastName || ''}`.trim() : ''].filter(Boolean).join(' · ')}>
               {(c.company && c.company !== c.name) || c.kind === 'SHOP' ? (
@@ -698,7 +699,7 @@ export const CrmView: React.FC = () => {
           <span className="text-left shrink-0 max-w-[55%]">{open > 0 ? `${toman(open)} ${unitName()} در جریان` : last ? `آخرین تعامل: ${formatTaskDate(last.slice(0, 10))}` : ''}</span>
         </div>
         <div className="h-4 text-[10px] font-medium text-[#8C6F66]/80" data-customer-since>{c.createdAt ? `مشتری از ${formatDateTime(c.createdAt)}` : ''}</div>
-        <div className="min-h-[28px] pt-1" data-customer-icons>
+        <div data-customer-icons>
         {!c.hiddenContact && <CustomerSocialIcons customer={c} onPick={(net) => {
           if (net === 'website') {
             const list = c.social?.website?.accounts || [];

@@ -13,7 +13,7 @@ import { NoteLines } from '../common/ParagraphNotes';
 
 const ACT: Record<ActivityType, string> = { NOTE: 'یادداشت', CALL: 'تماس', MEETING: 'جلسه', FOLLOWUP: 'پیگیری', MISSING: 'کالای ناموجود', QUOTE: 'قیمت داده شد' };
 const STAGE: Record<string, string> = { NEW: 'جدید', CONTACTED: 'تماس گرفته شد', PROPOSAL: 'پیشنهاد ارسال شد', NEGOTIATION: 'مذاکره', WON: 'فروش موفق', LOST: 'از دست رفت' };
-const STATUS: Record<string, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
+const STATUS: Record<string, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', PRICE_ONLY: 'قیمت‌گیر', INACTIVE: 'غیرفعال' };
 const daysAgo = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
 const ago = (iso: string) => (daysAgo(iso) === 0 ? 'امروز' : `${toPersianDigits(daysAgo(iso))} روز پیش`);
 

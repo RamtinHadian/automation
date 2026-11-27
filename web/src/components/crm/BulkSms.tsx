@@ -9,7 +9,7 @@ import { Customer, CustomerStatus, Deal, User } from '../../types';
 import { PersonPicker, staffItems } from '../common/PersonPicker';
 import { matchesAll } from '../../lib/searchAll';
 
-const STATUS: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', INACTIVE: 'غیرفعال' };
+const STATUS: Record<CustomerStatus, string> = { LEAD: 'مشتری بالقوه', ACTIVE: 'مشتری فعال', PRICE_ONLY: 'قیمت‌گیر', INACTIVE: 'غیرفعال' };
 const faToEn = (s: string) => s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
 const hasMobile = (c: Customer) => c.phones.some((p) => /^(\+98|0098|98|0)?9\d{9}$/.test(faToEn(p).replace(/[\s-]/g, '')));
 const sel = 'px-3 py-2 min-h-[40px] bg-white border border-[#EBDBCE] rounded-xl text-[11px] font-black text-[#3A241F] outline-hidden cursor-pointer';
