@@ -336,8 +336,9 @@ export interface DemoInfo {
 }
 
 export interface WhProduct {
-  /** when the photo of the product was last changed (unix seconds); missing = no photo */
+  /** when the photos of the product were last changed (unix seconds) and how many there are; missing = no photo */
   imageAt?: number;
+  imageCount?: number;
   id: string;
   code: string;
   title: string;
@@ -765,7 +766,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),
   sepidarCancel: (id: string) => request<{ ok: true }>('POST', `/api/sepidar/jobs/${encodeURIComponent(id)}/cancel`, {}),
-  crmProducts: () => request<{ products: { imageAt?: number; id: string; code: string; title: string; unit: string; group?: string; kind?: string; warrantyMonths?: number; total: number; cost?: number; prices?: { title: string; amount: number }[] }[] }>('GET', '/api/crm/products'),
+  crmProducts: () => request<{ products: { imageAt?: number; imageCount?: number; id: string; code: string; title: string; unit: string; group?: string; kind?: string; warrantyMonths?: number; total: number; cost?: number; prices?: { title: string; amount: number }[] }[] }>('GET', '/api/crm/products'),
   warehouse: () => request<WhState>('GET', '/api/warehouse'),
   warehouseDocs: (q: Record<string, string>) => request<{ docs: WhDoc[] }>('GET', '/api/warehouse/docs?' + new URLSearchParams(q).toString()),
   warehouseCard: (product: string, warehouse = '') => request<WhCard>('GET', `/api/warehouse/card?product=${encodeURIComponent(product)}&warehouse=${encodeURIComponent(warehouse)}`),
@@ -834,12 +835,12 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   whWarehouseSave: (id: string, b: Record<string, unknown>) => request<{ ok: true }>('PUT', `/api/warehouse/warehouses/${encodeURIComponent(id)}`, b),
   whWarehouseDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/warehouse/warehouses/${encodeURIComponent(id)}`),
   whPricesFromSepidar: (b: { apply: boolean; mode: 'add' | 'replace'; divisor?: number }) => request<{ applied: boolean; mode: string; divisor: number; matched: number; updated: number; added: number; notFound: number; notFoundCodes: string[]; examples: { code: string; title: string; before: number; after: number; prices: { title: string; amount: number }[] }[] }>('POST', '/api/warehouse/prices-from-sepidar', b),
-  whProductImagePut: async (id: string, blob: Blob) => {
-    const res = await fetch(`/api/warehouse/products/${encodeURIComponent(id)}/image`, { method: 'PUT', headers: { 'Content-Type': blob.type || 'image/jpeg', Authorization: `Bearer ${getToken() || ''}` }, body: blob });
+  whProductImagePut: async (id: string, blob: Blob, n = 0) => {
+    const res = await fetch(`/api/warehouse/products/${encodeURIComponent(id)}/image?n=${n}`, { method: 'PUT', headers: { 'Content-Type': blob.type || 'image/jpeg', Authorization: `Bearer ${getToken() || ''}` }, body: blob });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(j.error || 'عکس گذاشته نشد.');
   },
-  whProductImageDelete: (id: string) => request<{ ok: true }>('DELETE', `/api/warehouse/products/${encodeURIComponent(id)}/image`),
+  whProductImageDelete: (id: string, n = 0) => request<{ ok: true }>('DELETE', `/api/warehouse/products/${encodeURIComponent(id)}/image?n=${n}`),
   whSepidarDocsImport: (type: 'issue' | 'issueReturn', rows: Record<string, string>[]) => request<{ added: number; updated: number; total: number }>('POST', '/api/warehouse/sepidar-docs', { type, rows }),
   whDocCreate: (b: Record<string, unknown>) => request<WhDoc>('POST', '/api/warehouse/docs', b),
   whDocVoid: (id: string, reason: string) => request<{ ok: true }>('POST', `/api/warehouse/docs/${encodeURIComponent(id)}/void`, { reason }),

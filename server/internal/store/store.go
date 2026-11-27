@@ -333,11 +333,21 @@ var schema = []string{
 	  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`,
 	`CREATE TABLE IF NOT EXISTS wh_product_images (
-	  id TEXT PRIMARY KEY,
+	  id TEXT NOT NULL,
+	  n INT NOT NULL DEFAULT 0,
 	  mime TEXT NOT NULL,
 	  data BYTEA NOT NULL,
-	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	  PRIMARY KEY (id, n)
 	)`,
+	// a table made by the first version (one photo per product, key = id) becomes the numbered one
+	`ALTER TABLE wh_product_images ADD COLUMN IF NOT EXISTS n INT NOT NULL DEFAULT 0`,
+	`DO $$ BEGIN
+	  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'wh_product_images'::regclass AND contype = 'p' AND array_length(conkey, 1) = 2) THEN
+	    ALTER TABLE wh_product_images DROP CONSTRAINT IF EXISTS wh_product_images_pkey;
+	    ALTER TABLE wh_product_images ADD PRIMARY KEY (id, n);
+	  END IF;
+	END $$`,
 	`CREATE TABLE IF NOT EXISTS wh_docs (
 	  id TEXT PRIMARY KEY,
 	  kind TEXT NOT NULL,

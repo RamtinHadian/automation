@@ -1,4 +1,4 @@
-import { ProductImageEditor, ProductThumb } from './ProductImage';
+import { ProductImageEditor, ProductPhotoStrip, ProductThumb } from './ProductImage';
 import { SepidarPricesDialog } from './SepidarPricesDialog';
 import { CustomerSelect } from '../common/CustomerSelect';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -394,7 +394,7 @@ const StockTab: React.FC<{ st: WhState; group: string; onCard: (p: WhProduct) =>
             <BoxCard
               key={p.id}
               onClick={() => onCard(p)}
-              icon={p.imageAt ? <ProductThumb id={p.id} at={p.imageAt} size={44} /> : <Package className="w-5 h-5" />}
+              icon={p.imageAt ? <ProductThumb id={p.id} at={p.imageAt} count={p.imageCount} title={p.title} size={44} zoom /> : <Package className="w-5 h-5" />}
               tone={lowRow ? 'rose' : qty === 0 ? 'slate' : 'amber'}
               title={p.title}
               sub={[toPersianDigits(p.code), p.group].filter(Boolean).join(' · ')}
@@ -842,6 +842,7 @@ const CardModal: React.FC<{ st: WhState; product: WhProduct; onClose: () => void
         </select>
         <span className="text-xs font-black text-[#3A241F]">موجودی: {fmt(card ? card.balance : wh ? product.byWarehouse[wh] || 0 : product.total)} {product.unit}</span>
       </div>
+      {product.imageAt ? <ProductPhotoStrip id={product.id} at={product.imageAt} count={product.imageCount || 1} title={product.title} /> : null}
       <ProductCustomers product={product} showMoney={st.limits ? st.limits.money : true} />
       {!card ? (
         <Empty text="در حال دریافت…" />
@@ -1020,7 +1021,7 @@ const { showToast, currentUser } = useAppContext();
           <div><span className={label}>گارانتی (ماه؛ خالی = گارانتی ندارد)</span><input value={f.warrantyMonths} onChange={(e) => setF({ ...f, warrantyMonths: e.target.value })} inputMode="numeric" placeholder="مثلاً ۱۸" className={field} data-product-warranty /></div>
         )}
         <div className="flex items-end"><label className="flex items-center gap-2 text-xs font-bold cursor-pointer"><input type="checkbox" disabled={lockBase} checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} className="w-4 h-4" /> فعال</label></div>
-        <div className="sm:col-span-2"><ProductImageEditor id={p.id} at={p.imageAt} onChanged={() => onImage?.()} /></div>
+        <div className="sm:col-span-2"><ProductImageEditor id={p.id} at={p.imageAt} count={p.imageCount} title={p.title} onChanged={() => onImage?.()} /></div>
         <div className="sm:col-span-2"><span className={label}>یادداشت</span><input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} className={field} /></div>
 {canSub(currentUser, 'warehouse.money') && <div className="sm:col-span-2 space-y-2">
           <span className={label}>قیمت‌ها (مثلاً خرده‌فروشی، عمده، نمایندگی)</span>

@@ -359,8 +359,8 @@ func whState(w http.ResponseWriter, r *http.Request) {
 				if !showMoney {
 					delete(d, "prices")
 				}
-				if at, has := imageAt[id]; has {
-					d["imageAt"] = at
+				if st, has := imageAt[id]; has {
+					d["imageAt"], d["imageCount"] = st[0], st[1]
 				}
 				prods = append(prods, d)
 		}
@@ -1028,8 +1028,8 @@ func crmProducts(w http.ResponseWriter, r *http.Request) {
 			total += n
 		}
 		item := jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "kind": jsonx.Str(d, "kind"), "warrantyMonths": jsonx.Int(d, "warrantyMonths"), "total": math.Round(total*1000) / 1000, "prices": d["prices"], "cost": costFor(me, d)}
-		if at, has := stamps[id]; has {
-			item["imageAt"] = at
+		if st, has := stamps[id]; has {
+			item["imageAt"], item["imageCount"] = st[0], st[1]
 		}
 		out = append(out, item)
 	}

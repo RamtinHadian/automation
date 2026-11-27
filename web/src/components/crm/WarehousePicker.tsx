@@ -8,6 +8,7 @@ import { Modal } from './crmUi';
 
 export interface WarehouseProduct {
   imageAt?: number;
+  imageCount?: number;
   id: string;
   code: string;
   title: string;
@@ -68,7 +69,7 @@ export const WarehousePicker: React.FC<{
                 className="w-full text-right flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-[#EBDBCE] bg-white hover:bg-violet-50 hover:border-violet-300 cursor-pointer"
               >
                 <span className="min-w-0 flex items-center gap-2.5">
-                  <ProductThumb id={p.id} at={p.imageAt} size={38} className="shrink-0" />
+                  <ProductThumb id={p.id} at={p.imageAt} count={p.imageCount} title={p.title} size={38} className="shrink-0" zoom />
                   <span className="min-w-0">
                   <span className="block text-xs font-black text-[#3A241F] truncate">{p.title}</span>
                   <span className="block text-[10px] font-bold text-[#8C6F66]" dir="ltr">{p.code}{p.group ? ` · ${p.group}` : ''}</span>
