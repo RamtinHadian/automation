@@ -11,6 +11,7 @@ import { formatMoney, fromDisplay, toDisplay, unitName } from '../../lib/money';
 import { MoneyInput, digitsOf } from '../common/MoneyInput';
 import { formatTaskDate, todayIso } from '../../lib/taskDates';
 import { JalaliDateField } from '../tasks/TasksView';
+import type { Deal } from '../../types';
 import { PersonPicker, customerItems } from '../common/PersonPicker';
 import { Modal, field, label } from '../crm/crmUi';
 import { matchesAll } from '../../lib/searchAll';
@@ -698,6 +699,58 @@ const DocForm: React.FC<{ st: WhState; kind: WhKind; customers: { id: string; na
 
 // ---------- card (kardex) ----------
 
+/** Who this product was priced to (proformas) and who bought it (issued invoices), from the opportunities the person is allowed to see; one line per customer. */
+const ProductCustomers: React.FC<{ product: WhProduct; showMoney: boolean }> = ({ product, showMoney }) => {
+  const { deals } = useAppContext();
+  const code = (product.code || '').trim();
+  const { priced, sold } = useMemo(() => {
+    const pr = new Map<string, { name: string; qty: number; last: string; price: number; numbers: string[] }>();
+    const so = new Map<string, { name: string; qty: number; last: string; price: number; numbers: string[] }>();
+    if (!code) return { priced: [], sold: [] };
+    const add = (m: typeof pr, d: Deal, items: { code?: string; qty: number; unitPrice: number }[], at: string, no: string) => {
+      const hit = items.filter((x) => (x.code || '').trim() === code);
+      if (!hit.length) return;
+      const e = m.get(d.customerId) || { name: d.customerName, qty: 0, last: '', price: 0, numbers: [] };
+      e.qty += hit.reduce((t, x) => t + (x.qty || 0), 0);
+      if (!e.last || at > e.last) { e.last = at; e.price = hit[hit.length - 1].unitPrice; }
+      if (no && !e.numbers.includes(no)) e.numbers.push(no);
+      m.set(d.customerId, e);
+    };
+    for (const d of deals) {
+      if (d.mergedInto) continue;
+      if (d.proformaNumber && !d.standalone && d.items?.length) add(pr, d, d.items, d.proformaAt || d.createdAt || '', d.proformaNumber);
+      const inv = d.invoice;
+      if (inv && inv.status !== 'cancelled' && inv.items?.length) add(so, d, inv.items, inv.issuedAt || d.closedAt || '', inv.number);
+    }
+    const byLast = (a: { last: string }, b: { last: string }) => b.last.localeCompare(a.last);
+    return { priced: [...pr.values()].sort(byLast), sold: [...so.values()].sort(byLast) };
+  }, [deals, code]);
+  const block = (title: string, tone: string, rows: typeof priced, none: string, dataId: string) => (
+    <div className={`rounded-xl border p-3 ${tone}`} data-product-customers={dataId}>
+      <div className="text-xs font-black mb-1.5">{title} ({toPersianDigits(rows.length)} نفر)</div>
+      {rows.length === 0 ? <div className="text-[11px] font-bold opacity-70">{none}</div> : (
+        <div className="space-y-1">
+          {rows.map((x, i) => (
+            <div key={i} className="flex flex-wrap items-center justify-between gap-x-3 text-[11px] font-bold text-[#3A241F] bg-white/70 rounded-lg px-2.5 py-1.5">
+              <span className="font-black">{x.name}</span>
+              <span className="text-[#6B5048]">
+                {toPersianDigits(x.qty)} {product.unit}{showMoney && x.price ? ` · آخرین قیمت ${formatMoney(x.price)} ${unitName()}` : ''}{x.last ? ` · ${formatTaskDate(x.last.slice(0, 10))}` : ''}{x.numbers.length ? ` · ${x.numbers.map((n) => toPersianDigits(n)).join('، ')}` : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+  return (
+    <div className="space-y-2" data-product-customers-box>
+      {block('فروخته‌شده به (فاکتور صادرشده)', 'border-emerald-200 bg-emerald-50/60 text-emerald-900', sold, 'هنوز فاکتوری با این کالا صادر نشده است.', 'sold')}
+      {block('قیمت داده‌شده به (پیش‌فاکتور)', 'border-amber-200 bg-amber-50/60 text-amber-900', priced, 'هنوز پیش‌فاکتوری با این کالا نیست.', 'priced')}
+      <div className="text-[10px] font-bold text-[#8C6F66]">فقط فرصت‌هایی که شما اجازهٔ دیدنشان را دارید شمرده می‌شود (فروشنده فقط مشتریان خودش را می‌بیند). جستجو بر پایهٔ «کد کالا» است.</div>
+    </div>
+  );
+};
+
 const CardModal: React.FC<{ st: WhState; product: WhProduct; onClose: () => void; onOpenDoc: (id: string) => void }> = ({ st, product, onClose, onOpenDoc }) => {
   const [wh, setWh] = useState('');
   const [card, setCard] = useState<WhCard | null>(null);
@@ -728,6 +781,7 @@ const CardModal: React.FC<{ st: WhState; product: WhProduct; onClose: () => void
         </select>
         <span className="text-xs font-black text-[#3A241F]">موجودی: {fmt(card ? card.balance : wh ? product.byWarehouse[wh] || 0 : product.total)} {product.unit}</span>
       </div>
+      <ProductCustomers product={product} showMoney={st.limits ? st.limits.money : true} />
       {!card ? (
         <Empty text="در حال دریافت…" />
       ) : card.rows.length === 0 ? (
