@@ -47,6 +47,7 @@ import {
   Plug,
   Bell,
   DatabaseBackup,
+  Receipt,
   KeyRound,
   ScrollText,
   Phone,
@@ -151,7 +152,7 @@ const sanitizeSettingsWithPersianDigits = (s: SystemSettings): SystemSettings =>
   };
 };
 
-type SettingsSection = 'forms' | 'identity' | 'phone' | 'sms' | 'field' | 'msgr' | 'api' | 'notify' | 'proforma' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'ai' | 'backup' | 'license' | 'workflow';
+type SettingsSection = 'forms' | 'identity' | 'phone' | 'sms' | 'field' | 'msgr' | 'api' | 'notify' | 'proforma' | 'invoice' | 'minutes' | 'letters' | 'signature' | 'look' | 'policies' | 'ai' | 'backup' | 'license' | 'workflow';
 
 /** Each group of settings has its own tab under the page title. */
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -160,6 +161,7 @@ const SETTINGS_SECTIONS: { id: SettingsSection; label: string; Icon: React.Compo
   { id: 'signature', label: 'مهر و امضا', Icon: Stamp },
   { id: 'forms', label: 'فرم‌ها و کلید Enter', Icon: ListChecks },
   { id: 'proforma', label: 'پیش‌فاکتور', Icon: FileText },
+  { id: 'invoice', label: 'فاکتور', Icon: Receipt },
   { id: 'minutes', label: 'صورتجلسه', Icon: ScrollText },
   { id: 'look', label: 'فونت و رنگ', Icon: Palette },
   { id: 'policies', label: 'فایل‌ها و محدودیت‌ها', Icon: HardDrive },
@@ -604,10 +606,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'minutes' && <MinutesSettingsCard settings={settings} setSettings={setSettings} />}
 
+      {section === 'invoice' && (
+        <>
+          <InvoiceApproversCard settings={settings} setSettings={setSettings} staff={staffList} />
+          <InvoiceNumberingCard />
+        </>
+      )}
+
       {section === 'proforma' && (
       <>
       <ProformaSwitchCard settings={settings} setSettings={setSettings} />
-      <InvoiceApproversCard settings={settings} setSettings={setSettings} staff={staffList} />
       <ProformaIssuersCard
         staff={staffList.filter((u) => u.isActive !== false).map((u) => ({ id: u.id, name: u.fullName }))}
         settings={settings}
@@ -624,8 +632,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           دیدن نمونهٔ فرم رسمی
         </button>
       </ProformaIssuersCard>
-
-      <InvoiceNumberingCard />
 
       <details className="bg-white p-5 rounded-3xl border border-[#EBDBCE] shadow-sm text-xs">
         <summary className="cursor-pointer font-black text-sm text-[#3A241F]">تنظیمات عمومی (طراحی قالب غیررسمی، شرایط، واحد پول، مدت اعتبار)</summary>
