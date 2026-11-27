@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.81.1';
+export const TOOL_VERSION = '1.81.2';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -1143,7 +1143,7 @@ const jobHandlers = {
     const head = {
       GUID: guidFrom('invoice:' + deal.id), Date: when, CustomerRef: customerRef, CurrencyRef: cfg.sync.currencyRef, Rate: 1, SaleTypeRef: cfg.sync.saleTypeRef, AddressRef: addressRef,
       Price: q.body.Price, Discount: q.body.Discount, Tax: q.body.Tax, Duty: 0, Addition: 0, NetPrice: q.total, SettlementType: cfg.sync.settlementType ?? 2, DeliveryLocationRef: 1,
-      Description: 'فاکتور هورمند' + (inv.number ? ' ' + inv.number : ''),
+      Description: 'فاکتور هورمند ' + (inv.number || deal.id),
     };
     let r;
     let last;
@@ -1159,15 +1159,20 @@ const jobHandlers = {
       }
     }
     if (!r) throw last;
-    let id = r.InvoiceID ?? r.ID;
-    let number = r.Number;
-    if ((number == null || id == null) && r.GUID == null) {
-      // the answer did not carry them: the newest invoice of this customer is looked up
+    // which invoice is the one just made: the answer says (an object with InvoiceID / Number, or just the id); if it does not, the invoice is read back by the
+    // text Hoormand wrote on it. Never «the newest invoice of the customer»: that can be an older one and gives the wrong number.
+    let id = typeof r === 'number' ? r : r?.InvoiceID ?? r?.ID ?? null;
+    let number = typeof r === 'object' ? r?.Number : undefined;
+    if (id == null) {
       const all = await sp.get('/api/Invoices');
-      const mine = all.filter((x) => x.CustomerRef === customerRef).sort((a, b) => (b.InvoiceID ?? 0) - (a.InvoiceID ?? 0))[0];
-      if (mine) { id = id ?? mine.InvoiceID; number = number ?? mine.Number; }
+      const mine = all.filter((x) => String(x.Description || '').includes(head.Description) && x.CustomerRef === customerRef).sort((a, b) => (b.InvoiceID ?? 0) - (a.InvoiceID ?? 0))[0];
+      if (mine) id = mine.InvoiceID ?? mine.ID;
     }
-    if (id == null || number == null) throw new Error('سپیدار فاکتور را پذیرفت ولی شمارهٔ آن را برنگرداند؛ در «سپیدار ← فاکتورها» ببینید ساخته شده است.');
+    if (id != null && number == null) {
+      try { number = (await sp.get('/api/Invoices/' + id)).Number; } catch (e) { log('  شمارهٔ فاکتور ساخته‌شده خوانده نشد:', e && e.message); }
+    }
+    log('  فاکتور ساخته‌شده در سپیدار:', JSON.stringify({ id, number, answer: typeof r === 'object' ? Object.keys(r || {}) : typeof r }));
+    if (id == null || number == null) throw new Error('سپیدار فاکتور را پذیرفت ولی شمارهٔ آن را برنگرداند؛ در «سپیدار ← فاکتورها» ببینید ساخته شده است (شمارهٔ هورمند عوض نمی‌شود).');
     return {
       sepidarId: id, number,
       message: `فاکتور هورمند${inv.number ? ' ' + inv.number : ''} در سپیدار با شمارهٔ ${number} صادر شد (همین شماره شمارهٔ فاکتور هورمند می‌شود). موجودی کالا را سپیدار کم می‌کند. اگر این فاکتور را در هورمند باطل کنید در سپیدار می‌ماند تا از داخل سپیدار پاک شود.`,
