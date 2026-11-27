@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.82.1';
+export const TOOL_VERSION = '1.82.2';
 
 // Sepidar's own API description (Swagger, «Issue Invoice From Quotation») asks for the body {"QuatationID": <id>} - the field is spelt «Quatation». The older
 // spellings are tried after it, for other versions.
@@ -1731,6 +1731,7 @@ async function main() {
     process.on('unhandledRejection', (e) => log('خطای پیش‌بینی‌نشده (برنامه ادامه می‌دهد):', e && e.message ? e.message : e));
     log(`برنامه روشن شد (نسخهٔ ${TOOL_VERSION}).`);
     let nextFull = 0;
+    let nextStock = Date.now() + Math.max(1, Number(cfg.sync.stockMinutes) || 2) * 60000; // the stock alone is sent more often than the full round (config.json: sync.stockMinutes, default 2)
     let nextUpdate = 0;
     let lastJobs = 0;
     let inPump = false;
@@ -1783,7 +1784,9 @@ async function main() {
           }
         }
         await cmdJobs(cfg);
+        if (!stockDirty && Date.now() >= nextStock && Date.now() < nextFull) stockDirty = true;
         if (stockDirty) {
+          nextStock = Date.now() + Math.max(1, Number(cfg.sync.stockMinutes) || 2) * 60000;
           stockDirty = false;
           try { await cmdStock(cfg); } catch (e) { log('موجودی بعد از فاکتور فرستاده نشد:', e.message); }
         }
