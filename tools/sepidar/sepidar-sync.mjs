@@ -101,7 +101,7 @@ const saveState = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2))
 // ---------- Hoormand ----------
 const hFetch = (u, o) => netFetch(u, o, 'هورمند');
 /** The version of this program as Hoormand shows it (the number of the Hoormand release in which its files were last changed). */
-export const TOOL_VERSION = '1.80.10';
+export const TOOL_VERSION = '1.80.11';
 
 // Sepidar wants an object here (a bare number gives «Error converting value 7 to type QuotationIdDto»). Its field name is not written anywhere we can
 // read, and «not found» can also mean the quotation is in the wrong state (open or closed), so: look at the quotation first (logged, for the report),
@@ -1591,6 +1591,15 @@ async function main() {
   if (cmd === 'sync') return cmdSync(cfg);
   if (cmd === 'stock') return cmdStock(cfg);
   if (cmd === 'endpoints') return cmdEndpoints(cfg, args[1]);
+  if (cmd === 'invdiag') {
+    // only looks (nothing is sent): the newest quotation in Sepidar and how Sepidar's own invoice-from-quotation pairs look
+    const sp = client(cfg, loadState());
+    const list = await sp.get('/api/Quotations');
+    const last = list[list.length - 1];
+    if (!last) return log('پیش‌فاکتوری در سپیدار نیست.');
+    const q = await sp.get('/api/Quotations/' + last.ID);
+    return diagQuotation(sp, last.ID, q);
+  }
   if (cmd === 'jobs') return log(`${await cmdJobs(cfg)} درخواست انجام شد.`);
   if (cmd === 'cache') return cmdCache(cfg);
   if (cmd === 'watch') {

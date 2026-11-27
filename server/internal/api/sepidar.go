@@ -697,7 +697,7 @@ func ref0(kind, id string) jsonx.M { return jsonx.M{"type": kind, "id": id} }
 // ---------- the program on the accounting computer updates itself from here ----------
 // The server holds a copy of the program's files (the Docker image carries them, so they are updated from Git together with the app);
 // the program compares its own files with this list and downloads what differs. Only these names can ever be served.
-var sepidarToolFiles = []string{"sepidar-sync.mjs", "sepidar-client.mjs", "console-fa.mjs", "config-help.mjs", "ui.mjs", "updater.mjs", "Vazirmatn-Regular.woff2", "Vazirmatn-Bold.woff2", "Beroozresani-va-Ejra-Dobare.cmd"}
+var sepidarToolFiles = []string{"sepidar-sync.mjs", "sepidar-client.mjs", "console-fa.mjs", "config-help.mjs", "ui.mjs", "updater.mjs", "Vazirmatn-Regular.woff2", "Vazirmatn-Bold.woff2", "Beroozresani-va-Ejra-Dobare.cmd", "Diag-Faktor.cmd", "start-watch.vbs"}
 
 func sepidarToolDir() string {
 	if d := os.Getenv("SEPIDAR_TOOL_DIR"); d != "" {
