@@ -724,7 +724,7 @@ export const CrmView: React.FC = () => {
       >
         {grp && <LinkedChip group={grp} />}
         {d.mergedInto && (
-          <div className="text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 w-fit" title="کالاهای این فرصت در پیش‌فاکتور فرصت دیگری آمده و مبلغش فقط آن‌جا حساب می‌شود" data-deal-merged>
+          <div className="text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1 max-w-full leading-5 break-words" title="کالاهای این فرصت در پیش‌فاکتور فرصت دیگری آمده و مبلغش فقط آن‌جا حساب می‌شود" data-deal-merged>
             در پیش‌فاکتور «{deals.find((x) => x.id === d.mergedInto)?.title || 'فرصت دیگر'}»{d.mergedAmount ? ` · ${toman(d.mergedAmount)} ${unitName()}` : ''}
           </div>
         )}
@@ -733,7 +733,7 @@ export const CrmView: React.FC = () => {
         {d.productCode && <div className="text-[10px] font-black text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-2 py-0.5 w-fit" dir="ltr">{toPersianDigits(d.productCode)}</div>}
         {approvalRequired(settings, d.proformaIssuerId) && d.proformaApproval && (
           <div
-            className={`text-[10px] font-black rounded-full px-2 py-0.5 w-fit border ${
+            className={`text-[10px] font-black rounded-lg px-2 py-1 max-w-full leading-4 break-words border ${
               d.proformaApproval.status === 'APPROVED'
                 ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
                 : d.proformaApproval.status === 'REJECTED'
@@ -767,7 +767,7 @@ export const CrmView: React.FC = () => {
           {userById.get(d.createdById || '')?.fullName || d.createdByName || d.ownerName || <span className="text-[#8C6F66] font-medium">نامشخص</span>}
         </div>
         {d.stage === 'LOST' && d.lostReason && (
-          <div className="text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-100 rounded-full px-2 py-0.5 w-fit" title={d.lostNote || ''}>دلیل: {d.lostReason}</div>
+          <div className="text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-2 py-1 max-w-full leading-4 break-words" title={d.lostNote || ''}>دلیل: {d.lostReason}</div>
         )}
         {d.createdAt && (
           <div className="text-[10px] font-medium text-[#8C6F66] leading-5" title="تاریخ و ساعت ایجاد">

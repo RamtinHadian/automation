@@ -810,9 +810,9 @@ form[data-fc-design] [data-design-bar] { flex-wrap: wrap; }
 .deal-title {
   min-width: 0;
   max-width: 100%;
-  font-weight: 700;
-  font-size: 12.5px;
-  line-height: 2;
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1.7;
   color: #3A241F;
   overflow-wrap: anywhere;
   text-align: justify;
