@@ -56,6 +56,7 @@ import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/t
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SocialEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
 import { WarehousePicker, WarehouseProduct } from './WarehousePicker';
+import { FOLLOW_UP_RULES, followUpDates } from '../../lib/followUpRules';
 import { ProformaModal } from './ProformaModal';
 import { DealMoveDialog } from './DealMoveDialog';
 import { KindFixModal } from './KindFixModal';
@@ -1575,25 +1576,57 @@ export const CrmView: React.FC = () => {
 // ======================= deal form =======================
 
 
-/** Puts a reminder about this opportunity into the person's own list of reminders («یادآورها»): a day, an hour and a note. */
+/**
+ * Puts reminders about this opportunity into the person's own list of reminders («یادآورها»): one reminder (a day, an hour and a note), or a whole follow-up rule
+ * (1-3-7 and the like: several reminders spaced over days, each with what to do at that step). The hour is optional (9 in the morning when it is left empty).
+ */
 const DealReminder: React.FC<{ deal: Deal; customerName: string }> = ({ deal, customerName }) => {
   const { showToast } = useAppContext();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'rule' | 'one'>('rule');
   const [date, setDate] = useState<string | undefined>(deal.expectedClose || todayIso());
   const [time, setTime] = useState(() => { const t = new Date(Date.now() + 3600000); return `${String(t.getHours()).padStart(2, '0')}:00`; });
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ruleId, setRuleId] = useState(FOLLOW_UP_RULES[0].id);
+  const [start, setStart] = useState<string | undefined>(todayIso());
+  const [ruleTime, setRuleTime] = useState(''); // optional: empty = 09:00
+  const [skipFriday, setSkipFriday] = useState(true);
+  const rule = FOLLOW_UP_RULES.find((r) => r.id === ruleId) || FOLLOW_UP_RULES[0];
+  const days = start ? followUpDates(rule, start, skipFriday) : [];
+  const baseTitle = `فرصت فروش: ${deal.title || customerName}`.slice(0, 100);
   const add = async () => {
     if (!date) return showToast('تاریخ یادآور را انتخاب کنید.');
     setBusy(true);
     try {
-      const title = `فرصت فروش: ${deal.title || customerName}`.slice(0, 120);
-      await api.reminderCreate({ title, note: [customerName && `مشتری: ${customerName}`, note.trim()].filter(Boolean).join('\n'), date, time, repeat: 'none' });
+      await api.reminderCreate({ title: baseTitle.slice(0, 120), note: [customerName && `مشتری: ${customerName}`, note.trim()].filter(Boolean).join('\n'), date, time, repeat: 'none' });
       showToast('یادآور در «یادآورها» گذاشته شد.');
       setOpen(false);
       setNote('');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'یادآور ثبت نشد.');
+    }
+    setBusy(false);
+  };
+  const addRule = async () => {
+    if (!start) return showToast('روز شروع را انتخاب کنید.');
+    setBusy(true);
+    let made = 0;
+    try {
+      for (let k = 0; k < rule.steps.length; k += 1) {
+        await api.reminderCreate({
+          title: `${baseTitle} · پیگیری ${toPersianDigits(k + 1)} از ${toPersianDigits(rule.steps.length)}`.slice(0, 120),
+          note: [customerName && `مشتری: ${customerName}`, `قانون: ${rule.name}`, rule.steps[k].what].filter(Boolean).join('\n'),
+          date: days[k],
+          time: ruleTime || '09:00',
+          repeat: 'none',
+        });
+        made += 1;
+      }
+      showToast(`${toPersianDigits(made)} یادآور پیگیری در «یادآورها» گذاشته شد.`);
+      setOpen(false);
+    } catch (e) {
+      showToast(`${made ? toPersianDigits(made) + ' یادآور ساخته شد، ولی ' : ''}${e instanceof Error ? e.message : 'یادآورها ثبت نشد.'}`);
     }
     setBusy(false);
   };
@@ -1603,16 +1636,53 @@ const DealReminder: React.FC<{ deal: Deal; customerName: string }> = ({ deal, cu
         <BellPlus className="w-3.5 h-3.5" />یادآور برای این فرصت
       </button>
       {open && (
-        <div className="mt-2 border border-violet-200 bg-violet-50/40 rounded-2xl p-3 space-y-2">
-          <div className="flex gap-2 items-end">
-            <div className="flex-1 min-w-0"><div className="text-[11px] font-black text-[#8C6F66] mb-1">روز یادآوری</div><JalaliDateField value={date} onChange={setDate} /></div>
-            <label className="shrink-0 text-[11px] font-black text-[#8C6F66]">ساعت<input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="block mt-1 px-3 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold w-[110px] text-center" dir="ltr" /></label>
+        <div className="mt-2 border border-violet-200 bg-violet-50/40 rounded-2xl p-3 space-y-2.5">
+          <div className="flex gap-1.5">
+            {([['rule', 'قانون پیگیری (چند یادآور)'], ['one', 'یک یادآور']] as const).map(([id, l]) => (
+              <button key={id} type="button" onClick={() => setMode(id)} className={`flex-1 px-3 py-2 rounded-xl text-[11px] font-black border cursor-pointer ${mode === id ? 'bg-violet-700 text-white border-violet-700' : 'bg-white text-[#3A241F] border-[#EBDBCE] hover:bg-violet-50'}`} data-reminder-mode={id}>{l}</button>
+            ))}
           </div>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="توضیح (اختیاری)" className="w-full px-3 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F]" />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10.5px] font-bold text-[#8C6F66]">در همان روز و ساعت اعلان می‌گیرید و در «یادآورها» می‌ماند.</span>
-            <button type="button" disabled={busy} onClick={() => void add()} className="shrink-0 px-4 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">افزودن به یادآورها</button>
-          </div>
+          {mode === 'rule' ? (
+            <div className="space-y-2.5" data-reminder-rules>
+              <div className="space-y-1.5">
+                {FOLLOW_UP_RULES.map((r) => (
+                  <button key={r.id} type="button" onClick={() => setRuleId(r.id)} className={`w-full text-right rounded-xl border px-3 py-2 cursor-pointer ${ruleId === r.id ? 'bg-white border-violet-400 ring-2 ring-violet-200' : 'bg-white/70 border-[#EBDBCE] hover:bg-white'}`} data-follow-rule={r.id}>
+                    <span className="block text-[12px] font-black text-[#3A241F]">{r.name}</span>
+                    <span className="block text-[10.5px] font-bold text-[#8C6F66] leading-5">{r.when}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 items-end flex-wrap">
+                <div className="flex-1 min-w-[180px]"><div className="text-[11px] font-black text-[#8C6F66] mb-1">شروع از روز</div><JalaliDateField value={start} onChange={setStart} /></div>
+                <label className="shrink-0 text-[11px] font-black text-[#8C6F66]">ساعت (اختیاری)<input type="time" value={ruleTime} onChange={(e) => setRuleTime(e.target.value)} className="block mt-1 px-3 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F]" data-rule-time /></label>
+              </div>
+              <label className="flex items-center gap-2 text-[11px] font-bold text-[#3A241F] cursor-pointer"><input type="checkbox" checked={skipFriday} onChange={(e) => setSkipFriday(e.target.checked)} className="accent-violet-600" />اگر روزی جمعه شد، به شنبه برود</label>
+              <ol className="space-y-1" data-rule-steps>
+                {rule.steps.map((st, k) => (
+                  <li key={k} className="flex gap-2 rounded-lg bg-white border border-[#EBDBCE] px-2.5 py-1.5">
+                    <span className="shrink-0 min-w-[92px] text-[11px] font-black text-violet-800">{days[k] ? formatTaskDate(days[k]) : '—'}<span className="block text-[9.5px] font-bold text-[#8C6F66]">{st.day === 0 ? 'همان روز' : `${toPersianDigits(st.day)} روز بعد`}</span></span>
+                    <span className="text-[11px] font-bold text-[#503730] leading-5">{st.what}</span>
+                  </li>
+                ))}
+              </ol>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10.5px] font-bold text-[#8C6F66]">{toPersianDigits(rule.steps.length)} یادآور در «یادآورها» ساخته می‌شود؛ ساعت خالی = ۹ صبح.</span>
+                <button type="button" disabled={busy || !start} onClick={() => void addRule()} className="shrink-0 px-4 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer" data-add-rule-reminders>گذاشتن همهٔ یادآورها</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 min-w-0"><div className="text-[11px] font-black text-[#8C6F66] mb-1">روز یادآوری</div><JalaliDateField value={date} onChange={setDate} /></div>
+                <label className="shrink-0 text-[11px] font-black text-[#8C6F66]">ساعت<input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="block mt-1 px-3 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F]" /></label>
+              </div>
+              <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="توضیح (اختیاری)" className="w-full px-3 py-2 bg-white border border-[#EBDBCE] rounded-xl text-xs font-bold text-[#3A241F]" />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10.5px] font-bold text-[#8C6F66]">در همان روز و ساعت اعلان می‌گیرید و در «یادآورها» می‌ماند.</span>
+                <button type="button" disabled={busy} onClick={() => void add()} className="shrink-0 px-4 py-2 rounded-xl text-xs font-black text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 cursor-pointer">افزودن به یادآورها</button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
