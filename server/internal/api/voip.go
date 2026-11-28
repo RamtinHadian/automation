@@ -215,6 +215,14 @@ func voipCall(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w)
 }
 
+// voipOwnCustomers: the condition «the call is of a number that is nobody's customer, or of a customer this person works with»; `first` is the number of the
+// parameter that holds his id (the next one holds the people whose customers he works with besides his own).
+func voipOwnCustomers(first int) string {
+	one, two := "$"+strconv.Itoa(first), "$"+strconv.Itoa(first+1)
+	sub := strings.NewReplacer("$1", one, "$2", two).Replace(crmMyCustomerIDs)
+	return " AND (COALESCE(customer_id, '') = '' OR customer_id IN " + sub + ")"
+}
+
 // voipCalls lists the call journal. Everybody sees their own calls (their extension rang or dialled); admins can ask for the whole company
 // (scope=all); a person with customer access can ask for the calls of one customer (customer=<id>).
 func voipCalls(w http.ResponseWriter, r *http.Request) {
@@ -237,7 +245,7 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 		if seesAll {
 			where, args = "customer_id = $1", []any{q.Get("customer")}
 		} else {
-			where, args = "customer_id = $1 AND (user_id = $2 OR exts && $3::text[])", []any{q.Get("customer"), me.ID(), userExts(me)}
+			where, args = "customer_id = $1 AND (user_id = $2 OR exts && $3::text[])"+voipOwnCustomers(4), []any{q.Get("customer"), me.ID(), userExts(me), me.ID(), crmPeople(r.Context(), me)}
 		}
 	case q.Get("scope") == "all":
 		if !seesAll {
@@ -247,6 +255,9 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 		where = "TRUE"
 	default:
 		where, args = "(user_id = $1 OR exts && $2::text[])", []any{me.ID(), userExts(me)}
+		if !crmSeesAll(me) { // his own calls, but of the customers of others he sees nothing: only callers nobody has as a customer, and his own customers
+			where, args = where+voipOwnCustomers(3), append(args, me.ID(), crmPeople(r.Context(), me))
+		}
 	}
 	rows, err := store.Pool.Query(r.Context(),
 		`SELECT id, started_at, direction, status, ext, user_id, other_num, other_name, customer_id, customer_name, duration_sec,

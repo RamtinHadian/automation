@@ -173,16 +173,14 @@ func canHearCall(r *http.Request, me auth.User, id string) bool {
 	if err := store.Pool.QueryRow(r.Context(), `SELECT user_id, customer_id, exts FROM voip_calls WHERE id = $1`, id).Scan(&uid, &cid, &exts); err != nil {
 		return false
 	}
-	if uid == me.ID() {
-		return true
-	}
+	own := uid == me.ID()
 	for _, ext := range userExts(me) {
 		if jsonx.Contains(exts, ext) {
-			return true
+			own = true
 		}
 	}
-	_ = cid
-	return false // the calls of the others (even of a customer he may see) are heard only with the right to see every call
+	// only his own calls, and not those with a customer of somebody else; the calls of the others are heard only with the right to see every call
+	return own && (cid == "" || crmOwnsCustomer(r, me, cid))
 }
 
 // voipRecording: GET /api/voip/recording/{id}
