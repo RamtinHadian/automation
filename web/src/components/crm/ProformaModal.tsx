@@ -227,7 +227,7 @@ export const ProformaModal: React.FC<{
     proformaFields: (({ sellerName, sellerAddress, sellerPhone, sellerEconomicCode, sellerNationalId, sellerRegistrationNumber, sellerPostalCode, sellerProvince, sellerCounty, sellerCity, ...rest }) => ({ ...rest, showStamp, showSignature }))(f),
     proformaIssuerId: issuerId,
     // the opportunity keeps its OWN amount (quantity x unit price that the person wrote); the proforma's total (all lines, tax, discount) stays on the proforma
-    amount: deal.unitPrice !== undefined ? deal.amount : totals.payable,
+    amount: deal.unitPrice !== undefined && deal.amount > 0 ? deal.amount : totals.payable,
   });
 
   const sendTo = async (ch: 'telegram' | 'bale', format: 'pdf' | 'jpg' = 'pdf') => {

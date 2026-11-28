@@ -240,6 +240,7 @@ func putDeal(w http.ResponseWriter, r *http.Request, me auth.User, id string, da
 	}
 	stage := jsonx.Str(doc, "stage")
 	enforceProformaAmount(doc)
+	healDealAmount(doc)
 	if jsonx.Bool(before, "standalone") {
 		doc["standalone"] = true
 	} else {
@@ -593,6 +594,18 @@ func hasMobile(phones []string) bool {
 // minus the row discount; the percentage discount on the sum; tax on what is left). The amount the page sent is not believed: a changed page, or a call of
 // the API by hand, cannot make a proforma worth something else than its rows. Percentages are kept between 0 and 100 and rows cannot have negative
 // quantities or prices. Deals without priced rows keep the amount that was typed.
+// healDealAmount: an opportunity that has a unit price but a total of 0 (the total was never written, or was lost on the way) gets the total «quantity x unit price»,
+// so the price somebody gave is never shown as 0 on the board, in the reports or on the invoice.
+func healDealAmount(doc jsonx.M) {
+	if jsonx.Num(doc["amount"]) > 0 {
+		return
+	}
+	if price := jsonx.Num(doc["unitPrice"]); price > 0 {
+		qty := math.Max(1, jsonx.Num(doc["quantity"]))
+		doc["amount"] = math.Floor(price*qty + 0.5)
+	}
+}
+
 func enforceProformaAmount(doc jsonx.M) {
 	if jsonx.Str(doc, "proformaNumber") == "" {
 		return

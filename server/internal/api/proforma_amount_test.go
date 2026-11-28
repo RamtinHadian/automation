@@ -40,3 +40,21 @@ func TestDealWithoutProformaKeepsTypedAmount(t *testing.T) {
 		t.Fatalf("amount changed to %v", doc["amount"])
 	}
 }
+
+func TestHealDealAmount(t *testing.T) {
+	doc := jsonx.M{"amount": 0, "unitPrice": 2575000, "quantity": 2}
+	healDealAmount(doc)
+	if jsonx.Num(doc["amount"]) != 5150000 {
+		t.Fatalf("amount %v", doc["amount"])
+	}
+	kept := jsonx.M{"amount": 900, "unitPrice": 5}
+	healDealAmount(kept)
+	if jsonx.Num(kept["amount"]) != 900 {
+		t.Fatal("a total that exists must stay")
+	}
+	none := jsonx.M{"amount": 0}
+	healDealAmount(none)
+	if jsonx.Num(none["amount"]) != 0 {
+		t.Fatal("no unit price: nothing to heal")
+	}
+}

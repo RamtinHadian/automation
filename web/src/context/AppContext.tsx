@@ -379,7 +379,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTasks((prev) => keep(prev, s.tasks || []));
       setReports((prev) => keep(prev, s.reports || []));
       setCustomers((prev) => keep(prev, s.customers || []));
-      setDeals((prev) => keep(prev, s.deals || []));
+      setDeals((prev) => keep(prev, (s.deals || []).map((d) => (!(d.amount > 0) && (d.unitPrice || 0) > 0 ? { ...d, amount: Math.round((d.unitPrice || 0) * Math.max(1, d.quantity || 1)) } : d))));
       setActivities((prev) => keep(prev, s.activities || []));
       setAuditLogs((prev) => keep(prev, s.auditLogs));
       setSettings((prev) => keep(prev, merged));
