@@ -167,8 +167,6 @@ export interface Customer {
   kind?: 'PERSON' | 'COMPANY' | 'SHOP';
   /** also (or only) a supplier: the same person / company can be both a customer and a supplier */
   isSupplier?: boolean;
-  /** ticked when the customer is defined: he only asks for prices («پرسشگر»); shown as a label next to the name (besides the automatic one for those who got a proforma and never bought) */
-  priceOnly?: boolean;
   // --- shop («SHOP»): the shop's name is name / company; the owner is firstName / lastName
   /** What the shop sells or does (guild / line of business). */
   shopType?: string;
@@ -367,8 +365,6 @@ export interface NotifyRule {
 
 /** How notifications look and sound in the whole organisation (set by an admin). */
 export interface NotifySettings {
-  /** «پرسشگر» by itself: a customer with at least this many recorded contacts (talks, calls, price requests) and no purchase is marked پرسشگر; 0 or empty = off */
-  inquirerAfter?: number;
   /** the colour of the incoming-call pop-up per customer status (LEAD, ACTIVE, INACTIVE, INQUIRER and the other kinds of caller): `on` switches it, `color` is a #hex */
   callColors?: Record<string, { on?: boolean; color?: string }>;
   enabled?: boolean;
