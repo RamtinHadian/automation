@@ -1,3 +1,4 @@
+import { CODE_LOCK_CLASS, CODE_LOCK_HINT, useWarehouseCodeLock } from '../../lib/warehouseCodes';
 import { PriceBox } from '../common/PriceBox';
 import { enterNextKeyDown } from '../../lib/enterNext';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -72,6 +73,7 @@ export const ProformaModal: React.FC<{
   );
   const [discountPercent, setDiscountPercent] = useState(deal.discountPercent ?? (deal.proformaNumber ? 0 : defaultDiscount || 0));
   // the warehouse: what is in stock and the prices of the product, to put next to each line
+  const codeLocked = useWarehouseCodeLock();
   const [catalog, setCatalog] = useState<WarehouseProduct[]>([]);
   useEffect(() => {
     api.crmProducts().then((r) => setCatalog(r.products)).catch(() => setCatalog([]));
@@ -508,7 +510,7 @@ export const ProformaModal: React.FC<{
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <input className={field} dir="ltr" placeholder={official ? 'شناسه کالا / خدمت (لازم)' : 'شناسه / کد کالا (اختیاری)'} value={it.code || ''} onChange={(e) => patchItem(i, { code: e.target.value })} />
+                  <input className={field + (codeLocked(it.code, it.title) ? CODE_LOCK_CLASS : '')} dir="ltr" placeholder={official ? 'شناسه کالا / خدمت (لازم)' : 'شناسه / کد کالا (اختیاری)'} value={it.code || ''} readOnly={codeLocked(it.code, it.title)} title={codeLocked(it.code, it.title) ? CODE_LOCK_HINT : undefined} onChange={(e) => patchItem(i, { code: e.target.value })} />
                   <input className={`${field} sm:col-span-2`} placeholder="توضیح بیشتر (اختیاری)" value={it.description || ''} onChange={(e) => patchItem(i, { description: e.target.value })} />
                 </div>
                 {(() => {

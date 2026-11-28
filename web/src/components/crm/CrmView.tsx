@@ -1,3 +1,4 @@
+import { CODE_LOCK_CLASS, CODE_LOCK_HINT, useWarehouseCodeLock } from '../../lib/warehouseCodes';
 import { ProductTitleInput } from './ProductTitleInput';
 import { CommissionView } from './CommissionView';
 import { CustomerCalls } from './CustomerCalls';
@@ -1652,6 +1653,7 @@ export const DealForm: React.FC<{
   onDelete: () => void;
   onCreateCustomer: (cb: (c: Customer) => void) => void;
 }> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onSaveMore, onProforma, proformaOn = true, onDelete, onCreateCustomer }) => {
+  const codeLocked = useWarehouseCodeLock();
   const [d, setD] = useState<Deal>(initial);
   // Enter in a title opens the line of the next opportunity (title, product code, amount); every line becomes an opportunity of the same customer
   const [more, setMore] = useState<{ id: string; title: string; code: string; amountText: string; amount: number; qtyText: string; qty: number }[]>([]);
@@ -1803,7 +1805,7 @@ export const DealForm: React.FC<{
             <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.55fr)_minmax(0,1.7fr)_minmax(0,1.7fr)] gap-3 [&>div]:min-w-0">
               <div>
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
-                <input className={field} dir="ltr" value={d.productCode || ''} onChange={(e) => patch({ productCode: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
+                <input className={field + (codeLocked(d.productCode, d.title) ? CODE_LOCK_CLASS : '')} dir="ltr" value={d.productCode || ''} readOnly={codeLocked(d.productCode, d.title)} title={codeLocked(d.productCode, d.title) ? CODE_LOCK_HINT : undefined} onChange={(e) => patch({ productCode: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">تعداد</label>
@@ -1918,7 +1920,7 @@ export const DealForm: React.FC<{
               <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.55fr)_minmax(0,1.7fr)_minmax(0,1.7fr)] gap-3 [&>div]:min-w-0">
                 <div>
                   <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
-                  <input className={field} dir="ltr" value={r.code} onChange={(e) => patchMore(r.id, { code: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="مثلاً A-1024" data-fid={`${r.id}-code`} />
+                  <input className={field + (codeLocked(r.code, r.title) ? CODE_LOCK_CLASS : '')} dir="ltr" value={r.code} readOnly={codeLocked(r.code, r.title)} title={codeLocked(r.code, r.title) ? CODE_LOCK_HINT : undefined} onChange={(e) => patchMore(r.id, { code: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="مثلاً A-1024" data-fid={`${r.id}-code`} />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-[#8C6F66] mb-1">تعداد</label>

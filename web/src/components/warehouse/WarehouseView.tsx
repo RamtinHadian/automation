@@ -1010,7 +1010,7 @@ const { showToast, currentUser } = useAppContext();
       {sepidar && <div className="rounded-xl bg-sky-50 border border-sky-200 p-3 text-[11px] font-bold text-sky-900">کد، نام و واحد از سپیدار می‌آید؛ فقط حداقل موجودی و یادداشت را می‌توانید تغییر دهید.</div>}
       <SepidarInfo info={p.sepidar} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div><span className={label}>کد کالا</span><input value={f.code} disabled={lockBase} onChange={(e) => setF({ ...f, code: e.target.value })} className={field} /></div>
+        <div><span className={label}>کد کالا</span><input value={f.code} disabled={lockBase || !!p.id} onChange={(e) => setF({ ...f, code: e.target.value })} className={field} />{p.id && !lockBase && <span className="block mt-1 text-[10px] font-bold text-[#8C6F66]" data-code-locked>کد کالا بعد از ثبت قابل تغییر نیست.</span>}</div>
         <UnitField value={f.unit} kind={f.kind} disabled={lockBase} onChange={(unit) => setF({ ...f, unit })} />
         <div className="sm:col-span-2"><span className={label}>نام کالا</span><input value={f.title} disabled={lockBase} onChange={(e) => setF({ ...f, title: e.target.value })} className={field} /></div>
         <div><span className={label}>نوع</span><select value={f.kind} disabled={lockBase && !!p.id} onChange={(e) => setF({ ...f, kind: e.target.value as 'good' | 'service' })} className={field} data-product-kind><option value="good">کالا (موجودی دارد)</option><option value="service">خدمت (موجودی ندارد)</option></select></div>

@@ -1,3 +1,4 @@
+import { CODE_LOCK_CLASS, CODE_LOCK_HINT, useWarehouseCodeLock } from '../../lib/warehouseCodes';
 import { PriceBox } from '../common/PriceBox';
 import { enterNextKeyDown } from '../../lib/enterNext';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -40,6 +41,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
   const [extra, setExtra] = useState<InvoiceExtra>(emptyInvoiceExtra);
   const [busy, setBusy] = useState(false);
   // the warehouse: its products come with their prices; the seller puts one of them in the price box of the row
+  const codeLocked = useWarehouseCodeLock();
   const [catalog, setCatalog] = useState<WarehouseProduct[]>([]);
   const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
   const [sugRow, setSugRow] = useState<number | null>(null);
@@ -141,7 +143,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
                   {rows.length > 1 && <button type="button" onClick={() => setRows((p) => p.filter((_, j) => j !== i))} className="px-2 text-rose-700 cursor-pointer" aria-label="حذف ردیف"><X className="w-4 h-4" /></button>}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                  <input className={inp} value={r.code} onChange={(e) => set(i, 'code', e.target.value)} placeholder={kind === 'OFFICIAL' ? 'شناسهٔ کالا *' : 'شناسهٔ کالا'} />
+                  <input className={inp + (codeLocked(r.code, r.title) ? CODE_LOCK_CLASS : '')} value={r.code} readOnly={codeLocked(r.code, r.title)} title={codeLocked(r.code, r.title) ? CODE_LOCK_HINT : undefined} onChange={(e) => set(i, 'code', e.target.value)} placeholder={kind === 'OFFICIAL' ? 'شناسهٔ کالا *' : 'شناسهٔ کالا'} />
                   <input className={inp} value={r.unit} onChange={(e) => set(i, 'unit', e.target.value)} placeholder={kind === 'OFFICIAL' ? 'واحد *' : 'واحد'} />
                   <input className={inp} inputMode="numeric" value={r.qty} onChange={(e) => set(i, 'qty', digitsOf(e.target.value))} placeholder="تعداد" />
                   <PriceBox value={r.price} onChange={(d) => set(i, 'price', d)} placeholder={`قیمت واحد (${unitName()})`} className={inp} prices={catalog.find((x) => x.code && x.code === r.code.trim())?.prices || []} onPick={(a) => set(i, 'price', String(toDisplay(a)))} />

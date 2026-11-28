@@ -1,3 +1,4 @@
+import { CODE_LOCK_CLASS, CODE_LOCK_HINT, useWarehouseCodeLock } from '../../lib/warehouseCodes';
 import { QuickCustomerDialog } from '../common/CustomerSelect';
 import React, { useMemo, useState } from 'react';
 import { Camera, Search, X } from 'lucide-react';
@@ -70,6 +71,7 @@ export const WarrantyForm: React.FC<{
   const isNew = !initial;
   const [customerId, setCustomerId] = useState(initial?.customerId || presetCustomerId || '');
   const [productName, setProductName] = useState(initial?.productName || '');
+  const codeLocked = useWarehouseCodeLock();
   const [productCode, setProductCode] = useState(initial?.productCode || '');
   const [serial, setSerial] = useState(initial?.serial || '');
   const [invoice, setInvoice] = useState(initial?.invoiceNumber || '');
@@ -124,7 +126,7 @@ export const WarrantyForm: React.FC<{
         </div>
         <div>
           <label className={label}>کد کالا</label>
-          <input className={field} dir="ltr" value={productCode} onChange={(e) => setProductCode(e.target.value)} placeholder="A-1024" />
+          <input className={field + (codeLocked(productCode, productName) ? CODE_LOCK_CLASS : '')} dir="ltr" value={productCode} readOnly={codeLocked(productCode, productName)} title={codeLocked(productCode, productName) ? CODE_LOCK_HINT : undefined} onChange={(e) => setProductCode(e.target.value)} placeholder="A-1024" />
         </div>
         <div className="sm:col-span-2">
           <label className={label}>شمارهٔ سریال / بچ</label>
