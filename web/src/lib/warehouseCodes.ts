@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 
 /**
- * When the warehouse is Sepidar's (the products, with their codes, come from it) the code is never typed over: a row of a proforma, an invoice, an opportunity or a warranty
- * that was filled from the warehouse (its code and its title are the product's) keeps its code locked; to have another code the row is removed and another product is chosen.
- * In Hoormand's own warehouse (no Sepidar) products and their codes can be edited, and nothing is locked.
+ * While an opportunity, a proforma, an invoice or a warranty is being written, the code of a row that was filled from the warehouse (its code and its title are the
+ * product's) is locked, whichever way the warehouse is kept; to have another code the row is removed and another product is chosen.
+ * (The code of the product itself is edited in the warehouse: free in Hoormand's own warehouse, locked when the products come from Sepidar.)
  * A row typed by hand (a code nobody has, or a code with another title) stays free.
  */
 let cache: { at: number; map: Promise<{ codes: Map<string, string>; sepidar: boolean }> } | null = null;
@@ -34,11 +34,11 @@ export const useWarehouseCodeLock = () => {
   }, []);
   return (code?: string, title?: string): boolean => {
     const c = (code || '').trim();
-    if (!c || !codes || !codes.sepidar) return false; // only when the products come from Sepidar; in Hoormand's own warehouse the code is the company's to edit
+    if (!c || !codes) return false;
     const t = codes.codes.get(c);
     return t !== undefined && t === (title || '').trim();
   };
 };
 
-export const CODE_LOCK_HINT = 'کد کالا از سپیدار آمده و قابل تغییر نیست؛ برای کد دیگر، ردیف را حذف کنید و کالای دیگری انتخاب کنید.';
+export const CODE_LOCK_HINT = 'کد از انبار آمده و هنگام ثبت فرصت و صدور فاکتور و پیش‌فاکتور قابل تغییر نیست؛ برای کد دیگر، ردیف را حذف کنید و کالای دیگری انتخاب کنید.';
 export const CODE_LOCK_CLASS = ' bg-[#F3EEE8] text-[#6B5048] cursor-not-allowed';
