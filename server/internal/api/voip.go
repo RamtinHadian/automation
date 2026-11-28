@@ -226,15 +226,21 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 	}
 	var where string
 	var args []any
+	// whoever has no right to the calls of the others («دیدن همهٔ تماس‌های شرکت») sees only the calls of his own (his number or his extension), everywhere
+	seesAll := me.IsAdmin() || jsonx.Bool(me.M, "canSeeAllCalls")
 	switch {
 	case q.Get("customer") != "":
 		if !me.CanUseCrm() {
 			httpx.Forbidden(w)
 			return
 		}
-		where, args = "customer_id = $1", []any{q.Get("customer")}
+		if seesAll {
+			where, args = "customer_id = $1", []any{q.Get("customer")}
+		} else {
+			where, args = "customer_id = $1 AND (user_id = $2 OR exts && $3::text[])", []any{q.Get("customer"), me.ID(), userExts(me)}
+		}
 	case q.Get("scope") == "all":
-		if !me.IsAdmin() {
+		if !seesAll {
 			httpx.Forbidden(w)
 			return
 		}

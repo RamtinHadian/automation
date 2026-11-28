@@ -523,7 +523,7 @@ export default function UserPanel() {
     if (!canAccessStatsMenu && mainMenuTab === 'stats') setMainMenuTab('files');
   }, [canAccessStatsMenu, mainMenuTab]);
   // the calls of the whole company (who rang which extension, and listening to the recordings): the top manager only
-  const canAccessCallsMenu = currentUser.role === 'SUPER_ADMIN';
+  const canAccessCallsMenu = currentUser.role === 'SUPER_ADMIN' || !!currentUser.canSeeAllCalls; // the calls of the whole company: the administrator, or whoever was given «دیدن همهٔ تماس‌های شرکت»
   useEffect(() => {
     if (!canAccessCallsMenu && mainMenuTab === 'calls') setMainMenuTab('files');
   }, [canAccessCallsMenu, mainMenuTab]);

@@ -165,7 +165,7 @@ func voipRecordingUpload(w http.ResponseWriter, r *http.Request) {
 
 // canHearCall: the people in the call, everybody who may see the customer's calls (CRM), and the admins.
 func canHearCall(r *http.Request, me auth.User, id string) bool {
-	if me.IsAdmin() {
+	if me.IsAdmin() || jsonx.Bool(me.M, "canSeeAllCalls") { // the right «دیدن همهٔ تماس‌های شرکت»
 		return true
 	}
 	var uid, cid string
@@ -181,7 +181,8 @@ func canHearCall(r *http.Request, me auth.User, id string) bool {
 			return true
 		}
 	}
-	return cid != "" && me.CanUseCrm()
+	_ = cid
+	return false // the calls of the others (even of a customer he may see) are heard only with the right to see every call
 }
 
 // voipRecording: GET /api/voip/recording/{id}

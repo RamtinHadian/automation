@@ -209,7 +209,7 @@ export const CallMenu: React.FC = () => {
           </div>,
           document.body
         )}
-      {logOpen && <CallLogModal onClose={() => setLogOpen(false)} isAdmin={currentUser.role === 'SUPER_ADMIN'} />}
+      {logOpen && <CallLogModal onClose={() => setLogOpen(false)} isAdmin={currentUser.role === 'SUPER_ADMIN' || !!currentUser.canSeeAllCalls} />}
     </div>
   );
 };
