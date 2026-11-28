@@ -546,11 +546,6 @@ func whProductPut(w http.ResponseWriter, r *http.Request) {
 		if code == "" || title == "" {
 			return nil, "", "کد کالا و نام کالا را بنویسید."
 		}
-		// the code of a product never changes after it is registered (documents, prices, photos and Sepidar all know the product by it)
-		var oldCode string
-		if store.Pool.QueryRow(r.Context(), `SELECT code FROM wh_products WHERE id = $1`, r.PathValue("id")).Scan(&oldCode) == nil && whCode(oldCode) != code {
-			return nil, "", "کد کالا بعد از ثبت قابل تغییر نیست؛ اگر اشتباه ثبت شده، کالا را با کد درست از نو بسازید."
-		}
 		minQty, _ := whNum(b, "minQty")
 		if minQty < 0 {
 			return nil, "", "حداقل موجودی نمی‌تواند منفی باشد."
@@ -1040,7 +1035,7 @@ func crmProducts(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, item)
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"products": out})
+	httpx.JSON(w, http.StatusOK, map[string]any{"products": out, "mode": whMode(ctx)})
 }
 
 func registerWarehouse(mux *http.ServeMux) {

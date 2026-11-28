@@ -766,7 +766,7 @@ leaveDecide: (id: string, status: 'APPROVED' | 'REJECTED', note: string, forward
   sepidarPair: () => request<{ code: string; expiresAt: string }>('POST', '/api/sepidar/pair', {}),
   sepidarJob: (b: Record<string, unknown>) => request<{ id: string }>('POST', '/api/sepidar/jobs', b),
   sepidarCancel: (id: string) => request<{ ok: true }>('POST', `/api/sepidar/jobs/${encodeURIComponent(id)}/cancel`, {}),
-  crmProducts: () => request<{ products: { imageAt?: number; imageCount?: number; id: string; code: string; title: string; unit: string; group?: string; kind?: string; warrantyMonths?: number; total: number; cost?: number; prices?: { title: string; amount: number }[] }[] }>('GET', '/api/crm/products'),
+  crmProducts: () => request<{ mode?: string; products: { imageAt?: number; imageCount?: number; id: string; code: string; title: string; unit: string; group?: string; kind?: string; warrantyMonths?: number; total: number; cost?: number; prices?: { title: string; amount: number }[] }[] }>('GET', '/api/crm/products'),
   warehouse: () => request<WhState>('GET', '/api/warehouse'),
   warehouseDocs: (q: Record<string, string>) => request<{ docs: WhDoc[] }>('GET', '/api/warehouse/docs?' + new URLSearchParams(q).toString()),
   warehouseCard: (product: string, warehouse = '') => request<WhCard>('GET', `/api/warehouse/card?product=${encodeURIComponent(product)}&warehouse=${encodeURIComponent(warehouse)}`),
