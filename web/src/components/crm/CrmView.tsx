@@ -1,4 +1,5 @@
-import { CODE_LOCK_CLASS, CODE_LOCK_HINT, useWarehouseCodeLock } from '../../lib/warehouseCodes';
+import { CODE_LOCK_CLASS } from '../../lib/warehouseCodes';
+const DEAL_CODE_HINT = 'کد کالا فقط از انبار می‌آید؛ نام کالا را بنویسید و از فهرست انبار انتخاب کنید (یا دکمهٔ «از انبار» را بزنید).';
 import { ProductTitleInput } from './ProductTitleInput';
 import { CommissionView } from './CommissionView';
 import { CustomerCalls } from './CustomerCalls';
@@ -54,6 +55,7 @@ import { ParagraphNotes, noteEntries, canEditNote } from '../common/ParagraphNot
 import { formatTaskDate, isOverdue, todayIso, formatDateTime } from '../../lib/taskDates';
 import { ActivityType, CrmActivity, Customer, CustomerFile, CustomerStatus, Deal, DealStage, NoteEntry, SocialEntry, SupportSub, SupportTicket, User, Warranty } from '../../types';
 import { Avatar, JalaliDateField } from '../tasks/TasksView';
+import { WarehousePicker, WarehouseProduct } from './WarehousePicker';
 import { ProformaModal } from './ProformaModal';
 import { DealMoveDialog } from './DealMoveDialog';
 import { KindFixModal } from './KindFixModal';
@@ -1653,15 +1655,16 @@ export const DealForm: React.FC<{
   onDelete: () => void;
   onCreateCustomer: (cb: (c: Customer) => void) => void;
 }> = ({ initial, isNew, customers, staff, canDelete, onClose, onSave, onSaveMore, onProforma, proformaOn = true, onDelete, onCreateCustomer }) => {
-  const codeLocked = useWarehouseCodeLock();
   const [d, setD] = useState<Deal>(initial);
   // Enter in a title opens the line of the next opportunity (title, product code, amount); every line becomes an opportunity of the same customer
   const [more, setMore] = useState<{ id: string; title: string; code: string; amountText: string; amount: number; qtyText: string; qty: number }[]>([]);
   // the products of the warehouse: the title of an opportunity is matched against them (who has no right to the warehouse simply gets no suggestions)
   const [whProducts, setWhProducts] = useState<WhProduct[]>([]);
+  const [pickFrom, setPickFrom] = useState<string | null>(null); // 'main' or the id of an extra line: the warehouse list is open for it
+  const whTitleOf = (code?: string) => (code ? whProducts.find((x) => x.code === code)?.title.trim() : undefined);
   useEffect(() => {
     let live = true;
-    api.warehouse().then((w) => { if (live) setWhProducts((w.products || []).filter((p) => p.active !== false)); }).catch(() => {});
+    api.crmProducts().then((r) => { if (live) setWhProducts((r.products as unknown as WhProduct[]).map((p) => ({ ...p, byWarehouse: {} }))); }).catch(() => {});
     return () => { live = false; };
   }, []);
   // after = the line the new one goes under (null = right under the first one)
@@ -1788,12 +1791,13 @@ export const DealForm: React.FC<{
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center">۱</span>
               <label data-fc-title className="text-[11px] font-black text-[#3A241F]">عنوان فرصت</label>
+              {whProducts.length > 0 && <button type="button" onClick={() => setPickFrom('main')} className="mr-auto flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10.5px] font-black text-violet-700 bg-violet-50 hover:bg-violet-100 cursor-pointer" data-deal-pick-warehouse>از انبار</button>}
             </div>
             <ProductTitleInput
               className={field}
               value={d.title}
               products={whProducts}
-              onChange={(t) => patch({ title: t })}
+              onChange={(t) => patch({ title: t, ...(d.productCode && whTitleOf(d.productCode) !== t.trim() ? { productCode: '' } : {}) })}
               onPick={(p) => patch({ title: p.title, productCode: p.code || d.productCode })}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'title'); } }}
               autoFocus={isNew}
@@ -1805,7 +1809,7 @@ export const DealForm: React.FC<{
             <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.55fr)_minmax(0,1.7fr)_minmax(0,1.7fr)] gap-3 [&>div]:min-w-0">
               <div>
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
-                <input className={field + (codeLocked(d.productCode, d.title) ? CODE_LOCK_CLASS : '')} dir="ltr" value={d.productCode || ''} readOnly={codeLocked(d.productCode, d.title)} title={codeLocked(d.productCode, d.title) ? CODE_LOCK_HINT : undefined} onChange={(e) => patch({ productCode: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
+                <input className={field + CODE_LOCK_CLASS} dir="ltr" value={d.productCode || ''} readOnly title={DEAL_CODE_HINT} onChange={() => undefined} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(null, 'code'); } }} placeholder="مثلاً A-1024" data-fid="main-code" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-[#8C6F66] mb-1">تعداد</label>
@@ -1897,6 +1901,18 @@ export const DealForm: React.FC<{
               </div>
             </div>
           </div>
+          {pickFrom !== null && (
+            <WarehousePicker
+              products={whProducts as unknown as WarehouseProduct[]}
+              priceFor={(p) => (p.prices && p.prices[0] ? p.prices[0].amount : 0)}
+              onPick={(p) => {
+                if (pickFrom === 'main') patch({ title: p.title, productCode: p.code || d.productCode });
+                else patchMore(pickFrom, { title: p.title, code: p.code || '' });
+                setPickFrom(null);
+              }}
+              onClose={() => setPickFrom(null)}
+            />
+          )}
           {more.map((r, i) => (
             <div key={r.id} className="rounded-2xl border border-[#EBDBCE] bg-white p-3.5 space-y-3 shadow-2xs" data-deal-more-row>
               <div className="flex items-center gap-2">
@@ -1909,7 +1925,7 @@ export const DealForm: React.FC<{
                 value={r.title}
                 products={whProducts}
                 fid={`${r.id}-title`}
-                onChange={(t) => patchMore(r.id, { title: t })}
+                onChange={(t) => patchMore(r.id, { title: t, ...(r.code && whTitleOf(r.code) !== t.trim() ? { code: '' } : {}) })}
                 onPick={(p) => patchMore(r.id, { title: p.title, code: p.code || r.code })}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'title'); }
@@ -1920,7 +1936,7 @@ export const DealForm: React.FC<{
               <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.55fr)_minmax(0,1.7fr)_minmax(0,1.7fr)] gap-3 [&>div]:min-w-0">
                 <div>
                   <label className="block text-[10px] font-black text-[#8C6F66] mb-1">کد کالا</label>
-                  <input className={field + (codeLocked(r.code, r.title) ? CODE_LOCK_CLASS : '')} dir="ltr" value={r.code} readOnly={codeLocked(r.code, r.title)} title={codeLocked(r.code, r.title) ? CODE_LOCK_HINT : undefined} onChange={(e) => patchMore(r.id, { code: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="مثلاً A-1024" data-fid={`${r.id}-code`} />
+                  <input className={field + CODE_LOCK_CLASS} dir="ltr" value={r.code} readOnly title={DEAL_CODE_HINT} onChange={() => undefined} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enterAt(r.id, 'code'); } }} placeholder="مثلاً A-1024" data-fid={`${r.id}-code`} />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-[#8C6F66] mb-1">تعداد</label>
