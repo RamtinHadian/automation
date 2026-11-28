@@ -8,7 +8,7 @@ import { CrmActivity } from '../../types';
 import { field, label } from './crmUi';
 import { MoneyInput } from '../common/MoneyInput';
 
-type Product = { id: string; code: string; title: string; unit: string; group?: string; total: number; prices?: { title: string; amount: number }[] };
+type Product = { noStock?: boolean; id: string; code: string; title: string; unit: string; group?: string; total: number; prices?: { title: string; amount: number }[] };
 
 const money = (toman: number) => formatMoney(toman);
 const parse = (s: string) => Number(fold(s).replace(/[^0-9.]/g, '')) || 0;
@@ -75,7 +75,7 @@ export const QuoteForm: React.FC<{ onSave: (text: string, extra: Partial<CrmActi
           <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-900">
             <span className="truncate">{picked.title} <span className="font-bold text-emerald-700">· کد {toPersianDigits(picked.code)}</span></span>
             <span className="flex items-center gap-2 shrink-0 font-bold">
-              <span className={picked.total > 0 ? 'text-emerald-700' : 'text-rose-700'}>{picked.total > 0 ? `موجودی ${toPersianDigits(picked.total)} ${picked.unit}` : 'ناموجود'}</span>
+              {!picked.noStock && <span className={picked.total > 0 ? 'text-emerald-700' : 'text-rose-700'}>{picked.total > 0 ? `موجودی ${toPersianDigits(picked.total)} ${picked.unit}` : 'ناموجود'}</span>}
               <button type="button" onClick={() => { setPicked(null); setTitle(''); }} className="underline cursor-pointer">تغییر</button>
             </span>
           </div>
@@ -102,7 +102,7 @@ export const QuoteForm: React.FC<{ onSave: (text: string, extra: Partial<CrmActi
                     <div className="text-xs font-black text-[#3A241F]">{p.title}</div>
                     <div className="text-[10px] font-bold text-[#8C6F66] flex items-center gap-2 flex-wrap">
                       <span>کد {toPersianDigits(p.code)}</span>
-                      <span className={p.total > 0 ? 'text-emerald-700' : 'text-rose-700'}>{p.total > 0 ? `موجودی ${toPersianDigits(p.total)} ${p.unit}` : 'ناموجود'}</span>
+                      {!p.noStock && <span className={p.total > 0 ? 'text-emerald-700' : 'text-rose-700'}>{p.total > 0 ? `موجودی ${toPersianDigits(p.total)} ${p.unit}` : 'ناموجود'}</span>}
                       {(p.prices || []).slice(0, 3).map((x) => (
                         <span key={x.title}>{x.title}: {money(x.amount)}</span>
                       ))}

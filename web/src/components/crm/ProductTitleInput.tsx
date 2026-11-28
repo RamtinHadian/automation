@@ -100,7 +100,7 @@ export const ProductTitleInput: React.FC<{
                 <span className="block truncate text-[12px] font-black text-[#3A241F]">{p.title}</span>
                 <span className="block truncate text-[10px] font-bold text-[#8C6F66]" dir="rtl">{[p.code && `کد ${toPersianDigits(p.code)}`, p.group].filter(Boolean).join(' · ')}</span>
               </span>
-              {p.kind !== 'service' && <span className="rounded-full bg-[#FAF5F1] border border-[#EBDBCE] px-2 py-0.5 text-[10px] font-black text-[#8C6F66] shrink-0">موجودی {toPersianDigits(p.total)}</span>}
+              {p.kind !== 'service' && !p.noStock && <span className="rounded-full bg-[#FAF5F1] border border-[#EBDBCE] px-2 py-0.5 text-[10px] font-black text-[#8C6F66] shrink-0">موجودی {toPersianDigits(p.total)}</span>}
             </button>
           ))}
           {!exact && text && <div className="px-2 pt-1 text-[10px] font-bold text-violet-700">اگر کالای تازه‌ای است، همان‌طور که نوشتید بماند؛ «جدید» علامت می‌خورد.</div>}

@@ -1006,6 +1006,7 @@ func crmProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	seesStock := canUseWarehouse(me)
 	bal, err := whBalances(ctx, store.Pool)
 	if err != nil {
 		internalError(w)
@@ -1029,7 +1030,13 @@ func crmProducts(w http.ResponseWriter, r *http.Request) {
 		for _, n := range bal[id] {
 			total += n
 		}
+		if !seesStock { // someone who writes opportunities but has no right to the warehouse sees the names, never the stock
+			total = 0
+		}
 		item := jsonx.M{"id": id, "code": jsonx.Str(d, "code"), "title": jsonx.Str(d, "title"), "unit": jsonx.Str(d, "unit"), "group": jsonx.Str(d, "group"), "kind": jsonx.Str(d, "kind"), "warrantyMonths": jsonx.Int(d, "warrantyMonths"), "total": math.Round(total*1000) / 1000, "prices": d["prices"], "cost": costFor(me, d)}
+		if !seesStock {
+			item["noStock"] = true
+		}
 		if st, has := stamps[id]; has {
 			item["imageAt"], item["imageCount"] = st[0], st[1]
 		}

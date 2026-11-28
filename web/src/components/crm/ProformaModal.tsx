@@ -466,7 +466,7 @@ export const ProformaModal: React.FC<{
                                   <span className="block text-[11px] font-black text-violet-700">{price ? `${toman(price)} ${unitName()}` : 'بدون قیمت'}</span>
                                   {p.kind === 'service' ? (
                                     <span className="block text-[10px] font-black text-sky-700">خدمات</span>
-                                  ) : (
+                                  ) : p.noStock ? null : (
                                     <span className={`block text-[10px] font-bold ${p.total > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>موجودی: {toPersianDigits(p.total)} {p.unit}</span>
                                   )}
                                 </span>
@@ -519,7 +519,7 @@ export const ProformaModal: React.FC<{
                   const last = lastPriceFor(it.code);
                   return (
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] font-bold" data-item-hints>
-                      {p.kind === 'service' ? <span className="text-sky-700">خدمات (موجودی ندارد)</span> : <span className={p.total <= 0 || p.total < (it.qty || 0) ? 'text-rose-600' : 'text-emerald-700'}>موجودی انبار: {toPersianDigits(p.total)} {p.unit}{p.total < (it.qty || 0) ? ' (کمتر از تعداد درخواستی)' : ''}</span>}
+                      {p.kind === 'service' ? <span className="text-sky-700">خدمات (موجودی ندارد)</span> : p.noStock ? null : <span className={p.total <= 0 || p.total < (it.qty || 0) ? 'text-rose-600' : 'text-emerald-700'}>موجودی انبار: {toPersianDigits(p.total)} {p.unit}{p.total < (it.qty || 0) ? ' (کمتر از تعداد درخواستی)' : ''}</span>}
                       {last && <button type="button" onClick={() => patchItem(i, { unitPrice: last.price })} className="text-violet-700 underline cursor-pointer">آخرین قیمت به این مشتری: {formatMoney(last.price)}</button>}
                     </div>
                   );

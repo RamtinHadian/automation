@@ -131,7 +131,7 @@ export const StandaloneInvoiceDialog: React.FC<{ onClose: () => void; onIssued: 
                               </span>
                               <span className="shrink-0 text-left">
                                 <span className="block text-[11px] font-black text-violet-700">{p.prices && p.prices[0] ? `${formatMoney(p.prices[0].amount)} ${unitName()}` : 'بدون قیمت'}</span>
-                                {p.kind === 'service' ? <span className="block text-[10px] font-black text-sky-700">خدمات</span> : <span className={`block text-[10px] font-bold ${p.total > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>موجودی: {toPersianDigits(p.total)} {p.unit}</span>}
+                                {p.kind === 'service' ? <span className="block text-[10px] font-black text-sky-700">خدمات</span> : p.noStock ? null : <span className={`block text-[10px] font-bold ${p.total > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>موجودی: {toPersianDigits(p.total)} {p.unit}</span>}
                               </span>
                             </button>
                           ))}

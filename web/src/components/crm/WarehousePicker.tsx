@@ -7,6 +7,8 @@ import { formatMoney, unitName } from '../../lib/money';
 import { Modal } from './crmUi';
 
 export interface WarehouseProduct {
+  /** the person has no right to the warehouse: names are shown, the stock is not */
+  noStock?: boolean;
   imageAt?: number;
   imageCount?: number;
   id: string;
@@ -79,7 +81,7 @@ export const WarehousePicker: React.FC<{
                   <span className="block text-[11px] font-black text-violet-700">{price ? `${formatMoney(price)} ${unitName()}` : 'بدون قیمت'}</span>
                   {p.kind === 'service' ? (
                     <span className="block text-[10px] font-black text-sky-700">خدمات</span>
-                  ) : (
+                  ) : p.noStock ? null : (
                     <span className={`block text-[10px] font-bold ${p.total > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>موجودی: {toPersianDigits(p.total)} {p.unit}</span>
                   )}
                 </span>
