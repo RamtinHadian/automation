@@ -215,7 +215,7 @@ func voipCall(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w)
 }
 
-// voipOwnCustomers: the condition «the call is of a number that is nobody's customer, or of a customer this person works with»; `first` is the number of the
+// voipOwnCustomers: the condition «the call is of a number that is nobody's customer, or of a customer that is his OWN» (his own, given to him, or of an opportunity or follow-up of his: the customers of the colleagues he may see in the CRM do not count here, nor those of the unit he manages); `first` is the number of the
 // parameter that holds his id (the next one holds the people whose customers he works with besides his own).
 func voipOwnCustomers(first int) string {
 	one, two := "$"+strconv.Itoa(first), "$"+strconv.Itoa(first+1)
@@ -245,7 +245,7 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 		if seesAll {
 			where, args = "customer_id = $1", []any{q.Get("customer")}
 		} else {
-			where, args = "customer_id = $1 AND (user_id = $2 OR exts && $3::text[])"+voipOwnCustomers(4), []any{q.Get("customer"), me.ID(), userExts(me), me.ID(), crmPeople(r.Context(), me)}
+			where, args = "customer_id = $1 AND (user_id = $2 OR exts && $3::text[])"+voipOwnCustomers(4), []any{q.Get("customer"), me.ID(), userExts(me), me.ID(), []string{}}
 		}
 	case q.Get("scope") == "all":
 		if !seesAll {
@@ -256,7 +256,7 @@ func voipCalls(w http.ResponseWriter, r *http.Request) {
 	default:
 		where, args = "(user_id = $1 OR exts && $2::text[])", []any{me.ID(), userExts(me)}
 		if !crmSeesAll(me) { // his own calls, but of the customers of others he sees nothing: only callers nobody has as a customer, and his own customers
-			where, args = where+voipOwnCustomers(3), append(args, me.ID(), crmPeople(r.Context(), me))
+			where, args = where+voipOwnCustomers(3), append(args, me.ID(), []string{})
 		}
 	}
 	rows, err := store.Pool.Query(r.Context(),
